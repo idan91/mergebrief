@@ -29,7 +29,7 @@ describe("BranchPair", () => {
     render(<BranchPair headRef="feature/thing" />);
     const pair = screen.getByTestId("branch-pair");
     expect(pair?.textContent).toContain("feature/thing");
-    expect(pair?.textContent).not.toContain("←");
+    expect(pair.querySelector('[data-icon="arrow-up"]')).toBeNull();
     expect(pair?.getAttribute("role")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Copy head branch" }),
@@ -45,7 +45,6 @@ describe("BranchPair", () => {
     expect(pair?.getAttribute("role")).toBe("group");
     expect(pair?.getAttribute("aria-label")).toBe("feature/thing into main");
     expect(pair?.textContent).toContain("main");
-    expect(pair?.textContent).toContain("←");
     expect(pair?.textContent).toContain("feature/thing");
     expect(
       screen.getByRole("button", { name: "Copy base branch" }),
@@ -53,7 +52,9 @@ describe("BranchPair", () => {
     expect(
       screen.getByRole("button", { name: "Copy head branch" }),
     ).toBeTruthy();
-    expect(screen.getByText("←").getAttribute("aria-hidden")).toBe("true");
+    const arrow = pair.querySelector('[data-icon="arrow-up"]');
+    expect(arrow?.getAttribute("aria-hidden")).toBe("true");
+    expect(arrow?.getAttribute("data-rotation")).toBe("270");
   });
 
   it("copy buttons write the bare branch name", async () => {

@@ -133,8 +133,11 @@ describe("RiskSurface chooser", () => {
     expect(screen.queryByText(/Comment says the param is optional/)).toBeNull();
     const twist = screen.getByRole("button", { name: "Risk notes" });
     expect(twist.getAttribute("aria-expanded")).toBe("false");
+    const caret = twist.querySelector('[data-icon="caret-down"]');
+    expect(caret?.getAttribute("data-rotation")).toBe("270");
     fireEvent.click(twist);
     expect(twist.getAttribute("aria-expanded")).toBe("true");
+    expect(caret?.hasAttribute("data-rotation")).toBe(false);
     expect(screen.getByText(/Comment says the param is optional/)).toBeTruthy();
   });
 

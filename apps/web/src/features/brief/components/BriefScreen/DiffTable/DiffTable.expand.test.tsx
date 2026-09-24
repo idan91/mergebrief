@@ -416,9 +416,13 @@ describe("DiffTable expansion controls", () => {
     expect(header?.textContent).toContain("@@ -33,3 +30,3 @@");
     const up = screen.getByRole("button", { name: "Show 20 more lines above" });
     expect(header?.contains(up)).toBe(true);
+    const upArrow = up.querySelector('[data-icon="arrow-up"]');
+    expect(upArrow?.hasAttribute("data-rotation")).toBe(false);
     const down = screen.getByRole("button", {
       name: "Show 20 more lines below",
     });
+    const downArrow = down.querySelector('[data-icon="arrow-up"]');
+    expect(downArrow?.getAttribute("data-rotation")).toBe("180");
     expect(
       view.container.querySelector("tbody")?.lastElementChild?.contains(down),
     ).toBe(true);

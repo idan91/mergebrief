@@ -54,20 +54,9 @@
   }
 
   .twist {
+    display: inline-grid;
     align-self: center;
     color: var(--color-text-2);
-    font-size: var(--font-size-xs);
-    transition: transform 0.15s ease;
-
-    &[data-open] {
-      transform: rotate(90deg);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .twist {
-      transition: none;
-    }
   }
 
   .title {

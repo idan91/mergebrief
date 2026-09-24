@@ -88,18 +88,17 @@
         display: none;
       }
 
-      &::before {
-        content: "▸";
-        display: inline-block;
-        margin-inline-end: functions.to-rem(8px);
-        color: var(--color-text-3);
-      }
-
       @include mixins.focus-visible;
     }
 
-    &[open] > summary::before {
-      content: "▾";
+    .marker {
+      margin-inline-end: functions.to-rem(8px);
+      color: var(--color-text-3);
+      vertical-align: -1px;
+    }
+
+    &:not([open]) > summary .marker {
+      transform: rotate(-90deg);
     }
 
     > div,

@@ -1,11 +1,10 @@
-import type { ComponentType, SVGProps } from "react";
 import type { ValueOf } from "types/utils";
 
-export type MarkComponent = ComponentType<SVGProps<SVGSVGElement>>;
+import type { IconName } from "@web/components/Icon/types";
 
-/** A provider's badge assets: its official mark and display name. */
+/** A provider's badge assets: its official mark in the icon set and its display name. */
 export interface MarkConfig {
-  mark: MarkComponent;
+  mark: IconName;
   name: string;
 }
 

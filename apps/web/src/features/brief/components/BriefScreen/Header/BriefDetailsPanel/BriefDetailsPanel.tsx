@@ -7,6 +7,12 @@ import { IconButton } from "@web/components/IconButton/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import type { Brief } from "../../../../types";
 import type { RepoConfigContext } from "../../../../utils/repoConfig";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./BriefDetailsPanel.module.scss";
 
 export interface BriefDetailsPanelProps {
@@ -173,7 +179,7 @@ export function BriefDetailsPanel({
             open && landing === "warnings" ? close() : openOnWarnings()
           }
         >
-          <span aria-hidden="true">⚠</span>
+          <Icon name={IconNames.WARNING} size={IconSizes.SM} />
           <span>{t("brief.details.warnings", { count: warnings.length })}</span>
         </Chip>
       ) : null}
@@ -229,8 +235,12 @@ function ArtifactSection({
             </dd>
             <dt>{t("brief.details.fullShas")}</dt>
             <dd className={styles["shas"]}>
-              {brief.commitRange.base}
-              {" → "}
+              {brief.commitRange.base}{" "}
+              <Icon
+                name={IconNames.ARROW_UP}
+                rotation={IconRotations.QUARTER}
+                size={IconSizes.SM}
+              />{" "}
               {brief.commitRange.head}
             </dd>
           </>
@@ -243,14 +253,22 @@ function ArtifactSection({
             <dd>
               {hasBaselineIndex
                 ? `_${brief.baselineIndex}`
-                : short(brief.baselineSha)}
-              {" → "}
+                : short(brief.baselineSha)}{" "}
+              <Icon
+                name={IconNames.ARROW_UP}
+                rotation={IconRotations.QUARTER}
+                size={IconSizes.SM}
+              />{" "}
               {hasHeadIndex ? `_${brief.headIndex}` : short(brief.headSha)}
             </dd>
             <dt>{t("brief.details.fullShas")}</dt>
             <dd className={styles["shas"]}>
-              {brief.baselineSha}
-              {" → "}
+              {brief.baselineSha}{" "}
+              <Icon
+                name={IconNames.ARROW_UP}
+                rotation={IconRotations.QUARTER}
+                size={IconSizes.SM}
+              />{" "}
               {brief.headSha}
             </dd>
           </>

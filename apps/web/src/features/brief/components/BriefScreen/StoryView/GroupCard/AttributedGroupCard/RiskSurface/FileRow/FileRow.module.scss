@@ -83,18 +83,6 @@
 
   .twist {
     display: block;
-    inline-size: 10px;
-    block-size: 10px;
-    transition: transform 0.2s;
-    transform-origin: 50% 50%;
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  }
-
-  .file[data-notes-open] .twist {
-    transform: rotate(90deg);
   }
 
   .path {

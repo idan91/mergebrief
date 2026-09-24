@@ -18,6 +18,12 @@ import {
   type SegmentedOption,
 } from "@web/components/SegmentedControl/SegmentedControl";
 import type { BriefTimeline } from "../../../../utils/timeline";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./TimelineNavigator.module.scss";
 
 export interface TimelineNavigatorProps {
@@ -117,7 +123,11 @@ export function TimelineNavigator({
             search={(prev) => prev}
             to="/briefs/$briefId"
           >
-            ←
+            <Icon
+              name={IconNames.ARROW_UP}
+              rotation={IconRotations.THREE_QUARTERS}
+              size={IconSizes.MD}
+            />
           </Link>
         ) : (
           <span
@@ -125,7 +135,11 @@ export function TimelineNavigator({
             className={styles["arrow"]}
             data-state="disabled"
           >
-            ←
+            <Icon
+              name={IconNames.ARROW_UP}
+              rotation={IconRotations.THREE_QUARTERS}
+              size={IconSizes.MD}
+            />
           </span>
         )}
         <label>
@@ -161,7 +175,11 @@ export function TimelineNavigator({
             search={(prev) => prev}
             to="/briefs/$briefId"
           >
-            →
+            <Icon
+              name={IconNames.ARROW_UP}
+              rotation={IconRotations.QUARTER}
+              size={IconSizes.MD}
+            />
           </Link>
         ) : (
           <span
@@ -169,7 +187,11 @@ export function TimelineNavigator({
             className={styles["arrow"]}
             data-state="disabled"
           >
-            →
+            <Icon
+              name={IconNames.ARROW_UP}
+              rotation={IconRotations.QUARTER}
+              size={IconSizes.MD}
+            />
           </span>
         )}
       </nav>

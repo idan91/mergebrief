@@ -533,6 +533,9 @@
   /* Repo-config origin chip: same register as the generation origin line;
      warning state gains the amber accent. */
   .repoConfigChip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
     border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-md);

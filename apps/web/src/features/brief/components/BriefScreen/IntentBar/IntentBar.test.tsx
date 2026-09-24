@@ -101,7 +101,7 @@ describe("IntentBar", () => {
     ]) {
       expect(toggle.textContent).toContain(pair);
     }
-    // Provenance, not a bucket count — the Ticket alignment card lives in the
+    // Provenance, not a bucket count: the Ticket alignment card lives in the
     // panel preamble, never the bar.
     expect(toggle.textContent).not.toContain("Ticket alignment");
     expect(toggle.textContent).not.toContain("partial");
@@ -111,15 +111,20 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     const toggle = screen.getByRole("button", { name: /intent check/i });
     expect(toggle).toHaveProperty("ariaExpanded", "false");
+    const twist = toggle.querySelector('[data-icon="caret-down"]');
+    expect(twist?.getAttribute("data-rotation")).toBe("270");
     // The panel exists but sits behind the `hidden` attribute until opened.
     expect(
       screen.getByText("add the widget endpoint").closest("[hidden]"),
     ).not.toBeNull();
   });
 
-  it("opens in full — the twist is the only disclosure, no inner height cap", () => {
+  it("opens in full, the twist is the only disclosure, no inner height cap", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    const toggle = screen.getByRole("button", { name: /intent check/i });
+    fireEvent.click(toggle);
+    const twist = toggle.querySelector('[data-icon="caret-down"]');
+    expect(twist?.hasAttribute("data-rotation")).toBe(false);
     // No second expand layer: the per-bucket clamp owns overflow instead.
     expect(
       screen.queryByRole("button", { name: /show full intent check/i }),
@@ -127,7 +132,7 @@ describe("IntentBar", () => {
     expect(screen.queryByTestId("intent-text")).toBeNull();
   });
 
-  it("expands on click with no framing line — the scope note leads the panel", () => {
+  it("expands on click with no framing line, the scope note leads the panel", () => {
     const withScope: IntentCheck = {
       ...PRECISE,
       scopeNote: "later URL-box work is outside this diff",
@@ -142,7 +147,7 @@ describe("IntentBar", () => {
     ).toBeLessThan(body.indexOf("Ticket alignment"));
   });
 
-  it("renders the Ticket alignment subsection in the preamble, above the split", () => {
+  it("renders the Ticket alignment subsection in the preamble", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     expect(
@@ -177,7 +182,7 @@ describe("IntentBar", () => {
     expect(screen.getByTestId("ticket-alignment")).toBeTruthy();
     // Precise, so the row must not blame the ticket's scope.
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read — the ticket states no goal to check this PR against",
+      "no read \u2014 the ticket states no goal to check this PR against",
     );
     expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
   });
@@ -200,7 +205,7 @@ describe("IntentBar", () => {
     expect(screen.getByText("add the widget endpoint")).toBeTruthy();
   });
 
-  it("omits the subsection entirely without a primary ticket — no linked-tickets list remains", () => {
+  it("omits the subsection without a primary ticket, no linked list remains", () => {
     render(
       <IntentBar intentCheck={PRECISE_NO_TICKET} jumpToGroup={() => {}} />,
     );
@@ -212,7 +217,7 @@ describe("IntentBar", () => {
     expect(screen.queryByRole("link", { name: /T-1/ })).toBeNull();
   });
 
-  it("renders broad sources as the same quiet bar with an unavailability line and no buckets", () => {
+  it("renders broad sources as the quiet bar with a line and no buckets", () => {
     render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
     expect(screen.getByText(/intent check unavailable/i)).toBeTruthy();
     expect(screen.queryByText("1 accomplished")).toBeNull();
@@ -224,7 +229,7 @@ describe("IntentBar", () => {
       screen.getByRole("link", { name: /^EPIC-9 ?\(opens in a new tab\)$/ }),
     ).toBeTruthy();
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read — the ticket scope is too broad to check against this PR",
+      "no read \u2014 the ticket scope is too broad to check against this PR",
     );
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
@@ -285,18 +290,18 @@ describe("IntentBar", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const button = screen.getByRole("button", {
-      name: "go to change-group g1 — Add the widget endpoint and its store",
+      name: "go to change-group g1 \u2014 Add the widget endpoint and its store",
     });
     // The hover tooltip carries the same text as the accessible name.
     expect(button.getAttribute("title")).toBe(
-      "go to change-group g1 — Add the widget endpoint and its store",
+      "go to change-group g1 \u2014 Add the widget endpoint and its store",
     );
     // A group with no known title keeps the plain label.
     const bare = screen.getByRole("button", { name: "go to change-group g2" });
     expect(bare.getAttribute("title")).toBe("go to change-group g2");
   });
 
-  it("wires the go-to buttons to jumpToGroup (the TocBar path)", () => {
+  it("wires the go-to buttons to jumpToGroup on the TocBar path", () => {
     const jumpToGroup = vi.fn();
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={jumpToGroup} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
@@ -310,7 +315,7 @@ describe("IntentBar", () => {
     expect(jumpToGroup).toHaveBeenCalledWith("g2");
   });
 
-  it("gives every item a plain bullet — the jump is no longer the marker", () => {
+  it("gives every item a plain bullet, the jump is no longer the marker", () => {
     const { container } = render(
       <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
     );
@@ -321,7 +326,7 @@ describe("IntentBar", () => {
     expect(marked.length).toBe(items.length);
   });
 
-  it("labels go-to buttons with ids only on multi-group claims (ids-multi)", () => {
+  it("labels go-to buttons with ids only on multi-group claims", () => {
     const multi: IntentCheck = {
       ...PRECISE,
       accomplished: [
@@ -336,7 +341,7 @@ describe("IntentBar", () => {
     };
     render(<IntentBar intentCheck={multi} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Single-group buttons stay a bare ↳ — no visible id text.
+    // Single-group buttons stay a bare ↳ with no visible id text.
     const bare = screen.getByRole("button", { name: "go to change-group g2" });
     expect(bare.textContent).toBe("↳");
     // Multi-group claims disambiguate with a visible id per button.
@@ -349,7 +354,7 @@ describe("IntentBar", () => {
     ).toBe("↳g6");
   });
 
-  it('labels an item quoting the primary ticket "ticket", any other linked page "source", and an empty sourceUrl the PR description', () => {
+  it("labels the source: ticket, source, or the PR description", () => {
     const withLinkedPage: IntentCheck = {
       ...PRECISE,
       statedButMissing: [
@@ -374,11 +379,11 @@ describe("IntentBar", () => {
     });
     expect(page.getAttribute("href")).toBe("https://docs.example/spec");
     expect(link?.getAttribute("rel")).toContain("noreferrer");
-    // doneButUnstated item sources from the diff — no ticket link, no attribution row.
+    // doneButUnstated item sources from the diff: no ticket link, no attribution row.
     expect(screen.getByText("drive-by lint fix")).toBeTruthy();
   });
 
-  it("keeps a valid source link even when the quote is empty (warn-only uncited item)", () => {
+  it("keeps a valid source link on a warn-only item with an empty quote", () => {
     const uncited: IntentCheck = {
       ...PRECISE,
       accomplished: [
@@ -403,7 +408,7 @@ describe("IntentBar", () => {
     expect(link.getAttribute("href")).toBe("https://tracker.example/T-9");
   });
 
-  it("never renders a non-http(s) sourceUrl as a link (scheme sanitization)", () => {
+  it("never renders a sourceUrl off http or https as a link", () => {
     const malicious: IntentCheck = {
       ...PRECISE,
       accomplished: [
@@ -427,7 +432,7 @@ describe("IntentBar", () => {
     expect(screen.queryByRole("link", { name: /source/ })).toBeNull();
   });
 
-  it("renders quotes as text-only (no markdown/HTML interpretation)", () => {
+  it("renders quotes as text only, no markdown or HTML", () => {
     const htmlish: IntentCheck = {
       ...PRECISE,
       accomplished: [
@@ -486,7 +491,7 @@ function bodyText(): string {
   return panel?.textContent ?? "";
 }
 
-describe("IntentBar — clamp", () => {
+describe("IntentBar clamp", () => {
   const manyItems = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
       intent: `ask number ${index + 1}`,
@@ -571,14 +576,14 @@ describe("IntentBar — clamp", () => {
   });
 });
 
-describe("IntentBar — alarm buckets", () => {
+describe("IntentBar alarm buckets", () => {
   const WITH_ALARMS: IntentCheck = {
     ...PRECISE,
     deviations: [item("drops the cache the ticket asked to keep")],
     claimedButUnachieved: [item("claims the flake is fixed but only skips it")],
   };
 
-  it("ships the DOM in split order: Checks out first, static order within each side", () => {
+  it("ships the DOM in split order, Checks out first, static within a side", () => {
     render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const body = bodyText();
@@ -595,7 +600,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(order).toEqual(order.toSorted((a, b) => a - b));
   });
 
-  it("exposes the real heading ladder: band h2, split heads h3, bucket labels h4", () => {
+  it("exposes the heading ladder: band h2, split heads h3, buckets h4", () => {
     render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
     expect(
       screen.getByRole("heading", { level: 2, name: /intent check/i }),
@@ -627,7 +632,7 @@ describe("IntentBar — alarm buckets", () => {
     };
     render(<IntentBar intentCheck={oneSided} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Both heads always render on a precise check — an empty "Needs a look"
+    // Both heads always render on a precise check; an empty "Needs a look"
     // is the band's best news, said out loud instead of silently dropped.
     expect(
       screen.getByRole("heading", { level: 3, name: "Checks out" }),
@@ -661,7 +666,7 @@ describe("IntentBar — alarm buckets", () => {
     cleanup();
     render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Unavailable sources render no split body at all — no heads, no lines.
+    // Unavailable sources render no split body at all: no heads, no lines.
     // The Ticket alignment card's own h3 is the only level-3 heading left.
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
     expect(screen.queryByText("Checks out")).toBeNull();
@@ -669,7 +674,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(screen.queryByText(/^nothing /)).toBeNull();
   });
 
-  it("carries one muted caution line per NON-EMPTY alarm bucket, and none otherwise", () => {
+  it("carries one muted caution line per non-empty alarm bucket only", () => {
     render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     // Exactly two alarm buckets are non-empty here → exactly two cautions.
@@ -678,12 +683,12 @@ describe("IntentBar — alarm buckets", () => {
     cleanup();
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Neutral buckets never carry a caution — a caution with nothing under it
+    // Neutral buckets never carry a caution; a caution with nothing under it
     // is exactly the anchoring noise the design forbids.
     expect(screen.queryByText(/AI-inferred tension/i)).toBeNull();
   });
 
-  it("partitions acknowledged deviations under Checks out, with no chip and no caution", () => {
+  it("puts acknowledged deviations under Checks out, no chip, no caution", () => {
     const mixed: IntentCheck = {
       ...PRECISE,
       deviations: [
@@ -704,7 +709,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(body.indexOf("Needs a look")).toBeLessThan(
       body.indexOf("silent reversal"),
     );
-    // The chip is gone — the bucket label already says acknowledged.
+    // The chip is gone; the bucket label already says acknowledged.
     expect(screen.queryByText("acknowledged")).toBeNull();
     expect(
       screen.getByRole("heading", {
@@ -716,7 +721,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(screen.getAllByText(/AI-inferred tension/i)).toHaveLength(1);
   });
 
-  it("counts BOTH halves of deviations in the header (the count is not the alarm)", () => {
+  it("counts both halves of deviations in the header, the count is no alarm", () => {
     const mixed: IntentCheck = {
       ...PRECISE,
       deviations: [item("ack", true), item("unack")],
@@ -727,7 +732,7 @@ describe("IntentBar — alarm buckets", () => {
     ).toContain("2 deviations");
   });
 
-  it('singularizes the deviations count (never "1 deviations")', () => {
+  it("singularizes the deviations count", () => {
     render(
       <IntentBar
         intentCheck={{ ...PRECISE, deviations: [item("only one")] }}
@@ -751,7 +756,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(html).not.toContain("AI-inferred tension");
     expect(html).not.toContain("Claimed but unachieved");
     expect(html).not.toContain("Deviations acknowledged");
-    // The header counts stay the neutral flat five — same class, no color,
+    // The header counts stay the neutral flat five: same class, no color,
     // no ordering.
     const counts = [...container.querySelectorAll("span")].filter((node) =>
       /^\d+ (accomplished|claimed but unachieved|deviations|stated but missing|done but unstated)$/.test(

@@ -17,8 +17,12 @@ import {
   type ExpandEdgeControl,
   type ExpandFailure,
 } from "../../../../hooks/useExpandEdge";
-import ExpandUpIcon from "./expand-up.svg?react";
-import ExpandDownIcon from "./expand-down.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./ExpandControl.module.scss";
 
 /** What a click just did, for the table to keep the reader's place. */
@@ -173,12 +177,13 @@ function ExpandArrow({
   const direction = edge.gap.edge.direction;
   if (control.step === undefined) return null;
   const label = resolveArrowLabel(t, edge, control.step);
-  const icon: ReactNode =
-    direction === ExpansionDirections.UP ? (
-      <ExpandUpIcon aria-hidden="true" />
-    ) : (
-      <ExpandDownIcon aria-hidden="true" />
-    );
+  const rotation =
+    direction === ExpansionDirections.UP
+      ? IconRotations.NONE
+      : IconRotations.HALF;
+  const icon: ReactNode = (
+    <Icon name={IconNames.ARROW_UP} rotation={rotation} size={IconSizes.MD} />
+  );
 
   return (
     <IconButton

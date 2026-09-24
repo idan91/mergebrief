@@ -14,7 +14,9 @@
   }
 
   .arrow {
+    display: inline-flex;
     flex: none;
+    align-items: center;
     color: var(--color-text-2);
   }
 }

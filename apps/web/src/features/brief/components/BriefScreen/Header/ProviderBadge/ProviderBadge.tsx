@@ -1,13 +1,7 @@
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { Brief } from "../../../../types";
-// One .svg asset per mark, imported as components via vite-plugin-svgr so
-// currentColor inherits. Real logos only — never a hand-drawn approximation.
-import AnthropicMark from "./marks/anthropic.svg?react";
-import ClaudeCodeMark from "./marks/claude-code.svg?react";
-import CursorMark from "./marks/cursor.svg?react";
-import GenericProviderMark from "./marks/generic.svg?react";
-import OpenAiMark from "./marks/openai.svg?react";
-import OpenRouterMark from "./marks/openrouter.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./ProviderBadge.module.scss";
 import {
   ProviderGenerationTypes,
@@ -17,10 +11,10 @@ import {
 
 /**
  * Adapter CLASS per provider token: a harness-CLI run must be visibly
- * distinct from an API/SDK run — the CLI owns routing and auth, so
+ * distinct from an API/SDK run: the CLI owns routing and auth, so
  * "claude-code" and "anthropic" are different trust shapes even when the
  * same model served. Carried in TEXT (the end tag), never color alone.
- * Mirrors `Providers` in packages/generators/src/config/registry.ts — kept
+ * Mirrors `Providers` in packages/generators/src/config/registry.ts, kept
  * as plain data here, since client code must not pull provider SDKs.
  */
 const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
@@ -38,11 +32,11 @@ const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
  * rather than an approximation.
  */
 const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
-  anthropic: { mark: AnthropicMark, name: "Anthropic" },
-  "claude-code": { mark: ClaudeCodeMark, name: "Claude Code" },
-  cursor: { mark: CursorMark, name: "Cursor" },
-  openai: { mark: OpenAiMark, name: "OpenAI" },
-  openrouter: { mark: OpenRouterMark, name: "OpenRouter" },
+  anthropic: { mark: IconNames.ANTHROPIC, name: "Anthropic" },
+  "claude-code": { mark: IconNames.CLAUDE_CODE, name: "Claude Code" },
+  cursor: { mark: IconNames.CURSOR, name: "Cursor" },
+  openai: { mark: IconNames.OPENAI, name: "OpenAI" },
+  openrouter: { mark: IconNames.OPENROUTER, name: "OpenRouter" },
 };
 
 export interface ProviderBadgeProps {
@@ -63,34 +57,32 @@ export function ProviderBadge({ generation }: ProviderBadgeProps) {
   const providerConfig = Object.hasOwn(PROVIDER_CONFIGS, providerSlug)
     ? PROVIDER_CONFIGS[providerSlug]
     : undefined;
-  // Capitalized so the JSX below reads as a component, not a host tag.
-  const Mark = providerConfig?.mark;
   const classTag = Object.hasOwn(PROVIDER_CLASS_TAG, providerSlug)
     ? PROVIDER_CLASS_TAG[providerSlug]
     : undefined;
   return (
     <span className={styles["badge"]} data-provider-badge="">
-      {/* `title` gives pointer users the provider name — the logo alone
+      {/* `title` gives pointer users the provider name; the logo alone
           isn't universally recognizable. Screen readers keep the sr-only
           sibling. */}
       <span className={styles["markCell"]} title={providerConfig?.name}>
-        {providerConfig && Mark ? (
+        {providerConfig ? (
           <>
-            <Mark
-              aria-hidden="true"
+            <Icon
               className={styles["mark"]}
-              focusable="false"
+              name={providerConfig.mark}
+              size={IconSizes.MD}
             />
             <ScreenReaderOnly>{providerConfig.name}</ScreenReaderOnly>
           </>
         ) : (
-          // Named fallback: generic glyph + the provider token as visible
-          // text — never a hand-drawn brand approximation.
+          // Named fallback: the terminal glyph plus the provider token as
+          // visible text, never a hand-drawn brand approximation.
           <>
-            <GenericProviderMark
-              aria-hidden="true"
+            <Icon
               className={styles["mark"]}
-              focusable="false"
+              name={IconNames.TERMINAL}
+              size={IconSizes.MD}
             />
             <span className={styles["markName"]}>{providerSlug}</span>
           </>

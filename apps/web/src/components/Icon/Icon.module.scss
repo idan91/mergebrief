@@ -1,6 +1,11 @@
 @layer components {
   .icon {
     flex: none;
+    transition: transform var(--motion-fast) var(--ease-out);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
 
     &[data-rotation="90"] {
       transform: rotate(90deg);

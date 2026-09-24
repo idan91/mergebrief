@@ -20,6 +20,12 @@ import {
   CLAMP_VISIBLE,
   UNAVAILABLE_REASON_KEY,
 } from "./consts";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./IntentBar.module.scss";
 import { TicketAlignment } from "./TicketAlignment/TicketAlignment";
 import {
@@ -299,7 +305,13 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               className={styles["twist"]}
               data-open={open || undefined}
             >
-              ▶
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={
+                  open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+                }
+                size={IconSizes.SM}
+              />
             </span>
             <span className={styles["title"]}>{t("brief.intent.title")}</span>
             {available ? (

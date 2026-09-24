@@ -390,33 +390,12 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/Header/BriefDetailsPanel/BriefDetailsPanel.test.tsx": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/Header/ProviderBadge/ProviderBadge.test.tsx": {
     "house/no-em-dash": {
       "count": 3
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/Header/ProviderBadge/ProviderBadge.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/IntentBar.test.tsx": {
-    "house/no-em-dash": {
-      "count": 14
-    },
-    "house/test-title": {
-      "count": 17
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/TicketAlignment/TicketAlignment.test.tsx": {
@@ -751,11 +730,6 @@
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/review/components/SubmitModal/ReceiptAccordion/ReceiptAccordion.tsx": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/features/review/components/SubmitModal/SubmitModal.test.tsx": {

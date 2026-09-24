@@ -33,7 +33,12 @@ import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
 import { RoleBadge } from "./RoleBadge/RoleBadge";
 import { FileCommentBand } from "./FileCommentBand/FileCommentBand";
 import { useFileCommentComposer } from "./useFileCommentComposer";
-import CommentOnFileIcon from "./comment-on-file.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import { FileStatusBadge } from "./FileStatusBadge/FileStatusBadge";
 import {
   splitInlineRows,
@@ -300,7 +305,13 @@ export const ChunkCard = memo(function ChunkCard({
           }}
         >
           <span aria-hidden="true" className={styles["twist"]}>
-            ▶
+            <Icon
+              name={IconNames.CARET_DOWN}
+              rotation={
+                open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+              }
+              size={IconSizes.SM}
+            />
           </span>
           <span className={styles["file"]}>{chunk.file}</span>
         </button>
@@ -394,7 +405,7 @@ export const ChunkCard = memo(function ChunkCard({
           label={t("review.comment.commentOnFile")}
           onClick={fileComposer.requestComposer}
         >
-          <CommentOnFileIcon aria-hidden="true" />
+          <Icon name={IconNames.CHAT_TEXT} size={IconSizes.MD} />
         </IconButton>
       </div>
       {!open ? (

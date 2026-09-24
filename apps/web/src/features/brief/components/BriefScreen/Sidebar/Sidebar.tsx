@@ -13,9 +13,12 @@ import type { GroupView } from "../../../utils/viewModel";
 import { useReadingPosition } from "../readingPosition";
 import { SIDEBAR_PANEL_ID } from "./consts";
 import { GroupLines } from "./GroupLines/GroupLines";
-import ArrowUpIcon from "./icons/arrow-up.svg?react";
-import ChevronLeftIcon from "./icons/chevron-left.svg?react";
-import SplitViewIcon from "./icons/split-view.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import { NarrowBar } from "./NarrowBar/NarrowBar";
 import { Sheet } from "./Sheet/Sheet";
 import { ThisPr } from "./Tabs/ThisPr/ThisPr";
@@ -202,13 +205,18 @@ export function Sidebar({
           aria-controls={SIDEBAR_PANEL_ID}
           aria-expanded={expanded}
           callout="left"
-          className={styles["chevron"]}
           label={chevronLabel}
           ref={chevronRef}
           size="md"
           onClick={state.toggle}
         >
-          <ChevronLeftIcon aria-hidden="true" />
+          <Icon
+            name={IconNames.CARET_DOWN}
+            rotation={
+              expanded ? IconRotations.THREE_QUARTERS : IconRotations.QUARTER
+            }
+            size={IconSizes.MD}
+          />
         </IconButton>
         <GroupLines
           activeGroupId={activeGroupId}
@@ -223,19 +231,26 @@ export function Sidebar({
             size="md"
             onClick={scrollWindowToTop}
           >
-            <ArrowUpIcon aria-hidden="true" />
+            <Icon name={IconNames.ARROW_UP} size={IconSizes.MD} />
           </IconButton>
           {toggleDiffView === undefined ? null : (
             <IconButton
               callout="left"
-              className={styles["viewSwitch"]}
               data-target={otherDiffView}
               data-testid="sidebar-diff-view"
               label={t(DIFF_VIEW_SWITCH_LABELS[otherDiffView])}
               size="md"
               onClick={toggleDiffView}
             >
-              <SplitViewIcon aria-hidden="true" />
+              <Icon
+                name={IconNames.COLUMNS}
+                rotation={
+                  otherDiffView === "unified"
+                    ? IconRotations.QUARTER
+                    : IconRotations.NONE
+                }
+                size={IconSizes.MD}
+              />
             </IconButton>
           )}
           <IconButton

@@ -1,4 +1,10 @@
 import { useTranslation } from "react-i18next";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconSizes,
+  type IconName,
+} from "@web/components/Icon/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { ValueOf } from "types/utils";
 import type { LivePrState, PrRef } from "../../../../types";
@@ -23,6 +29,14 @@ const BadgeVariants = {
 } as const;
 
 type BadgeVariant = ValueOf<typeof BadgeVariants>;
+
+/** The status glyph ahead of the word, the same drawings Home's row end uses. */
+const BADGE_ICON: Record<BadgeVariant, IconName> = {
+  open: IconNames.GIT_PULL_REQUEST,
+  draft: IconNames.CIRCLE_DASHED,
+  merged: IconNames.GIT_MERGE,
+  closed: IconNames.X_CIRCLE,
+};
 
 const BADGE_LABEL: Record<BadgeVariant, string> = {
   open: "Open",
@@ -67,6 +81,7 @@ export function StateBadge({ pr, live }: StateBadgeProps) {
       data-state-badge=""
       data-variant={variant}
     >
+      <Icon name={BADGE_ICON[variant]} size={IconSizes.SM} />
       <ScreenReaderOnly>{t("brief.stateBadge.pullRequest")}</ScreenReaderOnly>
       {BADGE_LABEL[variant]}
     </span>

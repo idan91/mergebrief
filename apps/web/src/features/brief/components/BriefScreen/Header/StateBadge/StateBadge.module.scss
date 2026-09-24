@@ -8,6 +8,7 @@
 
     display: inline-flex;
     flex: none;
+    gap: functions.to-rem(4px);
     align-items: center;
     block-size: functions.to-rem(20px);
     padding-inline: functions.to-rem(9px);

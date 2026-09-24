@@ -46,10 +46,6 @@
     &[data-state="open"] .head {
       border-block-end: 1px solid var(--color-outline-1);
     }
-
-    &[data-state="open"] .twist {
-      transform: rotate(90deg);
-    }
   }
 
   .head {
@@ -99,8 +95,6 @@
     -webkit-user-select: none;
     user-select: none;
     color: var(--color-text-3);
-    font-size: var(--font-size-xs);
-    transition: transform 0.2s;
   }
 
   // Tighten the shared CopyButton against the file name it copies.

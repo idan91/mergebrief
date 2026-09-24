@@ -6,6 +6,12 @@ import { useTranslation } from "react-i18next";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./DbTimelineNavigator.module.scss";
 
 export interface DbTimelineNavigatorProps {
@@ -83,7 +89,11 @@ export function DbTimelineNavigator({
         variant="outlined"
         onClick={() => previous && onSelect(previous)}
       >
-        ←
+        <Icon
+          name={IconNames.ARROW_UP}
+          rotation={IconRotations.THREE_QUARTERS}
+          size={IconSizes.MD}
+        />
       </IconButton>
       <label className={styles["picker"]}>
         <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
@@ -124,7 +134,11 @@ export function DbTimelineNavigator({
         variant="outlined"
         onClick={() => next && onSelect(next)}
       >
-        →
+        <Icon
+          name={IconNames.ARROW_UP}
+          rotation={IconRotations.QUARTER}
+          size={IconSizes.MD}
+        />
       </IconButton>
     </nav>
   );

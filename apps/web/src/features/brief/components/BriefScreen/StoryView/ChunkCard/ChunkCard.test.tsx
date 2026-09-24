@@ -199,6 +199,21 @@ describe("ChunkCard selectable file path", () => {
     expect(toggleChunk).not.toHaveBeenCalled();
   });
 
+  it("turns the twist down while open and right while closed", () => {
+    renderCard({ open: true });
+    const openTwist = screen
+      .getByTestId("chunk-toggle")
+      .querySelector('[data-icon="caret-down"]');
+    expect(openTwist?.hasAttribute("data-rotation")).toBe(false);
+    cleanup();
+
+    renderCard({ open: false });
+    const closedTwist = screen
+      .getByTestId("chunk-toggle")
+      .querySelector('[data-icon="caret-down"]');
+    expect(closedTwist?.getAttribute("data-rotation")).toBe("270");
+  });
+
   it("toggles on a plain click", () => {
     const { toggleChunk } = renderCard();
     const toggle = screen.getByTestId("chunk-toggle");

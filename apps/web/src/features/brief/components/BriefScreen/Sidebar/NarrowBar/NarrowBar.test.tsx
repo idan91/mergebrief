@@ -41,6 +41,9 @@ function renderBar(overrides: Partial<NarrowBarProps> = {}) {
 describe("NarrowBar", () => {
   it("lays out chevron, arrows, position, scroll-to-top and shortcuts", () => {
     renderBar({ activeGroupId: second.id });
+    const collapsed = screen.getByRole("button", { name: "Expand sidebar" });
+    const caret = collapsed.querySelector('[data-icon="caret-down"]');
+    expect(caret?.getAttribute("data-rotation")).toBe("180");
     const names = screen
       .getAllByRole("button")
       .map((button) => button.getAttribute("aria-label"));
@@ -81,6 +84,8 @@ describe("NarrowBar", () => {
 
     const chevron = screen.getByRole("button", { name: "Collapse sidebar" });
     expect(chevron.getAttribute("aria-expanded")).toBe("true");
+    const caret = chevron.querySelector('[data-icon="caret-down"]');
+    expect(caret?.hasAttribute("data-rotation")).toBe(false);
     fireEvent.click(chevron);
     fireEvent.click(screen.getByRole("button", { name: "Scroll to top" }));
     fireEvent.click(screen.getByRole("button", { name: "Keyboard shortcuts" }));

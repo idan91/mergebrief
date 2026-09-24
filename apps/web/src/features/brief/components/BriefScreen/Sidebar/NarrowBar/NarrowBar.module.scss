@@ -12,19 +12,6 @@
     background: var(--color-background);
   }
 
-  .chevron svg {
-    transform: rotate(90deg);
-    transition: transform 0.2s ease;
-  }
-
-  .chevron[aria-expanded="true"] svg {
-    transform: rotate(-90deg);
-  }
-
-  .arrow[data-direction="next"] svg {
-    transform: rotate(180deg);
-  }
-
   .position {
     display: flex;
     flex: 1;
@@ -64,11 +51,5 @@
     font-family: var(--mono);
     font-size: var(--font-size-xl);
     font-weight: 600;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .chevron svg {
-      transition: none;
-    }
   }
 }

@@ -5,7 +5,8 @@ import { Chip } from "@web/components/Chip/Chip";
 import type { PrStack } from "../../../../types";
 import { StackLists } from "./StackLists/StackLists";
 import { useStackChipFacade } from "./useStackChipFacade";
-import StackIcon from "./stack.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./StackChip.module.scss";
 
 export interface StackChipProps {
@@ -53,7 +54,11 @@ export function StackChip({
         ref={setTriggerEl}
         onClick={handleTriggerClick}
       >
-        <StackIcon aria-hidden="true" className={styles["mark"]} />
+        <Icon
+          className={styles["mark"]}
+          name={IconNames.STACK}
+          size={IconSizes.SM}
+        />
         {visibleLabel}
       </Chip>
       {open && triggerEl ? (

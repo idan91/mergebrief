@@ -88,7 +88,7 @@ describe("BriefDetailsPanel disclosure semantics", () => {
     expect(warningsNote()).toBeNull();
   });
 
-  it("Escape closes at capture — the key never reaches page shortcuts", () => {
+  it("Escape closes at capture and never reaches page shortcuts", () => {
     renderPanel();
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
@@ -104,7 +104,7 @@ describe("BriefDetailsPanel disclosure semantics", () => {
 });
 
 describe("warnings-chip trigger", () => {
-  it("opens the panel landed on the warnings text (focused role=note)", () => {
+  it("opens the panel landed on the focused warnings note", () => {
     renderPanel();
     fireEvent.click(warningsChip());
     const note = warningsNote();
@@ -170,7 +170,7 @@ describe("warnings-chip trigger", () => {
   });
 });
 
-describe("BriefDetailsPanel sections — full brief", () => {
+describe("BriefDetailsPanel sections for a full brief", () => {
   it("Artifact: kind, index, commit range + count, FULL SHAs, LOC caveat", () => {
     renderPanel();
     fireEvent.click(infoTrigger());
@@ -181,7 +181,7 @@ describe("BriefDetailsPanel sections — full brief", () => {
     expect(text).toContain("brief");
     expect(text).toContain("_3");
     expect(text).toContain(`${"b".repeat(8)}..${"a".repeat(8)} · 2 commits`);
-    // Full SHAs — this panel is the untruncated home.
+    // Full SHAs: this panel is the untruncated home.
     expect(text).toContain("b".repeat(40));
     expect(text).toContain("a".repeat(40));
     expect(text).toContain("+137");
@@ -215,7 +215,7 @@ describe("BriefDetailsPanel sections — full brief", () => {
     ).toContain("No .mergebrief configuration");
   });
 
-  it("Repo config: slimmed rows — file + applied-or-not + warning; no bytes, no per-file sha", () => {
+  it("Repo config rows show file, applied and warning, never bytes or sha", () => {
     renderPanel(baseBrief, {
       files: [
         {
@@ -258,7 +258,7 @@ describe("BriefDetailsPanel sections — full brief", () => {
   });
 });
 
-describe("BriefDetailsPanel sections — delta artifact", () => {
+describe("BriefDetailsPanel sections for a delta artifact", () => {
   it("Artifact: span with indices and full SHAs, no commit range", () => {
     renderPanel(deltaBrief);
     fireEvent.click(infoTrigger());
@@ -267,7 +267,10 @@ describe("BriefDetailsPanel sections — delta artifact", () => {
     );
     const text = artifact?.textContent ?? "";
     expect(text).toContain("delta");
-    expect(text).toContain("_2 → _3");
+    expect(text).toContain("_2");
+    expect(text).toContain("_3");
+    const spanArrow = artifact?.querySelector('[data-icon="arrow-up"]');
+    expect(spanArrow?.getAttribute("data-rotation")).toBe("90");
     expect(text).toContain("c".repeat(40));
     expect(text).toContain("a".repeat(40));
     expect(text).not.toContain("commit range");

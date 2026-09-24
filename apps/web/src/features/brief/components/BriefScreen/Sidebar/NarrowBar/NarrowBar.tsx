@@ -5,8 +5,12 @@ import { IconButton } from "@web/components/IconButton/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { GroupView } from "../../../../utils/viewModel";
 import { resolveGroupName } from "../../../../utils/resolveGroupName";
-import ChevronLeftIcon from "../icons/chevron-left.svg?react";
-import ArrowUpIcon from "../icons/arrow-up.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import { SIDEBAR_PANEL_ID } from "../consts";
 import { resolveStepTarget } from "./utils";
 import styles from "./NarrowBar.module.scss";
@@ -48,7 +52,6 @@ export function NarrowBar({
         callout="top"
         aria-controls={expanded ? SIDEBAR_PANEL_ID : undefined}
         aria-expanded={expanded}
-        className={styles["chevron"]}
         label={
           expanded ? t("brief.sidebar.collapse") : t("brief.sidebar.expand")
         }
@@ -56,16 +59,23 @@ export function NarrowBar({
         size="md"
         onClick={toggle}
       >
-        <ChevronLeftIcon aria-hidden="true" />
+        <Icon
+          name={IconNames.CARET_DOWN}
+          rotation={expanded ? IconRotations.NONE : IconRotations.HALF}
+          size={IconSizes.MD}
+        />
       </IconButton>
       <IconButton
         callout="top"
-        className={styles["arrow"]}
         label={t("brief.toolbar.ariaLabelPreviousGroup")}
         size="md"
         onClick={() => step(-1)}
       >
-        <ChevronLeftIcon aria-hidden="true" />
+        <Icon
+          name={IconNames.CARET_DOWN}
+          rotation={IconRotations.QUARTER}
+          size={IconSizes.MD}
+        />
       </IconButton>
       <div className={styles["position"]}>
         <span aria-hidden="true" className={styles["lines"]}>
@@ -93,13 +103,15 @@ export function NarrowBar({
       </div>
       <IconButton
         callout="top"
-        className={styles["arrow"]}
-        data-direction="next"
         label={t("brief.toolbar.ariaLabelNextGroup")}
         size="md"
         onClick={() => step(1)}
       >
-        <ChevronLeftIcon aria-hidden="true" />
+        <Icon
+          name={IconNames.CARET_DOWN}
+          rotation={IconRotations.THREE_QUARTERS}
+          size={IconSizes.MD}
+        />
       </IconButton>
       <IconButton
         callout="top"
@@ -107,7 +119,7 @@ export function NarrowBar({
         size="md"
         onClick={scrollToTop}
       >
-        <ArrowUpIcon aria-hidden="true" />
+        <Icon name={IconNames.ARROW_UP} size={IconSizes.MD} />
       </IconButton>
       <IconButton
         callout="top"

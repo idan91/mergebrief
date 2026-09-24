@@ -791,6 +791,8 @@ describe("disclosure and focus behaviour", () => {
     // A button is natively focusable, the C shortcut's focus target.
     expect(toggle.id).toBe("conversation-heading");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const twist = toggle.querySelector('[data-icon="caret-down"]');
+    expect(twist?.getAttribute("data-rotation")).toBe("270");
     // Collapsed: the digest is hidden, the summary is not.
     expect(screen.queryByText("changes requested")).toBeNull();
     fireEvent.click(toggle);

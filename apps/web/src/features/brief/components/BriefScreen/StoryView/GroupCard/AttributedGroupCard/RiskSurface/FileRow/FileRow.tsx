@@ -17,7 +17,12 @@ import {
   type FileFlagRow,
 } from "../utils";
 import styles from "./FileRow.module.scss";
-import TwistIcon from "./twist.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 
 export interface FileRowProps {
   row: FileFlagRow;
@@ -84,7 +89,14 @@ export function FileRow({
             type="button"
             onClick={() => setNotesOpen((open) => !open)}
           >
-            <TwistIcon aria-hidden="true" className={styles["twist"]} />
+            <Icon
+              className={styles["twist"]}
+              name={IconNames.CARET_DOWN}
+              rotation={
+                notesOpen ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+              }
+              size={IconSizes.SM}
+            />
           </button>
         ) : (
           <span aria-hidden="true" className={styles["twistSlot"]} />

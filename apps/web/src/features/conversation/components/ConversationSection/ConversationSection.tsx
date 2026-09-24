@@ -36,6 +36,12 @@ import type {
 } from "../../wiring";
 import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
 import { headSummary } from "./utils";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./ConversationSection.module.scss";
 import type { Mutable } from "types/utils";
 
@@ -344,7 +350,13 @@ export function ConversationSection({
               className={styles["twist"]}
               data-open={open || undefined}
             >
-              ▶
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={
+                  open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+                }
+                size={IconSizes.SM}
+              />
             </span>
             {t("conversation.heading")}
             {/* Totals ONLY: the header describes the whole conversation;

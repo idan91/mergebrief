@@ -12,6 +12,12 @@ import {
   type FilterDisclosureProps,
 } from "./FilterDisclosure/FilterDisclosure";
 import { RiskAttrsDisclosure } from "./RiskAttrsDisclosure/RiskAttrsDisclosure";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./ReadingToolbar.module.scss";
 
 /** How many supporting chunks are collapsed; `some` = the mixed state. */
@@ -144,14 +150,22 @@ export function ReadingToolbar({
               label={t("brief.toolbar.ariaLabelPreviousChange")}
               onClick={jumpPrev}
             >
-              ◂
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={IconRotations.QUARTER}
+                size={IconSizes.MD}
+              />
             </IconButton>
             <IconButton
               className={styles["stepBtn"]}
               label={t("brief.toolbar.ariaLabelNextChange")}
               onClick={jumpNext}
             >
-              ▸
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={IconRotations.THREE_QUARTERS}
+                size={IconSizes.MD}
+              />
             </IconButton>
           </span>
         ) : null}

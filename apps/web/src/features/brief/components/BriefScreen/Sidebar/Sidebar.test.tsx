@@ -119,6 +119,8 @@ describe("Sidebar", () => {
     renderSidebar();
     const trigger = chevron();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    const caret = trigger.querySelector('[data-icon="caret-down"]');
+    expect(caret?.getAttribute("data-rotation")).toBe("90");
     const panelId = trigger.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();
     expect(document.getElementById(panelId ?? "")?.hidden).toBe(true);
@@ -134,6 +136,8 @@ describe("Sidebar", () => {
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(trigger.getAttribute("aria-label")).toBe("Collapse sidebar");
+    const caret = trigger.querySelector('[data-icon="caret-down"]');
+    expect(caret?.getAttribute("data-rotation")).toBe("270");
     expect(document.activeElement).toBe(trigger);
     expect(screen.getByRole("tablist", { name: "Sidebar tabs" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "This PR" })).toBeTruthy();
@@ -399,6 +403,8 @@ describe("the split view control", () => {
       name: "Switch to unified view",
     });
     expect(control.getAttribute("data-target")).toBe("unified");
+    const columns = control.querySelector('[data-icon="columns"]');
+    expect(columns?.getAttribute("data-rotation")).toBe("90");
   });
 
   it("offers the split view, upright, while unified", () => {
@@ -407,6 +413,8 @@ describe("the split view control", () => {
       name: "Switch to split view",
     });
     expect(control.getAttribute("data-target")).toBe("split");
+    const columns = control.querySelector('[data-icon="columns"]');
+    expect(columns?.hasAttribute("data-rotation")).toBe(false);
   });
 
   it("asks for the other view on click", () => {

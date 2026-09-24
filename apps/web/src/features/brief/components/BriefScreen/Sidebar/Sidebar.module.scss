@@ -43,23 +43,6 @@
     padding-block: functions.to-rem(10px) functions.to-rem(16px);
   }
 
-  .chevron svg {
-    transition: transform 0.2s ease;
-  }
-
-  .sidebar[data-state="expanded"] .chevron svg {
-    transform: rotate(180deg);
-  }
-
-  .viewSwitch svg {
-    transition: transform 0.2s ease;
-  }
-
-  // A quarter turn makes the divider horizontal: the stacked view it leads to.
-  .viewSwitch[data-target="unified"] svg {
-    transform: rotate(90deg);
-  }
-
   .foot {
     display: flex;
     flex-direction: column;
@@ -87,8 +70,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .sidebar[data-variant="desktop"][data-motion="on"],
-    .chevron svg {
+    .sidebar[data-variant="desktop"][data-motion="on"] {
       transition: none;
     }
   }

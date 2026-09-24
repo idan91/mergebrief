@@ -42,6 +42,8 @@ import { resolveStackView } from "./StackChip/utils";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { SubmitReviewCta } from "./SubmitReviewCta/SubmitReviewCta";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./Header.module.scss";
 
 export interface OwnDraftHeaderProps {
@@ -215,7 +217,8 @@ export function Header({
                     href={prLink}
                     target="_blank"
                   >
-                    #{brief.pr.number} ↗
+                    #{brief.pr.number}{" "}
+                    <Icon name={IconNames.ARROW_UP_RIGHT} size={IconSizes.SM} />
                   </AccessibleLink>
                 ) : (
                   <span>#{brief.pr.number}</span>
@@ -511,7 +514,7 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
         // menuitem and drop focus to <body>.
         onClick={() => (open ? closeAndRefocus() : setOpen(true))}
       >
-        <span aria-hidden="true">⋯</span>
+        <Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />
       </IconButton>
       {open ? (
         <div
@@ -622,7 +625,7 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
         data-repo-config-chip=""
         data-state="warning"
       >
-        {"⚠ "}
+        <Icon name={IconNames.WARNING} size={IconSizes.SM} />
         {label}
       </span>
     </RiskChipDisclosure>

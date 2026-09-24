@@ -17,18 +17,9 @@
   }
 
   .twist {
+    display: inline-grid;
     flex: none;
     color: var(--color-text-3);
-    font-size: var(--font-size-xs);
-    transition: transform 0.2s;
-
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
-    }
-  }
-
-  .band[data-state="open"] .twist {
-    transform: rotate(90deg);
   }
 
   .title {

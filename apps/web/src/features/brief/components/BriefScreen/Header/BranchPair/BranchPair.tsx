@@ -3,6 +3,12 @@ import { useTranslation } from "react-i18next";
 import { BranchName } from "./BranchName/BranchName";
 import { BranchNameVariants } from "./BranchName/types";
 import { presentRef } from "./utils";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./BranchPair.module.scss";
 
 export interface BranchPairProps {
@@ -39,7 +45,11 @@ export function BranchPair({ baseRef, headRef }: BranchPairProps) {
       ) : null}
       {hasPair ? (
         <span aria-hidden="true" className={styles["arrow"]}>
-          ←
+          <Icon
+            name={IconNames.ARROW_UP}
+            rotation={IconRotations.THREE_QUARTERS}
+            size={IconSizes.SM}
+          />
         </span>
       ) : null}
       {head !== undefined ? (

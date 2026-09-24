@@ -7,6 +7,8 @@ import { CoverageMetrics } from "./CoverageMetrics";
 import { NotCheckedList } from "./NotCheckedList";
 import { OutcomeCard } from "./OutcomeCard";
 import { RiskDisposition } from "./RiskDisposition";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./ReceiptAccordion.module.scss";
 
 export interface ReceiptAccordionProps {
@@ -17,7 +19,7 @@ export interface ReceiptAccordionProps {
 }
 
 /** The modal receipt view: outcome pinned, everything else a fold with its
- * counts in the summary — coverage open by default, raw artifact collapsed. */
+ * counts in the summary; coverage open by default, raw artifact collapsed. */
 export function ReceiptAccordion({
   receipt,
   outcome,
@@ -28,11 +30,23 @@ export function ReceiptAccordion({
     <div className={styles["stack"]}>
       <OutcomeCard outcome={outcome} receipt={receipt} />
       <details className={styles["fold"]} open>
-        <summary>{t("review.summary.coveredHeading")}</summary>
+        <summary>
+          <Icon
+            className={styles["marker"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
+          {t("review.summary.coveredHeading")}
+        </summary>
         <CoverageMetrics receipt={receipt} />
       </details>
       <details className={styles["fold"]}>
         <summary>
+          <Icon
+            className={styles["marker"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
           {t("review.submit.receiptCommentsFold", {
             total: receipt.comments.length,
           })}
@@ -41,6 +55,11 @@ export function ReceiptAccordion({
       </details>
       <details className={styles["fold"]}>
         <summary>
+          <Icon
+            className={styles["marker"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
           {t("review.submit.receiptRiskFold", {
             addressed: receipt.counts.addressed,
             dismissed: receipt.counts.dismissed,
@@ -50,11 +69,25 @@ export function ReceiptAccordion({
         <RiskDisposition receipt={receipt} />
       </details>
       <details className={styles["fold"]}>
-        <summary>{t("review.summary.notCheckedHeading")}</summary>
+        <summary>
+          <Icon
+            className={styles["marker"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
+          {t("review.summary.notCheckedHeading")}
+        </summary>
         <NotCheckedList />
       </details>
       <details className={styles["fold"]}>
-        <summary>{t("review.submit.receiptShowRaw")}</summary>
+        <summary>
+          <Icon
+            className={styles["marker"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
+          {t("review.submit.receiptShowRaw")}
+        </summary>
         <pre className={styles["rawBody"]}>{raw}</pre>
       </details>
     </div>

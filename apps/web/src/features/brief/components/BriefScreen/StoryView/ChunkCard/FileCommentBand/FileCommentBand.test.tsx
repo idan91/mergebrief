@@ -260,11 +260,10 @@ describe("FileCommentBand", () => {
     fireEvent.click(screen.getByRole("button", { name: "Comment on file" }));
     expect(toggleChunk).not.toHaveBeenCalled();
     expect(screen.queryByText("saved file note")).toBeNull();
-    expect(
-      screen
-        .getByRole("button", { name: "Comment on file" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
+    const title = screen.getByRole("button", { name: "Comment on file" });
+    expect(title.getAttribute("aria-expanded")).toBe("false");
+    const twist = title.querySelector('[data-icon="caret-down"]');
+    expect(twist?.getAttribute("data-rotation")).toBe("270");
   });
 
   it("announces why compose is blocked instead of no-op", () => {

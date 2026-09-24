@@ -12,6 +12,12 @@ import { CommentComposer, CommentThread } from "@web/features/review";
 import type { CommentAnchor } from "@web/features/review/utils";
 import type { BriefChunk } from "../../../../../types";
 import { useFileCommentBandFacade } from "./useFileCommentBandFacade";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./FileCommentBand.module.scss";
 
 const noJump = () => undefined;
@@ -68,7 +74,15 @@ export function FileCommentBand({
             onClick={band.toggleCollapsed}
           >
             <span aria-hidden="true" className={styles["twist"]}>
-              ▶
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={
+                  band.showBody
+                    ? IconRotations.NONE
+                    : IconRotations.THREE_QUARTERS
+                }
+                size={IconSizes.SM}
+              />
             </span>
             {t("review.comment.commentOnFile")}
           </LinkButton>

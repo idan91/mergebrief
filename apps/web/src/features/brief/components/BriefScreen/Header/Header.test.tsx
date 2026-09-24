@@ -281,7 +281,7 @@ describe("branch pair", () => {
     expect(titleLine?.contains(pair)).toBe(false);
     expect(metaLine?.firstElementChild).toBe(pair);
     expect(pair?.textContent).toContain("main");
-    expect(pair?.textContent).toContain("←");
+    expect(pair?.querySelector('[data-icon="arrow-up"]')).toBeTruthy();
     expect(pair?.textContent).toContain("feature/thing");
   });
 
@@ -291,7 +291,7 @@ describe("branch pair", () => {
     });
     const pair = screen.getByTestId("branch-pair");
     expect(pair?.textContent).toContain("feature/thing");
-    expect(pair?.textContent).not.toContain("←");
+    expect(pair.querySelector('[data-icon="arrow-up"]')).toBeNull();
   });
 
   it("copy clicks write the bare branch name", async () => {
