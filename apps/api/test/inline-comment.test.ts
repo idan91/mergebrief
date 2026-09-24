@@ -360,7 +360,8 @@ async function post(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+  if (cookie !== undefined)
+    headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
 
   return await app.request(path, {
     method: "POST",
@@ -693,7 +694,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const get = async () =>
       await evictionApp.request(conversationPath, {
-        headers: { cookie: `rs_session=${cookie}` },
+        headers: { cookie: `__Host-mergebrief_session=${cookie}` },
       });
 
     expect((await get()).status).toBe(200);

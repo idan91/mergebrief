@@ -93,7 +93,6 @@ async function setup(token = "gh-token-1"): Promise<Setup> {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
   return { deps, session };

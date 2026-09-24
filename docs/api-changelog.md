@@ -13,6 +13,17 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-24)
+
+- **Changed** the reviewer session cookie is `__Host-mergebrief_session`
+  (was `rs_session`) and the OAuth state cookie
+  `__Host-mergebrief_oauth_state` (was `rs_oauth_state`). Both are `Secure`
+  unconditionally, and the prefix forbids a `Domain` attribute, so a
+  sibling subdomain on the same apex can no longer shadow them; the old
+  `rs` prefix meant nothing and is gone. Every signed-in reviewer signs in
+  again once after upgrading; the old session rows fall to the expiry
+  sweep. Bearer clients are unaffected.
+
 ## dev (2026-09-22)
 
 - **Added** `layout` query on `GET /api/inbox`: `folded` (the default) leads

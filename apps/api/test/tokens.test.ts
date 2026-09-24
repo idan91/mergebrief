@@ -547,7 +547,8 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       "content-type": "application/json",
     };
 
-    if (cookie !== undefined) headers["Cookie"] = `rs_session=${cookie}`;
+    if (cookie !== undefined)
+      headers["Cookie"] = `__Host-mergebrief_session=${cookie}`;
 
     return app.request("/api/auth/tokens", {
       method: "POST",
@@ -618,7 +619,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
     // The list never re-surfaces token material.
     const list = await app.request("/api/auth/tokens", {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(list.status).toBe(200);
     const listed = (await list.json()) as {
@@ -720,7 +721,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     // The list surface shows it too, the scope is how a reader tells the two
     // credentials apart.
     const list = await app.request("/api/auth/tokens", {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     const listed = (await list.json()) as {
       tokens: Array<Record<string, unknown>>;
@@ -787,7 +788,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
     const revoke = await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
       method: "DELETE",
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(revoke.status).toBe(200);
 
@@ -801,7 +802,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     ).toBe(401);
 
     const list = await app.request("/api/auth/tokens", {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     const listed = (await list.json()) as {
       tokens: Array<Record<string, unknown>>;
@@ -813,7 +814,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       (
         await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
           method: "DELETE",
-          headers: { Cookie: `rs_session=${cookie}` },
+          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
         })
       ).status,
     ).toBe(200);
@@ -821,7 +822,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       (
         await app.request("/api/auth/tokens/999999", {
           method: "DELETE",
-          headers: { Cookie: `rs_session=${cookie}` },
+          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
         })
       ).status,
     ).toBe(404);

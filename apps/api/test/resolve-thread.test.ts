@@ -257,7 +257,10 @@ async function post(
 ): Promise<Response> {
   return await app.request(path, {
     method: "POST",
-    headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
+    headers:
+      cookie === undefined
+        ? {}
+        : { cookie: `__Host-mergebrief_session=${cookie}` },
   });
 }
 
@@ -430,7 +433,7 @@ describe("thread resolve and unresolve routes", () => {
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
-    const cookieHeader = { cookie: `rs_session=${cookie}` };
+    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 
     // Prime the conversation cache first: convergence means SOMEONE ELSE
     // flipped the thread inside the TTL, so the cached conversation is stale
@@ -614,7 +617,7 @@ describe("thread resolve and unresolve routes", () => {
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
     // Prime the conversation cache, then verify a second read is served from it.
-    const cookieHeader = { cookie: `rs_session=${cookie}` };
+    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
@@ -641,7 +644,7 @@ describe("thread resolve and unresolve routes", () => {
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
-    const cookieHeader = { cookie: `rs_session=${cookie}` };
+    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,

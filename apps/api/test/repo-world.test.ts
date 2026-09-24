@@ -168,7 +168,7 @@ describe("the per-repo gate's repo world", () => {
 
   async function read(app: ApiApp, cookie: string): Promise<Response> {
     return app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
@@ -241,7 +241,7 @@ describe("the per-repo gate's repo world", () => {
       {
         method: "PUT",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ read: true }),
@@ -372,13 +372,13 @@ describe("the per-repo gate across two installations", () => {
 
   async function readOther(app: ApiApp, cookie: string): Promise<Response> {
     return app.request(`/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
   async function readFirst(app: ApiApp, cookie: string): Promise<Response> {
     return app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
@@ -444,7 +444,7 @@ describe("the per-repo gate across two installations", () => {
       {
         method: "PUT",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ read: true }),

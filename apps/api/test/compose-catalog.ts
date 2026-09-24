@@ -1,5 +1,5 @@
 // Composes the real app against a PGlite harness purely to run route
-// composition — that is what registers the catalog. Nothing is served and
+// composition, which is what registers the catalog. Nothing is served and
 // the github ports throw if touched.
 import { randomBytes } from "node:crypto";
 import { createEnvKeyProvider } from "persistence";
@@ -25,7 +25,6 @@ export async function composeCatalog(): Promise<ComposedCatalog> {
     }),
     sessionKeyRef: KEY_REF,
     publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
   };
   const app = createApp({
     logger: testLogger(),

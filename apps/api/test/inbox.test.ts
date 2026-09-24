@@ -286,7 +286,7 @@ describe("GET /api/inbox", () => {
       path,
       cookie === undefined
         ? {}
-        : { headers: { Cookie: `rs_session=${cookie}` } },
+        : { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
   }
 
@@ -489,7 +489,7 @@ describe("GET /api/inbox", () => {
     });
 
     const res = await slugless.request("/api/inbox", {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
 
     expect(res.status).toBe(200);
@@ -656,7 +656,7 @@ describe("GET /api/inbox", () => {
     const page = await get("/api/inbox?page=1e21", cookie);
     const gone = await app.request("/api/inbox/99999999999999999999/7", {
       method: "DELETE",
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
 
     expect(repo.status).toBe(400);

@@ -143,7 +143,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   async function del(cookie: string): Promise<Response> {
     return app.request(`/api/inbox/${REPO_ID_NUM}/7`, {
       method: "DELETE",
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 

@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { createSessionAuth } from "persistence";
 import type { AuthRouteDeps } from "./session/types";
-import { SESSION_COOKIE } from "./session/consts";
+import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "./session/consts";
 import { sha256Hex } from "./session/utils";
 
 export function logoutRoute(deps: AuthRouteDeps): Hono {
@@ -14,7 +14,7 @@ export function logoutRoute(deps: AuthRouteDeps): Hono {
     if (token !== undefined) {
       await createSessionAuth(deps.handle).deleteSession(sha256Hex(token));
     }
-    deleteCookie(c, SESSION_COOKIE, { path: "/" });
+    deleteCookie(c, SESSION_COOKIE, HOST_COOKIE_CLEAR);
     return c.json({ ok: true }, 200);
   });
 

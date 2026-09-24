@@ -143,7 +143,7 @@ describe("the Review Session writes", () => {
     const init: RequestInit = {
       method,
       headers: {
-        Cookie: `rs_session=${cookie}`,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
         "content-type": "application/json",
       },
     };
@@ -155,7 +155,7 @@ describe("the Review Session writes", () => {
 
   async function read(head: string): Promise<Response> {
     return app.request(pathFor("", head), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
@@ -660,7 +660,7 @@ describe("the Review Session writes", () => {
       {
         method: "PUT",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ read: true }),

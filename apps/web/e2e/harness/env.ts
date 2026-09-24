@@ -138,13 +138,13 @@ export function buildStorageState(cookie: string): StorageState {
   return {
     cookies: [
       {
-        name: "rs_session",
+        name: "__Host-mergebrief_session",
         value: cookie,
         domain: "localhost",
         path: "/",
         expires: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
         httpOnly: true,
-        secure: false,
+        secure: true,
         sameSite: "Lax" as const,
       },
     ],

@@ -36,7 +36,6 @@ export function buildAuthDeps(kp: KeyProvider): AuthDeps {
     keyProvider: kp,
     sessionKeyRef: KEY_REF,
     publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
   };
 }
 

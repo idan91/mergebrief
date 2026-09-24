@@ -236,7 +236,7 @@ async function post(
     "content-type": "application/json",
   };
   if (cookie !== undefined) {
-    headers["Cookie"] = `rs_session=${cookie}`;
+    headers["Cookie"] = `__Host-mergebrief_session=${cookie}`;
   }
   return app.request("/api/generate", {
     method: "POST",
@@ -392,7 +392,7 @@ describe("POST /api/generate: the url-box door", () => {
     // The read-back: the tenant ctx misses and the owner fallback resolves,
     // the poll-after-paste loop must work for exactly this viewer.
     const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(meta.status).toBe(200);
     const body: unknown = await meta.json();
@@ -411,7 +411,7 @@ describe("POST /api/generate: the url-box door", () => {
     expect((await post(app, cookie, PR_URL)).status).toBe(200);
 
     const fresh = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(fresh.status).toBe(200);
     expect(counts.graphqlCalls).toBe(0);
@@ -420,7 +420,7 @@ describe("POST /api/generate: the url-box door", () => {
       "update pull_request set github_read_at = now() - interval '10 minutes'",
     );
     const stale = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(stale.status).toBe(200);
     expect(counts.graphqlCalls).toBe(1);
@@ -477,7 +477,7 @@ describe("POST /api/generate: the url-box door", () => {
     })();
 
     const meta = await buildApp().request(`/api/repos/${REPO_ID}/pulls/7`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(meta.status).toBe(200);
     // The stored title is the row marker, so the tenant row must win.
@@ -495,7 +495,7 @@ describe("POST /api/generate: the url-box door", () => {
 
     const other = await seedSession(harness.handle, kp, OTHER_REVIEWER);
     const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
-      headers: { Cookie: `rs_session=${other}` },
+      headers: { Cookie: `__Host-mergebrief_session=${other}` },
     });
 
     expect(meta.status).toBe(200);

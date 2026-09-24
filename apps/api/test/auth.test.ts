@@ -216,7 +216,7 @@ describe("reviewer auth routes", () => {
     });
 
     const res = await app.request("/api/inbox", {
-      headers: { cookie: `rs_session=${token}` },
+      headers: { cookie: `__Host-mergebrief_session=${token}` },
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ items: [] });
@@ -231,17 +231,19 @@ describe("reviewer auth routes", () => {
       "github.com/login/oauth/authorize",
     );
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("rs_oauth_state=");
+    expect(setCookie.startsWith("__Host-mergebrief_oauth_state=")).toBe(true);
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Lax");
+    expect(setCookie).toContain("Path=/");
+    expect(setCookie).not.toContain("Domain=");
   });
 
   it("callback with a mismatched state → 400 and clears the state cookie", async () => {
     const res = await app.request(
       "/api/auth/github/callback?code=abc&state=aaaa",
       {
-        headers: { Cookie: "rs_oauth_state=bbbb" },
+        headers: { Cookie: "__Host-mergebrief_oauth_state=bbbb" },
       },
     );
     expect(res.status).toBe(400);
@@ -249,7 +251,9 @@ describe("reviewer auth routes", () => {
       "sign-in-failed",
     );
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("rs_oauth_state=");
+    expect(setCookie.startsWith("__Host-mergebrief_oauth_state=")).toBe(true);
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toMatch(/Max-Age=0/i);
     expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
@@ -261,15 +265,26 @@ describe("reviewer auth routes", () => {
     const res = await app.request(
       `/api/auth/github/callback?code=thecode&state=${state}`,
       {
-        headers: { Cookie: `rs_oauth_state=${state}` },
+        headers: { Cookie: `__Host-mergebrief_oauth_state=${state}` },
       },
     );
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
 
+    // Two Set-Cookie lines ride this response: the state clear, then the
+    // session; `get` would join them, so the session one is picked out.
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("rs_session=");
-    expect(setCookie).toContain("HttpOnly");
+    const sessionCookie =
+      res.headers
+        .getSetCookie()
+        .find((cookie) => cookie.startsWith("__Host-mergebrief_session=")) ??
+      "";
+    expect(sessionCookie).not.toBe("");
+    expect(sessionCookie).toContain("HttpOnly");
+    expect(sessionCookie).toContain("Secure");
+    expect(sessionCookie).toContain("SameSite=Lax");
+    expect(sessionCookie).toContain("Path=/");
+    expect(sessionCookie).not.toContain("Domain=");
     // No GitHub token/secret leaks into the response, only the opaque cookie.
     const body = await res.text();
     for (const secret of [ACCESS_TOKEN, REFRESH_TOKEN, "test-client-secret"]) {
@@ -307,7 +322,7 @@ describe("reviewer auth routes", () => {
     const res = await app.request(
       `/api/auth/github/callback?code=c&state=${state}`,
       {
-        headers: { Cookie: `rs_oauth_state=${state}` },
+        headers: { Cookie: `__Host-mergebrief_oauth_state=${state}` },
       },
     );
     expect(res.status).toBe(302);
@@ -345,15 +360,16 @@ describe("reviewer auth routes", () => {
 
     const res = await app.request("/api/auth/logout", {
       method: "POST",
-      headers: { Cookie: `rs_session=${token}` },
+      headers: { Cookie: `__Host-mergebrief_session=${token}` },
     });
     expect(res.status).toBe(200);
     expect(await countRows(harness, "auth_session")).toBe(0);
     // Last-referent lifecycle: the grant died with its only referent.
     expect(await countRows(harness, "github_grant")).toBe(0);
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("rs_session=");
-    expect(setCookie).toMatch(/Max-Age=0|Expires=/i);
+    expect(setCookie.startsWith("__Host-mergebrief_session=")).toBe(true);
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toMatch(/Max-Age=0/i);
   });
 
   it("GET /api/auth/session without a cookie answers 401", async () => {
@@ -384,7 +400,7 @@ describe("reviewer auth routes", () => {
     });
 
     const res = await app.request("/api/auth/session", {
-      headers: { cookie: `rs_session=${token}` },
+      headers: { cookie: `__Host-mergebrief_session=${token}` },
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({

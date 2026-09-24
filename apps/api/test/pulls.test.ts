@@ -284,7 +284,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       path,
       cookie === undefined
         ? {}
-        : { headers: { Cookie: `rs_session=${cookie}` } },
+        : { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
   }
 
@@ -609,7 +609,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
     const policyRes = await policyApp.request(`/api/repos/${REPO_A}/pulls/7`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(policyRes.status).toBe(200);
     const policyBody = (await policyRes.json()) as Record<string, unknown>;

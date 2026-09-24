@@ -89,7 +89,6 @@ function stubDeps(): AuthRouteDeps {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
 }

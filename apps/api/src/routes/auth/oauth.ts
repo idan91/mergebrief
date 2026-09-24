@@ -5,8 +5,8 @@
 //
 // SECURITY DISCIPLINE, mirroring the webhook route: Zod parses every query,
 // expected failures throw ApiError subclasses, and NO token or secret is ever
-// logged or placed in a response BODY. Both cookies are httpOnly; the state
-// nonce also rides the outbound Location, which is what OAuth state is.
+// logged or placed in a response BODY. Both cookies are httpOnly `__Host-`
+// cookies; the state nonce also rides the Location, which is what state is.
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -30,10 +30,14 @@ import {
   InternalError,
 } from "../../shared-errors/api-error";
 import type { AuthRouteDeps } from "./session/types";
-import { SESSION_COOKIE } from "./session/consts";
+import {
+  HOST_COOKIE_ATTRIBUTES,
+  HOST_COOKIE_CLEAR,
+  SESSION_COOKIE,
+} from "./session/consts";
 import { sha256Hex } from "./session/utils";
 
-const STATE_COOKIE = "rs_oauth_state";
+const STATE_COOKIE = "__Host-mergebrief_oauth_state";
 /** Entropy for the CSRF state nonce and the session token (bytes). */
 const STATE_BYTES = 32;
 const SESSION_TOKEN_BYTES = 32;
@@ -58,10 +62,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
   app.get("/", (c) => {
     const state = randomBytes(STATE_BYTES).toString("base64url");
     setCookie(c, STATE_COOKIE, state, {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: deps.auth.cookieSecure,
-      path: "/",
+      ...HOST_COOKIE_ATTRIBUTES,
       maxAge: STATE_TTL_SECONDS,
     });
     const { url } = buildAuthorizationUrl(oauthApp, {
@@ -76,7 +77,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
   app.get("/callback", async (c) => {
     const stateCookie = getCookie(c, STATE_COOKIE);
     // The state nonce is single-use: clear it regardless of the outcome.
-    deleteCookie(c, STATE_COOKIE, { path: "/" });
+    deleteCookie(c, STATE_COOKIE, HOST_COOKIE_CLEAR);
 
     const query = callbackQuerySchema.safeParse({
       code: c.req.query("code"),
@@ -148,12 +149,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       throw error;
     }
 
-    setCookie(c, SESSION_COOKIE, sessionToken, {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: deps.auth.cookieSecure,
-      path: "/",
-    });
+    setCookie(c, SESSION_COOKIE, sessionToken, HOST_COOKIE_ATTRIBUTES);
     return c.redirect("/", 302);
   });
 

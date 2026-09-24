@@ -168,7 +168,6 @@ async function buildGateApp(
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
   if (options.urlBoxFallbackToken !== undefined) {

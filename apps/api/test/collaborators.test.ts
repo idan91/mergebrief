@@ -185,7 +185,10 @@ async function getCollaborators(
   path = COLLABORATORS_PATH,
 ): Promise<Response> {
   return await app.request(path, {
-    headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
+    headers:
+      cookie === undefined
+        ? {}
+        : { cookie: `__Host-mergebrief_session=${cookie}` },
   });
 }
 

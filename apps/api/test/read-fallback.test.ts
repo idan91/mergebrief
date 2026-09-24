@@ -191,7 +191,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   async function read(app: ApiApp, cookie: string): Promise<Response> {
     return app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
@@ -318,7 +318,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "PUT",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ read: true }),
@@ -352,7 +352,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     const other = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER + 5}`,
       {
-        headers: { Cookie: `rs_session=${cookie}` },
+        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
       },
     );
 
@@ -376,7 +376,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
     const res = await buildApp(FALLBACK_PAT).request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
 
     expect(res.status).toBe(200);
@@ -397,7 +397,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
     const res = await buildApp().request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
 
     expect(res.status).toBe(404);
@@ -418,7 +418,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "POST",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: "{}",
@@ -439,7 +439,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "POST",
         headers: {
-          Cookie: `rs_session=${cookie}`,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
         body: "{}",

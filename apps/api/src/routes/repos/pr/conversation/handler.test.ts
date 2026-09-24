@@ -123,7 +123,6 @@ function buildApp(
           keyProvider: createEnvKeyProvider({}),
           sessionKeyRef: "SESSION_KEY_V1",
           publicBaseUrl: "https://example.test",
-          cookieSecure: true,
         },
       },
       github,
@@ -300,7 +299,6 @@ describe("readConversation with an owner viewer token", () => {
             keyProvider: kp,
             sessionKeyRef: keyRef,
             publicBaseUrl: "https://example.test",
-            cookieSecure: true,
           },
         },
         {

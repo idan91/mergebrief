@@ -143,7 +143,6 @@ async function buildApp(
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
   const app = new Hono<AuthzEnv>();

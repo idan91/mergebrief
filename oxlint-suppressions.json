@@ -95,11 +95,6 @@
       "count": 3
     }
   },
-  "apps/api/test/compose-catalog.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/test/logging.ts": {
     "house/no-em-dash": {
       "count": 1

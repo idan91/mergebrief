@@ -61,12 +61,12 @@ describe("dispatchToApi", () => {
   it("sends the path to the API with the viewer's cookie attached", async () => {
     const response = await dispatchToApi(
       "/api/pulls",
-      "rs_session=abc",
+      "__Host-mergebrief_session=abc",
       deps(),
     );
     expect(response.status).toBe(200);
     expect(upstream.paths).toEqual(["/api/pulls"]);
-    expect(upstream.cookies).toEqual(["rs_session=abc"]);
+    expect(upstream.cookies).toEqual(["__Host-mergebrief_session=abc"]);
   });
 
   it("sends no cookie when the incoming request carried none", async () => {
@@ -75,15 +75,20 @@ describe("dispatchToApi", () => {
   });
 
   it("replaces a caller-supplied cookie whatever its casing", async () => {
-    await dispatchToApi("/api/pulls", "rs_session=real", deps(), {
-      headers: { Cookie: "rs_session=stale" },
-    });
-    expect(upstream.cookies).toEqual(["rs_session=real"]);
+    await dispatchToApi(
+      "/api/pulls",
+      "__Host-mergebrief_session=real",
+      deps(),
+      {
+        headers: { Cookie: "__Host-mergebrief_session=stale" },
+      },
+    );
+    expect(upstream.cookies).toEqual(["__Host-mergebrief_session=real"]);
   });
 
   it("drops a caller cookie entirely when the viewer has none", async () => {
     await dispatchToApi("/api/pulls", undefined, deps(), {
-      headers: { cookie: "rs_session=stale" },
+      headers: { cookie: "__Host-mergebrief_session=stale" },
     });
     expect(upstream.cookies).toEqual([undefined]);
   });

@@ -289,9 +289,12 @@ as the GitHub App's OAuth callback origin and webhook URL.
 
 Two things follow from terminating TLS elsewhere:
 
-- **Session cookies are `Secure`.** Reviewer login works over `https://` (or
-  `http://localhost` during development) and silently will not persist over
-  plain `http://` on a real hostname.
+- **Session cookies are `__Host-` prefixed and `Secure`.** The prefix makes
+  the browser refuse the cookie without `Secure`, with a `Domain` attribute,
+  or off `Path=/`, so a sibling subdomain on the same apex cannot shadow it.
+  Reviewer login works over `https://` (or `http://localhost` during
+  development) and silently will not persist over plain `http://` on a real
+  hostname.
 - **Host-header validation is pinned to `PUBLIC_BASE_URL`**
   (`apps/web/vite.config.ts` derives the allow-list from it; localhost and
   IP literals stay allowed). A Host the instance doesn't recognize is 403'd,

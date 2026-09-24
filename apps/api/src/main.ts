@@ -150,7 +150,6 @@ async function main(): Promise<void> {
       keyProvider,
       sessionKeyRef: SESSION_KEY_REF,
       publicBaseUrl: boot.api.publicBaseUrl,
-      cookieSecure: true,
     },
   });
 

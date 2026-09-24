@@ -28,7 +28,6 @@ const DUMMY_AUTH: AuthDeps = {
   }),
   sessionKeyRef: "SESSION_KEY_V1",
   publicBaseUrl: "http://localhost:3000",
-  cookieSecure: false,
 };
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;

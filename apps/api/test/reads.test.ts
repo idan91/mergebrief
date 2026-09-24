@@ -332,7 +332,7 @@ describe("reviewer read API + authz gate", () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const res = await app.request(briefPath("base", "head"), {
       headers: {
-        Cookie: `rs_session=${randomBytes(32).toString("base64url")}`,
+        Cookie: `__Host-mergebrief_session=${randomBytes(32).toString("base64url")}`,
       },
     });
     expect(res.status).toBe(401);
@@ -345,7 +345,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const first = await app.request(briefPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(first.status).toBe(404);
 
@@ -356,7 +356,7 @@ describe("reviewer read API + authz gate", () => {
 
     // Negative is not cached: a second request calls GitHub again.
     const second = await app.request(briefPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(second.status).toBe(404);
     expect(counts.repositories).toBe(2);
@@ -367,7 +367,7 @@ describe("reviewer read API + authz gate", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
     const res = await app.request(briefPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(404);
   });
@@ -379,14 +379,14 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head1");
 
     const res = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(await res.text()).toBe(BRIEF_BODY);
 
     const missing = await app.request(briefPath("base1", "nope"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
   });
@@ -400,20 +400,20 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head2"); // no snapshot column
 
     const withConfig = await app.request(briefContextPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(withConfig.status).toBe(200);
     expect(withConfig.headers.get("cache-control")).toBe("no-store");
     expect(await withConfig.text()).toBe(`{"repoConfig":${snapshot}}`);
 
     const nullConfig = await app.request(briefContextPath("base1", "head2"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(nullConfig.status).toBe(200);
     expect(await nullConfig.text()).toBe('{"repoConfig":null}');
 
     const missing = await app.request(briefContextPath("base1", "nope"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
     expect(((await missing.json()) as { code?: string }).code).toBe(
@@ -422,7 +422,7 @@ describe("reviewer read API + authz gate", () => {
 
     const malformed = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=only`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
     expect(malformed.status).toBe(400);
     expect(((await malformed.json()) as { code?: string }).code).toBe(
@@ -437,7 +437,7 @@ describe("reviewer read API + authz gate", () => {
     await seedDelta(harness.handle, "cp-1", "head-2");
 
     const res = await app.request(deltaPath("cp-1", "head-2"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
@@ -445,7 +445,7 @@ describe("reviewer read API + authz gate", () => {
     expect(await res.text()).toBe(DELTA_BODY);
 
     const missing = await app.request(deltaPath("cp-1", "nope"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
     // Positive authz cache: one access check covered both reads.
@@ -458,13 +458,13 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const crossRepo = await app.request(deltaPath("evil:main", "head-2"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(crossRepo.status).toBe(400);
 
     const missingHead = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/delta?baseline=only`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
     expect(missingHead.status).toBe(400);
   });
@@ -476,7 +476,7 @@ describe("reviewer read API + authz gate", () => {
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=only`,
       {
-        headers: { Cookie: `rs_session=${cookie}` },
+        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
       },
     );
     expect(res.status).toBe(400);
@@ -489,10 +489,10 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head1");
 
     const a = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     const b = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
@@ -508,7 +508,7 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head1");
 
     const a = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(a.status).toBe(200);
 
@@ -516,7 +516,7 @@ describe("reviewer read API + authz gate", () => {
     // note above). The gate re-checks GitHub, which now denies → 404.
     clockOffsetMs += 61_000;
     const b = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(b.status).toBe(404);
     expect(counts.repositories).toBe(2);
@@ -533,7 +533,7 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head1");
 
     const res = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(BRIEF_BODY);
@@ -588,7 +588,7 @@ describe("reviewer read API + authz gate", () => {
     // 1. Browser request: 401 → refresh (consumes the single-use refresh
     //    token) → retry succeeds. Exactly one exchange.
     const viaCookie = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(viaCookie.status).toBe(200);
     expect(counts.token).toBe(1);
@@ -620,7 +620,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const res = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(401);
     const rows = await harness.raw(
@@ -637,7 +637,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const res = await app.request(briefPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(401);
     // Rejected before the access check, no GitHub call at all.
@@ -658,7 +658,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const res = await app.request(diffPath("otherowner:sha", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(400);
     // Rejected at the Zod boundary, the compare endpoint is never reached.
@@ -674,7 +674,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const res = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(200);
     // The compare request carried the exact requested span.
@@ -694,7 +694,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const a = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(a.status).toBe(200);
     expect(counts.repositories).toBe(1);
@@ -702,7 +702,7 @@ describe("reviewer read API + authz gate", () => {
     // Different span → authz-cache hit (no new access check), but the lazily
     // decrypted token 401s the compare fetch → the route refreshes and retries.
     const b = await app.request(diffPath("base2", "head2"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(b.status).toBe(200);
     expect(await b.text()).toBe(DIFF_TEXT);
@@ -722,7 +722,7 @@ describe("reviewer read API + authz gate", () => {
       await seedPullRequest(harness.handle);
 
       const res = await app.request(diffPath("b", "h"), {
-        headers: { Cookie: `rs_session=${cookie}` },
+        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
       });
       expect(res.status).toBe(413);
       expect(((await res.json()) as { code?: string }).code).toBe(
@@ -743,7 +743,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle); // stored slug: octo/hello
 
     const res = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(200);
     expect(
@@ -764,14 +764,14 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const first = await app.request(diffPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(first.status).toBe(200);
     expect((await first.text()).length).toBe(big.length);
     expect(counts.diff).toBe(1);
 
     const second = await app.request(diffPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(second.status).toBe(200);
     // Not cached (too large) → GitHub was hit again.
@@ -787,7 +787,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
 
     const first = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(first.status).toBe(200);
     expect(first.headers.get("content-type")).toContain("text/plain");
@@ -795,7 +795,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.diff).toBe(1);
 
     const second = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(second.status).toBe(200);
     expect(await second.text()).toBe(DIFF_TEXT);

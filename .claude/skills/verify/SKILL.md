@@ -50,7 +50,7 @@ Pass the token via env var; print only the cookie value. Use a sentinel
 `installation_id` (e.g. 777001) so cleanup can be tenant-scoped deletes.
 Run with `pnpm -C apps/web exec tsx <script>`; delete the script after.
 
-Then drive with curl: `-H "Cookie: rs_session=<cookie>"` against
+Then drive with curl: `-H "Cookie: __Host-mergebrief_session=<cookie>"` against
 `/api/repos/:repoId/pulls/:prNumber/brief?base=..&head=..`.
 
 Useful probes:

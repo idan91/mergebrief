@@ -103,7 +103,7 @@ describe("read-review-session", () => {
 
   async function read(head: string): Promise<Response> {
     return app.request(sessionPath(head), {
-      headers: { Cookie: `rs_session=${cookie}` },
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
   }
 
@@ -348,7 +348,7 @@ describe("read-review-session", () => {
     expect((await read("head-9")).status).toBe(404);
     const noHead = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session?base=base`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
     expect(noHead.status).toBe(400);
     expect(await sessionRows()).toBe(0);

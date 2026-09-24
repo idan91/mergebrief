@@ -156,7 +156,7 @@ describe("the audit choke point", () => {
 
   it("writes exactly one row per action, keyed on the descriptor id", async () => {
     const res = await readMark(appWith(), {
-      Cookie: `rs_session=${cookie}`,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
       "user-agent": CLI_AGENT,
     });
 
@@ -184,7 +184,7 @@ describe("the audit choke point", () => {
     const app = appWith();
     const read = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session?base=base&head=head-1`,
-      { headers: { Cookie: `rs_session=${cookie}` } },
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
     expect(read.status).toBe(200);
     expect(await auditRows(harness)).toHaveLength(0);
@@ -226,7 +226,9 @@ describe("the audit choke point", () => {
       ),
     );
 
-    const res = await readMark(appWith(), { Cookie: `rs_session=${cookie}` });
+    const res = await readMark(appWith(), {
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    });
 
     expect(res.status).toBe(404);
     const rows = await auditRows(harness);
@@ -244,7 +246,9 @@ describe("the audit choke point", () => {
 
   it("suppresses private writes under the knob, and denials never", async () => {
     const app = appWith({ privateWrites: false, callerIp: false });
-    const ok = await readMark(app, { Cookie: `rs_session=${cookie}` });
+    const ok = await readMark(app, {
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    });
     expect(ok.status).toBe(200);
     expect(await auditRows(harness)).toHaveLength(0);
 
@@ -265,7 +269,7 @@ describe("the audit choke point", () => {
 
   it("keeps a user-agent that is not a product/version out of the column", async () => {
     const res = await readMark(appWith(), {
-      Cookie: `rs_session=${cookie}`,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
       "user-agent": "Idan Ram <idan@example.test> on octo-laptop",
     });
 
@@ -276,7 +280,7 @@ describe("the audit choke point", () => {
   it("still writes the row when a caller forces an unusable X-Request-Id", async () => {
     // A ledger-rejecting X-Request-Id must not throw the emit and blind the row.
     const res = await readMark(appWith(), {
-      Cookie: `rs_session=${cookie}`,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
       "X-Request-Id": `${"a".repeat(80)}=`,
     });
 

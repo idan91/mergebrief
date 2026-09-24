@@ -14,7 +14,6 @@ export interface AuthDeps {
   /** The env var NAME the session tokens seal under (e.g. `"SESSION_KEY_V1"`). */
   readonly sessionKeyRef: string;
   readonly publicBaseUrl: string;
-  readonly cookieSecure: boolean;
 }
 
 /** The slice of app deps the auth surface needs. `AppDeps` satisfies it. */

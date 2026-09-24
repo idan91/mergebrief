@@ -95,7 +95,6 @@ async function buildClient(ciphertextOverride?: string) {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
   return createReviewerGitHubClient(deps, session, log);

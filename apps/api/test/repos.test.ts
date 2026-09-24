@@ -191,7 +191,9 @@ describe("GET /api/repos", () => {
         ]),
     });
     const cookie = await seedSession();
-    const res = await getRepos({ Cookie: `rs_session=${cookie}` });
+    const res = await getRepos({
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = (await res.json()) as {
@@ -225,16 +227,18 @@ describe("GET /api/repos", () => {
     expect(
       (
         await app.request("/api/inbox", {
-          headers: { Cookie: `rs_session=${cookie}` },
+          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
         })
       ).status,
     ).toBe(200);
-    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(
-      200,
-    );
-    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(
-      200,
-    );
+    expect(
+      (await getRepos({ Cookie: `__Host-mergebrief_session=${cookie}` }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await getRepos({ Cookie: `__Host-mergebrief_session=${cookie}` }))
+        .status,
+    ).toBe(200);
     expect(counts.installationRepos).toBe(1);
   });
 
@@ -255,7 +259,9 @@ describe("GET /api/repos", () => {
         state: PrStates.OPEN,
       });
       const cookie = await seedSession();
-      const res = await getRepos({ Cookie: `rs_session=${cookie}` });
+      const res = await getRepos({
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      });
       expect(res.status).toBe(502);
       const text = await res.text();
       expect(text).toContain('"code":"github-unavailable"');

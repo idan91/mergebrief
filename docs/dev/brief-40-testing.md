@@ -117,7 +117,7 @@ Then: **browser request first** (triggers 401 → rotation → succeeds), then *
 **Step 5 — concurrency probe.** Corrupt the access ciphertext again, then fire both
 channels at once:
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' -H "Cookie: rs_session=$COOKIE" $API/… &
+curl -s -o /dev/null -w '%{http_code}\n' -H "Cookie: __Host-mergebrief_session=$COOKIE" $API/… &
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" $API/… &
 wait
 ```

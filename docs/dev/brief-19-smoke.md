@@ -90,7 +90,7 @@ token and the `/api/inbox` happy path.
    button. Click it → you land on `/api/auth/github` → GitHub authorize screen →
    back to the picker.
 3. **Expect:** the login CTA is replaced by either PR rows or the
-   "No pull requests yet" hint. An `rs_session` cookie is set.
+   "No pull requests yet" hint. An `__Host-mergebrief_session` cookie is set.
 
 Verify the plumbing directly if the UI looks off:
 

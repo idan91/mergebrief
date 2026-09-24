@@ -250,7 +250,8 @@ async function markReady(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+  if (cookie !== undefined)
+    headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
 
   return await app.request(path, { method: "POST", headers });
 }

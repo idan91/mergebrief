@@ -401,7 +401,10 @@ async function getConversation(
   path = CONVERSATION_PATH,
 ): Promise<Response> {
   return await app.request(path, {
-    headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
+    headers:
+      cookie === undefined
+        ? {}
+        : { cookie: `__Host-mergebrief_session=${cookie}` },
   });
 }
 
@@ -415,7 +418,8 @@ async function postReply(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+  if (cookie !== undefined)
+    headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
 
   return await app.request(path, {
     method: "POST",
@@ -954,7 +958,7 @@ describe("conversation surface", () => {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            cookie: `rs_session=${cookie}`,
+            cookie: `__Host-mergebrief_session=${cookie}`,
           },
           body: JSON.stringify({ outcome: "approve" }),
         },

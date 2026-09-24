@@ -486,7 +486,8 @@ async function postSubmit(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+  if (cookie !== undefined)
+    headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
 
   return await app.request(path, {
     method: "POST",
@@ -596,7 +597,7 @@ async function reanchorDraft(
     method: "PUT",
     headers: {
       "content-type": "application/json",
-      cookie: `rs_session=${cookie}`,
+      cookie: `__Host-mergebrief_session=${cookie}`,
     },
     body: JSON.stringify({
       filePath: "src/c.ts",
@@ -614,7 +615,7 @@ async function deleteDraft(
 ): Promise<Response> {
   return await app.request(makeSessionPath(`/comments/${draftId}`), {
     method: "DELETE",
-    headers: { cookie: `rs_session=${cookie}` },
+    headers: { cookie: `__Host-mergebrief_session=${cookie}` },
   });
 }
 

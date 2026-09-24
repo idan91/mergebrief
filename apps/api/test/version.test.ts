@@ -32,7 +32,6 @@ describe("GET /api/version", () => {
       keyProvider: kp,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://app.example.test",
-      cookieSecure: true,
     };
     app = createApp({
       logger: testLogger(),

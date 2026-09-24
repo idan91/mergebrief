@@ -64,7 +64,6 @@ beforeAll(async () => {
       },
       sessionKeyRef: "UNUSED",
       publicBaseUrl: "https://example.test",
-      cookieSecure: false,
     },
   };
   const tenant = createTenantRepository(harness.handle, ctx);

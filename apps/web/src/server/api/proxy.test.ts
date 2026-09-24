@@ -127,7 +127,7 @@ describe("requestApi", () => {
     await requestApi(
       new Request("https://public.example/api/pulls", {
         headers: {
-          cookie: "rs_session=abc",
+          cookie: "__Host-mergebrief_session=abc",
           connection: "keep-alive",
           "accept-encoding": "gzip",
         },
@@ -135,7 +135,7 @@ describe("requestApi", () => {
       transportFor(upstream.origin),
     );
     const headers = upstream.recorded[0]?.headers ?? {};
-    expect(headers["cookie"]).toBe("rs_session=abc");
+    expect(headers["cookie"]).toBe("__Host-mergebrief_session=abc");
     expect(headers["accept-encoding"]).toBe("identity");
     expect(headers["host"]).toBe(upstream.origin.replace("http://", ""));
   });
@@ -162,7 +162,10 @@ describe("requestApi", () => {
       respond(
         200,
         {
-          "set-cookie": ["rs_session=one; HttpOnly", "rs_state=two; HttpOnly"],
+          "set-cookie": [
+            "__Host-mergebrief_session=one; HttpOnly",
+            "mergebrief_state=two; HttpOnly",
+          ],
         },
         "{}",
       ),
@@ -172,8 +175,8 @@ describe("requestApi", () => {
       transportFor(upstream.origin),
     );
     expect(response.headers.getSetCookie()).toEqual([
-      "rs_session=one; HttpOnly",
-      "rs_state=two; HttpOnly",
+      "__Host-mergebrief_session=one; HttpOnly",
+      "mergebrief_state=two; HttpOnly",
     ]);
   });
 
