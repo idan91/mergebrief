@@ -360,7 +360,7 @@ describe("stack chip", () => {
     };
     await renderHeader({
       brief: briefWithStack(linear),
-      livePrState: { state: "open", draft: false, stack: grown },
+      livePrState: { state: "open", draft: false, stack: { stack: grown } },
     });
     expect(screen.getByTestId("stack-chip").textContent).toBe("2/4");
   });
@@ -373,12 +373,36 @@ describe("stack chip", () => {
     expect(screen.getByTestId("stack-chip").textContent).toBe("2/3");
   });
 
-  it("drops the chip when GitHub reports no stack", async () => {
+  it("drops the chip when GitHub reports no stack for an open PR", async () => {
     await renderHeader({
       brief: briefWithStack(linear),
-      livePrState: { state: "open", draft: false, stack: null },
+      livePrState: { state: "open", draft: false, stack: { stack: null } },
     });
     expect(screen.queryByTestId("stack-chip")).toBeNull();
+  });
+
+  it("keeps the generation-time stack for a merged PR with no live one", async () => {
+    await renderHeader({
+      brief: briefWithStack(linear),
+      livePrState: { state: "merged", draft: false, stack: { stack: null } },
+    });
+    const chip = screen.getByTestId("stack-chip");
+    expect(chip.textContent).toBe("2/3");
+    fireEvent.click(chip);
+    expect(screen.getByText("At generation time")).toBeTruthy();
+  });
+
+  it("dates the recorded stack the read served for a merged PR", async () => {
+    await renderHeader({
+      brief: briefWithStack(linear),
+      livePrState: {
+        state: "merged",
+        draft: false,
+        stack: { stack: linear, asOf: "2026-09-19T12:00:00.000Z" },
+      },
+    });
+    fireEvent.click(screen.getByTestId("stack-chip"));
+    expect(screen.getByText("As of Sep 19, 2026")).toBeTruthy();
   });
 
   it("renders the linear chip first on the meta line", async () => {

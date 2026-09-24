@@ -29,7 +29,7 @@ import {
 import type {
   Brief,
   ComparisonMarks,
-  PrStack,
+  PullStack,
   RevisionNarrativeArtifact,
 } from "../brief/types";
 import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
@@ -60,11 +60,11 @@ export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
   });
 }
 
-/** The PR's stack on GitHub now: navigation only, so a minute stale is fine. */
+/** The PR's stack on GitHub now, or the record for a closed PR: a minute stale is fine. */
 export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-stack", repoId, prNumber],
-    queryFn: async (): Promise<PrStack | null> => {
+    queryFn: async (): Promise<PullStack> => {
       const path = `${prPath(repoId, prNumber)}/stack`;
       const body = await apiFetchJson(path);
       const parsed = parsePullStack(body);

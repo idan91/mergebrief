@@ -85,13 +85,38 @@ describe("isSameStack", () => {
 });
 
 describe("resolveStackView", () => {
+  const AS_OF = "2026-09-19T12:00:00.000Z";
+
   it("shows the snapshot until the live stack is read", () => {
-    expect(resolveStackView(chain, undefined)).toEqual({ stack: chain });
-    expect(resolveStackView(undefined, undefined)).toBeUndefined();
+    expect(resolveStackView(chain, undefined, "open")).toEqual({
+      stack: chain,
+    });
+    expect(resolveStackView(undefined, undefined, "open")).toBeUndefined();
   });
 
-  it("hides the chip when GitHub reports no stack", () => {
-    expect(resolveStackView(chain, null)).toBeUndefined();
+  it("hides the chip when GitHub reports no stack for an open PR", () => {
+    expect(resolveStackView(chain, { stack: null }, "open")).toBeUndefined();
+    expect(resolveStackView(chain, { stack: null }, undefined)).toBeUndefined();
+  });
+
+  it("falls back to the snapshot for a merged PR with no live stack", () => {
+    expect(resolveStackView(chain, { stack: null }, "merged")).toEqual({
+      stack: chain,
+      atGeneration: true,
+    });
+    expect(resolveStackView(chain, { stack: null }, "closed")).toEqual({
+      stack: chain,
+      atGeneration: true,
+    });
+    expect(
+      resolveStackView(undefined, { stack: null }, "merged"),
+    ).toBeUndefined();
+  });
+
+  it("carries the recorded stack's read time", () => {
+    expect(
+      resolveStackView(chain, { stack: chain, asOf: AS_OF }, "merged"),
+    ).toEqual({ stack: chain, asOf: AS_OF });
   });
 
   it("carries the snapshot only when the live stack differs", () => {
@@ -99,11 +124,15 @@ describe("resolveStackView", () => {
       ...chain,
       members: [...chain.members, { number: 3, title: "c" }],
     };
-    expect(resolveStackView(chain, chain)).toEqual({ stack: chain });
-    expect(resolveStackView(chain, grown)).toEqual({
+    expect(resolveStackView(chain, { stack: chain }, "open")).toEqual({
+      stack: chain,
+    });
+    expect(resolveStackView(chain, { stack: grown }, "open")).toEqual({
       stack: grown,
       snapshot: chain,
     });
-    expect(resolveStackView(undefined, grown)).toEqual({ stack: grown });
+    expect(resolveStackView(undefined, { stack: grown }, "open")).toEqual({
+      stack: grown,
+    });
   });
 });

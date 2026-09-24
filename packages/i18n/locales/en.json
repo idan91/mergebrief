@@ -238,7 +238,8 @@
       "stackMember": "#{{number}} {{title}}",
       "stackChanged": "Stack changed since this brief was generated",
       "stackAtGeneration": "At generation time",
-      "stackAtGenerationAria": "Pull requests in the stack when this brief was generated"
+      "stackAtGenerationAria": "Pull requests in the stack when this brief was generated",
+      "stackAsOf": "As of {{date}}"
     },
     "details": {
       "ariaLabelTrigger": "Brief details",

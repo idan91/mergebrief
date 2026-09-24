@@ -1,3 +1,7 @@
+// Dates render in one zone everywhere the suite runs; a formatted date in an
+// assertion must not depend on the machine's clock setting.
+process.env["TZ"] = "UTC";
+
 // Importing the provider module registers THE app instance as
 // react-i18next's default, so component tests render t() consumers without
 // wrapping every tree in the provider.

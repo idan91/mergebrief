@@ -2,13 +2,18 @@
 // infrastructure but still an external boundary to this bundle, so responses
 // are parsed, never cast.
 import { describe, expect, it } from "vitest";
-import { WaitReasons, type LastReviewComparisonView } from "contract";
+import {
+  WaitReasons,
+  type LastReviewComparisonView,
+  type PullStackView,
+} from "contract";
 import type { Equals } from "types/utils";
 import {
   parsePrSummary,
   parsePullStack,
   type LastReviewComparison,
 } from "./types";
+import type { PullStack } from "@web/features/brief/types";
 
 const ROW = {
   repoId: "424242",
@@ -508,6 +513,15 @@ const availableBranchPin: Equals<
   SourceAvailableLastReview
 > = true;
 
+/**
+ * Same keys, and the same `asOf` type, as the contract's stack read. The
+ * `stack` member is the FE's own `PrStack`, mutable like the rest of the
+ * brief types, so the pin stops at the key set and the scalar field.
+ */
+const pullStackKeysPin: Equals<keyof PullStack, keyof PullStackView> = true;
+const pullStackAsOfPin: Equals<PullStack["asOf"], PullStackView["asOf"]> = true;
+const pullStackPin = pullStackKeysPin && pullStackAsOfPin;
+
 describe("lockstep pin against the wire contract", () => {
   it("the available lastReview branch mirrors the contract payload exactly", () => {
     // Compile-time pin (gated by `pnpm -C apps/web typecheck`, which includes
@@ -518,7 +532,10 @@ describe("lockstep pin against the wire contract", () => {
 
 describe("parsePullStack", () => {
   it("parses a null stack, a chain and a fork", () => {
-    expect(parsePullStack({ stack: null })).toEqual({ ok: true, value: null });
+    expect(parsePullStack({ stack: null })).toEqual({
+      ok: true,
+      value: { stack: null },
+    });
     const chain = {
       members: [
         { number: 6, title: "Bottom" },
@@ -528,7 +545,7 @@ describe("parsePullStack", () => {
     };
     expect(parsePullStack({ stack: chain })).toEqual({
       ok: true,
-      value: chain,
+      value: { stack: chain },
     });
     const fork = {
       parent: { number: 6, title: "Bottom" },
@@ -537,11 +554,29 @@ describe("parsePullStack", () => {
         { number: 9, title: "Right" },
       ],
     };
-    expect(parsePullStack({ stack: fork })).toEqual({ ok: true, value: fork });
+    expect(parsePullStack({ stack: fork })).toEqual({
+      ok: true,
+      value: { stack: fork },
+    });
     expect(parsePullStack({ stack: { children: fork.children } })).toEqual({
       ok: true,
-      value: { children: fork.children },
+      value: { stack: { children: fork.children } },
     });
+  });
+
+  it("keeps the recorded read time and refuses an unreadable one", () => {
+    const chain = { members: [{ number: 6, title: "x" }], index: 1 };
+    const asOf = "2026-09-19T12:00:00.000Z";
+    expect(parsePullStack({ stack: chain, asOf })).toEqual({
+      ok: true,
+      value: { stack: chain, asOf },
+    });
+    expect(parsePullStack({ stack: chain, asOf: 5 }).ok).toBe(false);
+    expect(parsePullStack({ stack: chain, asOf: "garbage" }).ok).toBe(false);
+  });
+
+  it("the wire shape mirrors the contract's PullStackView", () => {
+    expect(pullStackPin).toBe(true);
   });
 
   it("refuses a malformed member or a missing index", () => {

@@ -112,7 +112,11 @@ export function Header({
   toggleShortcuts,
 }: HeaderProps) {
   const { t } = useTranslation();
-  const stackView = resolveStackView(brief.pr.stack, livePrState?.stack);
+  const stackView = resolveStackView(
+    brief.pr.stack,
+    livePrState?.stack,
+    livePrState?.state,
+  );
   const headerRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
@@ -232,6 +236,8 @@ export function Header({
             <span className={styles["metaLine"]}>
               {stackView !== undefined ? (
                 <StackChip
+                  asOf={stackView.asOf}
+                  atGeneration={stackView.atGeneration}
                   currentNumber={brief.pr.number}
                   prUrl={brief.pr.url}
                   repoId={repoId}

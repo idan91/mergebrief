@@ -64,8 +64,8 @@ export type PrLifecycleState = "open" | "closed";
 export interface LivePrState {
   state: "open" | "closed" | "merged";
   draft: boolean;
-  /** GitHub's stack now: null is not stacked, absent is not read yet or failed. */
-  stack?: PrStack | null;
+  /** The stack read: absent is not read yet or failed, see `PullStack`. */
+  stack?: PullStack;
 }
 
 export interface PrRef {
@@ -106,6 +106,13 @@ export interface ForkPrStack {
 }
 
 export type PrStack = LinearPrStack | ForkPrStack;
+
+/** The stack read: null when the PR sits in no open stack and none was recorded. */
+export interface PullStack {
+  stack: PrStack | null;
+  /** ISO time the served stack was recorded; present only for a recorded one. */
+  asOf?: string;
+}
 
 export interface ChunkLoc {
   added: number;

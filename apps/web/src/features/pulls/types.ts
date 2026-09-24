@@ -12,6 +12,7 @@ import type {
   ForkPrStack,
   LinearPrStack,
   PrStack,
+  PullStack,
   PrStackMember,
 } from "@web/features/brief/types";
 
@@ -598,12 +599,31 @@ function parseForkStack(value: Record<string, unknown>): Result<ForkPrStack> {
   return { ok: true, value: fork };
 }
 
-/** The live stack read: `{ stack }`, null when the PR sits in no open stack. */
-export function parsePullStack(value: unknown): Result<PrStack | null> {
+export function parsePullStack(value: unknown): Result<PullStack> {
   if (!isRecord(value)) {
     return { ok: false, error: "stack response must be an object" };
   }
-  const stack = value["stack"];
+  const asOf = value["asOf"];
+  if (asOf !== undefined && !isDateString(asOf)) {
+    return { ok: false, error: "asOf must be a date string" };
+  }
+
+  const stack = parseStackField(value["stack"]);
+  if (!stack.ok) {
+    return stack;
+  }
+  const view: PullStack = { stack: stack.value };
+  if (asOf !== undefined) {
+    view.asOf = asOf;
+  }
+  return { ok: true, value: view };
+}
+
+function isDateString(value: unknown): value is string {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
+function parseStackField(stack: unknown): Result<PrStack | null> {
   if (stack === null) return { ok: true, value: null };
   if (!isRecord(stack)) {
     return { ok: false, error: "stack must be an object or null" };

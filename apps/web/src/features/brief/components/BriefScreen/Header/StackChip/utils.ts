@@ -1,4 +1,10 @@
-import type { LinearPrStack, PrStack, PrStackMember } from "../../../../types";
+import { PrStates, type PrState } from "@web/features/pulls/types";
+import type {
+  LinearPrStack,
+  PrStack,
+  PrStackMember,
+  PullStack,
+} from "../../../../types";
 import type { StackView } from "./types";
 
 export function isLinearPrStack(stack: PrStack): stack is LinearPrStack {
@@ -26,24 +32,44 @@ export function isSameStack(left: PrStack, right: PrStack): boolean {
 }
 
 /**
- * Which stack the chip shows. The live one wins when it has been read; the
- * generation-time one stands in until then, and rides along as `snapshot`
- * only when the two disagree. Live null means GitHub sees no stack, and
- * that hides the chip rather than showing one that is not there.
+ * Which stack the chip shows. The read wins once it has answered, carrying
+ * the record's `asOf` when that is what it served; the generation-time one
+ * stands in until then, and rides along as `snapshot` when the two disagree.
+ * A null answer hides the chip on an open PR, since GitHub sees no stack,
+ * and on a closed one means nothing was ever recorded, so the snapshot is
+ * the last stack anyone saw.
  */
 export function resolveStackView(
   snapshot: PrStack | undefined,
-  live: PrStack | null | undefined,
+  live: PullStack | undefined,
+  state: PrState | undefined,
 ): StackView | undefined {
   if (live === undefined) {
     return snapshot === undefined ? undefined : { stack: snapshot };
   }
-  if (live === null) return undefined;
-  const view: StackView = { stack: live };
-  if (snapshot !== undefined && !isSameStack(live, snapshot)) {
+  if (live.stack === null) {
+    return resolveClosedFallback(snapshot, state);
+  }
+
+  const view: StackView = { stack: live.stack };
+  if (live.asOf !== undefined) {
+    view.asOf = live.asOf;
+  }
+  if (snapshot !== undefined && !isSameStack(live.stack, snapshot)) {
     view.snapshot = snapshot;
   }
   return view;
+}
+
+function resolveClosedFallback(
+  snapshot: PrStack | undefined,
+  state: PrState | undefined,
+): StackView | undefined {
+  const closed = state === PrStates.CLOSED || state === PrStates.MERGED;
+  if (!closed || snapshot === undefined) {
+    return undefined;
+  }
+  return { stack: snapshot, atGeneration: true };
 }
 
 /** Swap the pull number in a GitHub PR URL; undefined when the path is not a pull. */

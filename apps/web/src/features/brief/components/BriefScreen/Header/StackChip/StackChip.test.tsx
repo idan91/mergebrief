@@ -186,6 +186,45 @@ describe("StackChip", () => {
     ).toBeNull();
   });
 
+  it("dates a recorded stack in the panel", async () => {
+    await renderChip(
+      <StackChip
+        asOf="2026-09-19T12:00:00.000Z"
+        currentNumber={13}
+        prUrl="https://github.com/o/r/pull/13"
+        stack={LINEAR}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(screen.getByText("As of Sep 19, 2026")).toBeTruthy();
+  });
+
+  it("labels the generation-time stack when it stands in for the live one", async () => {
+    await renderChip(
+      <StackChip
+        atGeneration
+        currentNumber={13}
+        prUrl="https://github.com/o/r/pull/13"
+        stack={LINEAR}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(screen.getByText("At generation time")).toBeTruthy();
+    expect(
+      screen.queryByText("Stack changed since this brief was generated"),
+    ).toBeNull();
+    expect(
+      screen.getByRole("list", {
+        name: "Pull requests in the stack when this brief was generated",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^As of /)).toBeNull();
+  });
+
   it("keeps the panel open on the first click after hover", async () => {
     await renderChip(
       <StackChip

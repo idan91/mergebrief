@@ -53,6 +53,7 @@ export type Catalog = typeof en & {
       branchPairAria: "{{head}} into {{base}}";
       stackIndexAria: "pull request {{index}} of {{total}} in the stack";
       stackMember: "#{{number}} {{title}}";
+      stackAsOf: "As of {{date}}";
     };
     details: (typeof en)["brief"]["details"] & {
       commits_one: "{{count}} commit";

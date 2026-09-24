@@ -151,8 +151,9 @@ export function PrBriefContent({
     ownDraft,
   } = usePrBriefPlans({ repoId, prNumber, span, meta, timeline, revisionJump });
   const compareState = resolveBriefSearch(searchParams, availability);
-  // The stack GitHub has now, not the one the artifact saw at generation. A
-  // failed read leaves it absent and the header keeps the snapshot.
+  // The stack GitHub has now, or the record for a closed PR, not the one the
+  // artifact saw at generation. A failed read leaves it absent and the
+  // header keeps the snapshot.
   const liveStack = useQuery(buildPrStackQueryOptions(repoId, prNumber));
   const livePrState: LivePrState = { state: meta.state, draft: meta.draft };
   if (liveStack.data !== undefined) livePrState.stack = liveStack.data;
