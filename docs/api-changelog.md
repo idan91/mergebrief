@@ -15,6 +15,14 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-24)
 
+- **Changed** the stored fallback for `stack` on `GET /api/inbox` items: a
+  merged or closed row the live open list no longer holds now keeps the
+  last stack recorded on the pull request row rather than the snapshot
+  inside its latest brief body. An open row without a live entry, including
+  one whose list GitHub refused, is `null`: the same rule the brief header
+  applies, since an open pull request the list does not place has no stack.
+  Rows never read since the column landed report `null` until the next
+  brief read or generation records one.
 - **Changed** the reviewer session cookie is `__Host-mergebrief_session` (was
   `rs_session`) and the OAuth state cookie `__Host-mergebrief_oauth_state`. Both are
   `Secure` unconditionally, and the prefix forbids a `Domain` attribute, so a

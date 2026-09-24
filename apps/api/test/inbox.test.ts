@@ -237,6 +237,21 @@ async function seedBrief(
   if (!written.ok) throw new Error("brief seed failed");
 }
 
+async function recordStack(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: Parameters<
+    ReturnType<typeof createTenantRepository>["pullRequests"]["recordStack"]
+  >[0],
+  stack: unknown,
+): Promise<void> {
+  const written = await createTenantRepository(
+    handle,
+    ctx,
+  ).pullRequests.recordStack(pullRequestId, { stack, readAt: new Date() });
+  if (!written.ok) throw new Error(written.error.message);
+}
+
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");
@@ -322,11 +337,11 @@ describe("GET /api/inbox", () => {
       body.items.map((item) => [item["prNumber"], item["stack"]]),
     );
     expect(byNumber.get(8)).toEqual({ index: 2, size: 3 });
-    // A row the open list does not hold keeps its stored snapshot: none.
+    // An open row the list does not hold has no stack.
     expect(byNumber.get(3)).toBeNull();
   });
 
-  it("a refused open list keeps the stored stack snapshot", async () => {
+  it("a merged row keeps its recorded stack when the open list is refused", async () => {
     stubGitHub(200, 200, 404);
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
@@ -334,27 +349,46 @@ describe("GET /api/inbox", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await seedBrief(
-      harness.handle,
-      TENANT,
+    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
       pr.id,
-      JSON.stringify({
-        stack: {
-          index: 1,
-          members: [
-            { number: 8, title: "PR 8" },
-            { number: 9, title: "PR 9" },
-          ],
-        },
-      }),
+      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
     );
+    await recordStack(harness.handle, TENANT, pr.id, {
+      index: 1,
+      members: [
+        { number: 8, title: "PR 8" },
+        { number: 9, title: "PR 9" },
+      ],
+    });
 
-    const body = await readBody(await get("/api/inbox", cookie));
+    const body = await readBody(await get("/api/inbox?state=merged", cookie));
 
     expect(body.items[0]?.["stack"]).toEqual({ index: 1, size: 2 });
   });
 
-  it("a row the live list holds on its own clears its stored snapshot", async () => {
+  it("an open row shows no recorded stack when the open list is refused", async () => {
+    stubGitHub(200, 200, 404);
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    await seedBrief(harness.handle, TENANT, pr.id);
+    await recordStack(harness.handle, TENANT, pr.id, {
+      index: 1,
+      members: [
+        { number: 8, title: "PR 8" },
+        { number: 9, title: "PR 9" },
+      ],
+    });
+
+    const body = await readBody(await get("/api/inbox", cookie));
+
+    expect(body.items[0]?.["stack"]).toBeNull();
+  });
+
+  it("a reopened row the live list holds on its own clears its record", async () => {
     stubGitHub(200, 200, [{ number: 8, head: "feat/one", base: "main" }]);
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
@@ -362,22 +396,19 @@ describe("GET /api/inbox", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await seedBrief(
-      harness.handle,
-      TENANT,
+    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
       pr.id,
-      JSON.stringify({
-        stack: {
-          index: 1,
-          members: [
-            { number: 8, title: "PR 8" },
-            { number: 9, title: "PR 9" },
-          ],
-        },
-      }),
+      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
     );
+    await recordStack(harness.handle, TENANT, pr.id, {
+      index: 1,
+      members: [
+        { number: 8, title: "PR 8" },
+        { number: 9, title: "PR 9" },
+      ],
+    });
 
-    const body = await readBody(await get("/api/inbox", cookie));
+    const body = await readBody(await get("/api/inbox?state=merged", cookie));
 
     expect(body.items[0]?.["stack"]).toBeNull();
   });
@@ -392,20 +423,7 @@ describe("GET /api/inbox", () => {
       title: "tenant",
       updatedAt: new Date("2026-09-02T00:00:00Z"),
     });
-    await seedBrief(
-      harness.handle,
-      TENANT,
-      tenantRow.id,
-      JSON.stringify({
-        stack: {
-          members: [
-            { number: 1, title: "one" },
-            { number: 2, title: "two" },
-          ],
-          index: 2,
-        },
-      }),
-    );
+    await seedBrief(harness.handle, TENANT, tenantRow.id);
     await seedPr(harness.handle, {
       ctx: OWNER,
       repoId: REPO_URL,
@@ -441,7 +459,7 @@ describe("GET /api/inbox", () => {
       generation: null,
       latestBriefAt: expect.any(String),
       githubUpdatedAt: "2026-09-02T00:00:00.000Z",
-      stack: { index: 2, size: 2 },
+      stack: null,
     });
     expect(body.items[1]).toMatchObject({
       installationId: null,

@@ -144,6 +144,12 @@ export type PullRequestUpsertInput = BasePullRequestUpsertInput &
 
 export type PullRequestStatePatch = PullRequestLifecycle;
 
+/** The stack a resolve produced and when; the caller never passes a null stack. */
+export interface PullRequestStackInput {
+  readonly stack: unknown;
+  readonly readAt: Date;
+}
+
 /**
  * Normalize a lifecycle to explicit column values from the discriminant:
  * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
@@ -268,6 +274,15 @@ export interface PullRequestRepository {
   setDraft(
     pullRequestId: PullRequestRowId,
     draft: boolean,
+  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  /**
+   * Overwrite the last stack GitHub resolved for the row and its read time.
+   * Callers write only a non-null resolve: a null one after every neighbour
+   * merged would erase the history this column exists to keep.
+   */
+  recordStack(
+    pullRequestId: PullRequestRowId,
+    input: PullRequestStackInput,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
 }
 
@@ -531,6 +546,28 @@ export function createTenantRepository(
       const rows = await db
         .update(pullRequest)
         .set({ draft, updatedAt: new Date() })
+        .where(
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+        )
+        .returning();
+      const row = rows[0];
+      if (row === undefined) {
+        return fail(
+          RepositoryErrorCodes.NOT_FOUND,
+          `pull_request ${pullRequestId} not found in ${scope.label}`,
+        );
+      }
+      return { ok: true, value: row };
+    },
+
+    async recordStack(pullRequestId, input) {
+      const rows = await db
+        .update(pullRequest)
+        .set({
+          stack: input.stack,
+          stackReadAt: input.readAt,
+          updatedAt: new Date(),
+        })
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )

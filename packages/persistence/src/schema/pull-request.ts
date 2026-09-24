@@ -6,6 +6,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -75,6 +76,13 @@ export const pullRequest = pgTable(
     githubUnreachableAt: timestamp("github_unreachable_at", {
       withTimezone: true,
     }),
+    /**
+     * The last stack GitHub resolved for this PR and when. Only a non-null
+     * resolve overwrites: once every neighbour merges the live read sees
+     * none, and the stored one is the history the brief shows.
+     */
+    stack: jsonb("stack").$type<unknown>(),
+    stackReadAt: timestamp("stack_read_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never". */
     purgeAfter: timestamp("purge_after", { withTimezone: true }),

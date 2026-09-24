@@ -301,11 +301,9 @@ describe("createInboxStore.list, review state", () => {
       ),
       VIEWER,
     );
-    await internal(handle).execute(
-      sql`update ${brief} set body = '{"stack":{"members":[],"index":1}}' where head_sha = 'h1'`,
-    );
-    await internal(handle).execute(
-      sql`update ${brief} set body = 'not json' where head_sha = 'h2'`,
+    await createTenantRepository(handle, CTX_ACME).pullRequests.recordStack(
+      fresh,
+      { stack: { members: [], index: 1 }, readAt: new Date() },
     );
 
     const page = await createInboxStore(handle).list(makeListInput());
@@ -329,8 +327,11 @@ describe("createInboxStore.list, review state", () => {
     const latest = byNumber.get(1)?.latestBrief;
     expect(typeof latest?.id).toBe("bigint");
     expect(latest?.createdAt).toBeInstanceOf(Date);
-    expect(latest?.stack).toEqual({ members: [], index: 1 });
-    expect(byNumber.get(2)?.latestBrief?.stack).toBeNull();
+    expect(byNumber.get(1)?.pullRequest.stack).toEqual({
+      members: [],
+      index: 1,
+    });
+    expect(byNumber.get(2)?.pullRequest.stack).toBeNull();
     expect(page.counts).toEqual({
       new: 3,
       inProgress: 1,

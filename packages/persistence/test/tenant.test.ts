@@ -253,6 +253,62 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
   });
 });
 
+describe("createTenantRepository recordStack, the last stack GitHub resolved", () => {
+  const STACK_AT = new Date("2026-09-24T10:00:00Z");
+  const LATER = new Date("2026-09-24T11:00:00Z");
+  const FIRST_STACK = {
+    members: [
+      { number: 7, title: "one" },
+      { number: 8, title: "two" },
+    ],
+    index: 1,
+  };
+
+  it("writes the stack and its read time, and a later write overwrites", async () => {
+    const handle = await freshDatabase();
+    const a = createTenantRepository(handle, CTX_A);
+    const pr = await a.pullRequests.upsert(upsertInput(7));
+    expect(pr.stack).toBeNull();
+    expect(pr.stackReadAt).toBeNull();
+
+    const first = await a.pullRequests.recordStack(pr.id, {
+      stack: FIRST_STACK,
+      readAt: STACK_AT,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error("expected success");
+    expect(first.value.stack).toEqual(FIRST_STACK);
+    expect(first.value.stackReadAt).toEqual(STACK_AT);
+
+    const fork = { children: [{ number: 8, title: "two" }] };
+    const second = await a.pullRequests.recordStack(pr.id, {
+      stack: fork,
+      readAt: LATER,
+    });
+    expect(second.ok).toBe(true);
+    const stored = await a.pullRequests.getById(pr.id);
+    expect(stored?.stack).toEqual(fork);
+    expect(stored?.stackReadAt).toEqual(LATER);
+  });
+
+  it("recordStack outside the tenant returns notFound, touches nothing", async () => {
+    const handle = await freshDatabase();
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
+    const bPr = await b.pullRequests.upsert(upsertInput(7));
+
+    const result = await a.pullRequests.recordStack(bPr.id, {
+      stack: FIRST_STACK,
+      readAt: STACK_AT,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected a rejection");
+    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
+    expect((await b.pullRequests.getById(bPr.id))?.stack).toBeNull();
+  });
+});
+
 describe("createTenantRepository idempotent upserts", () => {
   it("pull_request upsert is idempotent and mutates state in place", async () => {
     const handle = await freshDatabase();

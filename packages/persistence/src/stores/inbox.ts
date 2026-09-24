@@ -81,14 +81,12 @@ export interface InboxListInput {
   readonly pageSize: number;
 }
 
-/** The latest Brief of a row, lean: never the body, only its `stack` key. */
+/** The latest Brief of a row, lean: never the body. */
 export interface InboxBriefRef {
   readonly id: BriefRowId;
   readonly baseSha: string;
   readonly headSha: string;
   readonly createdAt: Date;
-  /** The body's `stack` JSON as stored, unparsed here; null when absent. */
-  readonly stack: unknown;
 }
 
 export interface InboxRow {
@@ -422,37 +420,7 @@ function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
 }
 type SelectedRow = Awaited<ReturnType<typeof buildListQuery>>[number];
 
-/**
- * The page's stack snapshots, read after the sort and the limit: the body
- * is TOASTed and parsing it per viewable row would cost more than the page.
- * A body that is not JSON yields null rather than failing the list;
- * `pg_input_is_valid` is why the floor is Postgres 16. The ids carry no
- * scope predicate because the list just authorized every one of them.
- */
-async function readStacks(
-  db: InboxDb,
-  rows: readonly SelectedRow[],
-): Promise<ReadonlyMap<BriefRowId, unknown>> {
-  const briefIds = rows
-    .map((row) => row.latestId)
-    .filter((id): id is BriefRowId => id !== null);
-  if (briefIds.length === 0) return new Map();
-
-  const stacks = await db
-    .select({
-      id: brief.id,
-      stack: sql<unknown>`case when pg_input_is_valid(${brief.body}, 'jsonb')
-        then (${brief.body})::jsonb -> 'stack' end`,
-    })
-    .from(brief)
-    .where(inArray(brief.id, briefIds));
-  return new Map(stacks.map((row) => [row.id, row.stack]));
-}
-
-function shapeRow(
-  row: SelectedRow,
-  stacks: ReadonlyMap<BriefRowId, unknown>,
-): InboxRow {
+function shapeRow(row: SelectedRow): InboxRow {
   const {
     latestId,
     latestBaseSha,
@@ -475,7 +443,6 @@ function shapeRow(
         baseSha: latestBaseSha,
         headSha: latestHeadSha,
         createdAt: latestCreatedAt,
-        stack: stacks.get(latestId) ?? null,
       }
     : undefined;
   const state =
@@ -528,10 +495,9 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         .groupBy(viewable.reviewState, viewable.repoId);
 
       const [rows, grouped] = await Promise.all([listQuery, groupsQuery]);
-      const stacks = await readStacks(db, rows);
 
       return {
-        items: rows.map((row) => shapeRow(row, stacks)),
+        items: rows.map((row) => shapeRow(row)),
         page: input.page,
         pageSize: input.pageSize,
         total: grouped.reduce((sum, group) => sum + group.matching, 0),

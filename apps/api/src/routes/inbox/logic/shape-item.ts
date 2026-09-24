@@ -1,9 +1,10 @@
 // The wire item from one store row: ids stringified, dates as ISO strings,
-// the stack snapshot reduced to a position, the generation slice as the PR
-// meta reports it.
+// the row's last stack reduced to a position for a closed row (an open row
+// without a live entry has none, same as the brief header), the generation
+// slice as the PR meta reports it.
 import { PrStackSchema } from "brief-core";
 import type { InboxItem, InboxStackView } from "contract";
-import type { GenerationRow, InboxRow } from "persistence";
+import { PrStates, type GenerationRow, type InboxRow } from "persistence";
 import { buildGenerationSummary } from "../../pr-view";
 
 /** A linear chain has a position; a fork has none worth a number. */
@@ -20,7 +21,7 @@ export function shapeInboxItem(
 ): InboxItem {
   const { pullRequest, latestBrief } = row;
   const storedStack =
-    latestBrief === undefined ? null : shapeStack(latestBrief.stack);
+    pullRequest.state === PrStates.OPEN ? null : shapeStack(pullRequest.stack);
   return {
     repoId: String(pullRequest.repoId),
     repoSlug: pullRequest.repoSlug,

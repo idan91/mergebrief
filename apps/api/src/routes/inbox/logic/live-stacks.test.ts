@@ -244,7 +244,7 @@ describe("readLiveStacks", () => {
     expect(listOpenPulls).toHaveBeenCalledTimes(1);
     expect(log.warn).not.toHaveBeenCalled();
     expect(log.debug).toHaveBeenCalledWith(
-      "open list denied to the viewer, keeping stored stacks",
+      "open list denied to the viewer, no live stacks for the repo",
       { repoId: "100", code: "not-found" },
     );
   });
@@ -259,7 +259,7 @@ describe("readLiveStacks", () => {
 
     expect(listOpenPulls).toHaveBeenCalledTimes(2);
     expect(log.warn).toHaveBeenCalledWith(
-      "open list failed, keeping stored stacks",
+      "open list failed, no live stacks for the repo",
       { repoId: "100", code: "unavailable" },
     );
   });
@@ -356,7 +356,7 @@ describe("readLiveStacks", () => {
     expect(stacks.size).toBe(0);
     expect(listOpenPulls.mock.calls.length).toBeLessThanOrEqual(3);
     expect(log.warn).toHaveBeenCalledWith(
-      "viewer token unreadable, keeping every stored stack",
+      "viewer token unreadable, no live stack for any row",
       { repoId: "100", code: "token-unreadable" },
     );
   });

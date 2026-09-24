@@ -1,8 +1,9 @@
 // The page's stacks as GitHub has them now: one open-PR list per repository
 // on the page, read with the viewer's token and held per session, under a
 // wall-clock budget so Home never waits on a slow repository: what has
-// answered by the deadline places its rows, the rest keep their stored
-// snapshots, and the late lists still land in the cache for the next load.
+// answered by the deadline places its rows, the rest fall back to the row
+// (a closed row's record, nothing for an open one), and the late lists
+// still land in the cache for the next load.
 import { resolvePrStack } from "brief-core";
 import type { InboxStackView } from "contract";
 import type { GitHubApiError, OpenPullRequest, RepositoryRef } from "github";
@@ -95,7 +96,7 @@ function recordRefusal(
 ): ListOutcome {
   const fields = { repoId: String(repoId) };
   if ("kind" in error) {
-    deps.log.warn("viewer token unreadable, keeping every stored stack", {
+    deps.log.warn("viewer token unreadable, no live stack for any row", {
       ...fields,
       code: error.kind,
     });
@@ -109,13 +110,16 @@ function recordRefusal(
       cachedAt + OPEN_PULLS_CACHE_TTL_MS,
       cachedAt,
     );
-    deps.log.debug("open list denied to the viewer, keeping stored stacks", {
-      ...fields,
-      code: error.code,
-    });
+    deps.log.debug(
+      "open list denied to the viewer, no live stacks for the repo",
+      {
+        ...fields,
+        code: error.code,
+      },
+    );
     return NO_LIST;
   }
-  deps.log.warn("open list failed, keeping stored stacks", {
+  deps.log.warn("open list failed, no live stacks for the repo", {
     ...fields,
     code: error.code,
   });
@@ -192,7 +196,7 @@ function startDeadline(ms: number): Deadline {
 /**
  * The live stack of every page row GitHub lists as open by the deadline; a
  * row the list does not hold, whose repository refused the list, or whose
- * list is still on its way gets no entry and keeps its stored snapshot. A
+ * list is still on its way gets no entry and falls back to the row. A
  * token that cannot be read fails every list alike, so the first such
  * refusal halts the rest.
  */
@@ -217,7 +221,7 @@ export async function readLiveStacks(
       if (settled) return;
       placeRows(stacks, group, outcome.open);
     } catch (error) {
-      deps.log.warn("open list read threw, keeping stored stacks", {
+      deps.log.warn("open list read threw, no live stacks for the repo", {
         repoId: String(group.repoId),
         err: error,
       });
@@ -228,9 +232,12 @@ export async function readLiveStacks(
   settled = true;
   deadline.cancel();
   if (outcome !== "placed") {
-    deps.log.debug("live stacks past their budget, serving stored stacks", {
-      repos: groups.length,
-    });
+    deps.log.debug(
+      "live stacks past their budget, late rows fall back to the row",
+      {
+        repos: groups.length,
+      },
+    );
   }
 
   return stacks;

@@ -12,7 +12,7 @@ import type { LiveStacks } from "./logic/live-stacks";
 /** Narrow slices only, never `AppDeps`. */
 export interface InboxControllerDeps {
   readonly handle: AppDatabase;
-  /** The page rows' stacks as GitHub lists them now; absent keeps the snapshots. */
+  /** The page rows' stacks as GitHub lists them now; absent falls back to the rows. */
   readonly readLiveStacks?: (rows: readonly InboxRow[]) => Promise<LiveStacks>;
 }
 

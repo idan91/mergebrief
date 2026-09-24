@@ -79,6 +79,7 @@ export type {
   PullRequestUpsertInput,
   PullRequestLifecycle,
   PullRequestStatePatch,
+  PullRequestStackInput,
   CheckpointSubmitInput,
   SessionCreateInput,
 } from "./stores/tenant";
