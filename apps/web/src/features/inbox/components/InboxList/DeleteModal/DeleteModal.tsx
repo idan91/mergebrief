@@ -5,10 +5,9 @@ import { Button, ButtonVariants } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import type { InboxItem } from "../../../types";
-import styles from "./DeleteModal.module.scss";
 
 export interface DeleteModalProps {
-  /** The rows about to go; one names itself, several are counted and listed. */
+  /** The rows about to go; one names itself in the heading, several are counted. */
   items: readonly InboxItem[];
   open: boolean;
   /** The delete is in flight: Escape and both buttons hold. */
@@ -54,24 +53,14 @@ export function DeleteModal({
     >
       <h2 id="inbox-delete-modal-heading">{heading}</h2>
       <p className={modalStyles["copy"]}>
-        {t("home.inbox.deleteModal.cascade", { count })}
+        {t("home.inbox.deleteModal.goes", { count })}
       </p>
-      {count > 1 ? (
-        <ul className={styles["rows"]}>
-          {items.map((item) => (
-            <li
-              className={styles["row"]}
-              key={`${item.repoId}/${item.prNumber}/${item.source}`}
-            >
-              {t("home.inbox.deleteModal.row", {
-                number: item.prNumber,
-                repo: item.repoSlug ?? item.repoId,
-                title: item.title ?? "",
-              })}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <p className={modalStyles["copy"]}>
+        {t("home.inbox.deleteModal.irreversible")}
+      </p>
+      <p className={modalStyles["copy"]}>
+        {t("home.inbox.deleteModal.next", { count })}
+      </p>
       <div className={modalStyles["actions"]}>
         <Button disabled={busy} ref={cancelRef} onClick={cancel}>
           {t("home.inbox.deleteModal.cancel")}

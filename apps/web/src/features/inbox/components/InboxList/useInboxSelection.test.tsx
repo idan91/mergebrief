@@ -87,6 +87,69 @@ describe("useInboxSelection", () => {
     expect(result.current.selectedItems).toEqual([]);
   });
 
+  it("a range toggle gives the span the clicked row's new state", () => {
+    const rows = [1, 2, 3, 4, 5].map((prNumber) => makeItem({ prNumber }));
+    const { result } = renderHook(() => useInboxSelection(rows));
+
+    act(() => result.current.toggle(rows[1]!));
+    act(() => result.current.toggle(rows[3]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      2, 3, 4,
+    ]);
+
+    act(() => result.current.toggle(rows[0]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      1, 2, 3, 4,
+    ]);
+
+    act(() => result.current.toggle(rows[2]!));
+    act(() => result.current.toggle(rows[4]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+
+    act(() => result.current.toggle(rows[2]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      1, 2,
+    ]);
+  });
+
+  it("a clear or a page select forgets the anchor", () => {
+    const rows = [1, 2, 3, 4].map((prNumber) => makeItem({ prNumber }));
+    const { result } = renderHook(() => useInboxSelection(rows));
+
+    act(() => result.current.toggle(rows[0]!));
+    act(() => result.current.clear());
+    act(() => result.current.toggle(rows[2]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      3,
+    ]);
+
+    act(() => result.current.selectPage());
+    act(() => result.current.toggle(rows[0]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      2, 3, 4,
+    ]);
+  });
+
+  it("a range with no anchor, or one gone from the page, toggles one row", () => {
+    const { result, rerender } = renderHook(
+      ({ items }: { items: readonly InboxItem[] }) => useInboxSelection(items),
+      { initialProps: { items: ROWS } },
+    );
+
+    act(() => result.current.toggle(ROWS[2]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      3,
+    ]);
+
+    rerender({ items: ROWS.slice(0, 2) });
+    act(() => result.current.toggle(ROWS[0]!, true));
+    expect(result.current.selectedItems.map((row) => row.prNumber)).toEqual([
+      1,
+    ]);
+  });
+
   it("removing the rows that went leaves every other tick alone", () => {
     const { result } = renderHook(() => useInboxSelection(ROWS));
     act(() => result.current.selectPage());

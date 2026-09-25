@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { CSSProperties, Ref } from "react";
+import { useRef, type CSSProperties, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import type { InboxArchivedFilter, InboxSort } from "types/inbox";
 
@@ -33,7 +33,8 @@ export interface InboxRowProps {
   cursor: boolean;
   /** The row is ticked for a bulk action. */
   selected: boolean;
-  onToggleSelect: (item: InboxItem) => void;
+  /** `range` is a shift-click: the rows since the last toggle take this one's state. */
+  onToggleSelect: (item: InboxItem, range?: boolean) => void;
   /** The list holds the cursor row so it can scroll it into view. */
   rowRef?: Ref<HTMLLIElement> | undefined;
   /** The view the row sits in, for the archive action's direction. */
@@ -79,6 +80,11 @@ export function InboxRow({
   const description = describeRow(t, item, generation);
   const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
 
+  // The change event carries no modifier; the click before it does.
+  const shiftRef = useRef(false);
+  function handleToggle(): void {
+    onToggleSelect(item, shiftRef.current);
+  }
   function handleRemoved(): void {
     onRemoved(item);
   }
@@ -94,8 +100,13 @@ export function InboxRow({
       ref={rowRef}
       style={rowStyle}
     >
-      <span className={styles["start"]}>
-        <Checkbox checked={selected} onChange={() => onToggleSelect(item)}>
+      <span
+        className={styles["start"]}
+        onClickCapture={(event) => {
+          shiftRef.current = event.shiftKey;
+        }}
+      >
+        <Checkbox checked={selected} onChange={handleToggle}>
           <ScreenReaderOnly>
             {t("home.inbox.select.row", {
               title:

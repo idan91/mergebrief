@@ -1,4 +1,4 @@
-// A selection bar rises once rows are ticked: Archive takes every ticked
+// The list's header row carries the selection: Archive takes every ticked
 // row, Delete counts only the rows the viewer may delete and confirms once,
 // and Clear hands focus to the list heading. The rows it touches are its own.
 import { expect, test } from "@playwright/test";
@@ -34,7 +34,7 @@ test("ticked rows archive together, and Delete counts the deletable ones", async
 
   await page.goto("/");
   const rows = page.getByTestId("inbox-row");
-  const bar = page.getByTestId("selection-bar");
+  const bar = page.getByTestId("selection-header");
   await expect(page.locator('[data-first-load="false"]')).toBeAttached();
 
   // The input is visually replaced by a drawn box: a click lands on its label.
@@ -47,8 +47,25 @@ test("ticked rows archive together, and Delete counts the deletable ones", async
     page.getByRole("heading", { level: 2, name: "Briefs" }),
   ).toBeFocused();
 
-  await rows.filter({ hasText: firstArchive.title }).locator("label").click();
-  await rows.filter({ hasText: secondArchive.title }).locator("label").click();
+  // Shift-click ticks the span from the last toggle. The archive rows are
+  // neighbours, so the span reaches one row beyond them: three ticks prove
+  // the range, and unticking the extra row leaves the two to archive.
+  const titles = await rows.allTextContents();
+  const archiveIndices = [firstArchive, secondArchive].map((row) =>
+    titles.findIndex((text) => text.includes(row.title)),
+  );
+  const low = Math.min(...archiveIndices);
+  const high = Math.max(...archiveIndices);
+  const beyond = high + 1 < titles.length ? high + 1 : low - 1;
+  const anchor = beyond > high ? low : high;
+  await rows.nth(anchor).locator("label").click();
+  await rows
+    .nth(beyond)
+    .locator("label")
+    .click({ modifiers: ["Shift"] });
+  await expect(bar.getByText("3 selected")).toBeVisible();
+  await rows.nth(beyond).locator("label").click();
+  await expect(bar.getByText("2 selected")).toBeVisible();
   await page.getByRole("button", { name: "Archive 2" }).click();
 
   await expect(rows.filter({ hasText: firstArchive.title })).toHaveCount(0);

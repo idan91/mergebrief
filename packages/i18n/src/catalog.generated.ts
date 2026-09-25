@@ -312,12 +312,21 @@ export type Catalog = typeof en & {
         delete_other: "Delete {{count}}";
         undeletable_one: "{{count}} cannot be deleted";
         undeletable_other: "{{count}} cannot be deleted";
+        hint_one: "{{page}} of {{count}} · tick rows to act on them together";
+        hint_other: "{{page}} of {{count}} · tick rows to act on them together";
+        matching_one: "Select all {{count}} matching";
+        matching_other: "Select all {{count}} matching";
+        matchingCapped: "Select the first {{cap}} of {{count}} matching";
+        allMatching_one: "All {{count}} matching selected";
+        allMatching_other: "All {{count}} matching selected";
+        firstMatching: "The first {{cap}} of {{count}} matching selected";
+        noneDeletable_one: "None of the {{count}} matching rows can be deleted";
+        noneDeletable_other: "None of the {{count}} matching rows can be deleted";
       };
       deleteModal: (typeof en)["home"]["inbox"]["deleteModal"] & {
         heading: "Delete briefs for #{{number}} {{repo}}?";
         headingMany_one: "Delete briefs for {{count}} pull request?";
         headingMany_other: "Delete briefs for {{count}} pull requests?";
-        row: "#{{number}} {{repo}}: {{title}}";
       };
     };
     filters: (typeof en)["home"]["filters"] & {

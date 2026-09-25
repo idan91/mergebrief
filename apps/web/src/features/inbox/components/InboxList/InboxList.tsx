@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
@@ -16,19 +17,20 @@ import {
   type InboxLayout,
 } from "types/inbox";
 
-import { Checkbox } from "@web/components/Checkbox/Checkbox";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import { FIRST_LOAD_SETTLE_MS } from "../../consts";
-import type { InboxItem } from "../../types";
+import { FIRST_LOAD_SETTLE_MS, MATCHING_CAP } from "../../consts";
+import type { InboxItem, InboxQueryParams } from "../../types";
 import { readRowKey, splitAtFold } from "../../utils";
 import { DeleteModal } from "./DeleteModal/DeleteModal";
 import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow/InboxRow";
-import { SelectionBar } from "./SelectionBar/SelectionBar";
+import { SelectionHeader } from "./SelectionHeader/SelectionHeader";
 import { useInboxArchiveFacade } from "./useInboxArchiveFacade";
 import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
 import { useInboxSelection } from "./useInboxSelection";
+import { listMatchingRows, readSelectionText } from "./utils";
+
+const NO_PARAMS: InboxQueryParams = {};
 
 export interface InboxListProps {
   items: readonly InboxItem[];
@@ -37,6 +39,11 @@ export interface InboxListProps {
   layout: InboxLayout;
   /** The Inbox, or the viewer's archived rows. */
   archived?: InboxArchivedFilter;
+  /** The list's query, for reading every matching row beyond this page. */
+  params?: InboxQueryParams;
+  /** Rows matching the filters across every page. */
+  total?: number;
+  pageSize?: number;
   /** Names the page the rows answer; a change clears the selection. */
   pageKey?: string;
   /** The filters and the sort, on the heading's line. */
@@ -60,11 +67,15 @@ export function InboxList({
   layout,
   archived = InboxArchivedFilters.HIDE,
   pageKey = "",
+  params = NO_PARAMS,
+  total = 0,
+  pageSize = 1,
   controls,
   children,
 }: InboxListProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const firstLoad = useFirstLoad();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const cursorRowRef = useRef<HTMLLIElement>(null);
@@ -90,15 +101,31 @@ export function InboxList({
     (index) => {
       const item = ordered[index];
       if (item !== undefined) {
-        selection.toggle(item);
+        handleToggle(item);
       }
     },
   );
-  const { clear: clearSelection } = selection;
+  const [allMatching, setAllMatching] = useState(false);
+  const [collecting, setCollecting] = useState(false);
+  // A matching read answers for the scope it started in: any change to the
+  // scope moves the generation, and a read from an older one is dropped.
+  const readGeneration = useRef(0);
+  const { clear: clearSelection, toggle } = selection;
   // The selection belongs to one page of one search; the URL is outside React.
   useEffect(() => {
+    readGeneration.current += 1;
     clearSelection();
+    setAllMatching(false);
   }, [pageKey, clearSelection]);
+  // One row's tick or untick narrows the scope back to the page's ticks.
+  const handleToggle = useCallback(
+    (item: InboxItem, range?: boolean): void => {
+      readGeneration.current += 1;
+      setAllMatching(false);
+      toggle(item, range);
+    },
+    [toggle],
+  );
   const now = new Date();
   const showFold = above.length > 0 && below.length > 0;
 
@@ -121,6 +148,7 @@ export function InboxList({
   const handleGone = useCallback(
     (gone: readonly InboxItem[]): void => {
       removeSelected(gone);
+      setAllMatching(false);
       focusHeading();
     },
     [focusHeading, removeSelected],
@@ -145,26 +173,93 @@ export function InboxList({
   const deletable = selection.selectedItems.filter(
     (item) => item.viewerCanDelete,
   );
-  const busy = deletion.busy || archiving.busy;
+  const busy = deletion.busy || archiving.busy || collecting;
   const deleteOpen = deletion.pending.length > 0;
   const selectedCount = selection.selectedItems.length;
-  const selectionText =
-    selectedCount === 0
-      ? t("home.inbox.select.none")
-      : t("home.inbox.select.count", { count: selectedCount });
+  const matchingTotal = Math.max(total, ordered.length);
+  const selectionText = readSelectionText(t, {
+    selectedCount,
+    allMatching,
+    total: matchingTotal,
+    cap: MATCHING_CAP,
+  });
+
+  // Every matching row, this page's ticks included, read page by page and
+  // capped; the tally names what the read reached. Nothing comes back when
+  // the scope moved under the read, or when its first page failed.
+  async function collectSelected(): Promise<readonly InboxItem[] | undefined> {
+    if (!allMatching) {
+      return selection.selectedItems;
+    }
+    const generation = readGeneration.current;
+    setCollecting(true);
+    try {
+      const rows = await listMatchingRows(queryClient, {
+        params,
+        total: matchingTotal,
+        pageSize,
+        cap: MATCHING_CAP,
+      });
+      if (generation !== readGeneration.current) {
+        announcer.announce(t("home.inbox.select.readDropped"));
+        return undefined;
+      }
+      if (rows.length === 0) {
+        announcer.announce(t("home.inbox.select.readFailed"));
+        return undefined;
+      }
+      return rows;
+    } finally {
+      setCollecting(false);
+    }
+  }
 
   function confirmDelete(): void {
     void deletion.confirm();
   }
+  async function runArchive(): Promise<void> {
+    const rows = await collectSelected();
+    if (rows !== undefined) {
+      await archiving.archiveMany(rows, archived);
+    }
+  }
+  async function runBulkDelete(): Promise<void> {
+    const rows = await collectSelected();
+    if (rows === undefined) {
+      return;
+    }
+    const deletableRows = rows.filter((item) => item.viewerCanDelete);
+    if (deletableRows.length === 0) {
+      announcer.announce(
+        t("home.inbox.select.noneDeletable", { count: rows.length }),
+      );
+      return;
+    }
+    deletion.requestDelete(deletableRows);
+  }
   function archiveSelected(): void {
-    void archiving.archiveMany(selection.selectedItems, archived);
+    void runArchive();
   }
   function requestBulkDelete(): void {
-    deletion.requestDelete(deletable);
+    void runBulkDelete();
   }
-  // Clear unmounts the bar under the focused button; the heading takes it.
+  function selectPage(): void {
+    readGeneration.current += 1;
+    setAllMatching(false);
+    selection.selectPage();
+  }
+  function selectAllMatching(): void {
+    setAllMatching(true);
+  }
+  function clearAllMatching(): void {
+    readGeneration.current += 1;
+    setAllMatching(false);
+  }
+  // Clear unmounts the actions under the focused button; the heading takes it.
   function handleClear(): void {
+    readGeneration.current += 1;
     selection.clear();
+    setAllMatching(false);
     focusHeading();
   }
 
@@ -181,30 +276,30 @@ export function InboxList({
         </h2>
         {controls}
       </div>
-      <SelectionBar
-        archived={archived}
-        busy={busy}
-        count={selection.selectedItems.length}
-        deletableCount={deletable.length}
-        onArchive={archiveSelected}
-        onClear={handleClear}
-        onDelete={requestBulkDelete}
-      />
       {children}
       <div
         className={styles["lists"]}
         data-first-load={firstLoad}
         hidden={ordered.length === 0}
       >
-        <div className={styles["pageSelect"]}>
-          <Checkbox
-            checked={selection.allSelected}
-            indeterminate={selection.someSelected}
-            onChange={selection.selectPage}
-          >
-            <ScreenReaderOnly>{t("home.inbox.select.page")}</ScreenReaderOnly>
-          </Checkbox>
-        </div>
+        <SelectionHeader
+          allMatching={allMatching}
+          allSelected={selection.allSelected}
+          archived={archived}
+          busy={busy}
+          cap={MATCHING_CAP}
+          deletableCount={deletable.length}
+          pageCount={ordered.length}
+          selectedCount={selectedCount}
+          someSelected={selection.someSelected}
+          total={matchingTotal}
+          onArchive={archiveSelected}
+          onClear={handleClear}
+          onClearAllMatching={clearAllMatching}
+          onDelete={requestBulkDelete}
+          onSelectAllMatching={selectAllMatching}
+          onSelectPage={selectPage}
+        />
         {above.length === 0 ? null : (
           <ol className={styles["list"]}>
             {above.map((item, index) => (
@@ -221,7 +316,7 @@ export function InboxList({
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
                 onRemoved={handleRowGone}
-                onToggleSelect={selection.toggle}
+                onToggleSelect={handleToggle}
               />
             ))}
           </ol>
@@ -252,7 +347,7 @@ export function InboxList({
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
                 onRemoved={handleRowGone}
-                onToggleSelect={selection.toggle}
+                onToggleSelect={handleToggle}
               />
             ))}
           </ol>

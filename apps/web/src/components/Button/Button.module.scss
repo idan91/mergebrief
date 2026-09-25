@@ -107,6 +107,20 @@
       }
     }
 
+    &[data-variant="danger-outline"] {
+      border-color: color-mix(
+        in srgb,
+        var(--color-negative) 55%,
+        var(--color-outline-2)
+      );
+      color: var(--color-negative);
+
+      &:hover {
+        border-color: var(--color-negative);
+        background: color-mix(in srgb, var(--color-negative) 12%, transparent);
+      }
+    }
+
     /* The row mini-action grammar (ghost bordered, 24px floor) — distinct
        from RowButton, which is whole-row-as-target. */
     &[data-variant="quiet"] {

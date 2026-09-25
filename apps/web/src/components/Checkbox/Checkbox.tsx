@@ -3,7 +3,7 @@
 // div, so keyboard behaviour, form semantics, the screen-reader checked state
 // and `:focus-visible` all come free; the drawn box is a sibling reacting to
 // `:checked`.
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import styles from "./Checkbox.module.scss";
 
@@ -17,6 +17,8 @@ export interface CheckboxProps {
   indeterminate?: boolean | undefined;
   /** Marks selection for tests without reaching for the label text. */
   testId?: string | undefined;
+  /** The native input, for a caller that moves focus onto it. */
+  inputRef?: RefObject<HTMLInputElement | null> | undefined;
 }
 
 export function Checkbox({
@@ -26,14 +28,21 @@ export function Checkbox({
   disabled,
   indeterminate = false,
   testId,
+  inputRef,
 }: CheckboxProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const ownRef = useRef<HTMLInputElement>(null);
   // Indeterminate is a DOM property, not an attribute; it is set by hand.
   useEffect(() => {
-    if (inputRef.current !== null) {
-      inputRef.current.indeterminate = indeterminate;
+    if (ownRef.current !== null) {
+      ownRef.current.indeterminate = indeterminate;
     }
   }, [indeterminate]);
+  function setInput(node: HTMLInputElement | null): void {
+    ownRef.current = node;
+    if (inputRef !== undefined) {
+      inputRef.current = node;
+    }
+  }
 
   return (
     <label className={styles["root"]} data-disabled={disabled || undefined}>
@@ -42,7 +51,7 @@ export function Checkbox({
         checked={checked}
         className={styles["input"]}
         disabled={disabled}
-        ref={inputRef}
+        ref={setInput}
         type="checkbox"
         {...(testId === undefined ? {} : { "data-testid": testId })}
         onChange={(event) => onChange(event.target.checked)}

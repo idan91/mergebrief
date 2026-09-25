@@ -249,6 +249,9 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
             layout={state.choices.layout}
             archived={state.choices.archived}
             pageKey={pageKey}
+            params={readInboxParams(search)}
+            total={page.total}
+            pageSize={page.pageSize}
           >
             {list}
           </InboxList>

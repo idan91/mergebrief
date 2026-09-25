@@ -58,7 +58,7 @@ describe("DeleteModal", () => {
     );
   });
 
-  it("names one row in the heading and the cascade in the body", () => {
+  it("names one row in the heading and the cascade in three paragraphs", () => {
     renderModal();
 
     expect(
@@ -67,16 +67,18 @@ describe("DeleteModal", () => {
         name: "Delete briefs for #7 acme/payments?",
       }),
     ).toBeDefined();
-    expect(screen.getByRole("dialog").textContent).toContain(
-      "cannot be undone",
-    );
-    expect(screen.getByRole("dialog").textContent).toContain(
-      "review session, draft comments and flag decisions",
-    );
+    const paragraphs = screen
+      .getAllByText(/./, { selector: "p" })
+      .map((node) => node.textContent);
+    expect(paragraphs).toEqual([
+      "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions.",
+      "This cannot be undone.",
+      "The next push makes a new brief; the comment on GitHub stays.",
+    ]);
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  it("lists several rows under a counted heading", () => {
+  it("counts several rows in the heading and lists none of them", () => {
     renderModal({
       items: [
         makeItem(),
@@ -91,12 +93,11 @@ describe("DeleteModal", () => {
         name: "Delete briefs for 3 pull requests?",
       }),
     ).toBeDefined();
-    const rows = screen.getAllByRole("listitem").map((row) => row.textContent);
-    expect(rows).toEqual([
-      "#7 acme/payments: Retry failed webhook deliveries",
-      "#8 acme/payments: Second",
-      "#9 acme/billing: Third",
-    ]);
+    expect(screen.getByRole("dialog").textContent).toContain(
+      "these pull requests",
+    );
+    expect(screen.queryByRole("list")).toBeNull();
+    expect(screen.queryByText("Second")).toBeNull();
   });
 
   it("Confirm calls confirm and Cancel calls cancel", () => {

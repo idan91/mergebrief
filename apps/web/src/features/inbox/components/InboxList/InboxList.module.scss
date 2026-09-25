@@ -30,12 +30,11 @@
     }
   }
 
-  /* Sits over the first row's checkbox column: the same inset as a row. */
-  .pageSelect {
-    display: flex;
-    align-items: center;
-    min-block-size: functions.to-rem(24px);
-    padding-inline: var(--space-5);
+  /* The header row joins the first list; the panel corners move up to it. */
+  .lists > .list:first-of-type,
+  .lists > .list:first-of-type > li:first-child {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
   }
 
   .list {

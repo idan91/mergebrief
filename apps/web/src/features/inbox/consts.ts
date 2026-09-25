@@ -9,3 +9,6 @@ export const FIRST_LOAD_SETTLE_MS = 720;
 
 /** Requests a bulk action keeps in flight at once. */
 export const BULK_CONCURRENCY = 4;
+
+/** The most rows a matching-wide action takes: eight pages read in turn, then the fan-out. */
+export const MATCHING_CAP = 200;

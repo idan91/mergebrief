@@ -81,6 +81,40 @@ async function openRowMenu(): Promise<HTMLElement> {
   return trigger;
 }
 
+/** Two pages of two rows, none deletable; every other request answers ok. */
+/** Answers two pages of two rows; page two waits on the gate when one is given. */
+function answerMatchingPages(pageTwoGate?: Promise<void>): void {
+  fetchMock.mockImplementation(async (input) => {
+    const url = new URL(readRequestUrl(input), "http://x");
+    if (url.pathname === "/api/inbox") {
+      const page = url.searchParams.get("page") ?? "1";
+      if (page === "2" && pageTwoGate !== undefined) {
+        await pageTwoGate;
+      }
+      const numbers = page === "2" ? [3, 4] : [1, 2];
+      return new Response(
+        JSON.stringify({
+          items: numbers.map((prNumber) => ({
+            ...makeItem({ prNumber, title: `PR ${String(prNumber)}` }),
+            generation: null,
+          })),
+          page: Number(page),
+          pageSize: 2,
+          total: 4,
+          archivedTotal: 0,
+          counts: { new: 4, inProgress: 0, reviewed: 0, updated: 0 },
+          viewer: { login: "octocat", avatarUrl: "https://a/1" },
+          reachableInstallations: [],
+          repositories: [{ repoId: "424242", repoSlug: "acme/payments" }],
+          installUrl: null,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return new Response('{"ok":true}', { status: 200 });
+  });
+}
+
 describe("InboxList", () => {
   it("splits at the fold and keeps the server order on each side", async () => {
     await renderInRouter(
@@ -406,7 +440,7 @@ describe("InboxList", () => {
     expect(readRows()[0]?.getAttribute("data-selected")).toBe("true");
     expect(readSelectionStatus()).toBe("1 selected");
     expect(
-      within(screen.getByTestId("selection-bar")).getByText("1 selected"),
+      within(screen.getByTestId("selection-header")).getByText("1 selected"),
     ).toBeTruthy();
   });
 
@@ -452,6 +486,319 @@ describe("InboxList", () => {
         screen.getByRole("heading", { level: 2, name: "Briefs" }),
       );
     });
+  });
+
+  it("a shift-click ticks the span since the last toggle", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+          makeItem({ prNumber: 3, title: "Gamma" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Gamma" }), {
+        shiftKey: true,
+      });
+    });
+
+    expect(readSelectionStatus()).toBe("3 selected");
+  });
+
+  it("selecting every matching row acts on the pages beyond this one", async () => {
+    const page1 = makeItem({ prNumber: 1, title: "Alpha" });
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[page1, makeItem({ prNumber: 2, title: "Beta" })]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+    expect(readSelectionStatus()).toBe("All 4 matching selected");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 4" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Archived 4")).toBeTruthy();
+    });
+    const archived = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/archive"));
+    expect(archived).toHaveLength(4);
+    expect(readSelectionStatus()).toBe("Nothing selected");
+  });
+
+  it("unticking a row after selecting every match acts on the ticks alone", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Beta" }));
+    });
+    expect(readSelectionStatus()).toBe("1 selected");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Archived 1")).toBeTruthy();
+    });
+    const archived = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/archive"));
+    expect(archived).toHaveLength(1);
+    expect(archived[0]).toContain("/pulls/1/");
+  });
+
+  it("a matching delete with nothing deletable says so and opens nothing", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete matching" }));
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("None of the 4 matching rows can be deleted"),
+      ).toBeTruthy();
+    });
+    const closed = screen
+      .getByRole("dialog", { hidden: true })
+      .closest("[data-state]");
+    expect(closed?.getAttribute("data-state")).toBe("closed");
+  });
+
+  it("a matching read that fails is announced, and nothing is archived", async () => {
+    fetchMock.mockImplementation(
+      async () => new Response("{}", { status: 500 }),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 4" }));
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("The matching rows could not be read. Try again."),
+      ).toBeTruthy();
+    });
+    const archived = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/archive"));
+    expect(archived).toHaveLength(0);
+  });
+
+  it("a tick during the matching read drops the action and says so", async () => {
+    let openGate: () => void = () => {};
+    answerMatchingPages(
+      new Promise<void>((resolve) => {
+        openGate = resolve;
+      }),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 4" }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    expect(readSelectionStatus()).toBe("1 selected");
+    await act(async () => {
+      openGate();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "The selection changed while the matching rows were being read. Nothing was done.",
+        ),
+      ).toBeTruthy();
+    });
+    const archived = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/archive"));
+    expect(archived).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Archive 1" })).toBeTruthy();
+  });
+
+  it("a page change during the matching read drops the action", async () => {
+    let openGate: () => void = () => {};
+    answerMatchingPages(
+      new Promise<void>((resolve) => {
+        openGate = resolve;
+      }),
+    );
+    const items = [
+      makeItem({ prNumber: 1, title: "Alpha" }),
+      makeItem({ prNumber: 2, title: "Beta" }),
+    ];
+    const { update } = await renderStageInRouter(
+      <InboxList
+        items={items}
+        pageKey="a"
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 4" }));
+    });
+
+    update(
+      <InboxList
+        items={items}
+        pageKey="b"
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await act(async () => {
+      openGate();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "The selection changed while the matching rows were being read. Nothing was done.",
+        ),
+      ).toBeTruthy();
+    });
+    const archived = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/archive"));
+    expect(archived).toHaveLength(0);
+    expect(readSelectionStatus()).toBe("Nothing selected");
   });
 
   it("a new page key clears the selection; a same-key re-read keeps it", async () => {

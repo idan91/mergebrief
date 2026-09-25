@@ -2,6 +2,7 @@
 // These cases pin the parts a hand-rolled div would lose: the box is drawn,
 // but the control underneath is still a real `<input type="checkbox">`.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Checkbox } from "./Checkbox";
@@ -72,5 +73,15 @@ describe("Checkbox", () => {
     const box = screen.getByRole("checkbox");
     expect(box.hasAttribute("disabled")).toBe(true);
     expect(box.closest("label")?.getAttribute("data-disabled")).toBe("true");
+  });
+
+  it("hands the native input to a caller's ref", () => {
+    const inputRef = createRef<HTMLInputElement>();
+    render(
+      <Checkbox checked={false} inputRef={inputRef} onChange={vi.fn()}>
+        Label
+      </Checkbox>,
+    );
+    expect(inputRef.current).toBe(screen.getByRole("checkbox"));
   });
 });
