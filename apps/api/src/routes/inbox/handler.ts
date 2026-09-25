@@ -47,6 +47,7 @@ function shapeFilters(query: InboxQuery): InboxFilters {
   const filters: Mutable<InboxFilters> = {
     statuses: query.state,
     author: query.author,
+    archived: query.archived,
   };
   if (query.repo !== undefined) filters.repoIds = query.repo;
   if (query.review !== undefined) filters.reviewStates = query.review;
@@ -75,6 +76,7 @@ export default function createHandlers(
         [InboxQueryKeys.INSTALLATION]: c.req.queries(
           InboxQueryKeys.INSTALLATION,
         ),
+        [InboxQueryKeys.ARCHIVED]: c.req.query(InboxQueryKeys.ARCHIVED),
       });
       if (!query.success) {
         throw new BadRequest();

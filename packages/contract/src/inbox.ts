@@ -23,6 +23,7 @@ export const InboxQueryKeys = {
   REVIEW: "review",
   AUTHOR: "author",
   INSTALLATION: "installation",
+  ARCHIVED: "archived",
 } as const;
 export type InboxQueryKey = ValueOf<typeof InboxQueryKeys>;
 
@@ -92,7 +93,7 @@ export interface InboxItem {
   readonly stack: InboxStackView | null;
 }
 
-/** The four review-state totals over the open, non-draft rows the viewer can see, whatever the filters. */
+/** The four review-state totals over the open, non-draft, unarchived rows the viewer can see, whatever the filters or the view. */
 export interface InboxCountsView {
   readonly new: number;
   readonly inProgress: number;
@@ -106,7 +107,7 @@ export interface ReachableInstallationView {
   readonly accountLogin: string;
 }
 
-/** One repository the viewer's rows name; the Repository filter lists these, unfiltered. */
+/** One repository the rows in view name; the Repository filter lists these, unfiltered. */
 export interface InboxRepositoryView {
   /** Stringified. */
   readonly repoId: string;
@@ -114,6 +115,8 @@ export interface InboxRepositoryView {
 }
 
 export interface InboxResponse extends Page<InboxItem> {
+  /** The viewer's archived rows, whatever the filters or the view, so an empty page can say how many there are. */
+  readonly archivedTotal: number;
   readonly counts: InboxCountsView;
   readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];

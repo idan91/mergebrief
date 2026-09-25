@@ -16,11 +16,13 @@ import {
   type SQLWrapper,
 } from "drizzle-orm";
 import {
+  InboxArchivedFilters,
   InboxAuthorFilters,
   InboxFoldStates,
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
+  type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxReviewState,
   type InboxSort,
@@ -30,6 +32,7 @@ import {
 } from "types/inbox";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
+import { inboxArchive } from "../schema/inbox-archive";
 import { pullRequest } from "../schema/pull-request";
 import { reviewSession } from "../schema/review-session";
 import { reviewSubmittedReview } from "../schema/review-submitted-review";
@@ -54,6 +57,8 @@ export interface InboxFilters {
   readonly author: InboxAuthorFilter;
   /** A subset of the reachable installations; absent means all of them. */
   readonly installationIds?: readonly InstallationId[];
+  /** The viewer's archived rows: hidden, or the only rows listed. */
+  readonly archived: InboxArchivedFilter;
 }
 
 /** `page` and `pageSize` are whole numbers of at least 1; the route parses, the store asserts. */
@@ -118,9 +123,11 @@ export interface InboxPage {
   readonly pageSize: number;
   /** Rows matching the filters, across every page. */
   readonly total: number;
-  /** The four review-state totals over the open, non-draft viewable rows, whatever the filters. */
+  /** The viewer's archived rows among the viewable, whatever the filters or the view. */
+  readonly archivedTotal: number;
+  /** The four review-state totals over the open, non-draft, unarchived viewable rows, whatever the filters or the view. */
   readonly counts: InboxCounts;
-  /** The repositories the viewable rows name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
+  /** The repositories the rows in view name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
   readonly repositories: readonly InboxRepository[];
 }
 
@@ -128,17 +135,22 @@ export interface InboxStore {
   list(input: InboxListInput): Promise<InboxPage>;
 }
 
-/** One pass over the viewable rows, grouped by state and repository. */
+/** One pass over the viewable rows, both views, grouped by state and repository. */
 interface ViewableGroup {
   readonly state: string | null;
   readonly repoId: RepoId;
   readonly repoSlug: string | null;
-  /** Open and not a draft. */
+  /** Open, not a draft, not archived. */
   readonly open: number;
+  /** In the requested view and matching the filters. */
   readonly matching: number;
+  /** In the requested view. */
+  readonly inView: number;
+  /** Archived by the viewer. */
+  readonly archived: number;
 }
 
-/** The four totals summed over the open, non-draft rows of each group; the viewer's own rows carry none. */
+/** The four totals summed over the open, non-draft, unarchived rows of each group; the viewer's own rows carry none. */
 function shapeCounts(groups: readonly ViewableGroup[]): InboxCounts {
   const counts = { new: 0, inProgress: 0, reviewed: 0, updated: 0 };
   for (const group of groups) {
@@ -156,12 +168,15 @@ function shapeCounts(groups: readonly ViewableGroup[]): InboxCounts {
   return counts;
 }
 
-/** Each repository once, a named slug winning over none, sorted by slug and capped. */
+/** Each repository with a row in view once, a named slug winning over none, sorted by slug and capped. */
 function shapeRepositories(
   groups: readonly ViewableGroup[],
 ): readonly InboxRepository[] {
   const byId = new Map<RepoId, InboxRepository>();
   for (const group of groups) {
+    if (group.inView === 0) {
+      continue;
+    }
     const known = byId.get(group.repoId);
     if (
       known === undefined ||
@@ -221,6 +236,8 @@ interface RowFacts {
   readonly reviewState: SQL<string | null>;
   readonly viewerIsAuthor: SQL<boolean>;
   readonly behind: SQL<boolean>;
+  /** The viewer archived the row at its latest brief's head. */
+  readonly archived: SQL<boolean>;
 }
 
 function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
@@ -258,7 +275,14 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
   const behind = sql<boolean>`${pullRequest.githubHeadSha} is not null
     and ${latest.latestHeadSha} is not null
     and ${pullRequest.githubHeadSha} <> ${latest.latestHeadSha}`;
-  return { latest, reviewState, viewerIsAuthor, behind };
+  // Anchored on the head: a brief at a new head lifts the archive on its own.
+  const archived = sql<boolean>`exists (
+    select 1 from ${inboxArchive} ia
+    where ia.pull_request_id = ${pullRequest.id}
+      and ia.reviewer_id = ${reviewerId}
+      and ia.head_sha is not distinct from ${latest.latestHeadSha}
+  )`;
+  return { latest, reviewState, viewerIsAuthor, behind, archived };
 }
 
 function canReachInstallations(input: InboxListInput): boolean {
@@ -283,13 +307,17 @@ function buildVisibility(input: InboxListInput): SQL {
     eq(pullRequest.ownerUserId, input.ownerUserId),
   );
   const visible = or(installationBranch, ownerBranch);
-  if (visible === undefined) throw new Error("visibility composed to nothing");
+  if (visible === undefined) {
+    throw new Error("visibility composed to nothing");
+  }
   return visible;
 }
 
 /** A url row is hidden while an installation row for the same pull request is visible. */
 function buildShadowing(input: InboxListInput): SQL {
-  if (!canReachInstallations(input)) return sql`true`;
+  if (!canReachInstallations(input)) {
+    return sql`true`;
+  }
   const shadowInstallation = sql`shadow.installation_id`;
   const shadowRepo = sql`shadow.repo_id`;
   return sql`not (${pullRequest.source} = ${PullRequestSources.URL} and exists (
@@ -326,12 +354,16 @@ function buildRowFilters(input: InboxListInput, facts: RowFacts): SQL[] {
 
   if (statuses.length > 0) {
     const anyStatus = or(...statuses.map(buildStatusPredicate));
-    if (anyStatus !== undefined) filters.push(anyStatus);
+    if (anyStatus !== undefined) {
+      filters.push(anyStatus);
+    }
   }
   if (repoIds !== undefined && repoIds.length > 0) {
     filters.push(inArray(pullRequest.repoId, [...repoIds]));
   }
-  if (author === InboxAuthorFilters.MINE) filters.push(facts.viewerIsAuthor);
+  if (author === InboxAuthorFilters.MINE) {
+    filters.push(facts.viewerIsAuthor);
+  }
   if (author === InboxAuthorFilters.OTHERS) {
     filters.push(sql`not ${facts.viewerIsAuthor}`);
   }
@@ -340,19 +372,39 @@ function buildRowFilters(input: InboxListInput, facts: RowFacts): SQL[] {
       inArray(pullRequest.installationId, [...installationIds]),
       isNull(pullRequest.installationId),
     );
-    if (chosen !== undefined) filters.push(chosen);
+    if (chosen !== undefined) {
+      filters.push(chosen);
+    }
   }
   return filters;
 }
 
 function buildStateFilter(input: InboxListInput, state: SQLWrapper): SQL {
   const { reviewStates } = input.filters;
-  if (reviewStates === undefined || reviewStates.length === 0) return sql`true`;
+  if (reviewStates === undefined || reviewStates.length === 0) {
+    return sql`true`;
+  }
   const literals = sql.join(
     reviewStates.map((value) => sql`${value}`),
     sql`, `,
   );
   return sql`${state} in (${literals})`;
+}
+
+function buildArchivedPredicate(
+  archived: SQLWrapper,
+  view: InboxArchivedFilter,
+): SQL {
+  return view === InboxArchivedFilters.ONLY
+    ? sql`${archived}`
+    : sql`not ${archived}`;
+}
+
+interface ViewableScope {
+  /** Only the rows the filters match. */
+  readonly filtered: boolean;
+  /** Only the rows of the requested view; off, both views and the `archived` column tells them apart. */
+  readonly inView: boolean;
 }
 
 /**
@@ -365,15 +417,19 @@ function buildViewable(
   input: InboxListInput,
   facts: RowFacts,
   rowFilters: readonly SQL[],
-  filtered: boolean,
+  scope: ViewableScope,
 ) {
   const { latest } = facts;
-  const visible = buildVisibility(input);
-  const shadowing = buildShadowing(input);
+  const conditions = [buildVisibility(input), buildShadowing(input)];
+  if (scope.inView) {
+    conditions.push(
+      buildArchivedPredicate(facts.archived, input.filters.archived),
+    );
+  }
   const matchesRows = and(...rowFilters) ?? sql`true`;
-  const where = filtered
-    ? and(visible, shadowing, matchesRows)
-    : and(visible, shadowing);
+  if (scope.filtered) {
+    conditions.push(matchesRows);
+  }
 
   return db
     .select({
@@ -385,11 +441,12 @@ function buildViewable(
       reviewState: facts.reviewState.as("review_state"),
       viewerIsAuthor: facts.viewerIsAuthor.as("viewer_is_author"),
       behind: facts.behind.as("behind"),
+      archived: facts.archived.as("archived"),
       matchesRows: sql<boolean>`${matchesRows}`.as("matches_rows"),
     })
     .from(pullRequest)
     .leftJoinLateral(latest, sql`true`)
-    .where(where)
+    .where(and(...conditions))
     .as("viewable");
 }
 type Viewable = ReturnType<typeof buildViewable>;
@@ -429,6 +486,7 @@ function shapeRow(row: SelectedRow): InboxRow {
     reviewState,
     viewerIsAuthor,
     behind,
+    archived: _archived,
     matchesRows: _matchesRows,
     ...pullRequestRow
   } = row;
@@ -471,18 +529,29 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
       const facts = buildRowFacts(db, input);
       const rowFilters = buildRowFilters(input, facts);
 
-      const page = buildViewable(db, input, facts, rowFilters, true);
+      const page = buildViewable(db, input, facts, rowFilters, {
+        filtered: true,
+        inView: true,
+      });
       const listQuery = buildListQuery(db, input, page);
 
-      // One pass over every viewable row answers the four state counts, the
-      // filtered total and the repository vocabulary together, whatever
-      // page was asked for.
-      const viewable = buildViewable(db, input, facts, rowFilters, false);
+      // One pass over every viewable row of both views answers the four
+      // state counts, the filtered total, the archived total and the
+      // repository vocabulary together, whatever page was asked for.
+      const viewable = buildViewable(db, input, facts, rowFilters, {
+        filtered: false,
+        inView: false,
+      });
+      const inView = buildArchivedPredicate(
+        viewable.archived,
+        input.filters.archived,
+      );
       const matches = and(
         viewable.matchesRows,
         buildStateFilter(input, viewable.reviewState),
+        inView,
       );
-      const open = buildOpenPredicate(viewable.state, viewable.draft);
+      const open = sql`${buildOpenPredicate(viewable.state, viewable.draft)} and not ${viewable.archived}`;
       const groupsQuery = db
         .select({
           state: viewable.reviewState,
@@ -490,17 +559,25 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
           repoSlug: sql<string | null>`max(${viewable.repoSlug})`,
           open: sql<number>`count(*) filter (where ${open})::int`,
           matching: sql<number>`count(*) filter (where ${matches})::int`,
+          inView: sql<number>`count(*) filter (where ${inView})::int`,
+          archived: sql<number>`count(*) filter (where ${viewable.archived})::int`,
         })
         .from(viewable)
         .groupBy(viewable.reviewState, viewable.repoId);
 
       const [rows, grouped] = await Promise.all([listQuery, groupsQuery]);
+      const total = grouped.reduce((sum, group) => sum + group.matching, 0);
+      const archivedTotal = grouped.reduce(
+        (sum, group) => sum + group.archived,
+        0,
+      );
 
       return {
         items: rows.map((row) => shapeRow(row)),
         page: input.page,
         pageSize: input.pageSize,
-        total: grouped.reduce((sum, group) => sum + group.matching, 0),
+        total,
+        archivedTotal,
         counts: shapeCounts(grouped),
         repositories: shapeRepositories(grouped),
       };

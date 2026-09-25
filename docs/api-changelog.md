@@ -15,6 +15,17 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-24)
 
+- **Added** `PUT` and `DELETE /api/repos/:repoId/pulls/:prNumber/archive`
+  (`archive-pull`, `unarchive-pull`), behind the per-PR gate: the viewer's
+  own archive of one inbox row, per reviewer, anchored on the latest
+  brief's head. A brief at a new head lifts it; a brief at the same head,
+  a retarget, does not. Private writes: a Bearer principal at
+  `private-write` or above may call them.
+- **Added** `archived` on `GET /api/inbox`: `hide` (the default) leaves the
+  viewer's archived rows out of the page, the total and the repositories;
+  `only` lists nothing else. `counts` never includes an archived row in
+  either view. The response carries `archivedTotal`, the viewer's archived
+  rows whatever the filters or the view, beside `total`.
 - **Added** `DELETE /api/repos/:repoId/pulls/:prNumber` (`delete-pull`),
   behind the per-PR gate: erases one pull request's briefs and everything
   hanging off them. Cookie only (`human-only` for a Bearer principal). An

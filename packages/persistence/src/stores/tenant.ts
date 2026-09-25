@@ -17,6 +17,10 @@ import {
   type ReviewSessionRepository,
   createReviewSessionRepository,
 } from "./review-session";
+import {
+  createInboxArchiveStore,
+  type InboxArchiveStore,
+} from "./inbox-archive";
 import { resolveScope } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
@@ -331,6 +335,8 @@ export interface TenantRepository {
   readonly pullRequests: PullRequestRepository;
   readonly checkpoints: CheckpointRepository;
   readonly sessions: SessionRepository;
+  /** The reviewer's own archive of Inbox rows, see `stores/inbox-archive.ts`. */
+  readonly archives: InboxArchiveStore;
   /** The reviewer's Review Session work, see `stores/review-session.ts`. */
   readonly reviewSessions: ReviewSessionRepository;
 }
@@ -771,6 +777,7 @@ export function createTenantRepository(
     pullRequests,
     checkpoints,
     sessions,
+    archives: createInboxArchiveStore(handle, ctx),
     reviewSessions: createReviewSessionRepository(db, scope),
   };
 }

@@ -14,6 +14,12 @@ const EXPECTED_CATALOG = [
     endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/risks/address",
   },
   {
+    id: "archive-pull",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "PUT /api/repos/:repoId/pulls/:prNumber/archive",
+  },
+  {
     id: "create-draft-comment",
     kind: "action",
     classification: "private-write",
@@ -223,6 +229,12 @@ const EXPECTED_CATALOG = [
     kind: "action",
     classification: "external-write",
     endpoint: "POST /api/repos/:repoId/pulls/:prNumber/review",
+  },
+  {
+    id: "unarchive-pull",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "DELETE /api/repos/:repoId/pulls/:prNumber/archive",
   },
   {
     id: "unresolve-thread",

@@ -1,5 +1,10 @@
 import { InboxQueryBounds } from "contract";
-import { InboxAuthorFilters, InboxSorts, InboxStatuses } from "types/inbox";
+import {
+  InboxArchivedFilters,
+  InboxAuthorFilters,
+  InboxSorts,
+  InboxStatuses,
+} from "types/inbox";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -63,6 +68,20 @@ describe("parseInboxSearch", () => {
     });
   });
 
+  it("reads the archived view and drops its default", () => {
+    expect(parseInboxSearch({ archived: "only" })).toEqual({
+      archived: InboxArchivedFilters.ONLY,
+    });
+    expect(parseInboxSearch({ archived: "hide" })).toEqual({});
+    expect(parseInboxSearch({ archived: "bogus" })).toEqual({});
+    expect(readInboxParams({ archived: InboxArchivedFilters.ONLY })).toEqual({
+      archived: InboxArchivedFilters.ONLY,
+    });
+    expect(countChangedFilters({ archived: InboxArchivedFilters.ONLY })).toBe(
+      1,
+    );
+  });
+
   it("a repeated-key address reads like the comma form", () => {
     const repeated = parseInboxSearch({
       state: ["open", "merged"],
@@ -104,6 +123,7 @@ describe("readInboxParams and readInboxChoices", () => {
       reviews: ["new", "updated"],
       author: InboxAuthorFilters.ALL,
       installations: [],
+      archived: InboxArchivedFilters.HIDE,
     });
   });
 });

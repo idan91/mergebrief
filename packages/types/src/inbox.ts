@@ -41,6 +41,13 @@ export const InboxAuthorFilters = {
 } as const;
 export type InboxAuthorFilter = ValueOf<typeof InboxAuthorFilters>;
 
+/** The viewer's archived rows: hidden, the default, or the only rows listed. */
+export const InboxArchivedFilters = {
+  HIDE: "hide",
+  ONLY: "only",
+} as const;
+export type InboxArchivedFilter = ValueOf<typeof InboxArchivedFilters>;
+
 /** How the list is laid out: rows that need the reviewer first, or one list in the sort's order. */
 export const InboxLayouts = {
   FOLDED: "folded",

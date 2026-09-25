@@ -100,6 +100,7 @@ export default {
       page: page.page,
       pageSize: page.pageSize,
       total: page.total,
+      archivedTotal: page.archivedTotal,
       counts: page.counts,
       viewer: shapeViewer(input.reviewerId, input.reviewerLogin),
       reachableInstallations: input.installations.map((entry) => ({

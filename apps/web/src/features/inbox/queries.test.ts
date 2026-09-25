@@ -3,7 +3,12 @@ import { QueryClient } from "@tanstack/react-query";
 import { InboxSorts } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildInboxQueryOptions, deletePull } from "./queries";
+import {
+  archivePull,
+  buildInboxQueryOptions,
+  deletePull,
+  unarchivePull,
+} from "./queries";
 import { InboxStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -38,6 +43,7 @@ const WIRE_PAGE = {
   page: 1,
   pageSize: 25,
   total: 1,
+  archivedTotal: 0,
   counts: { new: 1, inProgress: 0, reviewed: 0, updated: 0 },
   viewer: { login: "octocat", avatarUrl: "https://a/1" },
   reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
@@ -156,5 +162,36 @@ describe("deletePull", () => {
   it("a codeless 5xx is the failed kind", async () => {
     answerWith(502, {});
     expect(await deletePull("424242", 7)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("archivePull and unarchivePull", () => {
+  it("archives through PUT on the row's archive path", async () => {
+    answerWith(200, { ok: true });
+
+    const result = await archivePull("424242", 7);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7\/archive$/);
+    expect(init?.method).toBe("PUT");
+    expect(result).toEqual({ kind: "archived" });
+  });
+
+  it("unarchives through DELETE on the same path", async () => {
+    answerWith(200, { ok: true });
+
+    const result = await unarchivePull("424242", 7);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7\/archive$/);
+    expect(init?.method).toBe("DELETE");
+    expect(result).toEqual({ kind: "unarchived" });
+  });
+
+  it("a 404 is not-found and anything else failed", async () => {
+    answerWith(404, { error: "x", code: "not-found" });
+    expect(await archivePull("424242", 7)).toEqual({ kind: "not-found" });
+    answerWith(502, {});
+    expect(await unarchivePull("424242", 7)).toEqual({ kind: "failed" });
   });
 });

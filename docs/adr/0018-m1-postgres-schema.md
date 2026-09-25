@@ -442,6 +442,12 @@ computes); `api_token` gains `scope` (`read` / `private-write` /
 `reviewer_session` renames to `auth_session`, clearing the collision with the
 product term.
 
+**Added 2026-09-25 (BRIEF-300):**
+
+| Table | Kind | Notes |
+|---|---|---|
+| `inbox_archive` | per-reviewer view state | key `(installation_id, pull_request_id, reviewer_id)`, nulls not distinct for the url world; FK `pull_request` cascades; `head_sha` (nullable) anchors the archive on the latest brief's head at the time, and the inbox predicate lifts it once a brief at a new head exists, so nothing sweeps a stale row |
+
 **Deferred (additive migrations, zero rewrite):** `delta_overlay` (carry-over overlay → M2), a `repo` table (per-repo config → M3).
 
 **Entity → table (anchored to ADR 0008 / CONTEXT):** Brief→`brief`, Delta core→`delta`, Carry-over overlay→`delta_overlay` (M2 boundary), DiffSnapshot→`diff_snapshot`, Checkpoint→`checkpoint`, Disposition→`disposition`, Revision narrative→`revision_narrative` (ADR 0024), Revision changes / comparison marks→`comparison_marks` (ADR 0024).

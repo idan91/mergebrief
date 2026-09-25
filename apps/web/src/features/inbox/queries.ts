@@ -52,14 +52,18 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
   });
 }
 
+/** How a row write was refused: a refusal to act, a row that is gone, or anything else. */
+export type RowWriteFailureKind = "forbidden" | "not-found" | "failed";
+
 export type DeletePullResult =
   | { kind: "deleted" }
   /** 403: not a repository admin, or a Bearer principal on a human-only act. */
-  | { kind: "forbidden" }
-  | { kind: "not-found" }
-  | { kind: "failed" };
+  | { kind: RowWriteFailureKind };
 
-type DeletePullFailureKind = Exclude<DeletePullResult["kind"], "deleted">;
+export type ArchivePullResult =
+  | { kind: "archived" }
+  | { kind: "unarchived" }
+  | { kind: Exclude<RowWriteFailureKind, "forbidden"> };
 
 // Total over the wire vocabulary: a new ApiErrorCode member fails to compile
 // here instead of silently becoming "failed".
@@ -94,18 +98,60 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_CONFIG]: "failed",
   [ApiErrorCodes.INTERNAL_ERROR]: "failed",
   [ApiErrorCodes.MALFORMED]: "failed",
-} as const satisfies Record<ApiErrorCode, DeletePullFailureKind>;
+} as const satisfies Record<ApiErrorCode, RowWriteFailureKind>;
+
+function buildPullPath(repoId: string, prNumber: number): string {
+  return `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
+}
+
+async function readRowWriteFailure(
+  response: Response,
+  path: string,
+): Promise<RowWriteFailureKind> {
+  const { code } = await errorFromResponse(response, path);
+  return KindForCode[code];
+}
 
 /** The gated delete of one pull request's briefs. */
 export async function deletePull(
   repoId: string,
   prNumber: number,
 ): Promise<DeletePullResult> {
-  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
+  const path = buildPullPath(repoId, prNumber);
   const response = await apiFetch(path, { method: "DELETE" });
   if (!response.ok) {
-    const { code } = await errorFromResponse(response, path);
-    return { kind: KindForCode[code] };
+    return { kind: await readRowWriteFailure(response, path) };
   }
   return { kind: "deleted" };
+}
+
+async function writeArchive(
+  repoId: string,
+  prNumber: number,
+  method: "PUT" | "DELETE",
+  done: "archived" | "unarchived",
+): Promise<ArchivePullResult> {
+  const path = `${buildPullPath(repoId, prNumber)}/archive`;
+  const response = await apiFetch(path, { method });
+  if (!response.ok) {
+    const kind = await readRowWriteFailure(response, path);
+    return { kind: kind === "forbidden" ? "failed" : kind };
+  }
+  return { kind: done };
+}
+
+/** Put the row out of the viewer's Inbox until a new brief lands. */
+export function archivePull(
+  repoId: string,
+  prNumber: number,
+): Promise<ArchivePullResult> {
+  return writeArchive(repoId, prNumber, "PUT", "archived");
+}
+
+/** Bring an archived row back to the viewer's Inbox. */
+export function unarchivePull(
+  repoId: string,
+  prNumber: number,
+): Promise<ArchivePullResult> {
+  return writeArchive(repoId, prNumber, "DELETE", "unarchived");
 }

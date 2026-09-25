@@ -1,4 +1,5 @@
 import {
+  type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxReviewState,
   type InboxSort,
@@ -83,6 +84,7 @@ export interface InboxQueryParams {
   readonly review?: readonly InboxReviewState[];
   readonly author?: InboxAuthorFilter;
   readonly installation?: readonly string[];
+  readonly archived?: InboxArchivedFilter;
 }
 
 /**
@@ -98,6 +100,7 @@ export interface InboxSearch {
   readonly review?: string;
   readonly author?: InboxAuthorFilter;
   readonly installation?: string;
+  readonly archived?: InboxArchivedFilter;
 }
 
 /** A change to the URL's state; an explicit `undefined` unsets a key. */

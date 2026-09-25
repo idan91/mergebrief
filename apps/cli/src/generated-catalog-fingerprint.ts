@@ -2,4 +2,4 @@
 // manifest this package's operations map was checked against.
 // Do not edit by hand.
 export const CLI_CATALOG_FINGERPRINT =
-  "d1a938ca8d36802c05850ee0ba350cabaeb178166f6328bc8bd90e26e7f1744b";
+  "554cebf3d7729313c0759b0460ec06d68a3d58d6dbd4d39e9336c4153811d8ab";

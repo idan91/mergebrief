@@ -42,6 +42,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
     search.set(InboxQueryKeys.AUTHOR, params.author);
   }
   appendEach(search, InboxQueryKeys.INSTALLATION, params.installation);
+  if (params.archived !== undefined) {
+    search.set(InboxQueryKeys.ARCHIVED, params.archived);
+  }
 
   const text = search.toString();
   return text === "" ? "" : `?${text}`;

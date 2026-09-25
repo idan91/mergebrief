@@ -1,9 +1,11 @@
 import { InboxQueryBounds } from "contract";
 import {
+  InboxArchivedFilters,
   InboxAuthorFilters,
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
+  type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxReviewState,
   type InboxSort,
@@ -112,6 +114,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   const reviews = keepKnown(readList(search["review"]), InboxReviewStates);
   const author = readOne(search["author"], InboxAuthorFilters);
   const installations = readIds(search["installation"]);
+  const archived = readOne(search["archived"], InboxArchivedFilters);
 
   if (page !== undefined) parsed.page = page;
   if (sort !== undefined && sort !== InboxSorts.UPDATED) parsed.sort = sort;
@@ -128,6 +131,9 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   }
   if (installations.length > 0) {
     parsed.installation = installations.join(LIST_SEPARATOR);
+  }
+  if (archived !== undefined && archived !== InboxArchivedFilters.HIDE) {
+    parsed.archived = archived;
   }
   return parsed;
 }
@@ -157,6 +163,9 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
   if (reviews.length > 0) params.review = reviews;
   if (search.author !== undefined) params.author = search.author;
   if (installations.length > 0) params.installation = installations;
+  if (search.archived !== undefined) {
+    params.archived = search.archived;
+  }
   return params;
 }
 
@@ -170,6 +179,7 @@ export interface InboxChoices {
   readonly reviews: readonly InboxReviewState[];
   readonly author: InboxAuthorFilter;
   readonly installations: readonly string[];
+  readonly archived: InboxArchivedFilter;
 }
 
 export function readInboxChoices(search: InboxSearch): InboxChoices {
@@ -183,6 +193,7 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
     reviews: params.review ?? [],
     author: params.author ?? InboxAuthorFilters.ALL,
     installations: params.installation ?? [],
+    archived: params.archived ?? InboxArchivedFilters.HIDE,
   };
 }
 
@@ -206,6 +217,7 @@ export function countChangedFilters(search: InboxSearch): number {
     "review",
     "author",
     "installation",
+    "archived",
   ];
   return keys.filter((key) => search[key] !== undefined).length;
 }

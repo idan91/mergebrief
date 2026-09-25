@@ -1,6 +1,7 @@
 import { InboxQueryKeys } from "contract";
 import { isInstallationId, isRepoId } from "persistence";
 import {
+  InboxArchivedFilters,
   InboxAuthorFilters,
   InboxReviewStates,
   InboxSorts,
@@ -62,5 +63,8 @@ export const inboxQuerySchema = z.object({
     .nativeEnum(InboxAuthorFilters)
     .default(InboxAuthorFilters.ALL),
   [InboxQueryKeys.INSTALLATION]: buildListSchema(installationIdSchema),
+  [InboxQueryKeys.ARCHIVED]: z
+    .nativeEnum(InboxArchivedFilters)
+    .default(InboxArchivedFilters.HIDE),
 });
 export type InboxQuery = z.infer<typeof inboxQuerySchema>;

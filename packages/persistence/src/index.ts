@@ -89,6 +89,15 @@ export type {
 // never a row.
 export { resolveUrlBoxOwner } from "./stores/url-box";
 export { createInboxStore } from "./stores/inbox";
+export {
+  createInboxArchiveStore,
+  InboxArchiveErrorCodes,
+} from "./stores/inbox-archive";
+export type {
+  InboxArchiveError,
+  InboxArchiveErrorCode,
+  InboxArchiveStore,
+} from "./stores/inbox-archive";
 export type {
   InboxBriefRef,
   InboxCounts,

@@ -69,6 +69,7 @@ export const inboxResponseSchema = z.object({
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),
   total: z.number().int().min(0),
+  archivedTotal: z.number().int().min(0),
   counts: inboxCountsSchema,
   viewer: inboxViewerSchema,
   reachableInstallations: z.array(reachableInstallationSchema),

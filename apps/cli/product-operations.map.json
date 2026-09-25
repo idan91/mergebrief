@@ -2,6 +2,12 @@
   "address-risk": {
     "command": "mergebrief risk address <number>"
   },
+  "archive-pull": {
+    "webOnly": {
+      "reason": "Archiving is a Home affordance over the Inbox list; the CLI has no list to archive from",
+      "owner": "idan"
+    }
+  },
   "create-draft-comment": {
     "command": "mergebrief draft create <number>"
   },
@@ -127,6 +133,12 @@
   },
   "submit-review": {
     "command": "mergebrief submit <number>"
+  },
+  "unarchive-pull": {
+    "webOnly": {
+      "reason": "Unarchiving is a Home affordance over the archived view; the CLI has no list to restore to",
+      "owner": "idan"
+    }
   },
   "unresolve-thread": {
     "command": "mergebrief thread unresolve <number>"

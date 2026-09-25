@@ -3,6 +3,7 @@
 // row, each filter, and a page past the end.
 import { sql } from "drizzle-orm";
 import {
+  InboxArchivedFilters,
   InboxAuthorFilters,
   InboxReviewStates,
   InboxSorts,
@@ -97,10 +98,11 @@ async function seedBrief(
   pullRequestId: PullRequestRowId,
   headSha: string,
   createdAt?: Date,
+  baseSha = "base",
 ): Promise<BriefRowId> {
   const written = await createArtifactStore(handle, ctx).briefs.write({
     pullRequestId,
-    baseSha: "base",
+    baseSha,
     headSha,
     headIndex: 1,
     commitCount: 1,
@@ -109,7 +111,9 @@ async function seedBrief(
     effort: "low",
     body: "{}",
   });
-  if (!written.ok) throw new Error(written.error.message);
+  if (!written.ok) {
+    throw new Error(written.error.message);
+  }
   if (createdAt !== undefined) {
     await internal(handle)
       .update(brief)
@@ -136,12 +140,19 @@ async function openSession(
       return writer.session;
     },
   );
-  if (!result.ok) throw new Error(`session seed failed: ${result.error.code}`);
+  if (!result.ok) {
+    throw new Error(`session seed failed: ${result.error.code}`);
+  }
 }
 
 const DEFAULT_FILTERS: InboxFilters = {
   statuses: [InboxStatuses.OPEN, InboxStatuses.DRAFT],
   author: InboxAuthorFilters.ALL,
+  archived: InboxArchivedFilters.HIDE,
+};
+const ARCHIVED_ONLY: InboxFilters = {
+  ...DEFAULT_FILTERS,
+  archived: InboxArchivedFilters.ONLY,
 };
 
 function makeListInput(overrides?: Partial<InboxListInput>): InboxListInput {
@@ -507,6 +518,164 @@ describe("createInboxStore.list, visibility", () => {
       [1, "installation"],
     ]);
     expect(page.counts.new).toBe(2);
+  });
+
+  it("an archived row leaves the page, counts, total and repositories", async () => {
+    const handle = await freshDatabase();
+    const archived = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedRow(handle, { ctx: CTX_OCTO, repoId: REPO_B, prNumber: 2 });
+    await createTenantRepository(handle, CTX_ACME).archives.set(
+      archived,
+      VIEWER,
+    );
+
+    const page = await createInboxStore(handle).list(makeListInput());
+
+    expect(page.items.map((item) => item.pullRequest.prNumber)).toEqual([2]);
+    expect(page.total).toBe(1);
+    expect(page.counts.new).toBe(1);
+    expect(page.repositories.map((repo) => repo.repoId)).toEqual([REPO_B]);
+    expect(page.archivedTotal).toBe(1);
+  });
+
+  it("a newer brief lifts the archive", async () => {
+    const handle = await freshDatabase();
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-1",
+      new Date("2026-09-01T00:00:00Z"),
+    );
+    await createTenantRepository(handle, CTX_ACME).archives.set(prId, VIEWER);
+    expect(await listNumbers(handle)).toEqual([]);
+
+    await seedBrief(handle, CTX_ACME, prId, "head-2");
+
+    expect(await listNumbers(handle)).toEqual([1]);
+    expect(await listNumbers(handle, { filters: ARCHIVED_ONLY })).toEqual([]);
+  });
+
+  it("the archived view lists only archived rows and totals them", async () => {
+    const handle = await freshDatabase();
+    const archived = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 2 });
+    await createTenantRepository(handle, CTX_ACME).archives.set(
+      archived,
+      VIEWER,
+    );
+
+    const page = await createInboxStore(handle).list(
+      makeListInput({ filters: ARCHIVED_ONLY }),
+    );
+
+    expect(page.items.map((item) => item.pullRequest.prNumber)).toEqual([1]);
+    expect(page.total).toBe(1);
+    expect(page.archivedTotal).toBe(1);
+  });
+
+  it("a brief at the same head, a retarget, keeps the archive", async () => {
+    const handle = await freshDatabase();
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-1",
+      new Date("2026-09-01T00:00:00Z"),
+    );
+    await createTenantRepository(handle, CTX_ACME).archives.set(prId, VIEWER);
+
+    await seedBrief(handle, CTX_ACME, prId, "head-1", undefined, "base-2");
+
+    expect(await listNumbers(handle)).toEqual([]);
+    expect(await listNumbers(handle, { filters: ARCHIVED_ONLY })).toEqual([1]);
+  });
+
+  it("the counts never include an archived row, in either view", async () => {
+    const handle = await freshDatabase();
+    const archived = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 2 });
+    await createTenantRepository(handle, CTX_ACME).archives.set(
+      archived,
+      VIEWER,
+    );
+    const store = createInboxStore(handle);
+
+    const inbox = await store.list(makeListInput());
+    const view = await store.list(makeListInput({ filters: ARCHIVED_ONLY }));
+
+    expect(inbox.counts).toEqual(view.counts);
+    expect(view.counts.new).toBe(1);
+    expect(view.total).toBe(1);
+    expect(view.repositories.map((repo) => repo.repoId)).toEqual([REPO_A]);
+  });
+
+  it("the archived total ignores the other filters", async () => {
+    const handle = await freshDatabase();
+    const open = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    const merged = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 2,
+      lifecycle: {
+        state: PrStates.MERGED,
+        closedAt: new Date(),
+        purgeAfter: null,
+      },
+    });
+    const archives = createTenantRepository(handle, CTX_ACME).archives;
+    await archives.set(open, VIEWER);
+    await archives.set(merged, VIEWER);
+
+    const page = await createInboxStore(handle).list(makeListInput());
+    const view = await createInboxStore(handle).list(
+      makeListInput({ filters: ARCHIVED_ONLY }),
+    );
+
+    expect(page.total).toBe(0);
+    expect(page.repositories).toEqual([]);
+    expect(page.archivedTotal).toBe(2);
+    expect(view.total).toBe(1);
+    expect(view.archivedTotal).toBe(2);
+  });
+
+  it("another reviewer's archive does not touch the viewer's list", async () => {
+    const handle = await freshDatabase();
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await createTenantRepository(handle, CTX_ACME).archives.set(prId, OTHER);
+
+    expect(await listNumbers(handle)).toEqual([1]);
+    expect(await listNumbers(handle, { filters: ARCHIVED_ONLY })).toEqual([]);
   });
 
   it("hides a url row shadowed by a visible installation row", async () => {

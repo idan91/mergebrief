@@ -13,6 +13,7 @@ function makePage(overrides: Partial<InboxPage> = {}): InboxPage {
     page: 1,
     pageSize: 25,
     total: 0,
+    archivedTotal: 0,
     counts: { new: 0, inProgress: 0, reviewed: 0, updated: 0 },
     viewer: { login: "octocat", avatarUrl: "https://a/1" },
     reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
