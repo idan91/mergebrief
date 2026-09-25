@@ -1,21 +1,12 @@
 import { useTranslation } from "react-i18next";
-import {
-  autoUpdate,
-  flip,
-  FloatingFocusManager,
-  offset,
-  shift,
-  useClick,
-  useDismiss,
-  useFloating,
-  useInteractions,
-} from "@floating-ui/react";
-import { useId, useState } from "react";
+import { useState } from "react";
 
+import { Popover } from "@web/components/Popover/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import type { AttributeRail } from "../../../../utils/viewModel";
+import { DISCLOSURE_OFFSET_PX } from "../consts";
 import styles from "./RiskAttrsDisclosure.module.scss";
 
 export interface RiskAttrsDisclosureProps {
@@ -28,128 +19,90 @@ export interface RiskAttrsDisclosureProps {
  * Trigger `Risk attrs · N` opening a panel of attribute chips, keyed by attribute
  * and never group-ranked; a chip CYCLES its carrying targets in story order, and a
  * floor firing dots the trigger without auto-opening. Rendered IN-TREE because a
- * body portal stutters against a sticky bar; Escape is claimed at CAPTURE.
+ * body portal stutters against a sticky bar.
  */
 export function RiskAttrsDisclosure({
   rail,
   jumpToGroup,
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
   const [cycle, setCycle] = useState<ReadonlyMap<string, number>>(new Map());
-  const panelId = useId();
-
-  const { refs, floatingStyles, context } = useFloating({
-    open,
-    onOpenChange: setOpen,
-    placement: "bottom-start",
-    // 14px from the trigger's bottom edge: the trigger sits inside the bar's
-    // 8px inset (+1px border), leaving a ~5px visible gap below the bar.
-    middleware: [offset(14), flip(), shift({ padding: 8 })],
-    // No ancestorScroll: in-tree the panel moves with the sticky bar
-    // natively; JS scroll-tracking would re-derive the same coords a frame
-    // late and stutter.
-    whileElementsMounted: (reference, floating, update) =>
-      autoUpdate(reference, floating, update, { ancestorScroll: false }),
-  });
-  const click = useClick(context);
-  const dismiss = useDismiss(context, { capture: { escapeKey: true } });
-  const { getReferenceProps, getFloatingProps } = useInteractions([
-    click,
-    dismiss,
-  ]);
 
   return (
     <span className={styles["wrap"]}>
-      <ToolbarButton
-        aria-controls={open ? panelId : undefined}
-        aria-expanded={open}
-        ref={refs.setReference}
-        {...getReferenceProps()}
-      >
-        {rail.floorFired ? (
-          <span
-            aria-hidden="true"
-            className={styles["dot"]}
-            data-emphasis-dot=""
-          />
-        ) : null}
-        <span className={styles["labelShort"]}>
-          {t("brief.toolbar.attrsShort")}
-        </span>
-        <span className={styles["labelLong"]}>
-          {t("brief.toolbar.attrsLong")}
-        </span>
-        <span aria-hidden="true" className={styles["sep"]}>
-          ·
-        </span>
-        <b className={styles["count"]}>{rail.entries.length}</b>
-        {rail.floorFired ? (
-          <ScreenReaderOnly>{t("brief.toolbar.srFloorFired")}</ScreenReaderOnly>
-        ) : null}
-      </ToolbarButton>
-      {open ? (
-        /* Non-modal disclosure, not a dialog: focus stays on the trigger on
-           open (initialFocus -1, the default steals it into the panel), Tab
-           crosses into the in-tree panel naturally, and closing returns
-           focus to the trigger. */
-        <FloatingFocusManager
-          context={context}
-          initialFocus={-1}
-          modal={false}
-          order={["reference", "content"]}
-        >
-          <div
-            className={styles["panel"]}
-            id={panelId}
-            ref={refs.setFloating}
-            style={floatingStyles}
-            {...getFloatingProps()}
-          >
-            <div className={styles["chips"]} data-attribute-jump-rail="">
-              {rail.entries.map((entry) => {
-                const ids = entry.groupIds;
-                const position = cycle.get(entry.attr) ?? 0;
-                const target = ids[position % ids.length];
-                return (
-                  // oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it
-                  <button
-                    className={styles["chipButton"]}
-                    data-floor={entry.floor ? "" : undefined}
-                    key={entry.attr}
-                    type="button"
-                    onClick={() => {
-                      if (target === undefined) return;
-                      jumpToGroup(target);
-                      setCycle((previous) => {
-                        const next = new Map(previous);
-                        next.set(entry.attr, position + 1);
-                        return next;
-                      });
-                    }}
+      <Popover offsetPx={DISCLOSURE_OFFSET_PX} portal={false}>
+        <Popover.Trigger>
+          <ToolbarButton>
+            {rail.floorFired ? (
+              <span
+                aria-hidden="true"
+                className={styles["dot"]}
+                data-emphasis-dot=""
+              />
+            ) : null}
+            <span className={styles["labelShort"]}>
+              {t("brief.toolbar.attrsShort")}
+            </span>
+            <span className={styles["labelLong"]}>
+              {t("brief.toolbar.attrsLong")}
+            </span>
+            <span aria-hidden="true" className={styles["sep"]}>
+              ·
+            </span>
+            <b className={styles["count"]}>{rail.entries.length}</b>
+            {rail.floorFired ? (
+              <ScreenReaderOnly>
+                {t("brief.toolbar.srFloorFired")}
+              </ScreenReaderOnly>
+            ) : null}
+          </ToolbarButton>
+        </Popover.Trigger>
+        <Popover.Content className={styles["panel"]}>
+          <div className={styles["chips"]} data-attribute-jump-rail="">
+            {rail.entries.map((entry) => {
+              const ids = entry.groupIds;
+              const position = cycle.get(entry.attr) ?? 0;
+              const target = ids[position % ids.length];
+              return (
+                // oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it
+                <button
+                  className={styles["chipButton"]}
+                  data-floor={entry.floor ? "" : undefined}
+                  key={entry.attr}
+                  type="button"
+                  onClick={() => {
+                    if (target === undefined) {
+                      return;
+                    }
+                    jumpToGroup(target);
+                    setCycle((previous) => {
+                      const next = new Map(previous);
+                      next.set(entry.attr, position + 1);
+                      return next;
+                    });
+                  }}
+                >
+                  <RiskBadge
+                    meta={
+                      entry.source === "repo-policy"
+                        ? { source: "repo-policy", deEmphasized: false }
+                        : undefined
+                    }
                   >
-                    <RiskBadge
-                      meta={
-                        entry.source === "repo-policy"
-                          ? { source: "repo-policy", deEmphasized: false }
-                          : undefined
-                      }
-                    >
-                      {entry.attr} ×{ids.length}
-                      <ScreenReaderOnly>
-                        {t("brief.toolbar.srJumpToCarryingGroup", {
-                          position: (position % ids.length) + 1,
-                          total: ids.length,
-                        })}
-                      </ScreenReaderOnly>
-                    </RiskBadge>
-                  </button>
-                );
-              })}
-            </div>
+                    {entry.attr} ×{ids.length}
+                    <ScreenReaderOnly>
+                      {t("brief.toolbar.srJumpToCarryingGroup", {
+                        position: (position % ids.length) + 1,
+                        total: ids.length,
+                      })}
+                    </ScreenReaderOnly>
+                  </RiskBadge>
+                </button>
+              );
+            })}
           </div>
-        </FloatingFocusManager>
-      ) : null}
+        </Popover.Content>
+      </Popover>
     </span>
   );
 }

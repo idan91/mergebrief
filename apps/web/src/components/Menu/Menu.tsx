@@ -20,14 +20,14 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { prefersReducedMotion } from "../../utils/motion";
 import { IconButton } from "../IconButton/IconButton";
 import {
-  MENU_ENTER_EASING,
-  MENU_ENTER_MS,
-  MENU_OFFSET_PX,
-  MENU_VIEWPORT_PADDING_PX,
-} from "./consts";
+  POPOVER_ENTER_EASING,
+  POPOVER_ENTER_MS,
+  POPOVER_OFFSET_PX,
+  POPOVER_VIEWPORT_PADDING_PX,
+} from "../Popover/consts";
+import { deriveTransformOrigin } from "../Popover/utils";
 import { MenuContext } from "./context";
 import { MenuTriggerKinds, type MenuTriggerKind } from "./types";
-import { deriveTransformOrigin } from "./utils";
 import styles from "./Menu.module.scss";
 
 export interface MenuProps {
@@ -81,9 +81,9 @@ export function Menu({
     transform: false,
     whileElementsMounted: autoUpdate,
     middleware: [
-      offset(MENU_OFFSET_PX),
+      offset(POPOVER_OFFSET_PX),
       flip(),
-      shift({ padding: MENU_VIEWPORT_PADDING_PX }),
+      shift({ padding: POPOVER_VIEWPORT_PADDING_PX }),
     ],
   });
   const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
@@ -100,9 +100,9 @@ export function Menu({
     ],
   );
   const { isMounted, styles: transitionStyles } = useTransitionStyles(context, {
-    duration: prefersReducedMotion() ? 0 : MENU_ENTER_MS,
+    duration: prefersReducedMotion() ? 0 : POPOVER_ENTER_MS,
     initial: { opacity: 0, transform: "scale(0.97)" },
-    common: { transitionTimingFunction: MENU_ENTER_EASING },
+    common: { transitionTimingFunction: POPOVER_ENTER_EASING },
   });
   const menuContext = useMemo(
     () => ({

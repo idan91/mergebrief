@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 
 import {
   DEFAULT_CONVERSATION_FILTER,
@@ -12,7 +14,14 @@ import {
   type FilterDisclosureProps,
 } from "./FilterDisclosure";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetMediaQueries();
+});
+
+beforeEach(() => {
+  setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+});
 
 const VERDICTS = [
   { state: "APPROVED", humanCount: 2, botCount: 1 },

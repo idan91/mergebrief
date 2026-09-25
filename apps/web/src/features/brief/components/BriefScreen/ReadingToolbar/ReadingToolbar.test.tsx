@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
+
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 
 import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
@@ -11,7 +13,14 @@ import {
 } from "../readingPosition";
 import { ReadingToolbar, type ReadingToolbarProps } from "./ReadingToolbar";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetMediaQueries();
+});
+
+beforeEach(() => {
+  setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+});
 
 const RAIL: AttributeRail = {
   entries: [
