@@ -12,15 +12,17 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import { setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
 import {
@@ -133,27 +135,56 @@ async function renderTimeline(
   return router;
 }
 
+const PICKER_NAME = /Select PR revision/;
+
+async function findPicker(): Promise<HTMLElement> {
+  return waitFor(() => screen.getByRole("button", { name: PICKER_NAME }));
+}
+
+/** Open the picker and hand back its rows, the current one ticked. */
+async function openPicker(): Promise<HTMLElement[]> {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: PICKER_NAME }));
+  });
+  return screen.getAllByRole("option");
+}
+
+async function expectPickerAt(position: number): Promise<void> {
+  const options = await openPicker();
+  expect(options[position]?.getAttribute("aria-selected")).toBe("true");
+  await act(async () => {
+    fireEvent.keyDown(options[position]!, { key: "Escape" });
+  });
+}
+
+async function choosePosition(position: number): Promise<void> {
+  const options = await openPicker();
+  await act(async () => {
+    fireEvent.click(options[position]!);
+  });
+}
+
 describe("DB brief route revision timeline", () => {
   afterEach(() => cleanup());
 
+  beforeEach(() => {
+    setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+  });
+
   it("renders the navigator with every revision in order, latest selected", async () => {
     await renderTimeline(`/repos/${REPO_ID}/pulls/${PR_NUMBER}`);
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    const options = [...picker.options].map((o) => o.value);
-    expect(options).toEqual(["0", "1"]);
-    expect(picker.value).toBe("1");
+    await findPicker();
+    const options = await openPicker();
+    expect(options).toHaveLength(2);
+    expect(options[1]?.getAttribute("aria-selected")).toBe("true");
   });
 
   it("selects a historical revision from ?head=, submit gated by the ack", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    expect(picker.value).toBe("0");
+    await findPicker();
+    await expectPickerAt(0);
     // No hard block: the read-only reason and posture are gone…
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
@@ -247,11 +278,9 @@ describe("DB brief route revision timeline", () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
+    const picker = await findPicker();
     picker.focus();
-    fireEvent.change(picker, { target: { value: "0" } });
+    await choosePosition(0);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
     );
@@ -305,12 +334,10 @@ describe("DB brief route revision timeline", () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
+    await findPicker();
     // jsdom has no layout to observe scroll with, so pin the option.
     const navigateSpy = vi.spyOn(router, "navigate");
-    fireEvent.change(picker, { target: { value: "0" } });
+    await choosePosition(0);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
     );
@@ -326,12 +353,13 @@ describe("DB brief route revision timeline", () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    // Nothing holds focus (mouse-driven selection, or a disabled control).
+    const picker = await findPicker();
+    const options = await openPicker();
+    // The choice hands focus to the picker at once; dropping it in the same
+    // tick is the case nothing holds focus when the navigation lands.
+    fireEvent.click(options[0]!);
     picker.blur();
-    fireEvent.change(picker, { target: { value: "0" } });
+    await act(async () => undefined);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
     );
@@ -348,10 +376,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    expect(picker.value).toBe("1");
+    await findPicker();
+    await expectPickerAt(1);
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     // The advisory view fronts the modal when unresolved items exist;
@@ -495,10 +521,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}&base=${REV2.baseSha}`,
       withBaseline,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    expect(picker.value).toBe("1");
+    await findPicker();
+    await expectPickerAt(1);
     fireEvent.click(screen.getByRole("radio", { name: /^previous brief$/i }));
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
@@ -521,19 +545,15 @@ describe("DB brief route revision timeline", () => {
         screen.getByText(/that revision link is no longer available/i),
       ).toBeTruthy(),
     );
-    const picker =
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision");
-    expect(picker.value).toBe("1");
+    await expectPickerAt(1);
   });
 
   it("navigates to the picked revision's head on selection", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    fireEvent.change(picker, { target: { value: "0" } });
+    await findPicker();
+    await choosePosition(0);
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
       expect(search["head"]).toBe("head-1");
@@ -570,14 +590,16 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=head-2&base=base-old`,
       metaValue,
     );
-    const picker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    expect(picker.value).toBe("1");
+    const picker = await findPicker();
+    const rows = await openPicker();
+    expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
     // …its picker entry is disambiguated by base…
     expect(
       screen.getByRole("option", { name: /revision 2.*base base-ol/i }),
     ).toBeDefined();
+    await act(async () => {
+      fireEvent.keyDown(rows[1]!, { key: "Escape" });
+    });
     // …and although its head IS the current head, its base is superseded,
     // writes stay disabled with the base-drift reason (anchors would be read
     // against a diff that is not the PR's current one).
@@ -588,11 +610,13 @@ describe("DB brief route revision timeline", () => {
     // remount, the operated picker keeps focus.
     picker.focus();
     expect(document.activeElement).toBe(picker);
-    fireEvent.change(picker, { target: { value: "2" } });
+    await choosePosition(2);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["base"]).toBeDefined(),
+      expect(searchRecord(router.state.location.search)["base"]).toBe(
+        "base-new",
+      ),
     );
-    expect(document.activeElement).toBe(picker);
+    await waitFor(() => expect(document.activeElement).toBe(picker));
     cleanup();
 
     // A BARE head resolves to the newest duplicate (backend at(-1) choice),
@@ -601,10 +625,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=head-2`,
       metaValue,
     );
-    const bareHeadPicker = await waitFor(() =>
-      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
-    );
-    expect(bareHeadPicker.value).toBe("2");
+    await findPicker();
+    await expectPickerAt(2);
     expect(screen.queryByText(/superseded base/i)).toBeNull();
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });

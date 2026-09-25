@@ -616,11 +616,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbTimelineNavigator/DbTimelineNavigator.test.tsx": {
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.test.tsx": {
     "house/no-em-dash": {
       "count": 2

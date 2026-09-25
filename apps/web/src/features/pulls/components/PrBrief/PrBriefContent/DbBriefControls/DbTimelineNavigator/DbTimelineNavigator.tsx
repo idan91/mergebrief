@@ -4,7 +4,7 @@
 import { type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@web/components/IconButton/IconButton";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { TimelinePicker } from "@web/components/TimelinePicker/TimelinePicker";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
 import { Icon } from "@web/components/Icon/Icon";
 import {
@@ -29,11 +29,6 @@ function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
-/** `position:point`, unique per row even across duplicate heads. */
-function pointKey(position: number, point: DbTimelinePoint): string {
-  return `${String(position)}:${point.baseSha}:${point.headSha}`;
-}
-
 export function DbTimelineNavigator({
   points,
   selectedIndex,
@@ -52,7 +47,7 @@ export function DbTimelineNavigator({
   }
   /**
    * Left/Right step revisions from ANY control in the navigator, the picker
-   * included. Up/Down stay native so the select keeps walking its options.
+   * included. Up/Down are the picker's own: they open and walk its list.
    */
   const findStepTarget = (key: string): DbTimelinePoint | undefined => {
     if (key === "ArrowLeft") return previous;
@@ -67,6 +62,26 @@ export function DbTimelineNavigator({
     if (target === undefined || target === points[selectedIndex]) return;
     event.preventDefault();
     onSelect(target);
+  };
+  const describePoint = (point: DbTimelinePoint): string => {
+    const base = t("pulls.timeline.option", {
+      index: point.headIndex,
+      sha: shortSha(point.headSha),
+      total: points.length,
+    });
+    if ((headCounts.get(point.headSha) ?? 0) < 2) return base;
+    const suffix = t("pulls.timeline.optionBaseSuffix", {
+      sha: shortSha(point.baseSha),
+    });
+    return `${base} ${suffix}`;
+  };
+  const pointOptions = points.map((point, position) => ({
+    value: String(position),
+    label: describePoint(point),
+  }));
+  const selectPosition = (value: string) => {
+    const point = points[Number(value)];
+    if (point !== undefined) onSelect(point);
   };
 
   return (
@@ -94,32 +109,13 @@ export function DbTimelineNavigator({
           size={IconSizes.MD}
         />
       </IconButton>
-      <label className={styles["picker"]}>
-        <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
-        <select
-          onKeyDown={stepFromNav}
-          onChange={(event) => {
-            const point = points[Number(event.target.value)];
-            if (point !== undefined) onSelect(point);
-          }}
-          value={String(selectedIndex)}
-        >
-          {points.map((point, position) => (
-            <option key={pointKey(position, point)} value={String(position)}>
-              {t("pulls.timeline.option", {
-                index: point.headIndex,
-                sha: shortSha(point.headSha),
-                total: points.length,
-              })}
-              {(headCounts.get(point.headSha) ?? 0) > 1
-                ? ` ${t("pulls.timeline.optionBaseSuffix", {
-                    sha: shortSha(point.baseSha),
-                  })}`
-                : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TimelinePicker
+        label={t("pulls.timeline.selectLabel")}
+        options={pointOptions}
+        value={String(selectedIndex)}
+        onKeyDown={stepFromNav}
+        onValueChange={selectPosition}
+      />
       <IconButton
         onKeyDown={stepFromNav}
         label={

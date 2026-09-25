@@ -11,13 +11,13 @@ import {
   type CompareOptionFlags,
   type ViewParam,
 } from "../../../../comparison/compareState";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
   SegmentedControl,
   SegmentedDensities,
   type SegmentedOption,
 } from "@web/components/SegmentedControl/SegmentedControl";
 import type { BriefTimeline } from "../../../../utils/timeline";
+import { TimelinePicker } from "@web/components/TimelinePicker/TimelinePicker";
 import { Icon } from "@web/components/Icon/Icon";
 import {
   IconNames,
@@ -38,8 +38,8 @@ export interface TimelineNavigatorProps {
 /**
  * Timeline points navigate Brief heads only. The View and Compare controls write
  * canonical `view`/`compare` params through `withView`/`withCompare`, so the URL
- * only ever holds a normalized, valid combination. Previous, Next and select
- * preserve the search verbatim and re-normalize against the new point.
+ * only ever holds a normalized, valid combination. Previous, Next and the
+ * picker preserve the search verbatim and re-normalize against the new point.
  */
 export function TimelineNavigator({
   availability,
@@ -100,6 +100,21 @@ export function TimelineNavigator({
     offOption,
   ];
 
+  const pointOptions = timeline.points.map((point) => ({
+    value: point.briefId,
+    label: t("brief.timeline.briefOptionSha", {
+      index: point.index,
+      sha: point.headSha.slice(0, 7),
+      total: timeline.points.length,
+    }),
+  }));
+  const selectPoint = (targetBriefId: string) =>
+    navigate({
+      to: "/briefs/$briefId",
+      params: { briefId: targetBriefId },
+      search: (prev) => prev,
+    });
+
   if (!selected) return null;
   return (
     <>
@@ -142,29 +157,12 @@ export function TimelineNavigator({
             />
           </span>
         )}
-        <label>
-          <ScreenReaderOnly>{t("brief.timeline.selectLabel")}</ScreenReaderOnly>
-          <select
-            value={selected.briefId}
-            onChange={(event) =>
-              navigate({
-                to: "/briefs/$briefId",
-                params: { briefId: event.target.value },
-                search: (prev) => prev,
-              })
-            }
-          >
-            {timeline.points.map((point) => (
-              <option key={point.briefId} value={point.briefId}>
-                {t("brief.timeline.briefOptionSha", {
-                  index: point.index,
-                  sha: point.headSha.slice(0, 7),
-                  total: timeline.points.length,
-                })}
-              </option>
-            ))}
-          </select>
-        </label>
+        <TimelinePicker
+          label={t("brief.timeline.selectLabel")}
+          options={pointOptions}
+          value={selected.briefId}
+          onValueChange={selectPoint}
+        />
         {next ? (
           <Link
             aria-label={t("brief.timeline.ariaLabelNextBrief", {

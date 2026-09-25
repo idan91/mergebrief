@@ -1,12 +1,26 @@
 // @vitest-environment jsdom
-import { cleanup, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { renderInRouter } from "../../../../../../test/router";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import type { BriefTimeline } from "../../../../utils/timeline";
 import { TimelineNavigator } from "./TimelineNavigator";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetMediaQueries();
+});
+
+beforeEach(() => {
+  setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+});
 
 const POINTS: BriefTimeline["points"] = [
   { briefId: "brief-1", headSha: "1111111aaaa", index: 1, comparisons: {} },
@@ -50,8 +64,30 @@ describe("TimelineNavigator", () => {
   it("lists every point in the picker with the selected one chosen", async () => {
     await renderAt(2);
 
-    const picker = screen.getByRole("combobox");
-    expect(picker.querySelectorAll("option").length).toBe(3);
-    expect((picker as HTMLSelectElement).value).toBe("brief-3");
+    const picker = screen.getByRole("button", { name: /Select PR revision/ });
+    expect(picker.textContent).toContain("3333333");
+    await act(async () => {
+      fireEvent.click(picker);
+    });
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(3);
+    expect(options[2]?.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("choosing a point in the picker navigates to that brief", async () => {
+    const { router } = await renderAt(2);
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: /Select PR revision/ }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole("option")[0]!);
+    });
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/briefs/brief-1"),
+    );
   });
 });
