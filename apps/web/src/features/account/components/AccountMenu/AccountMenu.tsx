@@ -2,10 +2,10 @@ import { PSEUDO_LOCALE } from "i18n";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button/Button";
-import { Menu } from "@web/components/Menu/Menu";
-import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { Icon } from "@web/components/Icon/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { IconButton } from "@web/components/IconButton/IconButton";
+import { Menu } from "@web/components/Menu/Menu";
 import { ViewerStates } from "../../types";
 import { SignOutModal } from "./SignOutModal/SignOutModal";
 import styles from "./AccountMenu.module.scss";
@@ -17,7 +17,6 @@ export interface AccountMenuProps {
 }
 
 const SIGN_IN_PATH = "/api/auth/github";
-const LANGUAGE_GROUP_LABEL_ID = "account-menu-language";
 
 /**
  * The person-anchored menu at the end of a Header: who is signed in,
@@ -47,93 +46,90 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
     signedIn && viewer.login !== null
       ? t("shell.accountMenu.ariaLabelTriggerSignedIn", { login: viewer.login })
       : t("shell.accountMenu.ariaLabelTrigger");
-  const trigger = (
-    <>
-      {signedIn ? (
-        <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
-      ) : (
-        <Icon className={styles["person"]} name={IconNames.USER} />
-      )}
-      <Icon
-        className={styles["caret"]}
-        name={IconNames.CARET_DOWN}
-        size={IconSizes.SM}
-      />
-    </>
-  );
+  const glyphClass = styles["icon"];
 
   return (
     <>
-      <Menu
-        label={label}
-        trigger={trigger}
-        triggerAutoWidth
-        triggerClassName={styles["trigger"]}
-      >
-        {signedIn && viewer.login !== null ? (
-          <p className={styles["note"]} role="presentation">
-            {t("shell.accountMenu.signedInAs", { login: viewer.login })}
-          </p>
-        ) : null}
-        <MenuRow
-          glyph={
-            <Icon
-              className={styles["icon"]}
-              name={IconNames.GEAR}
-              size={IconSizes.MD}
-            />
-          }
-          onSelect={facade.openSettings}
-        >
-          {t("shell.accountMenu.settings")}
-        </MenuRow>
-        {facade.localeOptions.length > 0 ? (
-          <div
-            aria-labelledby={LANGUAGE_GROUP_LABEL_ID}
-            className={styles["group"]}
-            role="group"
+      <Menu placement="bottom-end">
+        <Menu.Trigger>
+          <IconButton
+            autoWidth
+            className={styles["trigger"]}
+            label={label}
+            size="md"
+            variant="ghost"
           >
-            <span className={styles["groupLabel"]} id={LANGUAGE_GROUP_LABEL_ID}>
-              {t("shell.accountMenu.language")}
-            </span>
-            {facade.localeOptions.map((option, index) => (
-              <MenuRow
-                checked={index === facade.activeLocaleIndex}
-                key={option.id}
-                lang={option.id === PSEUDO_LOCALE ? undefined : option.id}
-                onSelect={() => facade.selectLocale(option.id)}
-              >
-                {option.nativeName}
-              </MenuRow>
-            ))}
-          </div>
-        ) : null}
-        {onOpenShortcuts === undefined ? null : (
-          <MenuRow
+            {signedIn ? (
+              <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
+            ) : (
+              <Icon className={styles["person"]} name={IconNames.USER} />
+            )}
+            <Icon
+              className={styles["caret"]}
+              name={IconNames.CARET_DOWN}
+              size={IconSizes.SM}
+            />
+          </IconButton>
+        </Menu.Trigger>
+        <Menu.Content>
+          {signedIn && viewer.login !== null ? (
+            <Menu.Label>
+              {t("shell.accountMenu.signedInAs", { login: viewer.login })}
+            </Menu.Label>
+          ) : null}
+          <Menu.Item
             glyph={
               <Icon
-                className={styles["icon"]}
-                name={IconNames.KEYBOARD}
+                className={glyphClass}
+                name={IconNames.GEAR}
                 size={IconSizes.MD}
               />
             }
-            onSelect={onOpenShortcuts}
+            onSelect={facade.openSettings}
           >
-            {t("shell.accountMenu.shortcuts")}
-          </MenuRow>
-        )}
-        <MenuRow
-          glyph={
-            <Icon
-              className={styles["icon"]}
-              name={IconNames.SIGN_OUT}
-              size={IconSizes.MD}
-            />
-          }
-          onSelect={facade.openSignOut}
-        >
-          {t("shell.accountMenu.signOut")}
-        </MenuRow>
+            {t("shell.accountMenu.settings")}
+          </Menu.Item>
+          {facade.localeOptions.length > 0 ? (
+            <Menu.Group label={t("shell.accountMenu.language")}>
+              {facade.localeOptions.map((option, index) => (
+                <Menu.Item
+                  checked={index === facade.activeLocaleIndex}
+                  key={option.id}
+                  lang={option.id === PSEUDO_LOCALE ? undefined : option.id}
+                  onSelect={() => facade.selectLocale(option.id)}
+                >
+                  {option.nativeName}
+                </Menu.Item>
+              ))}
+            </Menu.Group>
+          ) : null}
+          {onOpenShortcuts === undefined ? null : (
+            <Menu.Item
+              glyph={
+                <Icon
+                  className={glyphClass}
+                  name={IconNames.KEYBOARD}
+                  size={IconSizes.MD}
+                />
+              }
+              onSelect={onOpenShortcuts}
+            >
+              {t("shell.accountMenu.shortcuts")}
+            </Menu.Item>
+          )}
+          <Menu.Item
+            glyph={
+              <Icon
+                className={glyphClass}
+                name={IconNames.SIGN_OUT}
+                size={IconSizes.MD}
+              />
+            }
+            onSelect={facade.openSignOut}
+          >
+            {t("shell.accountMenu.signOut")}
+          </Menu.Item>
+        </Menu.Content>
       </Menu>
       <SignOutModal
         cancel={facade.cancelSignOut}

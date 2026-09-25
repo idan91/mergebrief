@@ -28,8 +28,8 @@ import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button/Button";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import { Menu } from "@web/components/Menu/Menu";
-import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
@@ -453,14 +453,21 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
 
   return (
     <div className={styles["menuWrap"]}>
-      <Menu
-        label={t("brief.header.ariaLabelMoreActions")}
-        placement="bottom-end"
-        trigger={<Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />}
-      >
-        <MenuRow onSelect={openSummaryPreview}>
-          {t("brief.header.summaryPreview")}
-        </MenuRow>
+      <Menu placement="bottom-end">
+        <Menu.Trigger>
+          <IconButton
+            label={t("brief.header.ariaLabelMoreActions")}
+            size="md"
+            variant="ghost"
+          >
+            <Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />
+          </IconButton>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item onSelect={openSummaryPreview}>
+            {t("brief.header.summaryPreview")}
+          </Menu.Item>
+        </Menu.Content>
       </Menu>
     </div>
   );

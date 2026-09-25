@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters, type InboxArchivedFilter } from "types/inbox";
 
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import { Menu } from "@web/components/Menu/Menu";
-import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type { InboxItem } from "../../../../types";
@@ -64,45 +64,54 @@ export function RowActions({
           </ScreenReaderOnly>
         </AccessibleLink>
       )}
-      <Menu
-        label={t("home.inbox.actions.more")}
-        placement="bottom-end"
-        trigger={<Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />}
-        triggerClassName={styles["trigger"]}
-      >
-        {canRegenerate ? (
-          <MenuRow disabled={facade.regenerating} onSelect={facade.regenerate}>
-            <span className={styles["rowLabel"]}>
-              <Icon name={IconNames.ARROWS_CLOCKWISE} size={IconSizes.MD} />
+      <Menu placement="bottom-end">
+        <Menu.Trigger>
+          <IconButton
+            className={styles["trigger"]}
+            label={t("home.inbox.actions.more")}
+            size="md"
+            variant="ghost"
+          >
+            <Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />
+          </IconButton>
+        </Menu.Trigger>
+        <Menu.Content>
+          {canRegenerate ? (
+            <Menu.Item
+              disabled={facade.regenerating}
+              glyph={
+                <Icon name={IconNames.ARROWS_CLOCKWISE} size={IconSizes.MD} />
+              }
+              onSelect={facade.regenerate}
+            >
               {t("home.inbox.actions.regenerate")}
-            </span>
-          </MenuRow>
-        ) : null}
-        <MenuRow onSelect={facade.copyLink}>
-          <span className={styles["rowLabel"]}>
-            <Icon name={IconNames.COPY} size={IconSizes.MD} />
+            </Menu.Item>
+          ) : null}
+          <Menu.Item
+            glyph={<Icon name={IconNames.COPY} size={IconSizes.MD} />}
+            onSelect={facade.copyLink}
+          >
             {t("home.inbox.actions.copyLink")}
-          </span>
-        </MenuRow>
-        <MenuRow
-          disabled={facade.archiving}
-          onSelect={inArchive ? facade.unarchiveRow : facade.archiveRow}
-        >
-          <span className={styles["rowLabel"]}>
-            <Icon name={IconNames.ARCHIVE} size={IconSizes.MD} />
+          </Menu.Item>
+          <Menu.Item
+            disabled={facade.archiving}
+            glyph={<Icon name={IconNames.ARCHIVE} size={IconSizes.MD} />}
+            onSelect={inArchive ? facade.unarchiveRow : facade.archiveRow}
+          >
             {inArchive
               ? t("home.inbox.actions.unarchive")
               : t("home.inbox.actions.archive")}
-          </span>
-        </MenuRow>
-        {item.viewerCanDelete ? (
-          <MenuRow className={styles["danger"]} onSelect={() => onDelete(item)}>
-            <span className={styles["rowLabel"]}>
-              <Icon name={IconNames.TRASH} size={IconSizes.MD} />
+          </Menu.Item>
+          {item.viewerCanDelete ? (
+            <Menu.Item
+              danger
+              glyph={<Icon name={IconNames.TRASH} size={IconSizes.MD} />}
+              onSelect={() => onDelete(item)}
+            >
               {t("home.inbox.actions.delete")}
-            </span>
-          </MenuRow>
-        ) : null}
+            </Menu.Item>
+          ) : null}
+        </Menu.Content>
       </Menu>
     </div>
   );

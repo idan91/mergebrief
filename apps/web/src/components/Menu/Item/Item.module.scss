@@ -1,0 +1,11 @@
+@layer components {
+  .item {
+    &[data-variant="danger"] {
+      color: var(--color-negative);
+    }
+  }
+
+  .glyph {
+    color: inherit;
+  }
+}

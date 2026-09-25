@@ -311,7 +311,7 @@
         "apps/web/src/components/Dropdown/**",
         "apps/web/src/components/IconButton/**",
         "apps/web/src/components/LinkButton/**",
-        "apps/web/src/components/MenuItem/**",
+        "apps/web/src/components/Menu/**",
         "apps/web/src/components/RowButton/**",
         "apps/web/src/components/Tabs/**",
         "apps/web/src/components/ToolbarButton/**"

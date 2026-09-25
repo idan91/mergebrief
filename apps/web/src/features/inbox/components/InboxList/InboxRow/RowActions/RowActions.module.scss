@@ -30,16 +30,6 @@
     @include mixins.focus-visible;
   }
 
-  .rowLabel {
-    display: inline-flex;
-    gap: var(--space-3);
-    align-items: center;
-  }
-
-  .danger {
-    color: var(--color-negative);
-  }
-
   @media (hover: hover) and (pointer: fine) {
     .actions {
       /* The row sets --row-bg per state; the cast reads the inherited value. */

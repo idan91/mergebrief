@@ -32,28 +32,7 @@
     color: var(--color-text-2);
   }
 
-  .note {
-    padding-block: var(--space-3);
-    padding-inline: var(--space-3);
-    color: var(--color-text-2);
-    font-size: var(--font-size-md);
-  }
-
   .icon {
     color: var(--color-text-2);
-  }
-
-  .group {
-    padding-block-start: var(--space-2);
-    border-block-start: 1px solid var(--color-outline-1);
-    margin-block-start: var(--space-2);
-  }
-
-  .groupLabel {
-    display: block;
-    padding-block: var(--space-2);
-    padding-inline: var(--space-3);
-    color: var(--color-text-2);
-    font-size: var(--font-size-sm);
   }
 }

@@ -9,37 +9,70 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { Button } from "../Button/Button";
 import { Menu } from "./Menu";
-import { MenuRow } from "./MenuRow/MenuRow";
 
-afterEach(cleanup);
-
-beforeEach(() => {
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => ({ matches: true, addEventListener: vi.fn() })),
-  );
+afterEach(() => {
+  cleanup();
+  resetMediaQueries();
 });
 
-function renderMenu(rows: readonly string[] = ["One", "Two", "Three"]) {
-  const onSelect = vi.fn();
-  const view = render(
-    <div>
-      <Button variant="secondary">Before</Button>
-      <Menu label="Account menu" trigger={<span>A</span>}>
-        {rows.map((row) => (
-          <MenuRow key={row} onSelect={() => onSelect(row)}>
-            {row}
-          </MenuRow>
-        ))}
-      </Menu>
-    </div>,
-  );
-  return { ...view, onSelect };
+beforeEach(() => {
+  setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+});
+
+function renderMenu(checkedLocale = "en") {
+  const onSelect = vi.fn<(name: string) => void>();
+  const view = render(buildMenu(checkedLocale, onSelect));
+  return { onSelect, view };
 }
 
-async function openMenu() {
+function buildMenu(
+  checkedLocale: string,
+  onSelect: (name: string) => void,
+  settingsLabel = "Settings",
+) {
+  return (
+    <div>
+      <Button variant="secondary">Before</Button>
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Label>Signed in as octocat</Menu.Label>
+          <Menu.Item onSelect={() => onSelect("Settings")}>
+            {settingsLabel}
+          </Menu.Item>
+          <Menu.Group label="Language">
+            <Menu.Item
+              checked={checkedLocale === "en"}
+              onSelect={() => onSelect("English")}
+            >
+              English
+            </Menu.Item>
+            <Menu.Item
+              checked={checkedLocale === "fr"}
+              onSelect={() => onSelect("French")}
+            >
+              French
+            </Menu.Item>
+          </Menu.Group>
+          <Menu.Separator />
+          <Menu.Item disabled onSelect={() => onSelect("Disabled")}>
+            Disabled
+          </Menu.Item>
+          <Menu.Item danger onSelect={() => onSelect("Delete")}>
+            Delete
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>
+    </div>
+  );
+}
+
+async function openMenu(): Promise<HTMLElement> {
   const trigger = screen.getByRole("button", { name: "Account menu" });
   await act(async () => {
     fireEvent.click(trigger);
@@ -47,67 +80,123 @@ async function openMenu() {
   return trigger;
 }
 
+async function press(key: string): Promise<void> {
+  await act(async () => {
+    fireEvent.keyDown(document.activeElement ?? document.body, { key });
+  });
+}
+
 describe("Menu", () => {
-  it("opens on click, names itself, and closes on Escape with focus back", async () => {
-    renderMenu();
+  it("the trigger names the menu and a row fires then closes it", async () => {
+    const { onSelect } = renderMenu();
     const trigger = await openMenu();
 
-    const menu = screen.getByRole("menu", { name: "Account menu" });
-    expect(menu).toBeTruthy();
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(screen.getByRole("menu", { name: "Account menu" })).toBeTruthy();
     await act(async () => {
-      fireEvent.keyDown(menu, { key: "Escape" });
+      fireEvent.click(screen.getByRole("menuitem", { name: "Settings" }));
     });
+
+    expect(onSelect).toHaveBeenCalledWith("Settings");
     expect(screen.queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("arrows move through the rows and a click selects", async () => {
-    const { onSelect } = renderMenu();
-    await openMenu();
-    const [one, two] = screen.getAllByRole("menuitem");
-    await waitFor(() => expect(document.activeElement).toBe(one));
-
-    await act(async () => {
-      fireEvent.keyDown(one!, { key: "ArrowDown" });
-    });
-    expect(document.activeElement).toBe(two);
-
-    await act(async () => {
-      fireEvent.click(two!);
-    });
-    expect(onSelect).toHaveBeenCalledWith("Two");
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("an outside press closes it", async () => {
-    renderMenu();
-    await openMenu();
-
-    await act(async () => {
-      fireEvent.pointerDown(screen.getByRole("button", { name: "Before" }));
-      fireEvent.mouseDown(screen.getByRole("button", { name: "Before" }));
-    });
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("content changing while open keeps the same panel", async () => {
-    const { rerender } = renderMenu(["One"]);
+  it("a checked row is a radio that keeps the menu open on select", async () => {
+    const { onSelect, view } = renderMenu("fr");
     await openMenu();
     const panel = screen.getByRole("menu");
 
-    rerender(
-      <div>
-        <Button variant="secondary">Before</Button>
-        <Menu label="Account menu" trigger={<span>A</span>}>
-          <MenuRow onSelect={() => undefined}>One</MenuRow>
-          <MenuRow onSelect={() => undefined}>Two</MenuRow>
-        </Menu>
-      </div>,
-    );
+    const radios = screen.getAllByRole("menuitemradio");
+    expect(radios.map((row) => row.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+    ]);
+    await act(async () => {
+      fireEvent.click(radios[0]!);
+    });
+    expect(onSelect).toHaveBeenCalledWith("English");
+
+    view.rerender(buildMenu("en", onSelect));
 
     expect(screen.getByRole("menu")).toBe(panel);
-    expect(screen.getAllByRole("menuitem")).toHaveLength(2);
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: "English" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("the menu opens on its first row whatever is checked", async () => {
+    renderMenu("fr");
+    await openMenu();
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Settings" }),
+      ),
+    );
+  });
+
+  it("a disabled row is inert and a danger row wears the variant", async () => {
+    const { onSelect } = renderMenu();
+    await openMenu();
+
+    const disabled = screen.getByRole("menuitem", { name: "Disabled" });
+    await act(async () => {
+      fireEvent.click(disabled);
+    });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Delete" })
+        .getAttribute("data-variant"),
+    ).toBe("danger");
+  });
+
+  it("typing jumps to a row and Escape returns focus to the trigger", async () => {
+    renderMenu();
+    const trigger = await openMenu();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Settings" }),
+      ),
+    );
+
+    await press("f");
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitemradio", { name: "French" }),
+    );
+    await press("Escape");
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("typeahead follows a relabel while the menu stays open", async () => {
+    const { onSelect, view } = renderMenu("en");
+    await openMenu();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Settings" }),
+      ),
+    );
+
+    view.rerender(buildMenu("en", onSelect, "Paramètres"));
+    await press("End");
+    await press("p");
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: "Paramètres" }),
+    );
+  });
+
+  it("a label and a group name their rows without joining the list", async () => {
+    renderMenu();
+    await openMenu();
+
+    expect(screen.getByText("Signed in as octocat")).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Language" })).toBeTruthy();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(3);
   });
 });

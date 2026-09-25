@@ -282,11 +282,6 @@
       "count": 6
     }
   },
-  "apps/web/src/components/MenuItem/MenuItem.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/components/RowButton/RowButton.test.tsx": {
     "house/test-title": {
       "count": 1
