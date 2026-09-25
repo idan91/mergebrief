@@ -5,7 +5,6 @@ import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Menu } from "@web/components/Menu/Menu";
 import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import { PullRequestSources } from "@web/features/pulls/types";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type { InboxItem } from "../../../../types";
 import { Icon } from "@web/components/Icon/Icon";
@@ -24,8 +23,8 @@ export interface RowActionsProps {
 /**
  * The right-edge actions a hover or the keyboard cursor reveals: Open on
  * GitHub when the repository is known, and a menu with Copy link and, on
- * the viewer's own URL rows, Delete. Regenerate leads the menu when GitHub
- * has commits the latest brief does not cover.
+ * the rows the viewer may delete, Delete. Regenerate leads the menu when
+ * GitHub has commits the latest brief does not cover.
  */
 export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
   const { t } = useTranslation();
@@ -72,7 +71,7 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
             {t("home.inbox.actions.copyLink")}
           </span>
         </MenuRow>
-        {item.source === PullRequestSources.URL ? (
+        {item.viewerCanDelete ? (
           <MenuRow
             className={styles["danger"]}
             disabled={facade.deleting}

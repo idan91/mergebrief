@@ -15,6 +15,7 @@ import {
   type ConversationRouteDeps,
   type ConversationRoutes,
 } from "./conversation";
+import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
 import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
@@ -38,6 +39,7 @@ export function prRoutes(
   ) => conversation.evictConversation(ctx, repoId, prNumber);
   // Rooted, not prefixed: the reads leaf's paths share no common prefix.
   app.route("/", readsRoutes(deps));
+  app.route("/", deletePullRoute(deps));
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));

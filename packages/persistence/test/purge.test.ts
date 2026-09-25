@@ -410,6 +410,32 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
     ).toHaveLength(2);
   });
 
+  it("names the reviewer on the audit row when an actor is given", async () => {
+    const actor = { reviewerId: brandWith(isReviewerId, 4242n) };
+
+    const result = await createPurgeRoutines(
+      pair.handle,
+      CTX_A,
+    ).purgePullRequest(prId, actor);
+    expect(result.ok).toBe(true);
+
+    const rows = await pair.raw
+      .select({ actorType: auditLog.actorType, actorId: auditLog.actorId })
+      .from(auditLog)
+      .where(eq(auditLog.operation, "delete"));
+    expect(rows).toEqual([{ actorType: "reviewer", actorId: 4242n }]);
+  });
+
+  it("writes the app as the actor when no actor is given", async () => {
+    await createPurgeRoutines(pair.handle, CTX_A).purgePullRequest(prId);
+
+    const rows = await pair.raw
+      .select({ actorType: auditLog.actorType, actorId: auditLog.actorId })
+      .from(auditLog)
+      .where(eq(auditLog.operation, "delete"));
+    expect(rows).toEqual([{ actorType: "app", actorId: null }]);
+  });
+
   it("rejects a cross-tenant PR with notFound and deletes nothing", async () => {
     // Tenant B calls purge on tenant A's PR.
     const result = await createPurgeRoutines(pair.handle, {

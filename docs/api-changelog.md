@@ -15,6 +15,23 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-24)
 
+- **Added** `DELETE /api/repos/:repoId/pulls/:prNumber` (`delete-pull`),
+  behind the per-PR gate: erases one pull request's briefs and everything
+  hanging off them. Cookie only (`human-only` for a Bearer principal). An
+  installation row needs `permissions.admin` on a fresh read of the
+  repository with the viewer's token, else 403 `repo-admin-only`; the
+  viewer's own pasted-URL row needs no GitHub call, whether the repository
+  sits in an installation or in none. When an admin deletes an
+  installation row and also holds a pasted-URL row for the same pull
+  request, both go. The purge's audit row names the reviewer. The gate
+  fronts the route, so a pasted row in a repository neither the viewer's
+  token nor the operator PAT can read is out of its reach.
+- **Added** the wire code `repo-admin-only` (403).
+- **Added** `viewerCanDelete` on `GET /api/inbox` items: true on the
+  viewer's own pasted-URL rows, and on an installation row when the
+  viewer administers its repository as GitHub listed it.
+- **Removed** `DELETE /api/inbox/:repoId/:prNumber` (`delete-inbox-item`);
+  `delete-pull` replaces it and covers the same pasted-URL rows.
 - **Added** `asOf` on `GET /api/repos/:repoId/pulls/:prNumber/stack`: for a
   merged or closed pull request the live open list no longer resolves a
   stack for, `stack` is the last one recorded on the row and `asOf` is the

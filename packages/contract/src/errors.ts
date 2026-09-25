@@ -14,6 +14,7 @@ export const ApiErrorCodes = {
   SCOPE_EXCEEDED: "scope-exceeded",
   HUMAN_ONLY: "human-only",
   NO_REPO_WRITE_ACCESS: "no-repo-write-access",
+  REPO_ADMIN_ONLY: "repo-admin-only",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",
@@ -72,6 +73,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.SCOPE_EXCEEDED]: 403,
   [ApiErrorCodes.HUMAN_ONLY]: 403,
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: 403,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: 403,
   [ApiErrorCodes.NOT_FOUND]: 404,
   [ApiErrorCodes.INVALID_REQUEST]: 400,
   [ApiErrorCodes.NOT_A_PR_URL]: 400,
@@ -110,6 +112,8 @@ export const ApiErrorEnglishByCode = {
   [ApiErrorCodes.HUMAN_ONLY]: "only a signed-in reviewer can clear this",
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]:
     "your GitHub account cannot write to this repository",
+  [ApiErrorCodes.REPO_ADMIN_ONLY]:
+    "only a repository admin can delete a pull request's briefs",
   [ApiErrorCodes.NOT_FOUND]: "not found",
   [ApiErrorCodes.INVALID_REQUEST]: "invalid request",
   [ApiErrorCodes.NOT_A_PR_URL]: "not a pr url",

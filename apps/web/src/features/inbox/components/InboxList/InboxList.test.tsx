@@ -302,7 +302,13 @@ describe("InboxList", () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await renderInRouter(
       <InboxList
-        items={[makeItem({ source: "url", viewerIsAuthor: true })]}
+        items={[
+          makeItem({
+            source: "url",
+            viewerIsAuthor: true,
+            viewerCanDelete: true,
+          }),
+        ]}
         sort={InboxSorts.UPDATED}
         layout={InboxLayouts.FOLDED}
       />,

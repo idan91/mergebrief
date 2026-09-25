@@ -54,6 +54,7 @@ const KindForCode = {
   [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
   [ApiErrorCodes.HUMAN_ONLY]: "upstream",
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: "upstream",
   [ApiErrorCodes.NOT_FOUND]: "not-found",
   [ApiErrorCodes.INVALID_REQUEST]: "invalid",
   [ApiErrorCodes.NOT_A_PR_URL]: "upstream",

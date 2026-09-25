@@ -10,6 +10,7 @@
     "scope-exceeded": "this credential's scope does not allow this operation",
     "human-only": "only a signed-in reviewer can clear this",
     "no-repo-write-access": "your GitHub account cannot write to this repository",
+    "repo-admin-only": "only a repository admin can delete a pull request's briefs",
     "not-found": "not found",
     "invalid-request": "invalid request",
     "not-a-pr-url": "not a pr url",
@@ -114,6 +115,7 @@
       "scope-exceeded": "The credential this request used isn't allowed to do that.",
       "human-only": "Clearing this is a call only you can make, so it needs your signed-in session rather than an API token.",
       "no-repo-write-access": "You can read this brief, but posting to this repository needs a GitHub account with write access to it — install the App there, or ask whoever owns it.",
+      "repo-admin-only": "Only a repository admin can delete a pull request's briefs.",
       "app-not-installed": "The app is not installed for this account.",
       "invalid-request": "That request wasn't valid — check the link and try again.",
       "not-a-pr-url": "That link isn't a pull request URL — paste a PR link and try again.",
@@ -1147,6 +1149,7 @@
         "linkCopied": "Link copied",
         "copyFailed": "Copy failed",
         "deleteFailed": "Delete failed; the row is still here",
+        "deleteForbidden": "Only a repository admin can delete this pull request's briefs",
         "deleted": "Deleted",
         "regenerate": "Regenerate",
         "regenerateQueued": "Regenerate queued"

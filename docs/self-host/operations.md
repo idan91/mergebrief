@@ -227,9 +227,12 @@ Briefs and their sidecars accumulate per PR revision, so the database grows
 with review volume — and **nothing prunes them on a schedule.** Closing
 or merging a PR records the terminal state and arms no retention window
 (the `purge_after` column exists and stays null; a `retention-grace-days`
-knob is designed, not built). Brief data is deleted only when you remove a repo
+knob is designed, not built). Brief data is deleted when you remove a repo
 from the installation or uninstall the App, both of which purge that
-tenant's rows immediately.
+tenant's rows immediately, or when a repository admin deletes one pull
+request's briefs from Home. That delete takes every brief and every
+reviewer's session, drafts and decisions for the pull request; the purge's
+audit row names the reviewer who asked for it.
 
 The audit log is the one exception. It is append-only — nothing edits a row —
 and its only removal is the retention sweep, which the worker runs once a day

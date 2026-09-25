@@ -14,8 +14,9 @@ import {
   isNotNull,
   lt,
 } from "drizzle-orm";
+import type { Mutable } from "types";
 import { deleteOrphanedGrants } from "../auth/grant";
-import { insertAudit } from "./audit";
+import { insertAudit, type AuditEntry } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
 import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
@@ -33,6 +34,7 @@ import {
   type PullRequestRowId,
   type RepoId,
   type Result,
+  type ReviewerId,
   type ValueOf,
 } from "../types";
 
@@ -72,6 +74,11 @@ function fail(
   return { ok: false, error: { code, message } };
 }
 
+/** The reviewer a purge names on its audit row; absent writes `app`. */
+export interface PurgeActor {
+  readonly reviewerId: ReviewerId;
+}
+
 /** Row counts from an installation offboarding. */
 export interface InstallationPurgeCounts {
   readonly pullRequests: number;
@@ -88,10 +95,12 @@ export interface PurgeRoutines {
    * delete the `pull_request` row (all 8 child tables die by FK cascade, the
    * DB guarantees erasure completeness). `notFound` (nothing deleted) if the
    * row is not in ctx's tenant. Returns the number of `pull_request` rows
-   * deleted (1 on success).
+   * deleted (1 on success). `actor` names the reviewer on the audit row;
+   * the webhook and sweep callers pass none and stay `app`.
    */
   purgePullRequest(
     prRowId: PullRequestRowId,
+    actor?: PurgeActor,
   ): Promise<Result<number, PurgeError>>;
   /**
    * Scoped predicate-delete of every `pull_request` for `(ctx, repoId)`
@@ -176,7 +185,7 @@ export function createPurgeRoutines(
   return {
     ctx,
 
-    async purgePullRequest(prRowId) {
+    async purgePullRequest(prRowId, actor) {
       return db.transaction(async (tx) => {
         // Verify the row belongs to ctx BEFORE writing anything.
         const parents = await tx
@@ -192,7 +201,7 @@ export function createPurgeRoutines(
         }
         // Emit the audit BEFORE the delete lands, same tx, so it survives the
         // cascade it records (audit_log has no FK to pull_request).
-        await insertAudit(tx, {
+        const entry: Mutable<AuditEntry> = {
           installationId: scope.installationId,
           source: scope.source,
           actorType: AuditActorTypes.APP,
@@ -200,7 +209,12 @@ export function createPurgeRoutines(
           outcome: AuditOutcomes.OK,
           targetType: AUDIT_TARGET_PULL_REQUEST,
           targetId: prRowId,
-        });
+        };
+        if (actor !== undefined) {
+          entry.actorType = AuditActorTypes.REVIEWER;
+          entry.actorId = actor.reviewerId;
+        }
+        await insertAudit(tx, entry);
         const deleted = await tx
           .delete(pullRequest)
           .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))

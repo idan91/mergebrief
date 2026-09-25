@@ -14,9 +14,9 @@
   "delete-draft-comment": {
     "command": "mergebrief draft delete <number>"
   },
-  "delete-inbox-item": {
+  "delete-pull": {
     "webOnly": {
-      "reason": "Erasing a pasted-URL row is a Home affordance; the CLI has no list to erase from",
+      "reason": "Deleting a pull request's briefs is a Home affordance behind a confirm; the CLI has no list to delete from",
       "owner": "idan"
     }
   },

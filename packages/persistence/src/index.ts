@@ -246,6 +246,7 @@ export {
 } from "./stores/purge";
 export type {
   PurgeRoutines,
+  PurgeActor,
   PurgeError,
   PurgeErrorCode,
   InstallationPurgeCounts,

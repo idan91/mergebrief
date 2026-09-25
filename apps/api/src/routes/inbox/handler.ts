@@ -11,11 +11,9 @@ import type { Mutable } from "types/utils";
 import {
   BadGateway,
   BadRequest,
-  NotFound,
   Unauthorized,
 } from "../../shared-errors/api-error";
 import { isGitHubDenial } from "../../shared-errors/failures";
-import { stampAuditTarget } from "../../product-operations/audit";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
 import type {
   AllowedRepo,
@@ -26,7 +24,6 @@ import type { AuthRouteDeps } from "../auth/session/types";
 import type { AuthzEnv } from "../authz";
 import { refreshUrlPullRequests } from "../live-read";
 import type { TtlCache } from "../ttl-cache";
-import { parseRepoIdParam, prNumberSchema } from "../wire-bounds";
 import { INBOX_LIVE_BUDGET_MS } from "./consts";
 import inboxController from "./controller";
 import { readLiveStacks } from "./logic/live-stacks";
@@ -155,32 +152,6 @@ export default function createHandlers(
         },
       );
       return c.json(body, 200, NO_STORE);
-    },
-
-    deleteInboxItem: async (c: Context<AuthzEnv>) => {
-      const repoId = parseRepoIdParam(c.req.param("repoId"));
-      if (repoId === undefined) {
-        throw new NotFound();
-      }
-      const prNumber = prNumberSchema.safeParse(c.req.param("prNumber"));
-      if (!prNumber.success) {
-        throw new BadRequest();
-      }
-      const deleted = await inboxController.deleteInboxItem(
-        { handle: deps.handle },
-        {
-          // Ownership derives from the CREDENTIAL, never a caller value:
-          // only the viewer's own url rows are addressable.
-          ownerUserId: c.get("session").reviewerId,
-          repoId,
-          prNumber: prNumber.data,
-        },
-      );
-      if (!deleted.ok) {
-        throw new NotFound();
-      }
-      stampAuditTarget(c, "pull_request", deleted.value.pullRequestId);
-      return c.json({ ok: true }, 200, NO_STORE);
     },
   };
 }

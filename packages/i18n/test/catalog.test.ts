@@ -100,7 +100,7 @@ describe("hard-fail catalog gates", () => {
     const generationKeys = Object.keys(flat).filter((key) =>
       key.startsWith("generationError."),
     );
-    expect(errorKeys).toHaveLength(28);
+    expect(errorKeys).toHaveLength(29);
     expect(generationKeys).toHaveLength(11);
   });
 });

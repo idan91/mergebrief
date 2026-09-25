@@ -11,7 +11,9 @@ import {
   ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
+  errorFromResponse,
   readWireCode,
+  type ApiErrorCode,
 } from "../../data/apiFetch";
 import { INBOX_QUERY_ROOT } from "./consts";
 import { parseInboxResponse } from "./schemas";
@@ -50,12 +52,60 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
   });
 }
 
-/** The owner delete of one url row; true once the API confirmed it is gone. */
-export async function deleteInboxItem(
+export type DeletePullResult =
+  | { kind: "deleted" }
+  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
+  | { kind: "forbidden" }
+  | { kind: "not-found" }
+  | { kind: "failed" };
+
+type DeletePullFailureKind = Exclude<DeletePullResult["kind"], "deleted">;
+
+// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
+// here instead of silently becoming "failed".
+const KindForCode = {
+  [ApiErrorCodes.UNAUTHORIZED]: "failed",
+  [ApiErrorCodes.INVALID_SIGNATURE]: "failed",
+  [ApiErrorCodes.FORBIDDEN]: "forbidden",
+  [ApiErrorCodes.GITHUB_PERMISSION]: "forbidden",
+  [ApiErrorCodes.SCOPE_EXCEEDED]: "forbidden",
+  [ApiErrorCodes.HUMAN_ONLY]: "forbidden",
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "forbidden",
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: "forbidden",
+  [ApiErrorCodes.NOT_FOUND]: "not-found",
+  [ApiErrorCodes.INVALID_REQUEST]: "failed",
+  [ApiErrorCodes.NOT_A_PR_URL]: "failed",
+  [ApiErrorCodes.SIGN_IN_FAILED]: "failed",
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: "failed",
+  [ApiErrorCodes.DIFF_TOO_LARGE]: "failed",
+  [ApiErrorCodes.FILE_NOT_FOUND]: "failed",
+  [ApiErrorCodes.FILE_TOO_LARGE]: "failed",
+  [ApiErrorCodes.FILE_NOT_TEXT]: "failed",
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "failed",
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "failed",
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "failed",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: "failed",
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "failed",
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "failed",
+  [ApiErrorCodes.APP_NOT_INSTALLED]: "failed",
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "failed",
+  [ApiErrorCodes.GENERATION_FAILED]: "failed",
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "failed",
+  [ApiErrorCodes.GENERATION_CONFIG]: "failed",
+  [ApiErrorCodes.INTERNAL_ERROR]: "failed",
+  [ApiErrorCodes.MALFORMED]: "failed",
+} as const satisfies Record<ApiErrorCode, DeletePullFailureKind>;
+
+/** The gated delete of one pull request's briefs. */
+export async function deletePull(
   repoId: string,
   prNumber: number,
-): Promise<boolean> {
-  const path = `${INBOX_PATH}/${encodeURIComponent(repoId)}/${String(prNumber)}`;
+): Promise<DeletePullResult> {
+  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
   const response = await apiFetch(path, { method: "DELETE" });
-  return response.ok;
+  if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    return { kind: KindForCode[code] };
+  }
+  return { kind: "deleted" };
 }

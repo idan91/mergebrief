@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { InboxSorts } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildInboxQueryOptions } from "./queries";
+import { buildInboxQueryOptions, deletePull } from "./queries";
 import { InboxStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -123,5 +123,38 @@ describe("buildInboxQueryOptions", () => {
     const query = { state: { data: await readInbox() } };
 
     expect(staleTime(query as never)).toBe(0);
+  });
+});
+
+describe("deletePull", () => {
+  it("calls the gated delete and reports the row gone", async () => {
+    answerWith(200, { ok: true });
+
+    const result = await deletePull("424242", 7);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7$/);
+    expect(init?.method).toBe("DELETE");
+    expect(result).toEqual({ kind: "deleted" });
+  });
+
+  it("a repo-admin-only refusal is the forbidden kind", async () => {
+    answerWith(403, { error: "x", code: "repo-admin-only" });
+    expect(await deletePull("424242", 7)).toEqual({ kind: "forbidden" });
+  });
+
+  it("a human-only refusal is the forbidden kind too", async () => {
+    answerWith(403, { error: "x", code: "human-only" });
+    expect(await deletePull("424242", 7)).toEqual({ kind: "forbidden" });
+  });
+
+  it("a 404 is the not-found kind", async () => {
+    answerWith(404, { error: "x", code: "not-found" });
+    expect(await deletePull("424242", 7)).toEqual({ kind: "not-found" });
+  });
+
+  it("a codeless 5xx is the failed kind", async () => {
+    answerWith(502, {});
+    expect(await deletePull("424242", 7)).toEqual({ kind: "failed" });
   });
 });

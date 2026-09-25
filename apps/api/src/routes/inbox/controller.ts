@@ -1,35 +1,19 @@
 // Hono-free. The Inbox page from the store, plus the generation slice each
-// row's world holds, and the owner-scoped erase of one url row.
+// row's world holds.
 import type { InboxResponse } from "contract";
 import {
   createGenerationProjection,
   createInboxStore,
-  createPurgeRoutines,
-  createTenantRepository,
   type GenerationRow,
   type InboxRow,
   type PullRequestRow,
   type PullRequestRowId,
-  type RepoId,
-  type ReviewerId,
   type ScopeContext,
 } from "persistence";
-import type { Result } from "types/utils";
 import { shapeViewer } from "../viewer";
 import { resolveViewerCanDelete, shapeInboxItem } from "./logic/shape-item";
 import type { InboxControllerDeps, ListInboxInput } from "./types";
 import { INBOX_PAGE_SIZE } from "../wire-bounds";
-
-interface DeleteInboxItemInput {
-  readonly ownerUserId: ReviewerId;
-  readonly repoId: RepoId;
-  readonly prNumber: number;
-}
-
-type DeleteInboxItemResult = Result<
-  { readonly pullRequestId: PullRequestRowId },
-  { readonly kind: "not-found" }
->;
 
 const INSTALL_URL_PREFIX = "https://github.com/apps/";
 
@@ -128,31 +112,5 @@ export default {
       })),
       installUrl: buildInstallUrl(input.githubAppSlug),
     };
-  },
-
-  /**
-   * Erase one of the viewer's url rows through the owner-scoped purge; the
-   * FK cascade takes every artifact and session with it, and the purge
-   * appends its own `delete` audit entry atomically.
-   */
-  async deleteInboxItem(
-    deps: InboxControllerDeps,
-    input: DeleteInboxItemInput,
-  ): Promise<DeleteInboxItemResult> {
-    const ctx = { ownerUserId: input.ownerUserId };
-    const row = await createTenantRepository(
-      deps.handle,
-      ctx,
-    ).pullRequests.getByNumber(input.repoId, input.prNumber);
-    if (row === undefined) {
-      return { ok: false, error: { kind: "not-found" } };
-    }
-    const purged = await createPurgeRoutines(deps.handle, ctx).purgePullRequest(
-      row.id,
-    );
-    if (!purged.ok) {
-      return { ok: false, error: { kind: "not-found" } };
-    }
-    return { ok: true, value: { pullRequestId: row.id } };
   },
 };

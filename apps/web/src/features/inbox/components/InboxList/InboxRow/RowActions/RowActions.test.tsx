@@ -48,7 +48,12 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   };
 }
 
-const URL_ROW = makeItem({ source: "url", installationId: null });
+const URL_ROW = makeItem({
+  source: "url",
+  installationId: null,
+  viewerCanDelete: true,
+});
+const ADMIN_ROW = makeItem({ viewerCanDelete: true });
 
 function readRequestBody(init: RequestInit | undefined): unknown {
   const body = init?.body;
@@ -129,7 +134,7 @@ describe("RowActions", () => {
     expect(onAnnounce).toHaveBeenCalledWith("Copy failed");
   });
 
-  it("Delete exists only on url rows, calls the Inbox delete and announces", async () => {
+  it("Delete calls the gated delete and announces the row gone", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), { status: 200 }),
     );
@@ -138,7 +143,7 @@ describe("RowActions", () => {
     await chooseDelete();
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(readRequestUrl(url)).toMatch(/\/api\/inbox\/424242\/7$/);
+    expect(readRequestUrl(url)).toMatch(/\/api\/repos\/424242\/pulls\/7$/);
     expect(init?.method).toBe("DELETE");
     expect(onAnnounce).toHaveBeenCalledWith("Deleted");
     expect(onDeleted).toHaveBeenCalledTimes(1);
@@ -197,12 +202,36 @@ describe("RowActions", () => {
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
-  it("an installation row has no Delete", async () => {
-    await renderActions(makeItem());
+  it("a row the viewer may not delete has no Delete, whatever its source", async () => {
+    await renderActions(makeItem({ source: "url", installationId: null }));
 
     await openMenu();
 
     expect(screen.queryByRole("menuitem", { name: "Delete" })).toBeNull();
+  });
+
+  it("an installation row the viewer administers offers Delete", async () => {
+    await renderActions(ADMIN_ROW);
+
+    await openMenu();
+
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeDefined();
+  });
+
+  it("a repo-admin-only refusal announces the admin copy and keeps the row", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "x", code: "repo-admin-only" }), {
+        status: 403,
+      }),
+    );
+    const { onAnnounce, onDeleted } = await renderActions(ADMIN_ROW);
+
+    await chooseDelete();
+
+    expect(onAnnounce).toHaveBeenCalledWith(
+      "Only a repository admin can delete this pull request's briefs",
+    );
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 
   it("a refused delete announces and keeps the row", async () => {

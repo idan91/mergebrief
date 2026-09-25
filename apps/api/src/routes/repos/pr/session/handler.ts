@@ -13,13 +13,13 @@ import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,
-  Forbidden,
   InternalError,
   NotFound,
 } from "../../../../shared-errors/api-error";
-import { AuthChannels, type AuthRouteDeps } from "../../../auth/session/types";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
+import { assertHuman } from "../logic/assert-human";
 import sessionController from "./controller";
 import { MAX_SESSION_DRAFTS } from "./consts";
 import {
@@ -63,17 +63,6 @@ function assertWritableDraft(
     throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
   }
   return draft;
-}
-
-/**
- * THE human-only predicate, one site for every clearing operation: the
- * Receipt attributes a cleared item to the reviewer by name, so a bearer
- * token clearing one would sign under the human's signature.
- */
-function assertHuman(c: Context<AuthzEnv>): void {
-  if (c.get("session").channel !== AuthChannels.COOKIE) {
-    throw new Forbidden(ApiErrorCodes.HUMAN_ONLY);
-  }
 }
 
 /**
