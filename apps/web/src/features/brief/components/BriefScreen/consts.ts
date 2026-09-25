@@ -1,4 +1,4 @@
-import type { ShortcutSection } from "@web/components/ShortcutsModal/ShortcutsModal";
+import type { ShortcutSection } from "@web/components/ShortcutsModal";
 
 // Esc is listed in both sections on purpose: one line says one thing.
 export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [

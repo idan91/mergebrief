@@ -6,7 +6,7 @@ import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { ChangesOnlyView } from "./ChangesOnlyView";
+import { ChangesOnlyView } from ".";
 
 const { requestSnippetTokens } = vi.hoisted(() => ({
   requestSnippetTokens: vi.fn(),

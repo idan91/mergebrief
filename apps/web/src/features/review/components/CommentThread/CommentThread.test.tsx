@@ -11,7 +11,7 @@ import {
   ReviewCommentStatuses,
   type ReviewComment,
 } from "../../utils/comments";
-import { CommentThread } from "./CommentThread";
+import { CommentThread } from ".";
 import { CommentAnchorKinds } from "types/comments";
 
 function comment(status: ReviewComment["status"]): ReviewComment {

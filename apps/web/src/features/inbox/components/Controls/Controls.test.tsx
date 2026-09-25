@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { Controls } from "./Controls";
+import { Controls } from ".";
 import type { FilterView } from "./types";
 
 afterEach(() => {

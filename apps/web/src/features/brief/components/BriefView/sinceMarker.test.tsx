@@ -15,9 +15,9 @@ import { renderInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ComparisonMarks, LocalBriefSummary } from "../../types";
-import type { BriefComparisonPlan } from "./BriefView";
-import { BriefView } from "./BriefView";
-import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker/SinceMarker";
+import type { BriefComparisonPlan } from ".";
+import { BriefView } from ".";
+import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker";
 import { useComparisonOverlay } from "../BriefScreen/useComparisonOverlay";
 import { buildLocalComparisonMarksQueryOptions } from "../../queries";
 import { briefFixture } from "@web/features/brief/fixtures";

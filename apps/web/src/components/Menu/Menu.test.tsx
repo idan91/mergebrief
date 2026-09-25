@@ -10,8 +10,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { Button } from "../Button/Button";
-import { Menu } from "./Menu";
+import { Button } from "../Button";
+import { Menu } from ".";
 
 afterEach(() => {
   cleanup();

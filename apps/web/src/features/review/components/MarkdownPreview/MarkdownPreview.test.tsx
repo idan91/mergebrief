@@ -10,7 +10,7 @@ import {
 } from "@web/utils/diffTokens/types";
 import { CommentAnchorKinds } from "types/comments";
 import { CommentSides, type CommentAnchor } from "../../utils/comments";
-import { MarkdownPreview } from "./MarkdownPreview";
+import { MarkdownPreview } from ".";
 
 const { requestSnippetTokens } = vi.hoisted(() => ({
   requestSnippetTokens: vi.fn(),

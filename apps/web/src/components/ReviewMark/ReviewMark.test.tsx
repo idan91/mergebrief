@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ReviewMark } from "./ReviewMark";
+import { ReviewMark } from ".";
 
 afterEach(cleanup);
 

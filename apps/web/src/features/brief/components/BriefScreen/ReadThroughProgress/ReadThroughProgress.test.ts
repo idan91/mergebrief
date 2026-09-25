@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { buildReadThroughSegments } from "./ReadThroughProgress";
+import { buildReadThroughSegments } from ".";
 
 const model = buildBriefViewModel(briefFixture);
 const titleOf = () => "Fix the cross-param leak";

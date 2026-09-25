@@ -24,7 +24,7 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
 } from "../../readingPosition";
-import { ChunkCard, type ChunkCardProps } from "./ChunkCard";
+import { ChunkCard, type ChunkCardProps } from ".";
 
 afterEach(cleanup);
 afterEach(() => {

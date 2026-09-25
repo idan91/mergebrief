@@ -8,7 +8,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { RiskFlag } from "@web/features/brief/utils";
-import { MarkReadyModal } from "./MarkReadyModal";
+import { MarkReadyModal } from ".";
 
 afterEach(cleanup);
 
@@ -58,7 +58,7 @@ function renderModal(
 }
 
 describe("MarkReadyModal", () => {
-  it("lists every flag (no read-tracking filter) and jumps on click", () => {
+  it("lists every flag regardless of read tracking and jumps on click", () => {
     const { jumpToFlag } = renderModal();
     expect(screen.getByText("src/a.ts")).toBeTruthy();
     expect(screen.getByText("src/b.ts")).toBeTruthy();
@@ -95,12 +95,12 @@ describe("MarkReadyModal", () => {
     expect(screen.queryByRole("button", { name: /^post/i })).toBeNull();
   });
 
-  it("offers the post-my-drafts checkbox (default UNCHECKED) only when N>0", () => {
+  it("offers the unchecked post-my-drafts checkbox only when N>0", () => {
     renderModal({ unpostedDraftCount: 3, postDrafts: false });
     const checkbox = screen.getByRole("checkbox", {
       name: /post my 3 draft comments before marking ready/i,
     }) as HTMLInputElement;
-    // Default unchecked — posting is an outward write.
+    // Default unchecked: posting is an outward write.
     expect(checkbox.checked).toBe(false);
   });
 
@@ -122,9 +122,9 @@ describe("MarkReadyModal", () => {
     expect(screen.queryByRole("checkbox")).toBeNull();
   });
 
-  it("renders coherently with zero flags: drafts advisory, no risk-flag copy or empty list", () => {
+  it("with zero flags shows the drafts advisory and no risk-flag copy", () => {
     // The gate can open for unposted drafts alone: the risk-flag advisory
-    // and jump list must not render over an empty flag set — the copy focuses
+    // and jump list must not render over an empty flag set, the copy focuses
     // on the drafts instead.
     renderModal({ flags: [], unpostedDraftCount: 2 });
     expect(screen.queryByText(/these risk flags/i)).toBeNull();
@@ -166,7 +166,7 @@ describe("MarkReadyModal", () => {
       postDrafts: true,
       busyLabel: "Posting 2 of 3…",
     });
-    // The confirm is aria-disabled + aria-busy, never hard disabled — a
+    // The confirm is aria-disabled + aria-busy, never hard disabled: a
     // disabled element would dump keyboard focus on <body> inside the modal's
     // trap. The click stays a no-op via the busy guard.
     const confirm = screen.getByRole("button", {
@@ -199,7 +199,7 @@ describe("MarkReadyModal", () => {
   });
 
   it("announces batch progress through a polite live region inside the modal", () => {
-    // The confirm button's visual relabel is silent to screen readers — the
+    // The confirm button's visual relabel is silent to screen readers, the
     // progress text must also flow through a status live region.
     renderModal({
       unpostedDraftCount: 3,
@@ -212,7 +212,7 @@ describe("MarkReadyModal", () => {
     expect(region?.textContent).toBe("Posting 2 of 3…");
 
     cleanup();
-    // Idle: the region is present but empty — nothing to announce.
+    // Idle: the region is present but empty, nothing to announce.
     renderModal({ unpostedDraftCount: 3 });
     const idleRegion = screen
       .getAllByRole("status")
@@ -220,7 +220,7 @@ describe("MarkReadyModal", () => {
     expect(idleRegion?.textContent).toBe("");
   });
 
-  it("aria-disabled confirm still acts when idle (no hard-disable regression)", () => {
+  it("an aria-disabled confirm still acts when idle", () => {
     const { markReadyAnyway } = renderModal({ unpostedDraftCount: 2 });
     const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
     expect(confirm.getAttribute("aria-disabled")).toBeNull();
@@ -231,7 +231,7 @@ describe("MarkReadyModal", () => {
   // The count-only intent line.
   const intentLine = /stated ask.* not found in the diff/;
 
-  it("shows no intent line when there are no missing asks (absence, not a verdict)", () => {
+  it("shows no intent line when there are no missing asks", () => {
     renderModal();
     expect(screen.queryByText(intentLine)).toBeNull();
     cleanup();
@@ -239,7 +239,7 @@ describe("MarkReadyModal", () => {
     expect(screen.queryByText(intentLine)).toBeNull();
   });
 
-  it("renders one count-only line (plural) when precise asks are missing", () => {
+  it("renders one plural count-only line when precise asks are missing", () => {
     renderModal({ intentGapCount: 3 });
     expect(
       screen.getByText("3 stated asks not found in the diff"),
@@ -275,7 +275,7 @@ describe("MarkReadyModal", () => {
   // The second count-only line: intent tensions.
   const tensionLine = /intent tension.* flagged/;
 
-  it("shows no tension line when there are none (absence, not a green verdict)", () => {
+  it("shows no tension line when there are none", () => {
     renderModal();
     expect(screen.queryByText(tensionLine)).toBeNull();
     cleanup();
@@ -291,7 +291,7 @@ describe("MarkReadyModal", () => {
     expect(screen.getByText("1 intent tension flagged")).toBeTruthy();
   });
 
-  it("names nothing — the line is a count, never the tension itself", () => {
+  it("names nothing: the line is a count and never the tension itself", () => {
     renderModal({ intentTensionCount: 3 });
     const line = screen.getByText("3 intent tensions flagged");
     // Anchoring the author on the shakiest inference in the Brief, at the
@@ -300,7 +300,7 @@ describe("MarkReadyModal", () => {
     expect(line.textContent).toBe("3 intent tensions flagged");
   });
 
-  it("shares the gap line's jump target and sits alongside it, not instead of it", () => {
+  it("shares the gap line's jump target and sits alongside it", () => {
     const jumpToIntentGaps = vi.fn();
     renderModal({ intentGapCount: 2, intentTensionCount: 1, jumpToIntentGaps });
     // Both lines render; neither suppresses the other.
@@ -325,7 +325,7 @@ describe("MarkReadyModal", () => {
     expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
   });
 
-  it("never blocks the gate — confirm stays available with tensions flagged", () => {
+  it("never blocks the gate: confirm stays available with tensions", () => {
     const markReadyAnyway = vi.fn();
     renderModal({ intentTensionCount: 4, markReadyAnyway });
     const confirm = screen.getByRole("button", { name: /mark ready/i });

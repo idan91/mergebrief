@@ -2,8 +2,8 @@ import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
-import { Button } from "@web/components/Button/Button";
-import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import { Button } from "@web/components/Button";
+import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { MarkdownTextareaFrames } from "@web/components/MarkdownTextarea/types";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { reviewOutcomeLabel, type ReviewOutcome } from "../../utils/state";

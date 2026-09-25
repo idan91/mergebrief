@@ -42,7 +42,7 @@ import {
 } from "./context-providers";
 import { resolveEffectiveTrackers } from "../context/tracker";
 import { readLocalTracker } from "./settings";
-import { splitDiffByFile } from "../diff/diff";
+import { splitDiffByFile } from "../diff/file-diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
 import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
 import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";

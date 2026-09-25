@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters } from "types/inbox";
 
-import { Header } from "@web/components/Header/Header";
+import { Header } from "@web/components/Header";
 import {
   ShortcutsModal,
   type ShortcutSection,
-} from "@web/components/ShortcutsModal/ShortcutsModal";
+} from "@web/components/ShortcutsModal";
 import { AccountMenu } from "@web/features/account";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { LocalBriefsSection } from "@web/features/brief";

@@ -10,10 +10,7 @@ import {
 import type { LocalBriefSummary } from "./types";
 import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
-import {
-  BriefView,
-  type ScopeExitOptions,
-} from "./components/BriefView/BriefView";
+import { BriefView, type ScopeExitOptions } from "./components/BriefView";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
@@ -23,10 +20,10 @@ export {
   type BriefComparisonPlan,
   type BriefViewProps,
   type ScopeExitOptions,
-} from "./components/BriefView/BriefView";
+} from "./components/BriefView";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
-export { LocalBriefsSection } from "./components/LocalBriefsSection/LocalBriefsSection";
-export { BriefError } from "./components/BriefError/BriefError";
+export { LocalBriefsSection } from "./components/LocalBriefsSection";
+export { BriefError } from "./components/BriefError";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

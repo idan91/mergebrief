@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FilterView } from "../types";
-import { CollapsedFilters } from "./CollapsedFilters";
+import { CollapsedFilters } from ".";
 
 afterEach(cleanup);
 

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { TicketAlignment } from "./TicketAlignment";
+import { TicketAlignment } from ".";
 import type {
   PrimaryTicket,
   TicketAlignment as Alignment,
@@ -69,7 +69,7 @@ describe("TicketAlignment", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("renders the read word as plain text — no colour or state hook on it", () => {
+  it("renders the read word as plain text without colour or state hook", () => {
     render(
       <TicketAlignment
         alignment={{ ...ALIGNED, read: "misaligned" }}
@@ -137,7 +137,7 @@ describe("TicketAlignment", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("renders an amber status notice for an unread ticket, with no This PR row and no caution", () => {
+  it("renders an amber notice for an unread ticket without a This PR row", () => {
     const unread: PrimaryTicket = {
       ...READ_TICKET,
       title: "",
@@ -192,7 +192,7 @@ describe("TicketAlignment", () => {
     expect(screen.getByText("GitHub")).toBeTruthy();
   });
 
-  it("uses the title as the link text for a URL-only reference and hides the separate title", () => {
+  it("a URL-only reference links its title and hides the separate title", () => {
     const urlOnly: PrimaryTicket = { ...READ_TICKET, key: "" };
     render(
       <TicketAlignment
@@ -209,7 +209,7 @@ describe("TicketAlignment", () => {
     expect(screen.getAllByText(READ_TICKET.title)).toHaveLength(1);
   });
 
-  it("falls back to the URL as the link text and the notice subject when key and title are both empty", () => {
+  it("uses the URL as link text and subject when key and title are empty", () => {
     const urlOnlyUnread: PrimaryTicket = {
       ...READ_TICKET,
       key: "",
@@ -246,7 +246,7 @@ describe("TicketAlignment", () => {
     expect(screen.queryByText(/Status: In progress/)).toBeNull();
   });
 
-  it("never links a non-http(s) ticket URL — the key renders as plain text", () => {
+  it("renders the key as plain text for a non-http ticket URL", () => {
     const sneaky: PrimaryTicket = {
       ...READ_TICKET,
       url: "javascript:alert(1)",

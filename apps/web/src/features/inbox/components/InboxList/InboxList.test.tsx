@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
-import { InboxList } from "./InboxList";
+import { InboxList } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);

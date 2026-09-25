@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FileDiff } from "../../src/diff/diff";
+import type { FileDiff } from "../../src/diff/file-diff";
 import { snapChunkRanges } from "../../src/generation/snap-ranges";
 import type { LineRange } from "../../src/types";
 

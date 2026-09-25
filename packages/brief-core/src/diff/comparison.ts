@@ -7,7 +7,7 @@
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FileDiff } from "./diff";
+import type { FileDiff } from "./file-diff";
 import {
   changedRangesFromFileDiffs,
   parseChangedRanges,

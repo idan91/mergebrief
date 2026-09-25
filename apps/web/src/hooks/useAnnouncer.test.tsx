@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Button } from "../components/Button/Button";
+import { Button } from "../components/Button";
 import { useAnnouncer } from "./useAnnouncer";
 
 afterEach(cleanup);

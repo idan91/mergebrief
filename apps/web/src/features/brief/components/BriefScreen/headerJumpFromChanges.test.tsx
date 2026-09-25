@@ -9,7 +9,7 @@ import { renderInRouter } from "../../../../test/router";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView/BriefView";
+import { BriefView } from "../BriefView";
 
 afterEach(() => {
   cleanup();

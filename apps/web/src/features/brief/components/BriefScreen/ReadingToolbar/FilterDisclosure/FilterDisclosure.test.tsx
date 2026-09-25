@@ -9,10 +9,7 @@ import {
   parseConversationFilter,
   type ConversationFilter,
 } from "@web/features/conversation/utils";
-import {
-  FilterDisclosure,
-  type FilterDisclosureProps,
-} from "./FilterDisclosure";
+import { FilterDisclosure, type FilterDisclosureProps } from ".";
 
 afterEach(() => {
   cleanup();

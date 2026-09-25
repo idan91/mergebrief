@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../i18n/I18nProvider";
-import { ShortcutsModal, type ShortcutSection } from "./ShortcutsModal";
+import { ShortcutsModal, type ShortcutSection } from ".";
 
 afterEach(cleanup);
 

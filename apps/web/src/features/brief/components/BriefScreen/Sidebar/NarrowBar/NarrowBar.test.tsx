@@ -8,7 +8,7 @@ import {
   buildBriefViewModel,
   GroupViewKinds,
 } from "../../../../utils/viewModel";
-import { NarrowBar, type NarrowBarProps } from "./NarrowBar";
+import { NarrowBar, type NarrowBarProps } from ".";
 
 const model = buildBriefViewModel(briefFixture);
 const first = model.groups[0];

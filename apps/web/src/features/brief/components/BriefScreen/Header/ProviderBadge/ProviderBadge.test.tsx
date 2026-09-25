@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ProviderBadge } from "./ProviderBadge";
+import { ProviderBadge } from ".";
 
 afterEach(cleanup);
 
@@ -25,7 +25,7 @@ describe("ProviderBadge", () => {
     ["claude-code", "Claude Code", "CLI"],
     ["cursor", "Cursor", "CLI"],
   ] as const)(
-    "%s: official mark (aria-hidden) + sr-only name + %s class tag",
+    "%s: hidden official mark, sr-only name and %s class tag",
     (provider, name, tag) => {
       render(
         <ProviderBadge
@@ -34,7 +34,7 @@ describe("ProviderBadge", () => {
       );
       const svg = badge().querySelector("svg");
       expect(svg?.getAttribute("aria-hidden")).toBe("true");
-      // Provider name reaches screen readers ONLY — pinned to the sr-only
+      // Provider name reaches screen readers ONLY, pinned to the sr-only
       // wrapper so a visible duplicate next to the mark can't slip in.
       const nameEl = screen.getByText(name);
       expect(nameEl.className).toContain("sr-only");
@@ -47,7 +47,7 @@ describe("ProviderBadge", () => {
 
   it("codex takes the named fallback: generic glyph + visible token, CLI tag", () => {
     // No standalone official Codex mark exists, so no brand approximation
-    // ships — the pill names the provider in text instead. The model id
+    // ships, the pill names the provider in text instead. The model id
     // deliberately does NOT contain the provider token, so this pins the
     // visible token itself, not the model cell.
     render(
@@ -72,7 +72,7 @@ describe("ProviderBadge", () => {
     expect(badge().textContent).not.toContain("CLI");
   });
 
-  it("inherited-object tokens read as unknown (no bogus mark or tag)", () => {
+  it("inherited-object tokens read as unknown with no mark or tag", () => {
     render(
       <ProviderBadge
         generation={{ provider: "toString", model: "m-1", effort: null }}
@@ -82,7 +82,7 @@ describe("ProviderBadge", () => {
     expect(badge().textContent).not.toContain("API");
   });
 
-  it("keeps the OpenRouter author prefix — origin never abbreviates identity", () => {
+  it("keeps the OpenRouter author prefix in the identity", () => {
     render(
       <ProviderBadge
         generation={{

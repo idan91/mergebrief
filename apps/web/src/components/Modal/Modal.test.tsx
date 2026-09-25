@@ -3,8 +3,8 @@ import { useRef, useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Button } from "../Button/Button";
-import { Modal } from "./Modal";
+import { Button } from "../Button";
+import { Modal } from ".";
 
 afterEach(cleanup);
 

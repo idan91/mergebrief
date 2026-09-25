@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
-import { CappedCard } from "./CappedCard";
+import { CappedCard } from ".";
 import { capResetsAt, cappedLabel } from "./utils";
 
 const t = appI18n.t;

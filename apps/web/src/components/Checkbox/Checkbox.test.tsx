@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Checkbox } from "./Checkbox";
+import { Checkbox } from ".";
 
 afterEach(cleanup);
 

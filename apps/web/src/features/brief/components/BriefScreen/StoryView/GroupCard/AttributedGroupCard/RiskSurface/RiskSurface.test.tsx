@@ -13,7 +13,7 @@ import {
   type AttributedGroupView,
   type RiskFlag,
 } from "../../../../../../utils/viewModel";
-import { RiskSurface } from "./RiskSurface";
+import { RiskSurface } from ".";
 
 afterEach(cleanup);
 

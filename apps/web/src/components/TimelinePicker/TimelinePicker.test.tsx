@@ -10,7 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { TimelinePicker } from "./TimelinePicker";
+import { TimelinePicker } from ".";
 
 afterEach(() => {
   cleanup();

@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { FailureBlock } from "@web/components/FailureBlock/FailureBlock";
+import { FailureBlock } from "@web/components/FailureBlock";
 import { TokenSettings } from "@web/features/tokens";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";

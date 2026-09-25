@@ -2,7 +2,7 @@
 // Carry frozen groups verbatim, remap ids by descent and enforce coverage without model calls.
 import type { Mutable, Result } from "types/utils";
 import { assignGroupIds } from "../diff/descent";
-import { splitDiffByFile } from "../diff/diff";
+import { splitDiffByFile } from "../diff/file-diff";
 import {
   parseHunkSpans,
   remapThroughPatch,

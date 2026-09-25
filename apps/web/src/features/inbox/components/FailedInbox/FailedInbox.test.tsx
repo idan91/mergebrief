@@ -10,7 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiErrorCodes } from "../../../../data/apiFetch";
-import { FailedInbox } from "./FailedInbox";
+import { FailedInbox } from ".";
 
 afterEach(cleanup);
 

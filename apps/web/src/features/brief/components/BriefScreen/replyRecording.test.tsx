@@ -11,7 +11,7 @@ import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationComment } from "@web/features/conversation/types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView/BriefView";
+import { BriefView } from "../BriefView";
 
 const THREAD_ID = 9001;
 const REPLY_BODY = "my own follow-up";

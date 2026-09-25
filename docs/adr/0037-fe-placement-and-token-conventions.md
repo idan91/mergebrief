@@ -304,6 +304,19 @@ decision, noted on the ticket). Sizing stays a judgment call — no lint;
 ambiguity resolves to px. Full taxonomy with per-category reasoning:
 `docs/plans/brief-84-px-to-rem.md`._
 
+_Amended 2026-09-25 (BRIEF-302): decision 1's entry rule extends to every
+component folder. A folder's entry is `index.tsx`, never a file named after
+the folder (`Menu/index.tsx`, not `Menu/Menu.tsx`); the test and the
+stylesheet keep the component name (`Menu.test.tsx`, `Menu.module.scss`),
+and support stays `types.ts` / `consts.ts` / `utils.ts`, imported one segment
+below the folder (`components/Menu/types`). The `Folder/Folder.tsx` shape,
+which made every import spell the name twice, is retired. "No per-component
+barrels" still holds: the entry is the component's own file, not a re-export
+of it; a curated re-export entry exists only at a feature root. Non-React
+folders follow the same rule: a file named after its folder is either that
+folder's `index.ts` or takes a name for what it owns (`diff/file-diff.ts`,
+`comparison/runs.ts`); tests keep mirroring the file they test._
+
 ## Revisit Triggers
 
 - ~~**Topic-folder threshold** (≥4 files) — reassess after the first

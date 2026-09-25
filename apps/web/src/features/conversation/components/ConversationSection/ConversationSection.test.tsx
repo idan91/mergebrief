@@ -45,7 +45,7 @@ import {
   ConversationSection,
   type ConversationPlan,
   type ConversationSectionProps,
-} from "./ConversationSection";
+} from ".";
 
 afterEach(() => {
   cleanup();

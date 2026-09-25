@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildChunkComparisonView,
   type ComparisonSource,
-} from "../../comparison/comparison";
+} from "../../comparison/runs";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import type {
   Brief,
@@ -16,8 +16,8 @@ import type {
   RevisionNarrative,
 } from "../../types";
 import { buildBriefViewModel } from "../../utils/viewModel";
-import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
-import { ComparisonCallout } from "./DiffTable/ComparisonCallout/ComparisonCallout";
+import { ChangesOnlyView } from "./ChangesOnlyView";
+import { ComparisonCallout } from "./DiffTable/ComparisonCallout";
 
 const PR = {
   repo: "acme/widgets",
@@ -152,9 +152,9 @@ const delta: Brief = {
 
 afterEach(() => cleanup());
 
-describe("Full Brief comparison overlay (step 7)", () => {
-  it("Previous Brief uses previous-brief marks and Revision narrative callouts", () => {
-    // Highlights are mechanical — derived from the previous-brief marks only.
+describe("Full Brief comparison overlay", () => {
+  it("Previous Brief uses previous-brief marks, Revision narrative callouts", () => {
+    // Highlights are mechanical, derived from the previous-brief marks only.
     const view = buildChunkComparisonView(chunkA, previousBriefMarks);
     const run = view.runs[0];
     expect(run).toBeDefined();
@@ -182,13 +182,13 @@ describe("Full Brief comparison overlay (step 7)", () => {
     const title = screen.getByText(
       "Adds the validate(a) guard on the shared path.",
     );
-    // Display-side length guard: the span summary clamps at 4 lines — data
+    // Display-side length guard: the span summary clamps at 4 lines, data
     // untouched, presentation only.
     expect(title.getAttribute("data-clamp")).toBe("");
     expect(title.style.webkitLineClamp).toBe("4");
   });
 
-  it("degrades to the chunk's group with a note when the narrative misses the span", () => {
+  it("shows a note and the chunk's group when the narrative misses the span", () => {
     const view = buildChunkComparisonView(chunkA, previousBriefMarks);
     const run = view.runs[0];
     expect(run).toBeDefined();
@@ -244,7 +244,7 @@ describe("Full Brief comparison overlay (step 7)", () => {
   });
 });
 
-describe("Changes Only rendering (step 8)", () => {
+describe("Changes Only rendering", () => {
   it("Previous Brief groups narrative chunks under full Brief groups", () => {
     render(
       <ChangesOnlyView
@@ -328,7 +328,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.getByText(/No revision summary/)).toBeTruthy();
   });
 
-  it("shows the muted length-guidance line only when the brief stamps violations", () => {
+  it("shows the length-guidance line only when the brief stamps violations", () => {
     const verbose: Brief = {
       ...fullBrief,
       lengthViolations: [
@@ -384,7 +384,7 @@ describe("Changes Only rendering (step 8)", () => {
     ).toBeTruthy();
   });
 
-  it("shows the length-guidance line on a violating delta in Your last review", () => {
+  it("shows the length-guidance line on a violating last-review delta", () => {
     const verboseDelta: Brief = {
       ...delta,
       lengthViolations: [
@@ -427,7 +427,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
   });
 
-  it("hides the fresh-restart line on a none-stamped brief (always instances)", () => {
+  it("hides the fresh-restart line on a none-stamped brief", () => {
     const none: Brief = { ...fullBrief, anchor: { state: "none" } };
     render(
       <ChangesOnlyView
@@ -535,7 +535,7 @@ describe("Changes Only rendering (step 8)", () => {
       screen.getByRole("heading", { name: "Guarded shared path" }),
     ).toBeTruthy();
     expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
-    // "Delta" is internal — never a primary visible label.
+    // "Delta" is internal, never a primary visible label.
     expect(screen.queryByText("Delta brief")).toBeNull();
   });
 });
@@ -604,7 +604,7 @@ describe("Changes Only raw span diff toggle", () => {
     expect(screen.getByRole("button", { name: "Raw diff" })).toBeTruthy();
   });
 
-  it("resets the ephemeral toggle when the baseline (compare lens) changes", async () => {
+  it("resets the ephemeral toggle when the compare lens changes", async () => {
     const { rerender } = render(
       withClient(
         <ChangesOnlyView
@@ -626,7 +626,7 @@ describe("Changes Only raw span diff toggle", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
 
-    // Switching to the last-review lens swaps the descriptor's baseline — the
+    // Switching to the last-review lens swaps the descriptor's baseline, the
     // component is keyed by the lens+span, so the toggle remounts back to off.
     rerender(
       withClient(
@@ -649,9 +649,9 @@ describe("Changes Only raw span diff toggle", () => {
     ).toBe("false");
   });
 
-  it("resets the toggle on a lens switch even when both lenses share the SAME span", async () => {
+  it("resets the toggle on a lens switch even when both share the span", async () => {
     // checkpoint == previous head: both descriptors carry an identical
-    // queryKey, so the span alone cannot distinguish the views — the lens is
+    // queryKey, so the span alone cannot distinguish the views: the lens is
     // part of the remount key.
     const { rerender } = render(
       withClient(

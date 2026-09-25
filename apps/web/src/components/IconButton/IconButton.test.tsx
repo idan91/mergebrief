@@ -9,7 +9,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CALLOUT_HOVER_DELAY_MS } from "../Callout/consts";
-import { IconButton } from "./IconButton";
+import { IconButton } from ".";
 
 afterEach(() => {
   cleanup();

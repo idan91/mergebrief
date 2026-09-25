@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { DbTimelineNavigator } from "./DbTimelineNavigator";
+import { DbTimelineNavigator } from ".";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
 
 afterEach(() => {

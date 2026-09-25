@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import type { ReviewSessionPayload } from "@web/features/review/session";
-import { BriefView } from "../../BriefView/BriefView";
+import { BriefView } from "../../BriefView";
 import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(cleanup);

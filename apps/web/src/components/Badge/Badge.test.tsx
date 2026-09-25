@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Badge, BadgeColors } from "./Badge";
+import { Badge, BadgeColors } from ".";
 
 afterEach(cleanup);
 

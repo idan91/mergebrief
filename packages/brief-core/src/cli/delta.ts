@@ -34,7 +34,7 @@ import {
 } from "./context-providers";
 import { resolveEffectiveTrackers } from "../context/tracker";
 import { readLocalTracker } from "./settings";
-import { splitDiffByFile } from "../diff/diff";
+import { splitDiffByFile } from "../diff/file-diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
 import {
@@ -53,7 +53,7 @@ function loadEnv(): void {
   try {
     process.loadEnvFile(".env");
   } catch {
-    // no .env file — ANTHROPIC_API_KEY may still be set in the environment
+    // no .env file, ANTHROPIC_API_KEY may still be set in the environment
   }
 }
 
@@ -109,7 +109,7 @@ export async function generateAndWriteDelta(
     log,
     fetchOptions,
   );
-  // Endpoint brief indices (read-only) for the `_b→_h` label — null if unbriefed.
+  // Endpoint brief indices (read-only) for the `_b→_h` label, null if unbriefed.
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
   const [baselineIndex, headIndex] = await Promise.all([
     lookupBriefIndex(outDir, stem, baselineSha),
@@ -160,7 +160,7 @@ export async function generateAndWriteDelta(
   await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
   const diffsFile = join(outDir, deltaDiffsName(delta));
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
-  // Review comments sidecar (display data, +outdated) — matches the brief.
+  // Review comments sidecar (display data, +outdated), matches the brief.
   const commentsFile = join(outDir, deltaCommentsName(delta));
   await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
   log(`wrote ${file}`);
@@ -255,7 +255,7 @@ async function main(): Promise<void> {
   printDeltaSummary(delta);
 }
 
-// Only run the CLI when this file is the process entry point — `generateAndWriteDelta`
+// Only run the CLI when this file is the process entry point: `generateAndWriteDelta`
 // must be importable by tests (and other front doors) without triggering argv
 // parsing / process.exit.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import type { SidebarLayout } from "../../utils";
-import { StorySplitter } from "./StorySplitter";
+import { StorySplitter } from ".";
 import { STORY_DRAG_ATTR } from "./consts";
 import { StackedQueries } from "./types";
 

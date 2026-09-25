@@ -4,7 +4,7 @@ import { InboxReviewStates } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InboxItem } from "../../../types";
-import { DeleteModal } from "./DeleteModal";
+import { DeleteModal } from ".";
 
 afterEach(cleanup);
 

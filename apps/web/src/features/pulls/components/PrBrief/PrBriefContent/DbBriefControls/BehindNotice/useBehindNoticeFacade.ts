@@ -8,7 +8,7 @@ import { generateBriefViaApi } from "../../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../../brief/utils";
 import { buildPrMetaQueryOptions } from "../../../../../queries";
 import { GenerationStatuses, type PrSummary } from "../../../../../types";
-import type { BehindNoticeProps } from "./BehindNotice";
+import type { BehindNoticeProps } from ".";
 
 export interface BehindNoticeState {
   /** The last regenerate outcome, for the controls' persistent live region. */

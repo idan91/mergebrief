@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { LinkButton } from "./LinkButton";
+import { LinkButton } from ".";
 
 afterEach(cleanup);
 
@@ -16,7 +16,7 @@ describe("LinkButton", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
+  it("disabled sets aria-disabled, not the native one, and guards clicks", () => {
     const onClick = vi.fn();
     render(
       <LinkButton disabled onClick={onClick}>

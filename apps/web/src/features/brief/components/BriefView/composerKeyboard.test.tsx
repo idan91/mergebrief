@@ -13,7 +13,7 @@ import {
   emptySessionPayload,
   type ReviewSessionPayload,
 } from "@web/features/review/session";
-import { BriefView } from "./BriefView";
+import { BriefView } from ".";
 import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(cleanup);

@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Button } from "@web/components/Button/Button";
+import { Button } from "@web/components/Button";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { DIFF_VIEW_STORAGE_KEY } from "./diffViewStorage";
 import { useDiffViewPreference } from "./useDiffViewPreference";

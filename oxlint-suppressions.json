@@ -257,21 +257,6 @@
       "count": 2
     }
   },
-  "apps/web/src/components/AccessibleLink/AccessibleLink.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/LinkButton/LinkButton.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/LinkButton/LinkButton.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/components/Markdown/utils.test.ts": {
     "house/test-title": {
       "count": 1
@@ -280,26 +265,6 @@
   "apps/web/src/components/MarkdownTextarea/useMentionAutocomplete.ts": {
     "house/no-em-dash": {
       "count": 6
-    }
-  },
-  "apps/web/src/components/RowButton/RowButton.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/SegmentedControl/SegmentedControl.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/ToolbarButton/ToolbarButton.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/ToolbarButton/ToolbarButton.tsx": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/web/src/data/ssrWarnSink.client.test.ts": {
@@ -331,40 +296,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/brief/comparison/comparisonOverlay.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/CoreLinesDisclosure/CoreLinesDisclosure.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/Header/ProviderBadge/ProviderBadge.test.tsx": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/TicketAlignment/TicketAlignment.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/TicketAlignment/TicketAlignment.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/consts.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -373,36 +304,6 @@
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/utils.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/ReadThroughProgress/ReadThroughProgress.tsx": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/RiskChipDisclosure/RiskChipDisclosure.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/RiskFlagModals/RiskFlagModals.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/SinceMarker/SinceMarker.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/SummarySection/SummarySection.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/UnattributedDisclosure/UnattributedDisclosure.test.tsx": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/chunkHeightModel.test.ts": {
@@ -421,14 +322,6 @@
   "apps/web/src/features/brief/components/BriefScreen/chunkWindows.tsx": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/comparisonRendering.test.tsx": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 10
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/readingPosition.tsx": {
@@ -477,11 +370,6 @@
       "count": 3
     }
   },
-  "apps/web/src/features/brief/hooks/useRevisionNavigation.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "apps/web/src/features/brief/server/legacyRevchangesAlias.server.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -511,37 +399,6 @@
   "apps/web/src/features/brief/utils/timeline.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/components/ConversationFilterPanel/ConversationFilterPanel.test.tsx": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/components/ConversationSection/DigestGroupView/BotGroupRowView/BotGroupRowView.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/components/InlineThreads/InlineThreads.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/components/InlineThreads/InlineThreads.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ReplyComposer/ReplyComposer.tsx": {
-    "house/no-em-dash": {
-      "count": 16
     }
   },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ReplyComposer/utils.test.ts": {
@@ -598,14 +455,6 @@
       "count": 6
     }
   },
-  "apps/web/src/features/pulls/components/MarkReadyModal/MarkReadyModal.test.tsx": {
-    "house/no-em-dash": {
-      "count": 7
-    },
-    "house/test-title": {
-      "count": 11
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/CappedCard/utils.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -614,11 +463,6 @@
   "apps/web/src/features/pulls/components/PrBrief/FailedCard/utils.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/utils.ts": {
@@ -671,14 +515,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/review/components/SubmitModal/SubmitModal.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/review/session/briefSwitch.test.tsx": {
     "house/no-em-dash": {
       "count": 4
@@ -691,16 +527,6 @@
   },
   "apps/web/src/features/review/session/snapshot.ts": {
     "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/tokens/index.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/hooks/useFocusTrap.test.tsx": {
-    "house/test-title": {
       "count": 1
     }
   },
@@ -837,11 +663,6 @@
       "count": 1
     }
   },
-  "packages/brief-core/src/cli/delta.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/brief-core/src/diff/descent.ts": {
     "house/no-em-dash": {
       "count": 5
@@ -934,11 +755,6 @@
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "packages/brief-core/test/diff/comparison.test.ts": {
-    "house/test-title": {
-      "count": 6
     }
   },
   "packages/brief-core/test/diff/descent.test.ts": {
@@ -1739,14 +1555,6 @@
   "tools/ingest-briefs/src/index.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "tools/ingest-briefs/src/ingest/ingest.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "tools/ingest-briefs/src/ingest/logic/collect-files.ts": {

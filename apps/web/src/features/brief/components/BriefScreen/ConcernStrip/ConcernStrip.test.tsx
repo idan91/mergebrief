@@ -4,7 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ConcernRollup } from "../../../types";
-import { ConcernStrip } from "./ConcernStrip";
+import { ConcernStrip } from ".";
 import { concernShares } from "./utils";
 
 afterEach(cleanup);

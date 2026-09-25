@@ -15,7 +15,7 @@ import {
   type ChunkComparisonView,
   type ComparisonRowKind,
   type ComparisonRun,
-} from "../../../comparison/comparison";
+} from "../../../comparison/runs";
 import type { AddressedReviewComment, BriefChunk } from "../../../types";
 
 export interface DiffRowViewParams {

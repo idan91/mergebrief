@@ -5,7 +5,7 @@ import { act } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExpandableContent } from "./ExpandableContent";
+import { ExpandableContent } from ".";
 
 const CAP_FALLBACK_PX = 200;
 

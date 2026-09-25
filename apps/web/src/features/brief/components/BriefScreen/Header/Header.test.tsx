@@ -16,7 +16,7 @@ import {
 } from "../../../../../test/router";
 import { intersectionObservers } from "../../../../../test/setup";
 import { CONTENT_START_ATTR } from "../utils";
-import { Header, type HeaderProps } from "./Header";
+import { Header, type HeaderProps } from ".";
 
 afterEach(cleanup);
 

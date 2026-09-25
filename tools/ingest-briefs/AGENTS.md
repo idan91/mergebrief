@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI. Which file becomes which row is `ingest/consts.ts` — one named regex per family, and the orchestrator's header comment walks the same list. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
+`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI. Which file becomes which row is `ingest/consts.ts` — one named regex per family. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
 
 ## Invariants (enforced, don't weaken)
 

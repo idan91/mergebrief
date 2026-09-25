@@ -5,8 +5,8 @@ export { MarkReadyModal, type MarkReadyModalProps } from "./components";
 export {
   PrBriefBody,
   type PrBriefBodyProps,
-} from "./components/PrBrief/PrBriefBody/PrBriefBody";
+} from "./components/PrBrief/PrBriefBody";
 export {
   PrBriefError,
   type PrBriefErrorProps,
-} from "./components/PrBrief/PrBriefError/PrBriefError";
+} from "./components/PrBrief/PrBriefError";

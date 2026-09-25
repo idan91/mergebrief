@@ -27,7 +27,7 @@ import type {
   ThreadComposerWiring,
   ThreadResolutionWiring,
 } from "../../../wiring";
-import { ThreadDetail } from "./ThreadDetail";
+import { ThreadDetail } from ".";
 
 const BRIEF_ID = "db:42:7:base:head";
 const THREAD_ID = 9001;

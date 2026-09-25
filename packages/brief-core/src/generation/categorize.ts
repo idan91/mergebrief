@@ -26,7 +26,7 @@ import {
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
 } from "./prompt";
-import { splitDiffByFile } from "../diff/diff";
+import { splitDiffByFile } from "../diff/file-diff";
 import {
   changedRangesFromFileDiffs,
   type RevisionChangeFile,

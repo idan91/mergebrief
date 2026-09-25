@@ -4,7 +4,7 @@ import { useState } from "react";
 import { InboxArchivedFilters } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SelectionHeader, type SelectionHeaderProps } from "./SelectionHeader";
+import { SelectionHeader, type SelectionHeaderProps } from ".";
 
 afterEach(cleanup);
 

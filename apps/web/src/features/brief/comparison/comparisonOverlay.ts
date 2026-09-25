@@ -1,33 +1,15 @@
 import type { CompareParam } from "./compareState";
-import type { ComparisonMarkFiles, ComparisonSource } from "./comparison";
+import type { ComparisonMarkFiles, ComparisonSource } from "./runs";
 import type { RevisionNarrativeSkipReason } from "../types";
 
-/**
- * @description The comparison overlay state shared down the story view. One
- * state machine parameterized by the active Compare baseline —
- * mechanical marks drive the highlights; `source` binds each run's callout
- * (Revision narrative for Previous Brief, Delta for Your last review).
- */
+/** The comparison overlay state shared down the story view, keyed by the active Compare baseline. */
 export interface ComparisonOverlayState {
-  /** The active Compare baseline; `off` means the overlay is inactive. */
   compare: CompareParam;
-  /**
-   * @description The mechanical marks to paint, or null when the overlay is off
-   * or unavailable. Highlighting is derived ONLY from these.
-   */
+  /** Highlighting derives only from these; null while the overlay is off or unavailable. */
   marks: ComparisonMarkFiles | null;
-  /** The narrative source a run's callout binds against (per-baseline adapter). */
   source: ComparisonSource;
-  /**
-   * @description When the Previous-Brief narrative was deliberately skipped
-   * (huge span / disabled by config), the reason — so callouts convey a
-   * knowable skip rather than a generic "unavailable". Null otherwise.
-   */
+  /** Null unless the Previous-Brief narrative was skipped on purpose (huge span or config). */
   skipReason: RevisionNarrativeSkipReason | null;
-  /** Whether the overlay applies at all (compare != off and marks exist). */
   available: boolean;
-  /**
-   * @description Total runs across the brief; this is the jump-nav count.
-   */
   runCount: number;
 }

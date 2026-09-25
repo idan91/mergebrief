@@ -7,7 +7,7 @@ import { I18nProvider } from "../../../../i18n/I18nProvider";
 import { renderInRouter } from "../../../../test/router";
 import { buildLocalBriefsQueryOptions } from "../../queries";
 import type { LocalBriefSummary } from "../../types";
-import { LocalBriefsSection } from "./LocalBriefsSection";
+import { LocalBriefsSection } from ".";
 
 function renderSection(enabled: boolean, queryClient: QueryClient) {
   return renderInRouter(

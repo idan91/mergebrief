@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CopyButton } from "./CopyButton";
+import { CopyButton } from ".";
 
 afterEach(cleanup);
 

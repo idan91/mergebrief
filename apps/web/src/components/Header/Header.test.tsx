@@ -3,7 +3,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { renderInRouter } from "../../test/router";
-import { Header } from "./Header";
+import { Header } from ".";
 
 afterEach(cleanup);
 

@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ToolbarButton } from "./ToolbarButton";
+import { ToolbarButton } from ".";
 
 afterEach(cleanup);
 
@@ -27,7 +27,7 @@ describe("ToolbarButton", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
+  it("disabled sets aria-disabled, not the native one, and guards clicks", () => {
     const onClick = vi.fn();
     render(
       <ToolbarButton disabled onClick={onClick}>

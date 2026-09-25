@@ -3,7 +3,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ComparisonMarkFiles } from "../comparison/comparison";
+import type { ComparisonMarkFiles } from "../comparison/runs";
 import type { BriefChunk } from "../types";
 import {
   pickRevisionTargetIndex,

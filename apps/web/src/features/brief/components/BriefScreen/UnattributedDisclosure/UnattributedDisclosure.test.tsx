@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GroupViewKinds } from "../../../utils/remainder";
 import type { UnattributedRemainderGroupView } from "../../../utils/viewModel";
-import { UnattributedDisclosure } from "./UnattributedDisclosure";
+import { UnattributedDisclosure } from ".";
 
 afterEach(cleanup);
 
@@ -97,7 +97,7 @@ describe("UnattributedDisclosure", () => {
     guard.remove();
   });
 
-  it("closes on Escape from Jump and does not reopen when focus returns to the trigger", () => {
+  it("closes on Escape from Jump and stays closed when focus returns", () => {
     renderDisclosure();
     const trigger = screen.getByTestId("unattributed-disclosure");
     fireEvent.click(trigger);

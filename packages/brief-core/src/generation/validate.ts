@@ -1,4 +1,4 @@
-import type { FileDiff } from "../diff/diff";
+import type { FileDiff } from "../diff/file-diff";
 import {
   inAttributeScope,
   type CustomRiskAttributeInput,

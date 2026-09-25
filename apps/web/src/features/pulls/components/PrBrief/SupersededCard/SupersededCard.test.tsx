@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
-import { SupersededCard } from "./SupersededCard";
+import { SupersededCard } from ".";
 
 afterEach(cleanup);
 

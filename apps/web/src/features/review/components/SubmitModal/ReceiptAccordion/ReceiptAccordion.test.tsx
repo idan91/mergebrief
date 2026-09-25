@@ -9,7 +9,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Receipt } from "../../../utils/receipt";
-import { ReceiptAccordion } from "./ReceiptAccordion";
+import { ReceiptAccordion } from ".";
 import { CommentAnchorKinds } from "types/comments";
 import {
   CommentSides,

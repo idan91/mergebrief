@@ -25,7 +25,7 @@ import {
 } from "@web/features/review/session";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { DiffTable } from "./DiffTable";
+import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 
 afterEach(cleanup);

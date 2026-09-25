@@ -8,11 +8,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Button } from "@web/components/Button/Button";
-import { Dropdown } from "@web/components/Dropdown/Dropdown";
+import { Button } from "@web/components/Button";
+import { Dropdown } from "@web/components/Dropdown";
 import type { FilterView } from "../types";
 import { deriveFilterSelection } from "../utils";
-import { FilterRows } from "./FilterRows";
+import { FilterRows } from ".";
 
 afterEach(cleanup);
 

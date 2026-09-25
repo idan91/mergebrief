@@ -2,7 +2,7 @@ import type { TFunction } from "i18next";
 import { type RefObject, useLayoutEffect, useRef } from "react";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { ExpandedEvent } from "./ExpandControl/ExpandControl";
+import type { ExpandedEvent } from "./ExpandControl";
 import { focusExpandedLine } from "./utils";
 
 export interface ExpandLandingInput {

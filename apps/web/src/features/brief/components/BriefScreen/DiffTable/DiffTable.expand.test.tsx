@@ -38,11 +38,11 @@ import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
 import type {
   ChunkComparisonView,
   ComparisonRun,
-} from "../../../comparison/comparison";
+} from "../../../comparison/runs";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { DiffTable } from "./DiffTable";
+import { DiffTable } from ".";
 
 afterEach(cleanup);
 

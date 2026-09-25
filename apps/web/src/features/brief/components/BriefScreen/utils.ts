@@ -16,7 +16,7 @@ import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
   buildChunkComparisonView,
   type ComparisonMarkFiles,
-} from "../../comparison/comparison";
+} from "../../comparison/runs";
 import type { ConversationPlan } from "@web/features/conversation";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";

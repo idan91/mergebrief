@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiError, ApiErrorCodes } from "../../../../../data/apiFetch";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
-import { PrBriefError } from "./PrBriefError";
+import { PrBriefError } from ".";
 import { prBriefErrorDetail } from "./utils";
 
 const t = appI18n.t;
@@ -15,11 +15,11 @@ describe("prBriefErrorDetail", () => {
   it("answers every ApiError kind with curated copy", () => {
     for (const kind of Object.values(ApiErrorCodes)) {
       const detail = prBriefErrorDetail(t, new ApiError(kind, 500, "/api/x"));
-      // i18next echoes the KEY for a missing entry — assert real copy, not
+      // i18next echoes the KEY for a missing entry: assert real copy, not
       // just non-empty, or a catalog gap would render the key into the page.
       expect(detail).not.toBe(`pulls.briefError.${kind}`);
       expect(detail.length).toBeGreaterThan(0);
-      // Never the ApiError message — it embeds the request path.
+      // Never the ApiError message: it embeds the request path.
       expect(detail).not.toContain("/api/x");
     }
   });

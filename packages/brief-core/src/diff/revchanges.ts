@@ -4,7 +4,7 @@
  * joins these onto its head-line diff rows to mark what is new in this revision.
  * Absent on the first brief (no previous head).
  */
-import { splitDiffByFile, type FileDiff } from "./diff";
+import { splitDiffByFile, type FileDiff } from "./file-diff";
 import { isAddedRow, isRemovedRow, parsePatchRows } from "./patch-rows";
 import type { LineRange } from "../types";
 

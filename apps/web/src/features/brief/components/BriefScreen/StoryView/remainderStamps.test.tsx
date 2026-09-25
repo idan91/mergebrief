@@ -17,7 +17,7 @@ import {
   ReadingPositionProvider,
 } from "../readingPosition";
 import { deriveGroupSectionId } from "../utils";
-import { StoryView } from "./StoryView";
+import { StoryView } from ".";
 
 afterEach(cleanup);
 

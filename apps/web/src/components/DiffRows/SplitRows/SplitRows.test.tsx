@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { SplitRows } from "./SplitRows";
+import { SplitRows } from ".";
 
 afterEach(cleanup);
 

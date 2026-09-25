@@ -13,7 +13,7 @@ import {
   type CompareOptionFlags,
   type CompareParam,
 } from "../../comparison/compareState";
-import type { ComparisonSource } from "../../comparison/comparison";
+import type { ComparisonSource } from "../../comparison/runs";
 import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {

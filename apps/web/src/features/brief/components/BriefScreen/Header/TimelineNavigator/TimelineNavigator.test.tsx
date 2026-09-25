@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderInRouter } from "../../../../../../test/router";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import type { BriefTimeline } from "../../../../utils/timeline";
-import { TimelineNavigator } from "./TimelineNavigator";
+import { TimelineNavigator } from ".";
 
 afterEach(() => {
   cleanup();

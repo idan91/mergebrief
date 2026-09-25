@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Button } from "@web/components/Button/Button";
+import { Button } from "@web/components/Button";
 import { STORY_CARD_TRACK_STORAGE_KEY } from "./storyCardTrackStorage";
 import { useStoryCardTrack } from "./useStoryCardTrack";
 

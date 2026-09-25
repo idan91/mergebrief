@@ -24,7 +24,7 @@ import {
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
-import { GroupCard } from "./GroupCard";
+import { GroupCard } from ".";
 
 afterEach(cleanup);
 

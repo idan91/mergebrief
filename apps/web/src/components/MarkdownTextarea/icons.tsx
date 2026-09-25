@@ -1,4 +1,4 @@
-import { Icon } from "../Icon/Icon";
+import { Icon } from "../Icon";
 import { IconNames, IconSizes } from "../Icon/types";
 
 /** Every toolbar glyph is decorative: the IconButton names the action. */

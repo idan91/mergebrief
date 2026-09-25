@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
+import { SegmentedControl, type SegmentedOption } from ".";
 
 afterEach(cleanup);
 
@@ -64,7 +64,7 @@ describe("SegmentedControl", () => {
     ).toBe(true);
   });
 
-  it("keeps an unavailable option focusable, with its reason as the description", () => {
+  it("keeps an unavailable option focusable and describes it by its reason", () => {
     renderControl([
       OPTIONS[0]!,
       {

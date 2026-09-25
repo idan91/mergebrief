@@ -76,7 +76,7 @@ export {
   type DeltaInput,
   type RevisionNarrativeInput,
 } from "./generation/categorize";
-export { splitDiffByFile } from "./diff/diff";
+export { splitDiffByFile } from "./diff/file-diff";
 export {
   assignBriefIndex,
   lookupBriefIndex,

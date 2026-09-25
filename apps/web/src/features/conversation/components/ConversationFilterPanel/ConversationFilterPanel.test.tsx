@@ -11,10 +11,7 @@ import {
   parseConversationFilter,
   type ConversationFilter,
 } from "../../utils/filter";
-import {
-  ConversationFilterPanel,
-  type ConversationFilterPanelProps,
-} from "./ConversationFilterPanel";
+import { ConversationFilterPanel, type ConversationFilterPanelProps } from ".";
 
 afterEach(cleanup);
 
@@ -49,7 +46,7 @@ describe("ConversationFilterPanel", () => {
     expect(approved.textContent).toContain("approved");
     expect(approved.textContent).toContain("2");
     expect(approved.textContent).toContain("1 bot");
-    // Zero bots means no visible bot secondary — only the sr-only sentence
+    // Zero bots means no visible bot secondary, only the sr-only sentence
     // mentions bots at all.
     expect(
       screen.getByRole("button", { name: /changes requested/ }).textContent,
@@ -94,7 +91,7 @@ describe("ConversationFilterPanel", () => {
     expect([...next.reviewers]).toEqual(["coderabbitai"]);
   });
 
-  it("All selects every reviewer; None clears the family without emptying the digest", () => {
+  it("All selects every reviewer and None clears the family, digest kept", () => {
     const { onChange } = renderPanel({
       filter: parseConversationFilter({ reviewers: "alice" }),
     });
@@ -110,7 +107,7 @@ describe("ConversationFilterPanel", () => {
   });
 
   it("marks All/None spent with aria-disabled and no-ops them, keeping focus", () => {
-    // `disabled` would blur the control the moment it is used — these two
+    // `disabled` would blur the control the moment it is used: these two
     // disable themselves ON click, so the attribute is aria-only.
     const { onChange } = renderPanel();
     const none = screen.getByRole("button", { name: "None" });
@@ -149,10 +146,10 @@ describe("ConversationFilterPanel", () => {
     expect(screen.getByText("Reviewer")).not.toBeNull();
   });
 
-  it("drops the chip list entirely when it has no chips, leaving no dead lane", () => {
+  it("drops the chip list entirely when it has no chips", () => {
     renderPanel({ verdicts: [] });
     expect(screen.queryByRole("button", { name: /^approved/ })).toBeNull();
-    // The global toggle survives — it is not a verdict control.
+    // The global toggle survives: it is not a verdict control.
     expect(
       screen.getByRole("checkbox", { name: /only each reviewer's latest/i }),
     ).not.toBeNull();

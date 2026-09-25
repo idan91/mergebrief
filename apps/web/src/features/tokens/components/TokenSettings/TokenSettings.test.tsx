@@ -22,7 +22,7 @@ vi.mock("../../queries", async (importOriginal) => {
 
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../../queries";
 import type { ApiTokenView, TokensView } from "../../types";
-import { TokenSettings } from "./TokenSettings";
+import { TokenSettings } from ".";
 
 const mintMock = vi.mocked(mintToken);
 const revokeMock = vi.mocked(revokeToken);

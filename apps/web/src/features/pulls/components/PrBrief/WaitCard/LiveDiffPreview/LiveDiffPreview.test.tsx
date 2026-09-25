@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
-import { LiveDiffPreview } from "./LiveDiffPreview";
+import { LiveDiffPreview } from ".";
 
 const { requestSnippetTokens } = vi.hoisted(() => ({
   requestSnippetTokens: vi.fn(),

@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { BriefView } from "./BriefView";
+import { BriefView } from ".";
 import {
   PENDING_APPEAR_MS,
   PENDING_MIN_HOLD_MS,

@@ -11,7 +11,7 @@ import {
   REVIEW_MARK_ORDER,
   ReviewMarkLabelKeys,
 } from "@web/components/ReviewMark/consts";
-import { ReviewMarkGlyphs } from "@web/components/ReviewMark/ReviewMark";
+import { ReviewMarkGlyphs } from "@web/components/ReviewMark";
 import {
   EVERY_STATUS_PARAM,
   hasEveryStatus,

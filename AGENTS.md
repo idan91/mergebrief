@@ -36,6 +36,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - The first outside import or the third type is the signal to open `types.ts`; the same signal opens `consts.ts` and `utils.ts`. These are the point to ask the question, not a threshold that decides it.
 - `logic/` opens where the main file only orchestrates and the steps are worth naming. React trees use a facade hook or `utils.ts` instead.
 - Never a one-file folder. Support two members share hoists to the nearest common owner.
+- No source file carries its folder's name. A folder with an entry names it `index.ts`, so a caller imports the folder (`components/Menu`, never `components/Menu/Menu`); a grouping folder has no entry and names each member for what it owns. A test mirrors the file it tests.
 - Folder names are plural for peers, singular for one thing split into parts.
 - api, worker and cli follow this shape; the axis is React versus not, never app versus package. Tests stay per member.
 - Casing: kebab-case for every file and folder. The only exceptions are PascalCase component files and folders and camelCase `use*` hooks. Existing names are renamed on their own ticket.

@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInRouter } from "../../../../../../test/router";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import type { InboxItem } from "../../../../types";
-import { RowActions } from "./RowActions";
+import { RowActions } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);

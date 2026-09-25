@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { Footer } from "@web/components/Footer/Footer";
+import { Footer } from "@web/components/Footer";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";

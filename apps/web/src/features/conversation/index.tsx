@@ -5,15 +5,15 @@ export {
   ConversationSection,
   type ConversationPlan,
   type ConversationSectionProps,
-} from "./components/ConversationSection/ConversationSection";
+} from "./components/ConversationSection";
 export {
   ConversationFilterPanel,
   type ConversationFilterPanelProps,
-} from "./components/ConversationFilterPanel/ConversationFilterPanel";
+} from "./components/ConversationFilterPanel";
 export {
   ThreadRowView,
   type ThreadRowViewProps,
-} from "./components/ThreadRowView/ThreadRowView";
+} from "./components/ThreadRowView";
 export { type ThreadRowElement, ThreadRowElements } from "./types";
 export type {
   ConversationResolutionPlan,
@@ -23,4 +23,4 @@ export type {
 export {
   InlineThreads,
   type InlineThreadsProps,
-} from "./components/InlineThreads/InlineThreads";
+} from "./components/InlineThreads";

@@ -5,12 +5,12 @@ import {
   REVISION_JUMP_ATTR,
   revisionJumpSelector,
   type ComparisonMarkFiles,
-} from "../comparison/comparison";
+} from "../comparison/runs";
 import type { BriefChunk } from "../types";
 
 /**
  * Revision-change navigation over the MODEL's target list. The DOM cannot
- * enumerate the rails anymore — windowed chunk lists only mount
+ * enumerate the rails anymore, windowed chunk lists only mount
  * viewport-adjacent cards, so `querySelectorAll` silently skips every rail
  * in an unmounted chunk. Mounted rails still supply the precision: the
  * reading-line anchor is measured, and a mounted target is scrolled to
@@ -23,12 +23,12 @@ export interface RevisionNavigation {
 }
 
 export interface UseRevisionNavigationInput {
-  /** Chunks in RENDERED order — targets and ordinals derive from this at
+  /** Chunks in RENDERED order; targets and ordinals derive from this at
    * jump time (a gesture), so no per-render memo has to keep them cheap. */
   chunks: readonly BriefChunk[];
   /** The EFFECTIVE comparison marks (rails only render while they apply). */
   marks: ComparisonMarkFiles | null;
-  /** Read at jump time (store `getState`) — a position change must never
+  /** Read at jump time (store `getState`): a position change must never
    * re-render the host screen just to keep this hook current. */
   getActiveChunkId: () => string | null;
   /**
@@ -38,7 +38,7 @@ export interface UseRevisionNavigationInput {
    * landing and snap the viewport off the centered rail.
    */
   scrollTowardChunk: (chunkId: string) => boolean;
-  /** Rails are row targets — rows only exist on an open card, so a jump
+  /** Rails are row targets, and rows only exist on an open card, so a jump
    * into a collapsed chunk must open it or the rail poll dies silently. */
   ensureChunkOpen: (chunkId: string) => void;
 }
@@ -56,7 +56,7 @@ interface MountedRail {
  * Pick the next/prev model-target index. Mounted rails decide by measured
  * position against the reading line; with none decisive, `fallbackAnchor`
  * (from the active chunk's ordinal) stands in. Wraps at the ends. Pure for
- * unit tests — the DOM-coupled measurement happens in the caller.
+ * unit tests; the DOM-coupled measurement happens in the caller.
  */
 export function pickRevisionTargetIndex(input: {
   targetCount: number;
@@ -135,7 +135,7 @@ export function useRevisionNavigation(
       const keyToIndex = new Map(
         targets.map((target, index) => [target.railKey, index]),
       );
-      // Hidden kept-warm trees keep their DOM — only visible rails count.
+      // Hidden kept-warm trees keep their DOM; only visible rails count.
       const mounted: MountedRail[] = [
         ...document.querySelectorAll<HTMLButtonElement>(
           `main ${revisionJumpSelector()}`,

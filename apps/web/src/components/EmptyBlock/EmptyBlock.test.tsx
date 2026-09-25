@@ -2,8 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Button } from "../Button/Button";
-import { EmptyBlock } from "./EmptyBlock";
+import { Button } from "../Button";
+import { EmptyBlock } from ".";
 
 afterEach(cleanup);
 

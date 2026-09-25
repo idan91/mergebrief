@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import type { GenerationSummary, PrSummary } from "../../../types";
-import { PrBriefBody } from "./PrBriefBody";
+import { PrBriefBody } from ".";
 
 const SLOT_LINE =
   "Other briefs are generating. This one starts when a slot frees up.";

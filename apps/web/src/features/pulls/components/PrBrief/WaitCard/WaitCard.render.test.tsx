@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import type { Span } from "../../../utils/briefRouteState";
-import { WaitCard } from "./WaitCard";
+import { WaitCard } from ".";
 
 vi.mock("@web/utils/diffTokens/client", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();

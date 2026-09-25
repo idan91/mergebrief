@@ -11,7 +11,7 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
 } from "../readingPosition";
-import { ReadingToolbar, type ReadingToolbarProps } from "./ReadingToolbar";
+import { ReadingToolbar, type ReadingToolbarProps } from ".";
 
 afterEach(() => {
   cleanup();

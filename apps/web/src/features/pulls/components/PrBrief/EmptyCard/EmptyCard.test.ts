@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
-import { EmptyCard } from "./EmptyCard";
+import { EmptyCard } from ".";
 
 afterEach(cleanup);
 

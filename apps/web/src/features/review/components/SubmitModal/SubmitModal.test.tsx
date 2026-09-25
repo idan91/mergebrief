@@ -12,7 +12,7 @@ import {
 } from "../../session/flow/store";
 import { ReviewFlowProvider } from "../../session/flow/provider";
 import type { Receipt } from "../../utils/receipt";
-import { SubmitModal, type SubmitModalProps } from "./SubmitModal";
+import { SubmitModal, type SubmitModalProps } from ".";
 
 function receipt(): Receipt {
   return {
@@ -256,7 +256,7 @@ describe("SubmitModal advisory view", () => {
     expect(submitButton()).toBeTruthy();
   });
 
-  it("Continue moves to the verdict view; receipt's Back returns to verdict, not advisory", () => {
+  it("Continue reaches the verdict view and receipt's Back returns there", () => {
     renderModal({ unresolvedItems: items });
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(submitButton()).toBeTruthy();
@@ -273,7 +273,7 @@ describe("SubmitModal advisory view", () => {
     expect(jumpToItem).toHaveBeenCalledWith(items[0]);
   });
 
-  it("captures the items at open — a mid-flow prop change doesn't reshuffle", () => {
+  it("captures the items at open: a mid-flow prop change never reshuffles", () => {
     const { rerender } = renderModal({ unresolvedItems: items });
     rerender({ unresolvedItems: [] });
     // Still on the advisory view, still listing the captured items.
@@ -290,12 +290,12 @@ describe("SubmitModal advisory view", () => {
     });
     expect(heading).toBeTruthy();
     // Reopen onto the ADVISORY entry view is still the Modal's open-focus
-    // claim, not a view switch — the heading-focus effect must stay quiet
+    // claim, not a view switch, the heading-focus effect must stay quiet
     // (pins the prevViewRef reset to the ENTRY view, not "verdict").
     expect(document.activeElement).not.toBe(heading);
   });
 
-  it("lists unread unattributed lines as advisory and still lets Continue through", () => {
+  it("lists unread unattributed lines as advisory and lets Continue through", () => {
     renderModal({
       unresolvedItems: [
         {

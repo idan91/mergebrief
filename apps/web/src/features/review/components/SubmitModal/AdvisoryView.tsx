@@ -4,8 +4,8 @@ import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
-import { Button } from "@web/components/Button/Button";
-import { RowButton } from "@web/components/RowButton/RowButton";
+import { Button } from "@web/components/Button";
+import { RowButton } from "@web/components/RowButton";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { type UnresolvedItem } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";

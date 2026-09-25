@@ -10,8 +10,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { Button } from "../Button/Button";
-import { Popover } from "./Popover";
+import { Button } from "../Button";
+import { Popover } from ".";
 import { PopoverFocusTargets, type PopoverFocusTarget } from "./types";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";

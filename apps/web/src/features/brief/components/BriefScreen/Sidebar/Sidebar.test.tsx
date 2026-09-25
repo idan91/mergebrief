@@ -16,9 +16,9 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
 } from "../readingPosition";
-import { Button } from "@web/components/Button/Button";
+import { Button } from "@web/components/Button";
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from ".";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 

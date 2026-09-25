@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { CoreLinesDisclosure } from "./CoreLinesDisclosure";
+import { CoreLinesDisclosure } from ".";
 
 afterEach(cleanup);
 
@@ -20,7 +20,7 @@ function renderDisclosure() {
 }
 
 describe("CoreLinesDisclosure", () => {
-  it("renders a closed focusable trigger with the visible content as its name", () => {
+  it("renders a closed focusable trigger named by its visible content", () => {
     renderDisclosure();
     const trigger = screen.getByRole("button", { name: "core lines" });
     expect(trigger.dataset["state"]).toBe("closed");

@@ -7,7 +7,7 @@ import {
   buildBriefViewModel,
   GroupViewKinds,
 } from "../../../../utils/viewModel";
-import { GroupLines } from "./GroupLines";
+import { GroupLines } from ".";
 
 const model = buildBriefViewModel(briefFixture);
 const first = model.groups[0];

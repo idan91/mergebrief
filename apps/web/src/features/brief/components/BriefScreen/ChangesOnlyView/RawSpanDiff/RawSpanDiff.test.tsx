@@ -18,7 +18,7 @@ import {
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
-import { RawSpanDiff } from "./RawSpanDiff";
+import { RawSpanDiff } from ".";
 
 afterEach(cleanup);
 

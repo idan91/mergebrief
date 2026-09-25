@@ -6,7 +6,7 @@
  * than the range's opening line, in the same hunk, up to a cap. Pure and
  * language-agnostic: indentation and brackets only, no model call.
  */
-import type { FileDiff } from "../diff/diff";
+import type { FileDiff } from "../diff/file-diff";
 import {
   isAddedRow,
   isRemovedRow,

@@ -3,7 +3,7 @@ import {
   buildComparisonMarks,
   comparisonMarksName,
 } from "../../src/diff/comparison";
-import { splitDiffByFile } from "../../src/diff/diff";
+import { splitDiffByFile } from "../../src/diff/file-diff";
 
 const sample = `diff --git a/src/a.ts b/src/a.ts
 index 111..222 100644
@@ -18,7 +18,7 @@ index 111..222 100644
 `;
 
 describe("buildComparisonMarks", () => {
-  it("keys the artifact by (baselineSha, headSha) and carries the baseline label/index", () => {
+  it("keys the artifact by baseline and head sha with the baseline label", () => {
     const marks = buildComparisonMarks(
       "head123",
       "base123",
@@ -41,7 +41,7 @@ describe("buildComparisonMarks", () => {
     });
   });
 
-  it("supports the checkpoint baseline label with a null baseline index (unbriefed checkpoint)", () => {
+  it("supports a checkpoint baseline label with a null baseline index", () => {
     const marks = buildComparisonMarks(
       "head123",
       "checkpoint000",
@@ -53,7 +53,7 @@ describe("buildComparisonMarks", () => {
     expect(marks.baselineIndex).toBeNull();
   });
 
-  it("accepts already-split per-file patches, yielding the same marks as the raw diff", () => {
+  it("accepts already-split per-file patches with the same marks as raw", () => {
     const fromString = buildComparisonMarks(
       "head123",
       "base123",
@@ -75,7 +75,7 @@ describe("buildComparisonMarks", () => {
 describe("comparisonMarksName", () => {
   const span = { baselineSha: "aaaa11110000", headSha: "bbbb22220000" };
 
-  it("keys by baseline label + span, so checkpoint marks never clobber previous-brief marks when a checkpoint equals prevHead", () => {
+  it("keys by baseline label and span so checkpoint marks never clobber", () => {
     expect(
       comparisonMarksName("o-r-1", {
         ...span,

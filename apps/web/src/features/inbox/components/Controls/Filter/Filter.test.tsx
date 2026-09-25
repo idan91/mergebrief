@@ -10,7 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FilterView } from "../types";
-import { Filter } from "./Filter";
+import { Filter } from ".";
 
 afterEach(cleanup);
 

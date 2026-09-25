@@ -34,7 +34,7 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
 } from "../../../readingPosition";
-import { ChunkCard, type ChunkCardProps } from "../ChunkCard";
+import { ChunkCard, type ChunkCardProps } from "..";
 import { CommentAnchorKinds } from "types/comments";
 import { ReviewCommentStatuses } from "@web/features/review/utils";
 import { ThreadSubjectTypes } from "@web/features/conversation/types";

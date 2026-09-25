@@ -45,7 +45,7 @@ import type { ReadingPositionStore } from "./readingPosition";
 import {
   SupportingCollapseStates,
   type SupportingCollapseState,
-} from "./ReadingToolbar/ReadingToolbar";
+} from "./ReadingToolbar";
 import {
   deriveBriefProgress,
   deriveGroupHeadingId,

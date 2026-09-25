@@ -5,7 +5,7 @@ import type {
   ChunkComparisonView,
   ComparisonRun,
   ComparisonSource,
-} from "../../../comparison/comparison";
+} from "../../../comparison/runs";
 import type {
   AddressedReviewComment,
   BriefChunk,

@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { SYNTAX_PALETTE } from "@web/utils/diffTokens/palette";
-import { DiffCodeText } from "./DiffCodeText";
+import { DiffCodeText } from ".";
 import { resolveSyntaxClass } from "./utils";
 
 afterEach(cleanup);

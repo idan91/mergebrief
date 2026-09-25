@@ -7,7 +7,7 @@ import {
   buildBriefViewModel,
   GroupViewKinds,
 } from "../../../../../utils/viewModel";
-import { ThisPr } from "./ThisPr";
+import { ThisPr } from ".";
 
 const model = buildBriefViewModel(briefFixture);
 const first = model.groups[0];

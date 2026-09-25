@@ -27,13 +27,13 @@ const MARK_READY_COPY = {
   upstream: appI18n.t("pulls.markReady.upstream"),
 };
 import type { ReviewSessionPayload } from "../../../review/session";
-import type { OwnDraftPlan } from "./BriefView";
-import { BriefView } from "./BriefView";
+import type { OwnDraftPlan } from ".";
+import { BriefView } from ".";
 import {
   markReadyBatchFailureCopy,
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
   POST_COMMENT_COPY_KEYS,
-} from "../BriefScreen/BriefScreen";
+} from "../BriefScreen";
 import type { Brief } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
 

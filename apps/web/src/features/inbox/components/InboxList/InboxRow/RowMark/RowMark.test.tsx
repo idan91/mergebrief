@@ -10,7 +10,7 @@ import { InboxReviewStates } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CALLOUT_HOVER_DELAY_MS } from "@web/components/Callout/consts";
-import { RowMark } from "./RowMark";
+import { RowMark } from ".";
 
 afterEach(() => {
   cleanup();

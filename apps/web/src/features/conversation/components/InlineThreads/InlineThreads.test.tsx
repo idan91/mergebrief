@@ -18,10 +18,10 @@ import {
 import { buildInlineThreads } from "../../utils/digest";
 import type { ConversationThread, PrConversation } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
-import { InlineThreads } from "./InlineThreads";
+import { InlineThreads } from ".";
 
 // One ordered hook: cleanup() unmounts the ReviewSessionProvider, whose
-// teardown FLUSHES a pending snapshot write — the storage clear must run
+// teardown FLUSHES a pending snapshot write, the storage clear must run
 // after it, or one test's drafts hydrate into the next (every test shares a
 // briefId).
 afterEach(() => {
@@ -164,7 +164,7 @@ function renderInline(threads: ConversationThread[]) {
 }
 
 describe("InlineThreads", () => {
-  it("renders human threads as aria-expanded disclosures without a jump button", () => {
+  it("renders human threads as disclosures without a jump button", () => {
     renderInline([thread({ line: 10, body: "human inline note" })]);
     const row = screen.getByRole("button", { name: /human inline note/ });
     expect(row.getAttribute("aria-expanded")).toBe("false");

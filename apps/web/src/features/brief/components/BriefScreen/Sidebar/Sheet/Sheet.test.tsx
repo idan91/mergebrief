@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
-import { Sheet, type SheetProps } from "./Sheet";
+import { Sheet, type SheetProps } from ".";
 
 const model = buildBriefViewModel(briefFixture);
 

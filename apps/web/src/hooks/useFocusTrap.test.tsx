@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Button } from "../components/Button/Button";
+import { Button } from "../components/Button";
 import { useFocusTrap } from "./useFocusTrap";
 
 afterEach(cleanup);
@@ -44,7 +44,7 @@ describe("useFocusTrap", () => {
     );
   });
 
-  it("wraps Shift+Tab from the first control, and from the container, to the last", () => {
+  it("wraps Shift+Tab from the first control or the container to the last", () => {
     render(<Trap />);
     const first = screen.getByRole("button", { name: "first" });
     first.focus();

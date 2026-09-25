@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildViewerQueryOptions } from "../../queries";
 import { ViewerStates, type ViewerState } from "../../types";
-import { AccountMenu } from "./AccountMenu";
+import { AccountMenu } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);

@@ -10,7 +10,7 @@ import { I18nProvider } from "../../../../i18n/I18nProvider";
 import { DIFF_VIEW_STORAGE_KEY } from "../BriefScreen/diffViewStorage";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { LocalBriefSummary } from "../../types";
-import { BriefView } from "./BriefView";
+import { BriefView } from ".";
 
 afterEach(() => {
   cleanup();

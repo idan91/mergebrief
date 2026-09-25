@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { BriefSearchParams } from "../../comparison/compareState";
-import { BriefView } from "./BriefView";
+import { BriefView } from ".";
 import type { Brief, LocalBriefSummary } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
 

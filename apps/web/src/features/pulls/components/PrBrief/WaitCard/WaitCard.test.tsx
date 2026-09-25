@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { WaitReasons, type WaitReason } from "contract";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 
-import { waitLabel } from "./WaitCard";
+import { waitLabel } from ".";
 
 const t = appI18n.t;
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { ComparisonRun } from "../../../comparison/comparison";
+import type { ComparisonRun } from "../../../comparison/runs";
 
 export interface RailHover {
   run: ComparisonRun;
