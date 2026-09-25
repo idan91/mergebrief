@@ -49,8 +49,8 @@ export function Controls({
             {t("home.filters.clear")}
           </LinkButton>
         )}
-        <Filter filter={layout} />
-        <Filter filter={sort} />
+        <Filter filter={layout} placement="bottom-end" />
+        <Filter filter={sort} placement="bottom-end" />
       </div>
     </div>
   );

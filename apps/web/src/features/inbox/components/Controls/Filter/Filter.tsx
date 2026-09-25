@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { Menu } from "@web/components/Menu/Menu";
+import { Menu, type MenuProps } from "@web/components/Menu/Menu";
 import { MenuTriggerKinds } from "@web/components/Menu/types";
 import { Icon } from "@web/components/Icon/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -12,6 +12,7 @@ import { describeFilterValue } from "../utils";
 
 export interface FilterProps {
   filter: FilterView;
+  placement?: MenuProps["placement"];
 }
 
 /**
@@ -20,7 +21,7 @@ export interface FilterProps {
  * the accent tint and an accent value. Its menu lists the options, checked
  * ones marked, a review mark beside each review state.
  */
-export function Filter({ filter }: FilterProps) {
+export function Filter({ filter, placement = "bottom-start" }: FilterProps) {
   const { t } = useTranslation();
   const value = describeFilterValue(filter);
   const allChecked = filter.all?.checked === true;
@@ -37,7 +38,7 @@ export function Filter({ filter }: FilterProps) {
   return (
     <Menu
       label={filter.name}
-      placement="bottom-start"
+      placement={placement}
       trigger={
         <>
           <span className={styles["name"]}>{filter.name}</span>
