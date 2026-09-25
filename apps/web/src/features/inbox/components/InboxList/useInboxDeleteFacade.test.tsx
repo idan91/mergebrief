@@ -106,6 +106,19 @@ describe("useInboxDeleteFacade", () => {
     expect(result.current.pending).toEqual([]);
   });
 
+  it("a pasted row goes through the owner-only purge, not the gate", async () => {
+    answerWith(200, { ok: true });
+    const { result } = renderFacade();
+    act(() => result.current.requestDelete([makeItem({ source: "url" })]));
+
+    await act(async () => {
+      await result.current.confirm();
+    });
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url ?? "")).toMatch(/\/api\/inbox\/424242\/7$/);
+  });
+
   it("a repo-admin-only refusal announces the admin copy and keeps the row", async () => {
     answerWith(403, { error: "x", code: "repo-admin-only" });
     const { result, announce, onDeleted, invalidate } = renderFacade();

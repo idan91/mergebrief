@@ -1,10 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import type { TFunction } from "i18next";
+import { PullRequestSources } from "@web/features/pulls/types";
 import { useTranslation } from "react-i18next";
 
 import { BULK_CONCURRENCY, INBOX_QUERY_ROOT } from "../../consts";
-import { deletePull, type RowWriteFailureKind } from "../../queries";
+import {
+  deleteOwnPull,
+  deletePull,
+  type RowWriteFailureKind,
+} from "../../queries";
 import type { InboxItem } from "../../types";
 import { runWithConcurrency } from "../../utils";
 
@@ -27,9 +32,12 @@ interface RowOutcome {
   readonly kind: RowWriteFailureKind | "deleted";
 }
 
+/** A pasted row goes through the owner-only purge, which needs no GitHub read; an installation row through the gate. */
 async function deleteRow(item: InboxItem): Promise<RowOutcome> {
+  const remove =
+    item.source === PullRequestSources.URL ? deleteOwnPull : deletePull;
   try {
-    const outcome = await deletePull(item.repoId, item.prNumber);
+    const outcome = await remove(item.repoId, item.prNumber);
     return { item, kind: outcome.kind };
   } catch {
     return { item, kind: "failed" };

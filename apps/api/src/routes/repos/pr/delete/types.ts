@@ -1,4 +1,5 @@
 import type { AppDatabase, RepoId, ReviewerId } from "persistence";
+import type { RowPurgeFailure } from "../../../purge-row";
 
 /** Narrow slice: the delete only touches the database. */
 export interface DeleteControllerDeps {
@@ -12,6 +13,4 @@ export interface DeletePullInput {
   readonly reviewerId: ReviewerId;
 }
 
-export interface DeletePullFailure {
-  readonly kind: "not-found";
-}
+export type DeletePullFailure = RowPurgeFailure;

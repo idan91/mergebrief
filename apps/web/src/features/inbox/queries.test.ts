@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   archivePull,
   buildInboxQueryOptions,
+  deleteOwnPull,
   deletePull,
   unarchivePull,
 } from "./queries";
@@ -129,6 +130,19 @@ describe("buildInboxQueryOptions", () => {
     const query = { state: { data: await readInbox() } };
 
     expect(staleTime(query as never)).toBe(0);
+  });
+});
+
+describe("deleteOwnPull", () => {
+  it("DELETEs the inbox path and maps a 404 to not-found", async () => {
+    answerWith(200, { ok: true });
+    expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "deleted" });
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toMatch(/\/api\/inbox\/424242\/7$/);
+    expect(init?.method).toBe("DELETE");
+
+    answerWith(404, { error: "x", code: "not-found" });
+    expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "not-found" });
   });
 });
 

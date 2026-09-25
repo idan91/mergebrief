@@ -19,7 +19,7 @@ import {
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
-import { assertHuman } from "../logic/assert-human";
+import { assertHuman } from "../../../assert-human";
 import sessionController from "./controller";
 import { MAX_SESSION_DRAFTS } from "./consts";
 import {

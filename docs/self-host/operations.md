@@ -230,7 +230,8 @@ or merging a PR records the terminal state and arms no retention window
 knob is designed, not built). Brief data is deleted when you remove a repo
 from the installation or uninstall the App, both of which purge that
 tenant's rows immediately, or when a repository admin deletes one pull
-request's briefs from Home. That delete takes every brief and every
+request's briefs from Home, or a reviewer deletes a pull request they
+pasted themselves. That delete takes every brief and every
 reviewer's session, drafts and decisions for the pull request; the purge's
 audit row names the reviewer who asked for it.
 

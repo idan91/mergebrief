@@ -112,6 +112,19 @@ async function readRowWriteFailure(
   return KindForCode[code];
 }
 
+/** The owner-only purge of one pasted row: no GitHub call, so an unreadable repository still lets it go. */
+export async function deleteOwnPull(
+  repoId: string,
+  prNumber: number,
+): Promise<DeletePullResult> {
+  const path = `/api/inbox/${encodeURIComponent(repoId)}/${String(prNumber)}`;
+  const response = await apiFetch(path, { method: "DELETE" });
+  if (!response.ok) {
+    return { kind: await readRowWriteFailure(response, path) };
+  }
+  return { kind: "deleted" };
+}
+
 /** The gated delete of one pull request's briefs. */
 export async function deletePull(
   repoId: string,

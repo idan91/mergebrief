@@ -12,7 +12,23 @@ import {
 } from "persistence";
 import { shapeViewer } from "../viewer";
 import { resolveViewerCanDelete, shapeInboxItem } from "./logic/shape-item";
-import type { InboxControllerDeps, ListInboxInput } from "./types";
+import type { Result } from "types/utils";
+import { purgeRowIn, type RowPurgeFailure } from "../purge-row";
+import type {
+  DeleteOwnPullInput,
+  InboxControllerDeps,
+  ListInboxInput,
+} from "./types";
+
+type DeleteOwnPullResult = Result<
+  { readonly pullRequestId: PullRequestRowId },
+  RowPurgeFailure
+>;
+
+const NOT_FOUND: DeleteOwnPullResult = {
+  ok: false,
+  error: { kind: "not-found" },
+};
 import { INBOX_PAGE_SIZE } from "../wire-bounds";
 
 const INSTALL_URL_PREFIX = "https://github.com/apps/";
@@ -113,5 +129,26 @@ export default {
       })),
       installUrl: buildInstallUrl(input.githubAppSlug),
     };
+  },
+
+  /**
+   * Erase the viewer's own pasted row and everything hanging off it. The
+   * owner scope is the wall: a row in any installation, or another
+   * reviewer's paste, is indistinguishable from none. No GitHub call.
+   */
+  async deleteOwnPull(
+    deps: InboxControllerDeps,
+    input: DeleteOwnPullInput,
+  ): Promise<DeleteOwnPullResult> {
+    const pullRequestId = await purgeRowIn(
+      deps.handle,
+      { ownerUserId: input.ownerUserId },
+      input,
+      input.ownerUserId,
+    );
+    if (pullRequestId === undefined) {
+      return NOT_FOUND;
+    }
+    return { ok: true, value: { pullRequestId } };
   },
 };

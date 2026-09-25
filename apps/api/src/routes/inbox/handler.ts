@@ -11,8 +11,12 @@ import type { Mutable } from "types/utils";
 import {
   BadGateway,
   BadRequest,
+  NotFound,
   Unauthorized,
 } from "../../shared-errors/api-error";
+import { stampAuditTarget } from "../../product-operations/audit";
+import { assertHuman } from "../assert-human";
+import { parseRepoIdParam, prNumberSchema } from "../wire-bounds";
 import { isGitHubDenial } from "../../shared-errors/failures";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
 import type {
@@ -154,6 +158,32 @@ export default function createHandlers(
         },
       );
       return c.json(body, 200, NO_STORE);
+    },
+
+    deleteOwnPull: async (c: Context<AuthzEnv>) => {
+      const repoId = parseRepoIdParam(c.req.param("repoId"));
+      if (repoId === undefined) {
+        throw new NotFound();
+      }
+      const prNumber = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!prNumber.success) {
+        throw new BadRequest();
+      }
+      assertHuman(c);
+
+      const deleted = await inboxController.deleteOwnPull(
+        { handle: deps.handle },
+        {
+          ownerUserId: c.get("session").reviewerId,
+          repoId,
+          prNumber: prNumber.data,
+        },
+      );
+      if (!deleted.ok) {
+        throw new NotFound();
+      }
+      stampAuditTarget(c, "pull_request", deleted.value.pullRequestId);
+      return c.json({ ok: true }, 200, NO_STORE);
     },
   };
 }

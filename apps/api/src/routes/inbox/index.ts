@@ -1,9 +1,11 @@
 // The Inbox: `GET /api/inbox`, the one list across every installation the
-// viewer reaches plus their own url rows. Session-gated only: the reachable installations and the readable
-// repositories come from the SHARED resolvers, and a GitHub failure fails
-// the list (401/502), never a DB-only listing that would leak rows the
-// viewer can no longer see.
-import { ProductQueryIds } from "contract";
+// viewer reaches plus their own url rows, and the owner-only purge of one
+// pasted row. Session-gated only: the reachable installations and the
+// readable repositories come from the SHARED resolvers, and a GitHub
+// failure fails the list (401/502), never a DB-only listing that would leak
+// rows the viewer can no longer see. The purge makes no GitHub call at all,
+// so a pasted row whose repository nobody can read any more still goes.
+import { ProductActionIds, ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,
@@ -38,6 +40,15 @@ export function inboxRoutes(
     },
     "/",
     handlers.listInbox,
+  );
+  app.action(
+    {
+      id: ProductActionIds.DELETE_OWN_PULL,
+      classification: WriteClassifications.PRIVATE_WRITE,
+    },
+    "delete",
+    "/:repoId/:prNumber",
+    handlers.deleteOwnPull,
   );
   return app;
 }

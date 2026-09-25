@@ -16,6 +16,13 @@ export interface InboxControllerDeps {
   readonly readLiveStacks?: (rows: readonly InboxRow[]) => Promise<LiveStacks>;
 }
 
+export interface DeleteOwnPullInput {
+  /** Ownership derives from the credential, never a caller value. */
+  readonly ownerUserId: ReviewerId;
+  readonly repoId: RepoId;
+  readonly prNumber: number;
+}
+
 export interface ListInboxInput {
   /** The installations the viewer reaches, as GitHub answered. */
   readonly installations: readonly UserInstallation[];

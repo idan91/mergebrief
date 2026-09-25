@@ -3,6 +3,7 @@
 // refusing up front. The Inbox page size lives here too, a server fact the
 // client never sends.
 import { InboxQueryBounds } from "contract";
+import { isRepoId, type RepoId } from "persistence";
 import { z } from "zod";
 
 /** Same cap GitHub enforces on comment and review bodies. */
@@ -28,6 +29,18 @@ export const commitShaSchema = z
   .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
 
 export const prNumberSchema = z.coerce.number().int().positive().max(MAX_INT4);
+
+/** Brand a `:repoId` path segment; a malformed or oversized id is `undefined`. */
+export function parseRepoIdParam(raw: string | undefined): RepoId | undefined {
+  if (raw === undefined || !/^[0-9]{1,19}$/.test(raw)) {
+    return undefined;
+  }
+  const value = BigInt(raw);
+  if (value > MAX_ROW_ID || !isRepoId(value)) {
+    return undefined;
+  }
+  return value;
+}
 
 /** Rows per Inbox page; the client asks for a page number, never a size. */
 export const INBOX_PAGE_SIZE = InboxQueryBounds.PAGE_SIZE;

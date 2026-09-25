@@ -1,8 +1,8 @@
 // DELETE /api/repos/:repoId/pulls/:prNumber, the gated delete of one pull
 // request's briefs. Full wire over PGlite, GitHub stubbed at the global
-// fetch boundary. The owner world erases the viewer's own url row with no
-// call past the gate; the installation world re-reads the repository fresh
-// and needs `permissions.admin` from THAT answer, never the walk's cache.
+// fetch boundary. The owner world is a 404 before any call past the gate;
+// the installation world re-reads the repository fresh and needs
+// `permissions.admin` from THAT answer, never the walk's cache.
 import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
@@ -291,32 +291,26 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     });
   }
 
-  it("erases the viewer's own url row with no call past the gate", async () => {
+  it("the owner world is a 404 with nothing erased, no call past the gate", async () => {
     const counts = stubGitHub({
       inInstallation: false,
-      repository: () => answerRepo(false),
+      repository: () => answerRepo(true),
     });
     await seedBriefedPr(harness.handle, OWNER);
     const cookie = await seedSession(harness.handle, kp);
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(res.status).toBe(404);
     expect(counts.repositories).toBe(1);
-    expect(await countRows(harness, "pull_request")).toBe(0);
-    expect(await countRows(harness, "brief")).toBe(0);
-    const audits = await readAudits(harness);
-    expect(audits).toContainEqual({
-      installation_id: null,
-      source: "url",
-      operation: "delete",
-      outcome: "ok",
-      actor_type: "reviewer",
-      actor_id: BigInt(REVIEWER_ID),
-    });
-    expect(audits).toContainEqual(
-      expect.objectContaining({ operation: "delete-pull", outcome: "ok" }),
+    expect(await countRows(harness, "pull_request")).toBe(1);
+    expect(await readAudits(harness)).toContainEqual(
+      expect.objectContaining({
+        operation: "delete-pull",
+        outcome: "denied",
+        installation_id: null,
+        source: "url",
+      }),
     );
   });
 
@@ -397,34 +391,18 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     ]);
   });
 
-  it("erases the viewer's own url row under an installation holding no row", async () => {
-    const counts = stubGitHub({
-      inInstallation: true,
-      repository: () => answerRepo(false),
-    });
+  it("an installation holding no row is a 404 that leaves the pasted row", async () => {
+    stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, OWNER);
     const cookie = await seedSession(harness.handle, kp);
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
-    expect(counts.repositories).toBe(1);
-    expect(await countRows(harness, "pull_request")).toBe(0);
-    const audits = await readAudits(harness);
-    expect(audits).toContainEqual(
-      expect.objectContaining({ operation: "delete", source: "url" }),
-    );
-    expect(audits).toContainEqual(
-      expect.objectContaining({
-        operation: "delete-pull",
-        outcome: "ok",
-        installation_id: null,
-        source: "url",
-      }),
-    );
+    expect(res.status).toBe(404);
+    expect(await countRows(harness, "pull_request")).toBe(1);
   });
 
-  it("another reviewer's url row at the coordinates survives the owner world", async () => {
+  it("the owner world's 404 leaves another reviewer's url row alone", async () => {
     stubGitHub({ inInstallation: false, repository: () => answerRepo(false) });
     await seedBriefedPr(harness.handle, OTHER_OWNER);
     const cookie = await seedSession(harness.handle, kp);
@@ -458,7 +436,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await countRows(harness, "pull_request")).toBe(1);
   });
 
-  it("the operator-PAT rung reaches the viewer's own url row alone", async () => {
+  it("the operator-PAT rung is a 404 here, the pasted row is the inbox's", async () => {
     const counts = stubGitHub({
       inInstallation: true,
       viewerDenied: true,
@@ -475,13 +453,9 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       buildApp(FALLBACK_PAT),
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(404);
     expect(counts.repositories).toBe(2);
-    expect(await readOwners(harness)).toEqual(["null"]);
-    const purges = (await readAudits(harness)).filter(
-      (row) => row.operation === "delete",
-    );
-    expect(purges.map((row) => row.source)).toEqual(["url"]);
+    expect(await countRows(harness, "pull_request")).toBe(2);
   });
 
   it("a fresh read GitHub refuses is a 404 with nothing erased", async () => {
@@ -549,14 +523,18 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await countRows(harness, "pull_request")).toBe(1);
   });
 
-  it("the old inbox delete path is gone", async () => {
-    stubGitHub({ inInstallation: false, repository: () => answerRepo(false) });
+  it("the inbox path erases the same own row with no call past the session", async () => {
+    const counts = stubGitHub({
+      inInstallation: false,
+      repository: () => answerRepo(false),
+    });
     await seedBriefedPr(harness.handle, OWNER);
     const cookie = await seedSession(harness.handle, kp);
 
     const res = await del(cookie, `/api/inbox/${REPO_ID}/${PR_NUMBER}`);
 
-    expect(res.status).toBe(404);
-    expect(await countRows(harness, "pull_request")).toBe(1);
+    expect(res.status).toBe(200);
+    expect(counts.repositories).toBe(0);
+    expect(await countRows(harness, "pull_request")).toBe(0);
   });
 });

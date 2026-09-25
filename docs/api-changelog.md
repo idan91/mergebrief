@@ -30,19 +30,23 @@ deprecation note here, removal only at a major.
   behind the per-PR gate: erases one pull request's briefs and everything
   hanging off them. Cookie only (`human-only` for a Bearer principal). An
   installation row needs `permissions.admin` on a fresh read of the
-  repository with the viewer's token, else 403 `repo-admin-only`; the
-  viewer's own pasted-URL row needs no GitHub call, whether the repository
-  sits in an installation or in none. When an admin deletes an
-  installation row and also holds a pasted-URL row for the same pull
-  request, both go. The purge's audit row names the reviewer. The gate
-  fronts the route, so a pasted row in a repository neither the viewer's
-  token nor the operator PAT can read is out of its reach.
+  repository with the viewer's token, else 403 `repo-admin-only`. The
+  route is App-only: an owner world, the operator-PAT rung included, is a
+  404, and a pasted-URL row is `delete-own-pull`'s. When an admin deletes
+  an installation row and also holds a pasted-URL row for the same pull
+  request, both go. The purge's audit row names the reviewer.
 - **Added** the wire code `repo-admin-only` (403).
+- **Changed** `DELETE /api/inbox/:repoId/:prNumber`: the operation is
+  `delete-own-pull` (was `delete-inbox-item`), so an audit or access ledger
+  query on the old id stops at this release; cookie only now (`human-only`
+  for a Bearer principal, which could call it before); and the purge's
+  audit row names the reviewer (was the App). The path, the owner-only
+  scope and the absence of any GitHub call are unchanged: a pasted row
+  whose repository nobody can read any more still goes, and a row in any
+  installation, or another reviewer's paste, is an indistinguishable 404.
 - **Added** `viewerCanDelete` on `GET /api/inbox` items: true on the
   viewer's own pasted-URL rows, and on an installation row when the
   viewer administers its repository as GitHub listed it.
-- **Removed** `DELETE /api/inbox/:repoId/:prNumber` (`delete-inbox-item`);
-  `delete-pull` replaces it and covers the same pasted-URL rows.
 - **Added** `asOf` on `GET /api/repos/:repoId/pulls/:prNumber/stack`: for a
   merged or closed pull request the live open list no longer resolves a
   stack for, `stack` is the last one recorded on the row and `asOf` is the

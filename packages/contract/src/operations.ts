@@ -33,6 +33,7 @@ export const ProductActionIds = {
   UNRESOLVE_THREAD: "unresolve-thread",
   GENERATE_BRIEF: "generate-brief",
   DELETE_PULL: "delete-pull",
+  DELETE_OWN_PULL: "delete-own-pull",
   ARCHIVE_PULL: "archive-pull",
   UNARCHIVE_PULL: "unarchive-pull",
   MINT_TOKEN: "mint-token",
