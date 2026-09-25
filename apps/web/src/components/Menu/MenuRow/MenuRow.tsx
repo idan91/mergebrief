@@ -18,8 +18,6 @@ export interface MenuRowProps {
   /** A glyph before the label, such as a review mark beside its name. */
   glyph?: ReactNode;
   disabled?: boolean;
-  /** A row whose work reports back into the menu, such as a sign out that can fail, leaves it open. */
-  keepOpen?: boolean;
   className?: string | undefined;
   lang?: string | undefined;
 }
@@ -32,7 +30,6 @@ export function MenuRow({
   multiple = false,
   glyph,
   disabled = false,
-  keepOpen = false,
   className,
   lang,
 }: MenuRowProps) {
@@ -42,7 +39,7 @@ export function MenuRow({
   const itemProps = menu.getItemProps({
     onClick() {
       onSelect();
-      if (!multiple && !keepOpen) menu.close();
+      if (!multiple) menu.close();
     },
   });
   const shared = {

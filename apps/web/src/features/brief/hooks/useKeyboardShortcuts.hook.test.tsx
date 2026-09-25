@@ -51,6 +51,48 @@ describe("useKeyboardShortcuts C dispatch", () => {
   });
 });
 
+describe("useKeyboardShortcuts inside an overlay", () => {
+  it("leaves a key pressed inside a dialog to the dialog", () => {
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = document.createElement("button");
+    dialog.append(button);
+    document.body.append(dialog);
+    const toggleFocusMode = vi.fn();
+    renderHook(() => useKeyboardShortcuts(options({ toggleFocusMode })));
+
+    const event = new KeyboardEvent("keydown", {
+      key: "z",
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(toggleFocusMode).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    dialog.remove();
+  });
+
+  it("an expanded disclosure button keeps the page's keys", () => {
+    const toggle = document.createElement("button");
+    toggle.setAttribute("aria-expanded", "true");
+    document.body.append(toggle);
+    const toggleFocusMode = vi.fn();
+    renderHook(() => useKeyboardShortcuts(options({ toggleFocusMode })));
+
+    toggle.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "z",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    expect(toggleFocusMode).toHaveBeenCalledTimes(1);
+    toggle.remove();
+  });
+});
+
 function pressS(): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key: "s", cancelable: true });
   window.dispatchEvent(event);

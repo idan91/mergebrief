@@ -7,6 +7,7 @@ import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { Icon } from "@web/components/Icon/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { ViewerStates } from "../../types";
+import { SignOutModal } from "./SignOutModal/SignOutModal";
 import styles from "./AccountMenu.module.scss";
 import { useAccountMenuFacade } from "./useAccountMenuFacade";
 
@@ -20,10 +21,10 @@ const LANGUAGE_GROUP_LABEL_ID = "account-menu-language";
 
 /**
  * The person-anchored menu at the end of a Header: who is signed in,
- * Settings, Language, Keyboard shortcuts, Sign out, Sign out everywhere.
- * Signed out, the slot
- * holds a Sign in button instead; while the viewer loads it holds nothing,
- * and a failed read keeps the menu behind a generic trigger.
+ * Settings, Language, Keyboard shortcuts, and Sign out, which confirms in a
+ * modal. Signed out, the slot holds a Sign in button instead; while the
+ * viewer loads it holds nothing, and a failed read keeps the menu behind a
+ * generic trigger.
  */
 export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const { t } = useTranslation();
@@ -62,106 +63,83 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   );
 
   return (
-    <Menu
-      label={label}
-      trigger={trigger}
-      triggerAutoWidth
-      triggerClassName={styles["trigger"]}
-    >
-      {signedIn && viewer.login !== null ? (
-        <p className={styles["note"]} role="presentation">
-          {t("shell.accountMenu.signedInAs", { login: viewer.login })}
-        </p>
-      ) : null}
-      <MenuRow
-        glyph={
-          <Icon
-            className={styles["icon"]}
-            name={IconNames.GEAR}
-            size={IconSizes.MD}
-          />
-        }
-        onSelect={facade.openSettings}
+    <>
+      <Menu
+        label={label}
+        trigger={trigger}
+        triggerAutoWidth
+        triggerClassName={styles["trigger"]}
       >
-        {t("shell.accountMenu.settings")}
-      </MenuRow>
-      {facade.localeOptions.length > 0 ? (
-        <div
-          aria-labelledby={LANGUAGE_GROUP_LABEL_ID}
-          className={styles["group"]}
-          role="group"
-        >
-          <span className={styles["groupLabel"]} id={LANGUAGE_GROUP_LABEL_ID}>
-            {t("shell.accountMenu.language")}
-          </span>
-          {facade.localeOptions.map((option, index) => (
-            <MenuRow
-              checked={index === facade.activeLocaleIndex}
-              key={option.id}
-              lang={option.id === PSEUDO_LOCALE ? undefined : option.id}
-              onSelect={() => facade.selectLocale(option.id)}
-            >
-              {option.nativeName}
-            </MenuRow>
-          ))}
-        </div>
-      ) : null}
-      {onOpenShortcuts === undefined ? null : (
+        {signedIn && viewer.login !== null ? (
+          <p className={styles["note"]} role="presentation">
+            {t("shell.accountMenu.signedInAs", { login: viewer.login })}
+          </p>
+        ) : null}
         <MenuRow
           glyph={
             <Icon
               className={styles["icon"]}
-              name={IconNames.KEYBOARD}
+              name={IconNames.GEAR}
               size={IconSizes.MD}
             />
           }
-          onSelect={onOpenShortcuts}
+          onSelect={facade.openSettings}
         >
-          {t("shell.accountMenu.shortcuts")}
+          {t("shell.accountMenu.settings")}
         </MenuRow>
-      )}
-      <MenuRow
-        disabled={facade.signingOut}
-        glyph={
-          <Icon
-            className={styles["icon"]}
-            name={IconNames.SIGN_OUT}
-            size={IconSizes.MD}
-          />
-        }
-        keepOpen
-        onSelect={() => {
-          void facade.signOut();
-        }}
-      >
-        {t("shell.accountMenu.signOut")}
-      </MenuRow>
-      {facade.signOutFailed ? (
-        <p className={styles["error"]} role="alert">
-          {t("shell.accountMenu.signOutFailed")}
-        </p>
-      ) : null}
-      <MenuRow
-        disabled={facade.signingOutEverywhere}
-        glyph={
-          <Icon
-            className={styles["icon"]}
-            name={IconNames.SIGN_OUT}
-            size={IconSizes.MD}
-          />
-        }
-        keepOpen
-        onSelect={() => {
-          void facade.signOutEverywhere();
-        }}
-      >
-        {t("shell.accountMenu.signOutEverywhere")}
-      </MenuRow>
-      {facade.signOutEverywhereFailed ? (
-        <p className={styles["error"]} role="alert">
-          {t("shell.accountMenu.signOutEverywhereFailed")}
-        </p>
-      ) : null}
-    </Menu>
+        {facade.localeOptions.length > 0 ? (
+          <div
+            aria-labelledby={LANGUAGE_GROUP_LABEL_ID}
+            className={styles["group"]}
+            role="group"
+          >
+            <span className={styles["groupLabel"]} id={LANGUAGE_GROUP_LABEL_ID}>
+              {t("shell.accountMenu.language")}
+            </span>
+            {facade.localeOptions.map((option, index) => (
+              <MenuRow
+                checked={index === facade.activeLocaleIndex}
+                key={option.id}
+                lang={option.id === PSEUDO_LOCALE ? undefined : option.id}
+                onSelect={() => facade.selectLocale(option.id)}
+              >
+                {option.nativeName}
+              </MenuRow>
+            ))}
+          </div>
+        ) : null}
+        {onOpenShortcuts === undefined ? null : (
+          <MenuRow
+            glyph={
+              <Icon
+                className={styles["icon"]}
+                name={IconNames.KEYBOARD}
+                size={IconSizes.MD}
+              />
+            }
+            onSelect={onOpenShortcuts}
+          >
+            {t("shell.accountMenu.shortcuts")}
+          </MenuRow>
+        )}
+        <MenuRow
+          glyph={
+            <Icon
+              className={styles["icon"]}
+              name={IconNames.SIGN_OUT}
+              size={IconSizes.MD}
+            />
+          }
+          onSelect={facade.openSignOut}
+        >
+          {t("shell.accountMenu.signOut")}
+        </MenuRow>
+      </Menu>
+      <SignOutModal
+        cancel={facade.cancelSignOut}
+        confirm={facade.signOut}
+        flow={facade.signOutFlow}
+      />
+    </>
   );
 }

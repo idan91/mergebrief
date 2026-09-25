@@ -10,7 +10,13 @@ import {
   listLocaleOptions,
 } from "../../../../i18n/locale-options";
 import { buildViewerQueryOptions } from "../../queries";
-import { ViewerStates, type ViewerState } from "../../types";
+import {
+  SignOutScopes,
+  ViewerStates,
+  type SignOutFlow,
+  type SignOutScope,
+  type ViewerState,
+} from "../../types";
 
 const LOGOUT_PATH = "/api/auth/logout";
 const SESSIONS_PATH = "/api/auth/sessions";
@@ -41,31 +47,36 @@ async function deleteSessions(): Promise<boolean> {
   }
 }
 
-/** One sign-out flow: a success leaves for Home, a refusal reports back. */
+const SIGN_OUT_REQUESTS: Record<SignOutScope, () => Promise<boolean>> = {
+  [SignOutScopes.THIS_DEVICE]: postLogout,
+  [SignOutScopes.EVERYWHERE]: deleteSessions,
+};
+
+const SIGN_OUT_CLOSED: SignOutFlow = {
+  open: false,
+  pending: undefined,
+  failed: false,
+};
+
+/** One sign-out flow: a success leaves for Home, a refusal reports back into the confirm. */
 async function runSignOut(
-  request: () => Promise<boolean>,
-  setPending: (value: boolean) => void,
-  setFailed: (value: boolean) => void,
+  scope: SignOutScope,
+  setFlow: (flow: SignOutFlow) => void,
 ): Promise<void> {
-  setPending(true);
-  setFailed(false);
-  const signedOut = await request();
+  setFlow({ open: true, pending: scope, failed: false });
+  const signedOut = await SIGN_OUT_REQUESTS[scope]();
   if (signedOut) {
     // A fresh document reads the signed-out state.
     window.location.assign(HOME_PATH);
     return;
   }
-  setPending(false);
-  setFailed(true);
+  setFlow({ open: true, pending: undefined, failed: true });
 }
 
 /** The viewer, the locale rows, and the flow actions the rows fire. */
 export function useAccountMenuFacade() {
   const { i18n } = useTranslation();
-  const [signingOut, setSigningOut] = useState(false);
-  const [signOutFailed, setSignOutFailed] = useState(false);
-  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
-  const [signOutEverywhereFailed, setSignOutEverywhereFailed] = useState(false);
+  const [signOutFlow, setSignOutFlow] = useState<SignOutFlow>(SIGN_OUT_CLOSED);
   const viewerQuery = useQuery(buildViewerQueryOptions());
   const viewer: ViewerState = viewerQuery.data ?? {
     kind: ViewerStates.UNKNOWN,
@@ -73,16 +84,16 @@ export function useAccountMenuFacade() {
   const localeOptions = isLanguageSelectionEnabled() ? listLocaleOptions() : [];
   const activeLocaleIndex = findActiveLocaleIndex(localeOptions, i18n.language);
 
-  function signOut(): Promise<void> {
-    return runSignOut(postLogout, setSigningOut, setSignOutFailed);
+  function openSignOut(): void {
+    setSignOutFlow({ open: true, pending: undefined, failed: false });
   }
 
-  function signOutEverywhere(): Promise<void> {
-    return runSignOut(
-      deleteSessions,
-      setSigningOutEverywhere,
-      setSignOutEverywhereFailed,
-    );
+  function cancelSignOut(): void {
+    setSignOutFlow(SIGN_OUT_CLOSED);
+  }
+
+  function signOut(scope: SignOutScope): Promise<void> {
+    return runSignOut(scope, setSignOutFlow);
   }
 
   function openSettings(): void {
@@ -92,14 +103,12 @@ export function useAccountMenuFacade() {
   return {
     viewer,
     viewerPending: viewerQuery.isPending,
-    signingOut,
-    signOutFailed,
-    signingOutEverywhere,
-    signOutEverywhereFailed,
+    signOutFlow,
     localeOptions,
     activeLocaleIndex,
+    openSignOut,
+    cancelSignOut,
     signOut,
-    signOutEverywhere,
     openSettings,
     selectLocale,
   };

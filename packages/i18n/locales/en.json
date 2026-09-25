@@ -1060,10 +1060,16 @@
       "language": "Language",
       "shortcuts": "Keyboard shortcuts",
       "signOut": "Sign out",
-      "signOutFailed": "Sign out did not go through. Try again.",
-      "signOutEverywhere": "Sign out everywhere",
-      "signOutEverywhereFailed": "Sign out everywhere did not go through. Try again.",
       "signIn": "Sign in with GitHub"
+    },
+    "signOutModal": {
+      "heading": "Sign out?",
+      "copy": "Sign out of this device only, or of every device where you are signed in.",
+      "thisDevice": "This device",
+      "everywhere": "Everywhere",
+      "signingOut": "Signing out",
+      "cancel": "Cancel",
+      "failed": "Sign out did not go through. Try again."
     },
     "marks": {
       "new": "New",

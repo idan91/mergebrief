@@ -98,10 +98,10 @@ describe("AccountMenu", () => {
 
     expect(screen.getByText("Signed in as octocat")).toBeTruthy();
     const names = screen.getAllByRole("menuitem").map((row) => row.textContent);
-    expect(names).toEqual(["Settings", "Sign out", "Sign out everywhere"]);
+    expect(names).toEqual(["Settings", "Sign out"]);
   });
 
-  it("signed in with a modal, the menu is the note and four rows with icons", async () => {
+  it("signed in with a modal, the menu is the note and three rows with icons", async () => {
     const onOpenShortcuts = vi.fn();
     renderWithViewer(SIGNED_IN, onOpenShortcuts);
 
@@ -117,7 +117,6 @@ describe("AccountMenu", () => {
       "Settings",
       "Keyboard shortcuts",
       "Sign out",
-      "Sign out everywhere",
     ]);
     expect(rows.every((row) => row.querySelector("svg") !== null)).toBe(true);
     await act(async () => {
@@ -198,17 +197,36 @@ describe("AccountMenu", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("Sign out posts to the logout route", async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    const assign = vi.fn();
-    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
-    renderWithViewer(SIGNED_IN);
-
+  async function openSignOutModal(): Promise<void> {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    });
+  }
+
+  it("the Sign out row closes the menu and opens the confirm on Cancel", async () => {
+    renderWithViewer(SIGNED_IN);
+
+    await openSignOutModal();
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Sign out?" })).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Cancel" }),
+    );
+  });
+
+  it("This device posts to the logout route and leaves for Home", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+    renderWithViewer(SIGNED_IN);
+
+    await openSignOutModal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "This device" }));
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -218,7 +236,7 @@ describe("AccountMenu", () => {
     expect(assign).toHaveBeenCalledWith("/");
   });
 
-  it("Sign out everywhere deletes every session and leaves the page", async () => {
+  it("Everywhere deletes every session and leaves for Home", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ ok: true, revoked: 2 }), { status: 200 }),
     );
@@ -226,13 +244,9 @@ describe("AccountMenu", () => {
     vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
     renderWithViewer(SIGNED_IN);
 
+    await openSignOutModal();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
-    });
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("menuitem", { name: "Sign out everywhere" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Everywhere" }));
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -242,48 +256,69 @@ describe("AccountMenu", () => {
     expect(assign).toHaveBeenCalledWith("/");
   });
 
-  it("a refused sign out everywhere keeps the page and says so", async () => {
+  it("a refused sign out keeps the confirm open and reports inside it", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
     const assign = vi.fn();
     vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
     renderWithViewer(SIGNED_IN);
 
+    await openSignOutModal();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
-    });
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("menuitem", { name: "Sign out everywhere" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "This device" }));
     });
 
     expect(assign).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert").textContent).toBe(
-      "Sign out everywhere did not go through. Try again.",
-    );
-  });
-
-  it("a refused sign out keeps the page and says so", async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
-    const assign = vi.fn();
-    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
-    renderWithViewer(SIGNED_IN);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
-    });
-
-    expect(assign).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert").textContent).toBe(
-      "Sign out did not go through. Try again.",
-    );
+    const dialog = screen.getByRole("dialog", { name: "Sign out?" });
+    const alert = screen.getByRole("alert");
+    expect(dialog.contains(alert)).toBe(true);
+    expect(alert.textContent).toBe("Sign out did not go through. Try again.");
     expect(
       screen
-        .getByRole("menuitem", { name: "Sign out" })
+        .getByRole("button", { name: "This device" })
         .getAttribute("aria-disabled"),
     ).toBeNull();
+  });
+
+  it("while a sign out runs the chosen button reads busy and Escape holds", async () => {
+    let settle: (response: Response) => void = () => undefined;
+    fetchMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+    renderWithViewer(SIGNED_IN);
+
+    await openSignOutModal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "This device" }));
+    });
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Escape" });
+    });
+
+    const busy = screen.getByRole("button", { name: "Signing out" });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("dialog", { name: "Sign out?" })).toBeTruthy();
+    await act(async () => {
+      settle(new Response(null, { status: 204 }));
+    });
+    expect(assign).toHaveBeenCalledWith("/");
+  });
+
+  it("Cancel closes the confirm and focus returns to the avatar", async () => {
+    renderWithViewer(SIGNED_IN);
+    const trigger = screen.getByRole("button", { name: /Account menu/ });
+
+    await openSignOutModal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    });
+
+    expect(
+      screen.getByRole("dialog", { hidden: true }).closest("[inert]"),
+    ).not.toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { isTypingTarget } from "../../../utils/typingTarget";
+import { isInsideMenuOrDialog } from "../../../utils/overlay-target";
 
 export interface KeyboardShortcutsOptions {
   chunkIds: string[];
@@ -126,14 +127,9 @@ export function resolveShortcut(
   return null;
 }
 
-/** An open menu's panel is portaled, so only the target says a key was pressed inside it. */
-function isInsideMenu(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[role="menu"]') !== null;
-}
-
 /**
- * Stands down while typing, inside an open menu, or while an overlay holds
- * focus, so it never steals keys mid-edit. The listener binds once and reads
+ * Stands down while typing, inside an open menu or dialog, or while an
+ * overlay holds focus, so it never steals keys mid-edit. The listener binds once and reads
  * options through a ref, so navigation does not churn the handler.
  */
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
@@ -144,7 +140,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isInsideMenu(event.target)) return;
+      if (isInsideMenuOrDialog(event.target)) return;
       const current = latest.current;
       const action = resolveShortcut(
         {

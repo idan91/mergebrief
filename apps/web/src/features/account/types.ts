@@ -1,3 +1,5 @@
+import type { ValueOf } from "types/utils";
+
 export const ViewerStates = {
   SIGNED_IN: "signed-in",
   SIGNED_OUT: "signed-out",
@@ -13,6 +15,20 @@ export type ViewerState =
     }
   | { readonly kind: typeof ViewerStates.SIGNED_OUT }
   | { readonly kind: typeof ViewerStates.UNKNOWN };
+
+/** How far a sign out reaches: this session, or every session of the viewer. */
+export const SignOutScopes = {
+  THIS_DEVICE: "this-device",
+  EVERYWHERE: "everywhere",
+} as const;
+export type SignOutScope = ValueOf<typeof SignOutScopes>;
+
+/** The sign-out confirm: whether it shows, which scope is in flight, and whether the last try failed. */
+export interface SignOutFlow {
+  readonly open: boolean;
+  readonly pending: SignOutScope | undefined;
+  readonly failed: boolean;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

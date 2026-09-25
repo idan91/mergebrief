@@ -1,0 +1,7 @@
+@layer components {
+  .failed {
+    margin: 0;
+    color: var(--color-negative);
+    font-size: var(--font-size-md);
+  }
+}
