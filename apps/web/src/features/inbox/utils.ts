@@ -1,5 +1,11 @@
 import { InboxQueryKeys } from "contract";
-import { InboxFoldStates, InboxSorts, type InboxSort } from "types/inbox";
+import {
+  InboxFoldStates,
+  InboxSorts,
+  type InboxSort,
+  InboxArchivedFilters,
+  type InboxArchivedFilter,
+} from "types/inbox";
 
 import { ApiErrorCodes, type ApiErrorCode } from "../../data/apiFetch";
 import { PrStates } from "../pulls/types";
@@ -149,15 +155,35 @@ export function readFailureSide(code: ApiErrorCode): FailureSide {
 
 /**
  * Why the page shows no rows, if it shows none. The repository vocabulary
- * is unfiltered, so an empty one means no row in any status; rows behind a
- * default status filter the reviewer never touched are hidden, not filtered.
+ * names the rows in view whatever the filters, so an empty one means no row
+ * of the view in any status; the archived total counts the viewer's
+ * archived rows whatever the filters or the view. Rows behind a default
+ * status filter the reviewer never touched are hidden, not filtered.
  */
 export function readInboxEmptiness(
-  page: Pick<InboxPage, "total" | "repositories">,
+  page: Pick<InboxPage, "total" | "repositories" | "archivedTotal">,
   changedCount: number,
+  archived: InboxArchivedFilter,
 ): InboxEmptiness {
-  if (page.total > 0) return InboxEmptinesses.ROWS;
-  if (page.repositories.length === 0) return InboxEmptinesses.EMPTY;
-  if (changedCount > 0) return InboxEmptinesses.FILTERED;
-  return InboxEmptinesses.HIDDEN_BY_DEFAULT;
+  if (page.total > 0) {
+    return InboxEmptinesses.ROWS;
+  }
+  if (archived === InboxArchivedFilters.ONLY) {
+    if (page.archivedTotal === 0) {
+      return InboxEmptinesses.ARCHIVED_ONLY;
+    }
+    // The view is itself one changed filter.
+    return changedCount > 1
+      ? InboxEmptinesses.FILTERED
+      : InboxEmptinesses.HIDDEN_BY_DEFAULT;
+  }
+  if (page.repositories.length > 0) {
+    return changedCount > 0
+      ? InboxEmptinesses.FILTERED
+      : InboxEmptinesses.HIDDEN_BY_DEFAULT;
+  }
+  if (page.archivedTotal > 0) {
+    return InboxEmptinesses.ALL_ARCHIVED;
+  }
+  return InboxEmptinesses.EMPTY;
 }

@@ -64,8 +64,12 @@ export const InboxEmptinesses = {
   EMPTY: "empty",
   /** Rows exist, the reviewer's filters match none. */
   FILTERED: "filtered",
-  /** Rows exist, every one merged or closed, no filter set. */
+  /** Rows of the view exist, every one merged or closed, no filter set. */
   HIDDEN_BY_DEFAULT: "hidden-by-default",
+  /** The archived view, and nothing is archived. */
+  ARCHIVED_ONLY: "archived-only",
+  /** No unarchived row in any status; the viewer archived every one. */
+  ALL_ARCHIVED: "all-archived",
 } as const;
 export type InboxEmptiness = ValueOf<typeof InboxEmptinesses>;
 

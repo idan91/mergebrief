@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { InboxArchivedFilters } from "types/inbox";
 
 import { Header } from "@web/components/Header/Header";
 import {
@@ -182,24 +183,37 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
   const state = useInboxSearchState(search, page.total, page.pageSize);
   const controls = useControlsFacade(page, search, state.choices, state.write);
   const changedCount = countChangedFilters(search);
-  const emptiness = readInboxEmptiness(page, changedCount);
+  const emptiness = readInboxEmptiness(
+    page,
+    changedCount,
+    state.choices.archived,
+  );
   const noInstallation = page.reachableInstallations.length === 0;
 
   function showHidden(): void {
     state.write({ state: EVERY_STATUS_PARAM });
   }
+  function showArchived(): void {
+    state.write({ archived: InboxArchivedFilters.ONLY });
+  }
+  function showInbox(): void {
+    state.write({ archived: undefined });
+  }
 
   let list: ReactNode = null;
   if (
-    emptiness === InboxEmptinesses.FILTERED ||
-    emptiness === InboxEmptinesses.HIDDEN_BY_DEFAULT
+    emptiness !== InboxEmptinesses.ROWS &&
+    emptiness !== InboxEmptinesses.EMPTY
   ) {
     list = (
       <EmptyInbox
+        archivedTotal={page.archivedTotal}
         defaultStatus={hasDefaultStatus(search)}
         reason={emptiness}
         onClear={state.clear}
+        onShowArchived={showArchived}
         onShowHidden={showHidden}
+        onShowInbox={showInbox}
       />
     );
   }
@@ -231,6 +245,7 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
             items={page.items}
             sort={state.choices.sort}
             layout={state.choices.layout}
+            archived={state.choices.archived}
           >
             {list}
           </InboxList>

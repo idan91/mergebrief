@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
-import { InboxReviewStates } from "types/inbox";
+import {
+  InboxArchivedFilters,
+  InboxReviewStates,
+  type InboxArchivedFilter,
+} from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../../../test/router";
+import { INBOX_QUERY_ROOT } from "../../../../consts";
 import type { InboxItem } from "../../../../types";
 import { RowActions } from "./RowActions";
 
@@ -67,14 +72,24 @@ function readRequestUrl(input: string | URL | Request | undefined): string {
   return input.url;
 }
 
-async function renderActions(item: InboxItem) {
+async function renderActions(
+  item: InboxItem,
+  archived: InboxArchivedFilter = InboxArchivedFilters.HIDE,
+) {
   const onAnnounce = vi.fn();
   const onDelete = vi.fn();
+  const onRemoved = vi.fn();
   const { queryClient } = await renderInRouter(
-    <RowActions item={item} onAnnounce={onAnnounce} onDelete={onDelete} />,
+    <RowActions
+      archived={archived}
+      item={item}
+      onAnnounce={onAnnounce}
+      onDelete={onDelete}
+      onRemoved={onRemoved}
+    />,
   );
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-  return { onAnnounce, onDelete, invalidate };
+  return { onAnnounce, onDelete, onRemoved, invalidate };
 }
 
 async function openMenu() {
@@ -141,6 +156,70 @@ describe("RowActions", () => {
 
     expect(onDelete).toHaveBeenCalledWith(URL_ROW);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("Archive on any row calls the archive transport and frees the row", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    const { onAnnounce, onRemoved, invalidate } =
+      await renderActions(makeItem());
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(
+      /\/api\/repos\/424242\/pulls\/7\/archive$/,
+    );
+    expect(init?.method).toBe("PUT");
+    expect(onAnnounce).toHaveBeenCalledWith(
+      "Archived; it comes back when a new brief lands",
+    );
+    expect(onRemoved).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: [INBOX_QUERY_ROOT] });
+  });
+
+  it("in the archived view the row offers Unarchive instead", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    const { onAnnounce, onRemoved } = await renderActions(
+      makeItem(),
+      InboxArchivedFilters.ONLY,
+    );
+
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Archive" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Unarchive" }));
+    });
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(init?.method).toBe("DELETE");
+    expect(onAnnounce).toHaveBeenCalledWith("Back in your Inbox");
+    expect(onRemoved).toHaveBeenCalledTimes(1);
+  });
+
+  it("a refused archive announces the failure and keeps the row", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "x", code: "not-found" }), {
+        status: 404,
+      }),
+    );
+    const { onAnnounce, onRemoved } = await renderActions(makeItem());
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    });
+
+    expect(onAnnounce).toHaveBeenCalledWith(
+      "Archive failed; the row is still here",
+    );
+    expect(onRemoved).not.toHaveBeenCalled();
   });
 
   it("a row behind GitHub regenerates through the paste path", async () => {

@@ -49,6 +49,7 @@ describe("useControlsFacade", () => {
       "repo",
       "review",
       "author",
+      "show",
     ]);
     expect(two.facade.filters.at(-1)?.id).toBe("installation");
   });
@@ -116,6 +117,34 @@ describe("useControlsFacade", () => {
     facade.layout.onChoose("folded");
     expect(write).toHaveBeenNthCalledWith(1, { layout: "mixed" });
     expect(write).toHaveBeenNthCalledWith(2, { layout: undefined });
+  });
+
+  it("the Show filter is Inbox by default and writes only the archived view", () => {
+    const { facade, write } = renderFacade(makePage());
+    const show = facade.filters.find((filter) => filter.id === "show");
+    if (show === undefined) {
+      throw new Error("no Show filter");
+    }
+
+    expect(show).toMatchObject({
+      name: "Show",
+      multiple: false,
+      changed: false,
+      chosen: ["hide"],
+    });
+    expect(show.options.map((option) => option.label)).toEqual([
+      "Inbox",
+      "Archived",
+    ]);
+    show.onChoose("only");
+    show.onChoose("hide");
+    expect(write).toHaveBeenNthCalledWith(1, { archived: "only" });
+    expect(write).toHaveBeenNthCalledWith(2, { archived: undefined });
+
+    const archived = renderFacade(makePage(), { archived: "only" });
+    expect(
+      archived.facade.filters.find((filter) => filter.id === "show"),
+    ).toMatchObject({ changed: true, chosen: ["only"] });
   });
 
   it("a tick writes from the choices the URL holds when it lands", () => {

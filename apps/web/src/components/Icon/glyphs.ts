@@ -1,6 +1,7 @@
 import type { ComponentType, SVGProps } from "react";
 
 import AnthropicGlyph from "../icons/anthropic.svg?react";
+import ArchiveGlyph from "../icons/archive.svg?react";
 import ArrowUpGlyph from "../icons/arrow-up.svg?react";
 import ArrowUpRightGlyph from "../icons/arrow-up-right.svg?react";
 import ArrowsClockwiseGlyph from "../icons/arrows-clockwise.svg?react";
@@ -49,6 +50,7 @@ import { IconNames, type IconName } from "./types";
 export type Glyph = ComponentType<SVGProps<SVGSVGElement>>;
 
 export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
+  [IconNames.ARCHIVE]: ArchiveGlyph,
   [IconNames.ARROW_UP]: ArrowUpGlyph,
   [IconNames.ARROW_UP_RIGHT]: ArrowUpRightGlyph,
   [IconNames.ARROWS_CLOCKWISE]: ArrowsClockwiseGlyph,

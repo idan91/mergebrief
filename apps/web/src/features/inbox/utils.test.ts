@@ -1,4 +1,8 @@
-import { InboxReviewStates, InboxSorts } from "types/inbox";
+import {
+  InboxReviewStates,
+  InboxSorts,
+  InboxArchivedFilters,
+} from "types/inbox";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -169,20 +173,67 @@ describe("splitTitleCode", () => {
 });
 
 describe("readInboxEmptiness", () => {
+  const HIDE = InboxArchivedFilters.HIDE;
+
   it("tells no rows at all from filtered and from hidden by default", () => {
     const repositories = [{ repoId: "1", repoSlug: "a/b" }];
 
-    expect(readInboxEmptiness({ total: 3, repositories }, 0)).toBe(
-      InboxEmptinesses.ROWS,
-    );
-    expect(readInboxEmptiness({ total: 0, repositories: [] }, 0)).toBe(
-      InboxEmptinesses.EMPTY,
-    );
-    expect(readInboxEmptiness({ total: 0, repositories }, 2)).toBe(
-      InboxEmptinesses.FILTERED,
-    );
-    expect(readInboxEmptiness({ total: 0, repositories }, 0)).toBe(
-      InboxEmptinesses.HIDDEN_BY_DEFAULT,
-    );
+    expect(
+      readInboxEmptiness({ total: 3, repositories, archivedTotal: 0 }, 0, HIDE),
+    ).toBe(InboxEmptinesses.ROWS);
+    expect(
+      readInboxEmptiness(
+        { total: 0, repositories: [], archivedTotal: 0 },
+        0,
+        HIDE,
+      ),
+    ).toBe(InboxEmptinesses.EMPTY);
+    expect(
+      readInboxEmptiness({ total: 0, repositories, archivedTotal: 0 }, 2, HIDE),
+    ).toBe(InboxEmptinesses.FILTERED);
+    expect(
+      readInboxEmptiness({ total: 0, repositories, archivedTotal: 0 }, 0, HIDE),
+    ).toBe(InboxEmptinesses.HIDDEN_BY_DEFAULT);
+  });
+
+  it("names a fully archived inbox whatever the filters, never an empty one", () => {
+    const repositories = [{ repoId: "1", repoSlug: "a/b" }];
+
+    expect(
+      readInboxEmptiness(
+        { total: 0, repositories: [], archivedTotal: 2 },
+        0,
+        HIDE,
+      ),
+    ).toBe(InboxEmptinesses.ALL_ARCHIVED);
+    expect(
+      readInboxEmptiness(
+        { total: 0, repositories: [], archivedTotal: 2 },
+        1,
+        HIDE,
+      ),
+    ).toBe(InboxEmptinesses.ALL_ARCHIVED);
+    expect(
+      readInboxEmptiness({ total: 0, repositories, archivedTotal: 2 }, 0, HIDE),
+    ).toBe(InboxEmptinesses.HIDDEN_BY_DEFAULT);
+  });
+
+  it("tells the archived view's nothing from its hidden and filtered rows", () => {
+    const ONLY = InboxArchivedFilters.ONLY;
+    const repositories = [{ repoId: "1", repoSlug: "a/b" }];
+
+    expect(
+      readInboxEmptiness(
+        { total: 0, repositories: [], archivedTotal: 0 },
+        1,
+        ONLY,
+      ),
+    ).toBe(InboxEmptinesses.ARCHIVED_ONLY);
+    expect(
+      readInboxEmptiness({ total: 0, repositories, archivedTotal: 2 }, 1, ONLY),
+    ).toBe(InboxEmptinesses.HIDDEN_BY_DEFAULT);
+    expect(
+      readInboxEmptiness({ total: 0, repositories, archivedTotal: 2 }, 2, ONLY),
+    ).toBe(InboxEmptinesses.FILTERED);
   });
 });

@@ -306,5 +306,9 @@ export type Catalog = typeof en & {
       range: "{{first}} to {{last}} of {{total}}";
       page: "Page {{page}}";
     };
+    empty: (typeof en)["home"]["empty"] & {
+      allArchivedHeading_one: "{{count}} pull request is archived";
+      allArchivedHeading_other: "{{count}} pull requests are archived";
+    };
   };
 };

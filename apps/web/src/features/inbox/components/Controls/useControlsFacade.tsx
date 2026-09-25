@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import {
+  InboxArchivedFilters,
   InboxAuthorFilters,
   InboxSorts,
   InboxStatuses,
@@ -123,6 +124,27 @@ export function useControlsFacade(
       },
     },
   ];
+
+  filters.push({
+    id: "show",
+    name: t("home.filters.show"),
+    options: [
+      { value: InboxArchivedFilters.HIDE, label: t("home.filters.showInbox") },
+      {
+        value: InboxArchivedFilters.ONLY,
+        label: t("home.filters.showArchived"),
+      },
+    ],
+    chosen: [choices.archived],
+    multiple: false,
+    changed: search.archived !== undefined,
+    onChoose: (value) => {
+      const archived = readKnown(value, InboxArchivedFilters);
+      write({
+        archived: archived === InboxArchivedFilters.HIDE ? undefined : archived,
+      });
+    },
+  });
 
   if (page.reachableInstallations.length > 1) {
     filters.push({

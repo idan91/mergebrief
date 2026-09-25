@@ -8,7 +8,13 @@ import {
 } from "react";
 import { useAnnouncer } from "@web/hooks/useAnnouncer";
 import { useTranslation } from "react-i18next";
-import { type InboxSort, InboxLayouts, type InboxLayout } from "types/inbox";
+import {
+  InboxArchivedFilters,
+  type InboxArchivedFilter,
+  type InboxSort,
+  InboxLayouts,
+  type InboxLayout,
+} from "types/inbox";
 
 import { FIRST_LOAD_SETTLE_MS } from "../../consts";
 import type { InboxItem } from "../../types";
@@ -24,6 +30,8 @@ export interface InboxListProps {
   sort: InboxSort;
   /** Folded splits the rows at the fold; mixed keeps them in the sort's order. */
   layout: InboxLayout;
+  /** The Inbox, or the viewer's archived rows. */
+  archived?: InboxArchivedFilter;
   /** The filters and the sort, on the heading's line. */
   controls?: ReactNode;
   /** What stands where the rows would, when there are none to show. */
@@ -43,6 +51,7 @@ export function InboxList({
   items,
   sort,
   layout,
+  archived = InboxArchivedFilters.HIDE,
   controls,
   children,
 }: InboxListProps) {
@@ -127,8 +136,10 @@ export function InboxList({
                 now={now}
                 rowRef={index === cursor ? cursorRowRef : undefined}
                 sort={sort}
+                archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
+                onRemoved={handleDeleted}
               />
             ))}
           </ol>
@@ -154,8 +165,10 @@ export function InboxList({
                   above.length + index === cursor ? cursorRowRef : undefined
                 }
                 sort={sort}
+                archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
+                onRemoved={handleDeleted}
               />
             ))}
           </ol>

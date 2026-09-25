@@ -1152,7 +1152,13 @@
         "deleteForbidden": "Only a repository admin can delete this pull request's briefs",
         "deleted": "Deleted",
         "regenerate": "Regenerate",
-        "regenerateQueued": "Regenerate queued"
+        "regenerateQueued": "Regenerate queued",
+        "archive": "Archive",
+        "unarchive": "Unarchive",
+        "archived": "Archived; it comes back when a new brief lands",
+        "unarchived": "Back in your Inbox",
+        "archiveFailed": "Archive failed; the row is still here",
+        "unarchiveFailed": "Unarchive failed; the row is still archived"
       },
       "deleteModal": {
         "heading": "Delete briefs for #{{number}} {{repo}}?",
@@ -1187,6 +1193,9 @@
       "authorEveryone": "Everyone",
       "authorMine": "Mine",
       "authorOthers": "Others",
+      "show": "Show",
+      "showInbox": "Inbox",
+      "showArchived": "Archived",
       "view": "View",
       "viewFolded": "Needs you first",
       "viewMixed": "Mixed",
@@ -1208,7 +1217,13 @@
       "hiddenHeading": "No open pull requests",
       "filteredDefaultStatus": "Merged and closed pull requests are hidden by default.",
       "clearFilters": "Clear filters",
-      "showHidden": "Show merged and closed"
+      "showHidden": "Show merged and closed",
+      "archivedHeading": "No archived pull requests",
+      "showInbox": "Back to Inbox",
+      "allArchivedHeading_one": "{{count}} pull request is archived",
+      "allArchivedHeading_other": "{{count}} pull requests are archived",
+      "allArchivedDetail": "An archived pull request comes back on its own when a new brief lands.",
+      "showArchived": "Show archived"
     },
     "noInstallation": {
       "line": "MergeBrief is installed on no repository you can reach.",

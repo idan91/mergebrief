@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties, Ref } from "react";
 import { useTranslation } from "react-i18next";
-import type { InboxSort } from "types/inbox";
+import type { InboxArchivedFilter, InboxSort } from "types/inbox";
 
 import {
   Chip,
@@ -32,8 +32,11 @@ export interface InboxRowProps {
   cursor: boolean;
   /** The list holds the cursor row so it can scroll it into view. */
   rowRef?: Ref<HTMLLIElement> | undefined;
+  /** The view the row sits in, for the archive action's direction. */
+  archived: InboxArchivedFilter;
   onAnnounce: (message: string) => void;
   onDelete: (item: InboxItem) => void;
+  onRemoved: () => void;
 }
 
 /**
@@ -52,8 +55,10 @@ export function InboxRow({
   now,
   cursor,
   rowRef,
+  archived,
   onAnnounce,
   onDelete,
+  onRemoved,
 }: InboxRowProps) {
   const { t } = useTranslation();
   const generation = useRowGeneration(item);
@@ -152,7 +157,13 @@ export function InboxRow({
       </Link>
       <span className={styles["end"]}>
         <RowEnd draft={item.draft} generation={generation} state={item.state} />
-        <RowActions item={item} onAnnounce={onAnnounce} onDelete={onDelete} />
+        <RowActions
+          archived={archived}
+          item={item}
+          onAnnounce={onAnnounce}
+          onDelete={onDelete}
+          onRemoved={onRemoved}
+        />
       </span>
     </li>
   );
