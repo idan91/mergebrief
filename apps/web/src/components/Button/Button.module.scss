@@ -74,6 +74,39 @@
       }
     }
 
+    &[data-variant="danger"] {
+      border-color: var(--color-negative);
+      background: var(--color-negative);
+      color: var(--color-on-primary);
+      font-weight: 600;
+
+      &:hover {
+        border-color: color-mix(
+          in srgb,
+          var(--color-negative) 90%,
+          var(--color-background)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-negative) 90%,
+          var(--color-background)
+        );
+      }
+
+      &:active {
+        border-color: color-mix(
+          in srgb,
+          var(--color-negative) 82%,
+          var(--color-background)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-negative) 82%,
+          var(--color-background)
+        );
+      }
+    }
+
     /* The row mini-action grammar (ghost bordered, 24px floor) — distinct
        from RowButton, which is whole-row-as-target. */
     &[data-variant="quiet"] {

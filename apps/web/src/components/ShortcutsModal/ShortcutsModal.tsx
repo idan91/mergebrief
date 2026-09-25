@@ -57,7 +57,10 @@ export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
                 is valid grouping markup and keeps the row layout untouched. */}
             <dl className={styles["list"]}>
               {section.shortcuts.map((shortcut) => (
-                <div className={styles["row"]} key={shortcut.descriptionKey}>
+                <div
+                  className={styles["row"]}
+                  key={`${shortcut.descriptionKey}:${shortcut.keys.join("+")}`}
+                >
                   <dt>
                     <KbdGroup>
                       {shortcut.keys.map((key) => (

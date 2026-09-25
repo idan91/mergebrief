@@ -14,10 +14,10 @@ import { useRowActionsFacade } from "./useRowActionsFacade";
 
 export interface RowActionsProps {
   item: InboxItem;
-  /** Page-level live region: the outcome of a copy or a delete. */
+  /** Page-level live region: the outcome of a copy or a regenerate. */
   onAnnounce: (message: string) => void;
-  /** The row is gone; the list decides where focus goes. */
-  onDeleted: () => void;
+  /** The reviewer asked to delete this row; the list confirms and runs it. */
+  onDelete: (item: InboxItem) => void;
 }
 
 /**
@@ -26,14 +26,14 @@ export interface RowActionsProps {
  * the rows the viewer may delete, Delete. Regenerate leads the menu when
  * GitHub has commits the latest brief does not cover.
  */
-export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
+export function RowActions({ item, onAnnounce, onDelete }: RowActionsProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const href = router.buildLocation({
     to: "/repos/$repoId/pulls/$prNumber",
     params: { repoId: item.repoId, prNumber: String(item.prNumber) },
   }).href;
-  const facade = useRowActionsFacade(item, href, onAnnounce, onDeleted);
+  const facade = useRowActionsFacade(item, href, onAnnounce);
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
   const canRegenerate = item.behind && githubUrl !== null;
 
@@ -72,11 +72,7 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
           </span>
         </MenuRow>
         {item.viewerCanDelete ? (
-          <MenuRow
-            className={styles["danger"]}
-            disabled={facade.deleting}
-            onSelect={facade.deleteRow}
-          >
+          <MenuRow className={styles["danger"]} onSelect={() => onDelete(item)}>
             <span className={styles["rowLabel"]}>
               <Icon name={IconNames.TRASH} size={IconSizes.MD} />
               {t("home.inbox.actions.delete")}

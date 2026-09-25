@@ -56,6 +56,16 @@ function readRows() {
   return screen.getAllByTestId("inbox-row");
 }
 
+/** Open the row menu the way a pointer does: the press focuses the trigger first. */
+async function openRowMenu(): Promise<HTMLElement> {
+  const trigger = screen.getByRole("button", { name: "More actions" });
+  await act(async () => {
+    trigger.focus();
+    fireEvent.click(trigger);
+  });
+  return trigger;
+}
+
 describe("InboxList", () => {
   it("splits at the fold and keeps the server order on each side", async () => {
     await renderInRouter(
@@ -313,20 +323,52 @@ describe("InboxList", () => {
         layout={InboxLayouts.FOLDED}
       />,
     );
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    });
+    await openRowMenu();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
     });
+    const dialog = screen.getByRole("dialog");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        within(dialog).getByRole("button", { name: "Cancel" }),
+      );
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    });
 
     await waitFor(() => {
       expect(document.activeElement).toBe(
-        screen.getByRole("heading", { level: 2 }),
+        screen.getByRole("heading", { level: 2, name: "Briefs" }),
       );
       expect(screen.getByRole("status").textContent).toBe("Deleted");
     });
+  });
+
+  it("cancelling the delete modal returns focus to the row's menu trigger", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ viewerCanDelete: true })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const trigger = await openRowMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
+    expect(readRows()).toHaveLength(1);
   });
 
   it("keys inside an open menu never move the cursor", async () => {

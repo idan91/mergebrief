@@ -17,6 +17,8 @@ export const ButtonVariants = {
   ACCENT: "accent",
   SECONDARY: "secondary",
   QUIET: "quiet",
+  /** The negative fill under Accent Ink: a destructive confirm, one per dialog. */
+  DANGER: "danger",
 } as const;
 export type ButtonVariant = ValueOf<typeof ButtonVariants>;
 

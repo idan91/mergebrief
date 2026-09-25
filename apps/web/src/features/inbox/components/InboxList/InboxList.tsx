@@ -13,9 +13,11 @@ import { type InboxSort, InboxLayouts, type InboxLayout } from "types/inbox";
 import { FIRST_LOAD_SETTLE_MS } from "../../consts";
 import type { InboxItem } from "../../types";
 import { splitAtFold } from "../../utils";
+import { DeleteModal } from "./DeleteModal/DeleteModal";
 import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow/InboxRow";
 import { useInboxCursor } from "./useInboxCursor";
+import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
 
 export interface InboxListProps {
   items: readonly InboxItem[];
@@ -77,10 +79,23 @@ export function InboxList({
   }, [cursor]);
 
   // The row's menu returns focus to its trigger as it leaves; the heading
-  // takes it on the next frame, after that trigger is gone with the row.
+  // takes it on the next frame, and keeps it once the row is gone.
   const handleDeleted = useCallback((): void => {
     window.requestAnimationFrame(() => headingRef.current?.focus());
   }, []);
+  const deletion = useInboxDeleteFacade({
+    announce: announcer.announce,
+    onDeleted: handleDeleted,
+  });
+  const { requestDelete } = deletion;
+  const handleDelete = useCallback(
+    (item: InboxItem): void => requestDelete([item]),
+    [requestDelete],
+  );
+  const deleteOpen = deletion.pending.length > 0;
+  function confirmDelete(): void {
+    void deletion.confirm();
+  }
 
   return (
     <section aria-labelledby="inbox-heading" className={styles["inbox"]}>
@@ -113,7 +128,7 @@ export function InboxList({
                 rowRef={index === cursor ? cursorRowRef : undefined}
                 sort={sort}
                 onAnnounce={announcer.announce}
-                onDeleted={handleDeleted}
+                onDelete={handleDelete}
               />
             ))}
           </ol>
@@ -140,12 +155,19 @@ export function InboxList({
                 }
                 sort={sort}
                 onAnnounce={announcer.announce}
-                onDeleted={handleDeleted}
+                onDelete={handleDelete}
               />
             ))}
           </ol>
         )}
       </div>
+      <DeleteModal
+        busy={deletion.busy}
+        cancel={deletion.cancel}
+        confirm={confirmDelete}
+        items={deletion.pending}
+        open={deleteOpen}
+      />
       <p
         aria-atomic="true"
         aria-live="polite"

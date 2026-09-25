@@ -33,7 +33,7 @@ export interface InboxRowProps {
   /** The list holds the cursor row so it can scroll it into view. */
   rowRef?: Ref<HTMLLIElement> | undefined;
   onAnnounce: (message: string) => void;
-  onDeleted: () => void;
+  onDelete: (item: InboxItem) => void;
 }
 
 /**
@@ -53,7 +53,7 @@ export function InboxRow({
   cursor,
   rowRef,
   onAnnounce,
-  onDeleted,
+  onDelete,
 }: InboxRowProps) {
   const { t } = useTranslation();
   const generation = useRowGeneration(item);
@@ -152,7 +152,7 @@ export function InboxRow({
       </Link>
       <span className={styles["end"]}>
         <RowEnd draft={item.draft} generation={generation} state={item.state} />
-        <RowActions item={item} onAnnounce={onAnnounce} onDeleted={onDeleted} />
+        <RowActions item={item} onAnnounce={onAnnounce} onDelete={onDelete} />
       </span>
     </li>
   );

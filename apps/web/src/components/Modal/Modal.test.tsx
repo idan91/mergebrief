@@ -52,16 +52,28 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(screen.getByRole("dialog"));
   });
 
-  it("returns focus to the trigger when it closes", async () => {
+  it("returns focus to the trigger when the close dropped it", async () => {
     render(<Harness namesField />);
     const trigger = screen.getByRole("button", { name: "Open" });
     trigger.focus();
 
     fireEvent.click(trigger);
-    // A closed box goes inert, which expels focus in a browser; jsdom does
-    // not, so the field lets go of it here.
     screen.getByRole("textbox", { name: "Reason" }).blur();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("returns focus to the trigger when it is still inside the closed box", async () => {
+    render(<Harness namesField />);
+    const trigger = screen.getByRole("button", { name: "Open" });
+    trigger.focus();
+
+    fireEvent.click(trigger);
+    const close = screen.getByRole("button", { name: "Close" });
+    close.focus();
+    fireEvent.click(close);
     await Promise.resolve();
 
     expect(document.activeElement).toBe(trigger);

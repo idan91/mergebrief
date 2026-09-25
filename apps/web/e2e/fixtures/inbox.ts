@@ -9,10 +9,17 @@ export const E2E_VIEWER_LOGIN = "e2e-viewer";
 /** Every seeded row that is not the viewer's belongs to this login. */
 export const E2E_OTHER_LOGIN = "mira-k";
 
+export interface InboxFixtureRepo {
+  readonly id: number;
+  readonly slug: string;
+  /** GitHub says the viewer administers it: the stub answers `permissions.admin`. */
+  readonly admin?: boolean;
+}
+
 export interface InboxFixtureInstallation {
   readonly id: number;
   readonly account: string;
-  readonly repos: readonly { readonly id: number; readonly slug: string }[];
+  readonly repos: readonly InboxFixtureRepo[];
 }
 
 export const INBOX_INSTALLATIONS: readonly InboxFixtureInstallation[] = [
@@ -20,7 +27,7 @@ export const INBOX_INSTALLATIONS: readonly InboxFixtureInstallation[] = [
     id: 7001,
     account: "acme",
     repos: [
-      { id: 424243, slug: "acme/payments" },
+      { id: 424243, slug: "acme/payments", admin: true },
       { id: 424244, slug: "acme/billing" },
     ],
   },
@@ -30,6 +37,12 @@ export const INBOX_INSTALLATIONS: readonly InboxFixtureInstallation[] = [
     repos: [{ id: 424245, slug: "halden/ledger" }],
   },
 ];
+
+/**
+ * The row the delete spec erases, in the repository the viewer administers.
+ * The specs share one seeded database, so only that spec may touch it.
+ */
+export const INBOX_DELETE_ROW_NUMBER = 107;
 
 export const InboxSeedStates = {
   NEW: "new",
@@ -91,6 +104,14 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Let operators pause a payout batch",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 420,
+  },
+  {
+    installationId: 7001,
+    repoId: 424243,
+    prNumber: INBOX_DELETE_ROW_NUMBER,
+    title: "Drop the legacy settlement exporter",
+    state: InboxSeedStates.YOURS,
+    updatedMinutesAgo: 500,
   },
 ];
 

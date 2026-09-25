@@ -47,7 +47,8 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
     inProgress?.title,
   ]);
   // The behind row is new too, read live but last touched twelve hours ago.
-  expect(order.slice(4)).toEqual([
+  // The rows after these belong to the specs that erase or archive them.
+  expect(order.slice(4, 7)).toEqual([
     INBOX_BEHIND_ROW.title,
     reviewed?.title,
     yours?.title,

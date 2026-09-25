@@ -69,12 +69,12 @@ function readRequestUrl(input: string | URL | Request | undefined): string {
 
 async function renderActions(item: InboxItem) {
   const onAnnounce = vi.fn();
-  const onDeleted = vi.fn();
+  const onDelete = vi.fn();
   const { queryClient } = await renderInRouter(
-    <RowActions item={item} onAnnounce={onAnnounce} onDeleted={onDeleted} />,
+    <RowActions item={item} onAnnounce={onAnnounce} onDelete={onDelete} />,
   );
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-  return { onAnnounce, onDeleted, invalidate };
+  return { onAnnounce, onDelete, invalidate };
 }
 
 async function openMenu() {
@@ -134,19 +134,13 @@ describe("RowActions", () => {
     expect(onAnnounce).toHaveBeenCalledWith("Copy failed");
   });
 
-  it("Delete calls the gated delete and announces the row gone", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    );
-    const { onAnnounce, onDeleted } = await renderActions(URL_ROW);
+  it("Delete hands the row to the list and makes no request itself", async () => {
+    const { onDelete } = await renderActions(URL_ROW);
 
     await chooseDelete();
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(readRequestUrl(url)).toMatch(/\/api\/repos\/424242\/pulls\/7$/);
-    expect(init?.method).toBe("DELETE");
-    expect(onAnnounce).toHaveBeenCalledWith("Deleted");
-    expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(URL_ROW);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("a row behind GitHub regenerates through the paste path", async () => {
@@ -216,52 +210,5 @@ describe("RowActions", () => {
     await openMenu();
 
     expect(screen.getByRole("menuitem", { name: "Delete" })).toBeDefined();
-  });
-
-  it("a repo-admin-only refusal announces the admin copy and keeps the row", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ error: "x", code: "repo-admin-only" }), {
-        status: 403,
-      }),
-    );
-    const { onAnnounce, onDeleted } = await renderActions(ADMIN_ROW);
-
-    await chooseDelete();
-
-    expect(onAnnounce).toHaveBeenCalledWith(
-      "Only a repository admin can delete this pull request's briefs",
-    );
-    expect(onDeleted).not.toHaveBeenCalled();
-  });
-
-  it("a refused delete announces and keeps the row", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ code: "not-found" }), { status: 404 }),
-    );
-    const { onAnnounce, onDeleted } = await renderActions(URL_ROW);
-
-    await chooseDelete();
-
-    expect(onAnnounce).toHaveBeenCalledWith(
-      "Delete failed; the row is still here",
-    );
-    expect(onDeleted).not.toHaveBeenCalled();
-  });
-
-  it("a dropped connection announces the failure and frees the row", async () => {
-    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-    const { onAnnounce } = await renderActions(URL_ROW);
-
-    await chooseDelete();
-
-    expect(onAnnounce).toHaveBeenCalledWith(
-      "Delete failed; the row is still here",
-    );
-    await openMenu();
-    expect(
-      screen
-        .getByRole("menuitem", { name: "Delete" })
-        .getAttribute("aria-disabled"),
-    ).toBeNull();
   });
 });

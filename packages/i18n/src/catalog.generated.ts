@@ -289,6 +289,12 @@ export type Catalog = typeof en & {
       ageDays: "{{count}}d ago";
       stackChip: "{{index}} of {{size}}";
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
+      deleteModal: (typeof en)["home"]["inbox"]["deleteModal"] & {
+        heading: "Delete briefs for #{{number}} {{repo}}?";
+        headingMany_one: "Delete briefs for {{count}} pull request?";
+        headingMany_other: "Delete briefs for {{count}} pull requests?";
+        row: "#{{number}} {{repo}}: {{title}}";
+      };
     };
     filters: (typeof en)["home"]["filters"] & {
       changed_one: "{{count}} changed";

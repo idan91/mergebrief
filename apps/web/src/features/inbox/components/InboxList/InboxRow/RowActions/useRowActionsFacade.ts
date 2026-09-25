@@ -6,29 +6,16 @@ import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../brief/utils";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
-import { deletePull, type DeletePullResult } from "../../../../queries";
 import type { InboxItem } from "../../../../types";
 
-/** The copy a refused delete announces, by the transport's failure kind. */
-const DeleteFailureCopy = {
-  forbidden: "home.inbox.actions.deleteForbidden",
-  "not-found": "home.inbox.actions.deleteFailed",
-  failed: "home.inbox.actions.deleteFailed",
-} as const satisfies Record<
-  Exclude<DeletePullResult["kind"], "deleted">,
-  string
->;
-
-/** The row actions with a side effect: the clipboard write, the delete, and the regenerate. */
+/** The row actions with a side effect: the clipboard write and the regenerate. */
 export function useRowActionsFacade(
   item: InboxItem,
   href: string,
   onAnnounce: (message: string) => void,
-  onDeleted: () => void,
 ) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [deleting, setDeleting] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
   async function copyLink(): Promise<void> {
@@ -37,24 +24,6 @@ export function useRowActionsFacade(
       onAnnounce(t("home.inbox.actions.linkCopied"));
     } catch {
       onAnnounce(t("home.inbox.actions.copyFailed"));
-    }
-  }
-
-  async function deleteRow(): Promise<void> {
-    setDeleting(true);
-    try {
-      const deleted = await deletePull(item.repoId, item.prNumber);
-      if (deleted.kind !== "deleted") {
-        onAnnounce(t(DeleteFailureCopy[deleted.kind]));
-        return;
-      }
-      onDeleted();
-      onAnnounce(t("home.inbox.actions.deleted"));
-      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
-    } catch {
-      onAnnounce(t("home.inbox.actions.deleteFailed"));
-    } finally {
-      setDeleting(false);
     }
   }
 
@@ -74,13 +43,9 @@ export function useRowActionsFacade(
   }
 
   return {
-    deleting,
     regenerating,
     copyLink: () => {
       void copyLink();
-    },
-    deleteRow: () => {
-      void deleteRow();
     },
     regenerate: () => {
       void regenerate();

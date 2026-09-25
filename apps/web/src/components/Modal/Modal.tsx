@@ -44,23 +44,34 @@ export function Modal({
 
   // Move focus into the dialog on open; return it to the trigger on close.
   // The return is a deferred FALLBACK: it runs a microtask after this commit's
-  // effects, so a close path that re-homes focus itself always wins. Only
-  // focus the close DROPPED (on <body>, where `inert` expels it) comes back;
-  // focus stranded inside the closed box is left for the overlay's own rescue.
+  // effects, so a close path that re-homes focus elsewhere always wins. Focus
+  // the close DROPPED (on <body>) or left inside the closed box comes back;
+  // a browser expels the latter to <body> only later, past this microtask.
   useEffect(() => {
     if (!open) return;
     triggerRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    (latestInitialFocus.current?.current ?? boxRef.current)?.focus();
+    const box = boxRef.current;
+    const target = latestInitialFocus.current?.current ?? box;
+    target?.focus();
+    // A menu row that opened this dialog leaves a focus queued on the next
+    // frame for its leaving panel; reclaiming after it keeps the landing.
+    const reclaim = window.requestAnimationFrame(() => {
+      if (box !== null && !box.contains(document.activeElement)) {
+        target?.focus();
+      }
+    });
     return () => {
+      window.cancelAnimationFrame(reclaim);
       const trigger = triggerRef.current;
       triggerRef.current = null;
       queueMicrotask(() => {
         const active = document.activeElement;
         const dropped = active === null || active === document.body;
-        if (dropped && trigger !== null && trigger.isConnected) {
+        const inside = active !== null && box?.contains(active);
+        if ((dropped || inside) && trigger !== null && trigger.isConnected) {
           trigger.focus();
         }
       });

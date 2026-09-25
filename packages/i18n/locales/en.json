@@ -1153,6 +1153,17 @@
         "deleted": "Deleted",
         "regenerate": "Regenerate",
         "regenerateQueued": "Regenerate queued"
+      },
+      "deleteModal": {
+        "heading": "Delete briefs for #{{number}} {{repo}}?",
+        "headingMany_one": "Delete briefs for {{count}} pull request?",
+        "headingMany_other": "Delete briefs for {{count}} pull requests?",
+        "cascade_one": "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions. This cannot be undone. The next push makes a new brief; the comment on GitHub stays.",
+        "cascade_other": "Every brief for these pull requests goes, and with it every reviewer's review session, draft comments and flag decisions. This cannot be undone. The next push makes a new brief; the comments on GitHub stay.",
+        "row": "#{{number}} {{repo}}: {{title}}",
+        "cancel": "Cancel",
+        "confirm": "Delete",
+        "deleting": "Deleting"
       }
     },
     "filters": {

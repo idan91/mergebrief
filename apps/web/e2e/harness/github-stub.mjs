@@ -78,8 +78,25 @@ function answerInstallationsWalk(input, init, pathname) {
   const repos = installation?.repos ?? [];
   return jsonResponse({
     total_count: repos.length,
-    repositories: repos.map((repo) => ({ id: repo.id, full_name: repo.slug })),
+    repositories: repos.map((repo) => ({
+      id: repo.id,
+      full_name: repo.slug,
+      permissions: { admin: repo.admin === true },
+    })),
   });
+}
+
+/** A fixture installation's repository by id, for the gate and the delete's fresh read. */
+function findInstallationRepo(id) {
+  for (const installation of INBOX.installations) {
+    const repo = installation.repos.find(
+      (candidate) => String(candidate.id) === id,
+    );
+    if (repo !== undefined) {
+      return repo;
+    }
+  }
+  return undefined;
 }
 
 /** The Inbox's live read names its query; the conversation read does not. */
@@ -143,6 +160,19 @@ globalThis.fetch = async (input, init) => {
       full_name: REPO_SLUG,
       private: false,
       permissions: { push: false },
+    });
+  }
+  const repository = /^\/repositories\/(?<id>\d+)$/.exec(pathname);
+  const installationRepo =
+    repository === null
+      ? undefined
+      : findInstallationRepo(repository.groups.id);
+  if (installationRepo !== undefined) {
+    return jsonResponse({
+      id: installationRepo.id,
+      full_name: installationRepo.slug,
+      private: false,
+      permissions: { push: false, admin: installationRepo.admin === true },
     });
   }
   if (pathname === `/repos/${REPO_SLUG}/pulls`) {

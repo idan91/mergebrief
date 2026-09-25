@@ -27,6 +27,12 @@ describe("Button", () => {
     expect(button.getAttribute("data-size")).toBe("sm");
   });
 
+  it("renders the danger variant for a destructive confirm", () => {
+    render(<Button variant="danger">Delete</Button>);
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button.getAttribute("data-variant")).toBe("danger");
+  });
+
   it("disabled sets aria-disabled, not the attribute, and guards clicks", () => {
     const onClick = vi.fn();
     render(
