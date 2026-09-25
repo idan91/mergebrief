@@ -14,6 +14,7 @@ export const POPOVER_ENTER_EASING = "cubic-bezier(0.23, 1, 0.32, 1)";
 export const INITIAL_FOCUS_BY_TARGET: Record<PopoverFocusTarget, number> = {
   [PopoverFocusTargets.TRIGGER]: -1,
   [PopoverFocusTargets.CONTENT]: 0,
+  [PopoverFocusTargets.LIST]: -1,
 };
 
 type FocusOrder = NonNullable<FloatingFocusManagerProps["order"]>;
@@ -22,4 +23,5 @@ type FocusOrder = NonNullable<FloatingFocusManagerProps["order"]>;
 export const FOCUS_ORDER_BY_TARGET: Record<PopoverFocusTarget, FocusOrder> = {
   [PopoverFocusTargets.TRIGGER]: ["reference", "content"],
   [PopoverFocusTargets.CONTENT]: ["content"],
+  [PopoverFocusTargets.LIST]: ["content"],
 };

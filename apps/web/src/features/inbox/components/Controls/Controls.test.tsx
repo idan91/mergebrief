@@ -40,7 +40,7 @@ async function openPanel(name: string): Promise<HTMLElement> {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name }));
   });
-  return screen.getByRole("menu");
+  return screen.getByRole("listbox");
 }
 
 describe("Controls", () => {

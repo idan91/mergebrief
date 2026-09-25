@@ -37,7 +37,7 @@ test("Archive hides a row until Unarchive, behind the Show filter", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Show", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "Archived" }).click();
+  await page.getByRole("option", { name: "Archived" }).click();
   await expect(page).toHaveURL(/archived=only/);
   await expect(
     page.getByRole("button", { name: "Show Archived" }),

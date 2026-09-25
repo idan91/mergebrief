@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,15 +65,17 @@ describe("Filter", () => {
     expect(trigger.getAttribute("data-state")).toBe("changed");
   });
 
-  it("lists checkbox rows, marks the chosen ones and reports a choice", async () => {
+  it("lists options, ticks the chosen ones and reports a toggle", async () => {
     const onChoose = vi.fn();
     render(<Filter filter={makeFilter({ chosen: ["new"], onChoose })} />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Review" }));
     });
-    const rows = screen.getAllByRole("menuitemcheckbox");
-    expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+    const list = screen.getByRole("listbox", { name: "Review" });
+    expect(list.getAttribute("aria-multiselectable")).toBe("true");
+    const rows = screen.getAllByRole("option");
+    expect(rows.map((row) => row.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
       "false",
@@ -82,7 +85,11 @@ describe("Filter", () => {
       fireEvent.click(rows[2]!);
     });
     expect(onChoose).toHaveBeenCalledWith("reviewed");
-    expect(screen.getByRole("menu")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(rows[0]!);
+    });
+    expect(onChoose).toHaveBeenCalledWith("new");
+    expect(screen.getByRole("listbox")).toBeTruthy();
   });
 
   it("an All row leads the list and stays open on a choice", async () => {
@@ -98,7 +105,7 @@ describe("Filter", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Review" }));
     });
-    const rows = screen.getAllByRole("menuitemcheckbox");
+    const rows = screen.getAllByRole("option");
     expect(rows.map((row) => row.textContent)).toEqual([
       "All review states",
       "New",
@@ -110,7 +117,7 @@ describe("Filter", () => {
       fireEvent.click(rows[0]!);
     });
     expect(onChooseAll).toHaveBeenCalledOnce();
-    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(screen.getByRole("listbox")).toBeTruthy();
   });
 
   it("the arrow keys reach a ticked All row", async () => {
@@ -125,11 +132,15 @@ describe("Filter", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Review" }));
     });
-    const menu = screen.getByRole("menu");
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("role")).toBe("option"),
+    );
     const reached: string[] = [];
     for (let press = 0; press < ROW_COUNT; press += 1) {
       await act(async () => {
-        fireEvent.keyDown(menu, { key: "ArrowDown" });
+        fireEvent.keyDown(document.activeElement ?? document.body, {
+          key: "ArrowDown",
+        });
       });
       reached.push(document.activeElement?.textContent ?? "");
     }
@@ -157,7 +168,7 @@ describe("Filter", () => {
     expect(screen.getByRole("button", { name: "Review All" })).toBeTruthy();
   });
 
-  it("a single-choice filter lists radio rows and closes on a choice", async () => {
+  it("a single-choice filter ticks one option and closes on a choice", async () => {
     const onChoose = vi.fn();
     render(
       <Filter
@@ -174,13 +185,20 @@ describe("Filter", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Sort" }));
     });
-    const rows = screen.getAllByRole("menuitemradio");
+    const list = screen.getByRole("listbox", { name: "Sort" });
+    expect(list.getAttribute("aria-multiselectable")).toBeNull();
+    const rows = screen.getAllByRole("option");
+    expect(rows.map((row) => row.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
     await act(async () => {
       fireEvent.click(rows[1]!);
     });
 
     expect(onChoose).toHaveBeenCalledWith("updated");
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("listbox")).toBeNull();
   });
 
   it("the panel opens from its start corner by default", async () => {
@@ -190,6 +208,6 @@ describe("Filter", () => {
       fireEvent.click(screen.getByRole("button", { name: "Review" }));
     });
 
-    expect(screen.getByRole("menu").style.transformOrigin).toBe("top left");
+    expect(screen.getByRole("listbox").style.transformOrigin).toBe("top left");
   });
 });

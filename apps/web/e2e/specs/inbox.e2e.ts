@@ -132,7 +132,7 @@ test("the View control unfolds the list into one", async ({ page }) => {
   await expect(page.getByText("Not waiting on you")).toBeVisible();
 
   await page.getByRole("button", { name: "View", exact: true }).click();
-  await page.getByRole("menuitemradio", { name: "Mixed" }).click();
+  await page.getByRole("option", { name: "Mixed" }).click();
 
   await expect(page).toHaveURL(/layout=mixed/);
   await expect(page.getByText("Not waiting on you")).toBeHidden();

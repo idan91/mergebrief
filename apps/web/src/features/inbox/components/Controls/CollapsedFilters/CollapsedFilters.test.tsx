@@ -61,21 +61,62 @@ describe("CollapsedFilters", () => {
       fireEvent.click(trigger);
     });
 
+    const list = screen.getByRole("listbox", { name: "Filters" });
+    expect(list.getAttribute("aria-multiselectable")).toBe("true");
     const groups = screen.getAllByRole("group");
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
+      null,
+      null,
+    ]);
+    expect(screen.getByRole("group", { name: "Review" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Author" })).toBeTruthy();
+    const review = screen.getByRole("group", { name: "Review" });
     expect(
-      groups.map((group) => group.getAttribute("aria-labelledby")),
-    ).toEqual(["inbox-filter-review", "inbox-filter-author"]);
+      review.querySelector('[role=option][aria-selected="true"]')?.textContent,
+    ).toBe("New");
     expect(
       screen
-        .getByRole("menuitemcheckbox", { name: "New" })
-        .getAttribute("aria-checked"),
-    ).toBe("true");
-    expect(
-      screen
-        .getByRole("menuitemcheckbox", { name: "All review states" })
-        .getAttribute("aria-checked"),
+        .getByRole("option", { name: "All review states" })
+        .getAttribute("aria-selected"),
     ).toBe("false");
-    expect(screen.getAllByRole("menuitemradio")).toHaveLength(2);
+    expect(
+      screen
+        .getByRole("group", { name: "Author" })
+        .querySelectorAll("[role=option]"),
+    ).toHaveLength(2);
+  });
+
+  it("routes a choice to its own filter and stays open", async () => {
+    const onChooseReview = vi.fn();
+    const onChooseAuthor = vi.fn();
+    render(
+      <CollapsedFilters
+        changedCount={0}
+        filters={[
+          makeFilter({ onChoose: onChooseReview }),
+          makeFilter({
+            id: "author",
+            name: "Author",
+            multiple: false,
+            chosen: ["new"],
+            onChoose: onChooseAuthor,
+          }),
+        ]}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    });
+    const author = screen.getByRole("group", { name: "Author" });
+    const updated = author.querySelectorAll("[role=option]")[1];
+
+    await act(async () => {
+      fireEvent.click(updated!);
+    });
+
+    expect(onChooseAuthor).toHaveBeenCalledWith("updated");
+    expect(onChooseReview).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox")).toBeTruthy();
   });
 
   it("at the default it says Filters alone", () => {

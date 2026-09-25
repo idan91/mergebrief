@@ -1,15 +1,27 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
 import {
-  MenuContext,
-  type MenuContextValue,
-} from "@web/components/Menu/context";
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { Button } from "@web/components/Button/Button";
+import { Dropdown } from "@web/components/Dropdown/Dropdown";
 import type { FilterView } from "../types";
+import { deriveFilterSelection } from "../utils";
 import { FilterRows } from "./FilterRows";
 
 afterEach(cleanup);
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ matches: true, addEventListener: vi.fn() })),
+  );
+});
 
 function makeFilter(overrides: Partial<FilterView> = {}): FilterView {
   return {
@@ -27,44 +39,49 @@ function makeFilter(overrides: Partial<FilterView> = {}): FilterView {
   };
 }
 
-const MENU: MenuContextValue = {
-  activeIndex: null,
-  close: vi.fn(),
-  getItemProps: (props) => ({ ...props }),
-};
-
-function renderRows(filter: FilterView) {
-  return render(
-    <MenuContext.Provider value={MENU}>
-      <FilterRows filter={filter} />
-    </MenuContext.Provider>,
+async function renderRows(filter: FilterView) {
+  const view = render(
+    <Dropdown {...deriveFilterSelection(filter)}>
+      <Dropdown.Trigger>
+        <Button variant="secondary">Open</Button>
+      </Dropdown.Trigger>
+      <Dropdown.Content label="Review">
+        <FilterRows filter={filter} />
+      </Dropdown.Content>
+    </Dropdown>,
   );
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+  });
+  return view;
 }
 
 describe("FilterRows", () => {
-  it("leads with the All row, ticked at All, and reports its choice", () => {
+  it("leads with the All row, ticked at All, and reports its choice", async () => {
     const all = {
       label: "All review states",
       triggerLabel: "All",
       checked: true,
       onChoose: vi.fn(),
     };
-    renderRows(makeFilter({ all }));
+    await renderRows(makeFilter({ all }));
 
-    const rows = screen.getAllByRole("menuitemcheckbox");
+    const rows = screen.getAllByRole("option");
     expect(rows.map((row) => row.textContent)).toEqual([
       "All review states",
       "New",
       "Reviewed",
     ]);
-    expect(rows[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(rows[0]?.getAttribute("aria-selected")).toBe("true");
     expect(rows[0]?.getAttribute("aria-disabled")).toBeNull();
 
-    fireEvent.click(rows[0]!);
+    await act(async () => {
+      fireEvent.click(rows[0]!);
+    });
     expect(all.onChoose).toHaveBeenCalledOnce();
   });
 
-  it("gives the All row a glyph box only beside marked rows", () => {
+  it("gives the All row a glyph box only beside marked rows", async () => {
     const all = {
       label: "All review states",
       triggerLabel: "All",
@@ -76,13 +93,13 @@ describe("FilterRows", () => {
       return row?.querySelectorAll("span").length ?? 0;
     }
 
-    const plain = renderRows(makeFilter({ all }));
-    const plainRows = screen.getAllByRole("menuitemcheckbox");
+    const plain = await renderRows(makeFilter({ all }));
+    const plainRows = screen.getAllByRole("option");
     expect(countSpans(plainRows[0])).toBe(countSpans(plainRows[1]));
     plain.unmount();
 
-    renderRows(makeFilter({ all, glyphs }));
-    const rows = screen.getAllByRole("menuitemcheckbox");
+    await renderRows(makeFilter({ all, glyphs }));
+    const rows = screen.getAllByRole("option");
     expect(countSpans(rows[0])).toBe(countSpans(rows[1]) + 1);
   });
 });

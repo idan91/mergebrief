@@ -1,25 +1,27 @@
 import { useTranslation } from "react-i18next";
 
-import { Menu, type MenuProps } from "@web/components/Menu/Menu";
-import { MenuTriggerKinds } from "@web/components/Menu/types";
+import {
+  Dropdown,
+  type DropdownProps,
+} from "@web/components/Dropdown/Dropdown";
 import { Icon } from "@web/components/Icon/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { NAMED_UP_TO } from "../consts";
 import { FilterRows } from "../FilterRows/FilterRows";
 import styles from "../trigger.module.scss";
 import { FilterStates, type FilterState, type FilterView } from "../types";
-import { describeFilterValue } from "../utils";
+import { deriveFilterSelection, describeFilterValue } from "../utils";
 
 export interface FilterProps {
   filter: FilterView;
-  placement?: MenuProps["placement"];
+  placement?: DropdownProps["placement"];
 }
 
 /**
  * A 28px bordered control naming one filter. It shows its name only; a
  * value appears when set, several values as a count. A changed filter takes
- * the accent tint and an accent value. Its menu lists the options, checked
- * ones marked, a review mark beside each review state.
+ * the accent tint and an accent value. Its listbox lists the options, chosen
+ * ones ticked, a review mark beside each review state.
  */
 export function Filter({ filter, placement = "bottom-start" }: FilterProps) {
   const { t } = useTranslation();
@@ -34,13 +36,18 @@ export function Filter({ filter, placement = "bottom-start" }: FilterProps) {
   const state: FilterState = filter.changed
     ? FilterStates.CHANGED
     : FilterStates.DEFAULT;
+  const selection = deriveFilterSelection(filter);
 
   return (
-    <Menu
-      label={filter.name}
-      placement={placement}
-      trigger={
-        <>
+    <Dropdown placement={placement} {...selection}>
+      <Dropdown.Trigger>
+        {/* oxlint-disable-next-line house/no-raw-button -- the filter names itself by its content; no shared primitive has that shape */}
+        <button
+          aria-label={triggerLabel}
+          className={styles["filter"]}
+          data-state={state}
+          type="button"
+        >
           <span className={styles["name"]}>{filter.name}</span>
           {value === undefined ? null : (
             <>
@@ -53,14 +60,11 @@ export function Filter({ filter, placement = "bottom-start" }: FilterProps) {
             name={IconNames.CARET_DOWN}
             size={IconSizes.SM}
           />
-        </>
-      }
-      triggerClassName={styles["filter"]}
-      triggerKind={MenuTriggerKinds.TEXT}
-      triggerLabel={triggerLabel}
-      triggerState={state}
-    >
-      <FilterRows filter={filter} />
-    </Menu>
+        </button>
+      </Dropdown.Trigger>
+      <Dropdown.Content label={filter.name}>
+        <FilterRows filter={filter} />
+      </Dropdown.Content>
+    </Dropdown>
   );
 }

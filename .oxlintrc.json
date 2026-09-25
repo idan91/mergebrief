@@ -308,6 +308,7 @@
         "apps/web/src/components/AccessibleLink/**",
         "apps/web/src/components/Button/**",
         "apps/web/src/components/Chip/**",
+        "apps/web/src/components/Dropdown/**",
         "apps/web/src/components/IconButton/**",
         "apps/web/src/components/LinkButton/**",
         "apps/web/src/components/MenuItem/**",

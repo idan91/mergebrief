@@ -1,0 +1,43 @@
+@use "functions";
+
+@layer components {
+  .item {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--color-text-1);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    text-align: start;
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-outline-2) 40%, transparent);
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+      opacity: 0.6;
+    }
+  }
+
+  .check,
+  .glyph {
+    display: grid;
+    flex: none;
+    place-items: center;
+    inline-size: 16px;
+    block-size: 16px;
+    color: var(--color-accent);
+  }
+
+  .label {
+    min-inline-size: 0;
+  }
+}

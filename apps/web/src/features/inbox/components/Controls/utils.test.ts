@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { FilterView } from "./types";
-import { buildAllRow, describeFilterValue } from "./utils";
+import { FILTER_ALL_VALUE } from "./consts";
+import {
+  buildAllRow,
+  deriveCollapsedSelection,
+  deriveFilterSelection,
+  describeFilterValue,
+  findToggledValue,
+} from "./utils";
 
 function makeFilter(overrides: Partial<FilterView> = {}): FilterView {
   return {
@@ -70,5 +77,99 @@ describe("buildAllRow", () => {
 
     buildAllRow(labels, false, choose).onChoose();
     expect(choose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("findToggledValue", () => {
+  it("names the value added or removed, none when the lists match", () => {
+    expect(findToggledValue(["a"], ["a", "b"])).toBe("b");
+    expect(findToggledValue(["a", "b"], ["b"])).toBe("a");
+    expect(findToggledValue(["a"], ["a"])).toBeUndefined();
+  });
+});
+
+describe("deriveFilterSelection", () => {
+  it("a single filter hands the one choice straight through", () => {
+    const onChoose = vi.fn();
+    const selection = deriveFilterSelection(
+      makeFilter({ multiple: false, chosen: ["new"], onChoose }),
+    );
+
+    if (selection.multiple) {
+      throw new Error("expected a single selection");
+    }
+    expect(selection.value).toBe("new");
+    selection.onValueChange("updated");
+    expect(onChoose).toHaveBeenCalledWith("updated");
+  });
+
+  it("a single filter with a ticked All row shows All and routes it home", () => {
+    const onChoose = vi.fn();
+    const onChooseAll = vi.fn();
+    const all = {
+      label: "All",
+      triggerLabel: "All",
+      checked: true,
+      onChoose: onChooseAll,
+    };
+    const selection = deriveFilterSelection(
+      makeFilter({ multiple: false, chosen: ["new"], all, onChoose }),
+    );
+
+    if (selection.multiple) {
+      throw new Error("expected a single selection");
+    }
+    expect(selection.value).toBe(FILTER_ALL_VALUE);
+    selection.onValueChange(FILTER_ALL_VALUE);
+    expect(onChooseAll).toHaveBeenCalledOnce();
+    expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it("a multiple filter ticks its choices plus a ticked All row", () => {
+    const onChoose = vi.fn();
+    const onChooseAll = vi.fn();
+    const all = {
+      label: "All",
+      triggerLabel: "All",
+      checked: true,
+      onChoose: onChooseAll,
+    };
+    const selection = deriveFilterSelection(
+      makeFilter({ chosen: ["new"], all, onChoose }),
+    );
+
+    if (!selection.multiple) {
+      throw new Error("expected a multiple selection");
+    }
+    expect(selection.value).toEqual(["new", FILTER_ALL_VALUE]);
+    selection.onValueChange(["new", FILTER_ALL_VALUE, "reviewed"]);
+    expect(onChoose).toHaveBeenCalledWith("reviewed");
+    selection.onValueChange(["new"]);
+    expect(onChooseAll).toHaveBeenCalledOnce();
+  });
+});
+
+describe("deriveCollapsedSelection", () => {
+  it("scopes every value by its filter and routes a toggle back to it", () => {
+    const onChooseReview = vi.fn();
+    const onChooseAuthor = vi.fn();
+    const filters = [
+      makeFilter({ chosen: ["new"], onChoose: onChooseReview }),
+      makeFilter({
+        id: "author",
+        multiple: false,
+        chosen: ["mine"],
+        onChoose: onChooseAuthor,
+      }),
+    ];
+    const selection = deriveCollapsedSelection(filters);
+
+    if (!selection.multiple) {
+      throw new Error("expected a multiple selection");
+    }
+    expect(selection.value).toEqual(["review:new", "author:mine"]);
+    selection.onValueChange(["review:new", "author:mine", "author:others"]);
+    expect(onChooseAuthor).toHaveBeenCalledWith("others");
+    expect(onChooseReview).not.toHaveBeenCalled();
   });
 });

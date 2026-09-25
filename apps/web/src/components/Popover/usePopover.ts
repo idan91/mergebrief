@@ -31,16 +31,16 @@ import { PopoverFocusTargets, type PopoverFocusTarget } from "./types";
 import { deriveTransformOrigin } from "./utils";
 
 export interface PopoverOptions {
-  placement?: Placement;
+  placement?: Placement | undefined;
   /** Gap between the trigger's edge and the panel. */
-  offsetPx?: number;
+  offsetPx?: number | undefined;
   /**
    * Off, the panel renders in the tree beside its trigger and tracks no
    * ancestor scroll: a panel under a sticky bar rides the bar natively, where
    * a body portal would stutter a frame behind it.
    */
-  portal?: boolean;
-  focusOnOpen?: PopoverFocusTarget;
+  portal?: boolean | undefined;
+  focusOnOpen?: PopoverFocusTarget | undefined;
 }
 
 export interface PopoverState {

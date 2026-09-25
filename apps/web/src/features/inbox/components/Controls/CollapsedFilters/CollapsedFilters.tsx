@@ -1,20 +1,19 @@
 import { useTranslation } from "react-i18next";
 
-import { Menu } from "@web/components/Menu/Menu";
-import { MenuTriggerKinds } from "@web/components/Menu/types";
+import { Dropdown } from "@web/components/Dropdown/Dropdown";
 import { Icon } from "@web/components/Icon/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { FilterRows } from "../FilterRows/FilterRows";
 import filterStyles from "../trigger.module.scss";
 import { FilterStates, type FilterState, type FilterView } from "../types";
-import styles from "./CollapsedFilters.module.scss";
+import { deriveCollapsedSelection } from "../utils";
 
 export interface CollapsedFiltersProps {
   filters: readonly FilterView[];
   changedCount: number;
 }
 
-/** Under 760px every filter sits in one menu, grouped under its name. */
+/** Under 760px every filter sits in one listbox, grouped under its name; it stays open across choices. */
 export function CollapsedFilters({
   filters,
   changedCount,
@@ -22,21 +21,24 @@ export function CollapsedFilters({
   const { t } = useTranslation();
   const state: FilterState =
     changedCount > 0 ? FilterStates.CHANGED : FilterStates.DEFAULT;
+  const selection = deriveCollapsedSelection(filters);
+  const label = t("home.filters.filters");
 
   return (
-    <Menu
-      label={t("home.filters.filters")}
-      placement="bottom-start"
-      trigger={
-        <>
+    <Dropdown {...selection}>
+      <Dropdown.Trigger>
+        {/* oxlint-disable-next-line house/no-raw-button -- the filter names itself by its content; no shared primitive has that shape */}
+        <button
+          className={filterStyles["filter"]}
+          data-state={state}
+          type="button"
+        >
           <Icon
             className={filterStyles["caret"]}
             name={IconNames.SLIDERS_HORIZONTAL}
             size={IconSizes.MD}
           />
-          <span className={filterStyles["name"]}>
-            {t("home.filters.filters")}
-          </span>
+          <span className={filterStyles["name"]}>{label}</span>
           {changedCount === 0 ? null : (
             <>
               {" "}
@@ -45,28 +47,15 @@ export function CollapsedFilters({
               </span>
             </>
           )}
-        </>
-      }
-      triggerClassName={filterStyles["filter"]}
-      triggerKind={MenuTriggerKinds.TEXT}
-      triggerState={state}
-    >
-      {filters.map((filter) => (
-        <div
-          aria-labelledby={`inbox-filter-${filter.id}`}
-          className={styles["group"]}
-          key={filter.id}
-          role="group"
-        >
-          <span
-            className={styles["groupLabel"]}
-            id={`inbox-filter-${filter.id}`}
-          >
-            {filter.name}
-          </span>
-          <FilterRows filter={filter} />
-        </div>
-      ))}
-    </Menu>
+        </button>
+      </Dropdown.Trigger>
+      <Dropdown.Content label={label}>
+        {filters.map((filter) => (
+          <Dropdown.Group key={filter.id} label={filter.name}>
+            <FilterRows filter={filter} scoped />
+          </Dropdown.Group>
+        ))}
+      </Dropdown.Content>
+    </Dropdown>
   );
 }
