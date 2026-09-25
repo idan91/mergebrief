@@ -36,6 +36,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     source: "installation",
     installationId: "10",
     viewerIsAuthor: false,
+    viewerCanDelete: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,

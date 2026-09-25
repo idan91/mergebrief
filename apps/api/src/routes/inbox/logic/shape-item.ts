@@ -4,7 +4,13 @@
 // slice as the PR meta reports it.
 import { PrStackSchema } from "brief-core";
 import type { InboxItem, InboxStackView } from "contract";
-import { PrStates, type GenerationRow, type InboxRow } from "persistence";
+import {
+  PrStates,
+  PullRequestSources,
+  type GenerationRow,
+  type InboxRow,
+  type RepoId,
+} from "persistence";
 import { buildGenerationSummary } from "../../pr-view";
 
 /** A linear chain has a position; a fork has none worth a number. */
@@ -14,9 +20,21 @@ export function shapeStack(snapshot: unknown): InboxStackView | null {
   return { index: parsed.data.index, size: parsed.data.members.length };
 }
 
+/** A url row is the viewer's own; an installation row needs the admin bit. */
+export function resolveViewerCanDelete(
+  row: InboxRow,
+  adminRepoIds: ReadonlySet<RepoId>,
+): boolean {
+  if (row.pullRequest.source === PullRequestSources.URL) {
+    return true;
+  }
+  return adminRepoIds.has(row.pullRequest.repoId);
+}
+
 export function shapeInboxItem(
   row: InboxRow,
   latestGeneration: GenerationRow | undefined,
+  viewerCanDelete: boolean,
   liveStack?: InboxStackView | null,
 ): InboxItem {
   const { pullRequest, latestBrief } = row;
@@ -35,6 +53,7 @@ export function shapeInboxItem(
         ? null
         : String(pullRequest.installationId),
     viewerIsAuthor: row.viewerIsAuthor,
+    viewerCanDelete,
     reviewState: row.reviewState,
     behind: row.behind,
     unreachable: pullRequest.githubUnreachableAt !== null,

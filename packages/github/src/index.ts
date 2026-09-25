@@ -99,7 +99,7 @@ export {
   fetchRepositoryById,
   listInstallationRepositoriesForUser,
 } from "./operations/repo";
-export type { RepositoryInfo } from "./operations/repo";
+export type { InstallationRepository, RepositoryInfo } from "./operations/repo";
 export { getRepoFile, RepoFileKinds } from "./operations/repo-file";
 export type {
   GetRepoFileInput,

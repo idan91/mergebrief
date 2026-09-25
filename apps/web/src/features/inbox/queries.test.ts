@@ -25,6 +25,7 @@ const WIRE_PAGE = {
       source: "installation",
       installationId: "10",
       viewerIsAuthor: false,
+      viewerCanDelete: false,
       reviewState: "new",
       behind: false,
       unreachable: false,

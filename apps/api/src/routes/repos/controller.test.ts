@@ -15,8 +15,14 @@ describe("reposController.listRepos", () => {
     const installationId = 10n;
     if (!isInstallationId(installationId)) throw new Error("unbrandable id");
     const allowed = new Map<RepoId, AllowedRepo>([
-      [brandRepoId(2n), { installationId, fullName: "acme/zeta" }],
-      [brandRepoId(1n), { installationId, fullName: "acme/alpha" }],
+      [
+        brandRepoId(2n),
+        { installationId, fullName: "acme/zeta", viewerIsAdmin: false },
+      ],
+      [
+        brandRepoId(1n),
+        { installationId, fullName: "acme/alpha", viewerIsAdmin: true },
+      ],
     ]);
     expect(reposController.listRepos(allowed)).toEqual({
       repos: [

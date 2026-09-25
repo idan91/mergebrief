@@ -11,6 +11,7 @@ import {
   GitHubApiErrorCodes,
   listInstallationRepositoriesForUser,
   type GitHubApiError,
+  type InstallationRepository,
 } from "github";
 import type { Logger } from "logging";
 import {
@@ -47,6 +48,11 @@ export interface AllowedRepo {
   readonly installationId: InstallationId;
   /** GitHub-verified `owner/name`. */
   readonly fullName: string;
+  /**
+   * The viewer's `permissions.admin` as the walk read it. A cached hint for
+   * the list; a route that acts on it re-reads the repository fresh.
+   */
+  readonly viewerIsAdmin: boolean;
 }
 
 /** The resolved set plus the (possibly refreshed) principal it was read under. */
@@ -113,14 +119,18 @@ function isDeniedWalk(walk: InstallationWalk): boolean {
 function mergeAllowedRepos(
   walks: ReadonlyArray<{
     readonly installationId: InstallationId;
-    readonly repos: ReadonlyMap<RepoId, string>;
+    readonly repos: ReadonlyMap<RepoId, InstallationRepository>;
   }>,
 ): ReadonlyMap<RepoId, AllowedRepo> {
   const allowed = new Map<RepoId, AllowedRepo>();
   for (const walk of walks) {
-    for (const [repoId, fullName] of walk.repos) {
+    for (const [repoId, repo] of walk.repos) {
       if (!allowed.has(repoId)) {
-        allowed.set(repoId, { installationId: walk.installationId, fullName });
+        allowed.set(repoId, {
+          installationId: walk.installationId,
+          fullName: repo.fullName,
+          viewerIsAdmin: repo.viewerIsAdmin,
+        });
       }
     }
   }

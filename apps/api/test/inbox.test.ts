@@ -104,6 +104,7 @@ function stubGitHub(
   installationsStatus = 200,
   repositoriesStatus = 200,
   openList: readonly OpenListEntry[] | number = [],
+  adminRepoIds: readonly number[] = [],
 ): StubCounts {
   const counts: StubCounts = { installations: 0, graphql: 0 };
   vi.stubGlobal(
@@ -126,7 +127,13 @@ function stubGitHub(
         }
         return jsonResponse({
           total_count: 1,
-          repositories: [{ id: REPO_A, full_name: "o/r" }],
+          repositories: [
+            {
+              id: REPO_A,
+              full_name: "o/r",
+              permissions: { admin: adminRepoIds.includes(REPO_A) },
+            },
+          ],
         });
       }
       if (/\/repos\/[^/]+\/[^/]+\/pulls\?/.test(url)) {
@@ -454,6 +461,7 @@ describe("GET /api/inbox", () => {
       source: "installation",
       reviewState: "new",
       viewerIsAuthor: false,
+      viewerCanDelete: false,
       behind: false,
       unreachable: false,
       generation: null,
@@ -466,6 +474,7 @@ describe("GET /api/inbox", () => {
       source: "url",
       reviewState: null,
       viewerIsAuthor: true,
+      viewerCanDelete: true,
       latestBriefAt: null,
       stack: null,
     });
@@ -494,6 +503,21 @@ describe("GET /api/inbox", () => {
       { repoId: String(REPO_A), repoSlug: "o/r" },
       { repoId: String(REPO_URL), repoSlug: expect.any(String) },
     ]);
+  });
+
+  it("an installation row the viewer administers on GitHub can be deleted", async () => {
+    stubGitHub(200, 200, [], [REPO_A]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    const body = await readBody(res);
+    expect(body.items[0]).toMatchObject({
+      source: "installation",
+      viewerCanDelete: true,
+    });
   });
 
   it("an app composed without a slug serves no install link", async () => {

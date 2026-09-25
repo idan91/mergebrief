@@ -24,15 +24,21 @@ export interface RepositoryInfo {
    * capability grant.
    */
   readonly viewerCanPush: boolean;
+  /** Same block, `admin`: the delete gate; absent parses as `false`. */
+  readonly viewerIsAdmin: boolean;
 }
+
+// Both bits are tolerant-optional: a permissions block missing one degrades
+// to no-capability rather than failing the whole repo parse, which would
+// turn a capability-signal glitch into a full access denial.
+const permissionsSchema = z
+  .object({ push: z.boolean().optional(), admin: z.boolean().optional() })
+  .optional();
 
 const repositoryResponseSchema = z.object({
   full_name: z.string().min(1),
   private: z.boolean(),
-  // `push` is tolerant-optional: a permissions block missing it degrades to
-  // no-capability rather than failing the whole repo parse, which would turn a
-  // capability-signal glitch into a full access denial.
-  permissions: z.object({ push: z.boolean().optional() }).optional(),
+  permissions: permissionsSchema,
 });
 
 /** Fetch a repository by its numeric id. */
@@ -56,6 +62,7 @@ export async function fetchRepositoryById(
         fullName: parsed.data.full_name,
         private: parsed.data.private,
         viewerCanPush: parsed.data.permissions?.push ?? false,
+        viewerIsAdmin: parsed.data.permissions?.admin ?? false,
       },
     };
   } catch (error) {
@@ -69,7 +76,16 @@ const INSTALLATION_REPOSITORIES_PAGE_SIZE = 100;
 const installationRepositoryItemSchema = z.object({
   id: repoIdSchema,
   full_name: z.string().min(1),
+  permissions: permissionsSchema,
 });
+
+/** One repository of the installation∩user listing. */
+export interface InstallationRepository {
+  /** GitHub-verified `owner/name`. */
+  readonly fullName: string;
+  /** The viewer's `permissions.admin` on this repository; absent is `false`. */
+  readonly viewerIsAdmin: boolean;
+}
 
 /**
  * The repos of `installationId` the AUTHENTICATED USER can also access, the
@@ -81,7 +97,9 @@ const installationRepositoryItemSchema = z.object({
 export async function listInstallationRepositoriesForUser(
   octokit: Octokit,
   installationId: InstallationId,
-): Promise<Result<ReadonlyMap<RepoId, string>, GitHubApiError>> {
+): Promise<
+  Result<ReadonlyMap<RepoId, InstallationRepository>, GitHubApiError>
+> {
   try {
     // `paginate` follows the Link header until exhaustion and normalizes the
     // `repositories`-wrapped payload to a flat item array.
@@ -99,9 +117,12 @@ export async function listInstallationRepositoriesForUser(
         error: unexpectedResponseError("list installation repositories"),
       };
     }
-    const repos = new Map<RepoId, string>();
+    const repos = new Map<RepoId, InstallationRepository>();
     for (const repo of parsed.data) {
-      repos.set(repo.id, repo.full_name);
+      repos.set(repo.id, {
+        fullName: repo.full_name,
+        viewerIsAdmin: repo.permissions?.admin ?? false,
+      });
     }
     return { ok: true, value: repos };
   } catch (error) {

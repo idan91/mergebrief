@@ -328,6 +328,49 @@ describe("fetchRepositoryById", () => {
     expect(result.value.viewerCanPush).toBe(false);
   });
 
+  it("captures permissions.admin as viewerIsAdmin", async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        id: 1,
+        full_name: "o/r",
+        private: true,
+        permissions: { admin: true, push: true, pull: true },
+      },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerIsAdmin).toBe(true);
+  });
+
+  it("fails closed to viewerIsAdmin false without a permissions block", async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: { id: 1, full_name: "o/r", private: true },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerIsAdmin).toBe(false);
+  });
+
+  it("viewerIsAdmin is false when the block carries push but no admin", async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        id: 1,
+        full_name: "o/r",
+        private: true,
+        permissions: { push: true },
+      },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerIsAdmin).toBe(false);
+  });
+
   it("maps a 404 to a sanitized not-found error with no leaked token", async () => {
     const request = vi.fn().mockRejectedValue(requestError(404));
     const octokit = mockOctokit({ request });
@@ -371,14 +414,43 @@ describe("listInstallationRepositoriesForUser", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.size).toBe(3);
-    expect(result.value.get(toRepoId(101n))).toBe("octo/alpha");
-    expect(result.value.get(toRepoId(303n))).toBe("octo/page-two");
+    expect(result.value.get(toRepoId(101n))).toEqual({
+      fullName: "octo/alpha",
+      viewerIsAdmin: false,
+    });
+    expect(result.value.get(toRepoId(303n))?.fullName).toBe("octo/page-two");
     expect(paginate).toHaveBeenCalledTimes(1);
     const [route, params] = paginate.mock.calls[0] ?? [];
     expect(String(route)).toContain(
       "/user/installations/{installation_id}/repositories",
     );
     expect(params).toMatchObject({ installation_id: 987654, per_page: 100 });
+  });
+
+  it("marks a listed repo admin only when its permissions block says so", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        id: 101,
+        full_name: "octo/alpha",
+        permissions: { admin: true, push: true, pull: true },
+      },
+      {
+        id: 202,
+        full_name: "octo/beta",
+        permissions: { admin: false, push: true, pull: true },
+      },
+      { id: 303, full_name: "octo/gamma" },
+    ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listInstallationRepositoriesForUser(
+      octokit,
+      INSTALLATION,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.get(toRepoId(101n))?.viewerIsAdmin).toBe(true);
+    expect(result.value.get(toRepoId(202n))?.viewerIsAdmin).toBe(false);
+    expect(result.value.get(toRepoId(303n))?.viewerIsAdmin).toBe(false);
   });
 
   it("maps a 401 to a sanitized unauthorized error, the refresh trigger", async () => {

@@ -21,6 +21,8 @@ export interface ListInboxInput {
   readonly installations: readonly UserInstallation[];
   /** The repositories the viewer may read across them, as GitHub answered. */
   readonly allowedRepoIds: readonly RepoId[];
+  /** The subset of `allowedRepoIds` the viewer administers on GitHub. */
+  readonly adminRepoIds: ReadonlySet<RepoId>;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;

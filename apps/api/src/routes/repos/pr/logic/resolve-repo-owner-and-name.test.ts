@@ -153,6 +153,7 @@ describe("resolveRepoOwnerAndName", () => {
         fullName: "acme/app",
         private: false,
         viewerCanPush: true,
+        viewerIsAdmin: false,
       },
     });
     const result = await resolveRepoOwnerAndName(

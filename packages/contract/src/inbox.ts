@@ -74,6 +74,11 @@ export interface InboxItem {
   /** Stringified; null for a url row. */
   readonly installationId: string | null;
   readonly viewerIsAuthor: boolean;
+  /**
+   * The viewer may delete this pull request's briefs: their own url row, or
+   * an installation row whose repository GitHub says they administer.
+   */
+  readonly viewerCanDelete: boolean;
   /** Null for the viewer's own pull requests. */
   readonly reviewState: InboxReviewState | null;
   /** GitHub reports a head the latest brief does not cover. */

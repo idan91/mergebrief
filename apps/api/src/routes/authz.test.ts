@@ -101,7 +101,11 @@ function stubInstallations(): InstallationResolver {
   const allowed = new Map<RepoId, AllowedRepo>([
     [
       brand(REPO_IN_INSTALLATION, isRepoId),
-      { installationId: INSTALLATION_ID, fullName: "acme/inside" },
+      {
+        installationId: INSTALLATION_ID,
+        fullName: "acme/inside",
+        viewerIsAdmin: false,
+      },
     ],
   ]);
   return {
@@ -257,6 +261,7 @@ function stubGrantedRepo(
       fullName,
       private: false,
       viewerCanPush: false,
+      viewerIsAdmin: false,
     },
   };
 }

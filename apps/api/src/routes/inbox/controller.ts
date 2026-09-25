@@ -16,7 +16,7 @@ import {
 } from "persistence";
 import type { Result } from "types/utils";
 import { shapeViewer } from "../viewer";
-import { shapeInboxItem } from "./logic/shape-item";
+import { resolveViewerCanDelete, shapeInboxItem } from "./logic/shape-item";
 import type { InboxControllerDeps, ListInboxInput } from "./types";
 import { INBOX_PAGE_SIZE } from "../wire-bounds";
 
@@ -109,6 +109,7 @@ export default {
         shapeInboxItem(
           row,
           generations.get(row.pullRequest.id),
+          resolveViewerCanDelete(row, input.adminRepoIds),
           liveStacks?.get(row.pullRequest.id),
         ),
       ),

@@ -6,7 +6,7 @@ import {
   type RepositoryRef,
 } from "github";
 import type { Context } from "hono";
-import type { InboxFilters } from "persistence";
+import type { InboxFilters, RepoId } from "persistence";
 import type { Mutable } from "types/utils";
 import {
   BadGateway,
@@ -17,7 +17,10 @@ import {
 import { isGitHubDenial } from "../../shared-errors/failures";
 import { stampAuditTarget } from "../../product-operations/audit";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
-import type { InstallationResolver } from "../installation-resolver";
+import type {
+  AllowedRepo,
+  InstallationResolver,
+} from "../installation-resolver";
 import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
 import type { AuthzEnv } from "../authz";
@@ -30,6 +33,18 @@ import { readLiveStacks } from "./logic/live-stacks";
 import { inboxQuerySchema, type InboxQuery } from "./schemas";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
+
+function collectAdminRepoIds(
+  allowed: ReadonlyMap<RepoId, AllowedRepo>,
+): ReadonlySet<RepoId> {
+  const admin = new Set<RepoId>();
+  for (const [repoId, repo] of allowed) {
+    if (repo.viewerIsAdmin) {
+      admin.add(repoId);
+    }
+  }
+  return admin;
+}
 
 function shapeFilters(query: InboxQuery): InboxFilters {
   const filters: Mutable<InboxFilters> = {
@@ -129,6 +144,7 @@ export default function createHandlers(
         {
           installations: reachable.value.installations,
           allowedRepoIds: [...allowed.value.allowed.keys()],
+          adminRepoIds: collectAdminRepoIds(allowed.value.allowed),
           reviewerId: session.reviewerId,
           reviewerLogin: session.reviewerLogin,
           filters: shapeFilters(query.data),

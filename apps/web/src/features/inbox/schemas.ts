@@ -32,6 +32,7 @@ export const inboxItemSchema = z.object({
   source: sourceSchema,
   installationId: z.string().nullable(),
   viewerIsAuthor: z.boolean(),
+  viewerCanDelete: z.boolean(),
   reviewState: z.enum(InboxReviewStates).nullable(),
   behind: z.boolean(),
   unreachable: z.boolean(),

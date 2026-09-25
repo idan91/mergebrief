@@ -3,6 +3,7 @@ import type * as githubModule from "github";
 import {
   GitHubApiErrorCodes,
   listInstallationRepositoriesForUser,
+  type InstallationRepository,
 } from "github";
 import type { Logger } from "logging";
 import {
@@ -69,12 +70,20 @@ const ACME_REPO = brand(101n, isRepoId);
 const OCTO_REPO = brand(201n, isRepoId);
 const OUTSIDE_REPO = brand(301n, isRepoId);
 
+const ACME_ONE: InstallationRepository = {
+  fullName: "acme/one",
+  viewerIsAdmin: true,
+};
+const OCTO_TWO: InstallationRepository = {
+  fullName: "octo/two",
+  viewerIsAdmin: false,
+};
 const REPOS_BY_INSTALLATION: ReadonlyMap<
   InstallationId,
-  Map<RepoId, string>
+  Map<RepoId, InstallationRepository>
 > = new Map([
-  [ACME_ID, new Map([[ACME_REPO, "acme/one"]])],
-  [OCTO_ID, new Map([[OCTO_REPO, "octo/two"]])],
+  [ACME_ID, new Map([[ACME_REPO, ACME_ONE]])],
+  [OCTO_ID, new Map([[OCTO_REPO, OCTO_TWO]])],
 ]);
 
 let harness: PgliteHarness;
@@ -180,6 +189,30 @@ describe("the installation resolver", () => {
     });
   });
 
+  it("carries the admin bit GitHub gave per repository into the allowed set", async () => {
+    answerWalks();
+    const resolver = createInstallationResolver(
+      stubDeps(),
+      stubReachable([ACME_ID, OCTO_ID]),
+    );
+
+    const resolved = await resolver.listAllowedRepos(
+      await stubPrincipal(),
+      log,
+    );
+
+    expect(resolved.ok && resolved.value.allowed.get(ACME_REPO)).toEqual({
+      installationId: ACME_ID,
+      fullName: "acme/one",
+      viewerIsAdmin: true,
+    });
+    expect(resolved.ok && resolved.value.allowed.get(OCTO_REPO)).toEqual({
+      installationId: OCTO_ID,
+      fullName: "octo/two",
+      viewerIsAdmin: false,
+    });
+  });
+
   it("drops a repo outside every reachable installation to the owner world", async () => {
     answerWalks();
     const resolver = createInstallationResolver(
@@ -221,7 +254,7 @@ describe("the installation resolver", () => {
     vi.mocked(listInstallationRepositoriesForUser).mockImplementation(
       async (_octokit, installationId) =>
         installationId === ACME_ID
-          ? { ok: true, value: new Map([[ACME_REPO, "acme/one"]]) }
+          ? { ok: true, value: new Map([[ACME_REPO, ACME_ONE]]) }
           : {
               ok: false,
               error: {
@@ -258,7 +291,7 @@ describe("the installation resolver", () => {
                 message: "saml",
               },
             }
-          : { ok: true, value: new Map([[ACME_REPO, "acme/one"]]) },
+          : { ok: true, value: new Map([[ACME_REPO, ACME_ONE]]) },
     );
     const resolver = createInstallationResolver(
       stubDeps(),
