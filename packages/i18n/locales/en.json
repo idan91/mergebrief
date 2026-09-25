@@ -1158,7 +1158,32 @@
         "archived": "Archived; it comes back when a new brief lands",
         "unarchived": "Back in your Inbox",
         "archiveFailed": "Archive failed; the row is still here",
-        "unarchiveFailed": "Unarchive failed; the row is still archived"
+        "unarchiveFailed": "Unarchive failed; the row is still archived",
+        "deletedMany_one": "Deleted {{count}}",
+        "deletedMany_other": "Deleted {{count}}",
+        "deletedSome": "Deleted {{done}} of {{total}}; {{failed}} failed",
+        "archivedMany_one": "Archived {{count}}",
+        "archivedMany_other": "Archived {{count}}",
+        "archivedSome": "Archived {{done}} of {{total}}; {{failed}} failed",
+        "unarchivedMany_one": "Unarchived {{count}}",
+        "unarchivedMany_other": "Unarchived {{count}}",
+        "unarchivedSome": "Unarchived {{done}} of {{total}}; {{failed}} failed"
+      },
+      "select": {
+        "row": "Select {{title}}",
+        "page": "Select all on this page",
+        "count_one": "{{count}} selected",
+        "count_other": "{{count}} selected",
+        "none": "Nothing selected",
+        "archive_one": "Archive {{count}}",
+        "archive_other": "Archive {{count}}",
+        "unarchive_one": "Unarchive {{count}}",
+        "unarchive_other": "Unarchive {{count}}",
+        "delete_one": "Delete {{count}}",
+        "delete_other": "Delete {{count}}",
+        "undeletable_one": "{{count}} cannot be deleted",
+        "undeletable_other": "{{count}} cannot be deleted",
+        "clear": "Clear selection"
       },
       "deleteModal": {
         "heading": "Delete briefs for #{{number}} {{repo}}?",
@@ -1244,6 +1269,7 @@
     "shortcuts": {
       "sectionList": "Briefs",
       "cursorDown": "Move the cursor down the list",
+      "toggleSelect": "Select or deselect the row under the cursor",
       "cursorUp": "Move the cursor up the list",
       "openRow": "Open the brief under the cursor",
       "focusUrl": "Focus the URL box",

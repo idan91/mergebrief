@@ -1,0 +1,40 @@
+@use "functions";
+
+@layer components {
+  .bar {
+    position: sticky;
+    inset-block-start: var(--space-4);
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    align-items: center;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
+  }
+
+  .count {
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .note {
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    margin-inline-start: auto;
+  }
+}

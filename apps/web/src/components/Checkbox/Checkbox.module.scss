@@ -91,6 +91,19 @@
     @include mixins.focus-ring;
   }
 
+  .input:indeterminate + .box {
+    border-color: var(--color-accent);
+    background: var(--color-surface-3);
+  }
+
+  .input:indeterminate + .box::after {
+    width: 6px;
+    height: 0;
+    border-width: 0 0 1.5px;
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
   .input:disabled + .box {
     border-color: var(--color-outline-1);
     background: var(--color-surface-1);

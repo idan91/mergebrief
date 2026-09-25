@@ -148,6 +148,10 @@
         background: transparent;
       }
     }
+
+    &[data-variant="danger"][aria-disabled="true"] {
+      background: transparent;
+    }
   }
 
   /* The 44px AIM lands where fingers do; desktop keeps the 24px floor. */

@@ -289,6 +289,30 @@ export type Catalog = typeof en & {
       ageDays: "{{count}}d ago";
       stackChip: "{{index}} of {{size}}";
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
+      actions: (typeof en)["home"]["inbox"]["actions"] & {
+        deletedMany_one: "Deleted {{count}}";
+        deletedMany_other: "Deleted {{count}}";
+        deletedSome: "Deleted {{done}} of {{total}}; {{failed}} failed";
+        archivedMany_one: "Archived {{count}}";
+        archivedMany_other: "Archived {{count}}";
+        archivedSome: "Archived {{done}} of {{total}}; {{failed}} failed";
+        unarchivedMany_one: "Unarchived {{count}}";
+        unarchivedMany_other: "Unarchived {{count}}";
+        unarchivedSome: "Unarchived {{done}} of {{total}}; {{failed}} failed";
+      };
+      select: (typeof en)["home"]["inbox"]["select"] & {
+        row: "Select {{title}}";
+        count_one: "{{count}} selected";
+        count_other: "{{count}} selected";
+        archive_one: "Archive {{count}}";
+        archive_other: "Archive {{count}}";
+        unarchive_one: "Unarchive {{count}}";
+        unarchive_other: "Unarchive {{count}}";
+        delete_one: "Delete {{count}}";
+        delete_other: "Delete {{count}}";
+        undeletable_one: "{{count}} cannot be deleted";
+        undeletable_other: "{{count}} cannot be deleted";
+      };
       deleteModal: (typeof en)["home"]["inbox"]["deleteModal"] & {
         heading: "Delete briefs for #{{number}} {{repo}}?";
         headingMany_one: "Delete briefs for {{count}} pull request?";

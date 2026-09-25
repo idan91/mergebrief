@@ -3,6 +3,7 @@ import type { CSSProperties, Ref } from "react";
 import { useTranslation } from "react-i18next";
 import type { InboxArchivedFilter, InboxSort } from "types/inbox";
 
+import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import {
   Chip,
   ChipElements,
@@ -30,18 +31,22 @@ export interface InboxRowProps {
   now: Date;
   /** The keyboard cursor rests on this row. */
   cursor: boolean;
+  /** The row is ticked for a bulk action. */
+  selected: boolean;
+  onToggleSelect: (item: InboxItem) => void;
   /** The list holds the cursor row so it can scroll it into view. */
   rowRef?: Ref<HTMLLIElement> | undefined;
   /** The view the row sits in, for the archive action's direction. */
   archived: InboxArchivedFilter;
   onAnnounce: (message: string) => void;
   onDelete: (item: InboxItem) => void;
-  onRemoved: () => void;
+  /** The row archived or unarchived and is leaving the list. */
+  onRemoved: (item: InboxItem) => void;
 }
 
 /**
- * Two lines, 56px. Line one: the review mark, the title with inline code,
- * the fact chips. Line two: the source icon on url rows, repository, number
+ * Two lines, 56px, behind a checkbox for the bulk actions. Line one: the
+ * review mark, the title with inline code, the fact chips. Line two: the source icon on url rows, repository, number
  * and age. The right edge carries the generation state and the status when
  * it is not Open, and the actions a hover or the cursor reveals. The whole
  * row is one link to the brief, named by its states before its title; the
@@ -54,6 +59,8 @@ export function InboxRow({
   sort,
   now,
   cursor,
+  selected,
+  onToggleSelect,
   rowRef,
   archived,
   onAnnounce,
@@ -72,16 +79,32 @@ export function InboxRow({
   const description = describeRow(t, item, generation);
   const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
 
+  function handleRemoved(): void {
+    onRemoved(item);
+  }
+
   return (
     <li
       className={styles["row"]}
       data-cursor={cursor}
       data-needs-you={needsReviewer(item)}
+      data-selected={selected}
       data-testid="inbox-row"
       data-unreachable={item.unreachable}
       ref={rowRef}
       style={rowStyle}
     >
+      <span className={styles["start"]}>
+        <Checkbox checked={selected} onChange={() => onToggleSelect(item)}>
+          <ScreenReaderOnly>
+            {t("home.inbox.select.row", {
+              title:
+                readRowTitle(item.title) ??
+                t("home.inbox.number", { number: item.prNumber }),
+            })}
+          </ScreenReaderOnly>
+        </Checkbox>
+      </span>
       <Link
         className={styles["main"]}
         params={{ repoId: item.repoId, prNumber: String(item.prNumber) }}
@@ -162,7 +185,7 @@ export function InboxRow({
           item={item}
           onAnnounce={onAnnounce}
           onDelete={onDelete}
-          onRemoved={onRemoved}
+          onRemoved={handleRemoved}
         />
       </span>
     </li>

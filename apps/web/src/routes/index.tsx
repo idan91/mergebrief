@@ -142,6 +142,7 @@ const HOME_SHORTCUTS: ShortcutSection[] = [
       { keys: ["\u2191"], descriptionKey: "home.shortcuts.cursorUp" },
       { keys: ["K"], descriptionKey: "home.shortcuts.cursorUp" },
       { keys: ["Enter"], descriptionKey: "home.shortcuts.openRow" },
+      { keys: ["X"], descriptionKey: "home.shortcuts.toggleSelect" },
       { keys: ["/"], descriptionKey: "home.shortcuts.focusUrl" },
       { keys: ["?"], descriptionKey: "home.shortcuts.toggleShortcuts" },
       { keys: ["Esc"], descriptionKey: "home.shortcuts.closeMenu" },
@@ -189,6 +190,7 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
     state.choices.archived,
   );
   const noInstallation = page.reachableInstallations.length === 0;
+  const pageKey = JSON.stringify(search);
 
   function showHidden(): void {
     state.write({ state: EVERY_STATUS_PARAM });
@@ -246,6 +248,7 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
             sort={state.choices.sort}
             layout={state.choices.layout}
             archived={state.choices.archived}
+            pageKey={pageKey}
           >
             {list}
           </InboxList>

@@ -262,16 +262,6 @@
       "count": 1
     }
   },
-  "apps/web/src/components/Checkbox/Checkbox.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/components/Checkbox/Checkbox.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/components/LinkButton/LinkButton.test.tsx": {
     "house/test-title": {
       "count": 1

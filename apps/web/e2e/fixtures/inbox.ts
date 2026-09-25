@@ -43,6 +43,10 @@ export const INBOX_INSTALLATIONS: readonly InboxFixtureInstallation[] = [
  * The specs share one seeded database, so only that spec may touch it.
  */
 export const INBOX_DELETE_ROW_NUMBER = 107;
+/** The row the bulk spec deletes, in the repository the viewer administers. */
+export const INBOX_BULK_DELETE_ROW_NUMBER = 108;
+/** The two rows the bulk spec archives, in a repository the viewer does not administer. */
+export const INBOX_BULK_ARCHIVE_ROW_NUMBERS = [109, 110] as const;
 
 export const InboxSeedStates = {
   NEW: "new",
@@ -112,6 +116,30 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Drop the legacy settlement exporter",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 500,
+  },
+  {
+    installationId: 7001,
+    repoId: 424243,
+    prNumber: INBOX_BULK_DELETE_ROW_NUMBER,
+    title: "Fold the refund ledger into settlements",
+    state: InboxSeedStates.YOURS,
+    updatedMinutesAgo: 560,
+  },
+  {
+    installationId: 7002,
+    repoId: 424245,
+    prNumber: INBOX_BULK_ARCHIVE_ROW_NUMBERS[0],
+    title: "Index ledger entries by posting date",
+    state: InboxSeedStates.YOURS,
+    updatedMinutesAgo: 620,
+  },
+  {
+    installationId: 7002,
+    repoId: 424245,
+    prNumber: INBOX_BULK_ARCHIVE_ROW_NUMBERS[1],
+    title: "Cache the ledger summary per account",
+    state: InboxSeedStates.YOURS,
+    updatedMinutesAgo: 680,
   },
 ];
 

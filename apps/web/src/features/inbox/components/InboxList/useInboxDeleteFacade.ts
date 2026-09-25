@@ -1,14 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
-import { INBOX_QUERY_ROOT } from "../../consts";
-import {
-  deletePull,
-  type DeletePullResult,
-  type RowWriteFailureKind,
-} from "../../queries";
+import { BULK_CONCURRENCY, INBOX_QUERY_ROOT } from "../../consts";
+import { deletePull, type RowWriteFailureKind } from "../../queries";
 import type { InboxItem } from "../../types";
+import { runWithConcurrency } from "../../utils";
 
 /** The copy a refused delete announces, by the transport's failure kind. */
 const DeleteFailureCopy = {
@@ -20,14 +18,51 @@ const DeleteFailureCopy = {
 export interface InboxDeleteFacadeInput {
   /** The page-level live region. */
   readonly announce: (message: string) => void;
-  /** At least one row is gone; the list decides where focus goes. */
-  readonly onDeleted: () => void;
+  /** The rows that went, before the re-read; the list unticks them and decides where focus goes. */
+  readonly onDeleted: (gone: readonly InboxItem[]) => void;
+}
+
+interface RowOutcome {
+  readonly item: InboxItem;
+  readonly kind: RowWriteFailureKind | "deleted";
+}
+
+async function deleteRow(item: InboxItem): Promise<RowOutcome> {
+  try {
+    const outcome = await deletePull(item.repoId, item.prNumber);
+    return { item, kind: outcome.kind };
+  } catch {
+    return { item, kind: "failed" };
+  }
+}
+
+/** One line for the live region: the single row's fate, or the tally. */
+function describeOutcome(
+  t: TFunction,
+  outcomes: readonly RowOutcome[],
+  failedCount: number,
+): string {
+  const single = outcomes[0];
+  if (outcomes.length === 1 && single !== undefined) {
+    return single.kind === "deleted"
+      ? t("home.inbox.actions.deleted")
+      : t(DeleteFailureCopy[single.kind]);
+  }
+  const deleted = outcomes.length - failedCount;
+  if (failedCount === 0) {
+    return t("home.inbox.actions.deletedMany", { count: deleted });
+  }
+  return t("home.inbox.actions.deletedSome", {
+    done: deleted,
+    total: outcomes.length,
+    failed: failedCount,
+  });
 }
 
 /**
  * The delete flow above the rows: a row (or a selection) asks, the modal
- * confirms, the transport runs, and the outcome is announced once. The
- * modal closes as soon as the transport answers; the inbox query is
+ * confirms, the transport runs four at a time, and the outcome is announced
+ * once. The modal closes as soon as every answer is in; the inbox query is
  * re-read after that, and only when a row actually went.
  */
 export function useInboxDeleteFacade({
@@ -47,25 +82,29 @@ export function useInboxDeleteFacade({
     setPending([]);
   }, []);
 
-  const confirm = useCallback(async (): Promise<void> => {
-    const item = pending[0];
-    if (item === undefined || busy) {
-      return;
+  /** Runs the delete over every pending row; answers the rows that went. */
+  const confirm = useCallback(async (): Promise<readonly InboxItem[]> => {
+    if (pending.length === 0 || busy) {
+      return [];
     }
     setBusy(true);
-    const outcome = await deletePull(item.repoId, item.prNumber).catch(
-      (): DeletePullResult => ({ kind: "failed" }),
+    const outcomes = await runWithConcurrency(
+      pending,
+      BULK_CONCURRENCY,
+      deleteRow,
     );
     setBusy(false);
     setPending([]);
 
-    if (outcome.kind !== "deleted") {
-      announce(t(DeleteFailureCopy[outcome.kind]));
-      return;
+    const gone = outcomes
+      .filter((outcome) => outcome.kind === "deleted")
+      .map((outcome) => outcome.item);
+    announce(describeOutcome(t, outcomes, outcomes.length - gone.length));
+    if (gone.length > 0) {
+      onDeleted(gone);
+      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
     }
-    onDeleted();
-    announce(t("home.inbox.actions.deleted"));
-    await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
+    return gone;
   }, [announce, busy, onDeleted, pending, queryClient, t]);
 
   return { pending, busy, requestDelete, cancel, confirm };

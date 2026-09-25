@@ -34,7 +34,7 @@ describe("Checkbox", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
-  it("stays focusable — the input is visually replaced, not hidden", () => {
+  it("stays focusable: the input is visually replaced, not hidden", () => {
     render(
       <Checkbox checked onChange={vi.fn()}>
         Label
@@ -45,13 +45,28 @@ describe("Checkbox", () => {
     expect(document.activeElement).toBe(box);
   });
 
+  it("marks a partial selection indeterminate on the control", () => {
+    render(
+      <Checkbox indeterminate checked={false} onChange={vi.fn()}>
+        Some
+      </Checkbox>,
+    );
+    const input = screen.getByRole("checkbox", { name: "Some" });
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("no input");
+    }
+    expect(input.indeterminate).toBe(true);
+    expect(input.getAttribute("aria-checked")).toBe("mixed");
+  });
+
   it("disables the underlying control, not just its look", () => {
     render(
       <Checkbox checked={false} disabled onChange={vi.fn()}>
         Label
       </Checkbox>,
     );
-    // The native `disabled` attribute IS the guard — a browser blocks the
+    // The native `disabled` attribute IS the guard: a browser blocks the
     // event before React sees it. (jsdom's fireEvent dispatches anyway, so
     // asserting on the handler here would test the test harness.)
     const box = screen.getByRole("checkbox");

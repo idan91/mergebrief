@@ -187,3 +187,40 @@ export function readInboxEmptiness(
   }
   return InboxEmptinesses.EMPTY;
 }
+
+/** One row's identity across the page: repository, number and world. */
+export function readRowKey(item: InboxItem): string {
+  return `${item.repoId}/${item.prNumber}/${item.source}`;
+}
+
+/**
+ * Run `work` over every item with at most `limit` in flight, answering the
+ * outcomes in the items' order. A rejection is the caller's to turn into an
+ * outcome; one here would drop the whole batch.
+ */
+export async function runWithConcurrency<Item, Outcome>(
+  items: readonly Item[],
+  limit: number,
+  work: (item: Item) => Promise<Outcome>,
+): Promise<Outcome[]> {
+  const outcomes: Outcome[] = [];
+  let next = 0;
+
+  async function drain(): Promise<void> {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      const item = items[index];
+      if (item === undefined) {
+        continue;
+      }
+      outcomes[index] = await work(item);
+    }
+  }
+
+  const lanes = Array.from({ length: Math.min(limit, items.length) }, () =>
+    drain(),
+  );
+  await Promise.all(lanes);
+  return outcomes;
+}

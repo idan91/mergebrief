@@ -16,14 +16,19 @@ import {
   type InboxLayout,
 } from "types/inbox";
 
+import { Checkbox } from "@web/components/Checkbox/Checkbox";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { FIRST_LOAD_SETTLE_MS } from "../../consts";
 import type { InboxItem } from "../../types";
-import { splitAtFold } from "../../utils";
+import { readRowKey, splitAtFold } from "../../utils";
 import { DeleteModal } from "./DeleteModal/DeleteModal";
 import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow/InboxRow";
+import { SelectionBar } from "./SelectionBar/SelectionBar";
+import { useInboxArchiveFacade } from "./useInboxArchiveFacade";
 import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
+import { useInboxSelection } from "./useInboxSelection";
 
 export interface InboxListProps {
   items: readonly InboxItem[];
@@ -32,6 +37,8 @@ export interface InboxListProps {
   layout: InboxLayout;
   /** The Inbox, or the viewer's archived rows. */
   archived?: InboxArchivedFilter;
+  /** Names the page the rows answer; a change clears the selection. */
+  pageKey?: string;
   /** The filters and the sort, on the heading's line. */
   controls?: ReactNode;
   /** What stands where the rows would, when there are none to show. */
@@ -52,6 +59,7 @@ export function InboxList({
   sort,
   layout,
   archived = InboxArchivedFilters.HIDE,
+  pageKey = "",
   controls,
   children,
 }: InboxListProps) {
@@ -66,16 +74,31 @@ export function InboxList({
       ? splitAtFold(items)
       : { above: items, below: [] };
   const ordered = [...above, ...below];
-  const cursor = useInboxCursor(ordered.length, (index) => {
-    const item = ordered[index];
-    if (item === undefined) {
-      return;
-    }
-    void navigate({
-      to: "/repos/$repoId/pulls/$prNumber",
-      params: { repoId: item.repoId, prNumber: String(item.prNumber) },
-    });
-  });
+  const selection = useInboxSelection(ordered);
+  const cursor = useInboxCursor(
+    ordered.length,
+    (index) => {
+      const item = ordered[index];
+      if (item === undefined) {
+        return;
+      }
+      void navigate({
+        to: "/repos/$repoId/pulls/$prNumber",
+        params: { repoId: item.repoId, prNumber: String(item.prNumber) },
+      });
+    },
+    (index) => {
+      const item = ordered[index];
+      if (item !== undefined) {
+        selection.toggle(item);
+      }
+    },
+  );
+  const { clear: clearSelection } = selection;
+  // The selection belongs to one page of one search; the URL is outside React.
+  useEffect(() => {
+    clearSelection();
+  }, [pageKey, clearSelection]);
   const now = new Date();
   const showFold = above.length > 0 && below.length > 0;
 
@@ -89,21 +112,60 @@ export function InboxList({
 
   // The row's menu returns focus to its trigger as it leaves; the heading
   // takes it on the next frame, and keeps it once the row is gone.
-  const handleDeleted = useCallback((): void => {
+  const focusHeading = useCallback((): void => {
     window.requestAnimationFrame(() => headingRef.current?.focus());
   }, []);
+  // The ticks come off the rows that went before the re-read lands, so the
+  // bar never offers those rows again while the list still shows them.
+  const { remove: removeSelected } = selection;
+  const handleGone = useCallback(
+    (gone: readonly InboxItem[]): void => {
+      removeSelected(gone);
+      focusHeading();
+    },
+    [focusHeading, removeSelected],
+  );
+  const handleRowGone = useCallback(
+    (item: InboxItem): void => handleGone([item]),
+    [handleGone],
+  );
   const deletion = useInboxDeleteFacade({
     announce: announcer.announce,
-    onDeleted: handleDeleted,
+    onDeleted: handleGone,
+  });
+  const archiving = useInboxArchiveFacade({
+    announce: announcer.announce,
+    onRemoved: handleGone,
   });
   const { requestDelete } = deletion;
   const handleDelete = useCallback(
     (item: InboxItem): void => requestDelete([item]),
     [requestDelete],
   );
+  const deletable = selection.selectedItems.filter(
+    (item) => item.viewerCanDelete,
+  );
+  const busy = deletion.busy || archiving.busy;
   const deleteOpen = deletion.pending.length > 0;
+  const selectedCount = selection.selectedItems.length;
+  const selectionText =
+    selectedCount === 0
+      ? t("home.inbox.select.none")
+      : t("home.inbox.select.count", { count: selectedCount });
+
   function confirmDelete(): void {
     void deletion.confirm();
+  }
+  function archiveSelected(): void {
+    void archiving.archiveMany(selection.selectedItems, archived);
+  }
+  function requestBulkDelete(): void {
+    deletion.requestDelete(deletable);
+  }
+  // Clear unmounts the bar under the focused button; the heading takes it.
+  function handleClear(): void {
+    selection.clear();
+    focusHeading();
   }
 
   return (
@@ -119,12 +181,30 @@ export function InboxList({
         </h2>
         {controls}
       </div>
+      <SelectionBar
+        archived={archived}
+        busy={busy}
+        count={selection.selectedItems.length}
+        deletableCount={deletable.length}
+        onArchive={archiveSelected}
+        onClear={handleClear}
+        onDelete={requestBulkDelete}
+      />
       {children}
       <div
         className={styles["lists"]}
         data-first-load={firstLoad}
         hidden={ordered.length === 0}
       >
+        <div className={styles["pageSelect"]}>
+          <Checkbox
+            checked={selection.allSelected}
+            indeterminate={selection.someSelected}
+            onChange={selection.selectPage}
+          >
+            <ScreenReaderOnly>{t("home.inbox.select.page")}</ScreenReaderOnly>
+          </Checkbox>
+        </div>
         {above.length === 0 ? null : (
           <ol className={styles["list"]}>
             {above.map((item, index) => (
@@ -132,14 +212,16 @@ export function InboxList({
                 cursor={index === cursor}
                 index={index}
                 item={item}
-                key={`${item.repoId}/${item.prNumber}/${item.source}`}
+                key={readRowKey(item)}
                 now={now}
                 rowRef={index === cursor ? cursorRowRef : undefined}
+                selected={selection.isSelected(item)}
                 sort={sort}
                 archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
-                onRemoved={handleDeleted}
+                onRemoved={handleRowGone}
+                onToggleSelect={selection.toggle}
               />
             ))}
           </ol>
@@ -159,16 +241,18 @@ export function InboxList({
                 cursor={above.length + index === cursor}
                 index={above.length + index}
                 item={item}
-                key={`${item.repoId}/${item.prNumber}/${item.source}`}
+                key={readRowKey(item)}
                 now={now}
                 rowRef={
                   above.length + index === cursor ? cursorRowRef : undefined
                 }
+                selected={selection.isSelected(item)}
                 sort={sort}
                 archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
-                onRemoved={handleDeleted}
+                onRemoved={handleRowGone}
+                onToggleSelect={selection.toggle}
               />
             ))}
           </ol>
@@ -188,6 +272,15 @@ export function InboxList({
         role="status"
       >
         {announcer.text}
+      </p>
+      <p
+        aria-atomic="true"
+        aria-live="polite"
+        className="sr-only"
+        data-testid="selection-status"
+        role="status"
+      >
+        {selectionText}
       </p>
     </section>
   );

@@ -7,10 +7,11 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { InboxLayouts, InboxReviewStates, InboxSorts } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderInRouter } from "../../../../test/router";
+import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
 import { InboxList } from "./InboxList";
 
@@ -54,6 +55,20 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
 
 function readRows() {
   return screen.getAllByTestId("inbox-row");
+}
+
+function readRequestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
+function readSelectionStatus(): string | null {
+  return screen.getByTestId("selection-status").textContent;
 }
 
 /** Open the row menu the way a pointer does: the press focuses the trigger first. */
@@ -344,7 +359,7 @@ describe("InboxList", () => {
       expect(document.activeElement).toBe(
         screen.getByRole("heading", { level: 2, name: "Briefs" }),
       );
-      expect(screen.getByRole("status").textContent).toBe("Deleted");
+      expect(screen.getByText("Deleted")).toBeTruthy();
     });
   });
 
@@ -369,6 +384,239 @@ describe("InboxList", () => {
       expect(document.activeElement).toBe(trigger);
     });
     expect(readRows()).toHaveLength(1);
+  });
+
+  it("every row carries a checkbox named after it, outside the row link", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const box = screen.getByRole("checkbox", { name: "Select Alpha" });
+    expect(box.closest("a")).toBeNull();
+    expect(readSelectionStatus()).toBe("Nothing selected");
+    const status = screen.getByTestId("selection-status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    await act(async () => {
+      fireEvent.click(box);
+    });
+    expect(readRows()[0]?.getAttribute("data-selected")).toBe("true");
+    expect(readSelectionStatus()).toBe("1 selected");
+    expect(
+      within(screen.getByTestId("selection-bar")).getByText("1 selected"),
+    ).toBeTruthy();
+  });
+
+  it("x toggles the cursor row and the page checkbox selects them all", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "j" });
+    });
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "x" });
+    });
+    expect(readSelectionStatus()).toBe("1 selected");
+    const page = screen.getByRole("checkbox", {
+      name: "Select all on this page",
+    });
+    expect(page.getAttribute("aria-checked")).toBe("mixed");
+
+    await act(async () => {
+      fireEvent.click(page);
+    });
+    expect(readSelectionStatus()).toBe("2 selected");
+    expect(readRows().map((row) => row.getAttribute("data-selected"))).toEqual([
+      "true",
+      "true",
+    ]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    });
+    expect(readSelectionStatus()).toBe("Nothing selected");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { level: 2, name: "Briefs" }),
+      );
+    });
+  });
+
+  it("a new page key clears the selection; a same-key re-read keeps it", async () => {
+    const items = [makeItem({ prNumber: 1, title: "Alpha" })];
+    const { update } = await renderStageInRouter(
+      <InboxList
+        items={items}
+        pageKey="a"
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    expect(readSelectionStatus()).toBe("1 selected");
+
+    update(
+      <InboxList
+        items={items.map((item) => ({ ...item }))}
+        pageKey="a"
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    expect(readSelectionStatus()).toBe("1 selected");
+
+    update(
+      <InboxList
+        items={items}
+        pageKey="b"
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    await waitFor(() => {
+      expect(readSelectionStatus()).toBe("Nothing selected");
+    });
+  });
+
+  it("the ticks on the rows that went come off before the re-read lands", async () => {
+    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    vi.spyOn(queryClient, "invalidateQueries").mockReturnValue(
+      new Promise(() => {}),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha", viewerCanDelete: true }),
+          makeItem({ prNumber: 2, title: "Beta", viewerCanDelete: true }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+      queryClient,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2" }));
+    });
+    const dialog = screen.getByRole("dialog");
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    });
+
+    await waitFor(() => {
+      expect(readSelectionStatus()).toBe("Nothing selected");
+    });
+    expect(screen.queryByRole("button", { name: "Delete 2" })).toBeNull();
+    expect(readRows().map((row) => row.getAttribute("data-selected"))).toEqual([
+      "false",
+      "false",
+    ]);
+  });
+
+  it("a row archived from its menu loses its tick before the re-read lands", async () => {
+    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    vi.spyOn(queryClient, "invalidateQueries").mockReturnValue(
+      new Promise(() => {}),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+      queryClient,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "More actions" })[0]!,
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    });
+
+    await waitFor(() => {
+      expect(readSelectionStatus()).toBe("1 selected");
+    });
+    expect(readRows().map((row) => row.getAttribute("data-selected"))).toEqual([
+      "false",
+      "true",
+    ]);
+  });
+
+  it("a bulk delete unticks only the rows that went", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = readRequestUrl(input);
+      const status = url.endsWith("/pulls/2") ? 500 : 200;
+      return new Response(status === 200 ? '{"ok":true}' : "{}", { status });
+    });
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha", viewerCanDelete: true }),
+          makeItem({ prNumber: 2, title: "Beta", viewerCanDelete: true }),
+          makeItem({ prNumber: 3, title: "Gamma" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Select all on this page" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2" }));
+    });
+    const dialog = screen.getByRole("dialog");
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    });
+
+    await waitFor(() => {
+      expect(readSelectionStatus()).toBe("2 selected");
+    });
+    expect(readRows().map((row) => row.getAttribute("data-selected"))).toEqual([
+      "false",
+      "true",
+      "true",
+    ]);
   });
 
   it("keys inside an open menu never move the cursor", async () => {

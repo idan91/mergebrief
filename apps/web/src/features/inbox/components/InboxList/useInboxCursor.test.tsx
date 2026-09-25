@@ -15,11 +15,13 @@ afterEach(cleanup);
 function Harness({
   count,
   onOpen,
+  onToggleSelect,
 }: {
   count: number;
   onOpen: (i: number) => void;
+  onToggleSelect?: (i: number) => void;
 }) {
-  const cursor = useInboxCursor(count, onOpen);
+  const cursor = useInboxCursor(count, onOpen, onToggleSelect);
   return <output>{String(cursor)}</output>;
 }
 
@@ -72,6 +74,21 @@ describe("useInboxCursor", () => {
     fireEvent.keyDown(window, { key: "j" });
     fireEvent.keyDown(window, { key: "Enter" });
     expect(onOpen).toHaveBeenCalledWith(1);
+  });
+
+  it("x toggles the row under the cursor and nothing without one", () => {
+    const onToggleSelect = vi.fn();
+    render(
+      <Harness count={2} onOpen={vi.fn()} onToggleSelect={onToggleSelect} />,
+    );
+
+    fireEvent.keyDown(window, { key: "x" });
+    expect(onToggleSelect).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "x" });
+    expect(onToggleSelect).toHaveBeenCalledWith(1);
   });
 
   it("ignores keys typed in a field or with a modifier", () => {

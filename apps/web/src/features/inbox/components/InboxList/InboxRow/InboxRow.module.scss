@@ -10,7 +10,7 @@
 
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     column-gap: var(--space-4);
     align-items: center;
     min-block-size: functions.to-rem(56px);
@@ -44,6 +44,16 @@
       box-shadow: var(--row-cursor-ring);
     }
 
+    &[data-selected="true"] {
+      --row-bg: color-mix(
+        in srgb,
+        var(--color-accent) 6%,
+        var(--color-surface-1)
+      );
+
+      background: var(--row-bg);
+    }
+
     &[data-needs-you="true"] .title {
       color: var(--color-text-1);
     }
@@ -51,6 +61,20 @@
     &[data-unreachable="true"] .titleText,
     &[data-unreachable="true"] .sub {
       color: var(--color-text-3);
+    }
+  }
+
+  /* Above the link's overlay; the label is the target, 24px around the 14px box. */
+  .start {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+
+    > label {
+      justify-content: center;
+      min-inline-size: functions.to-rem(24px);
+      min-block-size: functions.to-rem(24px);
     }
   }
 

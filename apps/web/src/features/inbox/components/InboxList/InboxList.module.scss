@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .inbox {
     display: grid;
@@ -26,6 +28,14 @@
     &[hidden] {
       display: none;
     }
+  }
+
+  /* Sits over the first row's checkbox column: the same inset as a row. */
+  .pageSelect {
+    display: flex;
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
+    padding-inline: var(--space-5);
   }
 
   .list {

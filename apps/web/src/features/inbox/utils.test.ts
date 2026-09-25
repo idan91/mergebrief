@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInboxSearch,
   formatAge,
+  runWithConcurrency,
   needsReviewer,
   pickAgeAt,
   splitAtFold,
@@ -235,5 +236,48 @@ describe("readInboxEmptiness", () => {
     expect(
       readInboxEmptiness({ total: 0, repositories, archivedTotal: 2 }, 2, ONLY),
     ).toBe(InboxEmptinesses.FILTERED);
+  });
+});
+
+describe("runWithConcurrency", () => {
+  it("keeps at most the limit in flight and answers in order", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const releases: (() => void)[] = [];
+    const outcomes = runWithConcurrency([1, 2, 3, 4, 5, 6], 4, (item) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      return new Promise<string>((resolve) => {
+        releases.push(() => {
+          inFlight -= 1;
+          resolve(`done ${String(item)}`);
+        });
+      });
+    });
+
+    await Promise.resolve();
+    expect(releases).toHaveLength(4);
+    releases[1]?.();
+    releases[0]?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(releases).toHaveLength(6);
+    for (const release of releases.slice(2)) {
+      release();
+    }
+
+    expect(await outcomes).toEqual([
+      "done 1",
+      "done 2",
+      "done 3",
+      "done 4",
+      "done 5",
+      "done 6",
+    ]);
+    expect(peak).toBe(4);
+  });
+
+  it("answers an empty list at once", async () => {
+    expect(await runWithConcurrency([], 4, async () => "x")).toEqual([]);
   });
 });

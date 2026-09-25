@@ -6,3 +6,6 @@ export const ROW_POLL_MS = 4_000;
 
 /** The last staggered row has landed by now; the arming attribute leaves after it. */
 export const FIRST_LOAD_SETTLE_MS = 720;
+
+/** Requests a bulk action keeps in flight at once. */
+export const BULK_CONCURRENCY = 4;

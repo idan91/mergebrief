@@ -34,14 +34,17 @@ function readNextCursor(current: number, step: number, last: number): number {
  * never animates. It returns -1 while no key has placed it, and a shorter
  * list pulls it back onto its last row. A key that would not move the
  * cursor is left to the page, so the arrows still scroll past either end.
+ * x ticks or unticks the row under the cursor.
  */
 export function useInboxCursor(
   count: number,
   onOpen: (index: number) => void,
+  onToggleSelect?: (index: number) => void,
 ): number {
   const [cursor, setCursor] = useState(NO_CURSOR);
   const last = count - 1;
   const latestOpen = useLatestRef(onOpen);
+  const latestToggle = useLatestRef(onToggleSelect);
   const latestCursor = useLatestRef(cursor);
 
   useEffect(() => {
@@ -71,6 +74,11 @@ export function useInboxCursor(
         return;
       }
 
+      if (event.key === "x" && current !== NO_CURSOR) {
+        event.preventDefault();
+        latestToggle.current?.(current);
+        return;
+      }
       if (event.key !== "Enter" || current === NO_CURSOR) {
         return;
       }
@@ -86,7 +94,7 @@ export function useInboxCursor(
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [last, latestCursor, latestOpen]);
+  }, [last, latestCursor, latestOpen, latestToggle]);
 
   return cursor;
 }

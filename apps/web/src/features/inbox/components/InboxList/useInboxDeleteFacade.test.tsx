@@ -39,6 +39,16 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   };
 }
 
+function readRequestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
 function answerWith(status: number, body: unknown): void {
   fetchMock.mockResolvedValue(
     new Response(JSON.stringify(body), {
@@ -129,13 +139,42 @@ describe("useInboxDeleteFacade", () => {
     expect(result.current.pending).toEqual([]);
   });
 
+  it("a multi-row confirm fans out, tallies and answers the rows that went", async () => {
+    const rows = [
+      makeItem({ prNumber: 1 }),
+      makeItem({ prNumber: 2 }),
+      makeItem({ prNumber: 3 }),
+      makeItem({ prNumber: 4 }),
+    ];
+    fetchMock.mockImplementation(async (input) => {
+      const url = readRequestUrl(input);
+      const status = url.endsWith("/pulls/3") ? 500 : 200;
+      return new Response(JSON.stringify(status === 200 ? { ok: true } : {}), {
+        status,
+      });
+    });
+    const { result, announce, onDeleted, invalidate } = renderFacade();
+    act(() => result.current.requestDelete(rows));
+
+    let gone: readonly InboxItem[] = [];
+    await act(async () => {
+      gone = await result.current.confirm();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(announce).toHaveBeenCalledWith("Deleted 3 of 4; 1 failed");
+    expect(onDeleted).toHaveBeenCalledWith([rows[0], rows[1], rows[3]]);
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(gone.map((row) => row.prNumber)).toEqual([1, 2, 4]);
+  });
+
   it("closes the modal before the re-read lands", async () => {
     answerWith(200, { ok: true });
     const { result, invalidate, onDeleted } = renderFacade();
     invalidate.mockReturnValue(new Promise(() => {}));
     act(() => result.current.requestDelete([makeItem()]));
 
-    let confirmed: Promise<void> = Promise.resolve();
+    let confirmed: Promise<readonly InboxItem[]> = Promise.resolve([]);
     await act(async () => {
       confirmed = result.current.confirm();
       await Promise.resolve();
@@ -160,7 +199,7 @@ describe("useInboxDeleteFacade", () => {
     const { result } = renderFacade();
     act(() => result.current.requestDelete([makeItem()]));
 
-    let confirmed: Promise<void> = Promise.resolve();
+    let confirmed: Promise<readonly InboxItem[]> = Promise.resolve([]);
     act(() => {
       confirmed = result.current.confirm();
     });
