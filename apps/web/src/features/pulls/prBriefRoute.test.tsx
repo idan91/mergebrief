@@ -832,6 +832,30 @@ describe("DB brief route, rev param", () => {
     expect(readSearch(router)).toEqual({ rev: 2 });
   });
 
+  it("a line pick writes one hash and keeps the rev", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
+    );
+    const cell = await waitFor(() => {
+      const found = document.querySelector(
+        'td[data-select-anchor][data-line-new="10"]',
+      );
+      if (!(found instanceof HTMLElement)) throw new Error("no number cell");
+      return found;
+    });
+    const row = cell.closest("tr");
+    if (row === null) throw new Error("expected a row");
+    fireEvent.mouseDown(cell);
+    fireEvent.mouseUp(row);
+
+    await waitFor(() =>
+      expect(router.state.location.hash).toBe("src/leak.ts:R10"),
+    );
+    expect(readSearch(router)).toEqual({ rev: 2 });
+    expect(router.history.location.href).toContain("?rev=2#src/leak.ts:R10");
+  });
+
   it("rewrites a legacy span link to its rev and keeps the hash", async () => {
     const router = await renderRoute(
       meta({ revisions }),

@@ -12,6 +12,7 @@ import type {
   RevisionNarrativeSkipReason,
 } from "../../../types";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
+import type { ValueOf } from "types/utils";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
 import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
@@ -72,3 +73,10 @@ export interface DragSelection {
   /** The side a same-side drag stays on; absent spans both. */
   placement: SplitSide | undefined;
 }
+
+/** What a drag ends in: a composer from the sign, a selection from the numbers. */
+export const DragModes = {
+  COMMENT: "comment",
+  SELECT: "select",
+} as const;
+export type DragMode = ValueOf<typeof DragModes>;

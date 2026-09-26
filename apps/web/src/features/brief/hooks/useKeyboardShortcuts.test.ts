@@ -23,6 +23,7 @@ const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   disabled: false,
   sheetOpen: false,
   focusModeActive: false,
+  lineSelected: false,
   ...over,
 });
 
@@ -144,6 +145,18 @@ describe("resolveShortcut", () => {
     ).toBeNull();
   });
 
+  it("Escape clears a line selection before it leaves focus mode", () => {
+    expect(
+      resolveShortcut(
+        key("Escape"),
+        state({ focusModeActive: true, lineSelected: true }),
+      ),
+    ).toEqual({ type: "clearLineSelection" });
+    expect(
+      resolveShortcut(key("Escape"), state({ lineSelected: true })),
+    ).toEqual({ type: "clearLineSelection" });
+  });
+
   it("Escape does nothing when focus mode is not active", () => {
     expect(resolveShortcut(key("Escape"), state())).toBeNull();
   });
@@ -244,6 +257,7 @@ describe("conversation shortcut", () => {
     disabled: false,
     sheetOpen: false,
     focusModeActive: false,
+    lineSelected: false,
   };
 
   it("maps C to jump-to-conversation", () => {

@@ -59,6 +59,8 @@ export interface PrBriefContentProps {
   ) => void;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
+  /** Writes or clears the URL hash with replace; route-owned. */
+  navigateHash?: ((hash: string) => void) | undefined;
   readOnly?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
@@ -83,6 +85,7 @@ export function PrBriefContent({
   searchParams,
   onNavigateSearch,
   clearDiffParam,
+  navigateHash,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -290,6 +293,7 @@ export function PrBriefContent({
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
         clearDiffParam={clearDiffParam}
+        navigateHash={navigateHash}
         ownDraft={ownDraft}
         readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}

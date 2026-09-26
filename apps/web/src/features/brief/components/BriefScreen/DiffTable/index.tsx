@@ -4,7 +4,11 @@ import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import { ComparisonCallout } from "./ComparisonCallout";
-import { COMMENT_ANCHOR_ATTRIBUTES, NO_HIDDEN_THREADS } from "./consts";
+import {
+  COMMENT_ANCHOR_ATTRIBUTES,
+  NO_HIDDEN_THREADS,
+  SELECT_ANCHOR_ATTRIBUTES,
+} from "./consts";
 import { DiffTableHead } from "./DiffTableHead";
 import styles from "./DiffTable.module.scss";
 import { ExpandControl } from "./ExpandControl";
@@ -238,6 +242,7 @@ export function DiffTable(props: DiffTableProps) {
             emphasisByRow={model.emphasisByRow}
             tokensPending={tokensPending}
             anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
+            lineNumberAttributes={SELECT_ANCHOR_ATTRIBUTES}
             codeTrailer={buildCodeTrailer}
             gutterCell={buildGutterCell}
             rowAttributes={table.buildRowAttributes}

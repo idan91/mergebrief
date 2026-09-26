@@ -2,6 +2,7 @@ import { type RefObject, useEffect, useState } from "react";
 
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { DragMode } from "./types";
 
 export interface DragSelectionInput {
   /** The row model a drag belongs to; a change under it ends the drag. */
@@ -27,12 +28,14 @@ export function useDragSelection({
   const [dragCurrentSide, setDragCurrentSide] = useState<SplitSide | undefined>(
     undefined,
   );
+  const [dragMode, setDragMode] = useState<DragMode | undefined>(undefined);
 
   const clearDrag = () => {
     setDragStart(null);
     setDragCurrent(null);
     setDragSide(undefined);
     setDragCurrentSide(undefined);
+    setDragMode(undefined);
   };
 
   // The row model a drag was resolved against can change under it: the view
@@ -44,6 +47,7 @@ export function useDragSelection({
     setDragCurrent(null);
     setDragSide(undefined);
     setDragCurrentSide(undefined);
+    setDragMode(undefined);
     tableRef.current?.removeAttribute("data-selecting");
   }, [chunkDiff, resolvedView, tableRef]);
 
@@ -56,6 +60,7 @@ export function useDragSelection({
       setDragCurrent(null);
       setDragSide(undefined);
       setDragCurrentSide(undefined);
+      setDragMode(undefined);
     };
     window.addEventListener("mouseup", reset);
     return () => window.removeEventListener("mouseup", reset);
@@ -67,11 +72,16 @@ export function useDragSelection({
     return () => window.removeEventListener("mouseup", release);
   }, [tableRef]);
 
-  const beginDrag = (index: number, side: SplitSide | undefined) => {
+  const beginDrag = (
+    index: number,
+    side: SplitSide | undefined,
+    mode: DragMode,
+  ) => {
     setDragStart(index);
     setDragCurrent(index);
     setDragSide(side);
     setDragCurrentSide(side);
+    setDragMode(mode);
   };
   const moveDrag = (index: number, side: SplitSide | undefined) => {
     setDragCurrent(index);
@@ -86,6 +96,7 @@ export function useDragSelection({
     dragCurrent,
     dragSide,
     dragCurrentSide,
+    dragMode,
     beginDrag,
     moveDrag,
     clearDrag,

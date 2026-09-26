@@ -68,6 +68,39 @@ describe("SplitRows", () => {
     ).toBe("added");
   });
 
+  it("marks each side's number cell with its own line", () => {
+    const view = renderSplit({
+      lineNumberAttributes: { "data-select-anchor": "" },
+      anchorAttributes: { "data-comment-anchor": "" },
+    });
+
+    expect(
+      [
+        ...view.container.querySelectorAll(
+          'td[data-side="left"][data-line-old]',
+        ),
+      ].map((cell) => cell.getAttribute("data-line-old")),
+    ).toEqual(["1", "2"]);
+    expect(
+      [
+        ...view.container.querySelectorAll(
+          'td[data-side="right"][data-line-new]',
+        ),
+      ].map((cell) => cell.getAttribute("data-line-new")),
+    ).toEqual(["1", "2", "3"]);
+    expect(
+      view.container.querySelectorAll(
+        "td[data-select-anchor][data-line-number]",
+      ),
+    ).toHaveLength(5);
+    expect(
+      view.container.querySelectorAll("td[data-comment-anchor]"),
+    ).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll("span[data-comment-anchor]"),
+    ).toHaveLength(5);
+  });
+
   it("asks the attribute slot once per side and marks that side only", () => {
     const seen: string[] = [];
     const view = renderSplit({

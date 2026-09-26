@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useId, useMemo, useRef } from "react";
 
+import type { LineSelection } from "@web/features/review/utils";
+
 import { DiffViews } from "@web/components/DiffRows/types";
 import { isFullWidthDiffRow } from "@web/components/DiffRows/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
@@ -27,9 +29,11 @@ import {
   collectAnchoredIndexes,
   collectDragBaseIndexes,
   collectThreadLines,
+  fillUnifiedSpan,
   groupEdgesByRow,
   placementForAnchor,
   resolveDragSelection,
+  resolvePlacement,
 } from "./utils";
 
 /**
@@ -98,7 +102,34 @@ export function useDiffTableFacade({
     t,
   });
   const rail = useRailHover();
-  const { activeCommentAnchor } = review;
+  const { activeCommentAnchor, lineSelection } = review;
+  const unified = model.resolvedView === DiffViews.UNIFIED;
+  const selectionIndexes = useMemo(() => {
+    if (lineSelection === null) {
+      return EMPTY_EXPANDED_THREADS;
+    }
+    const anchored = collectAnchoredIndexes(rows, lineSelection);
+    return new Set(unified ? fillUnifiedSpan(rows, anchored) : anchored);
+  }, [lineSelection, rows, unified]);
+  const selectionPlacement =
+    lineSelection === null
+      ? undefined
+      : resolvePlacement(lineSelection.side, lineSelection.startSide);
+  const selectLines = (selection: LineSelection) => {
+    review.selectLines(selection);
+    review.announce(
+      selection.startLine === selection.endLine
+        ? t("review.announce.lineSelected", { line: selection.startLine })
+        : t("review.announce.linesSelected", {
+            start: selection.startLine,
+            end: selection.endLine,
+          }),
+    );
+  };
+  const clearLineSelection = () => {
+    review.clearLineSelection();
+    review.announce(t("review.announce.lineSelectionCleared"));
+  };
   const activeSpanIndexes = useMemo(() => {
     if (
       activeCommentAnchor === null ||
@@ -184,7 +215,13 @@ export function useDiffTableFacade({
     activeRowIds,
     activeSpanIndexes,
     activePlacement,
+    composerOpen: activeCommentAnchor !== null,
     openComposer: review.openComposer,
+    selectionIndexes,
+    selectionPlacement,
+    reanchorArmed: review.reanchorArmed,
+    selectLines,
+    clearLineSelection,
   });
   const handleToggleConversationThread = (threadId: number) =>
     review.toggleConversationThread(chunkKey, threadId);

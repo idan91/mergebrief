@@ -2,10 +2,13 @@
 // so they are unit-testable directly, without rendering.
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
-import type { ValueOf } from "types/utils";
-import type {
-  RiskEvidence,
-  RiskEvidenceKind,
+import type { Result, ValueOf } from "types/utils";
+import {
+  type CommentSide,
+  CommentSides,
+  type LineHashTarget,
+  type RiskEvidence,
+  type RiskEvidenceKind,
 } from "@web/features/review/utils";
 import {
   ViewportBands,
@@ -29,6 +32,7 @@ import type {
   RevisionNarrativeSkipReason,
 } from "../../types";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
+import { type LineHashError, LineHashErrors } from "./types";
 
 /** Typed placeholder for a plan slot that is absent, always `enabled: false`. */
 export function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
@@ -365,6 +369,85 @@ export function resolveChunkIdFromHash(hash: string): string | undefined {
   const chunkId = hash.slice(CHUNK_HASH_PREFIX.length);
 
   return CHUNK_ID_PATTERN.test(chunkId) ? chunkId : undefined;
+}
+
+const LINE_SIDE_LETTERS: Record<CommentSide, string> = {
+  [CommentSides.OLD]: "L",
+  [CommentSides.NEW]: "R",
+};
+const SIDE_BY_LETTER: Record<string, CommentSide> = {
+  L: CommentSides.OLD,
+  R: CommentSides.NEW,
+};
+const LINE_PART_PATTERN = /^([LR])(\d+)(?:-([LR])(\d+))?$/;
+/** The path characters a hash cannot carry as they are. */
+const PATH_ESCAPE_PATTERN = /[%#?\s]/g;
+
+function encodeHashPath(file: string): string {
+  return file.replace(PATH_ESCAPE_PATTERN, (char) => encodeURIComponent(char));
+}
+
+/** `#<path>:<S><n>` or `#<path>:<S><a>-<S><b>`, `S` being `L` (old) or `R` (new). */
+export function deriveLineHash(target: LineHashTarget): string {
+  const endLetter = LINE_SIDE_LETTERS[target.side];
+  const startLetter = LINE_SIDE_LETTERS[target.startSide ?? target.side];
+  const start = `${startLetter}${String(target.startLine)}`;
+  const end = `${endLetter}${String(target.endLine)}`;
+  const single =
+    target.startSide === undefined && target.startLine === target.endLine;
+  const lines = single ? start : `${start}-${end}`;
+
+  return `#${encodeHashPath(target.file)}:${lines}`;
+}
+
+function parseLinePart(part: string): Omit<LineHashTarget, "file"> | undefined {
+  const match = LINE_PART_PATTERN.exec(part);
+  if (match === null) return undefined;
+  const [, startLetter = "", startDigits = "", endLetter, endDigits] = match;
+  const startSide = SIDE_BY_LETTER[startLetter];
+  const startLine = Number(startDigits);
+  if (startSide === undefined || startLine < 1) return undefined;
+  if (endLetter === undefined || endDigits === undefined) {
+    return { side: startSide, startLine, endLine: startLine };
+  }
+  const side = SIDE_BY_LETTER[endLetter];
+  const endLine = Number(endDigits);
+  if (side === undefined || endLine < 1) return undefined;
+  if (side === startSide) {
+    return endLine < startLine ? undefined : { side, startLine, endLine };
+  }
+
+  return { side, startSide, startLine, endLine };
+}
+
+/** The fragment the router takes: the address bar's hash without its mark. */
+export function stripHashMark(hash: string): string {
+  return hash.startsWith("#") ? hash.slice(1) : hash;
+}
+
+/** The line shape only; a chunk hash is the chunk parser's. */
+export function parseLineHash(
+  hash: string,
+): Result<LineHashTarget, LineHashError> {
+  if (!hash.startsWith("#") || resolveChunkIdFromHash(hash) !== undefined) {
+    return { ok: false, error: LineHashErrors.NOT_LINE_HASH };
+  }
+  const body = hash.slice(1);
+  const split = body.lastIndexOf(":");
+  if (split === -1) return { ok: false, error: LineHashErrors.NOT_LINE_HASH };
+  const lines = parseLinePart(body.slice(split + 1));
+  const encodedFile = body.slice(0, split);
+  if (lines === undefined || encodedFile.length === 0) {
+    return { ok: false, error: LineHashErrors.MALFORMED };
+  }
+  try {
+    return {
+      ok: true,
+      value: { file: decodeURIComponent(encodedFile), ...lines },
+    };
+  } catch {
+    return { ok: false, error: LineHashErrors.MALFORMED };
+  }
 }
 
 /** What the reading column reserves for the Sidebar. */

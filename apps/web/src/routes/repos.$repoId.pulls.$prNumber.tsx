@@ -24,7 +24,7 @@ import {
   shouldPollMeta,
   type Span,
 } from "@web/features/pulls/utils";
-import type { ScopeExitOptions } from "@web/features/brief";
+import { type ScopeExitOptions, stripHashMark } from "@web/features/brief";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   buildDbBriefQueryOptions,
@@ -518,6 +518,20 @@ function PrBriefRoute() {
     });
   }, [navigate]);
 
+  // The line selection's address. Replace, and no scroll reset: the rows
+  // the reader is looking at are the ones the hash names.
+  const navigateHash = useCallback(
+    (hash: string) => {
+      void navigate({
+        hash: stripHashMark(hash),
+        search: true,
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+
   // Identity is stabilized on the raw param STRINGS: the parsed filter holds
   // fresh Sets every render, and it rides into the memo boundaries that keep
   // inline threads off the render path.
@@ -561,6 +575,7 @@ function PrBriefRoute() {
       meta={meta}
       onNavigateSearch={onNavigateSearch}
       clearDiffParam={clearDiffParam}
+      navigateHash={navigateHash}
       conversationFilter={conversationFilter}
       onConversationFilterChange={onConversationFilterChange}
       conversationFocusThreadId={search.thread}

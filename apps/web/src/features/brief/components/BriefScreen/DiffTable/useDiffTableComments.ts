@@ -47,6 +47,8 @@ export function useDiffTableComments({
     toggleConversationThread,
     updateComment,
     announce,
+    selectLines,
+    clearLineSelection,
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
   const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
@@ -85,6 +87,14 @@ export function useDiffTableComments({
     return state.composerHost === chunk.id ? anchor : null;
   });
   const activeCommentAnchor = readOnly ? null : anchorForChunk;
+  // Chunk-scoped: a selection elsewhere never re-renders this table.
+  const lineSelection = useReviewFlow((state) =>
+    state.lineSelection?.chunkId === chunk.id ? state.lineSelection : null,
+  );
+  // While a draft waits for its new lines, every row pick places it.
+  const reanchorArmed = useReviewFlow(
+    (state) => state.reanchorDraftId !== null,
+  );
   /**
    * Why comment composition is disabled. When set, commentable rows stay
    * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
@@ -125,6 +135,10 @@ export function useDiffTableComments({
     toggleConversationThread,
     updateComment,
     announce,
+    selectLines,
+    clearLineSelection,
+    lineSelection,
+    reanchorArmed,
     comments,
     spanComments,
     composerSaving,

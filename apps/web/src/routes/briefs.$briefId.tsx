@@ -11,6 +11,7 @@ import {
   BriefError,
   BriefPage,
   type ScopeExitOptions,
+  stripHashMark,
 } from "@web/features/brief";
 import {
   buildBriefSearchParams,
@@ -129,6 +130,19 @@ function BriefRoute() {
       replace: true,
     });
   }, [navigate]);
+  // The line selection's address. Replace, and no scroll reset: the rows
+  // the reader is looking at are the ones the hash names.
+  const navigateHash = useCallback(
+    (hash: string) => {
+      void navigate({
+        hash: stripHashMark(hash),
+        search: true,
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
   return (
     <BriefPage
       artifacts={artifacts}
@@ -136,6 +150,7 @@ function BriefRoute() {
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
       clearDiffParam={clearDiffParam}
+      navigateHash={navigateHash}
       revisionPending={revisionPending}
     />
   );

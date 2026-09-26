@@ -48,6 +48,8 @@ export interface BriefViewProps {
   exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
+  /** Writes or clears the URL hash with replace; route-owned. */
+  navigateHash?: ((hash: string) => void) | undefined;
   conversationFocusThreadId?: number | undefined;
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
@@ -81,6 +83,7 @@ export function BriefView({
   openDeltaLens,
   exitChangesScope,
   clearDiffParam,
+  navigateHash,
   ownDraft,
   readOnly,
   repoConfig,
@@ -120,6 +123,7 @@ export function BriefView({
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
         clearDiffParam={clearDiffParam}
+        navigateHash={navigateHash}
         ownDraft={ownDraft}
         readOnly={readOnly}
         reviewSession={session}

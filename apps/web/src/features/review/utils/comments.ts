@@ -31,6 +31,25 @@ export interface LineCommentAnchor extends CommentAnchorBase {
   selectedText: string;
 }
 
+/**
+ * The lines a reader picked, the shape of a line anchor without a comment's
+ * own fields. `chunkId` is the table that shows it; a selection never spans
+ * chunks. `rowIds` follow the anchor's convention for the rows it covers.
+ */
+export interface LineSelection {
+  chunkId: string;
+  file: string;
+  side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
+  startLine: number;
+  endLine: number;
+  rowIds: string[];
+}
+
+/** What a line hash names: a selection without a table to show it in. */
+export type LineHashTarget = Omit<LineSelection, "chunkId" | "rowIds">;
+
 export interface FileCommentAnchor extends CommentAnchorBase {
   kind: typeof CommentAnchorKinds.FILE;
 }

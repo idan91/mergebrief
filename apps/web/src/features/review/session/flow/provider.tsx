@@ -52,6 +52,7 @@ export function useCreateReviewFlowStore(
       composerHost: null,
       dismissTarget: null,
       evidenceTarget: null,
+      lineSelection: null,
       expandedConversations: new Map(),
       expandedEdges: new Map(),
       fileEnds: new Map(),

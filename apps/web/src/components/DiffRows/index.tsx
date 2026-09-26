@@ -23,6 +23,7 @@ export function DiffRows({
   underRow,
   rowAttributes,
   anchorAttributes = NO_ANCHOR_ATTRIBUTES,
+  lineNumberAttributes = NO_ANCHOR_ATTRIBUTES,
   lineNumbers = true,
   fullRow,
   beforeRow,
@@ -36,6 +37,7 @@ export function DiffRows({
     return (
       <SplitRows
         anchorAttributes={anchorAttributes}
+        lineNumberAttributes={lineNumberAttributes}
         codeTrailer={codeTrailer}
         gutterCell={gutterCell}
         pairs={pairs}
@@ -94,16 +96,18 @@ export function DiffRows({
               {lineNumbers ? (
                 <>
                   <td
-                    {...anchorAttributes}
+                    {...lineNumberAttributes}
                     className={styles["lineNumber"]}
                     data-line-number=""
+                    data-line-old={row.oldLine}
                   >
                     {row.oldLine ?? ""}
                   </td>
                   <td
-                    {...anchorAttributes}
+                    {...lineNumberAttributes}
                     className={styles["lineNumber"]}
                     data-line-number=""
+                    data-line-new={row.newLine}
                   >
                     {row.newLine ?? ""}
                   </td>

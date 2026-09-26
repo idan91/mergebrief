@@ -94,6 +94,8 @@ export interface PrBriefBodyProps {
   ) => void;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
+  /** Writes or clears the URL hash with replace; route-owned. */
+  navigateHash?: ((hash: string) => void) | undefined;
   /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
   /**
@@ -125,6 +127,7 @@ function PrBriefBodyState({
   searchParams,
   onNavigateSearch,
   clearDiffParam,
+  navigateHash,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -148,6 +151,7 @@ function PrBriefBodyState({
           meta={meta}
           onNavigateSearch={onNavigateSearch}
           clearDiffParam={clearDiffParam}
+          navigateHash={navigateHash}
           onSelectRevision={onSelectRevision}
           prNumber={prNumber}
           readOnly={readOnly}

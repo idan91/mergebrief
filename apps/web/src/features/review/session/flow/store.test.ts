@@ -216,6 +216,45 @@ describe("ReviewFlow store", () => {
     });
   });
 
+  describe("line selection", () => {
+    const picked = {
+      chunkId: "chunk-a",
+      file: "src/a.ts",
+      side: CommentSides.NEW,
+      startLine: 12,
+      endLine: 20,
+      rowIds: ["chunk-a:3", "chunk-a:4"],
+    };
+
+    it("starts empty and holds the lines a reader picks", () => {
+      expect(store.getState().lineSelection).toBeNull();
+      store.getState().actions.selectLines(picked);
+      expect(store.getState().lineSelection).toEqual(picked);
+    });
+
+    it("a pick in another chunk replaces the selection whole", () => {
+      const { actions } = store.getState();
+      actions.selectLines(picked);
+      const elsewhere = {
+        ...picked,
+        chunkId: "chunk-b",
+        rowIds: ["chunk-b:0"],
+      };
+      actions.selectLines(elsewhere);
+      expect(store.getState().lineSelection).toEqual(elsewhere);
+    });
+
+    it("clears on request and survives the composer closing", () => {
+      const { actions } = store.getState();
+      actions.selectLines(picked);
+      actions.openComposer(anchor);
+      actions.cancelComposer();
+      expect(store.getState().lineSelection).toEqual(picked);
+      actions.clearLineSelection();
+      expect(store.getState().lineSelection).toBeNull();
+    });
+  });
+
   describe("risk selection", () => {
     it("toggles a single flag in and out", () => {
       const { actions } = store.getState();

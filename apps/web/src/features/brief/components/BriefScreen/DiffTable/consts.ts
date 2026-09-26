@@ -14,8 +14,12 @@ export const EMPTY_GAP = "\u200B";
 
 export const NO_DIFF: DiffLine[] = [];
 
-/** Marks the cells range anchoring may start from, read by the row handlers. */
+/** Marks the sign a comment range may start from, read by the row handlers. */
 export const COMMENT_ANCHOR_ATTRIBUTES = { "data-comment-anchor": "" };
+export const COMMENT_ANCHOR_SELECTOR = "[data-comment-anchor]";
+/** Marks the number cells a line selection starts from. */
+export const SELECT_ANCHOR_ATTRIBUTES = { "data-select-anchor": "" };
+export const SELECT_ANCHOR_SELECTOR = "[data-select-anchor]";
 
 export const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
 

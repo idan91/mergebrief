@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import type { ValueOf } from "types/utils";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
@@ -76,6 +77,20 @@ export interface BriefScreenProps {
   exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
+  /**
+   * Writes the URL hash with replace, an empty string clearing it; the
+   * line selection rides through here. Route-owned, absent where no
+   * navigation is wired.
+   */
+  navigateHash?: ((hash: string) => void) | undefined;
   /** Content goes inert; the sticky header stays live. */
   revisionPending?: boolean | undefined;
 }
+
+export const LineHashErrors = {
+  /** Not this shape at all: a chunk hash, an in-page anchor, or nothing. */
+  NOT_LINE_HASH: "not-line-hash",
+  MALFORMED: "malformed",
+} as const;
+
+export type LineHashError = ValueOf<typeof LineHashErrors>;

@@ -32,6 +32,7 @@ export interface SplitRowsProps {
   underRow?: DiffUnderRowSlot | undefined;
   rowAttributes?: DiffRowAttributeSlot | undefined;
   anchorAttributes: Record<string, string>;
+  lineNumberAttributes?: Record<string, string> | undefined;
   fullRow?: DiffFullRowSlot | undefined;
   beforeRow?: DiffFullRowSlot | undefined;
   trailingRow?: DiffEdgeRowSlot | undefined;
@@ -45,6 +46,7 @@ const EMPTY_SIDE = "\u200B";
 /** Off the Tab order, reachable by the arrow hop from the other side. */
 const ARROW_ONLY_STOP = -1;
 const NO_ATTRIBUTES: DiffRowAttributes = {};
+const NO_LINE_NUMBER_ATTRIBUTES: Record<string, string> = {};
 
 /**
  * Two sides per row, paired positionally per hunk. The pair is one `<tr>` so
@@ -63,6 +65,7 @@ export function SplitRows({
   underRow,
   rowAttributes,
   anchorAttributes,
+  lineNumberAttributes = NO_LINE_NUMBER_ATTRIBUTES,
   fullRow,
   beforeRow,
   trailingRow,
@@ -123,6 +126,7 @@ export function SplitRows({
               {gutterCell?.(lead.line, lead.index)}
               <SideCells
                 anchorAttributes={anchorAttributes}
+                lineNumberAttributes={lineNumberAttributes}
                 attributes={leftAttributes}
                 cell={pair.left}
                 codeTrailer={codeTrailer}
@@ -132,6 +136,7 @@ export function SplitRows({
               />
               <SideCells
                 anchorAttributes={anchorAttributes}
+                lineNumberAttributes={lineNumberAttributes}
                 attributes={rightAttributes}
                 cell={pair.right}
                 codeTrailer={codeTrailer}
@@ -182,6 +187,7 @@ interface SideCellsProps {
   emphasisByRow: EmphasisByRow | undefined;
   codeTrailer: DiffRowSlot | undefined;
   anchorAttributes: Record<string, string>;
+  lineNumberAttributes: Record<string, string>;
 }
 
 function SideCells({
@@ -192,6 +198,7 @@ function SideCells({
   emphasisByRow,
   codeTrailer,
   anchorAttributes,
+  lineNumberAttributes,
 }: SideCellsProps): ReactNode {
   if (cell === undefined) {
     return (
@@ -224,10 +231,12 @@ function SideCells({
     <>
       <td
         className={rowStyles["lineNumber"]}
-        {...anchorAttributes}
+        {...lineNumberAttributes}
         data-commentable={commentable}
         data-line-kind={line.kind}
         data-line-number=""
+        data-line-old={side === SplitSides.LEFT ? number : undefined}
+        data-line-new={side === SplitSides.RIGHT ? number : undefined}
         data-line-origin={line.origin}
         data-selected={selected}
         data-side={side}

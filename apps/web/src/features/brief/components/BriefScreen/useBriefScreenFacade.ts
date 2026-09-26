@@ -38,6 +38,7 @@ import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
 import {
   buildReplyRecordingPlan,
+  deriveLineHash,
   groupSinceMarkers,
   resolveSidebarLayout,
 } from "./utils";
@@ -65,6 +66,7 @@ export function useBriefScreenFacade({
   conversationFilter,
   exitChangesScope,
   clearDiffParam,
+  navigateHash,
   ownDraft,
   readOnly,
   revisionPending,
@@ -218,6 +220,22 @@ export function useBriefScreenFacade({
   const flowActions = flowStore.getState().actions;
   const announce = flowActions.announce;
   const toast = useStore(flowStore, (state) => state.toast);
+  const lineSelection = useStore(flowStore, (state) => state.lineSelection);
+  const clearLineSelectionFromShortcut = () => {
+    flowActions.clearLineSelection();
+    announce(t("review.announce.lineSelectionCleared"));
+  };
+  // The hash follows the selection with replace. The ref remembers what
+  // this page wrote, so a clear never wipes a hash the reader arrived on.
+  const writtenHashRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (navigateHash === undefined) return;
+    const hash = lineSelection === null ? "" : deriveLineHash(lineSelection);
+    if (hash === "" && writtenHashRef.current === null) return;
+    if (writtenHashRef.current === hash) return;
+    writtenHashRef.current = hash === "" ? null : hash;
+    navigateHash(hash);
+  }, [lineSelection, navigateHash]);
   const composerOpen = useStore(
     flowStore,
     (state) => state.composerAnchor !== null,
@@ -445,6 +463,8 @@ export function useBriefScreenFacade({
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
     markViewed: markViewedFromShortcut,
+    lineSelected: lineSelection !== null,
+    clearLineSelection: clearLineSelectionFromShortcut,
     jumpToConversation:
       conversation !== undefined && regions.conversation
         ? conversationWiring.jumpToConversation

@@ -205,6 +205,41 @@ describe("DiffRows", () => {
     ]);
   });
 
+  it("marks each number cell with the line it shows", () => {
+    const view = renderRows();
+
+    const old = view.container.querySelectorAll("td[data-line-old]");
+    const fresh = view.container.querySelectorAll("td[data-line-new]");
+    expect([...old].map((cell) => cell.getAttribute("data-line-old"))).toEqual([
+      "1",
+      "2",
+    ]);
+    expect(
+      [...fresh].map((cell) => cell.getAttribute("data-line-new")),
+    ).toEqual(["1", "2"]);
+    // The old number cell never claims a new line, nor the reverse.
+    expect(
+      view.container.querySelector("td[data-line-old][data-line-new]"),
+    ).toBeNull();
+  });
+
+  it("number attributes land on number cells, anchor ones on the sign", () => {
+    const view = renderRows({
+      anchorAttributes: { "data-comment-anchor": "" },
+      lineNumberAttributes: { "data-select-anchor": "" },
+    });
+
+    expect(
+      view.container.querySelectorAll("td[data-select-anchor]"),
+    ).toHaveLength(6);
+    expect(
+      view.container.querySelectorAll("td[data-comment-anchor]"),
+    ).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll("span[data-comment-anchor]"),
+    ).toHaveLength(3);
+  });
+
   it("gives hunk and note rows a single spanning cell", () => {
     const view = renderRows();
 
@@ -288,16 +323,6 @@ describe("DiffRows", () => {
     expect(row?.getAttribute("tabindex")).toBe("0");
     if (row) fireEvent.keyDown(row, { key: "Enter" });
     expect(onKeyDown).toHaveBeenCalledTimes(1);
-  });
-
-  it("marks the anchor cells a composer asks for", () => {
-    const view = renderRows({
-      anchorAttributes: { "data-comment-anchor": "" },
-    });
-
-    expect(
-      view.container.querySelectorAll("[data-comment-anchor]"),
-    ).toHaveLength(9);
   });
 
   it("renders the code trailer and under-row slots", () => {

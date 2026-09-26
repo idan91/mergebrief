@@ -218,7 +218,7 @@ describe("carry-over row", () => {
     // The next picked row places it; until then the item stands.
     expect(screen.getAllByTestId("attention-item")).toHaveLength(1);
     const gutter = document.querySelector(
-      "[data-commentable] [data-line-number]",
+      "[data-commentable] [data-comment-anchor]",
     );
     expect(gutter).toBeTruthy();
     fireEvent.mouseDown(gutter as Element);
@@ -236,7 +236,7 @@ describe("carry-over row", () => {
     expect(getReanchorControl().getAttribute("aria-pressed")).toBe("false");
     // Disarmed: the next picked row opens a composer, as it always would.
     const gutter = document.querySelector(
-      "[data-commentable] [data-line-number]",
+      "[data-commentable] [data-comment-anchor]",
     );
     fireEvent.mouseDown(gutter as Element);
     fireEvent.mouseUp(gutter as Element);

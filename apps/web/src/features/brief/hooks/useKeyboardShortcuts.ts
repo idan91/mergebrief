@@ -19,6 +19,9 @@ export interface KeyboardShortcutsOptions {
   jumpToConversation?: (() => void) | undefined;
   toggleSidebar?: (() => void) | undefined;
   toggleDiffView?: (() => void) | undefined;
+  /** A line selection exists; Escape clears it before anything else. */
+  lineSelected?: boolean | undefined;
+  clearLineSelection?: (() => void) | undefined;
 }
 
 export interface ShortcutEvent {
@@ -37,6 +40,7 @@ export interface ShortcutState {
   disabled: boolean;
   sheetOpen: boolean;
   focusModeActive: boolean;
+  lineSelected: boolean;
 }
 
 export type StepKey = "j" | "k";
@@ -48,6 +52,7 @@ export type ShortcutAction =
   | { type: "jumpToConversation" }
   | { type: "toggleSidebar" }
   | { type: "toggleDiffView" }
+  | { type: "clearLineSelection" }
   | { type: "markViewed"; chunkId: string };
 
 function resolveGroupJump(
@@ -89,9 +94,9 @@ export function resolveShortcut(
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 
   if (key === "Escape") {
-    return state.focusModeActive && !state.disabled
-      ? { type: "toggleFocus" }
-      : null;
+    if (state.disabled) return null;
+    if (state.lineSelected) return { type: "clearLineSelection" };
+    return state.focusModeActive ? { type: "toggleFocus" } : null;
   }
   if (state.disabled) return null;
   if (event.metaKey || event.ctrlKey || event.altKey) return null;
@@ -158,6 +163,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           disabled: current.disabled,
           sheetOpen: current.sheetOpen,
           focusModeActive: current.focusModeActive,
+          lineSelected: current.lineSelected === true,
         },
       );
       if (!action) return;
@@ -173,6 +179,8 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         current.jumpToConversation?.();
       else if (action.type === "toggleSidebar") current.toggleSidebar?.();
       else if (action.type === "toggleDiffView") current.toggleDiffView?.();
+      else if (action.type === "clearLineSelection")
+        current.clearLineSelection?.();
       else if (action.type === "markViewed") current.markViewed(action.chunkId);
       else current.toggleHelp();
     }

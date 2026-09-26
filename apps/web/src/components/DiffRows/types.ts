@@ -117,12 +117,13 @@ export interface DiffRowsProps {
   lineNumbers?: boolean;
   rowAttributes?: DiffRowAttributeSlot;
   /**
-   * Marks the cells a composer may treat as a drag handle: the line numbers
-   * and the sign column, never the code text. Data keys only, and spread
-   * before the cell's own props, so it cannot take over className or a
-   * handler.
+   * Marks the sign column as the composer's drag handle, never the code
+   * text. Data keys only, and spread before the cell's own props, so it
+   * cannot take over className or a handler.
    */
   anchorAttributes?: Record<`data-${string}`, string>;
+  /** The same for the line-number cells, which drive line selection. */
+  lineNumberAttributes?: Record<`data-${string}`, string>;
 }
 
 /** Character offsets into a row's text, `to` exclusive. */

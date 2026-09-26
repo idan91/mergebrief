@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ThreadComposerWiring } from "@web/features/conversation";
@@ -27,6 +33,7 @@ import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
+import { createCommentAnchor } from "@web/features/review/utils";
 
 afterEach(cleanup);
 
@@ -272,6 +279,71 @@ describe("DiffTable revision rail callout", () => {
 
     expect(screen.getByRole("tooltip")).toBeTruthy();
   });
+
+  it("a drag released over the rail button still lands the selection", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [0, 1],
+      kind: "added" as const,
+    };
+    const { view, flowStore } = renderTable({
+      comparisonView: {
+        marks: new Map([
+          [0, "added"],
+          [1, "added"],
+        ]),
+        runs: [run],
+        runByRow: new Map([
+          [0, run],
+          [1, run],
+        ]),
+      },
+    });
+    const [first, second] = commentableRows(view.container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    const jump = view.container.querySelector("[data-jump-target]");
+    if (!jump) throw new Error("expected the rail jump button");
+
+    fireEvent.mouseDown(findNumberCell(second));
+    fireEvent.mouseEnter(first);
+    fireEvent.mouseUp(jump);
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("Space on the rail button never selects a line", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [0, 1],
+      kind: "added" as const,
+    };
+    const { view, flowStore } = renderTable({
+      comparisonView: {
+        marks: new Map([
+          [0, "added"],
+          [1, "added"],
+        ]),
+        runs: [run],
+        runByRow: new Map([
+          [0, run],
+          [1, run],
+        ]),
+      },
+    });
+    const jump = view.container.querySelector("[data-jump-target]");
+    if (!jump) throw new Error("expected the rail jump button");
+
+    fireEvent.keyDown(jump, { key: " " });
+    fireEvent.keyDown(jump, { key: "Enter" });
+
+    expect(flowStore.getState().lineSelection).toBeNull();
+    expect(flowStore.getState().composerAnchor).toBeNull();
+  });
 });
 
 describe("DiffTable draft restored from the server", () => {
@@ -414,16 +486,14 @@ describe("DiffTable selectable code text", () => {
     window.getSelection()?.removeAllRanges();
   });
 
-  it("anchors a range from a line-number gutter drag", () => {
+  it("anchors a range from a sign-column drag", () => {
     const {
       view: { container },
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
     if (!first || !second) throw new Error("expected two diff rows");
-    const gutter = first.querySelector("[data-line-number]");
-    if (!(gutter instanceof HTMLElement)) throw new Error("expected a gutter");
-    fireEvent.mouseDown(gutter);
+    fireEvent.mouseDown(findSignSpan(first));
     fireEvent.mouseEnter(second);
     // Both rows show the drag highlight while anchoring.
     expect(container.querySelectorAll("tr[data-selected]").length).toBe(2);
@@ -431,17 +501,14 @@ describe("DiffTable selectable code text", () => {
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
   });
 
-  it("anchors a single row from a plain gutter click", () => {
+  it("anchors a single row from a plain sign click", () => {
     const {
       view: { container },
       openCommentComposer,
     } = renderTable();
     const [first] = commentableRows(container);
-    const gutter = first?.querySelector("[data-line-number]");
-    if (!first || !(gutter instanceof HTMLElement)) {
-      throw new Error("expected a gutter");
-    }
-    fireEvent.mouseDown(gutter);
+    if (!first) throw new Error("expected a diff row");
+    fireEvent.mouseDown(findSignSpan(first));
     fireEvent.mouseUp(first);
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
   });
@@ -463,43 +530,329 @@ describe("DiffTable selectable code text", () => {
     expect(openCommentComposer).not.toHaveBeenCalled();
   });
 
-  it("suppresses gutter mouseup at the end of a text-selection drag", () => {
+  it("suppresses sign mouseup at the end of a text-selection drag", () => {
     const {
       view: { container },
       openCommentComposer,
     } = renderTable();
     const [first] = commentableRows(container);
     const code = first?.querySelector("td:last-child");
-    const gutter = first?.querySelector("[data-line-number]");
-    if (!first || !(code instanceof Element) || !(gutter instanceof Element)) {
-      throw new Error("expected code and gutter cells");
+    if (!first || !(code instanceof Element)) {
+      throw new Error("expected a code cell");
     }
-    // Selection made during the drag (no gutter mousedown), released over
-    // the gutter numbers.
+    // Selection made during the drag (no sign mousedown), released over
+    // the sign.
     selectTextIn(code);
-    fireEvent.mouseUp(gutter);
+    fireEvent.mouseUp(findSignSpan(first));
     expect(openCommentComposer).not.toHaveBeenCalled();
   });
 
-  it("anchors from the gutter despite a stale in-table selection", () => {
+  it("anchors from the sign despite a stale in-table selection", () => {
     const {
       view: { container },
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
     const code = first?.querySelector("td:last-child");
-    const gutter = first?.querySelector("[data-line-number]");
-    if (!second || !(code instanceof Element) || !(gutter instanceof Element)) {
-      throw new Error("expected code and gutter cells");
+    if (!first || !second || !(code instanceof Element)) {
+      throw new Error("expected a code cell");
     }
     // Copying code first must not kill the range affordance.
     selectTextIn(code);
-    fireEvent.mouseDown(gutter);
-    // The gutter mousedown drops the stale selection.
+    fireEvent.mouseDown(findSignSpan(first));
+    // The sign mousedown drops the stale selection.
     expect(window.getSelection()?.isCollapsed ?? true).toBe(true);
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
+  });
+});
+
+function findNumberCell(row: HTMLElement): HTMLElement {
+  const cell = row.querySelector("[data-select-anchor]");
+  if (!(cell instanceof HTMLElement)) throw new Error("expected a number cell");
+  return cell;
+}
+
+function findSignSpan(row: HTMLElement): HTMLElement {
+  const sign = row.querySelector("[data-comment-anchor]");
+  if (!(sign instanceof HTMLElement)) throw new Error("expected a sign");
+  return sign;
+}
+
+describe("DiffTable line selection", () => {
+  it("a number pick places the draft while a re-anchor is armed", () => {
+    const {
+      view: { container },
+      flowStore,
+      openCommentComposer,
+    } = renderTable({}, { reanchorDraftId: "draft-1" });
+    const [, second] = commentableRows(container);
+    if (!second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(second));
+    fireEvent.mouseUp(second);
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(flowStore.getState().lineSelection).toBeNull();
+  });
+
+  it("a sign click inside a unified selection over a deletion comments on it", () => {
+    const {
+      view: { container },
+      flowStore,
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk() });
+    const rows = commentableRows(container);
+    const [ctx, del, add] = rows;
+    if (!ctx || !del || !add) throw new Error("expected three diff rows");
+    fireEvent.mouseDown(findNumberCell(ctx));
+    fireEvent.mouseEnter(add);
+    fireEvent.mouseUp(add);
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      side: "new",
+      startLine: 9,
+      endLine: 10,
+    });
+    expect(del.hasAttribute("data-selected")).toBe(true);
+
+    fireEvent.mouseDown(findSignSpan(del));
+    fireEvent.mouseUp(findSignSpan(del));
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "new",
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("Enter on a selected row comments on the whole selection", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+
+    fireEvent.keyDown(second, { key: "Enter" });
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("a number click selects that line into the store", () => {
+    const {
+      view: { container },
+      flowStore,
+      openCommentComposer,
+    } = renderTable();
+    const [, second] = commentableRows(container);
+    if (!second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(second));
+    fireEvent.mouseUp(second);
+
+    expect(flowStore.getState().lineSelection).toEqual({
+      chunkId: "c1",
+      file: "src/a.ts",
+      side: "new",
+      startLine: 10,
+      endLine: 10,
+      rowIds: ["c1:1"],
+    });
+    expect(second.hasAttribute("data-selected")).toBe(true);
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("a number drag selects the range", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+    expect(container.querySelectorAll("tr[data-selected]")).toHaveLength(2);
+  });
+
+  it("shift-click extends from the selection's first line", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    fireEvent.mouseDown(findNumberCell(second), { shiftKey: true });
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("a sign click inside the selection opens the composer on all of it", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+    fireEvent.mouseDown(findSignSpan(second));
+    fireEvent.mouseUp(findSignSpan(second));
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("a sign click outside the selection anchors that row alone", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    fireEvent.mouseDown(findSignSpan(second));
+    fireEvent.mouseUp(findSignSpan(second));
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      startLine: 10,
+      endLine: 10,
+    });
+  });
+
+  it("Escape clears the selection and leaves focus where it is", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first] = commentableRows(container);
+    if (!first) throw new Error("expected a diff row");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    first.focus();
+    fireEvent.keyDown(first, { key: "Escape" });
+
+    expect(flowStore.getState().lineSelection).toBeNull();
+    expect(document.activeElement).toBe(first);
+    expect(first.hasAttribute("data-selected")).toBe(false);
+  });
+
+  it("a click on the code clears the selection", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    const code = second.querySelector("td:last-child");
+    if (!(code instanceof HTMLElement)) throw new Error("expected a code cell");
+    fireEvent.mouseDown(code);
+
+    expect(flowStore.getState().lineSelection).toBeNull();
+  });
+
+  it("Space selects the focused row and Shift+Space extends", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.keyDown(first, { key: " " });
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 9,
+    });
+    fireEvent.keyDown(second, { key: " ", shiftKey: true });
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("the composer range wins over the selection while a composer is open", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    const anchor = createCommentAnchor(
+      "c1",
+      "src/a.ts",
+      chunk().diff ?? [],
+      [1],
+    );
+    if (anchor === null) throw new Error("expected an anchor");
+    act(() => flowStore.getState().actions.openComposer(anchor));
+
+    expect(first.hasAttribute("data-selected")).toBe(false);
+    expect(second.hasAttribute("data-selected")).toBe(true);
+    act(() => flowStore.getState().actions.cancelComposer());
+    expect(first.hasAttribute("data-selected")).toBe(true);
+  });
+
+  it("selects the old line from a left number cell in split view", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseUp(left.number);
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      side: "old",
+      startLine: 10,
+      endLine: 10,
+    });
+    expect(
+      container.querySelectorAll('td[data-side="left"][data-selected]'),
+    ).toHaveLength(2);
+    expect(
+      container.querySelectorAll('td[data-side="right"][data-selected]'),
+    ).toHaveLength(0);
+  });
+
+  it("selects lines on a read-only revision, where no comment can", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable({ readOnlyReason: "Read-only." });
+    const row = container.querySelector("tr[data-line-kind='add']");
+    if (!(row instanceof HTMLElement)) throw new Error("expected a row");
+    fireEvent.mouseDown(findNumberCell(row));
+    fireEvent.mouseUp(row);
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 10,
+    });
   });
 });
 
@@ -575,19 +928,75 @@ function sideCells(container: HTMLElement, side: string, kind: string) {
   const code = container.querySelector<HTMLElement>(
     `td[data-side="${side}"][class*="code"][data-line-kind="${kind}"]`,
   );
-  if (!number || !code) throw new Error(`expected ${side} ${kind} cells`);
-  return { number, code };
+  const sign = code?.querySelector<HTMLElement>("[data-comment-anchor]");
+  if (!number || !code || !sign) {
+    throw new Error(`expected ${side} ${kind} cells`);
+  }
+  return { number, code, sign };
 }
 
 describe("DiffTable split selection", () => {
+  it("shift-click extends a right-side selection on that side only", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const first = sideCells(container, "right", "add");
+    const numbers = container.querySelectorAll(
+      'td[data-side="right"][data-line-number]',
+    );
+    const last = numbers[numbers.length - 1];
+    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    fireEvent.mouseDown(first.number);
+    fireEvent.mouseUp(first.number);
+    fireEvent.mouseDown(last, { shiftKey: true });
+
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      side: "new",
+      startLine: 10,
+      endLine: 11,
+    });
+    expect(
+      container.querySelectorAll('td[data-side="left"][data-selected]').length,
+    ).toBe(0);
+  });
+
+  it("a sign click inside a split selection comments on that side", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const first = sideCells(container, "right", "add");
+    const numbers = container.querySelectorAll(
+      'td[data-side="right"][data-line-number]',
+    );
+    const last = numbers[numbers.length - 1];
+    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    fireEvent.mouseDown(first.number);
+    fireEvent.mouseEnter(last);
+    fireEvent.mouseUp(last);
+    fireEvent.mouseDown(first.sign);
+    fireEvent.mouseUp(first.sign);
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "new",
+      startLine: 10,
+      endLine: 11,
+    });
+    expect(openCommentComposer.mock.calls[0]?.[0]).not.toHaveProperty(
+      "startSide",
+    );
+  });
+
   it("anchors a left-side click on the old line", () => {
     const {
       view: { container },
       openCommentComposer,
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const left = sideCells(container, "left", "del");
-    fireEvent.mouseDown(left.number);
-    fireEvent.mouseUp(left.number);
+    fireEvent.mouseDown(left.sign);
+    fireEvent.mouseUp(left.sign);
 
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
     expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
@@ -607,11 +1016,11 @@ describe("DiffTable split selection", () => {
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const first = sideCells(container, "right", "add");
     const rows = container.querySelectorAll(
-      'td[data-side="right"][data-line-number]',
+      'td[data-side="right"] [data-comment-anchor]',
     );
     const last = rows[rows.length - 1];
     if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
-    fireEvent.mouseDown(first.number);
+    fireEvent.mouseDown(first.sign);
     fireEvent.mouseEnter(last);
     expect(
       container.querySelectorAll('td[data-side="right"][data-selected]').length,
@@ -635,9 +1044,9 @@ describe("DiffTable split selection", () => {
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const left = sideCells(container, "left", "del");
     const right = sideCells(container, "right", "add");
-    fireEvent.mouseDown(left.number);
-    fireEvent.mouseEnter(right.number);
-    fireEvent.mouseUp(right.number);
+    fireEvent.mouseDown(left.sign);
+    fireEvent.mouseEnter(right.sign);
+    fireEvent.mouseUp(right.sign);
 
     expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
       startSide: "old",
@@ -652,8 +1061,8 @@ describe("DiffTable split selection", () => {
       view: { container },
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const left = sideCells(container, "left", "del");
-    fireEvent.mouseDown(left.number);
-    fireEvent.mouseUp(left.number);
+    fireEvent.mouseDown(left.sign);
+    fireEvent.mouseUp(left.sign);
 
     expect(container.querySelector('tr[data-placement="left"]')).not.toBeNull();
   });
@@ -697,7 +1106,7 @@ describe("DiffTable split selection", () => {
       openCommentComposer,
     } = renderTable({ chunk: twoHunkChunk(), view: "split" });
     const numbers = container.querySelectorAll<HTMLElement>(
-      'td[data-side="right"][data-line-number]',
+      'td[data-side="right"] [data-comment-anchor]',
     );
     const first = numbers[0];
     const last = numbers[numbers.length - 1];
@@ -716,7 +1125,7 @@ describe("DiffTable split selection", () => {
       openCommentComposer,
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const leftCtx = sideCells(container, "left", "ctx");
-    fireEvent.mouseUp(leftCtx.number);
+    fireEvent.mouseUp(leftCtx.sign);
 
     expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
       side: "old",
@@ -731,9 +1140,9 @@ describe("DiffTable split selection", () => {
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const left = sideCells(container, "left", "del");
     const right = sideCells(container, "right", "add");
-    fireEvent.mouseDown(left.number);
-    fireEvent.mouseEnter(right.number);
-    fireEvent.mouseUp(right.number);
+    fireEvent.mouseDown(left.sign);
+    fireEvent.mouseEnter(right.sign);
+    fireEvent.mouseUp(right.sign);
     const row = container.querySelector("textarea")?.closest("tr");
     const columns = container.querySelectorAll("colgroup col").length;
 
@@ -747,7 +1156,7 @@ describe("DiffTable split selection", () => {
       openCommentComposer,
     } = renderTable({ chunk: twoHunkChunk(), view: "split" });
     const numbers = container.querySelectorAll<HTMLElement>(
-      "td[data-line-number]",
+      "td [data-comment-anchor]",
     );
     const first = numbers[1];
     const last = numbers[numbers.length - 1];
@@ -765,8 +1174,8 @@ describe("DiffTable split selection", () => {
       view: { container },
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const left = sideCells(container, "left", "del");
-    fireEvent.mouseDown(left.number);
-    fireEvent.mouseUp(left.number);
+    fireEvent.mouseDown(left.sign);
+    fireEvent.mouseUp(left.sign);
     const row = container.querySelector('tr[data-placement="left"]');
     const cells = Array.from(row?.querySelectorAll("td") ?? []);
     const columns = container.querySelectorAll("colgroup col").length;
@@ -779,8 +1188,8 @@ describe("DiffTable split selection", () => {
       view: { container },
     } = renderTable({ chunk: splitChunk(), view: "split" });
     const right = sideCells(container, "right", "add");
-    fireEvent.mouseDown(right.number);
-    fireEvent.mouseUp(right.number);
+    fireEvent.mouseDown(right.sign);
+    fireEvent.mouseUp(right.sign);
     const row = container.querySelector('tr[data-placement="right"]');
     const cells = Array.from(row?.querySelectorAll("td") ?? []);
     const columns = container.querySelectorAll("colgroup col").length;

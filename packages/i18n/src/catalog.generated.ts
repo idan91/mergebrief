@@ -220,6 +220,8 @@ export type Catalog = typeof en & {
       tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.";
     };
     announce: (typeof en)["review"]["announce"] & {
+      lineSelected: "Line {{line}} selected.";
+      linesSelected: "Lines {{start}} to {{end}} selected.";
       flagsDismissed_one: "{{count}} flag dismissed. Reason recorded verbatim on the receipt.";
       flagsDismissed_other: "{{count}} flags dismissed. Reason recorded verbatim on the receipt.";
       risksAddressed_one: "{{count}} risk marked addressed with evidence.";

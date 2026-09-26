@@ -933,9 +933,9 @@ describe("DiffTable sibling spans", () => {
   it("opens the composer on a span row under the owner's chunk id", async () => {
     const { view, openCommentComposer } = await expandIntoSiblings("unified");
     const row = findSpanRow(view.container, "11");
-    const number = row.querySelector("[data-line-number]")!;
-    fireEvent.mouseDown(number);
-    fireEvent.mouseUp(number);
+    const sign = row.querySelector("[data-comment-anchor]")!;
+    fireEvent.mouseDown(sign);
+    fireEvent.mouseUp(sign);
 
     expect(row.getAttribute("aria-disabled")).toBeNull();
     expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
@@ -953,9 +953,9 @@ describe("DiffTable sibling spans", () => {
   it("keeps a composer row inside a span in the frame", async () => {
     const { view } = await expandIntoSiblings("unified");
     const row = findSpanRow(view.container, "11");
-    const number = row.querySelector("[data-line-number]")!;
-    fireEvent.mouseDown(number);
-    fireEvent.mouseUp(number);
+    const sign = row.querySelector("[data-comment-anchor]")!;
+    fireEvent.mouseDown(sign);
+    fireEvent.mouseUp(sign);
 
     const composerRow = row.nextElementSibling!;
     expect(composerRow.querySelector("textarea")).not.toBeNull();
@@ -981,16 +981,16 @@ describe("DiffTable sibling spans", () => {
   it("refuses a range that leaves the span", async () => {
     const { view, openCommentComposer } = await expandIntoSiblings("unified");
     const inSpan = findSpanRow(view.container, "12").querySelector(
-      "[data-line-number]",
+      "[data-comment-anchor]",
     )!;
     const outside = findSpanRow(view.container, "13").querySelector(
-      "[data-line-number]",
+      "[data-comment-anchor]",
     )!;
     fireEvent.mouseDown(inSpan);
     fireEvent.mouseEnter(outside);
     fireEvent.mouseUp(outside);
     const stray = findSpanRow(view.container, "16").querySelector(
-      "[data-line-number]",
+      "[data-comment-anchor]",
     )!;
     fireEvent.mouseDown(inSpan);
     fireEvent.mouseEnter(stray);
@@ -1035,10 +1035,10 @@ describe("DiffTable sibling spans", () => {
     );
     const middle = findSpanRow(view.container, "12");
     const first = findSpanRow(view.container, "11").querySelector(
-      "[data-line-number]",
+      "[data-comment-anchor]",
     )!;
     const last = findSpanRow(view.container, "13").querySelector(
-      "[data-line-number]",
+      "[data-comment-anchor]",
     )!;
     fireEvent.mouseDown(first);
     fireEvent.mouseEnter(last);
@@ -1545,16 +1545,16 @@ describe("DiffTable comments across expanded rows", () => {
       "unified",
     );
     const row = expandedRows(view.container)[3]!;
-    const number = row.querySelector("[data-line-number]")!;
+    const sign = row.querySelector("[data-comment-anchor]")!;
     fireEvent.keyDown(row, { key: "Enter" });
-    fireEvent.mouseDown(number);
-    fireEvent.mouseUp(number);
+    fireEvent.mouseDown(sign);
+    fireEvent.mouseUp(sign);
     const context = view.container.querySelector(
-      `tr[data-line-kind="ctx"]${DIFF_ORIGIN_SELECTOR} [data-line-number]`,
+      `tr[data-line-kind="ctx"]${DIFF_ORIGIN_SELECTOR} [data-comment-anchor]`,
     )!;
     fireEvent.mouseDown(context);
-    fireEvent.mouseEnter(number);
-    fireEvent.mouseUp(number);
+    fireEvent.mouseEnter(sign);
+    fireEvent.mouseUp(sign);
 
     expect(openCommentComposer).not.toHaveBeenCalled();
     expect(row.getAttribute("aria-disabled")).toBe("true");
@@ -1596,7 +1596,7 @@ describe("DiffTable comments across expanded rows", () => {
       "unified",
     );
     const added = view.container.querySelector(
-      'tr[data-line-kind="add"] [data-line-number]',
+      'tr[data-line-kind="add"] [data-comment-anchor]',
     )!;
     fireEvent.mouseDown(added);
     fireEvent.mouseUp(added);

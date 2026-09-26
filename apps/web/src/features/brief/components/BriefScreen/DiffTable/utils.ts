@@ -9,6 +9,7 @@ import {
   CommentSides,
   isLineCommentAnchor,
   type LineCommentAnchor,
+  type LineSelection,
   type ReviewComment,
   createCommentAnchor,
   createSideAnchor,
@@ -87,14 +88,42 @@ export function spanForPlacement(
   return layout.columnCount - sideColumns;
 }
 
+/** The side a range sits on; absent for a range that crosses. */
+export function resolvePlacement(
+  side: CommentSide,
+  startSide: CommentSide | undefined,
+): SplitSide | undefined {
+  if (startSide !== undefined && startSide !== side) {
+    return undefined;
+  }
+  return side === CommentSides.OLD ? SplitSides.LEFT : SplitSides.RIGHT;
+}
+
 export function placementForAnchor(
   anchor: CommentAnchor,
 ): SplitSide | undefined {
   if (!isLineCommentAnchor(anchor)) return undefined;
-  if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
-    return undefined;
+  return resolvePlacement(anchor.side, anchor.startSide);
+}
+
+/**
+ * Unified rows are one column: a same-side range fills every numbered row
+ * between its first and last match, so a deletion inside a new-side range
+ * highlights with the rest.
+ */
+export function fillUnifiedSpan(
+  rows: readonly DiffLine[],
+  indexes: readonly number[],
+): number[] {
+  const first = indexes[0];
+  const last = indexes.at(-1);
+  if (first === undefined || last === undefined) {
+    return [];
   }
-  return anchor.side === CommentSides.OLD ? SplitSides.LEFT : SplitSides.RIGHT;
+  return rangeBetween(first, last).filter((index) => {
+    const row = rows[index];
+    return row?.oldLine !== undefined || row?.newLine !== undefined;
+  });
 }
 
 export function sideForRow(line: DiffLine): SplitSide {
@@ -158,6 +187,10 @@ export function spansFullWidthRow(pairs: SplitRow[], span: number[]): boolean {
 }
 
 /** The unified indexes one side shows between two of its cells, in order. */
+export function compareAscending(left: number, right: number): number {
+  return left - right;
+}
+
 export function collectSideIndexes(
   pairs: SplitRow[],
   side: SplitSide,
@@ -250,7 +283,7 @@ export function buildExpandedRowView({
  */
 export function collectAnchoredIndexes(
   rows: readonly DiffLine[],
-  anchor: LineCommentAnchor,
+  anchor: LineRangeShape,
 ): number[] {
   const startSide = anchor.startSide ?? anchor.side;
   if (startSide === anchor.side) {
@@ -277,6 +310,12 @@ export function collectAnchoredIndexes(
     return row?.oldLine !== undefined || row?.newLine !== undefined;
   });
 }
+
+/** The coordinates a line anchor and a line selection share. */
+export type LineRangeShape = Pick<
+  LineCommentAnchor,
+  "side" | "startSide" | "startLine" | "endLine"
+>;
 
 function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
   return side === CommentSides.OLD ? row.oldLine : row.newLine;
@@ -675,6 +714,38 @@ export function demoteSubmitted(
   return demoted.size === 0
     ? comments
     : comments.filter((comment) => !demoted.has(comment.id));
+}
+
+/**
+ * A selection over the rendered rows: the anchor's coordinates, with row ids
+ * for the rows the chunk's own diff carries. Expanded rows have no base
+ * index and contribute coordinates only.
+ */
+export function buildLineSelection(
+  chunkId: string,
+  file: string,
+  rows: DiffLine[],
+  indexes: number[],
+  side: SplitSide | undefined,
+  baseIndexOf: readonly number[] | undefined,
+): LineSelection | null {
+  const anchor = buildLineAnchor(chunkId, file, rows, indexes, side);
+  if (anchor === null) return null;
+  const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
+  const selection: LineSelection = {
+    chunkId,
+    file,
+    side: anchor.side,
+    startLine: anchor.startLine,
+    endLine: anchor.endLine,
+    rowIds:
+      baseIndexes === undefined
+        ? []
+        : baseIndexes.map((index) => rowId(chunkId, index)),
+  };
+  if (anchor.startSide !== undefined) selection.startSide = anchor.startSide;
+
+  return selection;
 }
 
 /** A line anchor on the given rows, on one side when the pick stayed on one. */

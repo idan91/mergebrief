@@ -8,6 +8,7 @@ import {
   isLineCommentAnchor,
   ReviewCommentStatuses,
   type CommentAnchor,
+  type LineSelection,
   type ReviewComment,
 } from "../../utils/comments";
 import type { DismissTarget, EvidenceTarget } from "../../utils/state";
@@ -64,6 +65,12 @@ export interface ReviewFlowState extends ReviewFlowPosture {
   composerSaving: boolean;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
+  /**
+   * The lines a reader picked to share or comment on, at most one range in
+   * one chunk. Separate from the composer anchor: the composer stays out of
+   * the URL, and the selection outlives the composer closing.
+   */
+  lineSelection: LineSelection | null;
   /** Open inline conversation threads per file-qualified chunk key
    * (`file#chunkId`; a bare chunk id can collide across diff sources).
    * Store-owned, not card state: a virtualized card unmounts offscreen and
@@ -121,6 +128,9 @@ export interface ReviewFlowActions {
     totalLines?: number,
     path?: string,
   ) => void;
+  /** @description Replaces the selection whole; a pick never spans chunks. */
+  selectLines: (selection: LineSelection) => void;
+  clearLineSelection: () => void;
   setDismissTarget: (target: DismissTarget | null) => void;
   setEvidenceTarget: (target: EvidenceTarget | null) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -192,6 +202,7 @@ export function initialReviewFlowState(
     reanchorDraftId: null,
     dismissTarget: null,
     evidenceTarget: null,
+    lineSelection: null,
     expandedConversations: new Map(),
     expandedEdges: new Map(),
     fileEnds: new Map(),
@@ -362,6 +373,13 @@ export function createReviewFlowStore(
             next.set(edgeKey, widened);
             return { expandedEdges: next, fileEnds };
           });
+        },
+        selectLines(selection) {
+          set({ lineSelection: selection });
+        },
+        clearLineSelection() {
+          if (get().lineSelection === null) return;
+          set({ lineSelection: null });
         },
         setDismissTarget(target) {
           set({ dismissTarget: target });

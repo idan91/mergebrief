@@ -32,9 +32,13 @@ import {
   resolveSidebarLayout,
   SidebarLayouts,
   deriveChunkHash,
+  deriveLineHash,
+  parseLineHash,
   resolveChunkIdFromHash,
   buildReplyRecordingPlan,
 } from "./utils";
+import { LineHashErrors } from "./types";
+import { CommentSides } from "@web/features/review/utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
   return {
@@ -615,6 +619,106 @@ describe("chunk deep links", () => {
     expect(resolveChunkIdFromHash("#main-content")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-not%20safe")).toBeUndefined();
+  });
+});
+
+describe("line deep links", () => {
+  it("names one new-side line and reads it back", () => {
+    const target = {
+      file: "src/a.ts",
+      side: CommentSides.NEW,
+      startLine: 38,
+      endLine: 38,
+    };
+    expect(deriveLineHash(target)).toBe("#src/a.ts:R38");
+    expect(parseLineHash("#src/a.ts:R38")).toEqual({ ok: true, value: target });
+  });
+
+  it("names a same-side range with the letter on both ends", () => {
+    const target = {
+      file: "src/a.ts",
+      side: CommentSides.OLD,
+      startLine: 12,
+      endLine: 20,
+    };
+    expect(deriveLineHash(target)).toBe("#src/a.ts:L12-L20");
+    expect(parseLineHash("#src/a.ts:L12-L20")).toEqual({
+      ok: true,
+      value: target,
+    });
+  });
+
+  it("carries both sides of a crossing range", () => {
+    const target = {
+      file: "src/a.ts",
+      side: CommentSides.NEW,
+      startSide: CommentSides.OLD,
+      startLine: 12,
+      endLine: 20,
+    };
+    expect(deriveLineHash(target)).toBe("#src/a.ts:L12-R20");
+    expect(parseLineHash("#src/a.ts:L12-R20")).toEqual({
+      ok: true,
+      value: target,
+    });
+  });
+
+  it("encodes only hash, query, percent and whitespace in the path", () => {
+    const file = "docs/a b#c?d%e.md";
+    const hash = deriveLineHash({
+      file,
+      side: CommentSides.NEW,
+      startLine: 1,
+      endLine: 1,
+    });
+    expect(hash).toBe("#docs/a%20b%23c%3Fd%25e.md:R1");
+    expect(parseLineHash(hash)).toMatchObject({ ok: true, value: { file } });
+    expect(
+      deriveLineHash({
+        file: "src/[id]/route.ts",
+        side: CommentSides.NEW,
+        startLine: 1,
+        endLine: 1,
+      }),
+    ).toBe("#src/[id]/route.ts:R1");
+  });
+
+  it("keeps a colon in the path by splitting on the last one", () => {
+    expect(parseLineHash("#c:/x/y.ts:R3")).toMatchObject({
+      ok: true,
+      value: { file: "c:/x/y.ts", startLine: 3 },
+    });
+  });
+
+  it("leaves a chunk hash and a bare hash to their own readers", () => {
+    expect(parseLineHash("#chunk-c3")).toEqual({
+      ok: false,
+      error: LineHashErrors.NOT_LINE_HASH,
+    });
+    expect(parseLineHash("")).toEqual({
+      ok: false,
+      error: LineHashErrors.NOT_LINE_HASH,
+    });
+    expect(parseLineHash("#main-content")).toEqual({
+      ok: false,
+      error: LineHashErrors.NOT_LINE_HASH,
+    });
+  });
+
+  it("rejects a malformed line part", () => {
+    for (const hash of [
+      "#src/a.ts:X12",
+      "#src/a.ts:R0",
+      "#src/a.ts:R12-",
+      "#src/a.ts:R20-R12",
+      "#:R12",
+      "#src/a.ts:R1.5",
+    ]) {
+      expect(parseLineHash(hash)).toEqual({
+        ok: false,
+        error: LineHashErrors.MALFORMED,
+      });
+    }
   });
 });
 

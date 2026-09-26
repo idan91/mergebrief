@@ -44,7 +44,7 @@ it("keeps J/K/Z working after leaving a comment composer via Escape", async () =
   // Composer entry is gutter-only, the code column is reserved for text
   // selection.
   const gutter = document.querySelector(
-    "[data-commentable] [data-line-number]",
+    "[data-commentable] [data-comment-anchor]",
   );
   expect(gutter).toBeTruthy();
   fireEvent.mouseDown(gutter as Element);
