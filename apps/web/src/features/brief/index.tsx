@@ -25,7 +25,6 @@ export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 export { LocalBriefsSection } from "./components/LocalBriefsSection";
 export { BriefError } from "./components/BriefError";
 export { readDiffView } from "./components/BriefScreen/diffViewStorage";
-export { stripHashMark } from "./components/BriefScreen/utils";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -37,8 +36,10 @@ export interface BriefPageProps {
   exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
-  /** Writes or clears the URL hash with replace; route-owned. */
-  navigateHash?: ((hash: string) => void) | undefined;
+  /** The link param the URL carries: a chunk, or lines, to land on. */
+  link?: string | undefined;
+  /** Writes or drops the link param with replace; route-owned. */
+  navigateLink?: ((link: string | undefined) => void) | undefined;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
 }
@@ -50,7 +51,8 @@ export function BriefPage({
   searchParams,
   exitChangesScope,
   clearDiffParam,
-  navigateHash,
+  link,
+  navigateLink,
   revisionPending,
 }: BriefPageProps) {
   const { t } = useTranslation();
@@ -84,7 +86,8 @@ export function BriefPage({
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
       clearDiffParam={clearDiffParam}
-      navigateHash={navigateHash}
+      link={link}
+      navigateLink={navigateLink}
       revisionPending={revisionPending}
     />
   );

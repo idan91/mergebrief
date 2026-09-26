@@ -120,10 +120,10 @@ test("an old span link lands on its revision and is rewritten to rev", async ({
   await expect(page).not.toHaveURL(/base=/);
 });
 
-test("a chunk hash lands on that chunk's card", async ({ page }) => {
+test("a chunk link lands on that chunk's card", async ({ page }) => {
   // Plain goto: the interactive wait opens and closes the shortcuts dialog,
   // which would move focus off the landed card.
-  await page.goto(`${FIXTURE_ROUTE_REV1}#chunk-c3`);
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c3`);
 
   const card = page.locator("#c3");
   await expect(card).toBeFocused({ timeout: 15_000 });
@@ -131,9 +131,9 @@ test("a chunk hash lands on that chunk's card", async ({ page }) => {
   await expect(card).toBeInViewport();
 });
 
-test("a chunk hash lands after leaving Changes Only", async ({ page }) => {
+test("a chunk link lands after leaving Changes Only", async ({ page }) => {
   await page.goto(
-    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief#chunk-c2`,
+    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief&l=c2`,
   );
 
   const card = page.locator("#c2");
@@ -146,9 +146,6 @@ test("a chunk hash lands after leaving Changes Only", async ({ page }) => {
   await expect(page).not.toHaveURL(/\/repos\//);
 });
 
-const FIXTURE_FILE =
-  "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx";
-
 function findRowShowing(page: Page, side: "old" | "new", line: number) {
   return page.locator(`tr:has(> td[data-line-${side}="${String(line)}"])`);
 }
@@ -156,19 +153,19 @@ function findRowShowing(page: Page, side: "old" | "new", line: number) {
 test("a line link lands on that line, selected and focused", async ({
   page,
 }) => {
-  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R45`);
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R45`);
 
   const row = findRowShowing(page, "new", 45);
   await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
   await expect(row).toBeFocused();
   await expect(row).toBeInViewport();
-  await expect(page).toHaveURL(new RegExp(`#${FIXTURE_FILE}:R45$`));
+  await expect(page).toHaveURL(/[?&]l=c1\.R45(?:&|$)/);
 });
 
 test("an old-side range link selects every line of the range", async ({
   page,
 }) => {
-  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:L295-L300`);
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.L295-L300`);
 
   await expect(findRowShowing(page, "old", 295)).toHaveAttribute(
     "data-selected",
@@ -182,8 +179,10 @@ test("an old-side range link selects every line of the range", async ({
   await expect(findRowShowing(page, "old", 295)).toBeFocused();
 });
 
-test("a context line lands on the nearest chunk", async ({ page }) => {
-  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R43`);
+test("a context line the chunk shows lands like a changed one", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R43`);
 
   const row = findRowShowing(page, "new", 43);
   await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
@@ -191,23 +190,23 @@ test("a context line lands on the nearest chunk", async ({ page }) => {
 });
 
 test("a folded line expands its hunk edge before landing", async ({ page }) => {
-  // 150 sits in the gap between the first two hunks of the file.
-  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R150`);
+  // 150 sits in the gap between the chunk's first two hunks.
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R150`);
 
   const row = findRowShowing(page, "new", 150);
   await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
   await expect(row).toBeFocused();
 });
 
-test("a line link this brief cannot land clears the hash and says so", async ({
+test("a line link this brief cannot land drops the param and says so", async ({
   page,
 }) => {
-  await page.goto(`${FIXTURE_ROUTE_REV1}#src/nope.ts:R1`);
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c9.R1`);
 
   await expect(page.getByTestId("line-link-notice")).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page).not.toHaveURL(/#/);
+  await expect(page).not.toHaveURL(/[?&]l=/);
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByTestId("line-link-notice")).toBeHidden();
 });

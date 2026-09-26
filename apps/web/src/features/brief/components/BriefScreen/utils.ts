@@ -6,7 +6,7 @@ import type { Result, ValueOf } from "types/utils";
 import {
   type CommentSide,
   CommentSides,
-  type LineHashTarget,
+  type LineLinkTarget,
   type RiskEvidence,
   type RiskEvidenceKind,
 } from "@web/features/review/utils";
@@ -32,7 +32,12 @@ import type {
   RevisionNarrativeSkipReason,
 } from "../../types";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
-import { type LineHashError, LineHashErrors } from "./types";
+import {
+  type LinkParamError,
+  LinkParamErrors,
+  type LinkTarget,
+  LinkTargetKinds,
+} from "./types";
 
 /** Typed placeholder for a plan slot that is absent, always `enabled: false`. */
 export function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
@@ -355,28 +360,26 @@ export function deriveGroupSectionId(groupId: string): string {
   return `${groupId}-section`;
 }
 
-const CHUNK_HASH_PREFIX = "#chunk-";
-/** The charset chunk ids are generated from; anything else is not a deep link. */
+/** The search param that names a chunk, or lines inside one, to land on. */
+export const LINK_PARAM = "l";
 const CHUNK_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+/** Between the chunk id and the lines; both encoders leave it as it is. */
+const LINK_LINES_SEPARATOR = ".";
 
-/** The page's address with a hash of the caller's choosing, ready to share. */
+/** The search param that names a thread to open; its landing owns the arrival. */
+const THREAD_PARAM = "thread";
+
+/** The page's address with the link param set to `link`, ready to share. */
 export function deriveShareUrl(
-  location: Pick<Location, "origin" | "pathname" | "search">,
-  hash: string,
+  location: Pick<Location, "href">,
+  link: string,
 ): string {
-  return `${location.origin}${location.pathname}${location.search}${hash}`;
-}
+  const url = new URL(location.href);
+  url.searchParams.set(LINK_PARAM, link);
+  url.searchParams.delete(THREAD_PARAM);
+  url.hash = "";
 
-/** The URL hash that deep-links a chunk; the app lands it, never the browser. */
-export function deriveChunkHash(chunkId: string): string {
-  return `${CHUNK_HASH_PREFIX}${chunkId}`;
-}
-
-export function resolveChunkIdFromHash(hash: string): string | undefined {
-  if (!hash.startsWith(CHUNK_HASH_PREFIX)) return undefined;
-  const chunkId = hash.slice(CHUNK_HASH_PREFIX.length);
-
-  return CHUNK_ID_PATTERN.test(chunkId) ? chunkId : undefined;
+  return url.href;
 }
 
 const LINE_SIDE_LETTERS: Record<CommentSide, string> = {
@@ -388,15 +391,9 @@ const SIDE_BY_LETTER: Record<string, CommentSide> = {
   R: CommentSides.NEW,
 };
 const LINE_PART_PATTERN = /^([LR])(\d+)(?:-([LR])(\d+))?$/;
-/** The path characters a hash cannot carry as they are. */
-const PATH_ESCAPE_PATTERN = /[%#?\s]/g;
 
-function encodeHashPath(file: string): string {
-  return file.replace(PATH_ESCAPE_PATTERN, (char) => encodeURIComponent(char));
-}
-
-/** `#<path>:<S><n>` or `#<path>:<S><a>-<S><b>`, `S` being `L` (old) or `R` (new). */
-export function deriveLineHash(target: LineHashTarget): string {
+/** `<chunk>.<S><n>` or `<chunk>.<S><a>-<S><b>`, `S` being `L` (old) or `R` (new). */
+export function deriveLineLink(target: LineLinkTarget): string {
   const endLetter = LINE_SIDE_LETTERS[target.side];
   const startLetter = LINE_SIDE_LETTERS[target.startSide ?? target.side];
   const start = `${startLetter}${String(target.startLine)}`;
@@ -405,10 +402,12 @@ export function deriveLineHash(target: LineHashTarget): string {
     target.startSide === undefined && target.startLine === target.endLine;
   const lines = single ? start : `${start}-${end}`;
 
-  return `#${encodeHashPath(target.file)}:${lines}`;
+  return `${target.chunkId}${LINK_LINES_SEPARATOR}${lines}`;
 }
 
-function parseLinePart(part: string): Omit<LineHashTarget, "file"> | undefined {
+function parseLinePart(
+  part: string,
+): Omit<LineLinkTarget, "chunkId"> | undefined {
   const match = LINE_PART_PATTERN.exec(part);
   if (match === null) return undefined;
   const [, startLetter = "", startDigits = "", endLetter, endDigits] = match;
@@ -428,34 +427,34 @@ function parseLinePart(part: string): Omit<LineHashTarget, "file"> | undefined {
   return { side, startSide, startLine, endLine };
 }
 
-/** The fragment the router takes: the address bar's hash without its mark. */
-export function stripHashMark(hash: string): string {
-  return hash.startsWith("#") ? hash.slice(1) : hash;
-}
-
-/** The line shape only; a chunk hash is the chunk parser's. */
-export function parseLineHash(
-  hash: string,
-): Result<LineHashTarget, LineHashError> {
-  if (!hash.startsWith("#") || resolveChunkIdFromHash(hash) !== undefined) {
-    return { ok: false, error: LineHashErrors.NOT_LINE_HASH };
-  }
-  const body = hash.slice(1);
-  const split = body.lastIndexOf(":");
-  if (split === -1) return { ok: false, error: LineHashErrors.NOT_LINE_HASH };
-  const lines = parseLinePart(body.slice(split + 1));
-  const encodedFile = body.slice(0, split);
-  if (lines === undefined || encodedFile.length === 0) {
-    return { ok: false, error: LineHashErrors.MALFORMED };
-  }
-  try {
+/** A chunk id alone, or a chunk id and the lines after the last separator. */
+export function parseLinkParam(
+  link: string,
+): Result<LinkTarget, LinkParamError> {
+  const split = link.lastIndexOf(LINK_LINES_SEPARATOR);
+  const chunkId = split === -1 ? link : link.slice(0, split);
+  const lines = split === -1 ? undefined : parseLinePart(link.slice(split + 1));
+  if (lines !== undefined && CHUNK_ID_PATTERN.test(chunkId)) {
     return {
       ok: true,
-      value: { file: decodeURIComponent(encodedFile), ...lines },
+      value: { kind: LinkTargetKinds.LINES, lines: { chunkId, ...lines } },
     };
-  } catch {
-    return { ok: false, error: LineHashErrors.MALFORMED };
   }
+  if (CHUNK_ID_PATTERN.test(link)) {
+    return { ok: true, value: { kind: LinkTargetKinds.CHUNK, chunkId: link } };
+  }
+
+  return { ok: false, error: LinkParamErrors.MALFORMED };
+}
+
+/** Whether a written link names lines rather than a chunk; absent is neither. */
+export function isLineLink(link: string | undefined): boolean {
+  if (link === undefined) {
+    return false;
+  }
+  const parsed = parseLinkParam(link);
+
+  return parsed.ok && parsed.value.kind === LinkTargetKinds.LINES;
 }
 
 /** What the reading column reserves for the Sidebar. */

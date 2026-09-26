@@ -47,8 +47,8 @@ export interface LineSelection {
   rowIds: string[];
 }
 
-/** What a line hash names: a selection without a table to show it in. */
-export type LineHashTarget = Omit<LineSelection, "chunkId" | "rowIds">;
+/** What a line link names: the chunk and its lines, the file being the chunk's. */
+export type LineLinkTarget = Omit<LineSelection, "file" | "rowIds">;
 
 export interface FileCommentAnchor extends CommentAnchorBase {
   kind: typeof CommentAnchorKinds.FILE;

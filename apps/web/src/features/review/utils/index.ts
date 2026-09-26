@@ -16,7 +16,7 @@ export {
   type CommentSide,
   type FileCommentAnchor,
   type LineCommentAnchor,
-  type LineHashTarget,
+  type LineLinkTarget,
   type LineSelection,
   type ReviewComment,
   type ReviewCommentStatus,

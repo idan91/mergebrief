@@ -28,7 +28,7 @@ const POINTS: BriefTimeline["points"] = [
   { briefId: "brief-3", headSha: "3333333cccc", index: 3, comparisons: {} },
 ];
 
-function renderAt(position: number) {
+function renderAt(position: number, initialEntry = "/") {
   const selectedPoint = POINTS[position];
   return renderInRouter(
     <TimelineNavigator
@@ -39,6 +39,7 @@ function renderAt(position: number) {
     />,
     undefined,
     ["/briefs/$briefId"],
+    initialEntry,
   );
 }
 
@@ -50,6 +51,33 @@ describe("TimelineNavigator", () => {
     const next = screen.getByRole("link", { name: /next/i });
     expect(previous.getAttribute("href")).toBe("/briefs/brief-1");
     expect(next.getAttribute("href")).toBe("/briefs/brief-3");
+  });
+
+  it("leaves the link behind on the way to another brief", async () => {
+    await renderAt(1, "/?view=full&l=c1.R10");
+
+    const previous = screen.getByRole("link", { name: /previous/i });
+    const next = screen.getByRole("link", { name: /next/i });
+    expect(previous.getAttribute("href")).toBe("/briefs/brief-1?view=full");
+    expect(next.getAttribute("href")).toBe("/briefs/brief-3?view=full");
+  });
+
+  it("keeps the link on a lens write", async () => {
+    const { router } = await renderAt(1, "/?l=c2.R4");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: /changes only/i }));
+    });
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/briefs/brief-2"),
+    );
+    // No comparison is available, so the view normalizes back to full.
+    expect(router.state.location.search).toEqual({
+      view: "full",
+      compare: "off",
+      l: "c2.R4",
+    });
   });
 
   it("draws a disabled square where there is no previous brief", async () => {

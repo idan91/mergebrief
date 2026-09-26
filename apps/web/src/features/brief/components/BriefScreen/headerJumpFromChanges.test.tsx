@@ -38,7 +38,6 @@ const briefWithRemainder = {
 describe("Chunk deep link from Changes scope", () => {
   it("leaves the scope by replacing the arrival entry", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    window.location.hash = "#chunk-chunk-b";
     const exitChangesScope = vi.fn();
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -60,6 +59,7 @@ describe("Chunk deep link from Changes scope", () => {
               },
             }}
             exitChangesScope={exitChangesScope}
+            link="chunk-b"
             searchParams={{ view: "changes", compare: "last-review" }}
           />
         </QueryClientProvider>
@@ -69,7 +69,6 @@ describe("Chunk deep link from Changes scope", () => {
     await waitFor(() =>
       expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
     );
-    window.location.hash = "";
   });
 });
 

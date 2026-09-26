@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-import type { LineHashTarget, LineSelection } from "@web/features/review/utils";
+import type { LineLinkTarget, LineSelection } from "@web/features/review/utils";
 import type { ReviewFlowActions } from "@web/features/review/session";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import { buildFileRangeQueryOptions, isFileRangeReadable } from "../../queries";
@@ -30,7 +30,7 @@ import {
   type ScopeExitOptions,
 } from "./types";
 import type { JumpToChunkFromConversation } from "./useConversationWiring/types";
-import { deriveLineHash } from "./utils";
+import { deriveLineLink } from "./utils";
 
 export interface UseLineLinkLandingInput {
   briefId: string;
@@ -46,15 +46,15 @@ export interface UseLineLinkLandingInput {
   selectLines: ReviewFlowActions["selectLines"];
   expandEdge: ReviewFlowActions["expandEdge"];
   announce: (message: string) => void;
-  navigateHash: ((hash: string) => void) | undefined;
-  /** Shared with the hash sync: a landed hash is the page's own now. */
-  writtenHash: RefObject<string | null>;
+  navigateLink: ((link: string | undefined) => void) | undefined;
+  /** Shared with the link sync: a landed link is the page's own now. */
+  writtenLink: RefObject<string | undefined>;
   t: TFunction;
 }
 
 export interface LineLinkLanding {
-  /** True when the hash's one chance is spent, false to keep it. */
-  landLine: (target: LineHashTarget) => boolean;
+  /** True when the link's one chance is spent, false to keep it. */
+  landLine: (target: LineLinkTarget) => boolean;
   missed: boolean;
   dismissMiss: () => void;
 }
@@ -66,15 +66,15 @@ type LandPlan = Extract<
 
 interface PendingLanding {
   plan: LandPlan;
-  target: LineHashTarget;
+  target: LineLinkTarget;
 }
 
 const MAIN_CONTENT_ID = "main-content";
 
-function buildSelection(plan: LandPlan, target: LineHashTarget): LineSelection {
+function buildSelection(plan: LandPlan, target: LineLinkTarget): LineSelection {
   const selection: LineSelection = {
-    chunkId: plan.chunk.id,
-    file: target.file,
+    chunkId: target.chunkId,
+    file: plan.chunk.file,
     side: target.side,
     startLine: target.startLine,
     endLine: target.endLine,
@@ -110,11 +110,11 @@ function splitReadRange(read: LineLandingRead): LineRange[] {
 }
 
 /**
- * Lands a line link: the owner's card mounts through the conversation
+ * Lands a line link: the chunk's card mounts through the conversation
  * landing, a folded line reads its hunk edge first, and the range becomes
- * the selection, so the hash the reader arrived on is the one the page
- * would write. A miss clears the hash and says so; a read the source could
- * not serve keeps the hash and shows the owner instead.
+ * the selection, so the link the reader arrived on is the one the page
+ * would write. A miss drops the link and says so; a read the source could
+ * not serve keeps the link and shows the chunk instead.
  */
 export function useLineLinkLanding(
   input: UseLineLinkLandingInput,
@@ -131,8 +131,8 @@ export function useLineLinkLanding(
     selectLines,
     expandEdge,
     announce,
-    navigateHash,
-    writtenHash,
+    navigateLink,
+    writtenLink,
     t,
   } = input;
   const queryClient = useQueryClient();
@@ -151,10 +151,10 @@ export function useLineLinkLanding(
 
   const miss = useCallback(() => {
     setMissed(true);
-    writtenHash.current = null;
-    navigateHash?.("");
+    writtenLink.current = undefined;
+    navigateLink?.(undefined);
     announce(t("brief.lineLink.missing"));
-  }, [announce, navigateHash, t, writtenHash]);
+  }, [announce, navigateLink, t, writtenLink]);
 
   const readStep = useCallback(
     async (path: string, read: LineLandingRead, step: LineRange) => {
@@ -224,7 +224,7 @@ export function useLineLinkLanding(
   );
 
   const perform = useCallback(
-    async (plan: LandPlan, target: LineHashTarget): Promise<void> => {
+    async (plan: LandPlan, target: LineLinkTarget): Promise<void> => {
       const started = liveBriefId.current;
       if (plan.read !== undefined) {
         const outcome = await readIntoEdge(plan.chunk.file, plan.read);
@@ -241,7 +241,7 @@ export function useLineLinkLanding(
         }
       }
       jumpToChunkFromConversation(plan.chunk.id, plan.row, "instant");
-      writtenHash.current = deriveLineHash(target);
+      writtenLink.current = deriveLineLink(target);
       selectLines(buildSelection(plan, target));
       announce(
         target.startLine === target.endLine
@@ -260,7 +260,7 @@ export function useLineLinkLanding(
       readIntoEdge,
       selectLines,
       t,
-      writtenHash,
+      writtenLink,
     ],
   );
 
@@ -275,7 +275,7 @@ export function useLineLinkLanding(
   }, [inChangesScope, pending, perform]);
 
   const landLine = useCallback(
-    (target: LineHashTarget): boolean => {
+    (target: LineLinkTarget): boolean => {
       const plan = planLineLanding(chunks, target, rowsSettled);
       if (plan.kind === LineLandingKinds.PENDING) {
         return false;

@@ -197,7 +197,7 @@ describe("ChunkCard selectable file path", () => {
     const commit = vi.fn();
     const shareChunk = {
       deriveUrl: (chunkId: string) =>
-        `https://brief.test/repos/1/pulls/2?rev=1#chunk-${chunkId}`,
+        `https://brief.test/repos/1/pulls/2?rev=1&l=${chunkId}`,
       commit,
     };
     const { toggleChunk } = renderCard({ shareChunk });
@@ -206,7 +206,7 @@ describe("ChunkCard selectable file path", () => {
     );
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(
-        `https://brief.test/repos/1/pulls/2?rev=1#chunk-${chunk.id}`,
+        `https://brief.test/repos/1/pulls/2?rev=1&l=${chunk.id}`,
       ),
     );
     await waitFor(() => expect(commit).toHaveBeenCalledWith(chunk.id));

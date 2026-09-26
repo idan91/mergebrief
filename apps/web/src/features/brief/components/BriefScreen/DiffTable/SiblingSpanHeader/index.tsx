@@ -9,7 +9,6 @@ import {
   ButtonSizes,
   ButtonVariants,
 } from "@web/components/Button";
-import { deriveChunkHash } from "../../utils";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { LineSide } from "@web/components/DiffRows/types";
 import type { LineTarget, SpanOwner } from "../../../../utils/lineOwner";
@@ -23,6 +22,8 @@ export interface SiblingSpanHeaderProps {
   to: number;
   columnCount: number;
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
+  /** The URL that addresses a chunk, so a modified click keeps its link meaning. */
+  deriveChunkUrl?: ((chunkId: string) => string) | undefined;
 }
 
 /** The full-width row that opens a sibling span: who owns the lines, and a way there. */
@@ -33,6 +34,7 @@ export function SiblingSpanHeader({
   to,
   columnCount,
   jumpToLine,
+  deriveChunkUrl,
 }: SiblingSpanHeaderProps) {
   const { t } = useTranslation();
   const count = to - from + 1;
@@ -43,6 +45,28 @@ export function SiblingSpanHeader({
     side === "old"
       ? "brief.diff.siblingSpanGroupRemoved"
       : "brief.diff.siblingSpanGroup";
+
+  const jumpControl =
+    jumpToLine === undefined || deriveChunkUrl === undefined ? null : (
+      <Button
+        as={ButtonElements.ANCHOR}
+        className={styles["jump"]}
+        href={deriveChunkUrl(owner.chunkId)}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          // A modified click keeps its link meaning (new tab, new
+          // window); a plain one runs the in-app landing, which finds
+          // a windowed card without a page load.
+          if (isModifiedClick(event)) return;
+          event.preventDefault();
+          jumpToLine(owner.chunkId, { side, line: from });
+        }}
+        size={ButtonSizes.SM}
+        variant={ButtonVariants.QUIET}
+      >
+        <span aria-hidden>{t("brief.diff.siblingSpanJump")}</span>
+        <ScreenReaderOnly>{jumpName}</ScreenReaderOnly>
+      </Button>
+    );
 
   return (
     <tr className={styles["header"]} data-testid="sibling-span">
@@ -68,26 +92,7 @@ export function SiblingSpanHeader({
           {owner.summary === undefined ? null : (
             <span className={styles["summary"]}>{owner.summary}</span>
           )}
-          {jumpToLine === undefined ? null : (
-            <Button
-              as={ButtonElements.ANCHOR}
-              className={styles["jump"]}
-              href={deriveChunkHash(owner.chunkId)}
-              onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                // A modified click keeps its link meaning (new tab, new
-                // window); a plain one runs the in-app landing, which finds
-                // a windowed card the browser's own hash scroll cannot.
-                if (isModifiedClick(event)) return;
-                event.preventDefault();
-                jumpToLine(owner.chunkId, { side, line: from });
-              }}
-              size={ButtonSizes.SM}
-              variant={ButtonVariants.QUIET}
-            >
-              <span aria-hidden>{t("brief.diff.siblingSpanJump")}</span>
-              <ScreenReaderOnly>{jumpName}</ScreenReaderOnly>
-            </Button>
-          )}
+          {jumpControl}
         </div>
       </td>
     </tr>

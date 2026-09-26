@@ -43,6 +43,7 @@ export function DiffTable(props: DiffTableProps) {
     fileThreads = NO_HIDDEN_THREADS,
     lineOwners,
     jumpToLine,
+    deriveChunkUrl,
   } = props;
   const table = useDiffTableFacade(props);
   const { t, rows, model, review, rowViews, railHover } = table;
@@ -86,6 +87,7 @@ export function DiffTable(props: DiffTableProps) {
     return (
       <SiblingSpanHeader
         columnCount={columnCount}
+        deriveChunkUrl={deriveChunkUrl}
         from={lines.from}
         jumpToLine={jumpToLine}
         owner={owner}

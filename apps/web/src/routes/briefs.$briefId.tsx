@@ -11,7 +11,6 @@ import {
   BriefError,
   BriefPage,
   type ScopeExitOptions,
-  stripHashMark,
 } from "@web/features/brief";
 import {
   buildBriefSearchParams,
@@ -36,14 +35,29 @@ import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 /** Exactly a brief page (`/briefs/<id>`), never a subpath of one. */
 const BRIEF_PATH_PATTERN = /^\/briefs\/[^/]+$/;
 
+interface BriefRouteSearch extends BriefSearchParams {
+  /** A chunk, or lines inside one, to land on; the brief screen parses it. */
+  l?: string;
+}
+
 export const Route = createFileRoute("/briefs/$briefId")({
   // Unrecognized or absent keys are OMITTED, not defaulted, so the page can
   // tell "nothing chosen yet" apart from an explicit choice.
-  validateSearch: (search: Record<string, unknown>): BriefSearchParams => {
+  validateSearch: (search: Record<string, unknown>): BriefRouteSearch => {
     const view = parseViewParam(search["view"]);
     const diff = parseDiffParam(search["diff"]);
     const compare = parseCompareParam(search["compare"]);
-    return buildBriefSearchParams(view, compare, diff);
+    const link = search["l"];
+    const parsed: BriefRouteSearch = buildBriefSearchParams(
+      view,
+      compare,
+      diff,
+    );
+    if (typeof link === "string" && link.length > 0) {
+      parsed.l = link;
+    }
+
+    return parsed;
   },
   // A Delta artifact id is no longer a route target. Redirect before the
   // loader runs so the old URL never renders the superseded shape.
@@ -131,12 +145,18 @@ function BriefRoute() {
     });
   }, [navigate]);
   // The line selection's address. Replace, and no scroll reset: the rows
-  // the reader is looking at are the ones the hash names.
-  const navigateHash = useCallback(
-    (hash: string) => {
+  // the reader is looking at are the ones the link names.
+  const navigateLink = useCallback(
+    (link: string | undefined) => {
       void navigate({
-        hash: stripHashMark(hash),
-        search: true,
+        search: ({ l: _link, ...rest }) => {
+          const next: BriefRouteSearch = { ...rest };
+          if (link !== undefined) {
+            next.l = link;
+          }
+
+          return next;
+        },
         replace: true,
         resetScroll: false,
       });
@@ -150,7 +170,8 @@ function BriefRoute() {
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
       clearDiffParam={clearDiffParam}
-      navigateHash={navigateHash}
+      link={searchParams.l}
+      navigateLink={navigateLink}
       revisionPending={revisionPending}
     />
   );

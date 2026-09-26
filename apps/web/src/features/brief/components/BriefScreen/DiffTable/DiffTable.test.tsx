@@ -943,7 +943,7 @@ describe("DiffTable line selection", () => {
 
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(
-        expect.stringMatching(/#src\/a\.ts:R9-R10$/),
+        expect.stringMatching(/[?&]l=c1\.R9-R10$/),
       ),
     );
     expect(flowStore.getState().lineSelection).toMatchObject({

@@ -42,9 +42,9 @@ const CHUNKS = [
 ];
 
 describe("planLineLanding", () => {
-  it("lands a shown line on its owner with no read", () => {
+  it("lands a shown line on its chunk with no read", () => {
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "new",
       startLine: 31,
       endLine: 31,
@@ -58,7 +58,7 @@ describe("planLineLanding", () => {
 
   it("lands an old-side line by its old number", () => {
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "old",
       startLine: 34,
       endLine: 34,
@@ -69,9 +69,9 @@ describe("planLineLanding", () => {
     });
   });
 
-  it("uses the crossing range's start side to find the owner", () => {
+  it("uses the crossing range's start side for the row", () => {
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "new",
       startSide: "old",
       startLine: 34,
@@ -84,10 +84,10 @@ describe("planLineLanding", () => {
   });
 
   it("reads from the nearer hunk edge to a folded line", () => {
-    // 40 sits between c1's rows (30-32) and c2's (89-91): nearer c1, and
-    // c1's down edge is the closer edge of that gap.
+    // 40 sits below c1's rows (30-32): c1's down edge is the nearer edge of
+    // the gap that holds it.
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "new",
       startLine: 40,
       endLine: 40,
@@ -101,7 +101,7 @@ describe("planLineLanding", () => {
 
   it("reads up from a line above the first hunk", () => {
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "new",
       startLine: 20,
       endLine: 20,
@@ -116,7 +116,7 @@ describe("planLineLanding", () => {
   it("maps a folded old line through the edge's offset", () => {
     // Old 40 is new 37 below c1 (offset 3 after the hunk).
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "old",
       startLine: 40,
       endLine: 40,
@@ -129,7 +129,7 @@ describe("planLineLanding", () => {
 
   it("reads the start's own gap when the ends fold into different gaps", () => {
     const plan = planLineLanding(CHUNKS, {
-      file: "src/a.ts",
+      chunkId: "c1",
       side: "new",
       startLine: 28,
       endLine: 34,
@@ -145,7 +145,7 @@ describe("planLineLanding", () => {
   it("marks whether the read covers the range's first line", () => {
     expect(
       planLineLanding(CHUNKS, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 31,
         endLine: 40,
@@ -153,7 +153,7 @@ describe("planLineLanding", () => {
     ).toMatchObject({ read: { coversStart: false } });
     expect(
       planLineLanding(CHUNKS, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 40,
         endLine: 40,
@@ -167,28 +167,28 @@ describe("planLineLanding", () => {
     expect(
       planLineLanding(
         [bare],
-        { file: "src/a.ts", side: "new", startLine: 31, endLine: 31 },
+        { chunkId: "c1", side: "new", startLine: 31, endLine: 31 },
         true,
       ),
     ).toEqual({ kind: "card", chunk: bare });
   });
 
-  it("is pending while the owner's rows are not attached", () => {
+  it("is pending while the chunk's rows are not attached", () => {
     const bare = stubChunk({});
     delete bare.diff;
     expect(
       planLineLanding(
         [bare],
-        { file: "src/a.ts", side: "new", startLine: 31, endLine: 31 },
+        { chunkId: "c1", side: "new", startLine: 31, endLine: 31 },
         false,
       ),
     ).toEqual({ kind: "pending" });
   });
 
-  it("misses a file the brief has no chunk for", () => {
+  it("misses a chunk the brief does not carry", () => {
     expect(
       planLineLanding(CHUNKS, {
-        file: "src/nope.ts",
+        chunkId: "nope",
         side: "new",
         startLine: 1,
         endLine: 1,
@@ -196,11 +196,11 @@ describe("planLineLanding", () => {
     ).toEqual({ kind: "miss" });
   });
 
-  it("owns an old line through the rows that show that side", () => {
+  it("lands an old line through the rows that show that side", () => {
     // c2 adds only, yet its context rows show old 92 and 93.
     expect(
       planLineLanding([CHUNKS[1]!], {
-        file: "src/a.ts",
+        chunkId: "c2",
         side: "old",
         startLine: 92,
         endLine: 92,
@@ -212,7 +212,7 @@ describe("planLineLanding", () => {
     });
     expect(
       planLineLanding([CHUNKS[1]!], {
-        file: "src/a.ts",
+        chunkId: "c2",
         side: "old",
         startLine: 5,
         endLine: 5,
@@ -224,42 +224,10 @@ describe("planLineLanding", () => {
     });
   });
 
-  it("prefers the chunk whose rows show the line over a range holder", () => {
-    const deletion = stubChunk({
-      id: "x",
-      addedRanges: [],
-      removedRanges: [{ start: 50, end: 50 }],
-      diff: [
-        { kind: "hunk", content: "@@ -47,4 +47,3 @@" },
-        { kind: "ctx", content: "a", oldLine: 47, newLine: 47 },
-        { kind: "ctx", content: "b", oldLine: 48, newLine: 48 },
-        { kind: "ctx", content: "c", oldLine: 49, newLine: 49 },
-        { kind: "del", content: "d", oldLine: 50 },
-      ],
-    });
-    const addition = stubChunk({
-      id: "y",
-      addedRanges: [{ start: 60, end: 60 }],
-      removedRanges: [],
-      diff: [
-        { kind: "hunk", content: "@@ -60,0 +60,1 @@" },
-        { kind: "add", content: "e", newLine: 60 },
-      ],
-    });
-    expect(
-      planLineLanding([addition, deletion], {
-        file: "src/a.ts",
-        side: "new",
-        startLine: 49,
-        endLine: 49,
-      }),
-    ).toMatchObject({ kind: "land", chunk: { id: "x" } });
-  });
-
   it("reads to the far end of a range below the last hunk", () => {
     expect(
       planLineLanding(CHUNKS, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 40,
         endLine: 50,
@@ -272,7 +240,7 @@ describe("planLineLanding", () => {
   it("reads the folded end of a range whose start is shown", () => {
     expect(
       planLineLanding(CHUNKS, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 31,
         endLine: 40,
@@ -303,7 +271,7 @@ describe("planLineLanding", () => {
       ],
     });
     const plan = planLineLanding([twoHunks], {
-      file: "src/a.ts",
+      chunkId: "h",
       side: "new",
       startLine: 28,
       endLine: 28,
@@ -319,10 +287,10 @@ describe("planLineLanding", () => {
 });
 
 describe("collectSelectionRowIds", () => {
-  it("names the owner's rows in a same-side range", () => {
+  it("names the chunk's rows in a same-side range", () => {
     expect(
       collectSelectionRowIds(CHUNKS[0]!, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 30,
         endLine: 31,
@@ -333,7 +301,7 @@ describe("collectSelectionRowIds", () => {
   it("names nothing for a crossing range or a folded one", () => {
     expect(
       collectSelectionRowIds(CHUNKS[0]!, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startSide: "old",
         startLine: 34,
@@ -342,7 +310,7 @@ describe("collectSelectionRowIds", () => {
     ).toEqual([]);
     expect(
       collectSelectionRowIds(CHUNKS[0]!, {
-        file: "src/a.ts",
+        chunkId: "c1",
         side: "new",
         startLine: 40,
         endLine: 41,

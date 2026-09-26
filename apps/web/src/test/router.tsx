@@ -23,6 +23,7 @@ export async function renderInRouter(
     defaultOptions: { queries: { retry: false } },
   }),
   stubPaths: readonly string[] = [],
+  initialEntry = "/",
 ): Promise<{
   queryClient: QueryClient;
   router: Pick<AnyRouter, "state">;
@@ -44,7 +45,7 @@ export async function renderInRouter(
   );
   const router = createRouter({
     routeTree: rootRoute.addChildren([screen, ...stubs]),
-    history: createMemoryHistory({ initialEntries: ["/"] }),
+    history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
   await router.load();
   render(<RouterProvider router={router} />);

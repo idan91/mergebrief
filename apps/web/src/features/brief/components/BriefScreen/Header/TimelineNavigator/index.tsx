@@ -38,9 +38,23 @@ export interface TimelineNavigatorProps {
 /**
  * Timeline points navigate Brief heads only. The View and Compare controls write
  * canonical `view`/`compare` params through `withView`/`withCompare`, so the URL
- * only ever holds a normalized, valid combination. Previous, Next and the
- * picker preserve the search verbatim and re-normalize against the new point.
+ * only ever holds a normalized, valid combination, and keep the link, whose
+ * lines stay on the page. Previous, Next and the picker keep the search and
+ * re-normalize against the new point, dropping only the link, whose chunk id
+ * means nothing in another brief.
  */
+function keepLink(
+  prev: { l?: string | undefined },
+  next: BriefSearch,
+): BriefSearch & { l?: string } {
+  const kept: BriefSearch & { l?: string } = { ...next };
+  if (prev.l !== undefined) {
+    kept.l = prev.l;
+  }
+
+  return kept;
+}
+
 export function TimelineNavigator({
   availability,
   briefId,
@@ -62,7 +76,8 @@ export function TimelineNavigator({
     navigate({
       to: "/briefs/$briefId",
       params: { briefId },
-      search: withView(compareState, view, availability),
+      search: (prev) =>
+        keepLink(prev, withView(compareState, view, availability)),
     });
   const compareOption = (
     compare: "last-review" | "previous-brief",
@@ -79,7 +94,8 @@ export function TimelineNavigator({
     navigate({
       to: "/briefs/$briefId",
       params: { briefId },
-      search: withCompare(compareState, compare, availability),
+      search: (prev) =>
+        keepLink(prev, withCompare(compareState, compare, availability)),
     });
 
   const viewOptions: SegmentedOption<ViewParam>[] = [
@@ -112,7 +128,7 @@ export function TimelineNavigator({
     navigate({
       to: "/briefs/$briefId",
       params: { briefId: targetBriefId },
-      search: (prev) => prev,
+      search: ({ l: _link, ...rest }) => rest,
     });
 
   if (!selected) return null;
@@ -135,7 +151,7 @@ export function TimelineNavigator({
             })}
             className={styles["arrow"]}
             params={{ briefId: previous.briefId }}
-            search={(prev) => prev}
+            search={({ l: _link, ...rest }) => rest}
             to="/briefs/$briefId"
           >
             <Icon
@@ -170,7 +186,7 @@ export function TimelineNavigator({
             })}
             className={styles["arrow"]}
             params={{ briefId: next.briefId }}
-            search={(prev) => prev}
+            search={({ l: _link, ...rest }) => rest}
             to="/briefs/$briefId"
           >
             <Icon

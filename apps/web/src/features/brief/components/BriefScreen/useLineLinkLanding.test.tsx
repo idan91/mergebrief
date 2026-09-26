@@ -13,10 +13,7 @@ import type { ComparisonMarks } from "../../types";
 import { createFileRowsCache } from "../../utils/fileRows";
 import { BriefView } from "../BriefView";
 
-afterEach(() => {
-  cleanup();
-  window.location.hash = "";
-});
+afterEach(cleanup);
 
 /** The whole head file as the PR diff would show it, so an edge reads locally. */
 function stubFileRows(): DiffLine[] {
@@ -36,10 +33,9 @@ function stubFileRows(): DiffLine[] {
   return rows;
 }
 
-async function renderWithHash(hash: string, withFileRows = false) {
-  window.location.hash = hash;
+async function renderWithLink(link: string, withFileRows = false) {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  const navigateHash = vi.fn();
+  const navigateLink = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -58,18 +54,18 @@ async function renderWithHash(hash: string, withFileRows = false) {
           brief={briefFixture}
           briefId="fixture-brief"
           fileRows={fileRows}
-          navigateHash={navigateHash}
+          link={link}
+          navigateLink={navigateLink}
           searchParams={{ view: "full", compare: "off" }}
         />
       </QueryClientProvider>
     </I18nProvider>,
   );
-  return navigateHash;
+  return navigateLink;
 }
 
 describe("line link landing from Changes scope", () => {
   it("leaves the scope by replacing the arrival entry, then lands", async () => {
-    window.location.hash = "#src/leak.ts:R10";
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const exitChangesScope = vi.fn();
     const lastReviewMarks: ComparisonMarks = {
@@ -98,6 +94,7 @@ describe("line link landing from Changes scope", () => {
               },
             }}
             exitChangesScope={exitChangesScope}
+            link="chunk-a.R10"
             searchParams={{ view: "changes", compare: "last-review" }}
           />
         </QueryClientProvider>
@@ -111,8 +108,8 @@ describe("line link landing from Changes scope", () => {
 });
 
 describe("line link landing", () => {
-  it("lands on a shown line, selects it and keeps the hash", async () => {
-    const navigateHash = await renderWithHash("#src/leak.ts:R10");
+  it("lands on a shown line, selects it and keeps the link", async () => {
+    const navigateLink = await renderWithLink("chunk-a.R10");
 
     const row = await waitFor(() => {
       const cell = document.querySelector('td[data-line-new="10"]');
@@ -122,12 +119,12 @@ describe("line link landing", () => {
     });
     await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
     await waitFor(() => expect(document.activeElement).toBe(row));
-    expect(navigateHash).not.toHaveBeenCalledWith("");
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
     expect(screen.queryByTestId("line-link-notice")).toBeNull();
   });
 
   it("selects a range and announces it", async () => {
-    await renderWithHash("#src/leak.ts:R9-R10");
+    await renderWithLink("chunk-a.R9-R10");
 
     await waitFor(() =>
       expect(document.querySelectorAll("tr[data-selected]")).toHaveLength(2),
@@ -140,7 +137,7 @@ describe("line link landing", () => {
   });
 
   it("expands a folded line from the nearer edge, then lands on it", async () => {
-    await renderWithHash("#src/leak.ts:R4", true);
+    await renderWithLink("chunk-a.R4", true);
 
     const row = await waitFor(() => {
       const cell = document.querySelector('td[data-line-new="4"]');
@@ -151,13 +148,13 @@ describe("line link landing", () => {
     await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
   });
 
-  it("clears the hash and shows the notice when the link misses", async () => {
-    const navigateHash = await renderWithHash("#src/nope.ts:R1");
+  it("drops the link and shows the notice when it misses", async () => {
+    const navigateLink = await renderWithLink("nope.R1");
 
     await waitFor(() =>
       expect(screen.getByTestId("line-link-notice")).toBeTruthy(),
     );
-    expect(navigateHash).toHaveBeenCalledWith("");
+    expect(navigateLink).toHaveBeenCalledWith(undefined);
     await waitFor(() =>
       expect(screen.getByTestId("brief-toast").textContent).toBe(
         "This link points at lines this brief does not contain.",
@@ -167,9 +164,9 @@ describe("line link landing", () => {
     expect(screen.queryByTestId("line-link-notice")).toBeNull();
   });
 
-  it("shows the owner and keeps the hash when the edge cannot read", async () => {
+  it("shows the chunk and keeps the link when the edge cannot read", async () => {
     // No file rows and no expansion source: the edge cannot read now.
-    const navigateHash = await renderWithHash("#src/leak.ts:R4");
+    const navigateLink = await renderWithLink("chunk-a.R4");
 
     await waitFor(() =>
       expect(screen.getByTestId("brief-toast").textContent).toBe(
@@ -177,12 +174,11 @@ describe("line link landing", () => {
       ),
     );
     expect(screen.queryByTestId("line-link-notice")).toBeNull();
-    expect(navigateHash).not.toHaveBeenCalledWith("");
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
     expect(document.querySelector("tr[data-selected]")).toBeNull();
   });
 
   it("keeps the notice when the brief object changes under the same id", async () => {
-    window.location.hash = "#src/nope.ts:R1";
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -198,7 +194,8 @@ describe("line link landing", () => {
             artifacts={[]}
             brief={brief}
             briefId="fixture-brief"
-            navigateHash={vi.fn()}
+            link="nope.R1"
+            navigateLink={vi.fn()}
             searchParams={{ view: "full", compare: "off" }}
           />
         </>
@@ -221,7 +218,7 @@ describe("line link landing", () => {
   });
 
   it("moves focus to the main landmark when the notice is dismissed", async () => {
-    await renderWithHash("#src/nope.ts:R1");
+    await renderWithLink("nope.R1");
     const dismiss = await waitFor(() =>
       screen.getByRole("button", { name: "Dismiss" }),
     );

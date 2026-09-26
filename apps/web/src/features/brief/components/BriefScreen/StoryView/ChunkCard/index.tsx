@@ -466,6 +466,7 @@ export const ChunkCard = memo(function ChunkCard({
             hiddenThreads={hiddenThreads}
             fileThreads={fileThreads}
             jumpToLine={jumpToLine}
+            deriveChunkUrl={shareChunk?.deriveUrl}
             lineOwners={lineOwners}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}

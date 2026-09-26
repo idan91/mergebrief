@@ -40,11 +40,10 @@ import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
 import {
   buildReplyRecordingPlan,
-  deriveChunkHash,
-  deriveLineHash,
-  parseLineHash,
+  deriveLineLink,
   deriveShareUrl,
   groupSinceMarkers,
+  isLineLink,
   resolveSidebarLayout,
 } from "./utils";
 
@@ -73,7 +72,8 @@ export function useBriefScreenFacade({
   conversationFilter,
   exitChangesScope,
   clearDiffParam,
-  navigateHash,
+  link,
+  navigateLink,
   ownDraft,
   readOnly,
   revisionPending,
@@ -203,6 +203,9 @@ export function useBriefScreenFacade({
   // story pane renders.
   const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
 
+  // The link param follows the selection with replace. The ref remembers
+  // what this page wrote, so a clear never drops a link the reader arrived on.
+  const writtenLinkRef = useRef<string | undefined>(undefined);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [screenBriefId, setScreenBriefId] = useState(briefId);
   if (screenBriefId !== briefId) {
@@ -212,6 +215,7 @@ export function useBriefScreenFacade({
     setPendingDeepLink(null);
     changesEverShownRef.current = false;
     storyEverShownRef.current = false;
+    writtenLinkRef.current = undefined;
   }
 
   const inFlight = useInFlightDraftPosts();
@@ -232,26 +236,28 @@ export function useBriefScreenFacade({
     flowActions.clearLineSelection();
     announce(t("review.announce.lineSelectionCleared"));
   };
-  // The hash follows the selection with replace. The ref remembers what
-  // this page wrote, so a clear never wipes a hash the reader arrived on.
-  const writtenHashRef = useRef<string | null>(null);
   useEffect(() => {
-    if (navigateHash === undefined) {
+    if (navigateLink === undefined) {
       return;
     }
-    const hash = lineSelection === null ? "" : deriveLineHash(lineSelection);
-    const written = writtenHashRef.current;
-    // A clear only takes back a line hash; a chunk hash this page wrote
-    // outlives the selection it stood down.
-    if (hash === "" && (written === null || !parseLineHash(written).ok)) {
+    const next =
+      lineSelection === null ? undefined : deriveLineLink(lineSelection);
+    const written = writtenLinkRef.current;
+    // A clear only takes back a line link still in the URL; a chunk link
+    // this page wrote outlives the selection it stood down.
+    const ownLineLink = isLineLink(written) && written === link;
+    if (next === undefined && !ownLineLink) {
+      if (isLineLink(written)) {
+        writtenLinkRef.current = undefined;
+      }
       return;
     }
-    if (written === hash) {
+    if (written === next) {
       return;
     }
-    writtenHashRef.current = hash === "" ? null : hash;
-    navigateHash(hash);
-  }, [lineSelection, navigateHash]);
+    writtenLinkRef.current = next;
+    navigateLink(next);
+  }, [lineSelection, link, navigateLink]);
   const composerOpen = useStore(
     flowStore,
     (state) => state.composerAnchor !== null,
@@ -305,7 +311,7 @@ export function useBriefScreenFacade({
     submittedReviewIds,
   });
 
-  // A hash naming a chunk lands through the conversation landing: open the
+  // A link naming a chunk lands through the conversation landing: open the
   // card, scroll, focus, flash. Instant, not smooth: the windowed lists
   // mount and measure cards as the viewport passes, and each measurement
   // scroll-adjustment cancels a smooth scroll in flight. Cards exist only
@@ -351,38 +357,37 @@ export function useBriefScreenFacade({
     selectLines: flowActions.selectLines,
     expandEdge: flowActions.expandEdge,
     announce,
-    navigateHash,
-    writtenHash: writtenHashRef,
+    navigateLink,
+    writtenLink: writtenLinkRef,
     t,
   });
   useChunkDeepLink({
     briefId,
     chunkIds: session.chunkIds,
+    link,
     enabled: conversationFocusThreadId === undefined,
     land: landOnDeepLink,
     landLine: lineLanding.landLine,
-    writtenHash: writtenHashRef,
+    writtenLink: writtenLinkRef,
   });
 
   // The chunk glyph: the URL names the chunk, so once it is copied a line
-  // selection stands down and its hash goes with it; the write is the
+  // selection stands down and its link goes with it; the write is the
   // page's own.
   const commitChunkShare = useCallback(
     (chunkId: string): void => {
-      const hash = deriveChunkHash(chunkId);
-      writtenHashRef.current = hash;
+      writtenLinkRef.current = chunkId;
       if (flowStore.getState().lineSelection !== null) {
         flowActions.clearLineSelection();
         announce(t("review.announce.lineSelectionCleared"));
       }
-      navigateHash?.(hash);
+      navigateLink?.(chunkId);
     },
-    [announce, flowActions, flowStore, navigateHash, t],
+    [announce, flowActions, flowStore, navigateLink, t],
   );
   const shareChunk = useMemo<ChunkShare>(
     () => ({
-      deriveUrl: (chunkId) =>
-        deriveShareUrl(window.location, deriveChunkHash(chunkId)),
+      deriveUrl: (chunkId) => deriveShareUrl(window.location, chunkId),
       commit: commitChunkShare,
     }),
     [commitChunkShare],
@@ -607,6 +612,6 @@ export function useBriefScreenFacade({
     expansionSource,
     lineLinkMissed: lineLanding.missed,
     dismissLineLinkMiss: lineLanding.dismissMiss,
-    shareChunk: navigateHash === undefined ? undefined : shareChunk,
+    shareChunk: navigateLink === undefined ? undefined : shareChunk,
   };
 }

@@ -1,74 +1,70 @@
 import { type RefObject, useEffect, useRef } from "react";
 
-import type { LineHashTarget } from "@web/features/review/utils";
-import { parseLineHash, resolveChunkIdFromHash } from "./utils";
+import type { LineLinkTarget } from "@web/features/review/utils";
+import { LinkTargetKinds } from "./types";
+import { parseLinkParam } from "./utils";
 
 export interface UseChunkDeepLinkInput {
   briefId: string;
   chunkIds: readonly string[];
+  /** The link param as the URL carries it; absent means nothing to land. */
+  link: string | undefined;
   /** False while another landing owns the arrival, such as a thread target. */
   enabled: boolean;
   /**
    * Lands on the chunk: opens the card, scrolls, focuses. Returns false when
-   * it could not schedule a landing, so the hash keeps its one chance.
+   * it could not schedule a landing, so the link keeps its one chance.
    */
   land: (chunkId: string) => boolean;
-  /** Lands on the lines a line hash names; the same false keeps the chance. */
-  landLine?: ((target: LineHashTarget) => boolean) | undefined;
-  /** The hash this page last wrote itself; arriving on it is not an arrival. */
-  writtenHash?: RefObject<string | null> | undefined;
+  /** Lands on the lines a line link names; the same false keeps the chance. */
+  landLine?: ((target: LineLinkTarget) => boolean) | undefined;
+  /** The link this page last wrote itself; arriving on it is not an arrival. */
+  writtenLink?: RefObject<string | undefined> | undefined;
 }
 
 /**
- * A hash naming a chunk or a line range lands on it once per brief. The
- * browser's own hash scroll cannot find a windowed card, so the landing goes
- * through the app's jump, which asks the windows to mount it. The one chance
+ * A link naming a chunk or a line range lands on it once per brief. The
+ * windowed cards mount as the viewport passes, so the landing goes through
+ * the app's jump, which asks the windows to mount the card. The one chance
  * is spent by a scheduled landing or by yielding to another arrival, never
  * by a chunk list that does not carry the id yet.
  */
 export function useChunkDeepLink({
   briefId,
   chunkIds,
+  link,
   enabled,
   land,
   landLine,
-  writtenHash,
+  writtenLink,
 }: UseChunkDeepLinkInput): void {
-  const landedFor = useRef<string | null>(null);
+  const landedFor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (landedFor.current === briefId) {
+    if (landedFor.current === briefId || link === undefined) {
       return;
     }
-    const hash = window.location.hash;
-    if (writtenHash?.current !== null && writtenHash?.current === hash) {
+    if (writtenLink?.current === link) {
       landedFor.current = briefId;
       return;
     }
-    const chunkId = resolveChunkIdFromHash(hash);
-    if (chunkId !== undefined) {
-      if (!enabled) {
-        landedFor.current = briefId;
-        return;
-      }
-      if (!chunkIds.includes(chunkId)) {
-        return;
-      }
-      if (land(chunkId)) {
-        landedFor.current = briefId;
-      }
-      return;
-    }
-    const line = parseLineHash(hash);
-    if (!line.ok || landLine === undefined) {
+    const parsed = parseLinkParam(link);
+    if (!parsed.ok) {
       return;
     }
     if (!enabled) {
       landedFor.current = briefId;
       return;
     }
-    if (landLine(line.value)) {
+    if (parsed.value.kind === LinkTargetKinds.CHUNK) {
+      const { chunkId } = parsed.value;
+      if (chunkIds.includes(chunkId) && land(chunkId)) {
+        landedFor.current = briefId;
+      }
+      return;
+    }
+    if (landLine !== undefined && landLine(parsed.value.lines)) {
       landedFor.current = briefId;
     }
-  }, [briefId, chunkIds, enabled, land, landLine, writtenHash]);
+  }, [briefId, chunkIds, enabled, land, landLine, link, writtenLink]);
 }

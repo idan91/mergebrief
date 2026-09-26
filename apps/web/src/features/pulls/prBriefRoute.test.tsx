@@ -27,6 +27,7 @@ import {
   buildPrMetaQueryOptions,
 } from "./queries";
 import type { PrSummary } from "./types";
+import type { Span } from "./utils";
 
 const REPO_ID = "424242";
 const PR_NUMBER = 7;
@@ -59,7 +60,12 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
   };
 }
 
-async function renderRoute(metaValue: PrSummary, path: string) {
+/** Every span the fixture brief answers for; `SPAN` always, older ones on request. */
+async function renderRoute(
+  metaValue: PrSummary,
+  path: string,
+  olderSpans: readonly Span[] = [],
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -67,14 +73,18 @@ async function renderRoute(metaValue: PrSummary, path: string) {
     buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     metaValue,
   );
-  queryClient.setQueryData(
-    buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
-    briefFixture,
-  );
-  queryClient.setQueryData(
-    buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
-    "",
-  );
+  for (const span of [SPAN, ...olderSpans]) {
+    queryClient.setQueryData(
+      buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, span.base, span.head)
+        .queryKey,
+      briefFixture,
+    );
+    queryClient.setQueryData(
+      buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, span.base, span.head)
+        .queryKey,
+      "",
+    );
+  }
 
   const router = createRouter({
     routeTree,
@@ -818,6 +828,7 @@ describe("DB brief route, rev param", () => {
       base?: string;
       head?: string;
       rev?: number;
+      l?: string;
     };
   }
 
@@ -832,7 +843,7 @@ describe("DB brief route, rev param", () => {
     expect(readSearch(router)).toEqual({ rev: 2 });
   });
 
-  it("a line pick writes one hash and keeps the rev", async () => {
+  it("a line pick writes the link param and keeps the rev", async () => {
     const router = await renderRoute(
       meta({ revisions }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
@@ -850,21 +861,20 @@ describe("DB brief route, rev param", () => {
     fireEvent.mouseUp(row);
 
     await waitFor(() =>
-      expect(router.state.location.hash).toBe("src/leak.ts:R10"),
+      expect(readSearch(router)).toEqual({ rev: 2, l: "chunk-a.R10" }),
     );
-    expect(readSearch(router)).toEqual({ rev: 2 });
-    expect(router.history.location.href).toContain("?rev=2#src/leak.ts:R10");
+    expect(router.history.location.href).toContain("?rev=2&l=chunk-a.R10");
   });
 
-  it("rewrites a legacy span link to its rev and keeps the hash", async () => {
+  it("rewrites a legacy span link to its rev and keeps the link", async () => {
     const router = await renderRoute(
       meta({ revisions }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}#chunk-c1`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&l=c1`,
     );
     await waitFor(() => expect(readSearch(router).rev).toBe(2));
     expect(readSearch(router).base).toBeUndefined();
     expect(readSearch(router).head).toBeUndefined();
-    expect(router.state.location.hash).toBe("chunk-c1");
+    expect(readSearch(router).l).toBe("c1");
     expect(router.history.length).toBe(1);
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
   });
@@ -891,10 +901,10 @@ describe("DB brief route, rev param", () => {
     expect(readSearch(router)).toEqual({ rev: 9 });
   });
 
-  it("selecting a revision writes rev only", async () => {
+  it("selecting a revision writes rev only, the link dropped", async () => {
     const router = await renderRoute(
       meta({ revisions }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&l=c1`,
     );
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
@@ -903,6 +913,19 @@ describe("DB brief route, rev param", () => {
     await waitFor(() => expect(readSearch(router).rev).toBe(1));
     expect(readSearch(router).head).toBeUndefined();
     expect(readSearch(router).base).toBeUndefined();
+    expect(readSearch(router).l).toBeUndefined();
+  });
+
+  it("going to the newest revision drops the link", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=1&l=c1`,
+      [OLDER],
+    );
+    const chip = await waitFor(() => screen.getByTestId("stale-revision-chip"));
+    fireEvent.click(chip);
+    // The pin effect writes the latest rev back; the link stays gone.
+    await waitFor(() => expect(readSearch(router)).toEqual({ rev: 2 }));
   });
 
   it("drops the default view but keeps off on a Compare write", async () => {
@@ -925,15 +948,14 @@ describe("DB brief route, rev param", () => {
     });
     const router = await renderRoute(
       withComparison,
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&view=full&compare=previous-brief#src/a.ts:R3`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&view=full&compare=previous-brief&l=c1`,
     );
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));
     await waitFor(() =>
-      expect(readSearch(router)).toEqual({ rev: 2, compare: "off" }),
+      expect(readSearch(router)).toEqual({ rev: 2, compare: "off", l: "c1" }),
     );
-    expect(router.state.location.hash).toBe("src/a.ts:R3");
   });
 });

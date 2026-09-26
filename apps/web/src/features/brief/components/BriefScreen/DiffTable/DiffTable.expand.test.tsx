@@ -226,6 +226,7 @@ interface HarnessProps {
   view: DiffView;
   lineOwners?: FileLineOwners;
   jumpToLine?: (chunkId: string, target: LineTarget) => void;
+  deriveChunkUrl?: (chunkId: string) => string;
   hiddenThreads?: readonly DigestThreadRow[];
   fileThreads?: readonly DigestThreadRow[];
   comparisonView?: ChunkComparisonView;
@@ -294,6 +295,7 @@ function Harness({
   view,
   lineOwners,
   jumpToLine,
+  deriveChunkUrl,
   hiddenThreads,
   fileThreads,
   comparisonView,
@@ -317,6 +319,7 @@ function Harness({
           expansion={expansion}
           fileThreads={fileThreads}
           hiddenThreads={hiddenThreads}
+          deriveChunkUrl={deriveChunkUrl}
           jumpToLine={jumpToLine}
           lineOwners={lineOwners}
           reviewCommentLabel="review comment"
@@ -657,6 +660,10 @@ describe("DiffTable sibling spans", () => {
     ]),
   };
 
+  function stubChunkUrl(chunkId: string): string {
+    return `/repos/1/pulls/2?rev=1&l=${chunkId}`;
+  }
+
   async function expandIntoSiblings(
     view: DiffView,
     extra: Partial<HarnessProps> = {},
@@ -665,7 +672,14 @@ describe("DiffTable sibling spans", () => {
   ) {
     const jumpToLine = vi.fn();
     const harness = renderHarness(
-      { chunk: stubChunk(), view, lineOwners, jumpToLine, ...extra },
+      {
+        chunk: stubChunk(),
+        view,
+        lineOwners,
+        jumpToLine,
+        deriveChunkUrl: stubChunkUrl,
+        ...extra,
+      },
       { fileRows: rowsCache, session },
     );
     seedRange(harness.queryClient, 10, 29, 80);
@@ -744,7 +758,7 @@ describe("DiffTable sibling spans", () => {
     control.focus();
     const navigated = fireEvent.click(control);
 
-    expect(control.getAttribute("href")).toBe("#chunk-c2");
+    expect(control.getAttribute("href")).toBe("/repos/1/pulls/2?rev=1&l=c2");
     expect(navigated).toBe(false);
     expect(jumpToLine).toHaveBeenCalledWith("c2", { side: "new", line: 11 });
     expect(
@@ -753,7 +767,7 @@ describe("DiffTable sibling spans", () => {
           name: "Go to chunk in the unattributed remainder",
         })
         .getAttribute("href"),
-    ).toBe("#chunk-u-1");
+    ).toBe("/repos/1/pulls/2?rev=1&l=u-1");
   });
 
   it("keeps a modified click a link, not an in-app landing", async () => {

@@ -58,8 +58,10 @@ export interface DiffTableProps {
   fileThreads?: readonly DigestThreadRow[] | undefined;
   /** The file's chunks and their labels; absent leaves expanded changed rows unframed. */
   lineOwners?: FileLineOwners | undefined;
-  /** Where a sibling span's control lands; absent renders the header without one. */
+  /** Where a sibling span's control lands; the control needs this and `deriveChunkUrl`. */
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
+  /** The URL that addresses a chunk, the sibling span control's link. */
+  deriveChunkUrl?: ((chunkId: string) => string) | undefined;
 }
 
 export interface RailView {

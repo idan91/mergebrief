@@ -3,7 +3,10 @@ import type { ValueOf } from "types/utils";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
-import type { SubmitReviewAction } from "@web/features/review/utils";
+import type {
+  LineLinkTarget,
+  SubmitReviewAction,
+} from "@web/features/review/utils";
 import type { ReviewSessionPayload } from "@web/features/review/session";
 import type {
   MarkReadyAction,
@@ -48,11 +51,11 @@ export interface LensPaneProps {
 
 /** What a line link resolves to before anything scrolls. */
 export const LineLandingKinds = {
-  /** No file, no chunk, or a line the brief cannot show. */
+  /** No such chunk, or a line the brief cannot show. */
   MISS: "miss",
-  /** The owner's rows are not attached yet; the hash keeps its chance. */
+  /** The chunk's rows are not attached yet; the link keeps its chance. */
   PENDING: "pending",
-  /** The rows never came: the owner's card is shown without the line. */
+  /** The rows never came: the chunk's card is shown without the line. */
   CARD: "card",
   LAND: "land",
 } as const;
@@ -92,7 +95,7 @@ export type LineLandingPlan =
 /** The chunk link glyph: the URL to copy, and what the page does once it is copied. */
 export interface ChunkShare {
   deriveUrl: (chunkId: string) => string;
-  /** Writes the chunk hash and stands a line selection down. */
+  /** Writes the chunk link and stands a line selection down. */
   commit: (chunkId: string) => void;
 }
 
@@ -135,20 +138,30 @@ export interface BriefScreenProps {
   exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
+  /** The link param as the URL carries it: a chunk, or lines, to land on once per brief. */
+  link?: string | undefined;
   /**
-   * Writes the URL hash with replace, an empty string clearing it; the
-   * line selection rides through here. Route-owned, absent where no
-   * navigation is wired.
+   * Writes the link param with replace, undefined dropping it; the line
+   * selection rides through here. Route-owned, absent where no navigation
+   * is wired.
    */
-  navigateHash?: ((hash: string) => void) | undefined;
+  navigateLink?: ((link: string | undefined) => void) | undefined;
   /** Content goes inert; the sticky header stays live. */
   revisionPending?: boolean | undefined;
 }
 
-export const LineHashErrors = {
-  /** Not this shape at all: a chunk hash, an in-page anchor, or nothing. */
-  NOT_LINE_HASH: "not-line-hash",
+/** What the link param names: a chunk, or lines inside one. */
+export const LinkTargetKinds = {
+  CHUNK: "chunk",
+  LINES: "lines",
+} as const;
+
+export type LinkTarget =
+  | { kind: typeof LinkTargetKinds.CHUNK; chunkId: string }
+  | { kind: typeof LinkTargetKinds.LINES; lines: LineLinkTarget };
+
+export const LinkParamErrors = {
   MALFORMED: "malformed",
 } as const;
 
-export type LineHashError = ValueOf<typeof LineHashErrors>;
+export type LinkParamError = ValueOf<typeof LinkParamErrors>;

@@ -24,7 +24,7 @@ import {
   shouldPollMeta,
   type Span,
 } from "@web/features/pulls/utils";
-import { type ScopeExitOptions, stripHashMark } from "@web/features/brief";
+import type { ScopeExitOptions } from "@web/features/brief";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   buildDbBriefQueryOptions,
@@ -52,6 +52,8 @@ interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
   head?: string;
   /** This route reserves the param; the conversation section reads it. */
   thread?: number;
+  /** A chunk, or lines inside one, to land on; the brief screen parses it. */
+  l?: string;
 }
 
 function nonEmpty(value: unknown): value is string {
@@ -165,6 +167,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const compare = parseCompareParam(search["compare"]);
     const diff = parseDiffParam(search["diff"]);
     const thread = resolvePositiveInteger(search["thread"]);
+    const link = search["l"];
     const parsed: PrBriefSearch = {};
 
     if (rev !== undefined) {
@@ -180,6 +183,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     if (compare !== undefined) parsed.compare = compare;
     if (diff !== undefined) parsed.diff = diff;
     if (thread !== undefined) parsed.thread = thread;
+    if (nonEmpty(link)) {
+      parsed.l = link;
+    }
 
     return {
       ...parsed,
@@ -388,8 +394,14 @@ function PrBriefRoute() {
   /** Drop the pinned revision so it re-resolves to latest. */
   const goToNewest = useCallback(() => {
     void navigate({
-      search: ({ rev: _rev, head: _h, base: _b, thread: _spent, ...rest }) =>
-        rest,
+      search: ({
+        rev: _rev,
+        head: _h,
+        base: _b,
+        thread: _spent,
+        l: _link,
+        ...rest
+      }) => rest,
       replace: false,
       resetScroll: false,
     });
@@ -398,10 +410,16 @@ function PrBriefRoute() {
   const selectRevision = useCallback(
     (point: DbTimelinePoint) => {
       void navigate({
-        // A jump target (`thread`) is spent once a revision is selected, and
-        // a legacy span never survives a write: drop the keys entirely
+        // A jump target (`thread`, `l`) is spent once a revision is selected,
+        // and a legacy span never survives a write: drop the keys entirely
         // (exactOptionalPropertyTypes forbids `undefined`).
-        search: ({ thread: _spent, head: _h, base: _b, ...rest }) => ({
+        search: ({
+          thread: _spent,
+          l: _link,
+          head: _h,
+          base: _b,
+          ...rest
+        }) => ({
           ...rest,
           rev: point.headIndex,
         }),
@@ -436,7 +454,7 @@ function PrBriefRoute() {
         // current-entry choice for the same ambiguity.
         const span = spans.findLast((s) => s.headSha === anchorSha);
         void navigate({
-          search: ({ rev: _rev, head: _h, base: _b, ...rest }) => {
+          search: ({ rev: _rev, head: _h, base: _b, l: _link, ...rest }) => {
             const next: PrBriefSearch = { ...rest };
 
             // Key order is URL param order: rev lands before thread.
@@ -470,7 +488,6 @@ function PrBriefRoute() {
         ...rest,
         rev: pinnedRev,
       }),
-      hash: true,
       replace: true,
     });
   }, [navigate, pinnedRev, search.base, search.head, search.rev]);
@@ -492,8 +509,7 @@ function PrBriefRoute() {
   // Stable across renders (navigate is): GroupCard's memo boundary rides on
   // the identity PrBriefContent derives from this.
   // `next` is the whole View/Compare/diff trio: a key it leaves out is
-  // dropped, which is how a default leaves the URL. A lens change keeps the
-  // hash: the lines it names are still on the page.
+  // dropped, which is how a default leaves the URL.
   const onNavigateSearch = useCallback(
     (next: BriefSearchParams, options?: ScopeExitOptions) => {
       void navigate({
@@ -501,7 +517,6 @@ function PrBriefRoute() {
           ...rest,
           ...next,
         }),
-        hash: true,
         replace: options?.replace ?? false,
       });
     },
@@ -513,18 +528,23 @@ function PrBriefRoute() {
   const clearDiffParam = useCallback(() => {
     void navigate({
       search: ({ diff: _diff, ...rest }) => rest,
-      hash: true,
       replace: true,
     });
   }, [navigate]);
 
   // The line selection's address. Replace, and no scroll reset: the rows
-  // the reader is looking at are the ones the hash names.
-  const navigateHash = useCallback(
-    (hash: string) => {
+  // the reader is looking at are the ones the link names.
+  const navigateLink = useCallback(
+    (link: string | undefined) => {
       void navigate({
-        hash: stripHashMark(hash),
-        search: true,
+        search: ({ l: _link, ...rest }) => {
+          const next: PrBriefSearch = { ...rest };
+          if (link !== undefined) {
+            next.l = link;
+          }
+
+          return next;
+        },
         replace: true,
         resetScroll: false,
       });
@@ -563,7 +583,6 @@ function PrBriefRoute() {
           ...rest,
           ...conversationFilterSearch(next),
         }),
-        hash: true,
         replace: true,
       });
     },
@@ -575,7 +594,8 @@ function PrBriefRoute() {
       meta={meta}
       onNavigateSearch={onNavigateSearch}
       clearDiffParam={clearDiffParam}
-      navigateHash={navigateHash}
+      link={search.l}
+      navigateLink={navigateLink}
       conversationFilter={conversationFilter}
       onConversationFilterChange={onConversationFilterChange}
       conversationFocusThreadId={search.thread}

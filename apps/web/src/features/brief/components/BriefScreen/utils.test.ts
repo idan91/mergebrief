@@ -31,14 +31,12 @@ import {
   toggleSetMember,
   resolveSidebarLayout,
   SidebarLayouts,
-  deriveChunkHash,
-  deriveLineHash,
+  deriveLineLink,
   deriveShareUrl,
-  parseLineHash,
-  resolveChunkIdFromHash,
+  parseLinkParam,
   buildReplyRecordingPlan,
 } from "./utils";
-import { LineHashErrors } from "./types";
+import { LinkParamErrors } from "./types";
 import { CommentSides } from "@web/features/review/utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -608,131 +606,115 @@ describe("deriveChunkSizes", () => {
   });
 });
 
-describe("chunk deep links", () => {
-  it("names a chunk in the hash and reads it back", () => {
-    expect(deriveChunkHash("c3")).toBe("#chunk-c3");
-    expect(resolveChunkIdFromHash("#chunk-c3")).toBe("c3");
-    expect(resolveChunkIdFromHash("#chunk-u-1")).toBe("u-1");
-  });
-
-  it("answers undefined for a hash that names no chunk", () => {
-    expect(resolveChunkIdFromHash("")).toBeUndefined();
-    expect(resolveChunkIdFromHash("#main-content")).toBeUndefined();
-    expect(resolveChunkIdFromHash("#chunk-")).toBeUndefined();
-    expect(resolveChunkIdFromHash("#chunk-not%20safe")).toBeUndefined();
-  });
-});
-
 describe("deriveShareUrl", () => {
-  it("joins the page address with the hash, search kept", () => {
+  it("sets the link param on the page address, other params kept", () => {
     expect(
       deriveShareUrl(
-        {
-          origin: "https://brief.test",
-          pathname: "/repos/1/pulls/2",
-          search: "?rev=3",
-        },
-        "#src/a.ts:R12",
+        { href: "https://brief.test/repos/1/pulls/2?rev=3&view=full" },
+        "c3.R12",
       ),
-    ).toBe("https://brief.test/repos/1/pulls/2?rev=3#src/a.ts:R12");
+    ).toBe("https://brief.test/repos/1/pulls/2?rev=3&view=full&l=c3.R12");
+  });
+
+  it("leaves the thread target behind, so the link lands", () => {
+    expect(
+      deriveShareUrl(
+        { href: "https://brief.test/repos/1/pulls/2?rev=3&thread=55" },
+        "c3.R12",
+      ),
+    ).toBe("https://brief.test/repos/1/pulls/2?rev=3&l=c3.R12");
+  });
+
+  it("replaces a link already there and drops a fragment", () => {
+    expect(
+      deriveShareUrl(
+        { href: "https://brief.test/repos/1/pulls/2?l=c1&rev=3#main-content" },
+        "c2",
+      ),
+    ).toBe("https://brief.test/repos/1/pulls/2?l=c2&rev=3");
   });
 });
 
-describe("line deep links", () => {
+describe("link param", () => {
+  it("names a chunk", () => {
+    expect(parseLinkParam("c3")).toEqual({
+      ok: true,
+      value: { kind: "chunk", chunkId: "c3" },
+    });
+    expect(parseLinkParam("u-7e7f21ef")).toEqual({
+      ok: true,
+      value: { kind: "chunk", chunkId: "u-7e7f21ef" },
+    });
+  });
+
   it("names one new-side line and reads it back", () => {
     const target = {
-      file: "src/a.ts",
+      chunkId: "c3",
       side: CommentSides.NEW,
       startLine: 38,
       endLine: 38,
     };
-    expect(deriveLineHash(target)).toBe("#src/a.ts:R38");
-    expect(parseLineHash("#src/a.ts:R38")).toEqual({ ok: true, value: target });
+    expect(deriveLineLink(target)).toBe("c3.R38");
+    expect(parseLinkParam("c3.R38")).toEqual({
+      ok: true,
+      value: { kind: "lines", lines: target },
+    });
   });
 
   it("names a same-side range with the letter on both ends", () => {
     const target = {
-      file: "src/a.ts",
+      chunkId: "c3",
       side: CommentSides.OLD,
       startLine: 12,
       endLine: 20,
     };
-    expect(deriveLineHash(target)).toBe("#src/a.ts:L12-L20");
-    expect(parseLineHash("#src/a.ts:L12-L20")).toEqual({
+    expect(deriveLineLink(target)).toBe("c3.L12-L20");
+    expect(parseLinkParam("c3.L12-L20")).toEqual({
       ok: true,
-      value: target,
+      value: { kind: "lines", lines: target },
     });
   });
 
   it("carries both sides of a crossing range", () => {
     const target = {
-      file: "src/a.ts",
+      chunkId: "c3",
       side: CommentSides.NEW,
       startSide: CommentSides.OLD,
       startLine: 12,
       endLine: 20,
     };
-    expect(deriveLineHash(target)).toBe("#src/a.ts:L12-R20");
-    expect(parseLineHash("#src/a.ts:L12-R20")).toEqual({
+    expect(deriveLineLink(target)).toBe("c3.L12-R20");
+    expect(parseLinkParam("c3.L12-R20")).toEqual({
       ok: true,
-      value: target,
+      value: { kind: "lines", lines: target },
     });
   });
 
-  it("encodes only hash, query, percent and whitespace in the path", () => {
-    const file = "docs/a b#c?d%e.md";
-    const hash = deriveLineHash({
-      file,
-      side: CommentSides.NEW,
-      startLine: 1,
-      endLine: 1,
-    });
-    expect(hash).toBe("#docs/a%20b%23c%3Fd%25e.md:R1");
-    expect(parseLineHash(hash)).toMatchObject({ ok: true, value: { file } });
-    expect(
-      deriveLineHash({
-        file: "src/[id]/route.ts",
-        side: CommentSides.NEW,
-        startLine: 1,
-        endLine: 1,
-      }),
-    ).toBe("#src/[id]/route.ts:R1");
-  });
-
-  it("keeps a colon in the path by splitting on the last one", () => {
-    expect(parseLineHash("#c:/x/y.ts:R3")).toMatchObject({
+  it("keeps a dot in the chunk id by splitting on the last one", () => {
+    expect(parseLinkParam("c1.2.R3")).toMatchObject({
       ok: true,
-      value: { file: "c:/x/y.ts", startLine: 3 },
+      value: { kind: "lines", lines: { chunkId: "c1.2", startLine: 3 } },
+    });
+    expect(parseLinkParam("c1.2")).toEqual({
+      ok: true,
+      value: { kind: "chunk", chunkId: "c1.2" },
     });
   });
 
-  it("leaves a chunk hash and a bare hash to their own readers", () => {
-    expect(parseLineHash("#chunk-c3")).toEqual({
-      ok: false,
-      error: LineHashErrors.NOT_LINE_HASH,
-    });
-    expect(parseLineHash("")).toEqual({
-      ok: false,
-      error: LineHashErrors.NOT_LINE_HASH,
-    });
-    expect(parseLineHash("#main-content")).toEqual({
-      ok: false,
-      error: LineHashErrors.NOT_LINE_HASH,
-    });
+  it("reads a bad line part as a chunk id, which no brief carries", () => {
+    for (const link of ["c3.X12", "c3.R0", "c3.R12-", "c3.R20-R12", ".R12"]) {
+      expect(parseLinkParam(link)).toEqual({
+        ok: true,
+        value: { kind: "chunk", chunkId: link },
+      });
+    }
   });
 
-  it("rejects a malformed line part", () => {
-    for (const hash of [
-      "#src/a.ts:X12",
-      "#src/a.ts:R0",
-      "#src/a.ts:R12-",
-      "#src/a.ts:R20-R12",
-      "#:R12",
-      "#src/a.ts:R1.5",
-    ]) {
-      expect(parseLineHash(hash)).toEqual({
+  it("rejects characters the param cannot carry", () => {
+    for (const link of ["", "c3:R12", "src/a.ts.R1", "c3 .R1"]) {
+      expect(parseLinkParam(link)).toEqual({
         ok: false,
-        error: LineHashErrors.MALFORMED,
+        error: LinkParamErrors.MALFORMED,
       });
     }
   });

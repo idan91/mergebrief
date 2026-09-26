@@ -3,14 +3,14 @@ import { useTranslation } from "react-i18next";
 import { CopyButton } from "@web/components/CopyButton";
 import { IconNames } from "@web/components/Icon/types";
 import type { LineSelection } from "@web/features/review/utils";
-import { deriveLineHash, deriveShareUrl } from "../../utils";
+import { deriveLineLink, deriveShareUrl } from "../../utils";
 import styles from "./SelectionLinkGlyph.module.scss";
 
 export interface SelectionLinkGlyphProps {
   selection: LineSelection;
 }
 
-/** The link glyph at a selection's first row: copies the page URL with the line hash. */
+/** The link glyph at a selection's first row: copies the page URL with the line link. */
 export function SelectionLinkGlyph({ selection }: SelectionLinkGlyphProps) {
   const { t } = useTranslation();
   const label =
@@ -26,7 +26,7 @@ export function SelectionLinkGlyph({ selection }: SelectionLinkGlyphProps) {
       <CopyButton
         icon={IconNames.LINK}
         label={label}
-        text={() => deriveShareUrl(window.location, deriveLineHash(selection))}
+        text={() => deriveShareUrl(window.location, deriveLineLink(selection))}
         title={label}
       />
     </span>
