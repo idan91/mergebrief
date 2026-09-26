@@ -218,11 +218,13 @@ async function seedBrief(
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
+  const store = createArtifactStore(handle, CTX);
+  const prior = await store.briefs.listForPullRequest(pr.id);
   const write: Mutable<BriefWriteInput> = {
     pullRequestId: pr.id,
     baseSha: base,
     headSha: head,
-    headIndex: 1,
+    headIndex: (prior.at(-1)?.headIndex ?? 0) + 1,
     commitCount: 3,
     provider: "anthropic",
     model: "claude",
@@ -232,9 +234,10 @@ async function seedBrief(
 
   if (repoConfig !== undefined) write.repoConfig = repoConfig;
 
-  const written = await createArtifactStore(handle, CTX).briefs.write(write);
-  if (!written.ok)
+  const written = await store.briefs.write(write);
+  if (!written.ok) {
     throw new Error(`seedBrief: write failed ${written.error.code}`);
+  }
 }
 
 function briefContextPath(base: string, head: string): string {

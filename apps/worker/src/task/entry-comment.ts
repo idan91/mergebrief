@@ -9,14 +9,16 @@ export interface EntryCommentLink {
   /** GitHub's immutable numeric repo id (the FE route key). */
   readonly repoId: bigint;
   readonly prNumber: number;
-  readonly baseSha: string;
+  /** The brief's index on this PR, the `rev` the web route addresses. */
+  readonly headIndex: number;
+  /** Named in the body's short sha, never in the link. */
   readonly headSha: string;
 }
 
-/** The exact-span deep link into the web app's DB-brief route. */
+/** The revision deep link into the web app's DB-brief route. */
 export function entryCommentDeepLink(link: EntryCommentLink): string {
   const origin = link.publicBaseUrl.replace(/\/+$/, "");
-  return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}?base=${link.baseSha}&head=${link.headSha}`;
+  return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}?rev=${String(link.headIndex)}`;
 }
 
 /** The branded "ready" body posted once the brief artifact is readable. */

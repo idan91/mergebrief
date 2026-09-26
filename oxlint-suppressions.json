@@ -187,11 +187,6 @@
       "count": 2
     }
   },
-  "apps/web/e2e/fixtures/ids.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/web/e2e/perf/generateFixture.ts": {
     "house/no-em-dash": {
       "count": 4
@@ -289,11 +284,6 @@
     },
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/brief/comparison/compareState.test.ts": {
-    "house/test-title": {
-      "count": 4
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/consts.ts": {
@@ -497,14 +487,6 @@
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/pulls/utils/dbTimeline.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 4
     }
   },
   "apps/web/src/features/pulls/utils/ownDraft.test.ts": {
@@ -1218,14 +1200,6 @@
   "packages/persistence/src/stores/url-box.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/test/artifact-store.test.ts": {
-    "house/no-em-dash": {
-      "count": 12
-    },
-    "house/test-title": {
-      "count": 11
     }
   },
   "packages/persistence/test/audit.test.ts": {

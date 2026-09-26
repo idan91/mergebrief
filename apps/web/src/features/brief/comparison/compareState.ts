@@ -210,3 +210,86 @@ export function compareUnavailableTitle(
       : LAST_REVIEW_UNAVAILABLE_TITLE_KEY,
   );
 }
+
+const LAST_REVIEW_FLIPS: readonly boolean[] = [false, true];
+
+function resolvesLike(
+  candidate: BriefSearchParams,
+  params: BriefSearchParams,
+  availability: CompareOptionFlags,
+): boolean {
+  const resolved = resolveBriefSearch(candidate, availability);
+  const target = resolveBriefSearch(params, availability);
+  return resolved.view === target.view && resolved.compare === target.compare;
+}
+
+function resolvesStably(
+  candidate: BriefSearchParams,
+  params: BriefSearchParams,
+  availability: CompareOptionFlags,
+): boolean {
+  return LAST_REVIEW_FLIPS.every((lastReview) =>
+    resolvesLike(candidate, params, { ...availability, lastReview }),
+  );
+}
+
+/**
+ * A default leaves a shared URL only when the rest still resolves to the
+ * same state whether or not the last-review comparison is available: that
+ * availability arrives on a poll and differs per revision. In practice
+ * `view=full` leaves and `compare=off` stays, since a bare URL follows the
+ * last review. `diff` leaves when it names the viewer's stored preference.
+ */
+export function stripDefaultSearch(
+  params: BriefSearchParams,
+  availability: CompareOptionFlags,
+  storedDiff: DiffView,
+): BriefSearchParams {
+  const viewDroppable = params.view === "full";
+  const compareDroppable = params.compare === "off";
+  const kept: BriefSearchParams = {};
+
+  if (params.view !== undefined) {
+    kept.view = params.view;
+  }
+  if (params.compare !== undefined) {
+    kept.compare = params.compare;
+  }
+
+  const candidates: BriefSearchParams[] = [];
+  if (viewDroppable && compareDroppable) {
+    candidates.push({});
+  }
+  if (viewDroppable) {
+    candidates.push(dropView(kept));
+  }
+  if (compareDroppable) {
+    candidates.push(dropCompare(kept));
+  }
+  const stripped =
+    candidates.find((candidate) =>
+      resolvesStably(candidate, params, availability),
+    ) ?? kept;
+
+  if (params.diff !== undefined && params.diff !== storedDiff) {
+    stripped.diff = params.diff;
+  }
+
+  return stripped;
+}
+
+function dropView(params: BriefSearchParams): BriefSearchParams {
+  const rest: BriefSearchParams = {};
+  if (params.compare !== undefined) {
+    rest.compare = params.compare;
+  }
+  return rest;
+}
+
+function dropCompare(params: BriefSearchParams): BriefSearchParams {
+  const rest: BriefSearchParams = {};
+  if (params.view !== undefined) {
+    rest.view = params.view;
+  }
+  return rest;
+}

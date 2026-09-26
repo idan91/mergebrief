@@ -78,7 +78,7 @@ export async function generateBrief(
   await projection.markRunning(target, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
     const generatingBody = entryCommentGeneratingBody(
-      entryCommentManager.buildDeepLink(prInfo.baseSha),
+      entryCommentManager.buildDeepLink(headIndex),
     );
     await entryCommentManager.refresh(generatingBody);
   }

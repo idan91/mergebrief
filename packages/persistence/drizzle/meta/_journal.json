@@ -309,6 +309,13 @@
       "when": 1790298064773,
       "tag": "0044_inbox-archive",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790375754358,
+      "tag": "0045_brief-head-index",
+      "breakpoints": true
     }
   ]
 }

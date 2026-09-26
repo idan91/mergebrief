@@ -41,8 +41,8 @@ function validMarks(baselineSha: string, headSha: string) {
   };
 }
 
-describe("createArtifactStore.briefs — idempotent content-addressed write", () => {
-  it("rewrites the same span in place — one row, body updated", async () => {
+describe("createArtifactStore.briefs idempotent content-addressed write", () => {
+  it("rewrites the same span in place, one row with the body updated", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store: ArtifactStore = createArtifactStore(handle, CTX_A);
@@ -82,7 +82,7 @@ describe("createArtifactStore.briefs — idempotent content-addressed write", ()
     expect(read?.body).toBe("v2-longer");
   });
 
-  it("round-trips the repo-config origin column, clearing it when a rewrite omits it", async () => {
+  it("round-trips the repo-config column, an omitting rewrite clears it", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store: ArtifactStore = createArtifactStore(handle, CTX_A);
@@ -111,7 +111,7 @@ describe("createArtifactStore.briefs — idempotent content-addressed write", ()
     if (!withConfig.ok) throw new Error("unreachable");
     expect(withConfig.value.repoConfig).toBe(snapshot);
 
-    // A rewrite without repoConfig clears it — the column always reflects the
+    // A rewrite without repoConfig clears it, the column always reflects the
     // LATEST generation of the span, never a stale earlier run's snapshot.
     const without = await store.briefs.write({
       pullRequestId: pr.id,
@@ -128,7 +128,44 @@ describe("createArtifactStore.briefs — idempotent content-addressed write", ()
   });
 });
 
-describe("createArtifactStore.briefs — anchor origin columns", () => {
+describe("createArtifactStore.briefs unique head index per PR", () => {
+  it("DB rejects a second span claiming a head index the PR already has", async () => {
+    const handle = await freshDatabase();
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 12,
+      state: PrStates.OPEN,
+    });
+    const first = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base-old",
+      headSha: "head",
+      headIndex: 1,
+      commitCount: 1,
+      ...PROV,
+      body: "v1",
+    });
+    expect(first.ok).toBe(true);
+
+    await expect(
+      store.briefs.write({
+        pullRequestId: pr.id,
+        baseSha: "base-new",
+        headSha: "head",
+        headIndex: 1,
+        commitCount: 1,
+        ...PROV,
+        body: "v1",
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "brief_pull_request_head_index_key" },
+    });
+  });
+});
+
+describe("createArtifactStore.briefs anchor origin columns", () => {
   it("round-trips anchor state + reason and updates them on rewrite", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
@@ -175,7 +212,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
     expect(read?.anchorReason).toBe("model-swap");
   });
 
-  it("stores null anchor columns when the writer omits them (pre-feature shape)", async () => {
+  it("stores null anchor columns when the writer omits them", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store: ArtifactStore = createArtifactStore(handle, CTX_A);
@@ -200,7 +237,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
     expect(written.value.anchorReason).toBeNull();
   });
 
-  it("DB rejects out-of-vocabulary anchor state and reason-without-fresh-restart (CHECKs)", async () => {
+  it("DB CHECKs reject a bad anchor state and a reason without restart", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store: ArtifactStore = createArtifactStore(handle, CTX_A);
@@ -232,7 +269,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
   });
 });
 
-describe("createArtifactStore.briefs — carried chunk ids", () => {
+describe("createArtifactStore.briefs carried chunk ids", () => {
   it("stores the carried set as JSON, null when the writer omits it", async () => {
     const handle = await freshDatabase();
     const store = createArtifactStore(handle, CTX_A);
@@ -266,7 +303,7 @@ describe("createArtifactStore.briefs — carried chunk ids", () => {
       "chunk-b",
     ]);
 
-    // A fresh restart carries nothing — an empty list, not a null.
+    // A fresh restart carries nothing, an empty list rather than a null.
     const restarted = await store.briefs.write({
       ...span,
       body: "v3",
@@ -290,7 +327,7 @@ describe("createArtifactStore.briefs — carried chunk ids", () => {
   });
 });
 
-describe("createArtifactStore.deltas / diffSnapshots — same write discipline", () => {
+describe("createArtifactStore.deltas and diffSnapshots share the discipline", () => {
   it("delta: idempotent span rewrite, origin written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -335,7 +372,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
     expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
-  it("diff_snapshot: idempotent per-sha rewrite, no origin, cross-tenant rejected", async () => {
+  it("diff_snapshot rewrites per sha, no origin, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const aStore = createArtifactStore(handle, CTX_A);
@@ -376,7 +413,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
   });
 });
 
-describe("createArtifactStore — cross-tenant write is rejected without a DB write", () => {
+describe("createArtifactStore rejects a cross-tenant write before the DB", () => {
   it("rejects a brief whose pull_request belongs to another tenant", async () => {
     const handle = await freshDatabase();
     const b = createTenantRepository(handle, CTX_B);
@@ -409,7 +446,7 @@ describe("createArtifactStore — cross-tenant write is rejected without a DB wr
   });
 });
 
-describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
+describe("createArtifactStore.revisionNarratives brief anchoring", () => {
   it("rejects a briefId that belongs to another PR/tenant, no row written", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -457,7 +494,7 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
     ).toBeUndefined();
   });
 
-  it("accepts a narrative anchored to a brief in the same (ctx, PR)", async () => {
+  it("accepts a narrative anchored to a brief in the same ctx and PR", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -491,8 +528,8 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
   });
 });
 
-describe("createArtifactStore.comparisonMarks — coordinates-only guard", () => {
-  it("rejects a body carrying baselineLabel (extra key)", async () => {
+describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
+  it("rejects a body carrying the extra key baselineLabel", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -549,7 +586,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
   });
 
-  it("rejects impossible line ranges (inverted, zero, negative)", async () => {
+  it("rejects inverted, zero and negative line ranges", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -581,7 +618,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     }
   });
 
-  it("accepts a valid coordinates-only body and stores exactly the SHA-pair body", async () => {
+  it("accepts a coordinates-only body and stores it for the SHA pair", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -613,7 +650,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
   });
 });
 
-describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
+describe("createArtifactStore.hunkSpans the carry-over hop", () => {
   const HOP = [
     {
       file: "src/a.ts",
@@ -657,7 +694,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
       spans: HOP,
     });
 
-    // Insertion order, not chain order — a caller links the SHA pairs.
+    // Insertion order, not chain order: a caller links the SHA pairs.
     const chain = await store.hunkSpans.listForPullRequest(pr.id);
     expect(chain.map((row) => [row.baselineSha, row.headSha])).toEqual([
       ["head-1", "head-2"],

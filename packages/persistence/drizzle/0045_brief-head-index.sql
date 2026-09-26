@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "brief_pull_request_head_index_key" ON "brief" USING btree ("pull_request_id","head_index");

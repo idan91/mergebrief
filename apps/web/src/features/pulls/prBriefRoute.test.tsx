@@ -272,16 +272,14 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    // …and the dangling param is gone from the normalized search state (the
-    // span-pinning replace then writes the full resolved span).
-    await waitFor(() => {
-      const search = router.state.location.search as {
-        base?: string;
-        head?: string;
-      };
-      expect(search.base).toBe(SPAN.base);
-      expect(search.head).toBe(SPAN.head);
-    });
+    // …and the dangling key is ignored rather than resolved: no revision
+    // list means no rev to pin, so nothing is written back.
+    const search = router.state.location.search as {
+      head?: string;
+      rev?: number;
+    };
+    expect(search.head).toBeUndefined();
+    expect(search.rev).toBeUndefined();
   });
 
   it("Compare is disabled when the meta offers no previous-brief baseline", async () => {
@@ -791,5 +789,127 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     expect(
       screen.queryByRole("heading", { name: /generating the brief/i }),
     ).toBeNull();
+  });
+});
+
+describe("DB brief route, rev param", () => {
+  afterEach(() => cleanup());
+
+  const OLDER = { base: "base-0", head: "head-0" };
+  const revisions = [
+    {
+      headSha: OLDER.head,
+      baseSha: OLDER.base,
+      headIndex: 1,
+      createdAt: "2026-07-05T12:00:00.000Z",
+      comparisons: {},
+    },
+    {
+      headSha: SPAN.head,
+      baseSha: SPAN.base,
+      headIndex: 2,
+      createdAt: "2026-07-06T12:00:00.000Z",
+      comparisons: {},
+    },
+  ];
+
+  function readSearch(router: Awaited<ReturnType<typeof renderRoute>>) {
+    return router.state.location.search as {
+      base?: string;
+      head?: string;
+      rev?: number;
+    };
+  }
+
+  it("renders the revision a rev names and leaves the URL as it came", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    expect(readSearch(router)).toEqual({ rev: 2 });
+  });
+
+  it("rewrites a legacy span link to its rev and keeps the hash", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}#chunk-c1`,
+    );
+    await waitFor(() => expect(readSearch(router).rev).toBe(2));
+    expect(readSearch(router).base).toBeUndefined();
+    expect(readSearch(router).head).toBeUndefined();
+    expect(router.state.location.hash).toBe("chunk-c1");
+    expect(router.history.length).toBe(1);
+    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
+  });
+
+  it("pins the latest rev onto a bare link", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
+    );
+    await waitFor(() => expect(readSearch(router).rev).toBe(2));
+  });
+
+  it("leaves an unknown rev in place, shows latest and the note", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=9`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    expect(
+      screen.getByText(/that revision link is no longer available/i),
+    ).toBeTruthy();
+    expect(readSearch(router)).toEqual({ rev: 9 });
+  });
+
+  it("selecting a revision writes rev only", async () => {
+    const router = await renderRoute(
+      meta({ revisions }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByLabelText("Previous revision, 1"));
+    await waitFor(() => expect(readSearch(router).rev).toBe(1));
+    expect(readSearch(router).head).toBeUndefined();
+    expect(readSearch(router).base).toBeUndefined();
+  });
+
+  it("drops the default view but keeps off on a Compare write", async () => {
+    // `renderRoute` seeds no marks, so previous-brief resolves as available
+    // from the meta alone; the radio is live and Off is a real change.
+    const withComparison = meta({
+      revisions: [
+        revisions[0]!,
+        {
+          ...revisions[1]!,
+          comparisons: {
+            previousBrief: {
+              baselineSha: OLDER.head,
+              baselineIndex: 1,
+              narrativeAvailable: false,
+            },
+          },
+        },
+      ],
+    });
+    const router = await renderRoute(
+      withComparison,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&view=full&compare=previous-brief#src/a.ts:R3`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));
+    await waitFor(() =>
+      expect(readSearch(router)).toEqual({ rev: 2, compare: "off" }),
+    );
+    expect(router.state.location.hash).toBe("src/a.ts:R3");
   });
 });

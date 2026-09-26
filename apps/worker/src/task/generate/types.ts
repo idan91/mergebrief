@@ -218,7 +218,7 @@ export interface EntryCommentManagerInputs {
 /** The four operations over one live Entry comment id, plus a read of it. */
 export interface EntryCommentManager {
   getCurrentId(): bigint | null;
-  buildDeepLink(baseSha: string): EntryCommentLink;
+  buildDeepLink(headIndex: number): EntryCommentLink;
   remove(): Promise<void>;
   matches(body: string): Promise<boolean>;
   refresh(body: string): Promise<void>;

@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
 import { artifactColumns, tenantColumns } from "./columns";
@@ -24,7 +25,7 @@ export const brief = pgTable(
       .references(() => pullRequest.id, { onDelete: "cascade" }),
     baseSha: text("base_sha").notNull(),
     headSha: text("head_sha").notNull(),
-    /** Per-distinct-head display index; with commit_count it backs the label. */
+    /** The Nth brief on this PR, retargets included; the `rev` a link names. */
     headIndex: integer("head_index").notNull(),
     commitCount: integer("commit_count").notNull(),
     provider: text("provider").notNull(),
@@ -64,6 +65,12 @@ export const brief = pgTable(
     index("brief_pull_request_created_idx").on(
       table.pullRequestId,
       table.createdAt.desc(),
+    ),
+    // A rev addresses one brief: two runs racing for the same index fail
+    // loudly instead of leaving a link ambiguous.
+    uniqueIndex("brief_pull_request_head_index_key").on(
+      table.pullRequestId,
+      table.headIndex,
     ),
   ],
 );

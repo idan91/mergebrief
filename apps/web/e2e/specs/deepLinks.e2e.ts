@@ -6,8 +6,8 @@ import { expect, test } from "@playwright/test";
 
 import {
   FIXTURE_PR_TITLE,
-  FIXTURE_REV1_HEAD,
   FIXTURE_ROUTE_REV1,
+  FIXTURE_ROUTE_REV1_LEGACY_SPAN,
   FIXTURE_ROUTE_REV2,
 } from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
@@ -84,13 +84,40 @@ test("the timeline navigates between the fixture's revisions", async ({
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
   await page.getByRole("button", { name: "Previous revision, 1" }).click();
-  // The repo route encodes the revision in the span params, not the path.
-  await expect(page).toHaveURL(new RegExp(`head=${FIXTURE_REV1_HEAD}`));
+  // The repo route encodes the revision as `rev`, not in the path.
+  await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
+  await expect(page).not.toHaveURL(/head=/);
   await expect(
     page.getByRole("heading", {
       name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
     }),
   ).toBeVisible();
+});
+
+test("a rev link lands on that revision", async ({ page }) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV1);
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
+    }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
+});
+
+test("an old span link lands on its revision and is rewritten to rev", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV1_LEGACY_SPAN);
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
+    }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
+  await expect(page).not.toHaveURL(/head=/);
+  await expect(page).not.toHaveURL(/base=/);
 });
 
 test("a chunk hash lands on that chunk's card", async ({ page }) => {

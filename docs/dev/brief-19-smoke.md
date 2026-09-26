@@ -143,8 +143,8 @@ fake generator adapter exists.
      worker log may still show delta warmup. If you catch that window, a
      `comparisons warming…` chip sits bottom-right and clears on the terminal
      poll.
-5. **Expect in the URL:** `?base=<sha>&head=<sha>` appears (span pinning)
-   once the brief renders.
+5. **Expect in the URL:** `?rev=<n>` appears (revision pinning) once the
+   brief renders.
 
 **If it never leaves pending:** `docker compose logs -f worker` — the generate
 job should pick up after the ~60s debounce. No job at all → check the
@@ -164,14 +164,14 @@ View/Compare params that are unrecognized or unavailable on the DB-backed
    an immediate redirect to GitHub login (`/api/auth/github`), and after auth,
    the brief.
 2. In the signed-in window, copy the pinned URL
-   (`/repos/<repoId>/pulls/<N>?base=...&head=...`) into a new tab:
+   (`/repos/<repoId>/pulls/<N>?rev=<n>`) into a new tab:
    **expect** brief content in the first paint (View Source shows the group
    titles — that's SSR through the in-process interface) and response header
    `cache-control: no-store` (Network tab → the document request).
 3. Malformed-link checks (same tab):
    - `/repos/<repoId>/pulls/99999` → 404 error page.
    - `/repos/<repoId>/pulls/<N>?base=garbage` (lone base) → renders the
-     current span; URL normalizes to the full pinned span.
+     current span; URL rewrites to its `?rev=<n>`.
 
 ## 7. Second revision → previous-brief comparison
 

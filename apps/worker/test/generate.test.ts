@@ -1338,7 +1338,7 @@ describe("generate task", () => {
     });
   });
 
-  it("posts the exact-span Entry deep link and stores its id", async () => {
+  it("posts the rev Entry deep link and stores its id", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1353,9 +1353,7 @@ describe("generate task", () => {
 
     expect(github.comments.size).toBe(1);
     const [commentId, body] = [...github.comments.entries()][0] ?? [];
-    expect(body).toContain(
-      `${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`,
-    );
+    expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7?rev=1`);
 
     const row = await createTenantRepository(
       harness.handle,
@@ -1394,7 +1392,7 @@ describe("generate task", () => {
     // wait screen for this exact span.
     expect(bodyDuringGeneration).toContain("generating");
     expect(bodyDuringGeneration).toContain(
-      `${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`,
+      `${PUBLIC_URL}/repos/7/pulls/7?rev=1`,
     );
 
     // On ready: delete+repost, exactly one comment left, the ready body.
@@ -1565,7 +1563,7 @@ describe("generate task", () => {
     expect(github.comments.size).toBe(1);
     const [secondId, body] = [...github.comments.entries()][0] ?? [];
     expect(secondId).not.toBe(firstId);
-    expect(body).toContain(`head=${HEAD_2}`);
+    expect(body).toContain("?rev=2");
     expect(github.commentCalls).toContain(`delete:${firstId}`);
 
     const row = await createTenantRepository(

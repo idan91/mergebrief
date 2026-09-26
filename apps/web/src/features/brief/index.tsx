@@ -24,6 +24,7 @@ export {
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 export { LocalBriefsSection } from "./components/LocalBriefsSection";
 export { BriefError } from "./components/BriefError";
+export { readDiffView } from "./components/BriefScreen/diffViewStorage";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

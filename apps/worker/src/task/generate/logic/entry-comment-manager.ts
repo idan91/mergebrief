@@ -19,12 +19,12 @@ export function createEntryCommentManager(
     return liveEntryCommentId;
   }
 
-  function buildDeepLink(baseSha: string): EntryCommentLink {
+  function buildDeepLink(headIndex: number): EntryCommentLink {
     return {
       publicBaseUrl,
       repoId: prRow.repoId,
       prNumber: prRow.prNumber,
-      baseSha,
+      headIndex,
       headSha,
     };
   }

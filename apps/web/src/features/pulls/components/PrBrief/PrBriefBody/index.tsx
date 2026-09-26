@@ -3,10 +3,8 @@
 // presentational; the announcement is owned here.
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import type {
-  BriefSearch,
-  BriefSearchParams,
-} from "@web/features/brief/comparison";
+import type { ScopeExitOptions } from "@web/features/brief";
+import type { BriefSearchParams } from "@web/features/brief/comparison";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import type { deriveBriefRouteState } from "../../../utils/briefRouteState";
@@ -90,7 +88,10 @@ export interface PrBriefBodyProps {
   meta: PrSummary;
   state: BriefRouteState;
   searchParams: BriefSearchParams;
-  onNavigateSearch: (next: BriefSearch) => void;
+  onNavigateSearch: (
+    next: BriefSearchParams,
+    options?: ScopeExitOptions,
+  ) => void;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   /** Hard read-only posture + reason (base drift only). */

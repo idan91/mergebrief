@@ -5,7 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
-import { BriefView, type ScopeExitOptions } from "@web/features/brief";
+import {
+  BriefView,
+  readDiffView,
+  type ScopeExitOptions,
+} from "@web/features/brief";
 import {
   attachSlicedDiffs,
   createFileRowsCache,
@@ -18,6 +22,7 @@ import {
   type BriefSearchParams,
   buildBriefSearchParams,
   resolveBriefSearch,
+  stripDefaultSearch,
   withCompare,
   withView,
 } from "@web/features/brief/comparison";
@@ -48,7 +53,10 @@ export interface PrBriefContentProps {
   span: Span;
   meta: PrSummary;
   searchParams: BriefSearchParams;
-  onNavigateSearch: (next: BriefSearch, options?: ScopeExitOptions) => void;
+  onNavigateSearch: (
+    next: BriefSearchParams,
+    options?: ScopeExitOptions,
+  ) => void;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   readOnly?: { reason: string } | undefined;
@@ -162,14 +170,34 @@ export function PrBriefContent({
   // must survive PR-meta poll ticks.
   const searchView = searchParams.view;
   const searchCompare = searchParams.compare;
+  const searchDiff = searchParams.diff;
   const previousBriefAvailable = availability.previousBrief;
   const lastReviewAvailable = availability.lastReview;
+  // Every View/Compare write lands through here so a default never reaches
+  // the URL; the stored diff preference is read at write time, on the client.
+  const navigateSearch = useCallback(
+    (next: BriefSearch, options?: ScopeExitOptions) => {
+      const flags = {
+        previousBrief: previousBriefAvailable,
+        lastReview: lastReviewAvailable,
+      };
+      onNavigateSearch(
+        stripDefaultSearch(
+          buildBriefSearchParams(next.view, next.compare, searchDiff),
+          flags,
+          readDiffView(),
+        ),
+        options,
+      );
+    },
+    [lastReviewAvailable, onNavigateSearch, previousBriefAvailable, searchDiff],
+  );
   const openDeltaLens = useCallback(() => {
     const flags = {
       previousBrief: previousBriefAvailable,
       lastReview: lastReviewAvailable,
     };
-    onNavigateSearch(
+    navigateSearch(
       withCompare(
         resolveBriefSearch(
           buildBriefSearchParams(searchView, searchCompare),
@@ -181,7 +209,7 @@ export function PrBriefContent({
     );
   }, [
     lastReviewAvailable,
-    onNavigateSearch,
+    navigateSearch,
     previousBriefAvailable,
     searchCompare,
     searchView,
@@ -194,7 +222,7 @@ export function PrBriefContent({
         previousBrief: previousBriefAvailable,
         lastReview: lastReviewAvailable,
       };
-      onNavigateSearch(
+      navigateSearch(
         withView(
           resolveBriefSearch(
             buildBriefSearchParams(searchView, searchCompare),
@@ -208,7 +236,7 @@ export function PrBriefContent({
     },
     [
       lastReviewAvailable,
-      onNavigateSearch,
+      navigateSearch,
       previousBriefAvailable,
       searchCompare,
       searchView,
@@ -222,7 +250,7 @@ export function PrBriefContent({
         availability,
         compareState,
         lastReviewDisabledReason,
-        onNavigate: onNavigateSearch,
+        onNavigate: navigateSearch,
       }}
       note={
         timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined

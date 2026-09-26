@@ -2,8 +2,8 @@
 // Flat at the feature root with reason: the subject is src/routes' file-based
 // route, where a .test file could trip route generation, so it runs from the
 // owning feature instead. The revision-timeline path through the real router:
-// `?head=` selects a historical revision with its own base, and unknown heads
-// degrade to latest with a note. Stale-head views are WRITABLE behind a
+// `?rev=` selects a revision by index, a legacy `?head=` still lands and is
+// rewritten to its rev, and unknown revisions degrade to latest with a note. Stale-head views are WRITABLE behind a
 // submit ack; only a superseded base stays hard read-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -267,9 +267,10 @@ describe("DB brief route revision timeline", () => {
       const search = searchRecord(router.state.location.search);
       // A jump target is spent once a revision is selected.
       expect(search["thread"]).toBeUndefined();
-      // The span is dropped, then re-pinned by the resolve effect, landing
+      // The rev is dropped, then re-pinned by the resolve effect, landing
       // on latest either way; the lens must survive the round trip.
-      expect(search["head"]).toBe(REV2.headSha);
+      expect(search["rev"]).toBe(2);
+      expect(search["head"]).toBeUndefined();
       expect(search["view"]).toBe("changes");
     });
   });
@@ -282,7 +283,7 @@ describe("DB brief route revision timeline", () => {
     picker.focus();
     await choosePosition(0);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
     // No remount: the subtree is no longer keyed by brief id, so the very
     // node the reviewer operated keeps focus and stepping continues.
@@ -311,7 +312,7 @@ describe("DB brief route revision timeline", () => {
     prev.focus();
     fireEvent.click(prev);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["head"]).toBe("head-2"),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(2),
     );
     // No remount: the same arrow keeps focus, and pressing it again steps on.
     await waitFor(() => expect(document.activeElement).toBe(prev));
@@ -319,7 +320,7 @@ describe("DB brief route revision timeline", () => {
       screen.getByRole("button", { name: /previous revision, 1/i }),
     );
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
     // Oldest revision: the arrow is aria-disabled, not hard-disabled, so
     // focus STAYS on it.
@@ -339,7 +340,7 @@ describe("DB brief route revision timeline", () => {
     const navigateSpy = vi.spyOn(router, "navigate");
     await choosePosition(0);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
     expect(
       navigateSpy.mock.calls.some(
@@ -361,7 +362,7 @@ describe("DB brief route revision timeline", () => {
     picker.blur();
     await act(async () => undefined);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
     await waitFor(() =>
       expect(document.activeElement?.id).toBe("main-content"),
@@ -472,7 +473,7 @@ describe("DB brief route revision timeline", () => {
     await router.navigate({
       to: "/repos/$repoId/pulls/$prNumber",
       params: { repoId: REPO_ID, prNumber: String(PR_NUMBER) },
-      search: { head: REV2.headSha, base: REV2.baseSha, thread: 7777 },
+      search: { rev: 2, thread: 7777 },
     });
     await waitFor(() =>
       expect(
@@ -483,12 +484,12 @@ describe("DB brief route revision timeline", () => {
     );
   });
 
-  it("keeps the selected historical head when view or compare changes", async () => {
+  it("keeps the selected historical rev when view or compare changes", async () => {
     // The Brief view/compare controls navigate through a FUNCTIONAL search
-    // updater (`(current) => ({ ...current, ...next })`), so changing a lens
-    // must never drop head/base and silently re-resolve to latest.
+    // updater that replaces only the lens keys, so changing a lens must
+    // never drop rev and silently re-resolve to latest.
     // The selection must be a HISTORICAL revision: on the latest one, a
-    // regression that drops head/base would re-resolve to that same span and
+    // regression that drops rev would re-resolve to that same span and
     // the assertions below would pass for the wrong reason. REV2 here is a
     // middle revision carrying a baseline, so "Previous brief" is a real
     // change to make, a radio navigates only when the selection moves.
@@ -518,7 +519,7 @@ describe("DB brief route revision timeline", () => {
       ],
     });
     const router = await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}&base=${REV2.baseSha}`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
       withBaseline,
     );
     await findPicker();
@@ -528,8 +529,7 @@ describe("DB brief route revision timeline", () => {
       const search = searchRecord(router.state.location.search);
       expect(search["compare"]).toBe("previous-brief");
       // The explicit selection survives the lens change…
-      expect(search["head"]).toBe(REV2.headSha);
-      expect(search["base"]).toBe(REV2.baseSha);
+      expect(search["rev"]).toBe(2);
     });
     // …and the stale-but-writable posture survives too: head-2 is behind the
     // PR head, which is a submit-ack case, never a hard read-only one.
@@ -548,18 +548,34 @@ describe("DB brief route revision timeline", () => {
     await expectPickerAt(1);
   });
 
-  it("navigates to the picked revision's head on selection", async () => {
+  it("navigates to the picked revision's rev on selection", async () => {
     const router = await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
     );
     await findPicker();
     await choosePosition(0);
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
-      expect(search["head"]).toBe("head-1");
-      // The revision's OWN base is written, not the top-level view's.
-      expect(search["base"]).toBe("base-1");
+      expect(search["rev"]).toBe(1);
+      // The rev alone addresses the revision; no span keys ride along.
+      expect(search["head"]).toBeUndefined();
+      expect(search["base"]).toBeUndefined();
     });
+  });
+
+  it("rewrites a legacy span link to its rev, keeping the lens", async () => {
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}&view=changes`,
+    );
+    await findPicker();
+    await waitFor(() => {
+      const search = searchRecord(router.state.location.search);
+      expect(search["rev"]).toBe(1);
+      expect(search["head"]).toBeUndefined();
+      expect(search["base"]).toBeUndefined();
+      expect(search["view"]).toBe("changes");
+    });
+    await expectPickerAt(0);
   });
 
   it("addresses duplicate-head revisions by span, stale base read-only", async () => {
@@ -612,9 +628,7 @@ describe("DB brief route revision timeline", () => {
     expect(document.activeElement).toBe(picker);
     await choosePosition(2);
     await waitFor(() =>
-      expect(searchRecord(router.state.location.search)["base"]).toBe(
-        "base-new",
-      ),
+      expect(searchRecord(router.state.location.search)["rev"]).toBe(3),
     );
     await waitFor(() => expect(document.activeElement).toBe(picker));
     cleanup();

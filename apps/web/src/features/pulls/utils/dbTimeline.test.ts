@@ -14,7 +14,7 @@ function revision(overrides: Partial<RevisionSummary>): RevisionSummary {
   };
 }
 
-// Out of order on purpose — the resolver must sort by headIndex.
+// Out of order on purpose, the resolver must sort by headIndex.
 const REVISIONS: RevisionSummary[] = [
   revision({ headSha: "h2", baseSha: "b2", headIndex: 2 }),
   revision({ headSha: "h1", baseSha: "b1", headIndex: 1 }),
@@ -23,12 +23,12 @@ const REVISIONS: RevisionSummary[] = [
 
 describe("resolveDbTimeline", () => {
   it("returns undefined when there are no revisions", () => {
-    expect(resolveDbTimeline(undefined, undefined)).toBeUndefined();
-    expect(resolveDbTimeline([], "h1")).toBeUndefined();
+    expect(resolveDbTimeline(undefined, {})).toBeUndefined();
+    expect(resolveDbTimeline([], { head: "h1" })).toBeUndefined();
   });
 
   it("defaults to the latest revision when no head is requested", () => {
-    const selection = resolveDbTimeline(REVISIONS, undefined);
+    const selection = resolveDbTimeline(REVISIONS, {});
     expect(selection?.points.map((point) => point.headSha)).toEqual([
       "h1",
       "h2",
@@ -50,14 +50,14 @@ describe("resolveDbTimeline", () => {
           generatedAt: "2026-07-06T11:58:00.000Z",
         }),
       ],
-      "h2",
+      { head: "h2" },
     );
     expect(selection?.selected.generatedAt).toBe("2026-07-06T11:58:00.000Z");
     expect(selection?.points[0]?.generatedAt).toBeUndefined();
   });
 
   it("selects a historical head with ITS OWN base, exposing prev/next", () => {
-    const selection = resolveDbTimeline(REVISIONS, "h1");
+    const selection = resolveDbTimeline(REVISIONS, { head: "h1" });
     expect(selection?.selected.headSha).toBe("h1");
     expect(selection?.selected.baseSha).toBe("b1");
     expect(selection?.previous).toBeUndefined();
@@ -65,18 +65,18 @@ describe("resolveDbTimeline", () => {
   });
 
   it("carries the per-entry drifted base for a middle revision", () => {
-    const selection = resolveDbTimeline(REVISIONS, "h3");
+    const selection = resolveDbTimeline(REVISIONS, { head: "h3" });
     expect(selection?.selected.baseSha).toBe("b3-drifted");
   });
 
   it("degrades an unknown head to latest with the note flag set", () => {
-    const selection = resolveDbTimeline(REVISIONS, "never-briefed");
+    const selection = resolveDbTimeline(REVISIONS, { head: "never-briefed" });
     expect(selection?.selected.headSha).toBe("h3");
     expect(selection?.degraded).toBe(true);
   });
 });
 
-describe("resolveDbTimeline — duplicate heads (retarget re-brief)", () => {
+describe("resolveDbTimeline with duplicate heads from a retarget", () => {
   // The brief natural key is (pr, base, head): a retarget re-brief writes a
   // SECOND revision for the same head with a different base.
   const DUPLICATES: RevisionSummary[] = [
@@ -85,15 +85,18 @@ describe("resolveDbTimeline — duplicate heads (retarget re-brief)", () => {
     revision({ headSha: "h2", baseSha: "b-new", headIndex: 3 }),
   ];
 
-  it("a bare head resolves to the HIGHEST-index duplicate (backend at(-1) choice)", () => {
-    const selection = resolveDbTimeline(DUPLICATES, "h2");
+  it("a bare head resolves to the highest-index duplicate", () => {
+    const selection = resolveDbTimeline(DUPLICATES, { head: "h2" });
     expect(selection?.selected.baseSha).toBe("b-new");
     expect(selection?.selectedIndex).toBe(2);
     expect(selection?.degraded).toBe(false);
   });
 
   it("head + base resolves the EXACT span, reaching the older duplicate", () => {
-    const selection = resolveDbTimeline(DUPLICATES, "h2", "b-old");
+    const selection = resolveDbTimeline(DUPLICATES, {
+      head: "h2",
+      base: "b-old",
+    });
     expect(selection?.selected.baseSha).toBe("b-old");
     expect(selection?.selectedIndex).toBe(1);
     expect(selection?.degraded).toBe(false);
@@ -101,9 +104,46 @@ describe("resolveDbTimeline — duplicate heads (retarget re-brief)", () => {
     expect(selection?.next?.baseSha).toBe("b-new");
   });
 
-  it("head + a base matching no row falls back to the highest-index head match", () => {
-    const selection = resolveDbTimeline(DUPLICATES, "h2", "b-gone");
+  it("head plus an unknown base falls back to the highest-index head", () => {
+    const selection = resolveDbTimeline(DUPLICATES, {
+      head: "h2",
+      base: "b-gone",
+    });
     expect(selection?.selected.baseSha).toBe("b-new");
     expect(selection?.degraded).toBe(false);
+  });
+});
+
+describe("resolveDbTimeline with a rev request", () => {
+  it("selects the revision whose headIndex is the rev", () => {
+    const selection = resolveDbTimeline(REVISIONS, { rev: 2 });
+    expect(selection?.selected.headSha).toBe("h2");
+    expect(selection?.selected.baseSha).toBe("b2");
+    expect(selection?.selectedIndex).toBe(1);
+    expect(selection?.degraded).toBe(false);
+  });
+
+  it("degrades an unknown rev to latest with the note flag set", () => {
+    const selection = resolveDbTimeline(REVISIONS, { rev: 9 });
+    expect(selection?.selected.headSha).toBe("h3");
+    expect(selection?.degraded).toBe(true);
+  });
+
+  it("rev wins over a legacy head when both are present", () => {
+    const selection = resolveDbTimeline(REVISIONS, { rev: 1, head: "h3" });
+    expect(selection?.selected.headSha).toBe("h1");
+  });
+
+  it("a retarget duplicate is addressable by its own rev", () => {
+    const duplicates: RevisionSummary[] = [
+      revision({ headSha: "h2", baseSha: "b-old", headIndex: 2 }),
+      revision({ headSha: "h2", baseSha: "b-new", headIndex: 3 }),
+    ];
+    expect(resolveDbTimeline(duplicates, { rev: 2 })?.selected.baseSha).toBe(
+      "b-old",
+    );
+    expect(resolveDbTimeline(duplicates, { rev: 3 })?.selected.baseSha).toBe(
+      "b-new",
+    );
   });
 });

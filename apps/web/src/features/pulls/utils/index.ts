@@ -4,4 +4,8 @@ export {
   shouldPollMeta,
   type Span,
 } from "./briefRouteState";
-export { resolveDbTimeline, type DbTimelinePoint } from "./dbTimeline";
+export {
+  resolveDbTimeline,
+  type DbTimelinePoint,
+  type RevisionRequest,
+} from "./dbTimeline";

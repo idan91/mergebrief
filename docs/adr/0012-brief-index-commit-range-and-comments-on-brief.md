@@ -45,3 +45,7 @@ The index and range make the re-review reload self-describing ("brief _2, the 4 
 - **CONTEXT.md updated:** `Brief` gains index / commit range / display-only comments; a relationship line ties the index to distinct head SHAs and to the Delta's span.
 - **CLI range affordance:** the brief CLI accepts an optional explicit `<base> <head>` span (mirroring the delta CLI), briefing that span instead of the whole PR at current head. This is a dogfood/testing affordance — it lets us generate `_1` at an earlier head, a delta, then `_2` — and does **not** change the product semantics (in product a Brief is always the whole PR at a head). Default remains whole-PR.
 - **Storage identity (ADR 0018):** in the product DB the Brief is keyed on the full `(base, head)` span — its content is a function of both endpoints (content-addressing / immutability). The **index stays a per-distinct-head display label**, resolving to the current Brief for that head; no change to index semantics.
+
+## Amendment
+
+The index is now the brief's address: a brief URL names it as `?rev=<index>`, it counts every brief on the PR (retargets included), and the database holds it unique per pull request. It is no longer a display label layered over the SHA key.

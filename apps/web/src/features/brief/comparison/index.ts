@@ -9,6 +9,7 @@ export {
   parseDiffParam,
   parseViewParam,
   resolveBriefSearch,
+  stripDefaultSearch,
   withCompare,
   withView,
   type BriefSearch,

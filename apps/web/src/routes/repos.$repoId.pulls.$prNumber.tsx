@@ -14,13 +14,13 @@ import {
   parseCompareParam,
   parseDiffParam,
   parseViewParam,
-  type BriefSearch,
   type BriefSearchParams,
 } from "@web/features/brief/comparison";
 import {
   type DbTimelinePoint,
   deriveBriefRouteState,
   resolveDbTimeline,
+  type RevisionRequest,
   shouldPollMeta,
   type Span,
 } from "@web/features/pulls/utils";
@@ -45,6 +45,9 @@ import type { Mutable } from "types/utils";
 const META_POLL_MS = 4000;
 
 interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
+  /** The brief's index on this PR; the one revision key fresh links carry. */
+  rev?: number;
+  /** Legacy span keys, read only: an old Entry-comment link still lands. */
   base?: string;
   head?: string;
   /** This route reserves the param; the conversation section reads it. */
@@ -68,7 +71,7 @@ function coerceNumber(value: unknown): number {
   return NaN;
 }
 
-function resolveThreadParam(value: unknown): number | undefined {
+function resolvePositiveInteger(value: unknown): number | undefined {
   const parsed = coerceNumber(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
@@ -155,16 +158,24 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
     const base = search["base"];
     const head = search["head"];
-    // Only head selects a revision; resolve its base from revisions rather than the URL.
-    // Retain a supplied base only with a head. Unknown heads degrade to latest, not 404.
+    // `rev` selects a revision; a legacy head still does, with its base
+    // retained only beside it. Unknown revisions degrade to latest, not 404.
+    const rev = resolvePositiveInteger(search["rev"]);
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
     const diff = parseDiffParam(search["diff"]);
-    const thread = resolveThreadParam(search["thread"]);
+    const thread = resolvePositiveInteger(search["thread"]);
     const parsed: PrBriefSearch = {};
 
-    if (nonEmpty(head)) parsed.head = head;
-    if (nonEmpty(head) && nonEmpty(base)) parsed.base = base;
+    if (rev !== undefined) {
+      parsed.rev = rev;
+    }
+    if (nonEmpty(head)) {
+      parsed.head = head;
+    }
+    if (nonEmpty(head) && nonEmpty(base)) {
+      parsed.base = base;
+    }
     if (view !== undefined) parsed.view = view;
     if (compare !== undefined) parsed.compare = compare;
     if (diff !== undefined) parsed.diff = diff;
@@ -176,17 +187,24 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     };
   },
   loaderDeps: ({ search }) => {
-    const deps: Pick<PrBriefSearch, "base" | "head"> = {};
+    const deps: Mutable<RevisionRequest> = {};
 
-    if (search.base !== undefined) deps.base = search.base;
-    if (search.head !== undefined) deps.head = search.head;
+    if (search.rev !== undefined) {
+      deps.rev = search.rev;
+    }
+    if (search.base !== undefined) {
+      deps.base = search.base;
+    }
+    if (search.head !== undefined) {
+      deps.head = search.head;
+    }
 
     return deps;
   },
   loader: async ({ context, params, deps }) => {
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
-    const explicit = spanFromSearch(deps);
+    const explicit = deps.rev === undefined ? spanFromSearch(deps) : undefined;
     try {
       if (explicit !== undefined) {
         const [metaResult, briefResult] = await Promise.allSettled([
@@ -220,9 +238,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       const meta = await context.queryClient.ensureQueryData(
         buildPrMetaQueryOptions(repoId, prNumber),
       );
-      // Prefetch the SELECTED revision's brief with ITS OWN base (`deps.base`
-      // disambiguates duplicate-head rows) so a historical head SSRs correctly.
-      const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
+      // Prefetch the SELECTED revision's brief with ITS OWN base so a
+      // historical revision SSRs correctly.
+      const timeline = resolveDbTimeline(meta.revisions, deps);
       if (timeline !== undefined) {
         const span = {
           base: timeline.selected.baseSha,
@@ -289,7 +307,6 @@ function PrBriefRoute() {
       state.status === "pending" &&
       PR_BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
-  // A fresh literal per render re-runs the span-pinning effect.
   const explicit = useMemo(
     () =>
       search.base !== undefined && search.head !== undefined
@@ -306,10 +323,21 @@ function PrBriefRoute() {
         : false,
   }).data;
 
-  const timeline = useMemo(
-    () => resolveDbTimeline(meta.revisions, search.head, search.base),
-    [meta.revisions, search.base, search.head],
-  );
+  const timeline = useMemo(() => {
+    const request: Mutable<RevisionRequest> = {};
+
+    if (search.rev !== undefined) {
+      request.rev = search.rev;
+    }
+    if (search.head !== undefined) {
+      request.head = search.head;
+    }
+    if (search.base !== undefined) {
+      request.base = search.base;
+    }
+
+    return resolveDbTimeline(meta.revisions, request);
+  }, [meta.revisions, search.base, search.head, search.rev]);
 
   const selectedSpanKey =
     timeline === undefined
@@ -357,10 +385,11 @@ function PrBriefRoute() {
     [search.view, search.compare, search.diff],
   );
 
-  /** Drop the pinned span so it re-resolves to latest. */
+  /** Drop the pinned revision so it re-resolves to latest. */
   const goToNewest = useCallback(() => {
     void navigate({
-      search: ({ head: _h, base: _b, thread: _spent, ...rest }) => rest,
+      search: ({ rev: _rev, head: _h, base: _b, thread: _spent, ...rest }) =>
+        rest,
       replace: false,
       resetScroll: false,
     });
@@ -369,14 +398,12 @@ function PrBriefRoute() {
   const selectRevision = useCallback(
     (point: DbTimelinePoint) => {
       void navigate({
-        // The FULL span is written, head alone cannot address a duplicate-
-        // head revision. A jump target (`thread`) is spent once a revision is
-        // selected, drop the key entirely (exactOptionalPropertyTypes
-        // forbids `undefined`).
-        search: ({ thread: _spent, ...rest }) => ({
+        // A jump target (`thread`) is spent once a revision is selected, and
+        // a legacy span never survives a write: drop the keys entirely
+        // (exactOptionalPropertyTypes forbids `undefined`).
+        search: ({ thread: _spent, head: _h, base: _b, ...rest }) => ({
           ...rest,
-          head: point.headSha,
-          base: point.baseSha,
+          rev: point.headIndex,
         }),
         replace: false,
         // A revision is a lateral move, not a new page.
@@ -386,19 +413,21 @@ function PrBriefRoute() {
     [navigate],
   );
 
-  // Hex SHAs cannot collide with its separators.
+  // Hex SHAs and integers cannot collide with the separators.
   const revisionSpansKey = useMemo(
     () =>
       timeline === undefined
         ? undefined
-        : timeline.points.map((p) => `${p.headSha} ${p.baseSha}`).join("\n"),
+        : timeline.points
+            .map((p) => `${p.headSha} ${String(p.headIndex)}`)
+            .join("\n"),
     [timeline],
   );
   const revisionJump = useMemo(() => {
     if (revisionSpansKey === undefined) return undefined;
     const spans = revisionSpansKey.split("\n").map((line) => {
-      const [headSha = "", baseSha = ""] = line.split(" ");
-      return { headSha, baseSha };
+      const [headSha = "", headIndex = ""] = line.split(" ");
+      return { headSha, headIndex: Number(headIndex) };
     });
     return {
       knownHeads: new Set(spans.map((span) => span.headSha)),
@@ -407,11 +436,13 @@ function PrBriefRoute() {
         // current-entry choice for the same ambiguity.
         const span = spans.findLast((s) => s.headSha === anchorSha);
         void navigate({
-          search: (current) => {
-            const next: PrBriefSearch = { ...current, head: anchorSha };
+          search: ({ rev: _rev, head: _h, base: _b, ...rest }) => {
+            const next: PrBriefSearch = { ...rest };
 
-            // Key order is URL param order: base lands before thread.
-            if (span !== undefined) next.base = span.baseSha;
+            // Key order is URL param order: rev lands before thread.
+            if (span !== undefined) {
+              next.rev = span.headIndex;
+            }
             next.thread = threadId;
 
             return next;
@@ -422,25 +453,27 @@ function PrBriefRoute() {
     };
   }, [navigate, revisionSpansKey]);
 
-  // Pin the selected span into the URL: fresh links get the resolved head+base,
-  // and base drift is corrected to the revision's OWN base. A DEGRADED (unknown)
-  // head is left in place, the page shows latest with a stable note rather
-  // than silently rewriting the address the reviewer followed.
-  const pinnedSpan = state.kind === "render" ? state.span : undefined;
+  // Pin the selected revision into the URL: a bare or legacy-span link is
+  // rewritten to its `rev`. A DEGRADED (unknown) request is left in place,
+  // the page shows latest with a stable note rather than silently rewriting
+  // the address the reviewer followed.
+  const pinnedRev =
+    timeline !== undefined && !timeline.degraded
+      ? timeline.selected.headIndex
+      : undefined;
   useEffect(() => {
-    if (pinnedSpan === undefined || timeline?.degraded) return;
-    if (search.head === pinnedSpan.head && search.base === pinnedSpan.base) {
-      return;
-    }
+    if (pinnedRev === undefined) return;
+    const legacySpan = search.head !== undefined || search.base !== undefined;
+    if (search.rev === pinnedRev && !legacySpan) return;
     void navigate({
-      search: (current) => ({
-        ...current,
-        base: pinnedSpan.base,
-        head: pinnedSpan.head,
+      search: ({ head: _h, base: _b, ...rest }) => ({
+        ...rest,
+        rev: pinnedRev,
       }),
+      hash: true,
       replace: true,
     });
-  }, [navigate, pinnedSpan, search.base, search.head, timeline?.degraded]);
+  }, [navigate, pinnedRev, search.base, search.head, search.rev]);
 
   // Re-anchor onto the brief only when focus was left NOWHERE (e.g. the
   // operated stepper went aria-disabled at a timeline boundary). The controls
@@ -458,10 +491,17 @@ function PrBriefRoute() {
 
   // Stable across renders (navigate is): GroupCard's memo boundary rides on
   // the identity PrBriefContent derives from this.
+  // `next` is the whole View/Compare/diff trio: a key it leaves out is
+  // dropped, which is how a default leaves the URL. A lens change keeps the
+  // hash: the lines it names are still on the page.
   const onNavigateSearch = useCallback(
-    (next: BriefSearch, options?: ScopeExitOptions) => {
+    (next: BriefSearchParams, options?: ScopeExitOptions) => {
       void navigate({
-        search: (current) => ({ ...current, ...next }),
+        search: ({ view: _v, compare: _c, diff: _d, ...rest }) => ({
+          ...rest,
+          ...next,
+        }),
+        hash: true,
         replace: options?.replace ?? false,
       });
     },
@@ -473,6 +513,7 @@ function PrBriefRoute() {
   const clearDiffParam = useCallback(() => {
     void navigate({
       search: ({ diff: _diff, ...rest }) => rest,
+      hash: true,
       replace: true,
     });
   }, [navigate]);
@@ -508,6 +549,7 @@ function PrBriefRoute() {
           ...rest,
           ...conversationFilterSearch(next),
         }),
+        hash: true,
         replace: true,
       });
     },

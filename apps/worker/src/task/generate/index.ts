@@ -302,7 +302,10 @@ async function runGeneration(
    * ready body must not re-ping; only skips need the read, a fresh run still
    * carries a generating body and always refreshes.
    */
-  async function postReadyEntry(entryCommentAllowed: boolean): Promise<void> {
+  async function postReadyEntry(
+    entryCommentAllowed: boolean,
+    headIndex: number,
+  ): Promise<void> {
     await watch.assertCurrent();
     const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
       prInfo,
@@ -312,7 +315,7 @@ async function runGeneration(
     });
     if (!readyEntryAllowed) return;
     const readyBody = entryCommentBody(
-      entryCommentManager.buildDeepLink(prInfo.baseSha),
+      entryCommentManager.buildDeepLink(headIndex),
     );
     const alreadyLive =
       existingBrief !== undefined &&
@@ -327,7 +330,7 @@ async function runGeneration(
   }
 
   /** What a capped run over a stored brief still does: the Entry reaches no model. */
-  async function postOwedReadyEntry(): Promise<void> {
+  async function postOwedReadyEntry(headIndex: number): Promise<void> {
     const repoConfig = prInfo.draft
       ? await acquireRepoConfig(source, log)
       : undefined;
@@ -337,13 +340,13 @@ async function runGeneration(
       entryCommentManager,
       log,
     });
-    await postReadyEntry(entryCommentAllowed);
+    await postReadyEntry(entryCommentAllowed, headIndex);
   }
 
   if (existingBrief !== undefined) {
     run.leaveRow = true;
     if (await refuseAtCap(payload, gateInputs)) {
-      await postOwedReadyEntry();
+      await postOwedReadyEntry(existingBrief.headIndex);
       return;
     }
   } else {
@@ -492,7 +495,7 @@ async function runGeneration(
     }
 
     // The ready Entry lands before the slower delta work.
-    await postReadyEntry(entryCommentAllowed);
+    await postReadyEntry(entryCommentAllowed, briefRef.headIndex);
 
     // The prevHead...head span diff is fetched ONCE and reused by the delta
     // loop below, a checkpoint at the previous briefed head (the common

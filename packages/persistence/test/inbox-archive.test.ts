@@ -56,11 +56,14 @@ async function seedBrief(
   pullRequestId: PullRequestRowId,
   headSha: string,
 ): Promise<void> {
-  const written = await createArtifactStore(handle, ctx).briefs.write({
+  const store = createArtifactStore(handle, ctx);
+  const prior = await store.briefs.listForPullRequest(pullRequestId);
+  const headIndex = (prior.at(-1)?.headIndex ?? 0) + 1;
+  const written = await store.briefs.write({
     pullRequestId,
     baseSha: "base",
     headSha,
-    headIndex: 1,
+    headIndex,
     commitCount: 1,
     provider: "stub",
     model: "stub",
