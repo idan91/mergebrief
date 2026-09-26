@@ -54,6 +54,24 @@ describe("CopyButton", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("second"));
   });
 
+  it("shows the content it is given, then the check while copied", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    mockClipboard(writeText);
+    render(<CopyButton content="42" label="Copy link to line 42" text="x" />);
+    const button = screen.getByRole("button", {
+      name: /copy link to line 42/i,
+    });
+    expect(button.textContent).toContain("42");
+    expect(button.getAttribute("data-width")).toBe("auto");
+    expect(button.querySelector("[data-icon]")).toBeNull();
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(button.getAttribute("data-state")).toBe("copied"),
+    );
+    expect(button.querySelector('[data-icon="check"]')).not.toBeNull();
+    expect(button.textContent).not.toContain("42");
+  });
+
   it("announces a failed copy and does not notify onCopy", async () => {
     mockClipboard(vi.fn().mockRejectedValue(new Error("denied")));
     const onCopy = vi.fn();

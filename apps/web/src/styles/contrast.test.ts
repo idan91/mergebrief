@@ -14,12 +14,32 @@ const WORDS_MIN_ON_PAGE = 5.5;
 const MARKS_MIN = 3;
 const MAX_ALIAS_DEPTH = 8;
 
-// A selected diff row lifts the well by a tenth of the accent, and its gutter
-// numbers read against that; the tint tracks DiffRows and SplitRows, and the
-// line is AA, the one exception DESIGN.md names under Contrast.
-const SELECTED_ROW_TINT = 0.1;
+// A selected diff row lifts the well by the selected tint and its number
+// cells by the gutter tint, both read from the tokens. Code and syntax
+// colours read against the row and the numbers on text-1 against the number
+// cells, all at the AA line, the exception DESIGN.md names under Contrast.
+const SELECTED_ROW_TINT_TOKEN = "--diff-selected-tint";
+const SELECTED_GUTTER_TINT_TOKEN = "--diff-selected-gutter-tint";
 const WELL_BACKGROUND_SHARE = 0.25;
 const SELECTED_ROW_MIN = 4.5;
+const SELECTED_ROW_WORDS = [
+  "--color-text-1",
+  "--color-diff-add-text",
+  "--color-diff-del-text",
+  "--syn-text",
+  "--syn-comment",
+  "--syn-constant",
+  "--syn-entity",
+  "--syn-keyword",
+  "--syn-string",
+  "--syn-tag",
+  "--syn-variable",
+  "--syn-invalid",
+  "--syn-regexp",
+  "--syn-bracket",
+  "--emphasis-comment",
+  "--emphasis-keyword",
+] as const;
 
 const SURFACES = [
   "--color-background",
@@ -68,6 +88,16 @@ async function readTokenDeclarations(): Promise<Declarations> {
     }
   }
   return declarations;
+}
+
+/** A percentage token as a 0 to 1 share. */
+function readShare(declarations: Declarations, name: string): number {
+  const raw = declarations.get(name);
+  if (raw === undefined || !raw.endsWith("%")) {
+    throw new Error(`${name} is not a percentage token`);
+  }
+
+  return Number(raw.slice(0, -1)) / 100;
 }
 
 function resolveTokenValue(
@@ -269,8 +299,9 @@ describe("palette contrast", () => {
     expect(failures).toEqual([]);
   });
 
-  it("keeps the gutter numbers readable on a selected diff row", async () => {
+  it("keeps code and its syntax colours readable on a selected diff row", async () => {
     const colorOf = await resolvePalette();
+    const declarations = await readTokenDeclarations();
     const well = mixSrgb(
       colorOf("--color-background"),
       colorOf("--color-surface-1"),
@@ -279,10 +310,35 @@ describe("palette contrast", () => {
     const selected = mixSrgb(
       colorOf("--color-accent"),
       well,
-      SELECTED_ROW_TINT,
+      readShare(declarations, SELECTED_ROW_TINT_TOKEN),
+    );
+    const failures: string[] = [];
+
+    for (const word of SELECTED_ROW_WORDS) {
+      const ratio = computeContrast(colorOf(word), selected);
+      if (ratio < SELECTED_ROW_MIN) {
+        failures.push(`${word} on the selected row: ${ratio.toFixed(2)}`);
+      }
+    }
+
+    expect(failures).toEqual([]);
+  });
+
+  it("keeps the numbers readable on a selected row's number cells", async () => {
+    const colorOf = await resolvePalette();
+    const declarations = await readTokenDeclarations();
+    const well = mixSrgb(
+      colorOf("--color-background"),
+      colorOf("--color-surface-1"),
+      WELL_BACKGROUND_SHARE,
+    );
+    const selected = mixSrgb(
+      colorOf("--color-accent"),
+      well,
+      readShare(declarations, SELECTED_GUTTER_TINT_TOKEN),
     );
 
-    const ratio = computeContrast(colorOf("--color-text-3"), selected);
+    const ratio = computeContrast(colorOf("--color-text-1"), selected);
 
     expect(ratio).toBeGreaterThanOrEqual(SELECTED_ROW_MIN);
   });

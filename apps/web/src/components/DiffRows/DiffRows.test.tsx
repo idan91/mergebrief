@@ -268,7 +268,7 @@ describe("DiffRows", () => {
     const view = renderRows();
 
     const signs = view.container.querySelectorAll(
-      'tr[data-line-kind="del"] td span, tr[data-line-kind="add"] td span',
+      'tr[data-line-kind="del"] td:not([data-line-number]) span, tr[data-line-kind="add"] td:not([data-line-number]) span',
     );
     expect([...signs].map((span) => span.textContent)).toEqual(["−", "+"]);
   });

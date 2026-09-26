@@ -343,6 +343,14 @@ describe("ReviewFlow store", () => {
       expect(store.getState().toast).toBe("second");
     });
 
+    it("announceQuietly clears then sets the hidden message, toast untouched", () => {
+      store.getState().actions.announceQuietly("Line 9 selected.");
+      expect(store.getState().liveMessage).toBe("");
+      flushAnnounce();
+      expect(store.getState().liveMessage).toBe("Line 9 selected.");
+      expect(store.getState().toast).toBe("");
+    });
+
     it("clearToast hides the message", () => {
       store.getState().actions.announce("visible");
       flushAnnounce();

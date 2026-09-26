@@ -60,6 +60,12 @@ beforeEach(() => {
   });
   window.scrollBy = scrollBy;
   document.documentElement.style.setProperty("--sticky-stack-h", "190px");
+  // The band is 190 to 1000, a third of the way down 460.
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 1000,
+  });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
 });
 
 afterEach(() => {
@@ -102,7 +108,19 @@ describe("landOnChunkCard", () => {
 
     expect(document.activeElement).toBe(card);
     expect(context.flashTarget).toHaveBeenCalledWith(card);
-    expect(frames).toHaveLength(0);
+    // The drift watch is armed; nothing else is pending.
+    expect(frames).toHaveLength(1);
+  });
+
+  it("brings a card back that the list's measurements pushed away", () => {
+    const context = makeContext();
+    const card = mountCard();
+    card.getBoundingClientRect = () => ({ top: 1200, bottom: 1440 }) as DOMRect;
+
+    landOnChunkCard(context, "c1", LANDING_POLL_FRAMES);
+    runFrames(LANDING_POLL_FRAMES);
+
+    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: 970 });
   });
 
   it("keeps polling until the windowed list mounts the card", () => {
@@ -162,8 +180,44 @@ describe("landOnTargetRow", () => {
     landOnTargetRow(context, "c1", THREAD, LANDING_POLL_FRAMES);
     runFrames(LANDING_POLL_FRAMES);
 
-    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -66 });
+    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -320 });
     expect(scrollBy).toHaveBeenCalledTimes(1);
+  });
+
+  it("corrects a row again when the page moves after it landed", () => {
+    const context = makeContext();
+    const row = mountThreadRow(mountCard(), 400);
+
+    landOnTargetRow(context, "c1", THREAD, LANDING_POLL_FRAMES);
+    runFrames(30);
+    expect(scrollBy).not.toHaveBeenCalled();
+
+    // A reflow moves the row down the document, then the scroll comes to rest.
+    row.getBoundingClientRect = () => ({ top: 980, bottom: 1024 }) as DOMRect;
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 50 });
+    runFrames(30);
+
+    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: 520 });
+  });
+
+  it("ends the watch when the page scrolls and the row stays put", () => {
+    const context = makeContext();
+    const row = mountThreadRow(mountCard(), 400);
+
+    landOnTargetRow(context, "c1", THREAD, LANDING_POLL_FRAMES);
+    runFrames(30);
+    // The reader scrolls 2000px away: the row's place in the document holds.
+    row.getBoundingClientRect = () =>
+      ({ top: 400 - 2000, bottom: 444 - 2000 }) as DOMRect;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 2000,
+    });
+    runFrames(1);
+
+    expect(frames).toHaveLength(0);
+    runFrames(30);
+    expect(scrollBy).not.toHaveBeenCalled();
   });
 
   it("leaves a row that settled in view where it is", () => {

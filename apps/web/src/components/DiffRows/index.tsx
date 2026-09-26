@@ -111,8 +111,10 @@ export function DiffRows({
                       oldContent ? NumberCellStates.COVERED : undefined
                     }
                   >
-                    {row.oldLine ?? ""}
-                    {oldContent}
+                    <span className={styles["digits"]}>
+                      {row.oldLine ?? ""}
+                      {oldContent}
+                    </span>
                   </td>
                   <td
                     {...lineNumberAttributes}
@@ -123,8 +125,10 @@ export function DiffRows({
                       newContent ? NumberCellStates.COVERED : undefined
                     }
                   >
-                    {row.newLine ?? ""}
-                    {newContent}
+                    <span className={styles["digits"]}>
+                      {row.newLine ?? ""}
+                      {newContent}
+                    </span>
                   </td>
                 </>
               ) : null}

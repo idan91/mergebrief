@@ -56,6 +56,7 @@ import {
   STICKY_STACK_HEIGHT_VAR,
   toggleSetMember,
 } from "./utils";
+import { CHUNK_LANDING_GAP_PX } from "./consts";
 
 const EMPTY_CHUNK_IDS: string[] = [];
 
@@ -63,7 +64,7 @@ function focusScrollOffset(): number {
   // The whole pinned stack, read as one registered length rather than
   // re-added from its parts here, the parts drifting apart between call
   // sites is what put a landing underneath the toolbar.
-  return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + 40;
+  return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_LANDING_GAP_PX;
 }
 
 function scrollElementToTop(

@@ -103,6 +103,13 @@
     --diff-rail-inset: 5px;
     --diff-number-w: #{functions.to-rem(42px)};
 
+    // A selected diff row: 14% is the strongest wash every syntax colour
+    // keeps at 4.5:1 over; the number cells paint 24% opaque over the well
+    // with their numbers on text-1. The palette contrast test reads both.
+    --diff-selected-tint: 14%;
+    --diff-selected-gutter-tint: 24%;
+    --diff-selected-edge-bar: inset 3px 0 0 var(--color-accent);
+
     // Syntax palette: one token per colour the diff tokenizer can emit, in
     // the palette's own order. The syntaxTokens test holds both sides in
     // lockstep; comment grey is the AA-lifted value, not github-dark's.

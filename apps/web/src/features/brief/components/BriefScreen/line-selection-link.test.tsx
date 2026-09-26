@@ -90,12 +90,24 @@ describe("line selection link", () => {
     await waitFor(() =>
       expect(navigateLink).toHaveBeenLastCalledWith("chunk-a.R10"),
     );
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-live").textContent).toBe(
+        "Line 10 selected.",
+      ),
+    );
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() =>
       expect(navigateLink).toHaveBeenLastCalledWith(undefined),
     );
     expect(navigateLink).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-live").textContent).toBe(
+        "Line selection cleared.",
+      ),
+    );
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
   });
 
   it("the chunk glyph writes the chunk link and stands the selection down", async () => {
@@ -127,6 +139,12 @@ describe("line selection link", () => {
     );
     expect(document.querySelector("tr[data-selected]")).toBeNull();
     expect(navigateLink).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-live").textContent).toBe(
+        "Line selection cleared.",
+      ),
+    );
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
   });
 
   it("never drops a link it did not write", async () => {

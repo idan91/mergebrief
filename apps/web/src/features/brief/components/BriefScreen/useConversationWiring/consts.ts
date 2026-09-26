@@ -6,5 +6,9 @@ export const ROW_SETTLE_FRAMES = 3;
 // A smooth scroll can take a few frames to start; stillness before it has
 // moved is not a settled scroll. Past this many frames it is not coming.
 export const ROW_SCROLL_START_FRAMES = 12;
+/** How long a landed target stays watched for drift: the chunk scroll
+ * re-aims while cards measure, and the list's late measurements move the
+ * page after it. */
+export const LANDING_SETTLE_MS = 5000;
 /** How long a landed target keeps its flash attribute. */
 export const LANDING_FLASH_MS = 1600;

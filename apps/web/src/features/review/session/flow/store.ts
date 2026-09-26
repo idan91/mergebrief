@@ -91,6 +91,8 @@ export interface ReviewFlowState extends ReviewFlowPosture {
   selectedRiskFlags: ReadonlySet<string>;
   /** The page live-region message; empty = hidden. */
   toast: string;
+  /** The hidden live-region message for a state change the page already shows; empty = none. */
+  liveMessage: string;
 }
 
 /**
@@ -153,6 +155,11 @@ export interface ReviewFlowActions {
    * repeat message still produces a DOM change and restarts the hide timer.
    */
   announce: (message: string) => void;
+  /**
+   * @description The same clear-then-set into the hidden live region, for a
+   * change the page shows on its own, such as a line selection.
+   */
+  announceQuietly: (message: string) => void;
   clearToast: () => void;
 }
 
@@ -209,6 +216,7 @@ export function initialReviewFlowState(
     reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
+    liveMessage: "",
   };
 }
 
@@ -237,6 +245,15 @@ export function createReviewFlowStore(
       set({ toast: "" });
       announceTimer = window.setTimeout(
         () => set({ toast: message }),
+        ANNOUNCE_CLEAR_MS,
+      );
+    };
+    let quietTimer: number | undefined;
+    const announceQuietly = (message: string) => {
+      window.clearTimeout(quietTimer);
+      set({ liveMessage: "" });
+      quietTimer = window.setTimeout(
+        () => set({ liveMessage: message }),
         ANNOUNCE_CLEAR_MS,
       );
     };
@@ -423,6 +440,7 @@ export function createReviewFlowStore(
           }
         },
         announce,
+        announceQuietly,
         clearToast() {
           set({ toast: "" });
         },

@@ -5,7 +5,6 @@
   .pair {
     --row-hue: var(--color-text-1);
     --row-hover-tint: 6%;
-    --selected-edge-bar: inset 3px 0 0 var(--color-accent);
 
     background: transparent;
 
@@ -45,12 +44,21 @@
       color: var(--color-negative);
     }
 
+    > td[data-selected][data-line-number] {
+      color: var(--color-text-1);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-gutter-tint),
+        var(--color-well)
+      );
+    }
+
     > td[data-side][data-line-number][data-state="covered"] {
       color: transparent;
     }
 
-    > td[data-commentable] {
-      cursor: cell;
+    > td[data-select-anchor][data-line-number] {
+      cursor: pointer;
     }
 
     // :not([data-selected]) keeps the selection tint on a row the drag passes.
@@ -66,11 +74,15 @@
     }
 
     > td[data-selected] {
-      background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-tint),
+        transparent
+      );
     }
 
     > td[data-selected][class*="code"] {
-      box-shadow: var(--selected-edge-bar);
+      box-shadow: var(--diff-selected-edge-bar);
     }
 
     > td:focus-visible {
@@ -88,7 +100,11 @@
 
     // The two washes never stack: a selected cell shows the selection alone.
     > td[data-selected][data-rev="added"] {
-      background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-tint),
+        transparent
+      );
     }
   }
 

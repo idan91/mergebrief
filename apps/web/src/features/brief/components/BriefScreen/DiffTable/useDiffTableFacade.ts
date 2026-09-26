@@ -130,7 +130,7 @@ export function useDiffTableFacade({
   );
   const selectLines = (selection: LineSelection) => {
     review.selectLines(selection);
-    review.announce(
+    review.announceQuietly(
       selection.startLine === selection.endLine
         ? t("review.announce.lineSelected", { line: selection.startLine })
         : t("review.announce.linesSelected", {
@@ -141,7 +141,7 @@ export function useDiffTableFacade({
   };
   const clearLineSelection = () => {
     review.clearLineSelection();
-    review.announce(t("review.announce.lineSelectionCleared"));
+    review.announceQuietly(t("review.announce.lineSelectionCleared"));
   };
   const activeSpanIndexes = useMemo(() => {
     if (

@@ -19,6 +19,7 @@ import {
   countIntentTensions,
   deriveBriefProgress,
   deriveChunkSizes,
+  deriveCardLandingCorrection,
   deriveRowLandingCorrection,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
@@ -721,29 +722,45 @@ describe("link param", () => {
 });
 
 describe("deriveRowLandingCorrection", () => {
-  // Viewport 1000 under a 190px pinned stack: the band is 190 to 1000, middle 595.
-  it("leaves a row that fits between the stack and the viewport bottom", () => {
+  // Viewport 1000 under a 190px pinned stack: the band is 190 to 1000,
+  // middle 595, a third of the way down 460.
+  it("leaves a row already in the band's upper half", () => {
     expect(
       deriveRowLandingCorrection({ top: 400, bottom: 444 }, 190, 1000),
     ).toBe(0);
   });
 
-  it("moves a row parked under the pinned stack just clear of it", () => {
+  it("moves a row parked under the pinned stack a third of the way down", () => {
     expect(
       deriveRowLandingCorrection({ top: 141, bottom: 185 }, 190, 1000),
-    ).toBe(-65);
+    ).toBe(-319);
   });
 
-  it("moves a row past the viewport bottom just clear of it", () => {
+  it("moves a row past the viewport bottom a third of the way down", () => {
     expect(
       deriveRowLandingCorrection({ top: 980, bottom: 1024 }, 190, 1000),
-    ).toBe(40);
+    ).toBe(520);
   });
 
-  it("moves three clipped pixels by little more than three pixels", () => {
+  it("moves a row that fits in the lower half up, never leaves it low", () => {
     expect(
-      deriveRowLandingCorrection({ top: 187, bottom: 487 }, 190, 1000),
-    ).toBe(-19);
+      deriveRowLandingCorrection({ top: 800, bottom: 844 }, 190, 1000),
+    ).toBe(340);
+  });
+
+  it("leaves a medium row that is whole in the band with its top high", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 200, bottom: 900 }, 190, 1000),
+    ).toBe(0);
+    expect(
+      deriveRowLandingCorrection({ top: 300, bottom: 800 }, 190, 1000),
+    ).toBe(0);
+  });
+
+  it("moves a medium row that runs past the viewport bottom", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 600, bottom: 1100 }, 190, 1000),
+    ).toBe(140);
   });
 
   it("leaves a tall row whose head is already in the upper band", () => {
@@ -762,6 +779,26 @@ describe("deriveRowLandingCorrection", () => {
     expect(
       deriveRowLandingCorrection({ top: 800, bottom: 1700 }, 190, 1000),
     ).toBe(594);
+  });
+});
+
+describe("deriveCardLandingCorrection", () => {
+  it("leaves a card whose head sits in the band's upper half", () => {
+    expect(
+      deriveCardLandingCorrection({ top: 300, bottom: 900 }, 190, 1000),
+    ).toBe(0);
+  });
+
+  it("brings back a card the list pushed below the band", () => {
+    expect(
+      deriveCardLandingCorrection({ top: 1176, bottom: 1420 }, 190, 1000),
+    ).toBe(946);
+  });
+
+  it("brings back a card that slid under the stack", () => {
+    expect(
+      deriveCardLandingCorrection({ top: -700, bottom: 300 }, 190, 1000),
+    ).toBe(-930);
   });
 });
 

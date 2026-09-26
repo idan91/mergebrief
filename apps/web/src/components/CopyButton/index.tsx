@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Icon } from "../Icon";
 import { type IconName, IconNames, IconSizes } from "../Icon/types";
@@ -17,6 +17,8 @@ export interface CopyButtonProps {
   title?: string | undefined;
   /** The resting glyph; the copied state always shows the check. */
   icon?: IconName | undefined;
+  /** Visible content in place of the resting icon; the width follows it. */
+  content?: ReactNode;
   /** Notified after a successful copy. */
   onCopy?: ((text: string) => void) | undefined;
   /** Extra class for layout at the call site (spacing, alignment). */
@@ -34,6 +36,7 @@ export function CopyButton({
   label,
   title,
   icon = IconNames.COPY,
+  content,
   onCopy,
   className,
 }: CopyButtonProps) {
@@ -64,19 +67,30 @@ export function CopyButton({
     failed: t("shell.copyFailed"),
   };
   const announcement = announcementByState[state];
+  const feedbackIconByState: Record<CopyState, IconName | undefined> = {
+    idle: undefined,
+    copied: IconNames.CHECK,
+    failed: IconNames.X,
+  };
+  const feedbackIcon = feedbackIconByState[state];
+  const resting = content ?? <Icon name={icon} size={IconSizes.SM} />;
+  const glyph =
+    feedbackIcon === undefined ? (
+      resting
+    ) : (
+      <Icon name={feedbackIcon} size={IconSizes.SM} />
+    );
 
   return (
     <IconButton
+      autoWidth={content !== undefined}
       className={`${styles["copyButton"]}${className ? ` ${className}` : ""}`}
       data-state={state}
       label={label}
       title={title ?? (typeof text === "string" ? text : label)}
       onClick={() => void copy()}
     >
-      <Icon
-        name={state === "copied" ? IconNames.CHECK : icon}
-        size={IconSizes.SM}
-      />
+      {glyph}
       {/* Announce the outcome without moving focus. */}
       <span aria-live="polite" className="sr-only">
         {announcement}

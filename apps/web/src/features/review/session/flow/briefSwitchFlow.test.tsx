@@ -86,7 +86,7 @@ describe("flow store in-place brief switch", () => {
     act(() => {
       store.getState().actions.setReviewComment("carried text");
       store.getState().actions.toggleConversationThread("src/a.ts#c1", 9001);
-      store.setState({ toast: "old toast" });
+      store.setState({ toast: "old toast", liveMessage: "old line" });
     });
     expect(store.getState().reviewComment).toBe("carried text");
 
@@ -94,6 +94,7 @@ describe("flow store in-place brief switch", () => {
     rerender();
     expect(store.getState().reviewComment).toBe("");
     expect(store.getState().toast).toBe("");
+    expect(store.getState().liveMessage).toBe("");
     expect(store.getState().composerAnchor).toBeNull();
     expect(store.getState().dismissTarget).toBeNull();
     expect(store.getState().evidenceTarget).toBeNull();

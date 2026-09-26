@@ -97,6 +97,7 @@ export function BriefScreen({
     queueJumpFromChanges,
     submitOpen,
     toast,
+    liveMessage,
     conversationWiring,
     revisionNav,
     submitFlow,
@@ -468,6 +469,15 @@ export function BriefScreen({
                 aria-atomic="true"
               >
                 {toast}
+              </div>
+              <div
+                className="sr-only"
+                data-testid="brief-live"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {liveMessage}
               </div>
             </ReadingPositionProvider>
           </FileRowsProvider>

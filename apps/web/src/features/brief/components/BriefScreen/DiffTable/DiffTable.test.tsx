@@ -884,7 +884,7 @@ describe("DiffTable line selection", () => {
     fireEvent.mouseUp(second);
     const before = flowStore.getState().lineSelection;
     const glyph = container.querySelector(
-      '[data-testid="selection-link-glyph"] button',
+      '[data-testid="line-link-button"] button',
     );
     if (!(glyph instanceof HTMLElement)) throw new Error("expected the glyph");
 
@@ -895,12 +895,12 @@ describe("DiffTable line selection", () => {
     expect(openCommentComposer).not.toHaveBeenCalled();
   });
 
-  it("shows the link glyph at the first selected row, and nowhere else", () => {
+  it("shows the link button at the first selected row, and nowhere else", () => {
     const {
       view: { container },
     } = renderTable();
     expect(
-      container.querySelector('[data-testid="selection-link-glyph"]'),
+      container.querySelector('[data-testid="line-link-button"]'),
     ).toBeNull();
     const [first, second] = commentableRows(container);
     if (!first || !second) throw new Error("expected two diff rows");
@@ -909,17 +909,18 @@ describe("DiffTable line selection", () => {
     fireEvent.mouseUp(second);
 
     const glyphs = container.querySelectorAll(
-      '[data-testid="selection-link-glyph"]',
+      '[data-testid="line-link-button"]',
     );
     expect(glyphs).toHaveLength(1);
     expect(glyphs[0]?.closest("tr")).toBe(first);
     expect(glyphs[0]?.closest("td")?.hasAttribute("data-line-new")).toBe(true);
-    expect(
-      screen.getByRole("button", { name: "Copy link to lines 9 to 10" }),
-    ).toBeTruthy();
+    const button = screen.getByRole("button", {
+      name: "Copy link to lines 9 to 10",
+    });
+    expect(button.textContent).toContain("9");
   });
 
-  it("a click on the glyph keeps the selection", async () => {
+  it("a click on the link button keeps the selection", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -971,11 +972,11 @@ describe("DiffTable line selection", () => {
     act(() => flowStore.getState().actions.openComposer(anchor));
 
     expect(
-      container.querySelector('[data-testid="selection-link-glyph"]'),
+      container.querySelector('[data-testid="line-link-button"]'),
     ).toBeNull();
   });
 
-  it("puts the glyph on the old side in split view", () => {
+  it("puts the link button on the old side in split view", () => {
     const {
       view: { container },
     } = renderTable({ chunk: splitChunk(), view: "split" });
@@ -983,9 +984,7 @@ describe("DiffTable line selection", () => {
     fireEvent.mouseDown(left.number);
     fireEvent.mouseUp(left.number);
 
-    const glyph = container.querySelector(
-      '[data-testid="selection-link-glyph"]',
-    );
+    const glyph = container.querySelector('[data-testid="line-link-button"]');
     expect(glyph?.closest("td")?.getAttribute("data-side")).toBe("left");
   });
 

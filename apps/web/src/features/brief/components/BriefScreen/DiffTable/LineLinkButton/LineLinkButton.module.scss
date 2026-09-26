@@ -1,0 +1,19 @@
+@layer components {
+  // The containing block is the number cell's digits: DiffRows positions them.
+  .slot {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    translate: -50% -50%;
+    display: inline-flex;
+  }
+
+  // The copied and failed colours come from CopyButton.
+  .number[data-state="idle"] {
+    color: var(--color-text-1);
+  }
+
+  .number {
+    font: inherit;
+  }
+}

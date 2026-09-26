@@ -59,6 +59,7 @@ export function useCreateReviewFlowStore(
       reviewComment: "",
       selectedRiskFlags: new Set(),
       toast: "",
+      liveMessage: "",
     });
   }
   return store;

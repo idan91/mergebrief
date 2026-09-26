@@ -311,7 +311,7 @@ function mountThreadCard(rowTop: number, rowHeight = 44): MountedThreadRow {
   return { row, measure };
 }
 
-// jsdom's viewport is 768 tall; under a 190px stack the band runs 190 to 768.
+// The stub pins the viewport at 1000; under a 190px stack the band runs 190 to 1000.
 describe("useConversationWiring, thread landing holds the row", () => {
   const scrollBy = vi.fn();
   const nativeScrollBy = window.scrollBy;
@@ -330,6 +330,10 @@ describe("useConversationWiring, thread landing holds the row", () => {
   afterEach(() => {
     for (const card of document.body.querySelectorAll("section")) card.remove();
     document.documentElement.style.removeProperty("--sticky-stack-h");
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 768,
+    });
     scrollBy.mockReset();
     window.scrollBy = nativeScrollBy;
     Element.prototype.scrollIntoView = nativeScrollIntoView;
@@ -342,6 +346,11 @@ describe("useConversationWiring, thread landing holds the row", () => {
     Element.prototype.scrollIntoView = vi.fn();
     window.scrollBy = scrollBy;
     document.documentElement.style.setProperty("--sticky-stack-h", "190px");
+    // The band is 190 to 1000, a third of the way down 460.
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 1000,
+    });
   }
 
   it("cancels the chunk scroll once the thread row is found", async () => {
@@ -353,14 +362,14 @@ describe("useConversationWiring, thread landing holds the row", () => {
     await waitFor(() => expect(cancelChunkScroll).toHaveBeenCalled());
   });
 
-  it("moves a row that settled under the sticky stack clear of it", async () => {
+  it("moves a row that settled under the sticky stack a third down", async () => {
     stubScrolling();
     mountThreadCard(140);
     const { result } = renderWiring(plan());
     jumpToThread(result);
 
     await waitFor(() =>
-      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -66 }),
+      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -320 }),
     );
   });
 

@@ -3,13 +3,14 @@
 import { findRowByLine } from "@web/components/DiffRows/utils";
 import { prefersReducedMotion } from "@web/utils/motion";
 import {
+  deriveCardLandingCorrection,
   deriveRowLandingCorrection,
   readNumericCssVar,
   SCROLL_ABORT_EVENTS,
   STICKY_STACK_HEIGHT_VAR,
 } from "../utils";
 import {
-  LANDING_POLL_FRAMES,
+  LANDING_SETTLE_MS,
   ROW_SCROLL_START_FRAMES,
   ROW_SETTLE_FRAMES,
 } from "./consts";
@@ -58,6 +59,7 @@ export function landOnChunkCard(
   if (card instanceof HTMLElement) {
     card.focus({ preventScroll: true });
     context.flashTarget(card);
+    settleLanding(context, card, () => correctCardLanding(card));
     return;
   }
   if (attemptsLeft <= 0) return;
@@ -88,7 +90,7 @@ export function landOnTargetRow(
     });
     resolveLandingFocus(row, target).focus({ preventScroll: true });
     context.flashTarget(row);
-    settleRowLanding(row, context);
+    settleLanding(context, row, () => correctRowLanding(row));
     return;
   }
 
@@ -102,27 +104,50 @@ export function landOnTargetRow(
   });
 }
 
+/** Where the target sits in the document: a scroll leaves it, a reflow moves it. */
+function readDocumentOffset(target: HTMLElement): number {
+  return target.getBoundingClientRect().top + window.scrollY;
+}
+
 /**
- * A windowed list's measurements can kill a smooth scroll mid-flight, so once
- * the scroll stops the row gets one instant correction if it is not readable.
- * It rides the landing's frame ref, so the user's own input cancels it too.
+ * A windowed list's measurements move the page after the target has landed,
+ * and the chunk scroll keeps re-aiming at estimates while cards measure, so
+ * the target stays watched. The first rest places the target; every later
+ * rest corrects it again if a reflow moved it. Once placed, a scroll that
+ * leaves the target's place in the document alone is someone else's and
+ * ends the watch. The watch rides the landing's frame ref, so a fresh jump
+ * or the user's own input cancels it too.
  */
-function settleRowLanding(row: HTMLElement, context: LandingContext): void {
+function settleLanding(
+  context: LandingContext,
+  target: HTMLElement,
+  correct: () => void,
+): void {
   const { frameRef } = context;
-  let framesLeft = LANDING_POLL_FRAMES;
+  const deadline = performance.now() + LANDING_SETTLE_MS;
   let framesPolled = 0;
   let hasMoved = false;
   let stillFrames = 0;
+  let placed = false;
   let lastScrollY = window.scrollY;
+  let settledOffset = readDocumentOffset(target);
   const poll = () => {
     frameRef.current = null;
+    if (!target.isConnected) {
+      return;
+    }
     const scrollY = window.scrollY;
+    const offset = readDocumentOffset(target);
     const moved = scrollY !== lastScrollY;
     lastScrollY = scrollY;
-    framesLeft -= 1;
     framesPolled += 1;
+    if (placed && moved && offset === settledOffset) {
+      return;
+    }
 
-    if (moved) hasMoved = true;
+    if (moved) {
+      hasMoved = true;
+    }
     const scrollStarted = hasMoved || framesPolled > ROW_SCROLL_START_FRAMES;
     if (moved || !scrollStarted) {
       stillFrames = 0;
@@ -130,24 +155,40 @@ function settleRowLanding(row: HTMLElement, context: LandingContext): void {
       stillFrames += 1;
     }
 
-    if (stillFrames >= ROW_SETTLE_FRAMES) {
-      correctRowLanding(row);
-      return;
+    const atRest = stillFrames === ROW_SETTLE_FRAMES;
+    if (atRest && (!placed || offset !== settledOffset)) {
+      correct();
+      placed = true;
+      lastScrollY = window.scrollY;
+      settledOffset = readDocumentOffset(target);
     }
-    if (framesLeft > 0) frameRef.current = window.requestAnimationFrame(poll);
+    if (performance.now() < deadline) {
+      frameRef.current = window.requestAnimationFrame(poll);
+    }
   };
   frameRef.current = window.requestAnimationFrame(poll);
 }
 
 function correctRowLanding(row: HTMLElement): void {
-  if (!row.isConnected) return;
   const correction = deriveRowLandingCorrection(
     row.getBoundingClientRect(),
     readNumericCssVar(STICKY_STACK_HEIGHT_VAR),
     window.innerHeight,
   );
-  if (correction !== 0)
+  if (correction !== 0) {
     window.scrollBy({ behavior: "instant", top: correction });
+  }
+}
+
+function correctCardLanding(card: HTMLElement): void {
+  const correction = deriveCardLandingCorrection(
+    card.getBoundingClientRect(),
+    readNumericCssVar(STICKY_STACK_HEIGHT_VAR),
+    window.innerHeight,
+  );
+  if (correction !== 0) {
+    window.scrollBy({ behavior: "instant", top: correction });
+  }
 }
 
 /**

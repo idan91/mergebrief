@@ -32,6 +32,7 @@ import type {
   RevisionNarrativeSkipReason,
 } from "../../types";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
+import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
   type LinkParamError,
   LinkParamErrors,
@@ -310,15 +311,19 @@ export interface VerticalExtent {
   bottom: number;
 }
 
-/** Air between a corrected row and the edge of the band it was past. */
+/** Air between a corrected head and the pinned stack. */
 const ROW_LANDING_GAP_PX = 16;
+/** Where a corrected row's top lands, as a share of the band below the stack. */
+const ROW_LANDING_BAND_SHARE = 1 / 3;
 
 /**
- * How far to scroll so a landed row is readable, 0 when it already is. The
- * band runs from the pinned stack to the viewport bottom. The move is the
- * smallest that clears the edge the row is past, so a few clipped pixels never
- * cost a jump. A row taller than the band can never fit: its head goes under
- * the stack, and counts as readable anywhere in the band's upper half.
+ * How far to scroll so a landed row reads, 0 when it already does. The band
+ * runs from the pinned stack to the viewport bottom; a row is readable when
+ * it is whole in the band with its top in the upper half. Any other row
+ * moves so its top sits a third of the way down the band, so a landing never
+ * leaves the row at the viewport's edge. A row taller than the band can
+ * never fit: its head goes under the stack, and counts as readable anywhere
+ * in the band's upper half.
  */
 export function deriveRowLandingCorrection(
   extent: VerticalExtent,
@@ -330,17 +335,58 @@ export function deriveRowLandingCorrection(
   const rowHeight = extent.bottom - extent.top;
 
   if (rowHeight > bandHeight) {
-    const headReadable =
-      extent.top >= stickyStackHeight && extent.top <= bandMiddle;
-    if (headReadable) return 0;
-    return extent.top - (stickyStackHeight + ROW_LANDING_GAP_PX);
+    return deriveHeadLandingCorrection(
+      extent,
+      stickyStackHeight,
+      bandMiddle,
+      stickyStackHeight + ROW_LANDING_GAP_PX,
+    );
+  }
+  const readable =
+    extent.top >= stickyStackHeight &&
+    extent.top <= bandMiddle &&
+    extent.bottom <= viewportHeight;
+  if (readable) {
+    return 0;
   }
 
-  if (extent.top < stickyStackHeight)
-    return extent.top - (stickyStackHeight + ROW_LANDING_GAP_PX);
-  if (extent.bottom > viewportHeight)
-    return extent.bottom - (viewportHeight - ROW_LANDING_GAP_PX);
-  return 0;
+  return extent.top - (stickyStackHeight + bandHeight * ROW_LANDING_BAND_SHARE);
+}
+
+/**
+ * How far to scroll so a landed card's head sits under the stack where the
+ * chunk scroller puts it, 0 while the head is anywhere in the band's upper
+ * half. A windowed list's late measurements can push a landed card out.
+ */
+export function deriveCardLandingCorrection(
+  extent: VerticalExtent,
+  stickyStackHeight: number,
+  viewportHeight: number,
+): number {
+  const bandMiddle =
+    stickyStackHeight + (viewportHeight - stickyStackHeight) / 2;
+
+  return deriveHeadLandingCorrection(
+    extent,
+    stickyStackHeight,
+    bandMiddle,
+    stickyStackHeight + CHUNK_LANDING_GAP_PX,
+  );
+}
+
+function deriveHeadLandingCorrection(
+  extent: VerticalExtent,
+  stickyStackHeight: number,
+  bandMiddle: number,
+  restingTop: number,
+): number {
+  const headReadable =
+    extent.top >= stickyStackHeight && extent.top <= bandMiddle;
+  if (headReadable) {
+    return 0;
+  }
+
+  return extent.top - restingTop;
 }
 
 /**

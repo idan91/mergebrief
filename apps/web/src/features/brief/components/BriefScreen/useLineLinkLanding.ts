@@ -46,6 +46,8 @@ export interface UseLineLinkLandingInput {
   selectLines: ReviewFlowActions["selectLines"];
   expandEdge: ReviewFlowActions["expandEdge"];
   announce: (message: string) => void;
+  /** The selection itself is on the page, so it is announced without a toast. */
+  announceQuietly: (message: string) => void;
   navigateLink: ((link: string | undefined) => void) | undefined;
   /** Shared with the link sync: a landed link is the page's own now. */
   writtenLink: RefObject<string | undefined>;
@@ -131,6 +133,7 @@ export function useLineLinkLanding(
     selectLines,
     expandEdge,
     announce,
+    announceQuietly,
     navigateLink,
     writtenLink,
     t,
@@ -243,7 +246,7 @@ export function useLineLinkLanding(
       jumpToChunkFromConversation(plan.chunk.id, plan.row, "instant");
       writtenLink.current = deriveLineLink(target);
       selectLines(buildSelection(plan, target));
-      announce(
+      announceQuietly(
         target.startLine === target.endLine
           ? t("review.announce.lineSelected", { line: target.startLine })
           : t("review.announce.linesSelected", {
@@ -253,7 +256,7 @@ export function useLineLinkLanding(
       );
     },
     [
-      announce,
+      announceQuietly,
       jumpToChunkFromConversation,
       landOnCard,
       miss,

@@ -47,6 +47,7 @@ export function useDiffTableComments({
     toggleConversationThread,
     updateComment,
     announce,
+    announceQuietly,
     selectLines,
     clearLineSelection,
   } = useReviewActions();
@@ -135,6 +136,7 @@ export function useDiffTableComments({
     toggleConversationThread,
     updateComment,
     announce,
+    announceQuietly,
     selectLines,
     clearLineSelection,
     lineSelection,

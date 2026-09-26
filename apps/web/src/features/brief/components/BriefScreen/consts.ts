@@ -28,3 +28,6 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
     ],
   },
 ];
+
+/** Air between a landed card's head and the pinned stack; the chunk scroller and the landing watch both aim here. */
+export const CHUNK_LANDING_GAP_PX = 40;

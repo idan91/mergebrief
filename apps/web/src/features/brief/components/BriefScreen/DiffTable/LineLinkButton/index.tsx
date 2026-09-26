@@ -1,17 +1,16 @@
 import { useTranslation } from "react-i18next";
 
 import { CopyButton } from "@web/components/CopyButton";
-import { IconNames } from "@web/components/Icon/types";
 import type { LineSelection } from "@web/features/review/utils";
 import { deriveLineLink, deriveShareUrl } from "../../utils";
-import styles from "./SelectionLinkGlyph.module.scss";
+import styles from "./LineLinkButton.module.scss";
 
-export interface SelectionLinkGlyphProps {
+export interface LineLinkButtonProps {
   selection: LineSelection;
 }
 
-/** The link glyph at a selection's first row: copies the page URL with the line link. */
-export function SelectionLinkGlyph({ selection }: SelectionLinkGlyphProps) {
+/** The selection's first line number as a button: copies the page URL with the line link. */
+export function LineLinkButton({ selection }: LineLinkButtonProps) {
   const { t } = useTranslation();
   const label =
     selection.startLine === selection.endLine
@@ -22,9 +21,10 @@ export function SelectionLinkGlyph({ selection }: SelectionLinkGlyphProps) {
         });
 
   return (
-    <span className={styles["glyph"]} data-testid="selection-link-glyph">
+    <span className={styles["slot"]} data-testid="line-link-button">
       <CopyButton
-        icon={IconNames.LINK}
+        className={styles["number"]}
+        content={String(selection.startLine)}
         label={label}
         text={() => deriveShareUrl(window.location, deriveLineLink(selection))}
         title={label}

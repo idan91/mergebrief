@@ -15,7 +15,7 @@ import { ExpandControl } from "./ExpandControl";
 import { ExpandRow } from "./ExpandRow";
 import { RevisionGutterCell } from "./RevisionGutterCell";
 import { RevisionTag } from "./RevisionTag";
-import { SelectionLinkGlyph } from "./SelectionLinkGlyph";
+import { LineLinkButton } from "./LineLinkButton";
 import { SiblingSpanHeader } from "./SiblingSpanHeader";
 import type { LineSide } from "@web/components/DiffRows/types";
 import type { DiffTableProps, DiffViewportStyle } from "./types";
@@ -203,7 +203,7 @@ export function DiffTable(props: DiffTableProps) {
     if (glyph.index !== index || glyph.side !== side) {
       return null;
     }
-    return <SelectionLinkGlyph selection={table.lineSelection} />;
+    return <LineLinkButton selection={table.lineSelection} />;
   }
 
   function buildCodeTrailer(_line: DiffLine, index: number): ReactNode {

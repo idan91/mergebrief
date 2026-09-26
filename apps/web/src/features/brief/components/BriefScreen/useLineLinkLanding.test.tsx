@@ -130,10 +130,11 @@ describe("line link landing", () => {
       expect(document.querySelectorAll("tr[data-selected]")).toHaveLength(2),
     );
     await waitFor(() =>
-      expect(screen.getByTestId("brief-toast").textContent).toBe(
+      expect(screen.getByTestId("brief-live").textContent).toBe(
         "Lines 9 to 10 selected.",
       ),
     );
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
   });
 
   it("expands a folded line from the nearer edge, then lands on it", async () => {

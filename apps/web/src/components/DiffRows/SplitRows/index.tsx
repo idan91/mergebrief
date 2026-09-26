@@ -263,8 +263,10 @@ function SideCells({
         onMouseEnter={attributes.onMouseEnter}
         onMouseUp={attributes.onMouseUp}
       >
-        {number ?? ""}
-        {numberContent}
+        <span className={rowStyles["digits"]}>
+          {number ?? ""}
+          {numberContent}
+        </span>
       </td>
       <td
         aria-describedby={attributes.describedById}

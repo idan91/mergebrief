@@ -231,10 +231,11 @@ export function useBriefScreenFacade({
   const flowActions = flowStore.getState().actions;
   const announce = flowActions.announce;
   const toast = useStore(flowStore, (state) => state.toast);
+  const liveMessage = useStore(flowStore, (state) => state.liveMessage);
   const lineSelection = useStore(flowStore, (state) => state.lineSelection);
   const clearLineSelectionFromShortcut = () => {
     flowActions.clearLineSelection();
-    announce(t("review.announce.lineSelectionCleared"));
+    flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
   };
   useEffect(() => {
     if (navigateLink === undefined) {
@@ -298,12 +299,19 @@ export function useBriefScreenFacade({
     [conversation, recordSubmittedReview],
   );
 
+  // A landing from a link or the conversation puts the card's head under the
+  // pinned stack, the same place the landing watch corrects to.
+  const jumpToChunkUnderStack = useCallback(
+    (chunkId: string, behavior?: ScrollBehavior) =>
+      session.jumpToChunk(chunkId, behavior, "top"),
+    [session],
+  );
   const conversationWiring = useConversationWiring({
     briefId,
     conversation: conversationPlan,
     conversationFocusThreadId,
     conversationFilter,
-    jumpToChunk,
+    jumpToChunk: jumpToChunkUnderStack,
     cancelChunkScroll: session.cancelChunkScroll,
     ensureChunkOpen: session.openChunk,
     model,
@@ -357,6 +365,7 @@ export function useBriefScreenFacade({
     selectLines: flowActions.selectLines,
     expandEdge: flowActions.expandEdge,
     announce,
+    announceQuietly: flowActions.announceQuietly,
     navigateLink,
     writtenLink: writtenLinkRef,
     t,
@@ -379,11 +388,11 @@ export function useBriefScreenFacade({
       writtenLinkRef.current = chunkId;
       if (flowStore.getState().lineSelection !== null) {
         flowActions.clearLineSelection();
-        announce(t("review.announce.lineSelectionCleared"));
+        flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
       }
       navigateLink?.(chunkId);
     },
-    [announce, flowActions, flowStore, navigateLink, t],
+    [flowActions, flowStore, navigateLink, t],
   );
   const shareChunk = useMemo<ChunkShare>(
     () => ({
@@ -591,6 +600,7 @@ export function useBriefScreenFacade({
     queueJumpFromChanges,
     submitOpen,
     toast,
+    liveMessage,
     conversationWiring,
     revisionNav,
     submitFlow,
