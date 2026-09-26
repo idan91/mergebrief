@@ -6,6 +6,7 @@ import { appI18n } from "../../../i18n/I18nProvider";
 import {
   buildLineOwnersByFile,
   resolveLineOwner,
+  resolveNearestLineOwner,
   resolveSpanOwner,
 } from "./lineOwner";
 import type { BriefViewModel } from "./viewModel";
@@ -78,6 +79,32 @@ describe("resolveLineOwner", () => {
     expect(resolveLineOwner("new", 11, [wide, narrow])?.id).toBe("narrow");
     expect(resolveLineOwner("new", 11, [narrow, wide])?.id).toBe("narrow");
     expect(resolveLineOwner("new", 30, [wide, narrow])?.id).toBe("wide");
+  });
+});
+
+describe("resolveNearestLineOwner", () => {
+  it("keeps an exact holder", () => {
+    expect(resolveNearestLineOwner("new", 11, CHUNKS)?.id).toBe("c1");
+  });
+
+  it("lands a context line on the chunk whose change is closest", () => {
+    // 20 is 8 past c1's 10-12 and 20 short of c2's 40-41.
+    expect(resolveNearestLineOwner("new", 20, CHUNKS)?.id).toBe("c1");
+    expect(resolveNearestLineOwner("new", 35, CHUNKS)?.id).toBe("c2");
+    expect(resolveNearestLineOwner("old", 45, CHUNKS)?.id).toBe("c2");
+    // The remainder is a real owner when its change is the closest.
+    expect(resolveNearestLineOwner("old", 55, CHUNKS)?.id).toBe("u-1");
+  });
+
+  it("measures on the requested side only", () => {
+    // Only c2 and u-1 removed anything; c1's added lines never count.
+    expect(resolveNearestLineOwner("old", 12, CHUNKS)?.id).toBe("c2");
+  });
+
+  it("answers undefined when no chunk changed that side", () => {
+    const addsOnly = [CHUNKS[0]!];
+    expect(resolveNearestLineOwner("old", 12, addsOnly)).toBeUndefined();
+    expect(resolveNearestLineOwner("new", 1, [])).toBeUndefined();
   });
 });
 

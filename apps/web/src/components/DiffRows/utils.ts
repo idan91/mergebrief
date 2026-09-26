@@ -1,10 +1,6 @@
 import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 
-import {
-  LINE_NUMBER_SELECTOR,
-  SIDE_NUMBER_SELECTORS,
-  UNIFIED_NUMBER_POSITIONS,
-} from "./consts";
+import { LINE_ATTRIBUTES } from "./consts";
 import type { LineSide } from "./types";
 
 /** Hunk and note rows span every column and take no slot content. */
@@ -51,6 +47,11 @@ export function buildDiffRowKeys(rows: readonly DiffLine[]): string[] {
   });
 }
 
+/** The number cell showing a line on a side. */
+export function buildLineCellSelector(side: LineSide, line: number): string {
+  return `td[${LINE_ATTRIBUTES[side]}="${String(line)}"]`;
+}
+
 /**
  * The focus target showing a line: the unified row whose number cell on
  * that side matches, or in split view the code cell beside the matching
@@ -62,19 +63,16 @@ export function findRowByLine(
   side: LineSide,
   line: number,
 ): HTMLElement | null {
-  const wanted = String(line);
-  for (const cell of root.querySelectorAll(SIDE_NUMBER_SELECTORS[side])) {
-    if (cell.textContent !== wanted || isNested(cell)) continue;
-    const target = cell.nextElementSibling;
-    return target instanceof HTMLElement ? target : null;
-  }
-  for (const row of root.querySelectorAll("tr")) {
-    if (isNested(row)) continue;
-    const numbers = row.querySelectorAll(`:scope > ${LINE_NUMBER_SELECTOR}`);
-    if (numbers[UNIFIED_NUMBER_POSITIONS[side]]?.textContent !== wanted) {
+  for (const cell of root.querySelectorAll(buildLineCellSelector(side, line))) {
+    if (isNested(cell)) {
       continue;
     }
-    return row;
+    if (cell.hasAttribute("data-side")) {
+      const target = cell.nextElementSibling;
+      return target instanceof HTMLElement ? target : null;
+    }
+    const row = cell.closest("tr");
+    return row instanceof HTMLElement ? row : null;
   }
 
   return null;

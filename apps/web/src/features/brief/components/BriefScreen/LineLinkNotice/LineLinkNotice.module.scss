@@ -1,0 +1,20 @@
+@use "functions";
+
+@layer components {
+  .notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(16px);
+    max-inline-size: functions.to-rem(880px);
+    margin-block-end: functions.to-rem(20px);
+    margin-inline: auto;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(18px);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+  }
+}

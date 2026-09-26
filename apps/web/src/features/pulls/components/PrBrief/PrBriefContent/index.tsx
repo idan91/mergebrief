@@ -141,13 +141,14 @@ export function PrBriefContent({
   // One parse per file for the page: the slices below and the hunk-edge
   // expansion inside the screen read the same rows, so the cache identity
   // has to hold across renders.
-  const fileRows = useMemo(
-    () =>
-      diff.data === undefined
-        ? undefined
-        : createFileRowsCache(splitUnifiedDiffByFile(diff.data)),
-    [diff.data],
-  );
+  // A failed diff settles as an empty cache, so a line link stops waiting
+  // for rows that will not come and lands on its owner's card instead.
+  const fileRows = useMemo(() => {
+    if (diff.data !== undefined) {
+      return createFileRowsCache(splitUnifiedDiffByFile(diff.data));
+    }
+    return diff.isError ? createFileRowsCache(new Map()) : undefined;
+  }, [diff.data, diff.isError]);
   const assembled = useMemo(
     () => (fileRows === undefined ? brief : attachSlicedDiffs(brief, fileRows)),
     [brief, fileRows],

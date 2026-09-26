@@ -13,6 +13,7 @@ const INBOX = JSON.parse(
   process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRows":[]}',
 );
 const MINUTE_MS = 60_000;
+const SYNTHETIC_FILE_LINES = 900;
 const realFetch = globalThis.fetch;
 
 function jsonResponse(body, status = 200) {
@@ -178,6 +179,27 @@ globalThis.fetch = async (input, init) => {
   if (pathname === `/repos/${REPO_SLUG}/pulls`) {
     // The Inbox reads the open list for its stacks; the fixture has none.
     return jsonResponse([]);
+  }
+  const contents = new RegExp(
+    `^/repos/${REPO_SLUG}/contents/(?<path>.+)$`,
+  ).exec(pathname);
+  if (contents) {
+    // A synthetic head file for hunk-edge reads: the landing only needs the
+    // line numbers to exist, never the fixture's real source.
+    const path = decodeURIComponent(contents.groups.path);
+    const text = Array.from(
+      { length: SYNTHETIC_FILE_LINES },
+      (_, index) => `// ${path} line ${index + 1}`,
+    ).join("\n");
+    return jsonResponse({
+      type: "file",
+      name: path.split("/").at(-1),
+      path,
+      sha: "e2e-synthetic-file",
+      size: text.length,
+      encoding: "base64",
+      content: Buffer.from(text, "utf8").toString("base64"),
+    });
   }
   const compare = new RegExp(
     `^/repos/${REPO_SLUG}/compare/(?<basehead>.+)$`,

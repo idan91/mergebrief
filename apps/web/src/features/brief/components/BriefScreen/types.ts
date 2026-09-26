@@ -10,7 +10,15 @@ import type {
   PostCommentResult,
 } from "@web/features/pulls/transport";
 import type { BriefSearchParams } from "../../comparison/compareState";
-import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
+import type {
+  Brief,
+  BriefChunk,
+  ExpansionDirection,
+  LineRange,
+  LivePrState,
+  LocalBriefSummary,
+} from "../../types";
+import type { LineTarget } from "../../utils/lineOwner";
 import type { buildBriefViewModel } from "../../utils/viewModel";
 import type { FileRowsCache } from "../../utils/fileRows";
 import type { RepoConfigContext } from "../../utils/repoConfig";
@@ -37,6 +45,49 @@ export interface LensPaneProps {
   frozen: boolean;
   children: ReactNode;
 }
+
+/** What a line link resolves to before anything scrolls. */
+export const LineLandingKinds = {
+  /** No file, no chunk, or a line the brief cannot show. */
+  MISS: "miss",
+  /** The owner's rows are not attached yet; the hash keeps its chance. */
+  PENDING: "pending",
+  /** The rows never came: the owner's card is shown without the line. */
+  CARD: "card",
+  LAND: "land",
+} as const;
+
+/** How a hunk-edge read for a line link ended. */
+export const LineReadOutcomes = {
+  LANDED: "landed",
+  /** The file ends before the line, or the range is past the read cap. */
+  SHORT: "short",
+  /** The source could not answer now; the link may still be right. */
+  UNAVAILABLE: "unavailable",
+} as const;
+
+export type LineReadOutcome = ValueOf<typeof LineReadOutcomes>;
+
+/** The hunk-edge read that brings a folded line into the rows. */
+export interface LineLandingRead {
+  edgeKey: string;
+  direction: ExpansionDirection;
+  /** In new-side lines, from the edge to the far folded line. */
+  range: LineRange;
+  /** The range's first line is among the folded ones. */
+  coversStart: boolean;
+}
+
+export type LineLandingPlan =
+  | { kind: typeof LineLandingKinds.MISS }
+  | { kind: typeof LineLandingKinds.PENDING }
+  | { kind: typeof LineLandingKinds.CARD; chunk: BriefChunk }
+  | {
+      kind: typeof LineLandingKinds.LAND;
+      chunk: BriefChunk;
+      row: LineTarget;
+      read?: LineLandingRead;
+    };
 
 /** How a scope exit writes the URL: a gesture pushes, an arrival replaces. */
 export interface ScopeExitOptions {

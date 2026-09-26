@@ -2,10 +2,7 @@ import { memo, useMemo } from "react";
 
 import { Button } from "@web/components/Button";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
-import {
-  ExpansionSourceProvider,
-  type ExpansionSource,
-} from "../../hooks/useExpansionSource";
+import { ExpansionSourceProvider } from "../../hooks/useExpansionSource";
 import { FileRowsProvider } from "../../hooks/useFileRows";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
@@ -18,6 +15,7 @@ import { ChunkWindowProvider } from "./chunkWindows";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip";
 import { FocusBanner } from "./FocusBanner";
+import { LineLinkNotice } from "./LineLinkNotice";
 import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
@@ -117,12 +115,17 @@ export function BriefScreen({
     toggleDiffView,
     cardTrack,
     conversationPlan,
+    expansionSource,
+    lineLinkMissed,
+    dismissLineLinkMiss,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
     brief,
     repoConfig,
     briefId,
+    repoId,
+    fileRows,
     comparisonPlan,
     model,
     searchParams,
@@ -148,13 +151,6 @@ export function BriefScreen({
     () => deriveChunkSizes(brief.chunks),
     [brief.chunks],
   );
-  // Hunk-edge expansion reads the file at the head sha through the pull's
-  // API route; the local path has no route, so its edges stay folded.
-  const expansionSource = useMemo((): ExpansionSource | undefined => {
-    if (repoId === undefined) return undefined;
-    return { repoId, prNumber: brief.pr.number, ref: brief.pr.sha };
-  }, [repoId, brief.pr.number, brief.pr.sha]);
-
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
       ? {}
@@ -197,6 +193,9 @@ export function BriefScreen({
                     : undefined
                 }
               />
+              {lineLinkMissed ? (
+                <LineLinkNotice onDismiss={dismissLineLinkMiss} />
+              ) : null}
               {session.focusMode ? (
                 <FocusBanner
                   bannerRef={session.focusBannerRef}

@@ -28,6 +28,8 @@ import { useSidebarState } from "./Sidebar/useSidebarState";
 import type { BriefScreenProps } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useChunkDeepLink } from "./useChunkDeepLink";
+import { useLineLinkLanding } from "./useLineLinkLanding";
+import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
 import { useDiffViewPreference } from "./useDiffViewPreference";
@@ -58,6 +60,8 @@ export function useBriefScreenFacade({
   brief,
   repoConfig,
   briefId,
+  repoId,
+  fileRows,
   comparisonPlan,
   model,
   searchParams,
@@ -315,11 +319,37 @@ export function useBriefScreenFacade({
     },
     [exitChangesScope, inChangesScope, jumpToChunkFromConversation],
   );
+  // Hunk-edge expansion reads the file at the head sha through the pull's
+  // API route; the local path has no route, so its edges stay folded.
+  const expansionSource = useMemo((): ExpansionSource | undefined => {
+    if (repoId === undefined) {
+      return undefined;
+    }
+    return { repoId, prNumber: brief.pr.number, ref: brief.pr.sha };
+  }, [repoId, brief.pr.number, brief.pr.sha]);
+  const lineLanding = useLineLinkLanding({
+    briefId,
+    chunks: readingOrderedChunks,
+    fileRows,
+    rowsSettled: fileRows !== undefined,
+    expansionSource,
+    inChangesScope,
+    exitChangesScope,
+    jumpToChunkFromConversation,
+    selectLines: flowActions.selectLines,
+    expandEdge: flowActions.expandEdge,
+    announce,
+    navigateHash,
+    writtenHash: writtenHashRef,
+    t,
+  });
   useChunkDeepLink({
     briefId,
     chunkIds: session.chunkIds,
     enabled: conversationFocusThreadId === undefined,
     land: landOnDeepLink,
+    landLine: lineLanding.landLine,
+    writtenHash: writtenHashRef,
   });
 
   const revisionNav = useRevisionNavigation({
@@ -538,5 +568,8 @@ export function useBriefScreenFacade({
     diffView,
     toggleDiffView,
     cardTrack,
+    expansionSource,
+    lineLinkMissed: lineLanding.missed,
+    dismissLineLinkMiss: lineLanding.dismissMiss,
   };
 }

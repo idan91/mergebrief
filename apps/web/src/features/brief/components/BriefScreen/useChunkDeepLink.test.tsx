@@ -112,6 +112,72 @@ describe("useChunkDeepLink", () => {
     expect(scheduled).toHaveBeenCalledTimes(1);
   });
 
+  it("hands a line hash to the line landing, once", () => {
+    window.location.hash = "#src/a.ts:R12-R20";
+    const land = vi.fn(() => true);
+    const landLine = vi.fn(() => true);
+    const { rerender } = renderHook(
+      ({ briefId }) =>
+        useChunkDeepLink({
+          briefId,
+          chunkIds: ["c1"],
+          enabled: true,
+          land,
+          landLine,
+        }),
+      { initialProps: { briefId: "brief-a" } },
+    );
+    rerender({ briefId: "brief-a" });
+
+    expect(land).not.toHaveBeenCalled();
+    expect(landLine).toHaveBeenCalledTimes(1);
+    expect(landLine).toHaveBeenCalledWith({
+      file: "src/a.ts",
+      side: "new",
+      startLine: 12,
+      endLine: 20,
+    });
+  });
+
+  it("keeps a line landing for later when it could not be scheduled", () => {
+    window.location.hash = "#src/a.ts:R12";
+    const refused = vi.fn(() => false);
+    const scheduled = vi.fn(() => true);
+    const { rerender } = renderHook(
+      ({ landLine }) =>
+        useChunkDeepLink({
+          briefId: "brief-a",
+          chunkIds: ["c1"],
+          enabled: true,
+          land: () => true,
+          landLine,
+        }),
+      { initialProps: { landLine: refused } },
+    );
+    rerender({ landLine: scheduled });
+    rerender({ landLine: scheduled });
+
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(scheduled).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a hash the page wrote itself", () => {
+    window.location.hash = "#src/a.ts:R12";
+    const landLine = vi.fn(() => true);
+    renderHook(() =>
+      useChunkDeepLink({
+        briefId: "brief-a",
+        chunkIds: ["c1"],
+        enabled: true,
+        land: () => true,
+        landLine,
+        writtenHash: { current: "#src/a.ts:R12" },
+      }),
+    );
+
+    expect(landLine).not.toHaveBeenCalled();
+  });
+
   it("lands again when the brief changes under the same hash", () => {
     window.location.hash = "#chunk-c1";
     const land = vi.fn(() => true);

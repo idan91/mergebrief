@@ -2,7 +2,7 @@
 // unrecognized value as absent, and `resolveBriefSearch` normalizes an
 // explicit-but-unavailable pair down instead of erroring, because this state
 // is user-editable and shareable. Both halves are asserted here.
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import {
   FIXTURE_PR_TITLE,
@@ -144,6 +144,72 @@ test("a chunk hash lands after leaving Changes Only", async ({ page }) => {
   // The scope exit replaced the arrival entry: one Back leaves the brief.
   await page.goBack();
   await expect(page).not.toHaveURL(/\/repos\//);
+});
+
+const FIXTURE_FILE =
+  "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx";
+
+function findRowShowing(page: Page, side: "old" | "new", line: number) {
+  return page.locator(`tr:has(> td[data-line-${side}="${String(line)}"])`);
+}
+
+test("a line link lands on that line, selected and focused", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R45`);
+
+  const row = findRowShowing(page, "new", 45);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  await expect(row).toBeFocused();
+  await expect(row).toBeInViewport();
+  await expect(page).toHaveURL(new RegExp(`#${FIXTURE_FILE}:R45$`));
+});
+
+test("an old-side range link selects every line of the range", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:L295-L300`);
+
+  await expect(findRowShowing(page, "old", 295)).toHaveAttribute(
+    "data-selected",
+    "",
+    { timeout: 15_000 },
+  );
+  await expect(findRowShowing(page, "old", 300)).toHaveAttribute(
+    "data-selected",
+    "",
+  );
+  await expect(findRowShowing(page, "old", 295)).toBeFocused();
+});
+
+test("a context line lands on the nearest chunk", async ({ page }) => {
+  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R43`);
+
+  const row = findRowShowing(page, "new", 43);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  await expect(row).toBeFocused();
+});
+
+test("a folded line expands its hunk edge before landing", async ({ page }) => {
+  // 150 sits in the gap between the first two hunks of the file.
+  await page.goto(`${FIXTURE_ROUTE_REV1}#${FIXTURE_FILE}:R150`);
+
+  const row = findRowShowing(page, "new", 150);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  await expect(row).toBeFocused();
+});
+
+test("a line link this brief cannot land clears the hash and says so", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE_ROUTE_REV1}#src/nope.ts:R1`);
+
+  await expect(page.getByTestId("line-link-notice")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page).not.toHaveURL(/#/);
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await expect(page.getByTestId("line-link-notice")).toBeHidden();
 });
 
 test("the tab title leads with the PR title, then names the home page", async ({

@@ -122,6 +122,38 @@ export function resolveLineOwner(
   return owner ?? remainder;
 }
 
+/**
+ * Where a line link lands when no chunk changed the line: the chunk whose
+ * nearest changed range on that side is closest, an exact holder first.
+ * Undefined only when no chunk of the file changed anything on that side.
+ */
+export function resolveNearestLineOwner(
+  side: LineSide,
+  line: number,
+  chunks: readonly BriefChunk[],
+): BriefChunk | undefined {
+  const exact = resolveLineOwner(side, line, chunks);
+  if (exact !== undefined) {
+    return exact;
+  }
+  let nearest: BriefChunk | undefined;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const chunk of chunks) {
+    const ranges = side === "new" ? chunk.addedRanges : chunk.removedRanges;
+    for (const range of ranges) {
+      const distance =
+        line < range.start ? range.start - line : line - range.end;
+      if (distance < nearestDistance) {
+        nearest = chunk;
+        nearestDistance = distance;
+      }
+    }
+  }
+
+  return nearest;
+}
+
 /** The line count of the narrowest range holding the line; undefined when none does. */
 function resolveHoldingWidth(
   ranges: readonly LineRange[],

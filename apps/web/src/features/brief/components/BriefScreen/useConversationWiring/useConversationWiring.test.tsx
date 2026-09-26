@@ -433,7 +433,7 @@ describe("useConversationWiring, line landing", () => {
     // inside its gutter cell.
     card.innerHTML =
       '<table><tbody><tr data-line-kind="add" tabindex="0"><td><button>rail</button></td>' +
-      '<td data-line-number=""></td><td data-line-number="">10</td><td>b</td></tr></tbody></table>';
+      '<td data-line-number=""></td><td data-line-number="" data-line-new="10">10</td><td>b</td></tr></tbody></table>';
     document.body.append(card);
     const { result, jumpToChunk, ensureChunkOpen } = renderWiring(plan());
     act(() => {
@@ -484,7 +484,7 @@ describe("useConversationWiring, line landing", () => {
     card.id = "c1";
     card.innerHTML =
       '<table><tbody><tr data-line-kind="add"><td data-line-number=""></td>' +
-      '<td data-line-number="">10</td><td>b</td></tr></tbody></table>';
+      '<td data-line-number="" data-line-new="10">10</td><td>b</td></tr></tbody></table>';
     document.body.append(card);
     const { result } = renderWiring(plan());
     act(() => {

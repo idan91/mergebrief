@@ -26,8 +26,8 @@ describe("findRowByLine", () => {
 
   it("finds the unified row whose number cell on the side matches", () => {
     const root = mount(
-      '<table><tbody><tr id="a"><td data-line-number="">13</td><td data-line-number="">10</td></tr>' +
-        '<tr id="b"><td data-line-number="">14</td><td data-line-number=""></td></tr></tbody></table>',
+      '<table><tbody><tr id="a"><td data-line-old="13">13</td><td data-line-new="10">10</td></tr>' +
+        '<tr id="b"><td data-line-old="14">14</td><td></td></tr></tbody></table>',
     );
 
     expect(findRowByLine(root, "new", 10)?.id).toBe("a");
@@ -37,9 +37,9 @@ describe("findRowByLine", () => {
 
   it("skips a nested table, a suggestion preview inside a comment", () => {
     const root = mount(
-      '<table><tbody><tr id="a"><td data-line-number="">8</td><td data-line-number="">9</td></tr>' +
-        '<tr><td><table><tbody><tr id="preview"><td data-line-number=""></td><td data-line-number="">11</td></tr></tbody></table></td></tr>' +
-        '<tr id="b"><td data-line-number="">10</td><td data-line-number="">11</td></tr></tbody></table>',
+      '<table><tbody><tr id="a"><td data-line-old="8">8</td><td data-line-new="9">9</td></tr>' +
+        '<tr><td><table><tbody><tr id="preview"><td></td><td data-line-new="11">11</td></tr></tbody></table></td></tr>' +
+        '<tr id="b"><td data-line-old="10">10</td><td data-line-new="11">11</td></tr></tbody></table>',
     );
 
     expect(findRowByLine(root, "new", 11)?.id).toBe("b");
@@ -47,8 +47,8 @@ describe("findRowByLine", () => {
 
   it("finds the split cell on the side, the pair's row is not the target", () => {
     const root = mount(
-      '<table><tbody><tr><td data-side="left" data-line-number="">14</td><td id="l" data-side="left" tabindex="-1"></td>' +
-        '<td data-side="right" data-line-number="">11</td><td id="r" data-side="right" tabindex="0"></td></tr></tbody></table>',
+      '<table><tbody><tr><td data-side="left" data-line-old="14">14</td><td id="l" data-side="left" tabindex="-1"></td>' +
+        '<td data-side="right" data-line-new="11">11</td><td id="r" data-side="right" tabindex="0"></td></tr></tbody></table>',
     );
 
     expect(findRowByLine(root, "new", 11)?.id).toBe("r");

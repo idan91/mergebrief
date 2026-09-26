@@ -630,6 +630,11 @@
       "allLines": "all lines",
       "caveat": "Core sums the chunks holding each group's intent; counts are derived from the diff. Exact lines are on GitHub."
     },
+    "lineLink": {
+      "missing": "This link points at lines this brief does not contain.",
+      "readFailed": "The lines this link names could not be loaded; the chunk is shown instead.",
+      "dismiss": "Dismiss"
+    },
     "focusBanner": {
       "lead": "Focus mode",
       "hint": "<0/> — one chunk at a time. <1/><2/> to move, <3/> to mark viewed, <4/> to exit.",
