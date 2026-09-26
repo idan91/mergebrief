@@ -4,6 +4,7 @@ import { useId, useMemo, useRef } from "react";
 import type { LineSelection } from "@web/features/review/utils";
 
 import { DiffViews } from "@web/components/DiffRows/types";
+import type { ComparisonRun } from "../../../comparison/runs";
 import { isFullWidthDiffRow } from "@web/components/DiffRows/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import {
@@ -29,6 +30,7 @@ import {
   collectAnchoredIndexes,
   resolveSelectionGlyph,
   collectDragBaseIndexes,
+  collectOldSideRuns,
   collectThreadLines,
   fillUnifiedSpan,
   groupEdgesByRow,
@@ -103,6 +105,11 @@ export function useDiffTableFacade({
     t,
   });
   const rail = useRailHover();
+  const oldSideRuns = useMemo(
+    () => collectOldSideRuns(comparisonView.runs, baseRows),
+    [baseRows, comparisonView.runs],
+  );
+  const isOldSideRun = (run: ComparisonRun): boolean => oldSideRuns.has(run);
   const { activeCommentAnchor, lineSelection } = review;
   const unified = model.resolvedView === DiffViews.UNIFIED;
   const selectionIndexes = useMemo(() => {
@@ -248,6 +255,7 @@ export function useDiffTableFacade({
     overlayActive,
     lineSelection,
     selectionGlyph,
+    isOldSideRun,
     buildRowAttributes,
     handleExpanded: landing.handleExpanded,
     handleAbandoned: landing.handleAbandoned,

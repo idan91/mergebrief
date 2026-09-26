@@ -1475,8 +1475,8 @@ describe("DiffTable expansion click", () => {
     expect(cells[0]?.textContent).toBe("10");
     const controls = screen.getAllByTestId("expand-control");
     expect(controls.map((cell) => cell.getAttribute("colspan"))).toEqual([
-      "5",
-      "5",
+      "6",
+      "6",
     ]);
   });
 });

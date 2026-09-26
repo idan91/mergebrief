@@ -22,12 +22,13 @@ import type { DiffTableProps, DiffViewportStyle } from "./types";
 import { UnderRows } from "./UnderRows";
 import { useDiffTableFacade } from "./useDiffTableFacade";
 import {
+  deriveSideRail,
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
   resolveSpanLines,
   showsThreadOnRow,
-  unionRail,
 } from "./utils";
+import { RailSides } from "./types";
 
 export function DiffTable(props: DiffTableProps) {
   const {
@@ -144,7 +145,13 @@ export function DiffTable(props: DiffTableProps) {
   function buildGutterCell(_line: DiffLine, index: number): ReactNode {
     const partner = model.pairPartners.get(index);
     const other = partner === undefined ? undefined : rowViews[partner];
-    const rail = unionRail(rowViews[index], other);
+    const rail = deriveSideRail({
+      side: RailSides.EDGE,
+      own: rowViews[index],
+      other,
+      hasSeam: model.split,
+      touchesOld: table.isOldSideRun,
+    });
     return (
       <RevisionGutterCell
         run={table.overlayActive ? rail.run : undefined}
@@ -154,6 +161,30 @@ export function DiffTable(props: DiffTableProps) {
         onRailEnter={table.handleRailEnter}
         onRailLeave={table.handleRailLeave}
         spanned={model.spannedRows.has(index)}
+      />
+    );
+  }
+
+  /** The seam speaks for the new side: `index` is the pair's lead, the right cell when it has one. */
+  function buildSeamCell(_line: DiffLine, index: number): ReactNode {
+    const partner = model.pairPartners.get(index);
+    const rightView = rowViews[index];
+    const rail = deriveSideRail({
+      side: RailSides.SEAM,
+      own: rightView,
+      other: partner === undefined ? undefined : rowViews[partner],
+      hasSeam: true,
+      touchesOld: table.isOldSideRun,
+    });
+    return (
+      <RevisionGutterCell
+        run={table.overlayActive ? rail.run : undefined}
+        isStart={rail.isStart}
+        isEnd={rail.isEnd}
+        chunk={chunk}
+        onRailEnter={table.handleRailEnter}
+        onRailLeave={table.handleRailLeave}
+        placement={RailSides.SEAM}
       />
     );
   }
@@ -263,6 +294,7 @@ export function DiffTable(props: DiffTableProps) {
             codeTrailer={buildCodeTrailer}
             lineNumberContent={buildNumberCellContent}
             gutterCell={buildGutterCell}
+            seamCell={model.split ? buildSeamCell : undefined}
             rowAttributes={table.buildRowAttributes}
             underRow={buildUnderRow}
             fullRow={buildExpandRow}

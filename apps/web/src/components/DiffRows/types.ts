@@ -112,6 +112,11 @@ export interface DiffRowsProps {
    * that span it (hunk and note) never call the slot.
    */
   gutterCell?: DiffRowSlot;
+  /**
+   * Split view only: one `<td>` between the halves, before the new side's
+   * number, for every row that has columns. Absent leaves the halves flush.
+   */
+  seamCell?: DiffRowSlot | undefined;
   /** Trails the code text inside the code cell. */
   codeTrailer?: DiffRowSlot;
   /** Trails the number inside each number cell. */

@@ -1,17 +1,15 @@
-@use "functions";
-
 @layer components {
   .rail {
-    inline-size: functions.to-rem(26px);
+    inline-size: var(--diff-gutter-w);
   }
 
   .number {
-    inline-size: functions.to-rem(42px);
+    inline-size: var(--diff-number-w);
   }
 
   .code {
     inline-size: calc(
-      (100% - functions.to-rem(26px) - 2 * functions.to-rem(42px)) / 2
+      (100% - 2 * var(--diff-gutter-w) - 2 * var(--diff-number-w)) / 2
     );
   }
 }

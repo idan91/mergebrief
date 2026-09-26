@@ -96,6 +96,13 @@
     --color-diff-add-text: #d6efe1;
     --color-diff-del-text: #eed3d3;
 
+    // Diff table geometry: one width for every revision gutter, edge and
+    // seam, both views; the column widths and the under-row insets read it.
+    --diff-gutter-w: #{functions.to-rem(14px)};
+    --diff-rail-w: 4px;
+    --diff-rail-inset: 5px;
+    --diff-number-w: #{functions.to-rem(42px)};
+
     // Syntax palette: one token per colour the diff tokenizer can emit, in
     // the palette's own order. The syntaxTokens test holds both sides in
     // lockstep; comment grey is the AA-lifted value, not github-dark's.

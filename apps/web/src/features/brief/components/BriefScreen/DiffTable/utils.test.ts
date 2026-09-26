@@ -5,7 +5,11 @@ import type { BriefChunk, ExpandableEdge } from "../../../types";
 import type { DiffRowView } from "./diffRowView";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
+import { RailSides } from "./types";
+import type { ComparisonRun } from "../../../comparison/runs";
 import {
+  deriveSideRail,
+  collectOldSideRuns,
   collectDragBaseIndexes,
   frameSpans,
   frameSpansOnPairs,
@@ -247,5 +251,152 @@ describe("expand slot edges", () => {
 
     expect(resolveBeforeRowEdges(byRow, 7, ctx, hunk)).toHaveLength(0);
     expect(resolveBeforeRowEdges(byRow, 7, ctx, undefined)).toHaveLength(1);
+  });
+});
+
+describe("deriveSideRail", () => {
+  const oldRun: ComparisonRun = {
+    chunkId: "c1",
+    file: "src/a.ts",
+    rowIndexes: [1, 2],
+    kind: "added",
+  };
+  const newRun: ComparisonRun = {
+    chunkId: "c1",
+    file: "src/a.ts",
+    rowIndexes: [5, 6],
+    kind: "added",
+  };
+  const touchesOld = (run: ComparisonRun) => run === oldRun;
+  function stubView(
+    run: ComparisonRun | undefined,
+    caps: { start?: boolean; end?: boolean } = {},
+  ): DiffRowView {
+    return {
+      id: "r",
+      isCommentable: true,
+      revRun: run,
+      revMark: undefined,
+      isRevStart: caps.start === true,
+      isRevEnd: caps.end === true,
+      rowComments: [],
+      rowAddressedComments: [],
+      isSelected: false,
+      showComposer: false,
+    };
+  }
+
+  it("paints a run touching old lines on the edge, never the seam", () => {
+    const left = stubView(oldRun, { start: true });
+    const right = stubView(oldRun, { end: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.EDGE,
+        own: left,
+        other: right,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: oldRun, isStart: true, isEnd: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.SEAM,
+        own: right,
+        other: left,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: undefined, isStart: false, isEnd: false });
+  });
+
+  it("paints a new-only run on the seam, capped on the right side", () => {
+    const left = stubView(undefined);
+    const right = stubView(newRun, { start: true, end: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.SEAM,
+        own: right,
+        other: left,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: newRun, isStart: true, isEnd: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.EDGE,
+        own: left,
+        other: right,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: undefined, isStart: false, isEnd: false });
+  });
+
+  it("gives the edge the old-touching run when a pair straddles two runs", () => {
+    const left = stubView(oldRun, { end: true });
+    const right = stubView(newRun, { start: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.EDGE,
+        own: right,
+        other: left,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: oldRun, isStart: false, isEnd: true });
+    expect(
+      deriveSideRail({
+        side: RailSides.SEAM,
+        own: right,
+        other: left,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: newRun, isStart: true, isEnd: false });
+  });
+
+  it("paints nothing where neither side has a run", () => {
+    expect(
+      deriveSideRail({
+        side: RailSides.EDGE,
+        own: stubView(undefined),
+        other: undefined,
+        hasSeam: true,
+        touchesOld,
+      }),
+    ).toEqual({ run: undefined, isStart: false, isEnd: false });
+  });
+
+  it("paints every run on the edge when the view has no seam", () => {
+    expect(
+      deriveSideRail({
+        side: RailSides.EDGE,
+        own: stubView(newRun, { start: true }),
+        other: undefined,
+        hasSeam: false,
+        touchesOld,
+      }),
+    ).toEqual({ run: newRun, isStart: true, isEnd: false });
+  });
+});
+
+describe("collectOldSideRuns", () => {
+  it("keeps the runs holding a deleted base row", () => {
+    const withDeletion: ComparisonRun = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [1, 3],
+      kind: "added",
+    };
+    const additionsOnly: ComparisonRun = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [4],
+      kind: "added",
+    };
+    const oldSide = collectOldSideRuns([withDeletion, additionsOnly], ROWS);
+
+    expect(oldSide.has(withDeletion)).toBe(true);
+    expect(oldSide.has(additionsOnly)).toBe(false);
   });
 });

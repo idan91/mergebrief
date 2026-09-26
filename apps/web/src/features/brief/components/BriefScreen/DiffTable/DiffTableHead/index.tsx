@@ -27,6 +27,7 @@ export function DiffTableHead({
           <col className={styles["rail"]} />
           <col className={styles["number"]} />
           <col className={styles["code"]} />
+          <col className={styles["rail"]} />
           <col className={styles["number"]} />
           <col className={styles["code"]} />
         </colgroup>
@@ -43,6 +44,9 @@ export function DiffTableHead({
             <>
               <th scope="col">{t("brief.diff.colOld")}</th>
               <th scope="col">{t("brief.diff.colContentOld")}</th>
+              <th aria-hidden={overlayActive ? undefined : true} scope="col">
+                {overlayActive ? t("brief.diff.colRevisionNew") : null}
+              </th>
               <th scope="col">{t("brief.diff.colNew")}</th>
               <th scope="col">{t("brief.diff.colContentNew")}</th>
             </>

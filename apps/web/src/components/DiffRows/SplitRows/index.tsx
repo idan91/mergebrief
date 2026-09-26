@@ -31,6 +31,7 @@ export interface SplitRowsProps {
   emphasisByRow?: EmphasisByRow | undefined;
   tokensPending?: boolean | undefined;
   gutterCell?: DiffRowSlot | undefined;
+  seamCell?: DiffRowSlot | undefined;
   codeTrailer?: DiffRowSlot | undefined;
   lineNumberContent?: DiffNumberCellSlot | undefined;
   underRow?: DiffUnderRowSlot | undefined;
@@ -65,6 +66,7 @@ export function SplitRows({
   emphasisByRow,
   tokensPending = false,
   gutterCell,
+  seamCell,
   codeTrailer,
   lineNumberContent,
   underRow,
@@ -77,7 +79,11 @@ export function SplitRows({
 }: SplitRowsProps) {
   const pairs = givenPairs ?? pairSplitRows(rows);
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
-  const columnCount = gutterColumns + SPLIT_SIDE_COLUMNS * 2;
+  const seamColumns = seamCell === undefined ? 0 : GUTTER_COLUMNS;
+  // The new side spans its seam gutter too, so an under-row beside it
+  // clears the same columns its cells do.
+  const sideColumns = SPLIT_SIDE_COLUMNS + seamColumns;
+  const columnCount = gutterColumns + SPLIT_SIDE_COLUMNS + sideColumns;
 
   return (
     <tbody
@@ -140,6 +146,7 @@ export function SplitRows({
                 emphasisByRow={emphasisByRow}
                 tokensByRow={tokensByRow}
               />
+              {seamCell?.(lead.line, lead.index)}
               <SideCells
                 anchorAttributes={anchorAttributes}
                 lineNumberAttributes={lineNumberAttributes}
@@ -157,7 +164,7 @@ export function SplitRows({
                   pair.left.line,
                   pair.left.index,
                   columnCount,
-                  SPLIT_SIDE_COLUMNS,
+                  sideColumns,
                 )
               : null}
             {pair.right !== undefined
@@ -165,7 +172,7 @@ export function SplitRows({
                   pair.right.line,
                   pair.right.index,
                   columnCount,
-                  SPLIT_SIDE_COLUMNS,
+                  sideColumns,
                 )
               : null}
           </Fragment>

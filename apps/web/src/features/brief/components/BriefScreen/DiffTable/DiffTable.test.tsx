@@ -216,6 +216,36 @@ describe("DiffTable stable comparison column", () => {
     );
   });
 
+  it("names the seam column in the split header", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [1],
+      kind: "added" as const,
+    };
+    const { view } = renderTable({
+      chunk: splitChunk(),
+      comparisonView: {
+        marks: new Map([[1, "added"]]),
+        runs: [run],
+        runByRow: new Map([[1, run]]),
+      },
+      view: "split",
+    });
+    const headers = [...view.container.querySelectorAll("thead th")].map(
+      (header) => header.textContent,
+    );
+
+    expect(headers).toEqual([
+      "Revision",
+      "Old line",
+      "Removed content",
+      "Revision, new side",
+      "New line",
+      "Added content",
+    ]);
+  });
+
   it("paints marked runs without changing the table structure", () => {
     const run = {
       chunkId: "c1",
@@ -1299,7 +1329,7 @@ describe("DiffTable split selection", () => {
     const cells = Array.from(row?.querySelectorAll("td") ?? []);
     const columns = container.querySelectorAll("colgroup col").length;
 
-    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 2, 2]);
+    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 3, 3]);
   });
 
   it("lays a side thread beside its side and a gap the other way", () => {
@@ -1313,7 +1343,7 @@ describe("DiffTable split selection", () => {
     const cells = Array.from(row?.querySelectorAll("td") ?? []);
     const columns = container.querySelectorAll("colgroup col").length;
 
-    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 2, 2]);
+    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 3, 3]);
   });
 
   it("renders a restored crossing draft across the whole row", () => {

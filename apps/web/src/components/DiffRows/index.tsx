@@ -19,6 +19,7 @@ export function DiffRows({
   emphasisByRow,
   tokensPending = false,
   gutterCell,
+  seamCell,
   codeTrailer,
   lineNumberContent,
   underRow,
@@ -42,6 +43,7 @@ export function DiffRows({
         codeTrailer={codeTrailer}
         lineNumberContent={lineNumberContent}
         gutterCell={gutterCell}
+        seamCell={seamCell}
         pairs={pairs}
         rowAttributes={rowAttributes}
         rows={rows}

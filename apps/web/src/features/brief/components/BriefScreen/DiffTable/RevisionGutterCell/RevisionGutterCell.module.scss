@@ -2,10 +2,12 @@
 @use "mixins";
 
 @layer components {
-  .gutter {
+  // `[data-gutter]` outranks the row's own cell padding, which would
+  // otherwise widen a border-box cell past the gutter width.
+  .gutter[data-gutter] {
     position: relative;
-    inline-size: functions.to-rem(26px);
-    min-inline-size: functions.to-rem(26px);
+    inline-size: var(--diff-gutter-w);
+    min-inline-size: var(--diff-gutter-w);
     padding: 0;
 
     &[data-rev] {
@@ -17,6 +19,10 @@
       --span-edge-bar: inset 1px 0 0 var(--color-text-3);
 
       box-shadow: var(--span-edge-bar);
+    }
+
+    &[data-placement="seam"] {
+      border-inline-start: 1px solid var(--color-outline-1);
     }
 
     // Hover, not focus: the `focus-ring` mixin's prefers-contrast bump
@@ -34,8 +40,8 @@
 
     position: absolute;
     inset-block: 0;
-    inset-inline-start: 9px;
-    inline-size: 4px;
+    inset-inline-start: var(--diff-rail-inset);
+    inline-size: var(--diff-rail-w);
     background: var(--color-accent);
     pointer-events: none;
 
@@ -52,11 +58,25 @@
 
   .railButton {
     position: absolute;
-    inset: 0;
+
+    // The 24px hit box overhangs the gutter; `z-index` keeps it above the
+    // number cell that follows it and is positioned, so the overhang is
+    // hit-testable. At the edge the viewport clips the start side, so the
+    // box hangs off the end side only.
+    z-index: 1;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: functions.to-rem(24px);
     padding: 0;
     border: 0;
     background: transparent;
     cursor: pointer;
+
+    [data-placement="seam"] > & {
+      inset-inline-start: calc(
+        (var(--diff-gutter-w) - functions.to-rem(24px)) / 2
+      );
+    }
 
     &:focus-visible ~ .rail {
       background: var(--rail-active-fill);

@@ -19,6 +19,7 @@ import type {
   SplitSide,
 } from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
+import type { DiffRowView } from "./diffRowView";
 import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
@@ -65,6 +66,25 @@ export interface RailView {
   run: ComparisonRun | undefined;
   isStart: boolean;
   isEnd: boolean;
+}
+
+/** Which gutter a rail paints in: the table's left edge, or the split seam. */
+export const RailSides = {
+  EDGE: "edge",
+  SEAM: "seam",
+} as const;
+export type RailSide = ValueOf<typeof RailSides>;
+
+export interface SideRailInput {
+  side: RailSide;
+  /** The row view of the side this gutter sits beside. */
+  own: DiffRowView | undefined;
+  /** The paired side's view, for the run it shares. */
+  other: DiffRowView | undefined;
+  /** False in unified view, where the one gutter paints every run. */
+  hasSeam: boolean;
+  /** Whether a run holds a deleted row, so it speaks for the old side. */
+  touchesOld: (run: ComparisonRun) => boolean;
 }
 
 export interface UnderRowLayout {

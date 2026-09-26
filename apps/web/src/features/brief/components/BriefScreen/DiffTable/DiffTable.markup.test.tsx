@@ -120,6 +120,7 @@ const providerBrief: Brief = {
 };
 
 interface RenderOverrides {
+  chunk?: BriefChunk;
   addressedComments?: AddressedReviewComment[];
   flowState?: Partial<ReviewFlowState>;
   session?: ReviewSessionPayload;
@@ -159,7 +160,7 @@ function renderTable(overrides: RenderOverrides = {}) {
     kind: "added" as const,
   };
   const props: DiffTableProps = {
-    chunk: makeChunk(),
+    chunk: overrides.chunk ?? makeChunk(),
     comparisonView: overrides.comparisonView ?? {
       marks: new Map([[3, "added"]]),
       runs: [run],
@@ -272,5 +273,62 @@ describe("DiffTable markup", () => {
     const pair = container.querySelector('tbody[data-view="split"]');
 
     expect(pair?.querySelectorAll("[data-jump-target]")).toHaveLength(1);
+  });
+
+  it("paints a deletion's run on the edge and an added-only run on the seam", () => {
+    const chunk = makeChunk();
+    chunk.diff = [
+      { kind: "hunk", content: "@@ -9,2 +9,3 @@" },
+      { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+      { kind: "del", content: "old", oldLine: 10 },
+      { kind: "add", content: "new", newLine: 10 },
+      { kind: "add", content: "more", newLine: 11 },
+    ];
+    const withDeletion = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [2, 3],
+      kind: "added" as const,
+    };
+    const additionsOnly = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [4],
+      kind: "added" as const,
+    };
+    const { container } = renderTable({
+      chunk,
+      comparisonView: {
+        marks: new Map([
+          [2, "removed"],
+          [3, "added"],
+          [4, "added"],
+        ]),
+        runs: [withDeletion, additionsOnly],
+        runByRow: new Map([
+          [2, withDeletion],
+          [3, withDeletion],
+          [4, additionsOnly],
+        ]),
+      },
+      view: "split",
+    });
+
+    const edge = container.querySelectorAll(
+      "tbody td[data-gutter][data-rev]:not([data-placement])",
+    );
+    const seam = container.querySelectorAll(
+      'tbody td[data-gutter][data-placement="seam"][data-rev]',
+    );
+    expect(edge).toHaveLength(1);
+    expect(seam).toHaveLength(1);
+    expect(edge[0]?.querySelector("[data-jump-target]")).not.toBeNull();
+    expect(seam[0]?.querySelector("[data-jump-target]")).not.toBeNull();
+    expect(
+      edge[0]?.closest("tr")?.querySelector('td[data-line-old="10"]'),
+    ).not.toBeNull();
+    expect(
+      seam[0]?.closest("tr")?.querySelector('td[data-line-new="11"]'),
+    ).not.toBeNull();
   });
 });

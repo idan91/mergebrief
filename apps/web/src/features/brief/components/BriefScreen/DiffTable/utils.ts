@@ -33,15 +33,18 @@ import {
   EXPANDED_RIGHT_NUMBER_SELECTOR,
   EXPANDED_ROW_SELECTOR,
 } from "@web/components/DiffRows/consts";
-import type {
-  DragSelection,
-  RailView,
-  UnderRowLayout,
-  SelectionGlyphPlacement,
+import {
+  type DragSelection,
+  RailSides,
+  type RailView,
+  type SelectionGlyphPlacement,
+  type SideRailInput,
+  type UnderRowLayout,
 } from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import { type ExpandableEdge, ExpansionDirections } from "../../../types";
+import type { ComparisonRun } from "../../../comparison/runs";
 import {
   type DigestThreadRow,
   demotedSubmittedCommentIds,
@@ -64,17 +67,51 @@ export function buildPairPartners(
   return partners;
 }
 
+const NO_RAIL: RailView = { run: undefined, isStart: false, isEnd: false };
+
+/** The runs holding a deleted base row: they speak for the old side. */
+export function collectOldSideRuns(
+  runs: readonly ComparisonRun[],
+  baseRows: readonly DiffLine[],
+): ReadonlySet<ComparisonRun> {
+  const oldSide = new Set<ComparisonRun>();
+  for (const run of runs) {
+    const holdsDeletion = run.rowIndexes.some(
+      (index) => baseRows[index]?.kind === DiffLineKinds.DEL,
+    );
+    if (holdsDeletion) {
+      oldSide.add(run);
+    }
+  }
+
+  return oldSide;
+}
+
 /**
- * One rail for a pair: the run of whichever side has one, and a cap wherever
- * either side starts or ends that same run, so a run that begins on a
- * deletion paired with an addition still gets its jump target.
+ * The rail a gutter paints for a pair. With a seam, a run that touches old
+ * lines belongs to the edge, capped wherever either side starts or ends it;
+ * a new-only run belongs to the seam, capped on the new side. A pair whose
+ * two cells sit in different runs gives the edge the old-touching one.
+ * Without a seam the one gutter takes every run.
  */
-export function unionRail(
-  own: DiffRowView | undefined,
-  other: DiffRowView | undefined,
-): RailView {
-  const run = own?.revRun ?? other?.revRun;
-  if (run === undefined) return { run, isStart: false, isEnd: false };
+export function deriveSideRail(input: SideRailInput): RailView {
+  const { side, own, other, hasSeam, touchesOld } = input;
+  if (side === RailSides.SEAM) {
+    const run = own?.revRun;
+    if (own === undefined || run === undefined || touchesOld(run)) {
+      return NO_RAIL;
+    }
+    return { run, isStart: own.isRevStart, isEnd: own.isRevEnd };
+  }
+  const candidates = [own?.revRun, other?.revRun];
+  const run = hasSeam
+    ? candidates.find(
+        (candidate) => candidate !== undefined && touchesOld(candidate),
+      )
+    : (own?.revRun ?? other?.revRun);
+  if (run === undefined) {
+    return NO_RAIL;
+  }
 
   const ownIn = own?.revRun === run;
   const otherIn = other?.revRun === run;

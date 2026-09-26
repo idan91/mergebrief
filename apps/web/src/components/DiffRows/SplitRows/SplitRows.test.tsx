@@ -124,6 +124,29 @@ describe("SplitRows", () => {
     ).toHaveLength(1);
   });
 
+  it("renders the seam cell between the halves and counts its column", () => {
+    const view = renderSplit({
+      gutterCell: () => <td>g</td>,
+      seamCell: () => <td data-testid="seam">s</td>,
+      underRow: (_row, _index, columnCount, sideColumns) => (
+        <tr data-testid="under">
+          <td>{`${String(columnCount)}:${String(sideColumns ?? 0)}`}</td>
+        </tr>
+      ),
+    });
+    const pair = view.container.querySelectorAll("tbody > tr")[1];
+
+    expect(pair?.children[3]?.getAttribute("data-testid")).toBe("seam");
+    expect(
+      view.container
+        .querySelector('tr[data-line-kind="hunk"] td')
+        ?.getAttribute("colspan"),
+    ).toBe("6");
+    expect(
+      view.container.querySelector('[data-testid="under"] td')?.textContent,
+    ).toBe("6:3");
+  });
+
   it("spans a hunk row across every column", () => {
     const view = renderSplit({ gutterCell: () => <td>g</td> });
     const hunk = view.container.querySelector("tbody > tr > td");
