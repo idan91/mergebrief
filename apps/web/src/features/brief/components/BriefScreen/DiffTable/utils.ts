@@ -33,7 +33,12 @@ import {
   EXPANDED_RIGHT_NUMBER_SELECTOR,
   EXPANDED_ROW_SELECTOR,
 } from "@web/components/DiffRows/consts";
-import type { DragSelection, RailView, UnderRowLayout } from "./types";
+import type {
+  DragSelection,
+  RailView,
+  UnderRowLayout,
+  SelectionGlyphPlacement,
+} from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import { type ExpandableEdge, ExpansionDirections } from "../../../types";
@@ -86,6 +91,24 @@ export function spanForPlacement(
   const sideColumns = layout.sideColumns ?? 0;
   if (placement === SplitSides.RIGHT) return sideColumns;
   return layout.columnCount - sideColumns;
+}
+
+/** Where the link glyph sits: the selection's first row, on its start side. */
+export function resolveSelectionGlyph(
+  selection: LineSelection | null,
+  selectionIndexes: ReadonlySet<number>,
+  composerOpen: boolean,
+): SelectionGlyphPlacement | undefined {
+  if (selection === null || composerOpen) {
+    return undefined;
+  }
+  const first = [...selectionIndexes].toSorted(compareAscending)[0];
+  if (first === undefined) {
+    return undefined;
+  }
+  const startSide = selection.startSide ?? selection.side;
+
+  return { index: first, side: startSide === CommentSides.OLD ? "old" : "new" };
 }
 
 /** The side a range sits on; absent for a range that crosses. */

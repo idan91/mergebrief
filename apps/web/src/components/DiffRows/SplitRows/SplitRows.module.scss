@@ -45,6 +45,10 @@
       color: var(--color-negative);
     }
 
+    > td[data-side][data-line-number][data-state="covered"] {
+      color: transparent;
+    }
+
     > td[data-commentable] {
       cursor: cell;
     }

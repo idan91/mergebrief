@@ -2,19 +2,21 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 
 import { Icon } from "../Icon";
-import { IconNames, IconSizes } from "../Icon/types";
+import { type IconName, IconNames, IconSizes } from "../Icon/types";
 import { IconButton } from "../IconButton";
 import styles from "./CopyButton.module.scss";
 
 type CopyState = "idle" | "copied" | "failed";
 
 export interface CopyButtonProps {
-  /** The text written to the clipboard. */
-  text: string;
+  /** The text written to the clipboard, or a resolver run at click time. */
+  text: string | (() => string);
   /** Accessible action label, e.g. "Copy file path". */
   label: string;
-  /** Tooltip; defaults to the text being copied. */
+  /** Tooltip; defaults to a literal text, else to the label. */
   title?: string | undefined;
+  /** The resting glyph; the copied state always shows the check. */
+  icon?: IconName | undefined;
   /** Notified after a successful copy. */
   onCopy?: ((text: string) => void) | undefined;
   /** Extra class for layout at the call site (spacing, alignment). */
@@ -31,6 +33,7 @@ export function CopyButton({
   text,
   label,
   title,
+  icon = IconNames.COPY,
   onCopy,
   className,
 }: CopyButtonProps) {
@@ -41,9 +44,10 @@ export function CopyButton({
 
   const copy = async () => {
     let next: CopyState = "copied";
+    const resolved = typeof text === "function" ? text() : text;
     try {
-      await navigator.clipboard.writeText(text);
-      onCopy?.(text);
+      await navigator.clipboard.writeText(resolved);
+      onCopy?.(resolved);
     } catch {
       // Clipboard denied or insecure context, surfaced via the button's
       // own state, nothing else to recover.
@@ -66,11 +70,11 @@ export function CopyButton({
       className={`${styles["copyButton"]}${className ? ` ${className}` : ""}`}
       data-state={state}
       label={label}
-      title={title ?? text}
+      title={title ?? (typeof text === "string" ? text : label)}
       onClick={() => void copy()}
     >
       <Icon
-        name={state === "copied" ? IconNames.CHECK : IconNames.COPY}
+        name={state === "copied" ? IconNames.CHECK : icon}
         size={IconSizes.SM}
       />
       {/* Announce the outcome without moving focus. */}

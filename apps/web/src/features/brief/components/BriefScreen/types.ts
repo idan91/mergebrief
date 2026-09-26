@@ -89,6 +89,13 @@ export type LineLandingPlan =
       read?: LineLandingRead;
     };
 
+/** The chunk link glyph: the URL to copy, and what the page does once it is copied. */
+export interface ChunkShare {
+  deriveUrl: (chunkId: string) => string;
+  /** Writes the chunk hash and stands a line selection down. */
+  commit: (chunkId: string) => void;
+}
+
 /** How a scope exit writes the URL: a gesture pushes, an arrival replaces. */
 export interface ScopeExitOptions {
   replace: boolean;

@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { DiffCodeText } from "./DiffCodeText";
 import { SplitRows } from "./SplitRows";
-import { type DiffRowsProps, DiffViews } from "./types";
+import { type DiffRowsProps, DiffViews, NumberCellStates } from "./types";
 import { buildDiffRowKeys, isFullWidthDiffRow } from "./utils";
 import styles from "./DiffRows.module.scss";
 
@@ -20,6 +20,7 @@ export function DiffRows({
   tokensPending = false,
   gutterCell,
   codeTrailer,
+  lineNumberContent,
   underRow,
   rowAttributes,
   anchorAttributes = NO_ANCHOR_ATTRIBUTES,
@@ -39,6 +40,7 @@ export function DiffRows({
         anchorAttributes={anchorAttributes}
         lineNumberAttributes={lineNumberAttributes}
         codeTrailer={codeTrailer}
+        lineNumberContent={lineNumberContent}
         gutterCell={gutterCell}
         pairs={pairs}
         rowAttributes={rowAttributes}
@@ -74,6 +76,9 @@ export function DiffRows({
         }
         const attributes = rowAttributes?.(row, index) ?? {};
 
+        const oldContent = lineNumberContent?.(row, index, "old");
+        const newContent = lineNumberContent?.(row, index, "new");
+
         return (
           <Fragment key={key}>
             {beforeRow?.(row, index, columnCount)}
@@ -100,16 +105,24 @@ export function DiffRows({
                     className={styles["lineNumber"]}
                     data-line-number=""
                     data-line-old={row.oldLine}
+                    data-state={
+                      oldContent ? NumberCellStates.COVERED : undefined
+                    }
                   >
                     {row.oldLine ?? ""}
+                    {oldContent}
                   </td>
                   <td
                     {...lineNumberAttributes}
                     className={styles["lineNumber"]}
                     data-line-number=""
                     data-line-new={row.newLine}
+                    data-state={
+                      newContent ? NumberCellStates.COVERED : undefined
+                    }
                   >
                     {row.newLine ?? ""}
+                    {newContent}
                   </td>
                 </>
               ) : null}

@@ -1,0 +1,10 @@
+@layer components {
+  // The containing block is the number cell: DiffRows positions it.
+  .glyph {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: 0;
+    translate: 0 -50%;
+    display: inline-flex;
+  }
+}

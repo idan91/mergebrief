@@ -1,5 +1,6 @@
 import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import type { ChunkShare } from "../types";
 import { hasPairedSides } from "@web/components/DiffRows/utils";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { useMergedRef } from "@web/hooks/useMergedRef";
@@ -80,6 +81,8 @@ export interface StoryViewProps {
   lineThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
   /** Lands on one line of a chunk; a sibling span's control uses it. */
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
+  /** Writes a chunk's hash and answers the URL to copy. */
+  shareChunk?: ChunkShare | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   /**
    * Per-group changed-since data; absent without a checkpoint. Split into
@@ -181,6 +184,7 @@ export function StoryView(props: StoryViewProps) {
                     hiddenThreads={props.hiddenThreadsByFile?.get(chunk.file)}
                     fileThreads={props.lineThreadsByFile?.get(chunk.file)}
                     jumpToLine={props.jumpToLine}
+                    shareChunk={props.shareChunk}
                     lineOwners={lineOwnersByFile.get(chunk.file)}
                     markReviewed={props.markReviewed}
                     marksDisabled={props.marksDisabled}
@@ -462,6 +466,7 @@ function WindowedChunkList({
               hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
               fileThreads={view.lineThreadsByFile?.get(chunk.file)}
               jumpToLine={view.jumpToLine}
+              shareChunk={view.shareChunk}
               lineOwners={lineOwnersByFile.get(chunk.file)}
               markReviewed={view.markReviewed}
               marksDisabled={view.marksDisabled}

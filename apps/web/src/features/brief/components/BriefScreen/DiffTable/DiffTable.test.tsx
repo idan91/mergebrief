@@ -7,6 +7,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -838,6 +839,124 @@ describe("DiffTable line selection", () => {
     expect(
       container.querySelectorAll('td[data-side="right"][data-selected]'),
     ).toHaveLength(0);
+  });
+
+  it("Enter or Space on the link glyph never touches the selection", () => {
+    const {
+      view: { container },
+      flowStore,
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+    const before = flowStore.getState().lineSelection;
+    const glyph = container.querySelector(
+      '[data-testid="selection-link-glyph"] button',
+    );
+    if (!(glyph instanceof HTMLElement)) throw new Error("expected the glyph");
+
+    fireEvent.keyDown(glyph, { key: "Enter" });
+    fireEvent.keyDown(glyph, { key: " " });
+
+    expect(flowStore.getState().lineSelection).toBe(before);
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("shows the link glyph at the first selected row, and nowhere else", () => {
+    const {
+      view: { container },
+    } = renderTable();
+    expect(
+      container.querySelector('[data-testid="selection-link-glyph"]'),
+    ).toBeNull();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+
+    const glyphs = container.querySelectorAll(
+      '[data-testid="selection-link-glyph"]',
+    );
+    expect(glyphs).toHaveLength(1);
+    expect(glyphs[0]?.closest("tr")).toBe(first);
+    expect(glyphs[0]?.closest("td")?.hasAttribute("data-line-new")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Copy link to lines 9 to 10" }),
+    ).toBeTruthy();
+  });
+
+  it("a click on the glyph keeps the selection", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+    const glyph = screen.getByRole("button", {
+      name: "Copy link to lines 9 to 10",
+    });
+    fireEvent.mouseDown(glyph);
+    fireEvent.mouseUp(glyph);
+    fireEvent.click(glyph);
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        expect.stringMatching(/#src\/a\.ts:R9-R10$/),
+      ),
+    );
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 9,
+      endLine: 10,
+    });
+  });
+
+  it("hides the glyph while a composer is open", () => {
+    const {
+      view: { container },
+      flowStore,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    fireEvent.mouseDown(findNumberCell(first));
+    fireEvent.mouseUp(first);
+    const anchor = createCommentAnchor(
+      "c1",
+      "src/a.ts",
+      chunk().diff ?? [],
+      [1],
+    );
+    if (anchor === null) throw new Error("expected an anchor");
+    act(() => flowStore.getState().actions.openComposer(anchor));
+
+    expect(
+      container.querySelector('[data-testid="selection-link-glyph"]'),
+    ).toBeNull();
+  });
+
+  it("puts the glyph on the old side in split view", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseUp(left.number);
+
+    const glyph = container.querySelector(
+      '[data-testid="selection-link-glyph"]',
+    );
+    expect(glyph?.closest("td")?.getAttribute("data-side")).toBe("left");
   });
 
   it("selects lines on a read-only revision, where no comment can", () => {

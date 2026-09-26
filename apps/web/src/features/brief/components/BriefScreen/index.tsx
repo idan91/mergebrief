@@ -118,6 +118,7 @@ export function BriefScreen({
     expansionSource,
     lineLinkMissed,
     dismissLineLinkMiss,
+    shareChunk,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
@@ -357,6 +358,7 @@ export function BriefScreen({
                           jumpToLine={
                             conversationWiring.jumpToChunkFromConversation
                           }
+                          shareChunk={shareChunk}
                           conversationComposer={
                             conversationWiring.conversationComposer
                           }

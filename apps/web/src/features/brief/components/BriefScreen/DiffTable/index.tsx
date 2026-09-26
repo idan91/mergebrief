@@ -15,7 +15,9 @@ import { ExpandControl } from "./ExpandControl";
 import { ExpandRow } from "./ExpandRow";
 import { RevisionGutterCell } from "./RevisionGutterCell";
 import { RevisionTag } from "./RevisionTag";
+import { SelectionLinkGlyph } from "./SelectionLinkGlyph";
 import { SiblingSpanHeader } from "./SiblingSpanHeader";
+import type { LineSide } from "@web/components/DiffRows/types";
 import type { DiffTableProps, DiffViewportStyle } from "./types";
 import { UnderRows } from "./UnderRows";
 import { useDiffTableFacade } from "./useDiffTableFacade";
@@ -156,6 +158,21 @@ export function DiffTable(props: DiffTableProps) {
     );
   }
 
+  function buildNumberCellContent(
+    _line: DiffLine,
+    index: number,
+    side: LineSide,
+  ): ReactNode {
+    const glyph = table.selectionGlyph;
+    if (glyph === undefined || table.lineSelection === null) {
+      return null;
+    }
+    if (glyph.index !== index || glyph.side !== side) {
+      return null;
+    }
+    return <SelectionLinkGlyph selection={table.lineSelection} />;
+  }
+
   function buildCodeTrailer(_line: DiffLine, index: number): ReactNode {
     const view = rowViews[index];
     if (view === undefined || !view.isRevStart || !view.revRun) return null;
@@ -244,6 +261,7 @@ export function DiffTable(props: DiffTableProps) {
             anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
             lineNumberAttributes={SELECT_ANCHOR_ATTRIBUTES}
             codeTrailer={buildCodeTrailer}
+            lineNumberContent={buildNumberCellContent}
             gutterCell={buildGutterCell}
             rowAttributes={table.buildRowAttributes}
             underRow={buildUnderRow}

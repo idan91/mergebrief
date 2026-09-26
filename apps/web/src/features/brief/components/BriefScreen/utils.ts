@@ -359,6 +359,14 @@ const CHUNK_HASH_PREFIX = "#chunk-";
 /** The charset chunk ids are generated from; anything else is not a deep link. */
 const CHUNK_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 
+/** The page's address with a hash of the caller's choosing, ready to share. */
+export function deriveShareUrl(
+  location: Pick<Location, "origin" | "pathname" | "search">,
+  hash: string,
+): string {
+  return `${location.origin}${location.pathname}${location.search}${hash}`;
+}
+
 /** The URL hash that deep-links a chunk; the app lands it, never the browser. */
 export function deriveChunkHash(chunkId: string): string {
   return `${CHUNK_HASH_PREFIX}${chunkId}`;

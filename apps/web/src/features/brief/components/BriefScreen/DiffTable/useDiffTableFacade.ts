@@ -27,6 +27,7 @@ import { useRailHover } from "./useRailHover";
 import {
   buildExpandedRowView,
   collectAnchoredIndexes,
+  resolveSelectionGlyph,
   collectDragBaseIndexes,
   collectThreadLines,
   fillUnifiedSpan,
@@ -115,6 +116,11 @@ export function useDiffTableFacade({
     lineSelection === null
       ? undefined
       : resolvePlacement(lineSelection.side, lineSelection.startSide);
+  const selectionGlyph = resolveSelectionGlyph(
+    lineSelection,
+    selectionIndexes,
+    activeCommentAnchor !== null,
+  );
   const selectLines = (selection: LineSelection) => {
     review.selectLines(selection);
     review.announce(
@@ -240,6 +246,8 @@ export function useDiffTableFacade({
     expandedReasonId,
     rowViews,
     overlayActive,
+    lineSelection,
+    selectionGlyph,
     buildRowAttributes,
     handleExpanded: landing.handleExpanded,
     handleAbandoned: landing.handleAbandoned,

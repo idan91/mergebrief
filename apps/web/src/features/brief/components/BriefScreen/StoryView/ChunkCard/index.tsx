@@ -52,6 +52,7 @@ import { DiffTable } from "../../DiffTable";
 import { useChunkTokens } from "@web/hooks/useChunkTokens";
 import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import type { ChunkShare } from "../../types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../readingPosition";
 import styles from "./ChunkCard.module.scss";
@@ -82,6 +83,8 @@ export interface ChunkCardProps {
   lineOwners?: FileLineOwners | undefined;
   /** Where a sibling span's control lands. */
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
+  /** Writes the chunk's hash and answers the URL to copy; absent hides the glyph. */
+  shareChunk?: ChunkShare | undefined;
 }
 
 /**
@@ -162,6 +165,7 @@ export const ChunkCard = memo(function ChunkCard({
   fileThreads,
   lineOwners,
   jumpToLine,
+  shareChunk,
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const reviewed = useReviewSession((state) =>
@@ -320,6 +324,16 @@ export const ChunkCard = memo(function ChunkCard({
           label={t("brief.chunk.copyFilePath")}
           text={chunk.file}
         />
+        {shareChunk !== undefined ? (
+          <CopyButton
+            className={styles["copyLink"]}
+            icon={IconNames.LINK}
+            label={t("brief.chunk.copyLink")}
+            onCopy={() => shareChunk.commit(chunk.id)}
+            text={() => shareChunk.deriveUrl(chunk.id)}
+            title={t("brief.chunk.copyLink")}
+          />
+        ) : null}
         <span className={styles["chips"]}>
           {riskChips.shown.length > 0 ? (
             <span className={styles["riskLane"]}>

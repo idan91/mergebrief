@@ -82,9 +82,13 @@
     color: var(--color-text-3);
   }
 
-  // Tighten the shared CopyButton against the file name it copies.
+  // Tighten the shared CopyButtons against the file name.
   .copyPath {
     margin-inline-start: functions.to-rem(-6px);
+  }
+
+  .copyLink {
+    margin-inline-start: functions.to-rem(-4px);
   }
 
   .file {
@@ -225,7 +229,8 @@
       align-items: flex-start;
     }
 
-    .copyPath {
+    .copyPath,
+    .copyLink {
       flex: none;
     }
 

@@ -7,11 +7,14 @@ import { pairSplitRows } from "../pairSplitRows";
 import {
   type DiffEdgeRowSlot,
   type DiffFullRowSlot,
+  type DiffNumberCellSlot,
   type DiffRowAttributes,
   type DiffRowAttributeSlot,
   type DiffRowSlot,
   type DiffUnderRowSlot,
   type EmphasisByRow,
+  type LineSide,
+  NumberCellStates,
   type SplitCell,
   type SplitRow,
   type SplitSide,
@@ -29,6 +32,7 @@ export interface SplitRowsProps {
   tokensPending?: boolean | undefined;
   gutterCell?: DiffRowSlot | undefined;
   codeTrailer?: DiffRowSlot | undefined;
+  lineNumberContent?: DiffNumberCellSlot | undefined;
   underRow?: DiffUnderRowSlot | undefined;
   rowAttributes?: DiffRowAttributeSlot | undefined;
   anchorAttributes: Record<string, string>;
@@ -62,6 +66,7 @@ export function SplitRows({
   tokensPending = false,
   gutterCell,
   codeTrailer,
+  lineNumberContent,
   underRow,
   rowAttributes,
   anchorAttributes,
@@ -130,6 +135,7 @@ export function SplitRows({
                 attributes={leftAttributes}
                 cell={pair.left}
                 codeTrailer={codeTrailer}
+                lineNumberContent={lineNumberContent}
                 side={SplitSides.LEFT}
                 emphasisByRow={emphasisByRow}
                 tokensByRow={tokensByRow}
@@ -140,6 +146,7 @@ export function SplitRows({
                 attributes={rightAttributes}
                 cell={pair.right}
                 codeTrailer={codeTrailer}
+                lineNumberContent={lineNumberContent}
                 side={SplitSides.RIGHT}
                 emphasisByRow={emphasisByRow}
                 tokensByRow={tokensByRow}
@@ -186,6 +193,7 @@ interface SideCellsProps {
   tokensByRow: RowTokenMap | undefined;
   emphasisByRow: EmphasisByRow | undefined;
   codeTrailer: DiffRowSlot | undefined;
+  lineNumberContent: DiffNumberCellSlot | undefined;
   anchorAttributes: Record<string, string>;
   lineNumberAttributes: Record<string, string>;
 }
@@ -197,6 +205,7 @@ function SideCells({
   tokensByRow,
   emphasisByRow,
   codeTrailer,
+  lineNumberContent,
   anchorAttributes,
   lineNumberAttributes,
 }: SideCellsProps): ReactNode {
@@ -222,7 +231,9 @@ function SideCells({
   }
 
   const { line, index } = cell;
+  const lineSide: LineSide = side === SplitSides.LEFT ? "old" : "new";
   const number = side === SplitSides.LEFT ? line.oldLine : line.newLine;
+  const numberContent = lineNumberContent?.(line, index, lineSide);
   const selected = attributes.selected ? "" : undefined;
   const commentable = attributes.commentable ? "" : undefined;
   const focusable = attributes.focusable;
@@ -240,11 +251,13 @@ function SideCells({
         data-line-origin={line.origin}
         data-selected={selected}
         data-side={side}
+        data-state={numberContent ? NumberCellStates.COVERED : undefined}
         onMouseDown={attributes.onMouseDown}
         onMouseEnter={attributes.onMouseEnter}
         onMouseUp={attributes.onMouseUp}
       >
         {number ?? ""}
+        {numberContent}
       </td>
       <td
         aria-describedby={attributes.describedById}

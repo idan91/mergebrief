@@ -66,6 +66,11 @@
       }
     }
 
+    // Outranks the per-kind gutter colours.
+    &[data-line-kind] .lineNumber[data-state="covered"] {
+      color: transparent;
+    }
+
     &[data-line-kind="hunk"] td {
       padding-block: functions.to-rem(6px);
       padding-inline: functions.to-rem(14px);
@@ -124,6 +129,8 @@
   }
 
   .lineNumber {
+    position: relative;
+
     // DiffTable's comment-row inset (98px) is two of these plus the gutter.
     inline-size: functions.to-rem(42px);
     min-inline-size: functions.to-rem(42px);

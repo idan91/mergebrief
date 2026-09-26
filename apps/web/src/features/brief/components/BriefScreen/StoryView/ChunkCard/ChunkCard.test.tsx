@@ -188,6 +188,38 @@ describe("ChunkCard selectable file path", () => {
     expect(screen.getByText("Copied")).toBeTruthy();
   });
 
+  it("copies the chunk's link from the share callback, chunk untouched", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const commit = vi.fn();
+    const shareChunk = {
+      deriveUrl: (chunkId: string) =>
+        `https://brief.test/repos/1/pulls/2?rev=1#chunk-${chunkId}`,
+      commit,
+    };
+    const { toggleChunk } = renderCard({ shareChunk });
+    fireEvent.click(
+      screen.getByRole("button", { name: /copy link to this chunk/i }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://brief.test/repos/1/pulls/2?rev=1#chunk-${chunk.id}`,
+      ),
+    );
+    await waitFor(() => expect(commit).toHaveBeenCalledWith(chunk.id));
+    expect(toggleChunk).not.toHaveBeenCalled();
+  });
+
+  it("shows no link glyph where nothing can share a chunk", () => {
+    renderCard();
+    expect(
+      screen.queryByRole("button", { name: /copy link to this chunk/i }),
+    ).toBeNull();
+  });
+
   it("keeps the chunk closed when the gesture selected the file path", () => {
     const { toggleChunk } = renderCard();
     const toggle = screen.getByTestId("chunk-toggle");

@@ -138,6 +138,8 @@ export type Catalog = typeof en & {
       summarySkipped: "Summary skipped — {{reason}}.";
       caption: "Diff for {{file}}";
       calloutIn: "In: {{group}}";
+      copyLineLink: "Copy link to line {{line}}";
+      copyLinesLink: "Copy link to lines {{start}} to {{end}}";
       railNew_one: "New this revision. {{count}} line.";
       railNew_other: "New this revision. {{count}} lines.";
       railRemoved_one: "Removed this revision. {{count}} line.";

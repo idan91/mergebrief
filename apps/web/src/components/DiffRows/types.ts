@@ -38,6 +38,18 @@ export interface SplitRow {
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
 
+/** A number cell whose slot content stands in for the digits it covers. */
+export const NumberCellStates = {
+  COVERED: "covered",
+} as const;
+
+/** Content inside the number cell showing a line on `side`, after the number. */
+export type DiffNumberCellSlot = (
+  row: DiffLine,
+  index: number,
+  side: LineSide,
+) => ReactNode;
+
 /** A whole row of the caller's own: hunk headers and expansion controls. */
 export type DiffFullRowSlot = (
   row: DiffLine,
@@ -102,6 +114,8 @@ export interface DiffRowsProps {
   gutterCell?: DiffRowSlot;
   /** Trails the code text inside the code cell. */
   codeTrailer?: DiffRowSlot;
+  /** Trails the number inside each number cell. */
+  lineNumberContent?: DiffNumberCellSlot;
   /** Full-width rows rendered under one row, threads and composers today. */
   underRow?: DiffUnderRowSlot;
   /**

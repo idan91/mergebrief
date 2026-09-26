@@ -240,6 +240,17 @@ describe("DiffRows", () => {
     ).toHaveLength(3);
   });
 
+  it("renders the number cell slot after the number, per side", () => {
+    const view = renderRows({
+      lineNumberContent: (row, _index, side) =>
+        side === "new" && row.kind === "add" ? <i>glyph</i> : null,
+    });
+
+    const glyphs = view.container.querySelectorAll("td[data-line-new] i");
+    expect(glyphs).toHaveLength(1);
+    expect(glyphs[0]?.parentElement?.textContent).toBe("2glyph");
+  });
+
   it("gives hunk and note rows a single spanning cell", () => {
     const view = renderRows();
 

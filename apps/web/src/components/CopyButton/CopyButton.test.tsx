@@ -34,6 +34,26 @@ describe("CopyButton", () => {
     expect(screen.getByText("Copied")).toBeTruthy();
   });
 
+  it("resolves a text function at click time and shows the icon it is given", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    mockClipboard(writeText);
+    let current = "first";
+    render(
+      <CopyButton
+        icon="link"
+        label="Copy link"
+        text={() => current}
+        title="Copy link"
+      />,
+    );
+    const button = screen.getByRole("button", { name: /copy link/i });
+    expect(button.getAttribute("title")).toBe("Copy link");
+    expect(button.querySelector('[data-icon="link"]')).not.toBeNull();
+    current = "second";
+    fireEvent.click(button);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("second"));
+  });
+
   it("announces a failed copy and does not notify onCopy", async () => {
     mockClipboard(vi.fn().mockRejectedValue(new Error("denied")));
     const onCopy = vi.fn();

@@ -25,7 +25,7 @@ import type { IntentBarHandle } from "./IntentBar";
 import { useCreateReadingPositionStore } from "./readingPosition";
 import { deriveVisibleRegions } from "./regions";
 import { useSidebarState } from "./Sidebar/useSidebarState";
-import type { BriefScreenProps } from "./types";
+import type { BriefScreenProps, ChunkShare } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useChunkDeepLink } from "./useChunkDeepLink";
 import { useLineLinkLanding } from "./useLineLinkLanding";
@@ -40,7 +40,10 @@ import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
 import {
   buildReplyRecordingPlan,
+  deriveChunkHash,
   deriveLineHash,
+  parseLineHash,
+  deriveShareUrl,
   groupSinceMarkers,
   resolveSidebarLayout,
 } from "./utils";
@@ -233,10 +236,19 @@ export function useBriefScreenFacade({
   // this page wrote, so a clear never wipes a hash the reader arrived on.
   const writtenHashRef = useRef<string | null>(null);
   useEffect(() => {
-    if (navigateHash === undefined) return;
+    if (navigateHash === undefined) {
+      return;
+    }
     const hash = lineSelection === null ? "" : deriveLineHash(lineSelection);
-    if (hash === "" && writtenHashRef.current === null) return;
-    if (writtenHashRef.current === hash) return;
+    const written = writtenHashRef.current;
+    // A clear only takes back a line hash; a chunk hash this page wrote
+    // outlives the selection it stood down.
+    if (hash === "" && (written === null || !parseLineHash(written).ok)) {
+      return;
+    }
+    if (written === hash) {
+      return;
+    }
     writtenHashRef.current = hash === "" ? null : hash;
     navigateHash(hash);
   }, [lineSelection, navigateHash]);
@@ -351,6 +363,30 @@ export function useBriefScreenFacade({
     landLine: lineLanding.landLine,
     writtenHash: writtenHashRef,
   });
+
+  // The chunk glyph: the URL names the chunk, so once it is copied a line
+  // selection stands down and its hash goes with it; the write is the
+  // page's own.
+  const commitChunkShare = useCallback(
+    (chunkId: string): void => {
+      const hash = deriveChunkHash(chunkId);
+      writtenHashRef.current = hash;
+      if (flowStore.getState().lineSelection !== null) {
+        flowActions.clearLineSelection();
+        announce(t("review.announce.lineSelectionCleared"));
+      }
+      navigateHash?.(hash);
+    },
+    [announce, flowActions, flowStore, navigateHash, t],
+  );
+  const shareChunk = useMemo<ChunkShare>(
+    () => ({
+      deriveUrl: (chunkId) =>
+        deriveShareUrl(window.location, deriveChunkHash(chunkId)),
+      commit: commitChunkShare,
+    }),
+    [commitChunkShare],
+  );
 
   const revisionNav = useRevisionNavigation({
     chunks: readingOrderedChunks,
@@ -571,5 +607,6 @@ export function useBriefScreenFacade({
     expansionSource,
     lineLinkMissed: lineLanding.missed,
     dismissLineLinkMiss: lineLanding.dismissMiss,
+    shareChunk: navigateHash === undefined ? undefined : shareChunk,
   };
 }

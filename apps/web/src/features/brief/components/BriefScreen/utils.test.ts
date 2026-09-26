@@ -33,6 +33,7 @@ import {
   SidebarLayouts,
   deriveChunkHash,
   deriveLineHash,
+  deriveShareUrl,
   parseLineHash,
   resolveChunkIdFromHash,
   buildReplyRecordingPlan,
@@ -619,6 +620,21 @@ describe("chunk deep links", () => {
     expect(resolveChunkIdFromHash("#main-content")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-not%20safe")).toBeUndefined();
+  });
+});
+
+describe("deriveShareUrl", () => {
+  it("joins the page address with the hash, search kept", () => {
+    expect(
+      deriveShareUrl(
+        {
+          origin: "https://brief.test",
+          pathname: "/repos/1/pulls/2",
+          search: "?rev=3",
+        },
+        "#src/a.ts:R12",
+      ),
+    ).toBe("https://brief.test/repos/1/pulls/2?rev=3#src/a.ts:R12");
   });
 });
 

@@ -13,7 +13,11 @@ import type {
 } from "../../../types";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { ValueOf } from "types/utils";
-import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
+import type {
+  DiffView,
+  LineSide,
+  SplitSide,
+} from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
 import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
 
@@ -80,3 +84,9 @@ export const DragModes = {
   SELECT: "select",
 } as const;
 export type DragMode = ValueOf<typeof DragModes>;
+
+/** Where the selection's link glyph renders: a rendered row on one side. */
+export interface SelectionGlyphPlacement {
+  index: number;
+  side: LineSide;
+}
