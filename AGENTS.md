@@ -80,7 +80,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Every `if`, `else`, `for` and `while` body takes braces, one-liners included.
 - A function reads in one screen; about 60 lines is the signal to split, not a cap. A component whose logic sits above a wall of JSX splits into sub-components; a hook longer than one screen splits into sub-hooks or pure functions.
 - Blank lines separate a function's logical steps (parse, guard, act, respond). A function with none is a wall; one with a blank line between every statement is noise. Group by step, not by line.
-- No expression nests more than two calls; a compound boolean or computed return value gets a named const first.
+- No expression nests more than two calls; a compound boolean or computed return value gets a named const first. A condition earns that const when it carries arithmetic, a call, or operands from more than one source (`const recentlyFetched = Date.now() - cached.fetchedAt < MIN_AGE_MS`); a single comparison or a two-clause guard on one value stays inline.
 - No nested ternaries: one condition per ternary. Replacements in order: a `Record<State, Value>` lookup, if/else, an early return. `no-nested-ternary` holds it at error.
 - Conditional fields are assigned, not spread. Declare the object with its unconditional fields, then assign the optional ones under an `if`; never `...(cond ? { x } : {})`. `house/no-conditional-spread` holds it at error.
 

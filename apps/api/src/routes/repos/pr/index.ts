@@ -16,6 +16,7 @@ import {
   type ConversationRoutes,
 } from "./conversation";
 import { archivePullRoutes } from "./archive";
+import { attachmentsRoute } from "./attachments";
 import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
 import { markReadyRoute } from "./ready";
@@ -45,6 +46,7 @@ export function prRoutes(
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
+  app.route("/attachments", attachmentsRoute(deps));
   app.route("/comments", commentWriteRoutes(deps, evictConversation));
   app.route("/conversation", conversation.router);
   return app;

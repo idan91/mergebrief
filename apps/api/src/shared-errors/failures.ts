@@ -1,34 +1,40 @@
 import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 
-// Shared Result-side failure members. They wrap lower-layer errors WHOLE —
+export const FailureKinds = {
+  GITHUB_DENIED: "github-denied",
+  TOKEN_UNREADABLE: "token-unreadable",
+  SESSION_REJECTED: "session-rejected",
+} as const;
+
+// Shared Result-side failure members. They wrap lower-layer errors WHOLE:
 // the handler maps them to posture; nothing translates at the boundary.
 /**
  * A GitHub denial on a reviewer-token call. `phase` is what the handler
- * judges: `resolve` (the fresh repo re-resolve — always collapses to the
- * gate's uniform 404 posture) vs `mutation` (after a successful re-resolve —
- * the per-route honest-403/404 judgment).
+ * judges: `resolve` (the fresh repo re-resolve, which always collapses to
+ * the gate's uniform 404 posture) vs `mutation` (after a successful
+ * re-resolve, the per-route honest-403/404 judgment).
  */
 export interface GitHubDeniedFailure<E> {
-  readonly kind: "github-denied";
+  readonly kind: typeof FailureKinds.GITHUB_DENIED;
   readonly phase: "resolve" | "mutation";
   readonly error: E;
 }
 
-/** The stored reviewer token would not decrypt — re-auth territory. */
+/** The stored reviewer token would not decrypt: re-auth territory. */
 export interface TokenUnreadableFailure {
-  readonly kind: "token-unreadable";
+  readonly kind: typeof FailureKinds.TOKEN_UNREADABLE;
 }
 
 /** A session-store refusal riding the Result whole (freeze, unknown rows). */
 export interface SessionRejectedFailure<E> {
-  readonly kind: "session-rejected";
+  readonly kind: typeof FailureKinds.SESSION_REJECTED;
   readonly error: E;
 }
 
 export function isTokenUnreadableFailure(
   error: object,
 ): error is TokenUnreadableFailure {
-  return "kind" in error && error.kind === "token-unreadable";
+  return "kind" in error && error.kind === FailureKinds.TOKEN_UNREADABLE;
 }
 
 /**
@@ -45,7 +51,7 @@ export function buildGitHubDeniedResult<E extends object>(
   }
   return {
     ok: false,
-    error: { kind: "github-denied", phase, error },
+    error: { kind: FailureKinds.GITHUB_DENIED, phase, error },
   } as const;
 }
 

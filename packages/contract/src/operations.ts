@@ -21,6 +21,7 @@ export const ProductQueryIds = {
   READ_CAPABILITIES: "read-capabilities",
   READ_FILE_RANGE: "read-file-range",
   READ_STACK: "read-stack",
+  READ_ATTACHMENT: "read-attachment",
 } as const;
 export type ProductQueryId = ValueOf<typeof ProductQueryIds>;
 

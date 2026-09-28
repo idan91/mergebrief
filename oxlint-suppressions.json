@@ -90,11 +90,6 @@
       "count": 1
     }
   },
-  "apps/api/src/shared-errors/failures.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/api/test/logging.ts": {
     "house/no-em-dash": {
       "count": 1

@@ -229,6 +229,14 @@ export type {
   RepoCollaborators,
 } from "./operations/collaborators";
 
+// The rendered image sources of a PR's bodies: a private attachment is
+// reachable only through the signed URL GitHub renders into `bodyHTML`.
+export {
+  extractImageSources,
+  fetchRenderedImageSources,
+  type FetchRenderedImageSourcesInput,
+} from "./operations/attachments";
+
 // PR-conversation primitive: pre-threaded review threads with first-class
 // resolution state, review verdicts, PR-level comments. Domain ids are REST
 // `databaseId` numbers; GraphQL node ids never leave the module.

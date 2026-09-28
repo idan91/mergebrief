@@ -1,0 +1,152 @@
+// Hono-free. The rendered sources are a read: the operator PAT is the second
+// rung when the gate passed this request on it, as the diff proxy does. The
+// bytes then come from a URL GitHub already signed, with no credential.
+import { createUserOctokit, fetchRenderedImageSources } from "github";
+import type { Result } from "types/utils";
+import { isGitHubDenial } from "../../../../shared-errors/failures";
+import { SOURCES_REFETCH_MIN_AGE_MS, SOURCES_TTL_MS } from "./consts";
+import { fetchAttachmentBytes } from "./logic/fetch-attachment";
+import { resolveAttachmentSource } from "./logic/resolve-source";
+import {
+  ReadAttachmentFailureKinds,
+  type AttachmentBytes,
+  type AttachmentsControllerDeps,
+  type ReadAttachmentFailure,
+  type ReadAttachmentInput,
+  type RenderedSources,
+} from "./types";
+
+type SourcesResult = Result<RenderedSources, ReadAttachmentFailure>;
+
+async function fetchSources(
+  deps: AttachmentsControllerDeps,
+  input: ReadAttachmentInput,
+): Promise<SourcesResult> {
+  // The client re-runs the call at most once, after its single session
+  // refresh, so nothing here limits attempts; the count only records whether
+  // that re-run happened. A 401 with no re-run means the token is dead and
+  // the reader re-logs in; a 401 after it is GitHub refusing the rotated
+  // token, which the mapper answers as upstream failure. That is `retried`.
+  let attempts = 0;
+  const fetched = await deps.github.runRead((token) => {
+    attempts += 1;
+    return fetchRenderedImageSources(createUserOctokit(token), {
+      owner: input.owner,
+      repo: input.repo,
+      prNumber: input.prNumber,
+    });
+  }, isGitHubDenial);
+  if (fetched.ok) {
+    return {
+      ok: true,
+      value: { sources: fetched.value, fetchedAt: Date.now() },
+    };
+  }
+  if ("kind" in fetched.error) {
+    return {
+      ok: false,
+      error: { kind: ReadAttachmentFailureKinds.TOKEN_UNREADABLE },
+    };
+  }
+
+  return {
+    ok: false,
+    error: {
+      kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
+      error: fetched.error,
+      retried: attempts > 1,
+    },
+  };
+}
+
+/**
+ * One GitHub call per key at a time: a cold page fires every <img> at once,
+ * and each would otherwise run the whole query before the first could cache.
+ */
+function fetchSourcesOnce(
+  deps: AttachmentsControllerDeps,
+  input: ReadAttachmentInput,
+  cacheKey: string,
+): Promise<SourcesResult> {
+  const running = deps.sourcesInFlight.get(cacheKey);
+  if (running !== undefined) {
+    return running;
+  }
+  const pending = fetchSources(deps, input).finally(() => {
+    deps.sourcesInFlight.delete(cacheKey);
+  });
+  deps.sourcesInFlight.set(cacheKey, pending);
+  return pending;
+}
+
+/**
+ * The PR's rendered sources, cached per viewer and PR. A miss inside a live
+ * entry refetches, since the screenshot may have been posted after the entry
+ * was cached, but only once the entry is old enough: an asset outside the
+ * query's windows would otherwise re-run the query on every render.
+ */
+async function resolveSource(
+  deps: AttachmentsControllerDeps,
+  input: ReadAttachmentInput,
+): Promise<Result<string, ReadAttachmentFailure>> {
+  const cacheKey = `${input.sessionTokenHash}:${deps.repoId}:${input.prNumber}`;
+  const cached = deps.sourcesCache.get(cacheKey);
+  if (cached !== undefined) {
+    const source = resolveAttachmentSource(cached.sources, input.assetId);
+    if (source !== undefined) {
+      return { ok: true, value: source };
+    }
+    const recentlyFetched =
+      Date.now() - cached.fetchedAt < SOURCES_REFETCH_MIN_AGE_MS;
+    if (recentlyFetched) {
+      return {
+        ok: false,
+        error: { kind: ReadAttachmentFailureKinds.ASSET_ABSENT },
+      };
+    }
+  }
+
+  const fresh = await fetchSourcesOnce(deps, input, cacheKey);
+  if (!fresh.ok) {
+    return fresh;
+  }
+  deps.sourcesCache.set(
+    cacheKey,
+    fresh.value,
+    fresh.value.fetchedAt + SOURCES_TTL_MS,
+  );
+
+  const source = resolveAttachmentSource(fresh.value.sources, input.assetId);
+  if (source === undefined) {
+    return {
+      ok: false,
+      error: { kind: ReadAttachmentFailureKinds.ASSET_ABSENT },
+    };
+  }
+  return { ok: true, value: source };
+}
+
+async function readAttachment(
+  deps: AttachmentsControllerDeps,
+  input: ReadAttachmentInput,
+): Promise<Result<AttachmentBytes, ReadAttachmentFailure>> {
+  const source = await resolveSource(deps, input);
+  if (!source.ok) {
+    return source;
+  }
+
+  const bytes = await fetchAttachmentBytes(deps.fetchImpl, source.value);
+  if (bytes.ok) {
+    return bytes;
+  }
+  return {
+    ok: false,
+    error: {
+      kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
+      error: bytes.error,
+      retried: false,
+    },
+  };
+}
+
+export const attachmentsController = { readAttachment };

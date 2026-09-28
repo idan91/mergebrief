@@ -100,6 +100,12 @@ const EXPECTED_CATALOG = [
     endpoint: "POST /api/auth/tokens",
   },
   {
+    id: "read-attachment",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/repos/:repoId/pulls/:prNumber/attachments/:assetId",
+  },
+  {
     id: "read-brief",
     kind: "query",
     classification: "read",
