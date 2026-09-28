@@ -2,7 +2,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  ATTACHMENT_ASSET_ID,
+  ATTACHMENT_ASSET_URL,
+} from "@web/test/attachments";
 import { Markdown } from ".";
+import { AttachmentScopeProvider } from "./context";
 
 afterEach(cleanup);
 
@@ -34,20 +39,17 @@ describe("Markdown headings", () => {
   });
 });
 
-const ASSET_URL =
-  "https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
-
 describe("Markdown raw html images", () => {
   it("renders a pasted screenshot tag as an image with its size and alt", () => {
     render(
       <Markdown
-        content={`Before\n\n<img width="1167" height="800" alt="Image" src="${ASSET_URL}" />\n\nAfter`}
+        content={`Before\n\n<img width="1167" height="800" alt="Image" src="${ATTACHMENT_ASSET_URL}" />\n\nAfter`}
         renderHtml
       />,
     );
 
     const image = screen.getByRole("img", { name: "Image" });
-    expect(image.getAttribute("src")).toBe(ASSET_URL);
+    expect(image.getAttribute("src")).toBe(ATTACHMENT_ASSET_URL);
     expect(image.getAttribute("width")).toBe("1167");
     expect(image.getAttribute("height")).toBe("800");
     expect(screen.queryByText(/<img/)).toBeNull();
@@ -64,7 +66,7 @@ describe("Markdown raw html images", () => {
   it("strips event handlers and styles from an image tag", () => {
     render(
       <Markdown
-        content={`<img alt="x" src="${ASSET_URL}" onerror="alert(1)" style="position:fixed" />`}
+        content={`<img alt="x" src="${ATTACHMENT_ASSET_URL}" onerror="alert(1)" style="position:fixed" />`}
         renderHtml
       />,
     );
@@ -136,6 +138,21 @@ describe("Markdown raw html images", () => {
     expect(container.textContent).toContain("Hidden");
   });
 
+  it("routes an attachment through the api proxy inside a scope", () => {
+    render(
+      <AttachmentScopeProvider prNumber={7} repoId="555">
+        <Markdown
+          content={`<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}
+          renderHtml
+        />
+      </AttachmentScopeProvider>,
+    );
+
+    expect(screen.getByRole("img", { name: "Image" }).getAttribute("src")).toBe(
+      `/api/repos/555/pulls/7/attachments/${ATTACHMENT_ASSET_ID}`,
+    );
+  });
+
   it("still renders task list checkboxes", () => {
     render(<Markdown content={"- [x] done\n- [ ] open"} renderHtml />);
 
@@ -145,7 +162,9 @@ describe("Markdown raw html images", () => {
   });
 
   it("gives an image with no alt an empty one", () => {
-    render(<Markdown content={`<img src="${ASSET_URL}" />`} renderHtml />);
+    render(
+      <Markdown content={`<img src="${ATTACHMENT_ASSET_URL}" />`} renderHtml />,
+    );
 
     const image = document.querySelector("img");
     expect(image?.getAttribute("alt")).toBe("");
@@ -175,7 +194,11 @@ describe("Markdown brief prose", () => {
   });
 
   it("shows a raw tag as text without the opt-in", () => {
-    render(<Markdown content={`<img alt="Image" src="${ASSET_URL}" />`} />);
+    render(
+      <Markdown
+        content={`<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}
+      />,
+    );
 
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.getByText(/<img alt="Image"/)).toBeTruthy();

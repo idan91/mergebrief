@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { DEMOTED_HEADING_COMPONENTS } from "@web/components/Markdown/consts";
-import { buildRehypePlugins } from "@web/components/Markdown/rehype";
+import { useMarkdownRehypePlugins } from "@web/components/Markdown/useMarkdownRehypePlugins";
 import { SuggestionCard } from "@web/components/Markdown/SuggestionCard";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import {
@@ -29,7 +29,7 @@ export interface MarkdownPreviewProps {
 export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
   const { t } = useTranslation();
   // A draft is written for GitHub, which parses its HTML.
-  const rehypePlugins = buildRehypePlugins({ renderHtml: true });
+  const rehypePlugins = useMarkdownRehypePlugins(true);
   const suggestions = parseSuggestionBlocks(body);
   const markdown = stripSuggestionBlocks(body);
   return (

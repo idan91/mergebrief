@@ -25,6 +25,7 @@ import {
   type Span,
 } from "@web/features/pulls/utils";
 import type { ScopeExitOptions } from "@web/features/brief";
+import { AttachmentScopeProvider } from "@web/components/Markdown/context";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   buildDbBriefQueryOptions,
@@ -590,26 +591,28 @@ function PrBriefRoute() {
   );
 
   return (
-    <PrBriefBody
-      meta={meta}
-      onNavigateSearch={onNavigateSearch}
-      clearDiffParam={clearDiffParam}
-      link={search.l}
-      navigateLink={navigateLink}
-      conversationFilter={conversationFilter}
-      onConversationFilterChange={onConversationFilterChange}
-      conversationFocusThreadId={search.thread}
-      onSelectRevision={selectRevision}
-      prNumber={prNumber}
-      readOnly={readOnly}
-      repoId={repoId}
-      revisionJump={revisionJump}
-      revisionPending={revisionPending}
-      searchParams={briefSearch}
-      staleHead={staleHead}
-      state={state}
-      timeline={timeline}
-      {...(newerRevisionSelectable ? { onGoToNewest: goToNewest } : {})}
-    />
+    <AttachmentScopeProvider prNumber={prNumber} repoId={repoId}>
+      <PrBriefBody
+        meta={meta}
+        onNavigateSearch={onNavigateSearch}
+        clearDiffParam={clearDiffParam}
+        link={search.l}
+        navigateLink={navigateLink}
+        conversationFilter={conversationFilter}
+        onConversationFilterChange={onConversationFilterChange}
+        conversationFocusThreadId={search.thread}
+        onSelectRevision={selectRevision}
+        prNumber={prNumber}
+        readOnly={readOnly}
+        repoId={repoId}
+        revisionJump={revisionJump}
+        revisionPending={revisionPending}
+        searchParams={briefSearch}
+        staleHead={staleHead}
+        state={state}
+        timeline={timeline}
+        {...(newerRevisionSelectable ? { onGoToNewest: goToNewest } : {})}
+      />
+    </AttachmentScopeProvider>
   );
 }

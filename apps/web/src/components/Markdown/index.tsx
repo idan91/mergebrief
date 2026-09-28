@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { DEMOTED_HEADING_COMPONENTS } from "./consts";
-import { buildRehypePlugins } from "./rehype";
+import { useMarkdownRehypePlugins } from "./useMarkdownRehypePlugins";
 import { SuggestionCard } from "./SuggestionCard";
 import {
   buildSuggestionAdditionRows,
@@ -35,7 +35,7 @@ export function Markdown({
   renderSuggestions = false,
   renderHtml = false,
 }: MarkdownProps) {
-  const rehypePlugins = buildRehypePlugins({ renderHtml });
+  const rehypePlugins = useMarkdownRehypePlugins(renderHtml);
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
   const markdown =
     suggestions.length > 0 ? stripSuggestionBlocks(content) : content;

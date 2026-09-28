@@ -2,7 +2,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AttachmentScopeProvider } from "@web/components/Markdown/context";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
+import {
+  ATTACHMENT_ASSET_ID,
+  ATTACHMENT_ASSET_URL,
+} from "@web/test/attachments";
 import {
   ChunkTokenStatuses,
   GrammarNames,
@@ -89,21 +94,33 @@ describe("MarkdownPreview suggestion colour", () => {
 });
 
 describe("MarkdownPreview raw html images", () => {
-  const assetUrl =
-    "https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
-
   it("renders a pasted screenshot tag as an image", () => {
     render(
       <MarkdownPreview
         anchor={ANCHOR}
-        body={`<img width="20" height="10" alt="Image" src="${assetUrl}" />`}
+        body={`<img width="20" height="10" alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}
       />,
     );
 
     const image = screen.getByRole("img", { name: "Image" });
-    expect(image.getAttribute("src")).toBe(assetUrl);
+    expect(image.getAttribute("src")).toBe(ATTACHMENT_ASSET_URL);
     expect(image.getAttribute("width")).toBe("20");
     expect(screen.queryByText(/<img/)).toBeNull();
+  });
+
+  it("routes an attachment through the api proxy inside a scope", () => {
+    render(
+      <AttachmentScopeProvider prNumber={7} repoId="555">
+        <MarkdownPreview
+          anchor={ANCHOR}
+          body={`<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}
+        />
+      </AttachmentScopeProvider>,
+    );
+
+    expect(screen.getByRole("img", { name: "Image" }).getAttribute("src")).toBe(
+      `/api/repos/555/pulls/7/attachments/${ATTACHMENT_ASSET_ID}`,
+    );
   });
 
   it("drops a script tag entirely", () => {

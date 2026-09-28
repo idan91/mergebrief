@@ -22,6 +22,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import {
+  ATTACHMENT_ASSET_ID,
+  ATTACHMENT_ASSET_URL,
+} from "@web/test/attachments";
 import { setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
@@ -94,6 +98,7 @@ async function renderTimeline(
   path: string,
   metaValue = timelineMeta(),
   seedExtra?: (queryClient: QueryClient) => void,
+  brief = briefFixture,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -108,7 +113,7 @@ async function renderTimeline(
     queryClient.setQueryData(
       buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
         .queryKey,
-      briefFixture,
+      brief,
     );
     queryClient.setQueryData(
       buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
@@ -643,5 +648,32 @@ describe("DB brief route revision timeline", () => {
     await expectPickerAt(2);
     expect(screen.queryByText(/superseded base/i)).toBeNull();
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
+  });
+
+  it("routes a pasted screenshot through the api proxy", async () => {
+    await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
+      timelineMeta(),
+      undefined,
+      {
+        ...briefFixture,
+        pr: {
+          ...briefFixture.pr,
+          description: `<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`,
+        },
+      },
+    );
+
+    await findPicker();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("pr-description-toggle"));
+    });
+
+    const image = await waitFor(() =>
+      screen.getByRole("img", { name: "Image" }),
+    );
+    expect(image.getAttribute("src")).toBe(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/attachments/${ATTACHMENT_ASSET_ID}`,
+    );
   });
 });

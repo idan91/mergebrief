@@ -1,8 +1,23 @@
+import { parseAttachmentAssetId } from "contract";
+import type { Element } from "hast";
 import { visit } from "unist-util-visit";
 
+import type { AttachmentScope } from "./context";
 import type { RehypeTransform } from "./types";
 
 const HTTPS_PREFIX = "https://";
+
+/** An image's absolute https source; a relative one would carry this origin's cookie. */
+function readImageSource(node: Element): string | undefined {
+  if (node.tagName !== "img") {
+    return undefined;
+  }
+  const source = node.properties["src"];
+  if (typeof source !== "string" || !source.startsWith(HTTPS_PREFIX)) {
+    return undefined;
+  }
+  return source;
+}
 
 /**
  * Runs after sanitize, which drops a disallowed scheme but keeps a source
@@ -18,8 +33,7 @@ export function rehypeNormalizeImages(): RehypeTransform {
       if (node.tagName !== "img") {
         return undefined;
       }
-      const source = node.properties["src"];
-      if (typeof source === "string" && source.startsWith(HTTPS_PREFIX)) {
+      if (readImageSource(node) !== undefined) {
         node.properties["alt"] ??= "";
         return undefined;
       }
@@ -29,6 +43,39 @@ export function rehypeNormalizeImages(): RehypeTransform {
 
       parent.children.splice(index, 1);
       return index;
+    });
+  };
+}
+
+export function buildAttachmentProxyPath(
+  scope: AttachmentScope,
+  assetId: string,
+): string {
+  return `/api/repos/${scope.repoId}/pulls/${scope.prNumber}/attachments/${assetId}`;
+}
+
+/**
+ * A private attachment answers 404 to a cross-origin <img>, so its source is
+ * pointed at the API's same-origin proxy, where the session cookie rides.
+ */
+export function rehypeProxyAttachmentSources(
+  scope: AttachmentScope | undefined,
+): RehypeTransform {
+  return (tree) => {
+    if (scope === undefined) {
+      return;
+    }
+    visit(tree, "element", (node) => {
+      const source = readImageSource(node);
+      if (source === undefined) {
+        return;
+      }
+      const asset = parseAttachmentAssetId(source);
+      if (!asset.ok) {
+        return;
+      }
+
+      node.properties["src"] = buildAttachmentProxyPath(scope, asset.value);
     });
   };
 }
