@@ -99,6 +99,11 @@
   font-size: var(--font-size-xl);
   line-height: 1.65;
 
+  img {
+    max-inline-size: 100%;
+    block-size: auto;
+  }
+
   h3,
   h4,
   h5,

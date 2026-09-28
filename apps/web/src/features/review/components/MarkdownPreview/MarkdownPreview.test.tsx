@@ -88,6 +88,37 @@ describe("MarkdownPreview suggestion colour", () => {
   });
 });
 
+describe("MarkdownPreview raw html images", () => {
+  const assetUrl =
+    "https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
+
+  it("renders a pasted screenshot tag as an image", () => {
+    render(
+      <MarkdownPreview
+        anchor={ANCHOR}
+        body={`<img width="20" height="10" alt="Image" src="${assetUrl}" />`}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "Image" });
+    expect(image.getAttribute("src")).toBe(assetUrl);
+    expect(image.getAttribute("width")).toBe("20");
+    expect(screen.queryByText(/<img/)).toBeNull();
+  });
+
+  it("drops a script tag entirely", () => {
+    const { container } = render(
+      <MarkdownPreview
+        anchor={ANCHOR}
+        body={`<script>window.pwned = true</script>\n\nText`}
+      />,
+    );
+
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.textContent).not.toContain("pwned");
+  });
+});
+
 describe("MarkdownPreview headings", () => {
   it("demotes authored headings the way a posted comment renders them", () => {
     render(

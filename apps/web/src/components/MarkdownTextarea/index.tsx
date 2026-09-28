@@ -94,7 +94,9 @@ function PreviewPanel({ renderPreview, value }: PreviewPanelProps) {
   const { t } = useTranslation();
 
   if (renderPreview !== undefined) return renderPreview(value);
-  if (value.trim()) return <Markdown content={value} renderSuggestions />;
+  if (value.trim()) {
+    return <Markdown content={value} renderHtml renderSuggestions />;
+  }
   return <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>;
 }
 

@@ -59,6 +59,7 @@ export function SummarySection({ brief }: SummarySectionProps) {
                   brief.pr.description ||
                   t("brief.summarySection.noDescription")
                 }
+                renderHtml
               />
             </div>
           ) : null}

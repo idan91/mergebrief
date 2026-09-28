@@ -29,6 +29,7 @@ export function AddressedDiffComment({
         <Markdown
           content={comment.body}
           filePath={comment.file}
+          renderHtml
           renderSuggestions
         />
       </div>

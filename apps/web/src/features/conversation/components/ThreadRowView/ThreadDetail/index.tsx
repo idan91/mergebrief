@@ -188,6 +188,7 @@ export function ThreadDetail({
           <Markdown
             content={comment.body}
             filePath={thread.path}
+            renderHtml
             renderSuggestions
           />
         </article>

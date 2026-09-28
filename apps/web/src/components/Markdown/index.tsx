@@ -2,6 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { DEMOTED_HEADING_COMPONENTS } from "./consts";
+import { buildRehypePlugins } from "./rehype";
 import { SuggestionCard } from "./SuggestionCard";
 import {
   buildSuggestionAdditionRows,
@@ -20,6 +21,11 @@ export interface MarkdownProps {
    * diff context an anchored consumer supplies via MarkdownPreview.
    */
   renderSuggestions?: boolean;
+  /**
+   * Parse raw HTML as GitHub renders it, so a pasted screenshot's `<img>`
+   * shows. For text written on GitHub; the brief's own prose keeps `<T>`.
+   */
+  renderHtml?: boolean;
 }
 
 /** Generic GFM markdown renderer used across briefs, descriptions, and comments. */
@@ -27,7 +33,9 @@ export function Markdown({
   content,
   filePath,
   renderSuggestions = false,
+  renderHtml = false,
 }: MarkdownProps) {
+  const rehypePlugins = buildRehypePlugins({ renderHtml });
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
   const markdown =
     suggestions.length > 0 ? stripSuggestionBlocks(content) : content;
@@ -36,6 +44,7 @@ export function Markdown({
     <div className={styles["markdown"]} dir="auto">
       <ReactMarkdown
         components={DEMOTED_HEADING_COMPONENTS}
+        rehypePlugins={rehypePlugins}
         remarkPlugins={[remarkGfm]}
       >
         {markdown}

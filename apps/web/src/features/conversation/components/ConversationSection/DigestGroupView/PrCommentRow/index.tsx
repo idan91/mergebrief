@@ -50,7 +50,7 @@ export function PrCommentRow({
       </RowButton>
       {expanded ? (
         <div className={rowStyles["detail"]}>
-          <Markdown content={comment.body} renderSuggestions />
+          <Markdown content={comment.body} renderHtml renderSuggestions />
         </div>
       ) : null}
     </li>

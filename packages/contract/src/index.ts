@@ -2,6 +2,15 @@
 // or what a client sends: no handlers, no middleware, no database access, and
 // no re-export of the API app.
 export {
+  ATTACHMENT_ASSET_ORIGIN,
+  ATTACHMENT_ASSET_PATH_PREFIX,
+  AttachmentParseErrorCodes,
+  isAttachmentAssetId,
+  parseAttachmentAssetId,
+  type AttachmentAssetId,
+  type AttachmentParseErrorCode,
+} from "./attachments";
+export {
   AttentionItemKinds,
   AttentionSubjectTypes,
   type AttentionItem,

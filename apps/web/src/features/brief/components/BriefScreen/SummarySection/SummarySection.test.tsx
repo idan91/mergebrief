@@ -98,3 +98,24 @@ describe("SummarySection expandable-content adoption", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 });
+
+describe("html on the two kinds of text", () => {
+  it("parses a pasted screenshot in the description, not in the summary", () => {
+    const withHtml = {
+      ...briefFixture,
+      summary: "Returns Result<T> and Promise<void>.",
+      pr: {
+        ...briefFixture.pr,
+        description:
+          '<img alt="Image" src="https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00" />',
+      },
+    };
+    render(<SummarySection brief={withHtml} />);
+
+    expect(
+      screen.getByText("Returns Result<T> and Promise<void>."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByTestId("pr-description-toggle"));
+    expect(screen.getByRole("img", { name: "Image" })).toBeTruthy();
+  });
+});
