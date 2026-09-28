@@ -498,3 +498,109 @@ describe("GET attachments/:assetId", () => {
     expect(cancelled).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("GET attachments/:assetId for a branch-hosted file", () => {
+  const FILE_NAME = `${ASSET_ID}.png`;
+
+  function makeRawResponse() {
+    return new Response(new Uint8Array([137, 80, 78, 71]), {
+      status: 200,
+      headers: { "content-type": "application/vnd.github.raw; charset=utf-8" },
+    });
+  }
+
+  function readFetchCall(index: number): { url: URL; headers: Headers } {
+    const [url, init] = fetchMock.mock.calls[index] as unknown as [
+      string,
+      RequestInit,
+    ];
+    return { url: new URL(url), headers: new Headers(init.headers) };
+  }
+
+  it("streams the file with the type its name declares", async () => {
+    stubFetchResponse(makeRawResponse());
+    const app = await buildApp();
+
+    const response = await app.request(`/7/attachments/${FILE_NAME}`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    expect(Array.from(bytes)).toEqual([137, 80, 78, 71]);
+    expect(sourcesMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the gated repo's attachments branch with the viewer token", async () => {
+    stubFetchResponse(makeRawResponse());
+    const app = await buildApp();
+
+    await app.request(`/7/attachments/${FILE_NAME}`);
+
+    const { url, headers } = readFetchCall(0);
+    expect(url.pathname).toBe(`/repos/acme/app/contents/${FILE_NAME}`);
+    expect(url.searchParams.get("ref")).toBe("mergebrief/attachments");
+    expect(headers.get("authorization")).toBe("Bearer ghu_fixture");
+  });
+
+  it("answers 404 for a file outside the image allowlist", async () => {
+    const app = await buildApp();
+
+    const response = await app.request(`/7/attachments/${ASSET_ID}.svg`);
+
+    expect(response.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 when the branch holds no such file", async () => {
+    stubFetchResponse(new Response(null, { status: 404 }));
+    const app = await buildApp();
+
+    const response = await app.request(`/7/attachments/${FILE_NAME}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("retries once on the rotated token after a refresh", async () => {
+    stubFetchResponse(new Response(null, { status: 401 }));
+    stubFetchResponse(makeRawResponse());
+    const app = await buildApp();
+    vi.mocked(refreshSessionToken).mockImplementation(
+      async (_deps, session) =>
+        ({
+          ok: true,
+          value: { session, accessToken: "ghu_rotated" },
+        }) as Awaited<ReturnType<typeof refreshSessionToken>>,
+    );
+
+    const response = await app.request(`/7/attachments/${FILE_NAME}`);
+
+    expect(response.status).toBe(200);
+    expect(readFetchCall(1).headers.get("authorization")).toBe(
+      "Bearer ghu_rotated",
+    );
+  });
+
+  it("answers 401 when the token is rejected and the refresh fails", async () => {
+    stubFetchResponse(new Response(null, { status: 401 }));
+    const app = await buildApp();
+
+    const response = await app.request(`/7/attachments/${FILE_NAME}`);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("never borrows the operator pat for a branch file", async () => {
+    stubFetchResponse(new Response(null, { status: 404 }));
+    stubFetchResponse(makeRawResponse());
+    const app = await buildApp({
+      urlBoxOnly: true,
+      urlBoxFallbackToken: "github_pat_fixture",
+    });
+
+    const response = await app.request(`/7/attachments/${FILE_NAME}`);
+
+    expect(response.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

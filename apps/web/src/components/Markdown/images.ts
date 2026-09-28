@@ -1,4 +1,8 @@
-import { parseAttachmentAssetId } from "contract";
+import {
+  AttachmentSourceKinds,
+  parseAttachmentSource,
+  type AttachmentSource,
+} from "contract";
 import type { Element } from "hast";
 import { visit } from "unist-util-visit";
 
@@ -47,11 +51,19 @@ export function rehypeNormalizeImages(): RehypeTransform {
   };
 }
 
+/** The proxy names a GitHub asset by its id and a branch file by its file name. */
 export function buildAttachmentProxyPath(
   scope: AttachmentScope,
-  assetId: string,
+  target: string,
 ): string {
-  return `/api/repos/${scope.repoId}/pulls/${scope.prNumber}/attachments/${assetId}`;
+  return `/api/repos/${scope.repoId}/pulls/${scope.prNumber}/attachments/${target}`;
+}
+
+function readProxyTarget(source: AttachmentSource): string {
+  if (source.kind === AttachmentSourceKinds.BRANCH) {
+    return source.fileName;
+  }
+  return source.assetId;
 }
 
 /**
@@ -70,12 +82,15 @@ export function rehypeProxyAttachmentSources(
       if (source === undefined) {
         return;
       }
-      const asset = parseAttachmentAssetId(source);
-      if (!asset.ok) {
+      const attachment = parseAttachmentSource(source);
+      if (!attachment.ok) {
         return;
       }
 
-      node.properties["src"] = buildAttachmentProxyPath(scope, asset.value);
+      node.properties["src"] = buildAttachmentProxyPath(
+        scope,
+        readProxyTarget(attachment.value),
+      );
     });
   };
 }

@@ -1,5 +1,10 @@
 import type { Context } from "hono";
-import type { AttachmentAssetId } from "contract";
+import type {
+  AssetAttachmentSource,
+  AttachmentAssetId,
+  AttachmentFile,
+  AttachmentSourceKinds,
+} from "contract";
 import type { GitHubApiError } from "github";
 import {
   FailureKinds,
@@ -10,7 +15,7 @@ import type { AuthzEnv } from "../../../authz";
 import type { Result } from "types/utils";
 import type { TtlCache } from "../../../ttl-cache";
 
-/** The asset's bytes as GitHub streams them, with the type it declared. */
+/** The bytes as GitHub streams them, with the type the proxy serves them under. */
 export interface AttachmentBytes {
   readonly body: ReadableStream<Uint8Array>;
   readonly contentType: string;
@@ -22,6 +27,21 @@ export interface ReadAttachmentInput {
   readonly repo: string;
   readonly prNumber: number;
   readonly sessionTokenHash: string;
+}
+
+/** What the `:assetId` param names: a GitHub asset, or a file on the attachments branch. */
+export type AttachmentTarget =
+  | AssetAttachmentSource
+  | {
+      readonly kind: typeof AttachmentSourceKinds.BRANCH;
+      readonly file: AttachmentFile;
+    };
+
+/** A file on the gated repo's attachments branch, named by the proxy path. */
+export interface ReadBranchAttachmentInput {
+  readonly owner: string;
+  readonly repo: string;
+  readonly file: AttachmentFile;
 }
 
 /** The image sources GitHub rendered for a PR, and when they were read. */

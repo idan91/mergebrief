@@ -1,11 +1,15 @@
 // Hono-free. The rendered sources are a read: the operator PAT is the second
-// rung when the gate passed this request on it, as the diff proxy does. The
-// bytes then come from a URL GitHub already signed, with no credential.
+// rung when the gate passed this request on it, as the diff proxy does, and
+// an asset's bytes then come from a URL GitHub already signed, with no
+// credential. A branch file is read with the viewer's own token only.
 import { createUserOctokit, fetchRenderedImageSources } from "github";
 import type { Result } from "types/utils";
 import { isGitHubDenial } from "../../../../shared-errors/failures";
 import { SOURCES_REFETCH_MIN_AGE_MS, SOURCES_TTL_MS } from "./consts";
-import { fetchAttachmentBytes } from "./logic/fetch-attachment";
+import {
+  fetchAttachmentBytes,
+  fetchBranchAttachmentBytes,
+} from "./logic/fetch-attachment";
 import { resolveAttachmentSource } from "./logic/resolve-source";
 import {
   ReadAttachmentFailureKinds,
@@ -13,6 +17,7 @@ import {
   type AttachmentsControllerDeps,
   type ReadAttachmentFailure,
   type ReadAttachmentInput,
+  type ReadBranchAttachmentInput,
   type RenderedSources,
 } from "./types";
 
@@ -149,4 +154,43 @@ async function readAttachment(
   };
 }
 
-export const attachmentsController = { readAttachment };
+/**
+ * A branch file needs no rendered source: the proxy path names the file and
+ * the gate names the repo, so a file still in a draft serves the same way.
+ * The read carries the viewer's own token and never the operator PAT: the
+ * PAT rung is granted per pull request, and a branch file is not tied to
+ * one, so borrowing it would serve any file on the branch to a reader the
+ * gate passed for a single pull request.
+ */
+async function readBranchAttachment(
+  deps: AttachmentsControllerDeps,
+  input: ReadBranchAttachmentInput,
+): Promise<Result<AttachmentBytes, ReadAttachmentFailure>> {
+  // Same retry story as fetchSources: the client re-runs once at most, and
+  // `retried` tells the mapper which 401 this is.
+  let attempts = 0;
+  const fetched = await deps.github.run((token) => {
+    attempts += 1;
+    return fetchBranchAttachmentBytes(deps.fetchImpl, token, input);
+  });
+  if (fetched.ok) {
+    return fetched;
+  }
+  if ("kind" in fetched.error) {
+    return {
+      ok: false,
+      error: { kind: ReadAttachmentFailureKinds.TOKEN_UNREADABLE },
+    };
+  }
+
+  return {
+    ok: false,
+    error: {
+      kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
+      error: fetched.error,
+      retried: attempts > 1,
+    },
+  };
+}
+
+export const attachmentsController = { readAttachment, readBranchAttachment };

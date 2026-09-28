@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
+  ATTACHMENT_BRANCH_URL,
+  ATTACHMENT_FILE_NAME,
 } from "@web/test/attachments";
 import { Markdown } from ".";
 import { AttachmentScopeProvider } from "./context";
@@ -150,6 +152,18 @@ describe("Markdown raw html images", () => {
 
     expect(screen.getByRole("img", { name: "Image" }).getAttribute("src")).toBe(
       `/api/repos/555/pulls/7/attachments/${ATTACHMENT_ASSET_ID}`,
+    );
+  });
+
+  it("routes a branch-hosted file through the proxy by its file name", () => {
+    render(
+      <AttachmentScopeProvider prNumber={7} repoId="555">
+        <Markdown content={`![shot](${ATTACHMENT_BRANCH_URL})`} renderHtml />
+      </AttachmentScopeProvider>,
+    );
+
+    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(
+      `/api/repos/555/pulls/7/attachments/${ATTACHMENT_FILE_NAME}`,
     );
   });
 

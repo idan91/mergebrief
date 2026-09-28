@@ -1,9 +1,10 @@
 // GET /api/repos/:repoId/pulls/:prNumber/attachments/:assetId, behind the
 // pr subtree's shared gate. A pasted screenshot in a GitHub comment is
 // private to the repo, and the browser cannot carry a GitHub login across
-// origins, so the API finds the URL GitHub rendered for it with the viewer's
-// token and streams the bytes same-origin, where the session cookie rides
-// an <img> request.
+// origins, so the API streams the bytes same-origin, where the session
+// cookie rides an <img> request. A bare id is a GitHub asset, found through
+// the URL GitHub rendered for it; `<id>.<ext>` is a file on the repo's
+// attachments branch, read straight from the Contents API.
 import { ProductQueryIds } from "contract";
 import {
   productRouter,

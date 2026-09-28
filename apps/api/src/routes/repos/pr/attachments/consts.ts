@@ -17,3 +17,8 @@ export const SOURCES_TTL_MS = 3 * 60_000;
 export const SOURCES_CACHE_MAX_ENTRIES = 200;
 /** A miss inside a younger entry is answered absent rather than re-run. */
 export const SOURCES_REFETCH_MIN_AGE_MS = 15_000;
+
+export const GITHUB_API_ORIGIN = "https://api.github.com";
+export const GITHUB_API_VERSION = "2022-11-28";
+/** The contents endpoint answers the bytes themselves under this accept. */
+export const CONTENTS_RAW_MEDIA_TYPE = "application/vnd.github.raw";

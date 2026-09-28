@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   ATTACHMENT_ASSET_ID as ASSET_ID,
   ATTACHMENT_ASSET_URL as ASSET_URL,
+  ATTACHMENT_BRANCH_URL as BRANCH_URL,
+  ATTACHMENT_FILE_NAME as FILE_NAME,
 } from "@web/test/attachments";
 import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
 
@@ -37,6 +39,27 @@ describe("rehypeProxyAttachmentSources", () => {
 
     expect(readSource(tree, 0)).toBe(
       `/api/repos/555/pulls/7/attachments/${ASSET_ID}`,
+    );
+  });
+
+  it("routes a branch-hosted file through the proxy by its file name", () => {
+    const tree = makeTree(makeImage(BRANCH_URL));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(
+      `/api/repos/555/pulls/7/attachments/${FILE_NAME}`,
+    );
+  });
+
+  it("routes a branch file of another repository to this repo's proxy", () => {
+    const foreign = BRANCH_URL.replace("octo/hello", "other/repo");
+    const tree = makeTree(makeImage(foreign));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(
+      `/api/repos/555/pulls/7/attachments/${FILE_NAME}`,
     );
   });
 
