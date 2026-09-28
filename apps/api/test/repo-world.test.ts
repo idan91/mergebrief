@@ -163,6 +163,9 @@ describe("the per-repo gate's repo world", () => {
         listRepoCollaborators: async () => {
           throw new Error("collaborators port must not be called");
         },
+        commitAttachment: async () => {
+          throw new Error("attachment port must not be called in this suite");
+        },
       },
     });
   }
@@ -354,6 +357,9 @@ describe("the per-repo gate across two installations", () => {
         },
         listRepoCollaborators: async () => {
           throw new Error("collaborators port must not be called");
+        },
+        commitAttachment: async () => {
+          throw new Error("attachment port must not be called in this suite");
         },
       },
     });

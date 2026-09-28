@@ -2,9 +2,14 @@
 // rung when the gate passed this request on it, as the diff proxy does, and
 // an asset's bytes then come from a URL GitHub already signed, with no
 // credential. A branch file is read with the viewer's own token only.
+import { ATTACHMENT_BRANCH, buildAttachmentBranchUrl } from "contract";
 import { createUserOctokit, fetchRenderedImageSources } from "github";
 import type { Result } from "types/utils";
-import { isGitHubDenial } from "../../../../shared-errors/failures";
+import {
+  buildGitHubDeniedResult,
+  isGitHubDenial,
+} from "../../../../shared-errors/failures";
+import { resolveRepoOwnerAndName } from "../logic/resolve-repo-owner-and-name";
 import { SOURCES_REFETCH_MIN_AGE_MS, SOURCES_TTL_MS } from "./consts";
 import {
   fetchAttachmentBytes,
@@ -19,6 +24,10 @@ import {
   type ReadAttachmentInput,
   type ReadBranchAttachmentInput,
   type RenderedSources,
+  type UploadAttachmentFailure,
+  type UploadAttachmentInput,
+  type UploadControllerDeps,
+  type UploadedAttachment,
 } from "./types";
 
 type SourcesResult = Result<RenderedSources, ReadAttachmentFailure>;
@@ -193,4 +202,45 @@ async function readBranchAttachment(
   };
 }
 
-export const attachmentsController = { readAttachment, readBranchAttachment };
+/**
+ * The repo is re-resolved fresh with the viewer's token right before the
+ * push, as every outward write does; the push itself rides the App's
+ * installation token, so the commit is the App's and never the viewer's.
+ */
+async function uploadAttachment(
+  deps: UploadControllerDeps,
+  input: UploadAttachmentInput,
+): Promise<Result<UploadedAttachment, UploadAttachmentFailure>> {
+  const resolved = await resolveRepoOwnerAndName(
+    { github: deps.reviewer },
+    input.repoId,
+  );
+  if (!resolved.ok) {
+    return resolved;
+  }
+  const { owner, repo } = resolved.value;
+
+  const committed = await deps.port.commitAttachment(input.installationId, {
+    owner,
+    repo,
+    branch: ATTACHMENT_BRANCH,
+    path: input.file.fileName,
+    bytes: input.bytes,
+  });
+  if (!committed.ok) {
+    return buildGitHubDeniedResult(committed.error, "mutation");
+  }
+
+  const url = buildAttachmentBranchUrl({
+    owner,
+    repo,
+    fileName: input.file.fileName,
+  });
+  return { ok: true, value: { url } };
+}
+
+export const attachmentsController = {
+  readAttachment,
+  readBranchAttachment,
+  uploadAttachment,
+};

@@ -262,6 +262,12 @@ const EXPECTED_CATALOG = [
     endpoint:
       "PATCH /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
+  {
+    id: "upload-attachment",
+    kind: "action",
+    classification: "external-write",
+    endpoint: "POST /api/repos/:repoId/pulls/:prNumber/attachments",
+  },
 ] as const;
 
 /** Endpoints that are deliberately not Product Operations (ADR 0039). */

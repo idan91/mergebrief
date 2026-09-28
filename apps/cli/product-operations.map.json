@@ -157,5 +157,8 @@
   },
   "update-draft-comment": {
     "command": "mergebrief draft update <number>"
+  },
+  "upload-attachment": {
+    "command": "mergebrief draft attach <number> <file>"
   }
 }

@@ -81,6 +81,9 @@ describe("read-review-session", () => {
         listRepoCollaborators: () => {
           throw new Error("collaborators port must not be called");
         },
+        commitAttachment: async () => {
+          throw new Error("attachment port must not be called in this suite");
+        },
       },
     });
     stubGitHub();

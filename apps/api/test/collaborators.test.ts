@@ -85,6 +85,9 @@ function stubPort(
         if (result === undefined) throw new Error("port stub exhausted");
         return result;
       },
+      commitAttachment: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
     },
   };
 }

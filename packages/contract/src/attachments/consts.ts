@@ -6,6 +6,8 @@ export const ATTACHMENT_ASSET_PATH_PREFIX = "/user-attachments/assets/";
 /** The one branch the App writes to; an orphan, holding image files only. */
 export const ATTACHMENT_BRANCH = "mergebrief/attachments";
 export const ATTACHMENT_BRANCH_RAW_QUERY = "?raw=true";
+/** The upload cap, mirrored by the composer so an oversize file never leaves the browser. */
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 export const ATTACHMENT_EXTENSION_BY_MEDIA_TYPE: Readonly<
   Record<AttachmentMediaType, string>

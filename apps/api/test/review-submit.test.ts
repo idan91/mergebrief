@@ -659,6 +659,9 @@ const unusedConversationPort = {
   listRepoCollaborators: async () => {
     throw new Error("collaborators port must not be called in this suite");
   },
+  commitAttachment: async () => {
+    throw new Error("attachment port must not be called in this suite");
+  },
 };
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {

@@ -68,6 +68,9 @@ describe("GET /api/capabilities", () => {
         listRepoCollaborators: async () => {
           throw new Error("github port must not be called in this suite");
         },
+        commitAttachment: async () => {
+          throw new Error("attachment port must not be called in this suite");
+        },
       },
     });
   });

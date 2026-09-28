@@ -185,6 +185,9 @@ describe("the per-repo gate's operator-PAT rung", () => {
         listRepoCollaborators: async () => {
           throw new Error("collaborators port must not be called");
         },
+        commitAttachment: async () => {
+          throw new Error("attachment port must not be called in this suite");
+        },
       },
       urlBoxFallbackToken: fallbackToken,
     });

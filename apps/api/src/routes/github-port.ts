@@ -1,14 +1,17 @@
-// The installation-octokit interface: every installation-token read this
+// The installation-octokit interface: every installation-token call this
 // package performs enters through this port; injected by the startup wiring
 // over the App-JWT client, substituted in tests. This package never constructs
 // App auth itself. A shared installation token means one rate budget and one
 // cache entry per resource, reused across viewers.
 import {
+  commitAttachment,
   fetchPullRequestConversation,
   getInstallationClient,
   listRepoCollaborators,
   GitHubApiErrorCodes,
   type AppClient,
+  type AttachmentCommit,
+  type CommitAttachmentInput,
   type FetchPullRequestConversationInput,
   type GitHubApiError,
   type ListRepoCollaboratorsInput,
@@ -18,7 +21,7 @@ import {
 import type { InstallationId } from "persistence";
 import type { Result } from "types/utils";
 
-/** The installation-token reads this package performs (test interface). */
+/** The installation-token calls this package performs (test interface). */
 export interface InstallationGitHubPort {
   fetchPullRequestConversation(
     installationId: InstallationId,
@@ -28,6 +31,11 @@ export interface InstallationGitHubPort {
     installationId: InstallationId,
     input: ListRepoCollaboratorsInput,
   ): Promise<Result<RepoCollaborators, GitHubApiError>>;
+  /** The one write: an image file onto the repository's attachments branch. */
+  commitAttachment(
+    installationId: InstallationId,
+    input: CommitAttachmentInput,
+  ): Promise<Result<AttachmentCommit, GitHubApiError>>;
 }
 
 /**
@@ -71,6 +79,13 @@ export function appInstallationPort(app: AppClient): InstallationGitHubPort {
         return mintFailure("list repo collaborators");
       }
       return listRepoCollaborators(octokit, input);
+    },
+    async commitAttachment(installationId, input) {
+      const octokit = await mintClient(installationId);
+      if (octokit === undefined) {
+        return mintFailure("commit attachment");
+      }
+      return commitAttachment(octokit, input);
     },
   };
 }

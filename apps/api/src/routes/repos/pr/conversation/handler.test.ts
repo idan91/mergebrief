@@ -99,6 +99,9 @@ function buildApp(
     listRepoCollaborators: vi.fn(async () => {
       throw new Error("not exercised");
     }),
+    commitAttachment: async () => {
+      throw new Error("attachment port must not be called in this suite");
+    },
     fetchPullRequestConversation: fetch,
   };
   const app = new Hono<AuthzEnv>();
@@ -305,6 +308,9 @@ describe("readConversation with an owner viewer token", () => {
           listRepoCollaborators: vi.fn(async () => {
             throw new Error("not exercised");
           }),
+          commitAttachment: async () => {
+            throw new Error("attachment port must not be called in this suite");
+          },
           fetchPullRequestConversation: installationFetch,
         },
         createTtlCache<string>(10),

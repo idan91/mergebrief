@@ -237,6 +237,14 @@ export {
   type FetchRenderedImageSourcesInput,
 } from "./operations/attachments";
 
+// The attachments-branch write, the one push the App makes to a customer
+// repository: an orphan branch of image files, one commit per upload.
+export { commitAttachment } from "./operations/attachment-branch";
+export type {
+  AttachmentCommit,
+  CommitAttachmentInput,
+} from "./operations/attachment-branch";
+
 // PR-conversation primitive: pre-threaded review threads with first-class
 // resolution state, review verdicts, PR-level comments. Domain ids are REST
 // `databaseId` numbers; GraphQL node ids never leave the module.

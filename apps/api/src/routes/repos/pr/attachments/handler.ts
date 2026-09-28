@@ -1,25 +1,46 @@
+import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import {
+  ApiErrorCodes,
+  ATTACHMENT_EXTENSION_BY_MEDIA_TYPE,
+  ATTACHMENT_MAX_BYTES,
   AttachmentSourceKinds,
   isAttachmentAssetId,
   parseAttachmentFileName,
+  type AttachmentFile,
+  type AttachmentMediaType,
 } from "contract";
-import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
+import {
+  BadRequest,
+  NotFound,
+  PayloadTooLarge,
+} from "../../../../shared-errors/api-error";
+import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../../../auth/session/types";
-import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
+import {
+  readFallbackTokenFor,
+  requireInstallationScope,
+  type AuthzEnv,
+} from "../../../authz";
+import { readRawBodyWithinLimit } from "../../../read-body";
 import type { TtlCache } from "../../../ttl-cache";
 import type { Result } from "types/utils";
 import { prNumberSchema } from "../../../wire-bounds";
 import { parseOwnerAndName } from "../../utils";
 import { attachmentsController } from "./controller";
-import { ATTACHMENT_RESPONSE_HEADERS } from "./consts";
-import { throwReadAttachmentFailure } from "./logic/wire-failures";
+import { ATTACHMENT_RESPONSE_HEADERS, NO_STORE } from "./consts";
+import { readDeclaredMediaType } from "./logic/media-type";
+import { sniffImageMediaType } from "./logic/sniff-image";
+import {
+  throwReadAttachmentFailure,
+  throwUploadAttachmentFailure,
+} from "./logic/wire-failures";
 import type {
   AttachmentBytes,
   AttachmentTarget,
   AttachmentsControllerDeps,
   AttachmentsHandlers,
+  AttachmentsRouteDeps,
   ReadAttachmentFailure,
   ReadAttachmentInput,
   RenderedSources,
@@ -62,8 +83,39 @@ function readTarget(
   });
 }
 
+/**
+ * The bytes must be the type the request declares: the served type and the
+ * file's extension both follow the declaration, so a mismatch is refused
+ * rather than trusted either way.
+ */
+async function readImageBody(
+  c: Context<AuthzEnv>,
+): Promise<{ bytes: Uint8Array; mediaType: AttachmentMediaType }> {
+  const mediaType = readDeclaredMediaType(c.req.header("content-type"));
+  if (mediaType === undefined) {
+    throw new BadRequest(ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE);
+  }
+  const body = await readRawBodyWithinLimit(c.req.raw, ATTACHMENT_MAX_BYTES);
+  if (!body.ok) {
+    throw new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE);
+  }
+  if (sniffImageMediaType(body.value) !== mediaType) {
+    throw new BadRequest(ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE);
+  }
+  return { bytes: body.value, mediaType };
+}
+
+function mintAttachmentFile(mediaType: AttachmentMediaType): AttachmentFile {
+  const fileName = `${randomUUID()}.${ATTACHMENT_EXTENSION_BY_MEDIA_TYPE[mediaType]}`;
+  const file = parseAttachmentFileName(fileName);
+  if (!file.ok) {
+    throw new Error("minted attachment file name failed its own parser");
+  }
+  return file.value;
+}
+
 export function createAttachmentsHandlers(
-  deps: AuthRouteDeps,
+  deps: AttachmentsRouteDeps,
   sourcesCache: TtlCache<RenderedSources>,
   sourcesInFlight: AttachmentsControllerDeps["sourcesInFlight"],
 ): AttachmentsHandlers {
@@ -130,5 +182,46 @@ export function createAttachmentsHandlers(
     return c.body(fetched.value.body, 200, headers);
   };
 
-  return { readAttachment };
+  // No assertHuman: the CLI attaches through this route with its Bearer
+  // token, and the commit is the App's, not the viewer's signature.
+  const uploadAttachment = async (c: Context<AuthzEnv>) => {
+    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+    if (!parsedPr.success) {
+      throw new BadRequest();
+    }
+    // Stamped first, so a refusal past the gate names the repository too.
+    stampAuditTarget(c, "repository", c.get("repoId"));
+    // App-only: the branch is written with the installation token, so the
+    // owner world (a url-box brief) has nothing to write with.
+    const installationId = requireInstallationScope(c.get("ctx"));
+    const { bytes, mediaType } = await readImageBody(c);
+
+    const reviewer = createReviewerGitHubClient(
+      deps,
+      c.get("session"),
+      c.get("logger"),
+    );
+    const file = mintAttachmentFile(mediaType);
+    const uploaded = await attachmentsController.uploadAttachment(
+      { reviewer, port: deps.github },
+      {
+        installationId,
+        repoId: c.get("repoId"),
+        file,
+        mediaType,
+        bytes,
+      },
+    );
+    if (!uploaded.ok) {
+      throwUploadAttachmentFailure(
+        uploaded.error,
+        c.get("urlBoxOnly") === true,
+      );
+    }
+
+    c.get("logger").debug("attachment uploaded", { assetId: file.assetId });
+    return c.json(uploaded.value, 201, NO_STORE);
+  };
+
+  return { readAttachment, uploadAttachment };
 }

@@ -12,6 +12,8 @@ export const ATTACHMENT_RESPONSE_HEADERS = {
   "x-content-type-options": "nosniff",
 } as const;
 
+export const NO_STORE = { "cache-control": "no-store" } as const;
+
 /** A signed private image URL lives about five minutes; the sources stay under that. */
 export const SOURCES_TTL_MS = 3 * 60_000;
 export const SOURCES_CACHE_MAX_ENTRIES = 200;

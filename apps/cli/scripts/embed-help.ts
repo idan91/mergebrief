@@ -1,6 +1,6 @@
 // README flag-appendix generator: runs each command's `--help` through the
 // REAL program and splices the output between the README's marker comments.
-// `--check` rewrites nothing and exits 1 on staleness — the gate judges by
+// `--check` rewrites nothing and exits 1 on staleness; the gate judges by
 // exit code.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,7 @@ const COMMANDS: readonly HelpArgv[] = [
   ["draft", "update", "--help"],
   ["draft", "reanchor", "--help"],
   ["draft", "delete", "--help"],
+  ["draft", "attach", "--help"],
   ["chunk-read", "--help"],
   ["risk", "dismiss", "--help"],
   ["risk", "address", "--help"],
@@ -101,7 +102,7 @@ const next =
 if (process.argv.includes("--check")) {
   if (next !== readme) {
     console.error(
-      "README flag appendix is stale — run: pnpm --dir apps/cli docs:appendix",
+      "README flag appendix is stale; run: pnpm --dir apps/cli docs:appendix",
     );
     process.exit(1);
   }

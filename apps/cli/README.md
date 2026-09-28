@@ -600,6 +600,25 @@ Options:
   -h, --help    display help for command
 ```
 
+### `mergebrief draft attach`
+
+```
+Usage: mergebrief draft attach [options] <number> <file>
+
+upload an image to the repository's attachments branch; prints {url}
+
+Arguments:
+  number             PR number
+  file               a png, jpg, gif or webp file
+
+Options:
+  --draft <draftId>  also append the image to this held draft (needs --base and
+                     --head)
+  --base <sha>       span base of the brief (with --draft)
+  --head <sha>       span head of the brief (with --draft)
+  -h, --help         display help for command
+```
+
 ### `mergebrief chunk-read`
 
 ```

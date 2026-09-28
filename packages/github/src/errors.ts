@@ -14,6 +14,8 @@ export const GitHubApiErrorCodes = {
   NOT_A_BLOB: "not-a-blob",
   /** A blob whose base64 payload does not decode as UTF-8 text. */
   NOT_TEXT: "not-text",
+  /** A push or delete a repository rule refused; the App's permission is not the cause. */
+  RULE_REFUSED: "rule-refused",
   REQUEST_FAILED: "request-failed",
 } as const;
 export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCodes>;

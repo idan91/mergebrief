@@ -126,16 +126,6 @@
       "count": 2
     }
   },
-  "apps/cli/scripts/embed-help.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/cli/src/bin.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/cli/src/commands/capabilities-map.ts": {
     "house/no-em-dash": {
       "count": 2

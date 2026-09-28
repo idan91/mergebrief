@@ -38,6 +38,9 @@ export async function composeCatalog(): Promise<ComposedCatalog> {
       listRepoCollaborators: async () => {
         throw new Error("catalog composition must not call github");
       },
+      commitAttachment: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
     },
   });
   return { app, harness };

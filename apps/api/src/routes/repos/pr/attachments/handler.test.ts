@@ -19,13 +19,17 @@ import type * as refreshModule from "../../../auth/session/logic/refresh";
 import { refreshSessionToken } from "../../../auth/session/logic/refresh";
 import {
   AuthChannels,
-  type AuthRouteDeps,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
+import type { InstallationGitHubPort } from "../../../github-port";
 import { createAttachmentsHandlers } from "./handler";
-import type { AttachmentsControllerDeps, RenderedSources } from "./types";
+import type {
+  AttachmentsControllerDeps,
+  AttachmentsRouteDeps,
+  RenderedSources,
+} from "./types";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
@@ -105,9 +109,13 @@ function makeCancelableBody(cancel: () => void): ReadableStream<Uint8Array> {
   });
 }
 
+const commitMock = vi.fn<InstallationGitHubPort["commitAttachment"]>();
+
 interface BuildAppOptions {
   /** The gate passed this request on the operator PAT. */
   readonly urlBoxOnly?: boolean;
+  /** The repo sits in no installation: the owner world. */
+  readonly ownerWorld?: boolean;
   readonly urlBoxFallbackToken?: string;
   /** Replaces the sealed token so the handler's own decrypt fails. */
   readonly ghTokenCiphertext?: string;
@@ -135,7 +143,7 @@ async function buildApp(
     scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannels.COOKIE,
   };
-  const deps: AuthRouteDeps = {
+  const deps: AttachmentsRouteDeps = {
     // The handler touches no table; the refresh path is mocked above.
     handle: {} as AppDatabase,
     auth: {
@@ -146,12 +154,26 @@ async function buildApp(
       publicBaseUrl: "https://example.test",
     },
     urlBoxFallbackToken: options.urlBoxFallbackToken,
+    github: {
+      fetchPullRequestConversation: async () => {
+        throw new Error("conversation port must not be called in this suite");
+      },
+      listRepoCollaborators: async () => {
+        throw new Error("collaborators port must not be called in this suite");
+      },
+      commitAttachment: commitMock,
+    },
   };
   const app = new Hono<AuthzEnv>();
   app.onError(createErrorHandler<AuthzEnv>(log));
   app.use(async (c, next) => {
     c.set("logger", log);
-    c.set("ctx", { installationId: brand(1001n, isInstallationId) });
+    c.set(
+      "ctx",
+      options.ownerWorld === true
+        ? { ownerUserId: brand(42n, isReviewerId) }
+        : { installationId: brand(1001n, isInstallationId) },
+    );
     c.set("session", session);
     c.set("repoId", brand(555n, isRepoId));
     c.set("repoFullName", "acme/app");
@@ -167,12 +189,14 @@ async function buildApp(
     options.sourcesInFlight ?? new Map(),
   );
   app.get("/:prNumber/attachments/:assetId", handlers.readAttachment);
+  app.post("/:prNumber/attachments", handlers.uploadAttachment);
   return app;
 }
 
 beforeEach(() => {
   fetchMock.mockReset();
   sourcesMock.mockReset();
+  commitMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   vi.mocked(refreshSessionToken).mockReset();
   vi.mocked(refreshSessionToken).mockResolvedValue({
@@ -602,5 +626,205 @@ describe("GET attachments/:assetId for a branch-hosted file", () => {
 
     expect(response.status).toBe(404);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST attachments", () => {
+  const PNG = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1,
+  ]);
+  const FILE_NAME_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/;
+
+  function stubRepoResolve() {
+    stubFetchResponse(
+      new Response(
+        JSON.stringify({ id: 555, full_name: "acme/app", private: true }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+  }
+
+  function stubCommit(result: Awaited<ReturnType<typeof commitMock>>) {
+    commitMock.mockResolvedValueOnce(result);
+  }
+
+  async function upload(
+    app: Hono<AuthzEnv>,
+    body: string | Uint8Array,
+    headers: Record<string, string> = { "content-type": "image/png" },
+  ) {
+    return app.request("/7/attachments", { method: "POST", headers, body });
+  }
+
+  it("answers 201 with the branch url of the committed file", async () => {
+    stubRepoResolve();
+    stubCommit({ ok: true, value: { commitSha: "c1" } });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = (await response.json()) as { url: string };
+    const fileName = body.url.split("/").at(-1)?.replace("?raw=true", "");
+    expect(fileName).toMatch(FILE_NAME_PATTERN);
+    expect(body.url).toBe(
+      `https://github.com/acme/app/blob/mergebrief/attachments/${fileName}?raw=true`,
+    );
+    expect(commitMock.mock.calls[0]?.[0]).toBe(1001n);
+    expect(commitMock.mock.calls[0]?.[1]).toMatchObject({
+      owner: "acme",
+      repo: "app",
+      branch: "mergebrief/attachments",
+      path: fileName,
+    });
+    expect(Array.from(commitMock.mock.calls[0]?.[1].bytes ?? [])).toEqual(
+      Array.from(PNG),
+    );
+  });
+
+  it("answers 413 over the cap without calling github", async () => {
+    const app = await buildApp();
+    const oversized = new Uint8Array(10 * 1024 * 1024 + 1);
+    oversized.set(PNG);
+
+    const response = await upload(app, oversized);
+
+    expect(response.status).toBe(413);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "request-too-large",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 for a type outside the allowlist", async () => {
+    const app = await buildApp();
+
+    const response = await upload(app, "<svg/>", {
+      "content-type": "image/svg+xml",
+    });
+
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "attachment-unsupported-type",
+    );
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 when the bytes are not the declared type", async () => {
+    const app = await buildApp();
+
+    const response = await upload(app, new Uint8Array([0xff, 0xd8, 0xff, 1]), {
+      "content-type": "image/png",
+    });
+
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "attachment-unsupported-type",
+    );
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 on a url-box pull request", async () => {
+    const app = await buildApp({ ownerWorld: true });
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(404);
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 403 github-permission when the App itself may not push", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.FORBIDDEN,
+        status: 403,
+        message: "fixture denied",
+      },
+    });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "github-permission",
+    );
+  });
+
+  it("answers 403 attachments-disabled when the repository refuses the push", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.RULE_REFUSED,
+        status: 422,
+        message: "fixture refused",
+      },
+    });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "attachments-disabled",
+    );
+  });
+
+  it("answers 404 when the app no longer holds the repository", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.NOT_FOUND,
+        status: 404,
+        message: "fixture",
+      },
+    });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("answers 502 when the push fails upstream", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: { code: GitHubApiErrorCodes.REQUEST_FAILED, message: "fixture" },
+    });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(502);
+  });
+
+  it("answers 404 when the fresh re-resolve is denied", async () => {
+    stubFetchResponse(new Response(null, { status: 404 }));
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(404);
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 for a malformed pull number", async () => {
+    const app = await buildApp();
+
+    const response = await app.request("/zero/attachments", {
+      method: "POST",
+      headers: { "content-type": "image/png" },
+      body: PNG,
+    });
+
+    expect(response.status).toBe(400);
   });
 });

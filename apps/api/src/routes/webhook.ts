@@ -17,7 +17,7 @@
 /* oxlint-enable house/comment-run */
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
-import type { Mutable, DraftPolicy, Result } from "types";
+import type { Mutable, DraftPolicy } from "types";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
   InstallationActions,
@@ -55,6 +55,7 @@ import {
   PayloadTooLarge,
   Unauthorized,
 } from "../shared-errors/api-error";
+import { readRawBodyWithinLimit } from "./read-body";
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
@@ -79,9 +80,6 @@ const READY_FLIP_DEBOUNCE_SECONDS = 10;
 
 /** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
-
-/** Raw-body read outcome; the only expected failure is the size cap. */
-type RawBodyResult = Result<string, "body-too-large">;
 
 /**
  * The `pull_request` actions that always (re)queue a generation. `closed` is
@@ -389,52 +387,6 @@ async function dispatch(
   }
 }
 
-async function readRawBodyWithinLimit(
-  request: Request,
-): Promise<RawBodyResult> {
-  const contentLength = request.headers.get("content-length");
-  if (contentLength !== null) {
-    const parsedLength = Number(contentLength);
-    if (
-      Number.isFinite(parsedLength) &&
-      parsedLength > MAX_WEBHOOK_BODY_BYTES
-    ) {
-      return { ok: false, error: "body-too-large" };
-    }
-  }
-
-  if (request.body === null) {
-    return { ok: true, value: "" };
-  }
-
-  const reader = request.body.getReader();
-  const decoder = new TextDecoder();
-  const chunks: string[] = [];
-  let bytesRead = 0;
-
-  try {
-    while (true) {
-      // Stream reads are inherently sequential, each chunk arrives only
-      // after the previous read resolves, so there is nothing to parallelize.
-      // oxlint-disable-next-line no-await-in-loop
-      const { done, value } = await reader.read();
-      if (done) {
-        chunks.push(decoder.decode());
-        return { ok: true, value: chunks.join("") };
-      }
-      bytesRead += value.byteLength;
-      if (bytesRead > MAX_WEBHOOK_BODY_BYTES) {
-        // oxlint-disable-next-line no-await-in-loop
-        await reader.cancel();
-        return { ok: false, error: "body-too-large" };
-      }
-      chunks.push(decoder.decode(value, { stream: true }));
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
 /** Mountable webhook route; deps injected so tests pass a PGlite handle. */
 export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
   const app = new Hono<RequestLogEnv>();
@@ -454,11 +406,14 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
 
     // Verify the HMAC over the RAW body BEFORE any parsing, the exact bytes
     // GitHub signed, never a JSON re-encode.
-    const rawBody = await readRawBodyWithinLimit(c.req.raw);
+    const rawBody = await readRawBodyWithinLimit(
+      c.req.raw,
+      MAX_WEBHOOK_BODY_BYTES,
+    );
     if (!rawBody.ok) {
       throw new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE);
     }
-    const raw = rawBody.value;
+    const raw = new TextDecoder().decode(rawBody.value);
     const signature = c.req.header("x-hub-signature-256");
     const eventName = c.req.header("x-github-event") ?? "";
 

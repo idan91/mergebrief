@@ -24,6 +24,7 @@ export {
   ATTACHMENT_ASSET_PATH_PREFIX,
   ATTACHMENT_BRANCH,
   ATTACHMENT_EXTENSION_BY_MEDIA_TYPE,
+  ATTACHMENT_MAX_BYTES,
 } from "./consts";
 export {
   AttachmentMediaTypes,

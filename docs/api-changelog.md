@@ -13,6 +13,23 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-27)
+
+- **Added** `POST /api/repos/:repoId/pulls/:prNumber/attachments`
+  (`upload-attachment`), behind the per-PR gate, App-installed repositories
+  only: the raw bytes of one PNG, JPEG, GIF or WebP image (10 MB cap,
+  `content-type` declares the type and the bytes must agree) are committed
+  to the repository's `mergebrief/attachments` branch on the App's token,
+  and the answer is `201 { url }`, the GitHub blob URL a comment carries.
+  External write: a Bearer principal at `external-write` may call it. Two
+  wire codes ride with it: `403 attachments-disabled` when a rule on the
+  branch refuses the push, and `400 attachment-unsupported-type`; an App
+  that may not push at all (Contents left read-only, an archived
+  repository) answers the existing `403 github-permission`.
+- **Added** `GET /api/repos/:repoId/pulls/:prNumber/attachments/:assetId`
+  accepts `<uuid>.<ext>` as well as a bare asset id, serving a file from the
+  attachments branch with the viewer's token.
+
 ## dev (2026-09-24)
 
 - **Added** `PUT` and `DELETE /api/repos/:repoId/pulls/:prNumber/archive`

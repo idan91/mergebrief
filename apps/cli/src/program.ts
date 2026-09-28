@@ -62,11 +62,18 @@ import {
   type ReanchorInput,
   type UpdateDraftInput,
 } from "./commands/session-write";
+import {
+  resolveAttachmentMediaType,
+  runAttach,
+  type AttachDraftTarget,
+} from "./commands/attach";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
   /** Read a file for `submit -F <file>`; injected for tests. */
   readonly readFile?: ((path: string) => string) | undefined;
+  /** Read an image for `draft attach <file>`; injected for tests. */
+  readonly readBinaryFile?: ((path: string) => Uint8Array) | undefined;
   /** `$PAGER` hook for `diff` on a TTY (cosmetic); optional. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -310,6 +317,27 @@ async function resolveTarget(
 
 function readIo(deps: CliDeps, global: GlobalOptions): ReadIo {
   return { stdout: deps.stdout, stderr: deps.stderr, json: global.json };
+}
+
+/** Read the image `draft attach` posts; its leading bytes name its type. */
+function readAttachmentFile(
+  deps: CliDeps,
+  path: string,
+): { bytes: Uint8Array; mediaType: string } {
+  const readBinaryFile = deps.readBinaryFile;
+  if (readBinaryFile === undefined) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "file input is not available in this environment",
+    );
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = readBinaryFile(path);
+  } catch {
+    throw new CliError(ExitCodes.USAGE, `could not read file: ${path}`);
+  }
+  return { bytes, mediaType: resolveAttachmentMediaType(bytes) };
 }
 
 /** Read `-F`/`--body-file` sources: a path, or "-" for stdin. */
@@ -866,6 +894,44 @@ export function buildProgram(deps: CliDeps): Command {
             subpath: `/comments/${encodeURIComponent(draftId)}`,
             span,
           },
+          readIo(deps, global),
+        );
+      },
+    );
+
+  draft
+    .command("attach")
+    .description(
+      "upload an image to the repository's attachments branch; prints {url}",
+    )
+    .argument("<number>", "PR number")
+    .argument("<file>", "a png, jpg, gif or webp file")
+    .option(
+      "--draft <draftId>",
+      "also append the image to this held draft (needs --base and --head)",
+    )
+    .option("--base <sha>", "span base of the brief (with --draft)")
+    .option("--head <sha>", "span head of the brief (with --draft)")
+    .action(
+      async (
+        raw: string,
+        path: string,
+        options: { draft?: string; base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const file = readAttachmentFile(deps, path);
+        let target: AttachDraftTarget | undefined;
+        if (options.draft !== undefined) {
+          target = {
+            draftId: options.draft,
+            span: requireSpan(options.base, options.head),
+          };
+        }
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runAttach(
+          client,
+          { repoId, prNumber, file, draft: target },
           readIo(deps, global),
         );
       },

@@ -146,6 +146,9 @@ const unusedConversationPort = {
   listRepoCollaborators: async () => {
     throw new Error("collaborators port must not be called in this suite");
   },
+  commitAttachment: async () => {
+    throw new Error("attachment port must not be called in this suite");
+  },
 };
 
 /** No GitHub call belongs on this path; any fetch is a test failure. */

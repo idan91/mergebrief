@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Real-world deps are wired here and ONLY here — the whole CLI stays testable
+// Real-world deps are wired here and ONLY here, so the whole CLI stays testable
 // behind `runCli`.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -21,7 +21,7 @@ async function readStdin(): Promise<string> {
     });
     return new Promise((resolve) => {
       rl.question(
-        "Paste your token (input hidden is not supported — clear your scrollback): ",
+        "Paste your token (input hidden is not supported; clear your scrollback): ",
         (answer) => {
           rl.close();
           resolve(answer);
@@ -47,7 +47,7 @@ function gitOriginUrl(): string | undefined {
   }
 }
 
-/** `$PAGER` for `diff` on a TTY — cosmetics only. */
+/** `$PAGER` for `diff` on a TTY; cosmetics only. */
 function makePager(): ((text: string) => Promise<void>) | undefined {
   const pager = process.env["PAGER"];
   if (!process.stdout.isTTY || pager === undefined || pager.length === 0) {
@@ -72,6 +72,7 @@ const code = await runCli(process.argv.slice(2), {
   fetch: (input, init) => fetch(input, init),
   pager: makePager(),
   readFile: (path) => readFileSync(path, "utf8"),
+  readBinaryFile: (path) => new Uint8Array(readFileSync(path)),
   env: process.env,
   configDir: xdgDir("XDG_CONFIG_HOME", ".config"),
   cacheDir: xdgDir("XDG_CACHE_HOME", ".cache"),

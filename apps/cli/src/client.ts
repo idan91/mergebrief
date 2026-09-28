@@ -21,7 +21,7 @@ const USER_AGENT = `mergebrief/${CLI_VERSION}`;
 export interface FetchInit {
   readonly method?: string;
   readonly headers?: Record<string, string>;
-  readonly body?: string;
+  readonly body?: string | Uint8Array;
   readonly redirect?: "manual" | "follow" | "error";
 }
 
@@ -36,10 +36,18 @@ export interface ApiClientOptions {
   readonly headers?: Readonly<Record<string, string>> | undefined;
 }
 
+/** A raw body sent as-is under its own content type (an image upload). */
+export interface BytesBody {
+  readonly body: Uint8Array;
+  readonly contentType: string;
+}
+
 export interface ApiRequest {
   readonly method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   readonly path: string;
+  /** JSON-encoded; exclusive with `bytes`. */
   readonly body?: unknown;
+  readonly bytes?: BytesBody;
 }
 
 export interface ApiResponse {
@@ -114,8 +122,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (options.token !== undefined) {
         headers["authorization"] = `Bearer ${options.token}`;
       }
-      let body: string | undefined;
-      if (req.body !== undefined) {
+      let body: string | Uint8Array | undefined;
+      if (req.bytes !== undefined) {
+        headers["content-type"] = req.bytes.contentType;
+        body = req.bytes.body;
+      } else if (req.body !== undefined) {
         headers["content-type"] = "application/json";
         body = JSON.stringify(req.body);
       }
