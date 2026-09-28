@@ -4,6 +4,7 @@ import type { InstallationResolver } from "../installation-resolver";
 import type { AuthzEnv } from "../authz";
 import reposController from "./controller";
 import { ApiErrorCodes } from "contract";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -16,13 +17,13 @@ export default function createHandlers(installations: InstallationResolver) {
         c.get("logger"),
       );
       if (!resolved.ok) {
-        if (resolved.error.status === 401) {
+        if (resolved.error.status === HttpStatuses.UNAUTHORIZED) {
           throw new Unauthorized();
         }
         throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
       const body = reposController.listRepos(resolved.value.allowed);
-      return c.json(body, 200, NO_STORE);
+      return c.json(body, HttpStatuses.OK, NO_STORE);
     },
   };
 }

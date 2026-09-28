@@ -6,6 +6,7 @@
 // refreshes more than once. Hand-rolled refresh locals are banned.
 import { GitHubApiErrorCodes } from "github";
 import {
+  FailureKinds,
   isTokenUnreadableFailure,
   type TokenUnreadableFailure,
 } from "../../shared-errors/failures";
@@ -71,7 +72,7 @@ function isUnauthorizedCode(error: unknown): boolean {
 
 const TOKEN_UNREADABLE: Result<never, ReviewerTokenFailure> = {
   ok: false,
-  error: { kind: "token-unreadable" },
+  error: { kind: FailureKinds.TOKEN_UNREADABLE },
 };
 
 export function createReviewerGitHubClient(

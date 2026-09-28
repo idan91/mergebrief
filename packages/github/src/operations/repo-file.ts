@@ -11,6 +11,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result, ValueOf } from "../types";
+import { HttpStatuses } from "types/http";
 
 export const RepoFileKinds = {
   FILE: "file",
@@ -134,7 +135,10 @@ export async function getRepoFile(
     );
     body = response.data;
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
       return { ok: true, value: { kind: RepoFileKinds.ABSENT } };
     }
     return { ok: false, error: mapRequestError(error, "fetch repo file") };

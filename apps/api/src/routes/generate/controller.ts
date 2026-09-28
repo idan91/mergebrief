@@ -11,7 +11,7 @@ import {
 } from "github";
 import { createIngestRoutines, type ReviewerId } from "persistence";
 import type { Result } from "types/utils";
-import { isGitHubDenial } from "../../shared-errors/failures";
+import { FailureKinds, isGitHubDenial } from "../../shared-errors/failures";
 import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
 import { deriveLifecycle } from "../live-read/logic/lifecycle";
 import type {
@@ -82,7 +82,7 @@ export default {
     const resolved = await resolveUnderFallback(deps, ref, viewer);
     if (!resolved.ok) {
       if ("kind" in resolved.error) {
-        return { ok: false, error: { kind: "token-unreadable" } };
+        return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
       }
       if (resolved.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
         return { ok: false, error: { kind: "unauthorized" } };

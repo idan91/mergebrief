@@ -4,7 +4,7 @@
 //
 // A code needing two statuses is two codes, so `ApiErrorStatusByCode` is 1:1
 // and `ApiErrorBody` is what a client can rely on being handed.
-import type { ValueOf } from "types/utils";
+import { HttpStatuses, type HttpStatus, type ValueOf } from "types";
 
 export const ApiErrorCodes = {
   UNAUTHORIZED: "unauthorized",
@@ -69,39 +69,39 @@ export type ApiErrorBody =
 // 1:1, so a code needing two statuses is two codes. `app-not-installed` is 403
 // from its one login site; a future non-403 site mints a new code.
 export const ApiErrorStatusByCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: 401,
-  [ApiErrorCodes.INVALID_SIGNATURE]: 401,
-  [ApiErrorCodes.FORBIDDEN]: 403,
-  [ApiErrorCodes.GITHUB_PERMISSION]: 403,
-  [ApiErrorCodes.SCOPE_EXCEEDED]: 403,
-  [ApiErrorCodes.HUMAN_ONLY]: 403,
-  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: 403,
-  [ApiErrorCodes.REPO_ADMIN_ONLY]: 403,
-  [ApiErrorCodes.ATTACHMENTS_DISABLED]: 403,
-  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: 403,
-  [ApiErrorCodes.NOT_FOUND]: 404,
-  [ApiErrorCodes.INVALID_REQUEST]: 400,
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: 400,
-  [ApiErrorCodes.NOT_A_PR_URL]: 400,
-  [ApiErrorCodes.SIGN_IN_FAILED]: 400,
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: 413,
-  [ApiErrorCodes.DIFF_TOO_LARGE]: 413,
-  [ApiErrorCodes.FILE_NOT_FOUND]: 404,
-  [ApiErrorCodes.FILE_TOO_LARGE]: 413,
-  [ApiErrorCodes.FILE_NOT_TEXT]: 400,
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: 409,
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: 409,
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: 409,
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: 409,
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: 409,
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: 409,
-  [ApiErrorCodes.APP_NOT_INSTALLED]: 403,
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: 502,
-  [ApiErrorCodes.GENERATION_FAILED]: 502,
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: 503,
-  [ApiErrorCodes.GENERATION_CONFIG]: 503,
-  [ApiErrorCodes.INTERNAL_ERROR]: 500,
-} as const satisfies Record<ApiErrorCode, number>;
+  [ApiErrorCodes.UNAUTHORIZED]: HttpStatuses.UNAUTHORIZED,
+  [ApiErrorCodes.INVALID_SIGNATURE]: HttpStatuses.UNAUTHORIZED,
+  [ApiErrorCodes.FORBIDDEN]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.GITHUB_PERMISSION]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.HUMAN_ONLY]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.NOT_FOUND]: HttpStatuses.NOT_FOUND,
+  [ApiErrorCodes.INVALID_REQUEST]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.NOT_A_PR_URL]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.SIGN_IN_FAILED]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: HttpStatuses.PAYLOAD_TOO_LARGE,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: HttpStatuses.PAYLOAD_TOO_LARGE,
+  [ApiErrorCodes.FILE_NOT_FOUND]: HttpStatuses.NOT_FOUND,
+  [ApiErrorCodes.FILE_TOO_LARGE]: HttpStatuses.PAYLOAD_TOO_LARGE,
+  [ApiErrorCodes.FILE_NOT_TEXT]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: HttpStatuses.BAD_GATEWAY,
+  [ApiErrorCodes.GENERATION_FAILED]: HttpStatuses.BAD_GATEWAY,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: HttpStatuses.SERVICE_UNAVAILABLE,
+  [ApiErrorCodes.GENERATION_CONFIG]: HttpStatuses.SERVICE_UNAVAILABLE,
+  [ApiErrorCodes.INTERNAL_ERROR]: HttpStatuses.INTERNAL_SERVER_ERROR,
+} as const satisfies Record<ApiErrorCode, HttpStatus>;
 
 /**
  * The English line the API composes on the wire, i18next `{{param}}` syntax.

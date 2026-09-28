@@ -19,7 +19,7 @@ import {
   type InstallationId,
   type RepoId,
 } from "persistence";
-import type { Result } from "types/utils";
+import { HttpStatuses, type Result } from "types";
 import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
 import {
   createReviewerGitHubClient,
@@ -72,7 +72,10 @@ interface CachedAllowed {
  * Failure carries the HTTP status the route must return: 401 (auth dead) or
  * 502 (GitHub upstream); the caller NEVER falls back to the DB.
  */
-export type AllowedRepoResolution = Result<AllowedRepos, { status: 401 | 502 }>;
+export type AllowedRepoResolution = Result<
+  AllowedRepos,
+  { status: typeof HttpStatuses.UNAUTHORIZED | typeof HttpStatuses.BAD_GATEWAY }
+>;
 
 /** The world a repository lives in for this credential. */
 export type RepoWorld =
@@ -88,7 +91,7 @@ export interface ResolvedRepoWorld {
 
 export type RepoWorldResolution = Result<
   ResolvedRepoWorld,
-  { status: 401 | 502 }
+  { status: typeof HttpStatuses.UNAUTHORIZED | typeof HttpStatuses.BAD_GATEWAY }
 >;
 
 export interface InstallationResolver {
@@ -156,7 +159,10 @@ export function createInstallationResolver(
   ): Promise<AllowedRepoResolution> {
     const reachable = await installations.resolve(session, log);
     if (!reachable.ok) {
-      const status = reachable.error.kind === "auth-dead" ? 401 : 502;
+      const status =
+        reachable.error.kind === "auth-dead"
+          ? HttpStatuses.UNAUTHORIZED
+          : HttpStatuses.BAD_GATEWAY;
       return { ok: false, error: { status } };
     }
 
@@ -208,12 +214,12 @@ export function createInstallationResolver(
         await createSessionAuth(deps.handle).deleteSession(
           session.sessionTokenHash,
         );
-        return { ok: false, error: { status: 401 } };
+        return { ok: false, error: { status: HttpStatuses.UNAUTHORIZED } };
       }
       const status =
         failed.repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED
-          ? 401
-          : 502;
+          ? HttpStatuses.UNAUTHORIZED
+          : HttpStatuses.BAD_GATEWAY;
       return { ok: false, error: { status } };
     }
 

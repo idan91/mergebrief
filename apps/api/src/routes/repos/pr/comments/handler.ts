@@ -45,6 +45,7 @@ import {
 import { shapeInlineCommentWrite } from "./logic/draft-anchor";
 import { resolvePrScopeFrom } from "../scope";
 import { FailureKinds } from "../../../../shared-errors/failures";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -255,7 +256,7 @@ export default function createHandlers(
     if (posted.value.reviewId === undefined) {
       return c.json(
         { commentId: Number(posted.value.commentId) },
-        201,
+        HttpStatuses.CREATED,
         NO_STORE,
       );
     }
@@ -264,7 +265,7 @@ export default function createHandlers(
         commentId: Number(posted.value.commentId),
         reviewId: Number(posted.value.reviewId),
       },
-      201,
+      HttpStatuses.CREATED,
       NO_STORE,
     );
   };
@@ -329,7 +330,11 @@ export default function createHandlers(
     stampAuditTarget(c, "review_comment", BigInt(created.value.commentId));
 
     if (created.value.reviewId === undefined) {
-      return c.json({ commentId: created.value.commentId }, 201, NO_STORE);
+      return c.json(
+        { commentId: created.value.commentId },
+        HttpStatuses.CREATED,
+        NO_STORE,
+      );
     }
     await recordReplyReview(
       deps,
@@ -342,7 +347,7 @@ export default function createHandlers(
         commentId: created.value.commentId,
         reviewId: created.value.reviewId,
       },
-      201,
+      HttpStatuses.CREATED,
       NO_STORE,
     );
   };
@@ -412,7 +417,7 @@ function setThreadResolution(
 
     return c.json(
       { resolved, alreadyInTargetState: outcome.value.alreadyInTargetState },
-      200,
+      HttpStatuses.OK,
       NO_STORE,
     );
   };

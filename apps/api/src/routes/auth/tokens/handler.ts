@@ -6,6 +6,7 @@ import type { AuthRouteDeps } from "../session/types";
 import tokensController from "./controller";
 import { mintBodySchema } from "./schemas";
 import { buildTokenView, parseTokenId } from "./utils";
+import { HttpStatuses } from "types/http";
 
 // Every response is per-viewer state → `no-store`, error paths included.
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -28,7 +29,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     );
     return c.json(
       { token: minted.token, apiToken: buildTokenView(minted.row) },
-      201,
+      HttpStatuses.CREATED,
       NO_STORE,
     );
   };
@@ -39,7 +40,11 @@ export default function createHandlers(deps: AuthRouteDeps) {
       session: c.get("session"),
       log: c.get("logger"),
     });
-    return c.json({ tokens: rows.map(buildTokenView) }, 200, NO_STORE);
+    return c.json(
+      { tokens: rows.map(buildTokenView) },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   const revokeToken = async (c: Context<AuthzEnv>) => {
@@ -58,7 +63,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     stampAuditTarget(c, "api_token", tokenId);
     return c.json(
       { ok: true, apiToken: buildTokenView(result.value) },
-      200,
+      HttpStatuses.OK,
       NO_STORE,
     );
   };

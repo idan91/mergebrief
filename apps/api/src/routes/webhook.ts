@@ -17,7 +17,7 @@
 /* oxlint-enable house/comment-run */
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
-import type { Mutable, DraftPolicy } from "types";
+import { HttpStatuses, type Mutable, type DraftPolicy } from "types";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
   InstallationActions,
@@ -461,7 +461,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
       });
       throw new InternalError();
     }
-    return c.json({ ok: true }, 200);
+    return c.json({ ok: true }, HttpStatuses.OK);
   });
 
   return app;

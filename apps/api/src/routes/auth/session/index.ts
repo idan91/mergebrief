@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "./types";
 import { shapeViewer } from "../../viewer";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -17,7 +18,7 @@ export function sessionRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   app.get("/", (c) => {
     const session = c.get("session");
     const viewer = shapeViewer(session.reviewerId, session.reviewerLogin);
-    return c.json({ ok: true, viewer }, 200, NO_STORE);
+    return c.json({ ok: true, viewer }, HttpStatuses.OK, NO_STORE);
   });
   return app;
 }

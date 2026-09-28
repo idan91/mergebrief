@@ -3,6 +3,7 @@ import type { ProductOperationRegistry } from "../../product-operations/registry
 import type { AuthzEnv } from "../authz";
 import capabilitiesController from "./controller";
 import type { CapabilitiesBody } from "./types";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -13,7 +14,7 @@ export default function createHandlers(registry: ProductOperationRegistry) {
   return {
     readCapabilities: (c: Context<AuthzEnv>) => {
       cached ??= capabilitiesController.buildCapabilities(registry.list());
-      return c.json(cached, 200, NO_STORE);
+      return c.json(cached, HttpStatuses.OK, NO_STORE);
     },
   };
 }

@@ -13,6 +13,7 @@ import {
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
 import type { SubmitFailure } from "../types";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 
 function isValidation(
   error: CreateReviewError,
@@ -23,7 +24,7 @@ function isValidation(
 
 /** Map a final create-review failure to the sanitized response posture. */
 export function throwSubmitFailure(failure: SubmitFailure): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   if (failure.kind === "pending-review-held") {

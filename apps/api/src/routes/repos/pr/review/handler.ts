@@ -40,6 +40,7 @@ import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
 import { resolvePrScopeFrom } from "../scope";
 import { FailureKinds } from "../../../../shared-errors/failures";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -215,7 +216,7 @@ export default function createHandlers(
         commentsFolded: created.value.commentsFolded,
         commentsTotal: created.value.commentsTotal,
       },
-      201,
+      HttpStatuses.CREATED,
       NO_STORE,
     );
   };

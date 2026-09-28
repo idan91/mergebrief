@@ -9,7 +9,7 @@ import {
   type GitHubApiError,
   type GitHubApiErrorCode,
 } from "github";
-import type { Result } from "types/utils";
+import { HttpStatuses, type Result } from "types";
 import {
   CONTENTS_RAW_MEDIA_TYPE,
   GITHUB_API_ORIGIN,
@@ -29,9 +29,9 @@ const SERVED_MEDIA_TYPES: ReadonlySet<string> = new Set(
 );
 
 const CODE_BY_STATUS: Readonly<Record<number, GitHubApiErrorCode>> = {
-  401: GitHubApiErrorCodes.UNAUTHORIZED,
-  403: GitHubApiErrorCodes.FORBIDDEN,
-  404: GitHubApiErrorCodes.NOT_FOUND,
+  [HttpStatuses.UNAUTHORIZED]: GitHubApiErrorCodes.UNAUTHORIZED,
+  [HttpStatuses.FORBIDDEN]: GitHubApiErrorCodes.FORBIDDEN,
+  [HttpStatuses.NOT_FOUND]: GitHubApiErrorCodes.NOT_FOUND,
 };
 
 function readMediaType(response: Response): string {
@@ -55,7 +55,7 @@ function buildTransportError(): GitHubApiError {
 function buildNotAnImageError(): GitHubApiError {
   return {
     code: GitHubApiErrorCodes.NOT_FOUND,
-    status: 404,
+    status: HttpStatuses.NOT_FOUND,
     message: `${CONTEXT}: not an image`,
   };
 }

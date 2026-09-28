@@ -13,6 +13,7 @@ import type {
   PurgeAttachmentsHandlers,
   PurgeAttachmentsRouteDeps,
 } from "./types";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 async function resolveAdmin(
@@ -62,7 +63,7 @@ export function createPurgeAttachmentsHandlers(
     c.get("logger").debug("attachments branch purged", {
       existed: purged.value.existed,
     });
-    return c.json({ ok: true }, 200, NO_STORE);
+    return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
   };
 
   return { purgeAttachments };

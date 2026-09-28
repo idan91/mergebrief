@@ -94,6 +94,7 @@ import {
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import type { InstallationResolver, RepoWorld } from "./installation-resolver";
+import { HttpStatuses } from "types/http";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
@@ -481,7 +482,7 @@ export function repoAuthzLayer(
       }
       // A 401 with no retry spent means the refresh itself failed, the
       // orchestrator already deleted the session; clean 401 → re-login.
-      if (repo.error.status === 401 && attempts === 1) {
+      if (repo.error.status === HttpStatuses.UNAUTHORIZED && attempts === 1) {
         stampAccess(c, "401", {
           repoId,
           reviewerId: client.session().reviewerId,
@@ -550,7 +551,7 @@ export function repoAuthzLayer(
         repoId,
         reviewerId: client.session().reviewerId,
       });
-      if (status === 401) {
+      if (status === HttpStatuses.UNAUTHORIZED) {
         throw new Unauthorized();
       }
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

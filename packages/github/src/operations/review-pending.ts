@@ -14,6 +14,7 @@ import {
 } from "../errors";
 import type { Result } from "../types";
 import type { PendingReview } from "./review";
+import { HttpStatuses } from "types/http";
 
 export interface PullRequestReviewRef {
   readonly owner: string;
@@ -169,7 +170,10 @@ export async function deletePendingPullRequestReview(
     });
     return { ok: true, value: undefined };
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
       return { ok: true, value: undefined };
     }
     return {

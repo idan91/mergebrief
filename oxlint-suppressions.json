@@ -34,19 +34,9 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/generate/types.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/api/src/routes/repos/collaborators/consts.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/api/src/routes/repos/collaborators/types.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/api/src/routes/repos/pr/conversation/consts.ts": {
@@ -915,16 +905,6 @@
     },
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/github/src/auth/retry.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "packages/github/src/operations/comments.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "packages/github/src/webhook/verify.ts": {

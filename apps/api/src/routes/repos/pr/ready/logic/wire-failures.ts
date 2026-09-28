@@ -8,6 +8,7 @@ import {
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
 import type { MarkReadyFailure } from "../types";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 
 /**
  * Map a GraphQL MUTATION-stage failure. This runs AFTER both the gate and the
@@ -19,7 +20,7 @@ import type { MarkReadyFailure } from "../types";
  * NOT_FOUND still means the PR is genuinely gone.
  */
 export function throwMarkReadyFailure(failure: MarkReadyFailure): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {

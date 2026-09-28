@@ -6,6 +6,7 @@ import type {
   CollaboratorsFailure,
   ListCollaboratorsInput,
 } from "./types";
+import { FailureKinds } from "../../../shared-errors/failures";
 
 export default {
   async listCollaborators(
@@ -19,7 +20,7 @@ export default {
     if (!fetched.ok) {
       const denied: Result<never, CollaboratorsFailure> = {
         ok: false,
-        error: { kind: "github-denied", error: fetched.error },
+        error: { kind: FailureKinds.GITHUB_DENIED, error: fetched.error },
       };
       return denied;
     }

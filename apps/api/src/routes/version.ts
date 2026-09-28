@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import type { AuthRouteDeps } from "./auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -14,6 +15,8 @@ export function versionRoute(
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   app.use("/", sessionLayer(deps), accessStampLayer());
-  app.get("/", (c) => c.json({ version: serverVersion }, 200, NO_STORE));
+  app.get("/", (c) =>
+    c.json({ version: serverVersion }, HttpStatuses.OK, NO_STORE),
+  );
   return app;
 }

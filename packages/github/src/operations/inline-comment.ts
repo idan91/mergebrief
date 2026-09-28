@@ -10,7 +10,7 @@ import {
 } from "../errors";
 import { ReviewSubjectTypes, type ReviewCommentSide } from "./review-thread";
 import type { Result } from "../types";
-import type { Mutable } from "types/utils";
+import { HttpStatuses, type Mutable } from "types";
 
 export interface CreateInlineReviewCommentBase {
   readonly owner: string;
@@ -129,7 +129,10 @@ export async function createInlineReviewComment(
     return { ok: true, value };
   } catch (error) {
     const sanitized = mapRequestError(error, CONTEXT);
-    if (error instanceof RequestError && error.status === 422) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.UNPROCESSABLE_CONTENT
+    ) {
       return { ok: false, error: { ...sanitized, staleAnchor: true } };
     }
     return { ok: false, error: sanitized };

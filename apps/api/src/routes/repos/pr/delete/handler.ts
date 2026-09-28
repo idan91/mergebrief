@@ -15,6 +15,7 @@ import { throwRepoResolveFailure } from "../../logic/resolve-repo-owner-and-name
 import { deleteController } from "./controller";
 import { resolveRepoAdmin } from "../../logic/resolve-repo-admin";
 import type { DeletePullInput } from "./types";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -64,7 +65,7 @@ export function createDeleteHandlers(deps: AuthRouteDeps) {
       throw new NotFound();
     }
     stampAuditTarget(c, "pull_request", deleted.value.pullRequestId);
-    return c.json({ ok: true }, 200, NO_STORE);
+    return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
   };
 
   return { deletePull };

@@ -10,6 +10,7 @@ import type { AuthRouteDeps } from "./session/types";
 import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "./session/consts";
 import { resolveAllowedOrigin } from "./session/logic/same-origin";
 import { sha256Hex } from "./session/utils";
+import { HttpStatuses } from "types/http";
 
 export function logoutRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
@@ -23,7 +24,7 @@ export function logoutRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       await createSessionAuth(deps.handle).deleteSession(sha256Hex(token));
     }
     deleteCookie(c, SESSION_COOKIE, HOST_COOKIE_CLEAR);
-    return c.json({ ok: true }, 200);
+    return c.json({ ok: true }, HttpStatuses.OK);
   });
 
   return app;

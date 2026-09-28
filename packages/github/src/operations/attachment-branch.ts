@@ -13,6 +13,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result } from "../types";
+import { HttpStatuses } from "types/http";
 
 export interface CommitAttachmentInput {
   readonly owner: string;
@@ -74,7 +75,7 @@ type AttemptResult =
 function isRuleRejection(error: unknown): boolean {
   return (
     error instanceof RequestError &&
-    error.status === 422 &&
+    error.status === HttpStatuses.UNPROCESSABLE_CONTENT &&
     RULE_REJECTION.test(error.message)
   );
 }
@@ -82,7 +83,7 @@ function isRuleRejection(error: unknown): boolean {
 function isRefConflict(error: unknown): boolean {
   return (
     error instanceof RequestError &&
-    error.status === 422 &&
+    error.status === HttpStatuses.UNPROCESSABLE_CONTENT &&
     !RULE_REJECTION.test(error.message)
   );
 }
@@ -90,7 +91,7 @@ function isRefConflict(error: unknown): boolean {
 function refusedError(context: string): GitHubApiError {
   return {
     code: GitHubApiErrorCodes.RULE_REFUSED,
-    status: 422,
+    status: HttpStatuses.UNPROCESSABLE_CONTENT,
     message: `failed to ${context}: a repository rule refused it`,
   };
 }
@@ -116,7 +117,10 @@ async function readHead(
     });
     return { ok: true, value: { commitSha, treeSha: commit.data.tree.sha } };
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
       return { ok: true, value: undefined };
     }
     return { ok: false, error: mapRequestError(error, CONTEXT) };
@@ -244,7 +248,7 @@ export async function commitAttachment(
     ok: false,
     error: {
       code: GitHubApiErrorCodes.REQUEST_FAILED,
-      status: 422,
+      status: HttpStatuses.UNPROCESSABLE_CONTENT,
       message: `failed to ${CONTEXT}: the branch head kept moving`,
     },
   };
@@ -253,7 +257,7 @@ export async function commitAttachment(
 function isRefAbsent(error: unknown): boolean {
   return (
     error instanceof RequestError &&
-    error.status === 422 &&
+    error.status === HttpStatuses.UNPROCESSABLE_CONTENT &&
     REF_ABSENT.test(error.message)
   );
 }

@@ -9,6 +9,7 @@ import collaboratorsController from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
 import { parseOwnerAndName } from "../utils";
 import { ApiErrorCodes } from "contract";
+import { HttpStatuses } from "types/http";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;
@@ -16,7 +17,7 @@ function cacheKey(installationId: InstallationId, repoId: RepoId): string {
 
 /** A cached/serialized roster body, per-viewer gated, `no-store`. */
 function rosterJson(c: Context<AuthzEnv>, body: string): Response {
-  return c.body(body, 200, {
+  return c.body(body, HttpStatuses.OK, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   });

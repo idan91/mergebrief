@@ -7,6 +7,7 @@ import { prNumberSchema } from "../../../wire-bounds";
 import { resolvePrScopeFrom } from "../scope";
 import { archiveController } from "./controller";
 import type { ArchivePullInput } from "./types";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -37,7 +38,7 @@ export function createArchiveHandlers(deps: AuthRouteDeps) {
       }
 
       stampAuditTarget(c, "pull_request", written.value.pullRequestId);
-      return c.json({ ok: true }, 200, NO_STORE);
+      return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
     };
   }
 

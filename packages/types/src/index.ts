@@ -7,6 +7,7 @@ export type {
   ValueOf,
 } from "./utils";
 export { CommentAnchorKinds, type CommentAnchorKind } from "./comments";
+export { HttpStatuses, type HttpStatus } from "./http";
 
 export type { DraftPolicy } from "./drafts";
 export type {

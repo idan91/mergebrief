@@ -1,5 +1,6 @@
 import type { GitHubApiError } from "github";
 import type { ArtifactStore, TenantRepository } from "persistence";
+import type { FailureKinds } from "../../../../shared-errors/failures";
 
 /** Narrow slices only, never full `AppDeps`. */
 export interface ReadsControllerDeps {
@@ -9,9 +10,9 @@ export interface ReadsControllerDeps {
 
 /** Result-side failures of the live diff proxy; the handler owns posture. */
 export type DiffFailure =
-  | { readonly kind: "token-unreadable" }
+  | { readonly kind: typeof FailureKinds.TOKEN_UNREADABLE }
   | {
-      readonly kind: "github-denied";
+      readonly kind: typeof FailureKinds.GITHUB_DENIED;
       readonly error: GitHubApiError;
       /** True when the failure survived a post-refresh retry. */
       readonly retried: boolean;
@@ -22,9 +23,9 @@ export type StackFailure = DiffFailure;
 
 /** Result-side failures of the file-range read; the handler owns posture. */
 export type FileRangeFailure =
-  | { readonly kind: "token-unreadable" }
+  | { readonly kind: typeof FailureKinds.TOKEN_UNREADABLE }
   | {
-      readonly kind: "github-denied";
+      readonly kind: typeof FailureKinds.GITHUB_DENIED;
       readonly error: GitHubApiError;
       /** True when the failure survived a post-refresh retry. */
       readonly retried: boolean;

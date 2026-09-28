@@ -25,10 +25,11 @@ import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
 import { ApiErrorCodes } from "contract";
 import { resolvePrScopeFrom } from "../scope";
+import { HttpStatuses } from "types/http";
 
 /** A cached/serialized conversation body, per-viewer gated, `no-store`. */
 function conversationJson(c: Context<AuthzEnv>, body: string): Response {
-  return c.body(body, 200, {
+  return c.body(body, HttpStatuses.OK, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   });

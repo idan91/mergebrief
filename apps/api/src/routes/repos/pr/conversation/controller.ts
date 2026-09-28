@@ -8,7 +8,10 @@ import {
   fetchPullRequestConversation,
   type PrConversation,
 } from "github";
-import { isGitHubDenial } from "../../../../shared-errors/failures";
+import {
+  FailureKinds,
+  isGitHubDenial,
+} from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { stripEntryComment } from "./logic/entry-comment";
 import type {
@@ -38,7 +41,7 @@ export default {
     if (!fetched.ok) {
       return {
         ok: false,
-        error: { kind: "github-denied", error: fetched.error },
+        error: { kind: FailureKinds.GITHUB_DENIED, error: fetched.error },
       };
     }
 
@@ -64,12 +67,12 @@ export default {
 
     if (!fetched.ok) {
       if ("kind" in fetched.error) {
-        return { ok: false, error: { kind: "token-unreadable" } };
+        return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
       }
 
       return {
         ok: false,
-        error: { kind: "github-denied", error: fetched.error },
+        error: { kind: FailureKinds.GITHUB_DENIED, error: fetched.error },
       };
     }
 

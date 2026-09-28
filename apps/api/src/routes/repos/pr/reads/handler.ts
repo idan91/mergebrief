@@ -36,6 +36,7 @@ import { parseOwnerAndName } from "../../utils";
 import { resolvePrScopeFrom } from "../scope";
 import { parseQuery, parsePrNumber } from "./utils";
 import { FailureKinds } from "../../../../shared-errors/failures";
+import { HttpStatuses } from "types/http";
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a
@@ -43,7 +44,7 @@ import { FailureKinds } from "../../../../shared-errors/failures";
  * `no-store`: these are per-viewer, authz-gated responses.
  */
 function artifactJson(c: Context<AuthzEnv>, body: string): Response {
-  return c.body(body, 200, {
+  return c.body(body, HttpStatuses.OK, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   });
@@ -185,7 +186,7 @@ export default function createHandlers(
         draftPolicy: deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
       },
     );
-    return c.json(body, 200, { "cache-control": "no-store" });
+    return c.json(body, HttpStatuses.OK, { "cache-control": "no-store" });
   };
 
   const readDiff = async (c: Context<AuthzEnv>) => {
@@ -229,7 +230,7 @@ export default function createHandlers(
       // 406 = GitHub refuses to render the diff (too large: >300 files/20k
       // lines), a PERMANENT condition for this span, so surface it as 413
       // rather than a retryable-looking 502.
-      if (denied.error.status === 406) {
+      if (denied.error.status === HttpStatuses.NOT_ACCEPTABLE) {
         throw new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
       }
       // A 401 with the refresh spent and no retry is the refresh-failed
@@ -246,7 +247,7 @@ export default function createHandlers(
       }
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
-    return c.body(result.body, 200, {
+    return c.body(result.body, HttpStatuses.OK, {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "no-store",
     });
@@ -283,7 +284,9 @@ export default function createHandlers(
     if (!result.ok) {
       throw toStackError(result.error);
     }
-    return c.json(result.value, 200, { "cache-control": "no-store" });
+    return c.json(result.value, HttpStatuses.OK, {
+      "cache-control": "no-store",
+    });
   };
 
   const readFileRange = async (c: Context<AuthzEnv>) => {
@@ -328,7 +331,9 @@ export default function createHandlers(
     if (!result.ok) {
       throw toFileRangeError(result.error);
     }
-    return c.json(result.value, 200, { "cache-control": "no-store" });
+    return c.json(result.value, HttpStatuses.OK, {
+      "cache-control": "no-store",
+    });
   };
 
   return {

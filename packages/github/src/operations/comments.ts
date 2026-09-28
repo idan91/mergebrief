@@ -1,4 +1,4 @@
-// Entry-comment operations — the single comment is maintained by
+// Entry-comment operations: the single comment is maintained by
 // delete-and-repost. It lives on the issues timeline, so it uses the
 // issues-comments endpoints; for a pull request those are authorized by
 // `Pull requests: write`, so the App needs NO `Issues` scope. Every failure
@@ -11,6 +11,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result } from "../types";
+import { HttpStatuses } from "types/http";
 
 export interface PostEntryCommentInput {
   readonly owner: string;
@@ -49,7 +50,10 @@ export async function fetchComment(
     });
     return { ok: true, value: { body: response.data.body ?? "" } };
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
       return { ok: true, value: undefined };
     }
     return { ok: false, error: mapRequestError(error, "fetch comment") };
@@ -101,7 +105,10 @@ export async function deleteComment(
     });
     return { ok: true, value: undefined };
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
       return { ok: true, value: undefined };
     }
     return { ok: false, error: mapRequestError(error, "delete comment") };

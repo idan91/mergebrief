@@ -1,0 +1,23 @@
+import type { ValueOf } from "./utils";
+
+export const HttpStatuses = {
+  OK: 200,
+  CREATED: 201,
+  FOUND: 302,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  NOT_ACCEPTABLE: 406,
+  CONFLICT: 409,
+  GONE: 410,
+  PAYLOAD_TOO_LARGE: 413,
+  UNPROCESSABLE_CONTENT: 422,
+  TOO_MANY_REQUESTS: 429,
+  UNAVAILABLE_FOR_LEGAL_REASONS: 451,
+  INTERNAL_SERVER_ERROR: 500,
+  BAD_GATEWAY: 502,
+  SERVICE_UNAVAILABLE: 503,
+} as const;
+
+export type HttpStatus = ValueOf<typeof HttpStatuses>;

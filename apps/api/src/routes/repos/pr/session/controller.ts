@@ -20,6 +20,7 @@ import { UnreadableBriefError } from "./logic/carry-over-inputs";
 import type { SessionPayload } from "contract";
 import { buildSessionPayload } from "./logic/payload";
 import type { SessionWriteFailure } from "./types";
+import { FailureKinds } from "../../../../shared-errors/failures";
 
 /** A write bound to the named Brief and reviewer; it writes if needed. */
 export type SessionWrite = <T>(
@@ -89,7 +90,7 @@ function bindSessionWriter(
       if (!written.ok) {
         return {
           ok: false,
-          error: { kind: "session-rejected", error: written.error },
+          error: { kind: FailureKinds.SESSION_REJECTED, error: written.error },
         };
       }
       return written;

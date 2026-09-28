@@ -36,6 +36,7 @@ import {
   SESSION_COOKIE,
 } from "./session/consts";
 import { sha256Hex } from "./session/utils";
+import { HttpStatuses } from "types/http";
 
 const STATE_COOKIE = "__Host-mergebrief_oauth_state";
 /** Entropy for the CSRF state nonce and the session token (bytes). */
@@ -69,7 +70,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       state,
       redirectUrl: `${deps.auth.publicBaseUrl}/api/auth/github/callback`,
     });
-    return c.redirect(url, 302);
+    return c.redirect(url, HttpStatuses.FOUND);
   });
 
   // Callback: verify the CSRF state, exchange the code, resolve the reviewer,
@@ -150,7 +151,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     }
 
     setCookie(c, SESSION_COOKIE, sessionToken, HOST_COOKIE_ATTRIBUTES);
-    return c.redirect("/", 302);
+    return c.redirect("/", HttpStatuses.FOUND);
   });
 
   return app;

@@ -10,6 +10,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result } from "../types";
+import { HttpStatuses } from "types/http";
 
 export interface FetchRenderedImageSourcesInput {
   readonly owner: string;
@@ -137,7 +138,7 @@ export async function fetchRenderedImageSources(
 function resourceNotFoundError(): GitHubApiError {
   return {
     code: "not-found",
-    status: 404,
+    status: HttpStatuses.NOT_FOUND,
     message: `${FETCH_CONTEXT}: pull request not found`,
   };
 }

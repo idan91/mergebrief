@@ -11,6 +11,7 @@ import {
   type ApiError,
 } from "../../../../../shared-errors/api-error";
 import type { FileRangeFailure, StackFailure } from "../types";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 
 /**
  * A GitHub denial collapses to the gate's bare 404, so a reader cannot tell a
@@ -22,7 +23,7 @@ import type { FileRangeFailure, StackFailure } from "../types";
  */
 export function toFileRangeError(failure: FileRangeFailure): ApiError {
   switch (failure.kind) {
-    case "token-unreadable": {
+    case FailureKinds.TOKEN_UNREADABLE: {
       return new Unauthorized();
     }
     case "file-absent": {
@@ -41,7 +42,7 @@ export function toFileRangeError(failure: FileRangeFailure): ApiError {
 }
 
 export function toStackError(failure: StackFailure): ApiError {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     return new Unauthorized();
   }
   return toDeniedError(failure.error.code, failure.retried);

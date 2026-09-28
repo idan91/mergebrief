@@ -6,6 +6,7 @@ import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "../session/consts";
 import type { AuthRouteDeps } from "../session/types";
 import { sessionsController } from "./controller";
 import type { SessionsHandlers } from "./types";
+import { HttpStatuses } from "types/http";
 
 // Per-viewer state, so `no-store`; error paths inherit it from `onError`.
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -22,7 +23,11 @@ export function createSessionsHandlers(deps: AuthRouteDeps): SessionsHandlers {
 
     stampAuditTarget(c, AUDIT_TARGET_REVIEWER, session.reviewerId);
     deleteCookie(c, SESSION_COOKIE, HOST_COOKIE_CLEAR);
-    return c.json({ ok: true, revoked: result.revoked }, 200, NO_STORE);
+    return c.json(
+      { ok: true, revoked: result.revoked },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   return { revokeAll };

@@ -24,7 +24,7 @@ import {
 } from "../../../authz";
 import { readRawBodyWithinLimit } from "../../../read-body";
 import type { TtlCache } from "../../../ttl-cache";
-import type { Result } from "types/utils";
+import { HttpStatuses, type Result } from "types";
 import { prNumberSchema } from "../../../wire-bounds";
 import { parseOwnerAndName } from "../../utils";
 import { attachmentsController } from "./controller";
@@ -170,7 +170,7 @@ export function createAttachmentsHandlers(
     // upstream stream would otherwise stay open until it timed out.
     if (c.req.method === HEAD_METHOD) {
       await fetched.value.body.cancel();
-      return c.body(null, 200, headers);
+      return c.body(null, HttpStatuses.OK, headers);
     }
 
     c.get("logger").debug("attachment proxied", {
@@ -179,7 +179,7 @@ export function createAttachmentsHandlers(
           ? target.assetId
           : target.file.assetId,
     });
-    return c.body(fetched.value.body, 200, headers);
+    return c.body(fetched.value.body, HttpStatuses.OK, headers);
   };
 
   // No assertHuman: the CLI attaches through this route with its Bearer
@@ -220,7 +220,7 @@ export function createAttachmentsHandlers(
     }
 
     c.get("logger").debug("attachment uploaded", { assetId: file.assetId });
-    return c.json(uploaded.value, 201, NO_STORE);
+    return c.json(uploaded.value, HttpStatuses.CREATED, NO_STORE);
   };
 
   return { readAttachment, uploadAttachment };

@@ -14,12 +14,17 @@ import type { AuthzEnv } from "../authz";
 import generateController from "./controller";
 import { bodySchema } from "./schemas";
 import type { GenerateFailure } from "./types";
+import { HttpStatuses } from "types/http";
+import { FailureKinds } from "../../shared-errors/failures";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** Failure → posture. NOT_FOUND covers FORBIDDEN too (uniform 404). */
 function throwGenerateFailure(failure: GenerateFailure): never {
-  if (failure.kind === "token-unreadable" || failure.kind === "unauthorized") {
+  if (
+    failure.kind === FailureKinds.TOKEN_UNREADABLE ||
+    failure.kind === "unauthorized"
+  ) {
     throw new Unauthorized();
   }
   if (failure.kind === "not-found") {
@@ -65,7 +70,7 @@ export default function createHandlers(
       }
       stampAuditTarget(c, "pull_request", result.value.pullRequestId);
       const { repoId, prNumber } = result.value;
-      return c.json({ repoId, prNumber }, 200, NO_STORE);
+      return c.json({ repoId, prNumber }, HttpStatuses.OK, NO_STORE);
     },
   };
 }

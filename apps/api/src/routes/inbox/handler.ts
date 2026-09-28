@@ -7,7 +7,7 @@ import {
 } from "github";
 import type { Context } from "hono";
 import type { InboxFilters, RepoId } from "persistence";
-import type { Mutable } from "types/utils";
+import { HttpStatuses, type Mutable } from "types";
 import {
   BadGateway,
   BadRequest,
@@ -102,7 +102,9 @@ export default function createHandlers(
         log,
       );
       if (!allowed.ok) {
-        if (allowed.error.status === 401) throw new Unauthorized();
+        if (allowed.error.status === HttpStatuses.UNAUTHORIZED) {
+          throw new Unauthorized();
+        }
         throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
       const session = allowed.value.session;
@@ -157,7 +159,7 @@ export default function createHandlers(
           githubAppSlug: deps.githubAppSlug,
         },
       );
-      return c.json(body, 200, NO_STORE);
+      return c.json(body, HttpStatuses.OK, NO_STORE);
     },
 
     deleteOwnPull: async (c: Context<AuthzEnv>) => {
@@ -183,7 +185,7 @@ export default function createHandlers(
         throw new NotFound();
       }
       stampAuditTarget(c, "pull_request", deleted.value.pullRequestId);
-      return c.json({ ok: true }, 200, NO_STORE);
+      return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
     },
   };
 }

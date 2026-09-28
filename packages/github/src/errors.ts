@@ -4,6 +4,7 @@
 // HTTP status and a static, caller-supplied context string.
 import { RequestError } from "octokit";
 import type { ValueOf } from "./types";
+import { HttpStatuses } from "types/http";
 
 export const GitHubApiErrorCodes = {
   NOT_FOUND: "not-found",
@@ -50,16 +51,16 @@ function isRateLimited403(error: RequestError): boolean {
 
 function codeForStatus(status: number): GitHubApiErrorCode {
   switch (status) {
-    case 401: {
+    case HttpStatuses.UNAUTHORIZED: {
       return GitHubApiErrorCodes.UNAUTHORIZED;
     }
-    case 403: {
+    case HttpStatuses.FORBIDDEN: {
       return GitHubApiErrorCodes.FORBIDDEN;
     }
-    case 404: {
+    case HttpStatuses.NOT_FOUND: {
       return GitHubApiErrorCodes.NOT_FOUND;
     }
-    case 429: {
+    case HttpStatuses.TOO_MANY_REQUESTS: {
       return GitHubApiErrorCodes.RATE_LIMITED;
     }
     default: {
@@ -79,7 +80,7 @@ export function mapRequestError(
 ): GitHubApiError {
   if (error instanceof RequestError) {
     const code =
-      error.status === 403 && isRateLimited403(error)
+      error.status === HttpStatuses.FORBIDDEN && isRateLimited403(error)
         ? GitHubApiErrorCodes.RATE_LIMITED
         : codeForStatus(error.status);
     return {

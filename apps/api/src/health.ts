@@ -1,3 +1,4 @@
+import { HttpStatuses, type HttpStatus } from "types/http";
 // The health surface: bare top-level `/healthz` and `/readyz`, answered ahead
 // of the `/api` mount, unauthenticated, with no session middleware in the path.
 //
@@ -12,7 +13,7 @@ const NO_STORE = {
   "cache-control": "no-store",
 } as const;
 
-function constantJson(ok: boolean, status: number): Response {
+function constantJson(ok: boolean, status: HttpStatus): Response {
   return new Response(JSON.stringify({ ok }), { status, headers: NO_STORE });
 }
 
@@ -27,11 +28,13 @@ export async function handleHealthRequest(
   deps: HealthDeps,
 ): Promise<Response | undefined> {
   if (pathname === "/healthz") {
-    return constantJson(true, 200);
+    return constantJson(true, HttpStatuses.OK);
   }
   if (pathname === "/readyz") {
     const ready = await deps.checkReadiness();
-    return ready ? constantJson(true, 200) : constantJson(false, 503);
+    return ready
+      ? constantJson(true, HttpStatuses.OK)
+      : constantJson(false, HttpStatuses.SERVICE_UNAVAILABLE);
   }
   return undefined;
 }

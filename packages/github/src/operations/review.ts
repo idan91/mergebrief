@@ -11,6 +11,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result, ValueOf } from "../types";
+import { HttpStatuses } from "types/http";
 
 export interface CreatePullRequestReviewInput {
   readonly owner: string;
@@ -141,7 +142,10 @@ export async function createPullRequestReview(
     };
   } catch (error) {
     const sanitized = mapRequestError(error, CONTEXT);
-    if (error instanceof RequestError && error.status === 422) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.UNPROCESSABLE_CONTENT
+    ) {
       return {
         ok: false,
         error: { ...sanitized, validation: classifyValidation422(error) },

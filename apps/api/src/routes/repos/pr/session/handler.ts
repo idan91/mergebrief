@@ -41,6 +41,7 @@ import {
 } from "./logic/write-seam";
 import { createDraftWrite, reanchorDraftPatch } from "./logic/draft-write";
 import { resolvePrScopeFrom } from "../scope";
+import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -87,7 +88,7 @@ async function decide(
   if (!written.ok) {
     throwSessionWriteFailure(written.error);
   }
-  return c.json({ flags: written.value }, 200, NO_STORE);
+  return c.json({ flags: written.value }, HttpStatuses.OK, NO_STORE);
 }
 
 /** The request body, or `undefined` when it is not JSON at all. */
@@ -122,7 +123,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       throw new NotFound();
     }
 
-    return c.json(previewed.value, 200, NO_STORE);
+    return c.json(previewed.value, HttpStatuses.OK, NO_STORE);
   };
 
   const createDraftComment = async (c: Context<AuthzEnv>) => {
@@ -149,7 +150,11 @@ export default function createHandlers(deps: AuthRouteDeps) {
       throw new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED);
     }
 
-    return c.json({ draftId: String(written.value.id) }, 201, NO_STORE);
+    return c.json(
+      { draftId: String(written.value.id) },
+      HttpStatuses.CREATED,
+      NO_STORE,
+    );
   };
 
   const updateDraftComment = async (c: Context<AuthzEnv>) => {
@@ -177,7 +182,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     }
 
     const draft = assertWritableDraft(written.value);
-    return c.json({ draftId: String(draft.id) }, 200, NO_STORE);
+    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
   };
 
   const reanchorDraftComment = async (c: Context<AuthzEnv>) => {
@@ -208,7 +213,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     }
 
     const draft = assertWritableDraft(written.value);
-    return c.json({ draftId: String(draft.id) }, 200, NO_STORE);
+    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
   };
 
   const deleteDraftComment = async (c: Context<AuthzEnv>) => {
@@ -237,7 +242,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const draft = assertWritableDraft(written.value);
     // The row that went, not the id that named it: a carried id names the
     // previous session's row, which the copy's deletion leaves alive.
-    return c.json({ draftId: String(draft.id) }, 200, NO_STORE);
+    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
   };
 
   const setChunkRead = async (c: Context<AuthzEnv>) => {
@@ -262,7 +267,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       throwSessionWriteFailure(written.error);
     }
 
-    return c.json({ chunkId: chunkId.data, read }, 200, NO_STORE);
+    return c.json({ chunkId: chunkId.data, read }, HttpStatuses.OK, NO_STORE);
   };
 
   const reclassifyGroup = async (c: Context<AuthzEnv>) => {
@@ -287,7 +292,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
 
     return c.json(
       { changeGroupId: groupId.data, category: parsed.data.category },
-      200,
+      HttpStatuses.OK,
       NO_STORE,
     );
   };
@@ -359,7 +364,11 @@ export default function createHandlers(deps: AuthRouteDeps) {
     }
     // Read back off the row, not the request: the picker is server-
     // authoritative, and a new session starts at `comment` regardless.
-    return c.json({ outcome: written.value.reviewOutcome }, 200, NO_STORE);
+    return c.json(
+      { outcome: written.value.reviewOutcome },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   return {

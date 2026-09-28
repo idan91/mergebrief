@@ -11,10 +11,11 @@ import {
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
 import type { PublishFailure, ReplyFailure, ResolutionFailure } from "../types";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 
 /** Map a final create-comment failure to the sanitized response posture. */
 export function throwPublishFailure(failure: PublishFailure): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   const error: InlineReviewCommentError = failure.error;
@@ -44,7 +45,7 @@ export function throwPublishFailure(failure: PublishFailure): never {
  * permission denial must be indistinguishable from a cold denial.
  */
 export function throwReplyFailure(failure: ReplyFailure): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
@@ -67,7 +68,7 @@ export function throwReplyFailure(failure: ReplyFailure): never {
  * vanishing AND a `commentId` matching no thread → 404.
  */
 export function throwResolutionFailure(failure: ResolutionFailure): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
