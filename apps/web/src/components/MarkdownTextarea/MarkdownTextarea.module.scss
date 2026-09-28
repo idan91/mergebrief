@@ -169,10 +169,17 @@
   }
 
   .hint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(2px) functions.to-rem(12px);
     padding-block: 0 functions.to-rem(8px);
     padding-inline: functions.to-rem(12px);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
+  }
+
+  .fileInput {
+    display: none;
   }
 
   .previewPanel {

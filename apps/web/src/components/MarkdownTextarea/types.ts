@@ -15,3 +15,12 @@ export const MarkdownTextareaFrames = {
 } as const;
 
 export type MarkdownTextareaFrame = ValueOf<typeof MarkdownTextareaFrames>;
+
+/** Why the attach control is off; undefined when an image can go up. */
+export const AttachDisabledReasons = {
+  NO_SCOPE: "no-scope",
+  NOT_INSTALLED: "not-installed",
+  REFUSED: "refused",
+  NO_PERMISSION: "no-permission",
+} as const;
+export type AttachDisabledReason = ValueOf<typeof AttachDisabledReasons>;

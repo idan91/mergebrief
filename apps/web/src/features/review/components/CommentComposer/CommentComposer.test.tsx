@@ -2,7 +2,14 @@
 // The submit label's count is selected from the store inside the composer:
 // this pins the store-to-label wiring itself, not just the
 // reviewCommentSubmitLabel helper.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -13,11 +20,16 @@ import {
   ReviewCommentStatuses,
   type CommentAnchor,
 } from "../../utils/comments";
+import { appI18n } from "../../../../i18n/I18nProvider";
 import {
+  createReviewFlowStore,
+  initialReviewFlowState,
+  ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewSessionPayload,
 } from "../../session";
 import { CommentComposer } from ".";
+import { useCommentComposerFacade } from "./useCommentComposerFacade";
 import { CommentAnchorKinds } from "types/comments";
 
 afterEach(cleanup);
@@ -88,6 +100,27 @@ function sessionWith(
   };
 }
 
+/** The page live region an upload reports to; nothing here uploads. */
+function makeFlowStore() {
+  return createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
+    },
+    initialReviewFlowState({
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    }),
+    appI18n.t,
+  );
+}
+
 function renderComposer(draftComments: ReviewSessionPayload["draftComments"]) {
   render(
     <ReviewSessionProvider
@@ -95,7 +128,9 @@ function renderComposer(draftComments: ReviewSessionPayload["draftComments"]) {
       model={buildBriefViewModel(brief)}
       session={sessionWith(draftComments)}
     >
-      <CommentComposer anchor={anchor} cancel={vi.fn()} save={vi.fn()} />
+      <ReviewFlowProvider store={makeFlowStore()}>
+        <CommentComposer anchor={anchor} cancel={vi.fn()} save={vi.fn()} />
+      </ReviewFlowProvider>
     </ReviewSessionProvider>,
   );
 }
@@ -135,6 +170,30 @@ describe("CommentComposer navigation-guard registration", () => {
     expect(hasUnsavedComposerText()).toBe(true);
     cleanup();
     expect(hasUnsavedComposerText()).toBe(false);
+  });
+});
+
+describe("CommentComposer while an image uploads", () => {
+  it("holds the save and says why until the upload lands", () => {
+    const save = vi.fn();
+    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+
+    act(() =>
+      result.current.onBodyChange("look at this\n![Uploading shot.png…]()"),
+    );
+    act(() => result.current.submit());
+
+    expect(save).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(
+      "An image is still uploading; wait for it to land before submitting.",
+    );
+
+    act(() =>
+      result.current.onBodyChange("look at this\n![Image](https://x/y.png)"),
+    );
+    act(() => result.current.submit());
+
+    expect(save).toHaveBeenCalledTimes(1);
   });
 });
 

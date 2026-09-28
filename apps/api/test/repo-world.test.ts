@@ -185,7 +185,10 @@ describe("the per-repo gate's repo world", () => {
     const body: unknown = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toMatchObject({ title: "the reader's paste" });
+    expect(body).toMatchObject({
+      title: "the reader's paste",
+      appInstalled: false,
+    });
     expect(new Set(calls.tokens)).toEqual(new Set([ACCESS_TOKEN]));
   });
 

@@ -35,6 +35,7 @@ import type { ReadsControllerDeps } from "./types";
 import { parseOwnerAndName } from "../../utils";
 import { resolvePrScopeFrom } from "../scope";
 import { parseQuery, parsePrNumber } from "./utils";
+import { FailureKinds } from "../../../../shared-errors/failures";
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a
@@ -180,6 +181,7 @@ export default function createHandlers(
         reviewerLogin: c.get("session").reviewerLogin,
         reviewerId: c.get("session").reviewerId,
         viewerCanPush: c.get("viewerCanPush"),
+        appInstalled: !isOwnerContext(ctx),
         draftPolicy: deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
       },
     );
@@ -220,7 +222,7 @@ export default function createHandlers(
       },
     );
     if (!result.ok) {
-      if (result.error.kind === "token-unreadable") {
+      if (result.error.kind === FailureKinds.TOKEN_UNREADABLE) {
         throw new Unauthorized();
       }
       const denied = result.error;

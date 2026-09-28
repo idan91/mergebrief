@@ -660,6 +660,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const firstBody = (await first.json()) as Record<string, unknown>;
     expect(firstBody["viewerCanResolve"]).toBe(true);
     expect(firstBody["viewerIsAuthor"]).toBe(false);
+    expect(firstBody["appInstalled"]).toBe(true);
 
     // Second read inside the 60s TTL: NO second GitHub access check, the
     // capability must come from the positive-cache entry, not a re-fetch.

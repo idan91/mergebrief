@@ -11,6 +11,7 @@ export const ToolbarIcons = {
   numberedList: <Icon name={IconNames.LIST_NUMBERS} size={IconSizes.MD} />,
   taskList: <Icon name={IconNames.LIST_CHECKS} size={IconSizes.MD} />,
   link: <Icon name={IconNames.LINK} size={IconSizes.MD} />,
+  image: <Icon name={IconNames.IMAGE} size={IconSizes.MD} />,
   suggestion: <Icon name={IconNames.PENCIL_SIMPLE_LINE} size={IconSizes.MD} />,
 };
 

@@ -63,6 +63,7 @@ function meta(): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    appInstalled: true,
     behind: false,
     generation: {
       status: "succeeded",

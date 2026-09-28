@@ -23,6 +23,7 @@ export const IconNames = {
   GIT_MERGE: "git-merge",
   GIT_PULL_REQUEST: "git-pull-request",
   GITHUB_LOGO: "github-logo",
+  IMAGE: "image",
   KEYBOARD: "keyboard",
   LINK: "link",
   LIST_BULLETS: "list-bullets",

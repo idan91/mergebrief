@@ -4,11 +4,14 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 export interface AttachmentScope {
   readonly repoId: string;
   readonly prNumber: number;
+  /** The App is installed on the repo, so an upload has a token to push with. */
+  readonly installed: boolean;
 }
 
 export interface AttachmentScopeProviderProps {
   repoId: string;
   prNumber: number;
+  installed: boolean;
   children: ReactNode;
 }
 
@@ -20,10 +23,14 @@ const AttachmentScopeContext = createContext<AttachmentScope | undefined>(
 export function AttachmentScopeProvider({
   repoId,
   prNumber,
+  installed,
   children,
 }: AttachmentScopeProviderProps) {
   // Memo'd so memo'd subtrees keep their value identity across route renders.
-  const scope = useMemo(() => ({ repoId, prNumber }), [repoId, prNumber]);
+  const scope = useMemo(
+    () => ({ repoId, prNumber, installed }),
+    [repoId, prNumber, installed],
+  );
   return (
     <AttachmentScopeContext.Provider value={scope}>
       {children}

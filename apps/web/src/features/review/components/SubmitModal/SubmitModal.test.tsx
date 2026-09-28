@@ -204,6 +204,27 @@ describe("SubmitModal views", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
+  it("Submit holds while the comment still carries an upload placeholder", () => {
+    const { submit } = renderModal();
+    fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
+      target: { value: "see\n![Uploading shot.png…]()" },
+    });
+
+    fireEvent.click(submitButton());
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "An image is still uploading; wait for it to land before submitting.",
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
+      target: { value: "see\n![Image](https://x/y.png)" },
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(submitButton());
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
   it("the override reason wins over the live rule and describes the button", () => {
     const { submit } = renderModal({
       blockedReasonOverride: "Historical revision — read-only.",

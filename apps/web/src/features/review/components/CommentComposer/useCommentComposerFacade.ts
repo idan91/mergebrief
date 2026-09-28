@@ -1,12 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
+import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import type { CommentAnchor } from "../../utils/comments";
 
 export interface CommentComposerFacade {
   body: string;
   error: string;
   onBodyChange: (value: string) => void;
+  /** A failed image upload lands in the same inline surface as a submit refusal. */
+  failAttach: (copy: string) => void;
   submit: () => void;
 }
 
@@ -30,9 +33,15 @@ export function useCommentComposerFacade(
       setBody(value);
       setError("");
     },
+    failAttach: setError,
     submit: () => {
       if (!body.trim()) {
         setError(t("review.announce.commentEmpty"));
+        return;
+      }
+      // The body would carry the placeholder, not the image.
+      if (hasUploadPlaceholder(body)) {
+        setError(t("shell.attach.waitForUpload"));
         return;
       }
       save(anchor, body);

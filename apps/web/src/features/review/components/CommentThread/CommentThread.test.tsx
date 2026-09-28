@@ -2,7 +2,13 @@
 // Submitted comments are read-only records: GitHub holds the posted text and
 // a re-submit ships drafts only, so Edit/Delete must not be offered once a
 // comment has been posted.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render as renderBare,
+  screen,
+} from "@testing-library/react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -11,8 +17,44 @@ import {
   ReviewCommentStatuses,
   type ReviewComment,
 } from "../../utils/comments";
+import {
+  createReviewFlowStore,
+  initialReviewFlowState,
+  ReviewFlowProvider,
+} from "../../session";
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { CommentThread } from ".";
 import { CommentAnchorKinds } from "types/comments";
+
+function makeFlowStore() {
+  return createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
+    },
+    initialReviewFlowState({
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    }),
+    appI18n.t,
+  );
+}
+
+/** The editor reads the flow's announcer, so every render sits under it. */
+function FlowWrapper({ children }: { children: ReactNode }) {
+  const [store] = useState(makeFlowStore);
+  return <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>;
+}
+
+function render(ui: ReactElement) {
+  return renderBare(ui, { wrapper: FlowWrapper });
+}
 
 function comment(status: ReviewComment["status"]): ReviewComment {
   return {
@@ -120,6 +162,27 @@ describe("CommentThread", () => {
       metaKey: true,
     });
     expect(update).toHaveBeenCalledWith("c1", "note");
+  });
+
+  it("Save holds while the body still carries an upload placeholder", () => {
+    const update = vi.fn();
+    const held = comment(ReviewCommentStatuses.DRAFT);
+    render(
+      <CommentThread
+        comment={{ ...held, body: "note\n![Uploading shot.png…]()" }}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={update}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "An image is still uploading; wait for it to land before submitting.",
+    );
   });
 
   it("is read-only once submitted with a posted label", () => {

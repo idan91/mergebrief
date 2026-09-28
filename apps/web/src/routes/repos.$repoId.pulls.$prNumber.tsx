@@ -591,7 +591,11 @@ function PrBriefRoute() {
   );
 
   return (
-    <AttachmentScopeProvider prNumber={prNumber} repoId={repoId}>
+    <AttachmentScopeProvider
+      installed={meta.appInstalled}
+      prNumber={prNumber}
+      repoId={repoId}
+    >
       <PrBriefBody
         meta={meta}
         onNavigateSearch={onNavigateSearch}

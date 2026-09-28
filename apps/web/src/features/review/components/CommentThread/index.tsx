@@ -9,6 +9,7 @@ import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   postCommentBlockedReason,
@@ -16,6 +17,7 @@ import {
   type ReviewComment,
 } from "../../utils/comments";
 import { commentLocation } from "../../utils/state";
+import { useReviewActions } from "../../session";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview";
 import styles from "./CommentThread.module.scss";
@@ -59,9 +61,16 @@ export function CommentThread({
   update,
 }: CommentThreadProps) {
   const { t } = useTranslation();
+  const { announce, announceQuietly } = useReviewActions();
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The editor's image uploads: a failure lands here, a save waits for zero.
+  const [attachError, setAttachError] = useState<string | undefined>(undefined);
+  const editBody = (next: string) => {
+    setBody(next);
+    setAttachError(undefined);
+  };
   // Never-saved text = an open editor whose body diverged from the draft;
   // Save/Cancel both clear it (navigation guard).
   useUnsavedComposerText(
@@ -71,12 +80,20 @@ export function CommentThread({
   // Save keeps the posting guard: an editor already open when a Post starts
   // must not save mid-flight (capture-at-initiation).
   const saveEdit = () => {
-    if (posting) return;
+    if (posting) {
+      return;
+    }
+    // The body would carry the placeholder, not the image.
+    if (hasUploadPlaceholder(body)) {
+      setAttachError(t("shell.attach.waitForUpload"));
+      return;
+    }
     update(comment.id, body);
     setEditing(false);
   };
   const cancelEdit = () => {
     setBody(comment.body);
+    setAttachError(undefined);
     setEditing(false);
   };
   // Posted to GitHub. GitHub holds the text now, so the local record is
@@ -151,10 +168,18 @@ export function CommentThread({
             )}
             suggestionSeed={editSuggestionSeed}
             value={body}
-            onChange={setBody}
+            announce={announce}
+            announceQuietly={announceQuietly}
+            onAttachError={setAttachError}
+            onChange={editBody}
             onEscape={cancelEdit}
             onSubmit={saveEdit}
           />
+          {attachError !== undefined ? (
+            <p className={styles["postBlocked"]} role="alert">
+              {attachError}
+            </p>
+          ) : null}
           <div className={styles["actions"]}>
             <Button disabled={posting} variant="accent" onClick={saveEdit}>
               {t("review.comment.save")}

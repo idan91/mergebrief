@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as ApiFetchModule from "@web/data/apiFetch";
+import { apiFetch } from "@web/data/apiFetch";
+import { AttachmentScopeProvider } from "../Markdown/context";
 import { MarkdownTextarea } from ".";
 import { MarkdownTextareaFrames } from "./types";
+import { resetAttachmentUploadState } from "./useAttachmentUpload";
 import type { MentionCandidate } from "./useMentionAutocomplete";
 
 afterEach(cleanup);
@@ -427,5 +437,471 @@ describe("MarkdownTextarea frame", () => {
     expect(
       screen.getByTestId("markdown-textarea").getAttribute("data-variant"),
     ).toBe("card");
+  });
+});
+
+vi.mock("@web/data/apiFetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof ApiFetchModule>();
+  return { ...actual, apiFetch: vi.fn() };
+});
+
+const apiFetchMock = vi.mocked(apiFetch);
+const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+const BRANCH_URL =
+  "https://github.com/octo/hello/blob/mergebrief/attachments/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00.png?raw=true";
+
+function makeImageFile(name = "image.png", type = "image/png"): File {
+  return new File([PNG_BYTES], name, { type });
+}
+
+function deferUpload(): { resolve: (response: Response) => void } {
+  let resolve: (response: Response) => void = () => undefined;
+  apiFetchMock.mockReturnValueOnce(
+    new Promise<Response>((settle) => {
+      resolve = settle;
+    }),
+  );
+  return { resolve: (response) => resolve(response) };
+}
+
+function uploadedResponse(): Response {
+  return new Response(JSON.stringify({ url: BRANCH_URL }), { status: 201 });
+}
+
+function refusedResponse(code: string, status: number): Response {
+  return new Response(JSON.stringify({ error: code, code }), { status });
+}
+
+interface AttachHarnessProps {
+  readonly initial?: string;
+  readonly installed?: boolean;
+  readonly scoped?: boolean;
+  readonly readOnly?: boolean;
+  readonly announce?: ((message: string) => void) | undefined;
+  readonly announceQuietly?: ((message: string) => void) | undefined;
+  readonly onAttachError?: ((copy: string) => void) | undefined;
+  readonly onSubmit?: (() => void) | undefined;
+}
+
+function AttachHarness({
+  initial = "",
+  installed = true,
+  scoped = true,
+  readOnly = false,
+  announce,
+  announceQuietly,
+  onAttachError,
+  onSubmit,
+}: AttachHarnessProps) {
+  const [value, setValue] = useState(initial);
+  const editor = (
+    <MarkdownTextarea
+      announce={announce}
+      announceQuietly={announceQuietly}
+      label="Comment"
+      readOnly={readOnly}
+      value={value}
+      onAttachError={onAttachError}
+      onChange={setValue}
+      onSubmit={onSubmit}
+    />
+  );
+  if (!scoped) {
+    return editor;
+  }
+  return (
+    <AttachmentScopeProvider installed={installed} prNumber={7} repoId="555">
+      {editor}
+    </AttachmentScopeProvider>
+  );
+}
+
+async function flush(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+describe("MarkdownTextarea image attachments", () => {
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+    resetAttachmentUploadState();
+  });
+
+  it("pastes an image as a placeholder and swaps in the image line", async () => {
+    const announce = vi.fn();
+    const announceQuietly = vi.fn();
+    const { resolve } = deferUpload();
+    render(
+      <AttachHarness
+        announce={announce}
+        announceQuietly={announceQuietly}
+        initial="Look:"
+      />,
+    );
+    const input = textarea();
+    input.setSelectionRange(5, 5);
+
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+
+    expect(input.value).toBe("Look:\n![Uploading image.png…]()");
+    expect(announceQuietly).toHaveBeenCalledWith("Uploading image");
+    expect(announce).not.toHaveBeenCalled();
+    await flush();
+    const [path, init] = apiFetchMock.mock.calls[0] ?? [];
+    expect(path).toBe("/api/repos/555/pulls/7/attachments");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers?.["content-type"]).toBe("image/png");
+    expect(init?.body).toBeInstanceOf(File);
+
+    resolve(uploadedResponse());
+    await flush();
+
+    expect(input.value).toBe(`Look:\n![Image](${BRANCH_URL})`);
+    expect(announce).not.toHaveBeenCalled();
+    expect(announceQuietly).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops an image onto the textarea", async () => {
+    apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+    render(<AttachHarness />);
+
+    fireEvent.drop(textarea(), {
+      dataTransfer: { files: [makeImageFile("shot.png")] },
+    });
+    await flush();
+
+    expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+  });
+
+  it("lands every image of a multi-file drop, one upload at a time", async () => {
+    const first = deferUpload();
+    render(<AttachHarness />);
+
+    fireEvent.drop(textarea(), {
+      dataTransfer: {
+        files: [makeImageFile("image.png"), makeImageFile("image.png")],
+      },
+    });
+
+    expect(textarea().value).toBe(
+      "![Uploading image.png…]()\n![Uploading image.png (2)…]()",
+    );
+    // The second upload waits for the first: every commit moves one head.
+    await flush();
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    const second = deferUpload();
+    first.resolve(uploadedResponse());
+    await flush();
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    second.resolve(
+      new Response(JSON.stringify({ url: "https://example.com/b.png" }), {
+        status: 201,
+      }),
+    );
+    await flush();
+
+    expect(textarea().value).toBe(
+      `![Image](${BRANCH_URL})\n![Image](https://example.com/b.png)`,
+    );
+  });
+
+  it("keeps typing made while the upload was in flight", async () => {
+    const { resolve } = deferUpload();
+    render(<AttachHarness />);
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    fireEvent.change(input, {
+      target: { value: `${input.value}\nmore words` },
+    });
+
+    resolve(uploadedResponse());
+    await flush();
+
+    expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
+  });
+
+  it("removes the placeholder and reports a refused push", async () => {
+    const onAttachError = vi.fn();
+    const announce = vi.fn();
+    apiFetchMock.mockResolvedValueOnce(
+      refusedResponse("attachments-disabled", 403),
+    );
+    render(<AttachHarness announce={announce} onAttachError={onAttachError} />);
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    expect(input.value).toBe("");
+    const copy = onAttachError.mock.calls[0]?.[0];
+    expect(copy).toContain("blocks attachment pushes");
+    expect(announce).toHaveBeenLastCalledWith(copy);
+    const attach = screen.getByRole("button", { name: "Attach image" });
+    expect(attach.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("holds Cmd/Ctrl+Enter while an upload is in flight and says so", async () => {
+    const announce = vi.fn();
+    const onAttachError = vi.fn();
+    const onSubmit = vi.fn();
+    const { resolve } = deferUpload();
+    render(
+      <AttachHarness
+        announce={announce}
+        onAttachError={onAttachError}
+        onSubmit={onSubmit}
+      />,
+    );
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+
+    const wait =
+      "An image is still uploading; wait for it to land before submitting.";
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith(wait);
+    expect(onAttachError).toHaveBeenCalledWith(wait);
+
+    resolve(uploadedResponse());
+    await flush();
+    fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds Cmd/Ctrl+Enter on a placeholder the text already carries", () => {
+    const onSubmit = vi.fn();
+    render(
+      <AttachHarness
+        initial={"see\n![Uploading shot.png…]()"}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.keyDown(textarea(), { key: "Enter", metaKey: true });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps the caret where the writer was typing when the swap lands", async () => {
+    const { resolve } = deferUpload();
+    render(<AttachHarness />);
+    const input = textarea();
+    input.focus();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+    fireEvent.change(input, {
+      target: { value: `${input.value}\nmore words` },
+    });
+    const caret = input.value.length - " words".length;
+    input.setSelectionRange(caret, caret);
+
+    resolve(uploadedResponse());
+    await flush();
+
+    expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
+    const expected = input.value.length - " words".length;
+    expect(input.selectionStart).toBe(expected);
+    expect(input.selectionEnd).toBe(expected);
+  });
+
+  it("a placeholder the writer deleted keeps its name taken until it lands", async () => {
+    const first = deferUpload();
+    const second = deferUpload();
+    render(<AttachHarness />);
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    expect(input.value).toBe("![Uploading image.png (2)…]()");
+
+    first.resolve(uploadedResponse());
+    await flush();
+    expect(input.value).toBe("![Uploading image.png (2)…]()");
+
+    second.resolve(
+      new Response(JSON.stringify({ url: "https://example.com/b.png" }), {
+        status: 201,
+      }),
+    );
+    await flush();
+    expect(input.value).toBe("![Image](https://example.com/b.png)");
+  });
+
+  it("a swap that lands after the composer left is adopted on remount", async () => {
+    const { resolve } = deferUpload();
+    const first = render(<AttachHarness />);
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+    const held = input.value;
+    first.unmount();
+
+    resolve(uploadedResponse());
+    await flush();
+    render(<AttachHarness initial={held} />);
+    await flush();
+
+    expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+  });
+
+  it("a second paste of the same name gets its own placeholder", async () => {
+    const first = deferUpload();
+    const second = deferUpload();
+    render(<AttachHarness initial={"top\n\nbottom"} />);
+    const input = textarea();
+
+    input.setSelectionRange(input.value.length, input.value.length);
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    input.setSelectionRange(3, 3);
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    expect(input.value).toBe(
+      "top\n![Uploading image.png (2)…]()\n\nbottom\n![Uploading image.png…]()",
+    );
+    first.resolve(uploadedResponse());
+    await flush();
+    second.resolve(
+      new Response(JSON.stringify({ url: "https://example.com/b.png" }), {
+        status: 201,
+      }),
+    );
+    await flush();
+
+    expect(input.value).toBe(
+      `top\n![Image](https://example.com/b.png)\n\nbottom\n![Image](${BRANCH_URL})`,
+    );
+  });
+
+  it("a drop adds a line and keeps the writer's selection", async () => {
+    apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+    render(<AttachHarness initial="keep this word" />);
+    const input = textarea();
+    input.setSelectionRange(5, 9);
+
+    fireEvent.drop(input, {
+      dataTransfer: { files: [makeImageFile("shot.png")] },
+    });
+    await flush();
+
+    expect(input.value).toBe(`keep this\n![Image](${BRANCH_URL})\n word`);
+  });
+
+  it("a batch behind a refused push asks nothing more of the server", async () => {
+    const onAttachError = vi.fn();
+    apiFetchMock.mockResolvedValueOnce(
+      refusedResponse("attachments-disabled", 403),
+    );
+    render(<AttachHarness onAttachError={onAttachError} />);
+
+    fireEvent.drop(textarea(), {
+      dataTransfer: {
+        files: [makeImageFile("a.png"), makeImageFile("b.png")],
+      },
+    });
+    await flush();
+    await flush();
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(onAttachError).toHaveBeenCalledTimes(1);
+    expect(textarea().value).toBe("");
+  });
+
+  it("refuses an oversized or non-image file before any request", () => {
+    const onAttachError = vi.fn();
+    render(<AttachHarness onAttachError={onAttachError} />);
+    const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.png", {
+      type: "image/png",
+    });
+
+    fireEvent.drop(textarea(), { dataTransfer: { files: [big] } });
+    fireEvent.drop(textarea(), {
+      dataTransfer: { files: [makeImageFile("v.svg", "image/svg+xml")] },
+    });
+
+    expect(apiFetchMock).not.toHaveBeenCalled();
+    expect(onAttachError).toHaveBeenCalledTimes(2);
+    expect(textarea().value).toBe("");
+  });
+
+  it("leaves a text paste to the browser", () => {
+    render(<AttachHarness />);
+
+    fireEvent.paste(textarea(), {
+      clipboardData: { files: [], getData: () => "plain" },
+    });
+
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the file picker from the toolbar and uploads the pick", async () => {
+    apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+    render(<AttachHarness />);
+    const picker = document.querySelector("input[type=file]");
+    if (!(picker instanceof HTMLInputElement)) {
+      throw new Error("expected a file input");
+    }
+    const click = vi.spyOn(picker, "click");
+
+    fireEvent.click(screen.getByRole("button", { name: "Attach image" }));
+    expect(click).toHaveBeenCalledTimes(1);
+    fireEvent.change(picker, { target: { files: [makeImageFile()] } });
+    await flush();
+
+    expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+    expect(screen.getByText(/mergebrief\/attachments branch/)).toBeTruthy();
+  });
+
+  it("is off with a reason outside a pull request or without the app", () => {
+    const { unmount } = render(<AttachHarness scoped={false} />);
+    const unscoped = screen.getByRole("button", { name: "Attach image" });
+    expect(unscoped.getAttribute("aria-disabled")).toBe("true");
+    expect(unscoped.getAttribute("title")).toContain("inside a pull request");
+    expect(screen.queryByText(/mergebrief\/attachments/)).toBeNull();
+    unmount();
+
+    render(<AttachHarness installed={false} />);
+    const urlBox = screen.getByRole("button", { name: "Attach image" });
+    expect(urlBox.getAttribute("aria-disabled")).toBe("true");
+    expect(urlBox.getAttribute("title")).toContain("App installed");
+    fireEvent.paste(textarea(), {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("stays inert while read-only", () => {
+    render(<AttachHarness readOnly />);
+
+    fireEvent.drop(textarea(), {
+      dataTransfer: { files: [makeImageFile()] },
+    });
+
+    expect(apiFetchMock).not.toHaveBeenCalled();
   });
 });

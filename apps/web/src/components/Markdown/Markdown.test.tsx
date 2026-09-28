@@ -142,7 +142,7 @@ describe("Markdown raw html images", () => {
 
   it("routes an attachment through the api proxy inside a scope", () => {
     render(
-      <AttachmentScopeProvider prNumber={7} repoId="555">
+      <AttachmentScopeProvider installed prNumber={7} repoId="555">
         <Markdown
           content={`<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}
           renderHtml
@@ -157,7 +157,7 @@ describe("Markdown raw html images", () => {
 
   it("routes a branch-hosted file through the proxy by its file name", () => {
     render(
-      <AttachmentScopeProvider prNumber={7} repoId="555">
+      <AttachmentScopeProvider installed prNumber={7} repoId="555">
         <Markdown content={`![shot](${ATTACHMENT_BRANCH_URL})`} renderHtml />
       </AttachmentScopeProvider>,
     );

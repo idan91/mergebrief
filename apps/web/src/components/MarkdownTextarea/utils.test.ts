@@ -10,6 +10,10 @@ import {
   indentListSelection,
   insertMention,
   replaceSelectionWithSuggestion,
+  buildUploadPlaceholders,
+  hasUploadPlaceholder,
+  insertPlaceholder,
+  replacePlaceholder,
 } from "./utils";
 import { createI18n } from "i18n";
 
@@ -258,5 +262,96 @@ describe("replaceSelectionWithSuggestion", () => {
       selectionStart: 21,
       selectionEnd: 28,
     });
+  });
+});
+
+describe("insertPlaceholder", () => {
+  it("puts the placeholder on its own line at the caret", () => {
+    const edit = insertPlaceholder("before\nafter", 7, 7, "![Uploading x…]()");
+
+    expect(edit.text).toBe("before\n![Uploading x…]()\nafter");
+    expect(edit.selectionStart).toBe("before\n![Uploading x…]()".length);
+    expect(edit.selectionEnd).toBe(edit.selectionStart);
+  });
+
+  it("adds no blank lines when the caret already sits on a line edge", () => {
+    const edit = insertPlaceholder("line\n", 5, 5, "P");
+
+    expect(edit.text).toBe("line\nP");
+  });
+
+  it("replaces a selection", () => {
+    const edit = insertPlaceholder("keep drop keep", 5, 9, "P");
+
+    expect(edit.text).toBe("keep \nP\n keep");
+  });
+});
+
+describe("buildUploadPlaceholders", () => {
+  it("numbers a name the batch or the text already holds", () => {
+    const files = [
+      new File([""], "image.png"),
+      new File([""], "image.png"),
+      new File([""], "other.png"),
+    ];
+
+    const placeholders = buildUploadPlaceholders(
+      files,
+      "![Uploading image.png…]()\n![Uploading image.png (2)…]()",
+      new Set(["![Uploading other.png…]()"]),
+    );
+
+    expect(placeholders).toEqual([
+      "![Uploading image.png (3)…]()",
+      "![Uploading image.png (4)…]()",
+      "![Uploading other.png (2)…]()",
+    ]);
+  });
+
+  it("drops link syntax and control characters from a file name", () => {
+    const files = [
+      new File([""], "x](https://evil.example/a.png"),
+      new File([""], "ab]cd.png"),
+      new File([""], "a\nb\u0000c.png"),
+      new File([""], "]"),
+    ];
+
+    const placeholders = buildUploadPlaceholders(files, "", new Set());
+
+    expect(placeholders).toEqual([
+      "![Uploading x(https://evil.example/a.png…]()",
+      "![Uploading abcd.png…]()",
+      "![Uploading abc.png…]()",
+      "![Uploading image…]()",
+    ]);
+    for (const placeholder of placeholders) {
+      expect(hasUploadPlaceholder(placeholder)).toBe(true);
+    }
+  });
+});
+
+describe("hasUploadPlaceholder", () => {
+  it("sees an upload's line and nothing else", () => {
+    expect(hasUploadPlaceholder("a\n![Uploading shot.png…]()\nb")).toBe(true);
+    expect(hasUploadPlaceholder("![Image](https://x/y.png)")).toBe(false);
+    expect(hasUploadPlaceholder("Uploading shot.png")).toBe(false);
+  });
+});
+
+describe("replacePlaceholder", () => {
+  it("swaps the first placeholder for the image line", () => {
+    const edit = replacePlaceholder("a\nP\nb\nP", "P", "![Image](u)");
+
+    expect(edit?.text).toBe("a\n![Image](u)\nb\nP");
+    expect(edit?.selectionStart).toBe("a\n![Image](u)".length);
+  });
+
+  it("removes the placeholder and its line break on failure", () => {
+    expect(replacePlaceholder("a\nP\nb", "P", "")?.text).toBe("a\nb");
+    expect(replacePlaceholder("a\nP", "P", "")?.text).toBe("a\n");
+  });
+
+  it("declines when the writer edited the placeholder away", () => {
+    expect(replacePlaceholder("a\nb", "P", "![Image](u)")).toBeNull();
   });
 });

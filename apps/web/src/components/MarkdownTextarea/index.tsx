@@ -15,6 +15,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { AttachmentMediaTypes } from "contract";
+
 import { IconButton } from "../IconButton";
 import { Markdown } from "../Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly";
@@ -30,6 +32,7 @@ import {
   useMentionAutocomplete,
   type MentionCandidate,
 } from "./useMentionAutocomplete";
+import { hasUploadPlaceholder } from "./utils";
 import styles from "./MarkdownTextarea.module.scss";
 
 export interface MarkdownTextareaProps {
@@ -75,7 +78,18 @@ export interface MarkdownTextareaProps {
    * unmount.
    */
   exposeTextarea?: ((element: HTMLTextAreaElement | null) => void) | undefined;
+  /**
+   * The page live region with its toast: an image upload's failure lands
+   * here. Success is visible in the preview, so it says nothing.
+   */
+  announce?: ((message: string) => void) | undefined;
+  /** The live region alone: the upload's start, which the placeholder shows. */
+  announceQuietly?: ((message: string) => void) | undefined;
+  /** A failed upload's copy for the consumer's inline error surface. */
+  onAttachError?: ((copy: string) => void) | undefined;
 }
+
+const ATTACH_ACCEPT = Object.values(AttachmentMediaTypes).join(",");
 
 const MODES: MarkdownTextareaMode[] = Object.values(MarkdownTextareaModes);
 const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
@@ -125,6 +139,9 @@ export function MarkdownTextarea({
   mentionCandidates,
   renderPreview,
   exposeTextarea,
+  announce,
+  announceQuietly,
+  onAttachError,
   frame = MarkdownTextareaFrames.PLAIN,
 }: MarkdownTextareaProps) {
   const { t } = useTranslation();
@@ -135,6 +152,9 @@ export function MarkdownTextarea({
     onChange,
     readOnly,
     suggestionSeed,
+    announce,
+    announceQuietly,
+    onAttachError,
   });
   const baseId = useId();
   const mentions = useMentionAutocomplete({
@@ -209,8 +229,16 @@ export function MarkdownTextarea({
     if (event.nativeEvent.isComposing) return;
     const meta = event.metaKey || event.ctrlKey;
     if (meta && event.key === "Enter" && onSubmit !== undefined) {
-      // The consumer's own submit guards (empty, pending, over-cap) apply.
+      // The consumer's own submit guards (empty, pending, over-cap) apply;
+      // a placeholder still in the text is the one guard held here for
+      // every one, since a body sent now would carry it, not the image.
       event.preventDefault();
+      if (facade.uploadsInFlight > 0 || hasUploadPlaceholder(value)) {
+        const copy = t("shell.attach.waitForUpload");
+        onAttachError?.(copy);
+        announce?.(copy);
+        return;
+      }
       onSubmit();
       return;
     }
@@ -300,7 +328,7 @@ export function MarkdownTextarea({
         >
           {facade.toolbarActions.map((action, index) => (
             <IconButton
-              aria-disabled={readOnly || undefined}
+              aria-disabled={readOnly || action.disabled || undefined}
               key={action.icon}
               label={action.label}
               tabIndex={index === toolbarTabStop ? 0 : -1}
@@ -311,9 +339,26 @@ export function MarkdownTextarea({
             </IconButton>
           ))}
         </div>
+        {/* Reached through the toolbar button; never a tab stop of its own. */}
+        <input
+          accept={ATTACH_ACCEPT}
+          aria-hidden
+          className={styles["fileInput"]}
+          multiple
+          ref={facade.fileInputRef}
+          tabIndex={-1}
+          type="file"
+          onChange={(event) => {
+            const files = event.target.files;
+            if (files !== null) {
+              facade.attachFiles(files);
+            }
+            event.target.value = "";
+          }}
+        />
         <textarea
           aria-activedescendant={mentions.activeOptionId}
-          aria-busy={ariaBusy || undefined}
+          aria-busy={ariaBusy || facade.uploadsInFlight > 0 || undefined}
           aria-controls={mentions.open ? mentions.listId : undefined}
           aria-describedby={describedBy}
           aria-invalid={ariaInvalid || undefined}
@@ -344,6 +389,9 @@ export function MarkdownTextarea({
             if (mentions.onKeyDown(event)) return;
             facade.onTextareaKeyDown(event);
           }}
+          onDragOver={facade.onTextareaDragOver}
+          onDrop={facade.onTextareaDrop}
+          onPaste={facade.onTextareaPaste}
           onSelect={(event) =>
             mentions.onCaretMove(event.currentTarget.selectionStart)
           }
@@ -397,7 +445,10 @@ export function MarkdownTextarea({
             ))}
           </div>
         ) : null}
-        <div className={styles["hint"]}>{t("shell.markdownSupported")}</div>
+        <div className={styles["hint"]}>
+          <span>{t("shell.markdownSupported")}</span>
+          {facade.canAttach ? <span>{t("shell.attach.hint")}</span> : null}
+        </div>
       </div>
       <div
         aria-labelledby={tabId(MarkdownTextareaModes.PREVIEW)}

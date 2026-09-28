@@ -19,6 +19,9 @@ const UPSTREAM_TIMEOUT_MS = 30_000;
 // 64-draft session cap runs ~66 s; the budget allows about 2 s per mutation
 // sustained.
 const SUBMIT_TIMEOUT_MS = 150_000;
+// The browser gives an upload 120 s; the hop's budget sits above it so the
+// browser's own timeout, not a proxy 504, is what the reviewer sees.
+const UPLOAD_TIMEOUT_MS = 150_000;
 
 const TRANSPORT_UNAVAILABLE_MSG = "apiFetch: api transport unavailable";
 
@@ -40,6 +43,7 @@ export function getApiTransport(): ApiTransportDeps {
       logger: getServerLogger(),
       timeoutMs: UPSTREAM_TIMEOUT_MS,
       submitTimeoutMs: SUBMIT_TIMEOUT_MS,
+      uploadTimeoutMs: UPLOAD_TIMEOUT_MS,
     };
   }
   return cached;
@@ -67,7 +71,12 @@ export function dispatchToApi(
     headers.set("cookie", cookie);
   }
   const request: RequestInit = { method: init?.method ?? "GET", headers };
-  if (init?.body !== undefined) request.body = init.body;
+  if (init?.body !== undefined) {
+    request.body = init.body;
+  }
+  if (init?.signal !== undefined) {
+    request.signal = init.signal;
+  }
   return requestApi(new Request(`${deps.origin}${path}`, request), deps);
 }
 

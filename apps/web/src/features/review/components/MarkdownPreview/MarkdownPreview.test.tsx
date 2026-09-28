@@ -110,7 +110,7 @@ describe("MarkdownPreview raw html images", () => {
 
   it("routes an attachment through the api proxy inside a scope", () => {
     render(
-      <AttachmentScopeProvider prNumber={7} repoId="555">
+      <AttachmentScopeProvider installed prNumber={7} repoId="555">
         <MarkdownPreview
           anchor={ANCHOR}
           body={`<img alt="Image" src="${ATTACHMENT_ASSET_URL}" />`}

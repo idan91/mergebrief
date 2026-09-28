@@ -46,6 +46,7 @@ function deps(): ApiTransportDeps {
     logger: { error: vi.fn() },
     timeoutMs: 5000,
     submitTimeoutMs: 5000,
+    uploadTimeoutMs: 5000,
   };
 }
 

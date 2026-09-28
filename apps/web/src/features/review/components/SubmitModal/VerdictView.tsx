@@ -1,11 +1,13 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { MarkdownTextareaFrames } from "@web/components/MarkdownTextarea/types";
+import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
+import { useReviewActions } from "../../session/flow/provider";
 import { reviewOutcomeLabel, type ReviewOutcome } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
 
@@ -65,6 +67,21 @@ export function VerdictView({
   previewReceipt,
 }: VerdictViewProps) {
   const { t } = useTranslation();
+  const { announce, announceQuietly } = useReviewActions();
+  const [attachError, setAttachError] = useState<string | undefined>(undefined);
+  const editComment = (comment: string) => {
+    setReviewComment(comment);
+    setAttachError(undefined);
+  };
+  // The submit's own guards are the modal's; a placeholder still in the
+  // body is this view's, since the body would ship it, not the image.
+  const attemptSubmit = () => {
+    if (hasUploadPlaceholder(reviewComment)) {
+      setAttachError(t("shell.attach.waitForUpload"));
+      return;
+    }
+    submit.attempt();
+  };
   return (
     <>
       <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
@@ -93,16 +110,24 @@ export function VerdictView({
       <MarkdownTextarea
         frame={MarkdownTextareaFrames.CARD}
         value={reviewComment}
-        onChange={setReviewComment}
+        onChange={editComment}
         label={t("review.submit.commentLabel")}
         labelVisible
         placeholder={t("review.submit.commentPlaceholder")}
         describedBy="submit-modal-comment-hint"
-        onSubmit={submit.attempt}
+        announce={announce}
+        announceQuietly={announceQuietly}
+        onAttachError={setAttachError}
+        onSubmit={attemptSubmit}
       />
       <p className={styles["hint"]} id="submit-modal-comment-hint">
         {t("review.submit.commentHint")}
       </p>
+      {attachError !== undefined ? (
+        <p className={styles["submitStatus"]} data-kind="error" role="alert">
+          {attachError}
+        </p>
+      ) : null}
       {stale.head ? (
         <div className={styles["staleWarning"]}>
           {/* The live region and describedby target is the TEXT alone,
@@ -133,7 +158,7 @@ export function VerdictView({
           disabled={submit.disabled}
           loading={submit.pending}
           variant="accent"
-          onClick={submit.attempt}
+          onClick={attemptSubmit}
         >
           {submit.pending
             ? t("review.submit.submitting")

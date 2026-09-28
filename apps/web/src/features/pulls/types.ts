@@ -176,6 +176,12 @@ export interface PrSummary {
    * GitHub still enforces push permission or authorship at mutation time.
    */
   readonly viewerCanResolve: boolean;
+  /**
+   * The PR sits in an installation's world, so the App can push an
+   * attachment for it. PR-meta only; a server predating the field reads
+   * false and the composer's attach control stays off.
+   */
+  readonly appInstalled: boolean;
   readonly generation: GenerationSummary | null;
   readonly updatedAt: string;
   /** GitHub reports a head the latest brief does not cover; a server predating the field reads false. */
@@ -506,6 +512,10 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
       error: "viewerCanResolve must be a boolean when present",
     };
   }
+  const appInstalled = value["appInstalled"];
+  if (appInstalled !== undefined && typeof appInstalled !== "boolean") {
+    return { ok: false, error: "appInstalled must be a boolean when present" };
+  }
   const generation = parseGenerationSummary(value["generation"]);
   if (!generation.ok) return generation;
   if (typeof value["updatedAt"] !== "string") {
@@ -533,6 +543,7 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     draft: value["draft"],
     viewerIsAuthor: value["viewerIsAuthor"],
     viewerCanResolve: viewerCanResolve ?? false,
+    appInstalled: appInstalled ?? false,
     generation: generation.value,
     updatedAt: value["updatedAt"],
     behind: behind ?? false,

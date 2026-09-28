@@ -9,7 +9,7 @@ import {
 } from "@web/test/attachments";
 import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
 
-const SCOPE = { repoId: "555", prNumber: 7 };
+const SCOPE = { repoId: "555", prNumber: 7, installed: true };
 
 function makeImage(src: string | undefined): Element {
   const properties: Element["properties"] = { alt: "Image" };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
+import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
 import { useReviewActions } from "@web/features/review/session";
@@ -91,7 +92,7 @@ export function ReplyComposer({
   focusResolveAction,
 }: ReplyComposerProps) {
   const { t } = useTranslation();
-  const { announce } = useReviewActions();
+  const { announce, announceQuietly } = useReviewActions();
   // WHICH action is running, not just whether one is: both buttons go busy
   // together (one draft, one request), but only the clicked one wears the
   // pending label, a "Posting…" on the plain Reply button would misreport a
@@ -122,8 +123,14 @@ export function ReplyComposer({
   // break label/error association.
   const inputId = `${useId()}-reply`;
   const overCap = local.length > MAX_REPLY_LENGTH;
+  // An image still going up: the body would ship its placeholder.
+  const uploading = hasUploadPlaceholder(local);
   const blocked =
-    pending || local.trim() === "" || overCap || readOnlyReason !== undefined;
+    pending ||
+    uploading ||
+    local.trim() === "" ||
+    overCap ||
+    readOnlyReason !== undefined;
 
   // Quote-reply prefill appends to the LOCAL draft only, same persistence
   // path as typing. Skipped while a post is in flight: the composer is
@@ -165,6 +172,12 @@ export function ReplyComposer({
   }, [focusResolveAction, pendingAction]);
 
   const submit = (alsoResolve: boolean) => {
+    if (uploading && !pending) {
+      const copy = t("shell.attach.waitForUpload");
+      setError(copy);
+      announce(copy);
+      return;
+    }
     if (blocked || inFlight.current) return;
     // The combo is only reachable while the leg exists; guard anyway so a
     // stale closure can never take the compound path without it.
@@ -254,6 +267,9 @@ export function ReplyComposer({
         mentionCandidates={mentionCandidates}
         readOnly={pending || readOnlyReason !== undefined}
         value={local}
+        announce={announce}
+        announceQuietly={announceQuietly}
+        onAttachError={setError}
         onChange={edit}
         // Escape blurs the reply (the blur persists the draft); the text
         // itself is never cleared: the draft is the recovery path.

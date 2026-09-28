@@ -15,7 +15,7 @@ import {
   reviewCommentSubmitLabel,
   type CommentAnchor,
 } from "../../utils/comments";
-import { useReviewSession } from "../../session";
+import { useReviewActions, useReviewSession } from "../../session";
 import { MarkdownPreview } from "../MarkdownPreview";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
 import styles from "./CommentComposer.module.scss";
@@ -39,6 +39,7 @@ export function CommentComposer({
 }: CommentComposerProps) {
   const { t } = useTranslation();
   const composer = useCommentComposerFacade(anchor, save);
+  const { announce, announceQuietly } = useReviewActions();
   const errorId = useId();
   const guardId = useId();
   // The composer's text exists nowhere else until saved as a draft.
@@ -89,6 +90,9 @@ export function CommentComposer({
         readOnly={saving}
         suggestionSeed={suggestionSeed}
         value={composer.body}
+        announce={announce}
+        announceQuietly={announceQuietly}
+        onAttachError={composer.failAttach}
         onChange={composer.onBodyChange}
         onSubmit={composer.submit}
       />

@@ -170,6 +170,22 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
   });
 
+  it("parses appInstalled and reads false when a server omits it", () => {
+    const installed = parsePrSummary({ ...ROW, appInstalled: true });
+    if (!installed.ok) {
+      throw new Error(installed.error);
+    }
+    expect(installed.value.appInstalled).toBe(true);
+
+    const legacy = parsePrSummary(ROW);
+    if (!legacy.ok) {
+      throw new Error(legacy.error);
+    }
+    expect(legacy.value.appInstalled).toBe(false);
+
+    expect(parsePrSummary({ ...ROW, appInstalled: "yes" }).ok).toBe(false);
+  });
+
   it("parses viewerCanResolve and FAILS CLOSED when it is absent", () => {
     const capable = parsePrSummary({ ...ROW, viewerCanResolve: true });
     expect(capable.ok).toBe(true);

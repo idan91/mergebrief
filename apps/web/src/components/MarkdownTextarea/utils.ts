@@ -305,3 +305,128 @@ export function replaceSelectionWithSuggestion(
       selectionStart + "```suggestion\n".length + replacement.length,
   };
 }
+
+const PLACEHOLDER_ELLIPSIS = "…";
+const PLACEHOLDER_FALLBACK_NAME = "image";
+// oxlint-disable-next-line no-control-regex -- the control range is the thing stripped
+const PLACEHOLDER_UNSAFE_CHARACTERS = /[[\]\u0000-\u001f\u007f]/g;
+
+/**
+ * A name that can neither close the placeholder's brackets nor open a link:
+ * a name with `]` would fail hasUploadPlaceholder and let a submit ship the
+ * line, and `](url` would render as a live image before the upload settled.
+ */
+function sanitizePlaceholderName(fileName: string): string {
+  const safe = fileName.replace(PLACEHOLDER_UNSAFE_CHARACTERS, "").trim();
+  return safe === "" ? PLACEHOLDER_FALLBACK_NAME : safe;
+}
+
+/** The text an in-flight upload holds in the body, GitHub's own shape. */
+export function buildUploadPlaceholder(fileName: string): string {
+  return `![Uploading ${sanitizePlaceholderName(fileName)}${PLACEHOLDER_ELLIPSIS}]()`;
+}
+
+const UPLOAD_PLACEHOLDER_PATTERN = /!\[Uploading [^\]]*…\]\(\)/;
+
+/** True while the text still holds an upload's placeholder line. */
+export function hasUploadPlaceholder(text: string): boolean {
+  return UPLOAD_PLACEHOLDER_PATTERN.test(text);
+}
+
+/**
+ * One placeholder per file, unique against the text, the batch and every
+ * upload still in flight: a repeated name (every clipboard image is
+ * `image.png`) gets a position, so the settle of one upload can never land
+ * on another's line, not even after the writer deleted the first line.
+ */
+export function buildUploadPlaceholders(
+  files: readonly File[],
+  text: string,
+  inFlight: ReadonlySet<string>,
+): string[] {
+  const taken = new Set<string>(inFlight);
+  return files.map((file) => {
+    let placeholder = buildUploadPlaceholder(file.name);
+    for (
+      let suffix = 2;
+      taken.has(placeholder) || text.includes(placeholder);
+      suffix += 1
+    ) {
+      placeholder = buildUploadPlaceholder(`${file.name} (${suffix})`);
+    }
+    taken.add(placeholder);
+    return placeholder;
+  });
+}
+
+/** The image files of a paste or a drop; anything else stays the browser's. */
+export function readImageFiles(transfer: DataTransfer | null): File[] {
+  if (transfer === null) {
+    return [];
+  }
+  return [...transfer.files].filter((file) => file.type.startsWith("image/"));
+}
+
+/** The branch url an upload receipt carries, or undefined for any other body. */
+export function readUploadedUrl(body: unknown): string | undefined {
+  if (typeof body !== "object" || body === null || !("url" in body)) {
+    return undefined;
+  }
+  return typeof body.url === "string" ? body.url : undefined;
+}
+
+/** The markdown that shows an attached image. */
+export function buildImageMarkdown(url: string): string {
+  return `![Image](${url})`;
+}
+
+/**
+ * The placeholder lands on its own line at the caret, replacing any
+ * selection, and the caret parks after it so typing continues below.
+ */
+export function insertPlaceholder(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+  placeholder: string,
+): TextEdit {
+  const before = text.slice(0, selectionStart);
+  const after = text.slice(selectionEnd);
+  const leadIn = before === "" || before.endsWith("\n") ? "" : "\n";
+  const leadOut = after === "" || after.startsWith("\n") ? "" : "\n";
+  const inserted = `${leadIn}${placeholder}${leadOut}`;
+  const caret = selectionStart + leadIn.length + placeholder.length;
+  return {
+    text: `${before}${inserted}${after}`,
+    selectionStart: caret,
+    selectionEnd: caret,
+  };
+}
+
+/**
+ * Swaps the first occurrence of the placeholder for its replacement, an
+ * empty string on failure, which takes the placeholder's line break with
+ * it so a refused batch leaves no blank lines behind. A placeholder the
+ * writer edited away is left alone: the edit declines rather than touching
+ * text it does not own.
+ */
+export function replacePlaceholder(
+  text: string,
+  placeholder: string,
+  replacement: string,
+): TextEdit | null {
+  const index = text.indexOf(placeholder);
+  if (index === -1) {
+    return null;
+  }
+  let end = index + placeholder.length;
+  if (replacement === "" && text[end] === "\n") {
+    end += 1;
+  }
+  const caret = index + replacement.length;
+  return {
+    text: `${text.slice(0, index)}${replacement}${text.slice(end)}`,
+    selectionStart: caret,
+    selectionEnd: caret,
+  };
+}

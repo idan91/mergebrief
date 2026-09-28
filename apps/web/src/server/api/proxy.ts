@@ -59,19 +59,29 @@ export interface ApiTransportDeps {
   readonly timeoutMs: number;
   /** Budget for the review submit POST, which posts one thread per draft. */
   readonly submitTimeoutMs: number;
+  /** Budget for an image upload POST: the bytes on a slow link, then the push. */
+  readonly uploadTimeoutMs: number;
 }
 
 const REVIEW_SUBMIT_PATH = /^\/api\/repos\/[^/]+\/pulls\/\d+\/review$/;
+const ATTACHMENT_UPLOAD_PATH = /^\/api\/repos\/[^/]+\/pulls\/\d+\/attachments$/;
 
-/** The submit is the one route whose upstream time grows with the payload. */
+/** Two routes' upstream time grows with the payload: the submit and the upload. */
 function resolveUpstreamBudget(
   request: Request,
   deps: ApiTransportDeps,
 ): number {
-  const isSubmit =
-    request.method.toUpperCase() === "POST" &&
-    REVIEW_SUBMIT_PATH.test(new URL(request.url).pathname);
-  return isSubmit ? deps.submitTimeoutMs : deps.timeoutMs;
+  if (request.method.toUpperCase() !== "POST") {
+    return deps.timeoutMs;
+  }
+  const { pathname } = new URL(request.url);
+  if (REVIEW_SUBMIT_PATH.test(pathname)) {
+    return deps.submitTimeoutMs;
+  }
+  if (ATTACHMENT_UPLOAD_PATH.test(pathname)) {
+    return deps.uploadTimeoutMs;
+  }
+  return deps.timeoutMs;
 }
 
 function forwardedRequestHeaders(source: Headers): Headers {

@@ -130,7 +130,9 @@ export async function errorFromResponse(
 export interface ApiFetchInit {
   readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   readonly headers?: Readonly<Record<string, string>>;
-  readonly body?: string;
+  /** A Blob is the image upload, sent from the browser only. */
+  readonly body?: string | Blob;
+  readonly signal?: AbortSignal;
 }
 
 const dispatch = createIsomorphicFn()

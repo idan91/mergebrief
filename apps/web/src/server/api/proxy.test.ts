@@ -76,6 +76,7 @@ function transportFor(
   origin: string,
   timeoutMs = 5000,
   submitTimeoutMs = timeoutMs,
+  uploadTimeoutMs = timeoutMs,
 ): ApiTransportDeps {
   return {
     origin,
@@ -83,6 +84,7 @@ function transportFor(
     logger: { error: vi.fn() },
     timeoutMs,
     submitTimeoutMs,
+    uploadTimeoutMs,
   };
 }
 
@@ -250,6 +252,28 @@ describe("requestApi", () => {
     );
     expect(submitted.status).toBe(200);
     const read = await requestApi(new Request(submitPath), deps);
+    expect(read.status).toBe(504);
+  });
+
+  it("gives the image upload POST its own longer budget", async () => {
+    upstream.reply(
+      (_request, respond) =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            respond(201, {}, "{}");
+            resolve();
+          }, 120);
+        }),
+    );
+    const deps = transportFor(upstream.origin, 40, 40, 2000);
+    const uploadPath =
+      "https://public.example/api/repos/42/pulls/7/attachments";
+    const uploaded = await requestApi(
+      new Request(uploadPath, { method: "POST", body: "bytes" }),
+      deps,
+    );
+    expect(uploaded.status).toBe(201);
+    const read = await requestApi(new Request(uploadPath), deps);
     expect(read.status).toBe(504);
   });
 

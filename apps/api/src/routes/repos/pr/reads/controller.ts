@@ -23,7 +23,10 @@ import {
 import type { DraftPolicy, Result } from "types";
 import type { Logger } from "logging";
 import { NotFound } from "../../../../shared-errors/api-error";
-import { isGitHubDenial } from "../../../../shared-errors/failures";
+import {
+  FailureKinds,
+  isGitHubDenial,
+} from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
@@ -126,12 +129,12 @@ async function readWithViewer<T>(
   }, isGitHubDenial);
   if (result.ok) return result;
   if ("kind" in result.error) {
-    return { ok: false, error: { kind: "token-unreadable" } };
+    return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
   }
   return {
     ok: false,
     error: {
-      kind: "github-denied",
+      kind: FailureKinds.GITHUB_DENIED,
       error: result.error,
       retried: attempts > 1,
     },
@@ -273,6 +276,8 @@ export default {
       readonly reviewerLogin: string | null;
       readonly reviewerId: ReviewerId;
       readonly viewerCanPush: boolean;
+      /** The PR sits in an installation's world; the App can act on its repo. */
+      readonly appInstalled: boolean;
       readonly draftPolicy: DraftPolicy;
     },
   ) {
@@ -365,10 +370,16 @@ export default {
     // draftPolicy is meta-only (instance-wide, so the list would repeat it
     // per row for nothing). The FE must show the CONFIGURED window, never a
     // hardcoded duration.
+    const meta = {
+      ...view,
+      comparisons,
+      appInstalled: input.appInstalled,
+      draftPolicy: input.draftPolicy,
+    };
     if (revisions === undefined) {
-      return { ...view, comparisons, draftPolicy: input.draftPolicy };
+      return meta;
     }
-    return { ...view, comparisons, revisions, draftPolicy: input.draftPolicy };
+    return { ...meta, revisions };
   },
 
   /**
@@ -425,13 +436,13 @@ export default {
       if ("kind" in diff.error) {
         return {
           ok: false,
-          error: { kind: "token-unreadable" },
+          error: { kind: FailureKinds.TOKEN_UNREADABLE },
         } satisfies ReadDiffResult;
       }
       return {
         ok: false,
         error: {
-          kind: "github-denied",
+          kind: FailureKinds.GITHUB_DENIED,
           error: diff.error,
           retried: attempts > 1,
         },
@@ -562,7 +573,7 @@ export default {
     }, isGitHubDenial);
     if (!fetched.ok) {
       if ("kind" in fetched.error) {
-        return { ok: false, error: { kind: "token-unreadable" } };
+        return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
       }
       // A directory, symlink or submodule at this path is PERMANENT for this
       // commit, so it must not reach the retryable upstream posture.
@@ -573,7 +584,7 @@ export default {
         return { ok: false, error: { kind: "file-not-text" } };
       }
       const denied: FileRangeFailure = {
-        kind: "github-denied",
+        kind: FailureKinds.GITHUB_DENIED,
         error: fetched.error,
         retried: attempts > 1,
       };

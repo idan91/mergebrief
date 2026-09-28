@@ -24,6 +24,7 @@ import GearGlyph from "../icons/gear.svg?react";
 import GitMergeGlyph from "../icons/git-merge.svg?react";
 import GitPullRequestGlyph from "../icons/git-pull-request.svg?react";
 import GithubLogoGlyph from "../icons/github-logo.svg?react";
+import ImageGlyph from "../icons/image.svg?react";
 import KeyboardGlyph from "../icons/keyboard.svg?react";
 import LinkGlyph from "../icons/link.svg?react";
 import ListBulletsGlyph from "../icons/list-bullets.svg?react";
@@ -71,6 +72,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.GIT_MERGE]: GitMergeGlyph,
   [IconNames.GIT_PULL_REQUEST]: GitPullRequestGlyph,
   [IconNames.GITHUB_LOGO]: GithubLogoGlyph,
+  [IconNames.IMAGE]: ImageGlyph,
   [IconNames.KEYBOARD]: KeyboardGlyph,
   [IconNames.LINK]: LinkGlyph,
   [IconNames.LIST_BULLETS]: ListBulletsGlyph,
