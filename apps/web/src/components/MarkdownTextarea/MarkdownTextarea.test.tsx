@@ -874,7 +874,7 @@ describe("MarkdownTextarea image attachments", () => {
     await flush();
 
     expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
-    expect(screen.getByText(/mergebrief\/attachments branch/)).toBeTruthy();
+    expect(screen.getByText("mergebrief/attachments").tagName).toBe("CODE");
   });
 
   it("is off with a reason outside a pull request or without the app", () => {

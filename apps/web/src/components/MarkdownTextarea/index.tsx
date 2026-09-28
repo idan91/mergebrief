@@ -6,7 +6,7 @@
    The root group's keydown is a composite-widget shortcut scope
    (Cmd+Shift+P / Escape from the textarea, tabs, and focused preview
    panel alike); the wrapper itself is not focusable and traps nothing. */
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import {
   useId,
   useRef,
@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { AttachmentMediaTypes } from "contract";
+import { ATTACHMENT_BRANCH, AttachmentMediaTypes } from "contract";
 
 import { IconButton } from "../IconButton";
 import { Markdown } from "../Markdown";
@@ -447,7 +447,14 @@ export function MarkdownTextarea({
         ) : null}
         <div className={styles["hint"]}>
           <span>{t("shell.markdownSupported")}</span>
-          {facade.canAttach ? <span>{t("shell.attach.hint")}</span> : null}
+          {facade.canAttach ? (
+            <span>
+              <Trans
+                components={[<code key="branch">{ATTACHMENT_BRANCH}</code>]}
+                i18nKey="shell.attach.hint"
+              />
+            </span>
+          ) : null}
         </div>
       </div>
       <div

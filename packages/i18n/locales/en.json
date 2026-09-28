@@ -1036,7 +1036,7 @@
     "nothingToPreview": "Nothing to preview.",
     "markdownSupported": "Markdown is supported",
     "attach": {
-      "hint": "Paste or drop an image; it is pushed to this repository's mergebrief/attachments branch",
+      "hint": "Paste or drop an image; it is pushed to this repository's <0/> branch",
       "uploading": "Uploading image",
       "noScope": "Images can be attached inside a pull request",
       "notInstalled": "Attaching images needs the MergeBrief App installed on this repository",

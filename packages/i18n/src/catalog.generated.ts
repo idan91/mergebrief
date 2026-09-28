@@ -332,6 +332,10 @@ export type Catalog = typeof en & {
         headingMany_one: "Delete briefs for {{count}} pull request?";
         headingMany_other: "Delete briefs for {{count}} pull requests?";
       };
+      purgeModal: (typeof en)["home"]["inbox"]["purgeModal"] & {
+        heading: "Delete the attachment branch of {{repo}}?";
+        confirmLabel: "Type {{repo}} to confirm";
+      };
     };
     filters: (typeof en)["home"]["filters"] & {
       changed_one: "{{count}} changed";
