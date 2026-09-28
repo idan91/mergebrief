@@ -102,6 +102,9 @@ function buildApp(
     commitAttachment: async () => {
       throw new Error("attachment port must not be called in this suite");
     },
+    deleteAttachmentBranch: async () => {
+      throw new Error("attachment port must not be called in this suite");
+    },
     fetchPullRequestConversation: fetch,
   };
   const app = new Hono<AuthzEnv>();
@@ -309,6 +312,9 @@ describe("readConversation with an owner viewer token", () => {
             throw new Error("not exercised");
           }),
           commitAttachment: async () => {
+            throw new Error("attachment port must not be called in this suite");
+          },
+          deleteAttachmentBranch: async () => {
             throw new Error("attachment port must not be called in this suite");
           },
           fetchPullRequestConversation: installationFetch,

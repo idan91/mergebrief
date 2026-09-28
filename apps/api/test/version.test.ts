@@ -50,6 +50,9 @@ describe("GET /api/version", () => {
         commitAttachment: async () => {
           throw new Error("attachment port must not be called in this suite");
         },
+        deleteAttachmentBranch: async () => {
+          throw new Error("attachment port must not be called in this suite");
+        },
       },
       serverVersion: "1.2.3-test",
     });

@@ -5,13 +5,16 @@
 // cache entry per resource, reused across viewers.
 import {
   commitAttachment,
+  deleteAttachmentBranch,
   fetchPullRequestConversation,
   getInstallationClient,
   listRepoCollaborators,
   GitHubApiErrorCodes,
   type AppClient,
+  type AttachmentBranchDeletion,
   type AttachmentCommit,
   type CommitAttachmentInput,
+  type DeleteAttachmentBranchInput,
   type FetchPullRequestConversationInput,
   type GitHubApiError,
   type ListRepoCollaboratorsInput,
@@ -36,6 +39,11 @@ export interface InstallationGitHubPort {
     installationId: InstallationId,
     input: CommitAttachmentInput,
   ): Promise<Result<AttachmentCommit, GitHubApiError>>;
+  /** Its undo: the whole branch, on a repository admin's confirmed word. */
+  deleteAttachmentBranch(
+    installationId: InstallationId,
+    input: DeleteAttachmentBranchInput,
+  ): Promise<Result<AttachmentBranchDeletion, GitHubApiError>>;
 }
 
 /**
@@ -86,6 +94,13 @@ export function appInstallationPort(app: AppClient): InstallationGitHubPort {
         return mintFailure("commit attachment");
       }
       return commitAttachment(octokit, input);
+    },
+    async deleteAttachmentBranch(installationId, input) {
+      const octokit = await mintClient(installationId);
+      if (octokit === undefined) {
+        return mintFailure("delete attachment branch");
+      }
+      return deleteAttachmentBranch(octokit, input);
     },
   };
 }

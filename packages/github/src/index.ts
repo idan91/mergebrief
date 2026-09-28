@@ -239,10 +239,15 @@ export {
 
 // The attachments-branch write, the one push the App makes to a customer
 // repository: an orphan branch of image files, one commit per upload.
-export { commitAttachment } from "./operations/attachment-branch";
+export {
+  commitAttachment,
+  deleteAttachmentBranch,
+} from "./operations/attachment-branch";
 export type {
+  AttachmentBranchDeletion,
   AttachmentCommit,
   CommitAttachmentInput,
+  DeleteAttachmentBranchInput,
 } from "./operations/attachment-branch";
 
 // PR-conversation primitive: pre-threaded review threads with first-class

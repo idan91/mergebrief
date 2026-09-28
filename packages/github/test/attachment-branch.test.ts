@@ -1,11 +1,14 @@
 // The attachments-branch write: an orphan branch on first upload, one commit
 // per file after that, a lost ref race retried a bounded number of times,
-// and a refused push
-// surfacing as forbidden. REST is stubbed at the `octokit.rest.git` seam.
+// and a refused push surfacing as forbidden. REST is stubbed at the
+// `octokit.rest.git` seam.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
-import { commitAttachment } from "../src/operations/attachment-branch";
+import {
+  commitAttachment,
+  deleteAttachmentBranch,
+} from "../src/operations/attachment-branch";
 import { LEAKED_TOKEN } from "./fixtures/graphql-error";
 
 const INPUT = {
@@ -19,6 +22,7 @@ const INPUT = {
 interface GitStub {
   readonly getRef: ReturnType<typeof vi.fn>;
   readonly getCommit: ReturnType<typeof vi.fn>;
+  readonly deleteRef: ReturnType<typeof vi.fn>;
   readonly createBlob: ReturnType<typeof vi.fn>;
   readonly createTree: ReturnType<typeof vi.fn>;
   readonly createCommit: ReturnType<typeof vi.fn>;
@@ -48,6 +52,7 @@ function stubGit(overrides: Partial<GitStub> = {}): {
     getCommit: vi.fn(async ({ commit_sha }: { commit_sha: string }) => ({
       data: { tree: { sha: `tree-of-${commit_sha}` } },
     })),
+    deleteRef: vi.fn().mockResolvedValue({ data: {} }),
     createBlob: vi.fn().mockResolvedValue({ data: { sha: "blob1" } }),
     createTree: vi.fn().mockResolvedValue({ data: { sha: "tree1" } }),
     createCommit: vi.fn().mockResolvedValue({
@@ -280,5 +285,81 @@ describe("commitAttachment", () => {
 
     expect(JSON.stringify(result)).not.toContain(LEAKED_TOKEN);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("deleteAttachmentBranch", () => {
+  const TARGET = { owner: "o", repo: "r", branch: "mergebrief/attachments" };
+
+  it("deletes the branch ref", async () => {
+    const { octokit, git } = stubGit();
+
+    const result = await deleteAttachmentBranch(octokit, TARGET);
+
+    expect(result).toEqual({ ok: true, value: { existed: true } });
+    expect(git.deleteRef).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      ref: "heads/mergebrief/attachments",
+    });
+  });
+
+  it("treats a missing branch as already deleted", async () => {
+    const { octokit } = stubGit({
+      deleteRef: vi
+        .fn()
+        .mockRejectedValue(makeRequestError(422, "Reference does not exist")),
+    });
+
+    const result = await deleteAttachmentBranch(octokit, TARGET);
+
+    expect(result).toEqual({ ok: true, value: { existed: false } });
+  });
+
+  it("keeps a 404 as not-found: the repository, not the branch, is gone", async () => {
+    const { octokit } = stubGit({
+      deleteRef: vi.fn().mockRejectedValue(makeRequestError(404)),
+    });
+
+    const result = await deleteAttachmentBranch(octokit, TARGET);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+  });
+
+  it("reads a rule refusing the delete as a rule refusal", async () => {
+    const { octokit } = stubGit({
+      deleteRef: vi
+        .fn()
+        .mockRejectedValue(
+          makeRequestError(422, "Cannot delete this protected branch"),
+        ),
+    });
+
+    const result = await deleteAttachmentBranch(octokit, TARGET);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RULE_REFUSED);
+  });
+
+  it("surfaces a refused delete as forbidden without the token", async () => {
+    const { octokit } = stubGit({
+      deleteRef: vi.fn().mockRejectedValue(makeRequestError(403)),
+    });
+
+    const result = await deleteAttachmentBranch(octokit, TARGET);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 });

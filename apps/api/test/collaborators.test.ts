@@ -88,6 +88,9 @@ function stubPort(
       commitAttachment: async () => {
         throw new Error("attachment port must not be called in this suite");
       },
+      deleteAttachmentBranch: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
     },
   };
 }

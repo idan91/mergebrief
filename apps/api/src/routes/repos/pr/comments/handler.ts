@@ -41,9 +41,10 @@ import {
 import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
-} from "../logic/resolve-repo-owner-and-name";
+} from "../../logic/resolve-repo-owner-and-name";
 import { shapeInlineCommentWrite } from "./logic/draft-anchor";
 import { resolvePrScopeFrom } from "../scope";
+import { FailureKinds } from "../../../../shared-errors/failures";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -108,7 +109,7 @@ async function recordPublishedDraft(
       }
     });
     if (!flipped.ok) {
-      if (flipped.error.kind === "session-rejected") {
+      if (flipped.error.kind === FailureKinds.SESSION_REJECTED) {
         throw new Error(flipped.error.error.code);
       }
       throw new Error(flipped.error.kind);
@@ -131,7 +132,7 @@ function isOrdinaryReplyRecordRefusal(
     return true;
   }
   return (
-    failure.kind === "session-rejected" &&
+    failure.kind === FailureKinds.SESSION_REJECTED &&
     failure.error.code === ReviewSessionErrorCodes.SESSION_FROZEN
   );
 }
@@ -172,7 +173,7 @@ async function recordReplyReview(
     if (recorded.ok) return;
 
     const reason =
-      recorded.error.kind === "session-rejected"
+      recorded.error.kind === FailureKinds.SESSION_REJECTED
         ? recorded.error.error.code
         : recorded.error.kind;
     const fields = { reviewId: String(reviewId), reason };

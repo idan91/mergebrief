@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(31);
+    expect(codes).toHaveLength(32);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -63,6 +63,7 @@ describe("errorJson", () => {
       "no-repo-write-access": 403,
       "repo-admin-only": 403,
       "attachments-disabled": 403,
+      "attachments-admin-only": 403,
       "not-found": 404,
       "invalid-request": 400,
       "attachment-unsupported-type": 400,

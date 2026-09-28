@@ -17,7 +17,7 @@ import type { AuthzEnv } from "../../../authz";
 import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
-} from "../logic/resolve-repo-owner-and-name";
+} from "../../logic/resolve-repo-owner-and-name";
 import {
   resolveSessionWrite,
   throwSessionWriteFailure,
@@ -39,6 +39,7 @@ import {
 import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
 import { resolvePrScopeFrom } from "../scope";
+import { FailureKinds } from "../../../../shared-errors/failures";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -112,7 +113,7 @@ async function recordSubmittedDrafts(
       await writer.recordSubmittedReview({ githubReviewId: reviewId });
     });
     if (!recorded.ok) {
-      if (recorded.error.kind === "session-rejected") {
+      if (recorded.error.kind === FailureKinds.SESSION_REJECTED) {
         throw new Error(recorded.error.error.code);
       }
       throw new Error(recorded.error.kind);

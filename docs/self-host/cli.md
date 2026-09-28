@@ -97,6 +97,19 @@ the same env as the worker (`gh auth` for GitHub Issues, `NOTION_TOKEN` for
 Notion); `--context <file>` supplies the ticket text directly when neither
 is available. Details in `tools/categorizer/README.md`.
 
+## Attaching an image to a draft
+
+`mergebrief draft attach <number> <file> --draft <id>` pushes a PNG, JPEG,
+GIF or WebP file to the repository's `mergebrief/attachments` branch on the
+App's token and appends the image to the named draft comment
+([attachments.md](attachments.md)). It needs an `external-write` token, and
+the App installed on the repository.
+
+Deleting that branch has no CLI command on purpose: it breaks images in
+comments already on GitHub, so the API takes the confirmation from a browser
+session only (`403 human-only` for a token). A repository admin does it from
+Home.
+
 ## Agents
 
 The agent guide ships as the `mergebrief` skill (`skills/mergebrief` in the

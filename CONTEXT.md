@@ -270,6 +270,10 @@ _Avoid_: inline comment (informal), span comment, scope (that is Full vs Changes
 A **Comment** anchored to a file with no line range. Same lifecycle as any other Comment. Never outdated: there is no line to go stale against. GitHub `subject_type: file`.
 _Avoid_: whole-file comment, file-scoped, scope (that is Full vs Changes)
 
+**Attachment**:
+An image a reviewer pastes or drops into a **Comment**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held.
+_Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
+
 **Seed**:
 A structured, non-text hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
 _Avoid_: suggestion, draft, AI comment

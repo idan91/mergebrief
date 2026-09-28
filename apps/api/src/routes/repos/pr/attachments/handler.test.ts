@@ -162,6 +162,9 @@ async function buildApp(
         throw new Error("collaborators port must not be called in this suite");
       },
       commitAttachment: commitMock,
+      deleteAttachmentBranch: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
     },
   };
   const app = new Hono<AuthzEnv>();

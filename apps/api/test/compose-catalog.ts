@@ -41,6 +41,9 @@ export async function composeCatalog(): Promise<ComposedCatalog> {
       commitAttachment: async () => {
         throw new Error("attachment port must not be called in this suite");
       },
+      deleteAttachmentBranch: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
     },
   });
   return { app, harness };

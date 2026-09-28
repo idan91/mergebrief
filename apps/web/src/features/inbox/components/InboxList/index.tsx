@@ -23,10 +23,12 @@ import { readRowKey, splitAtFold } from "../../utils";
 import { DeleteModal } from "./DeleteModal";
 import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow";
+import { PurgeAttachmentsModal } from "./PurgeAttachmentsModal";
 import { SelectionHeader } from "./SelectionHeader";
 import { useInboxArchiveFacade } from "./useInboxArchiveFacade";
 import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
+import { useInboxPurgeFacade } from "./useInboxPurgeFacade";
 import { useInboxSelection } from "./useInboxSelection";
 import { listMatchingRows, readSelectionText } from "./utils";
 
@@ -165,6 +167,7 @@ export function InboxList({
     announce: announcer.announce,
     onRemoved: handleGone,
   });
+  const purge = useInboxPurgeFacade({ announce: announcer.announce });
   const { requestDelete } = deletion;
   const handleDelete = useCallback(
     (item: InboxItem): void => requestDelete([item]),
@@ -212,6 +215,10 @@ export function InboxList({
     } finally {
       setCollecting(false);
     }
+  }
+
+  function confirmPurge(): void {
+    void purge.confirm();
   }
 
   function confirmDelete(): void {
@@ -315,6 +322,7 @@ export function InboxList({
                 archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
+                onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
                 onToggleSelect={handleToggle}
               />
@@ -346,6 +354,7 @@ export function InboxList({
                 archived={archived}
                 onAnnounce={announcer.announce}
                 onDelete={handleDelete}
+                onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
                 onToggleSelect={handleToggle}
               />
@@ -360,6 +369,14 @@ export function InboxList({
         items={deletion.pending}
         open={deleteOpen}
       />
+      {purge.pending === undefined ? null : (
+        <PurgeAttachmentsModal
+          busy={purge.busy}
+          cancel={purge.cancel}
+          confirm={confirmPurge}
+          item={purge.pending}
+        />
+      )}
       <p
         aria-atomic="true"
         aria-live="polite"

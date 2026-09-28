@@ -4,8 +4,8 @@
 // /pulls. `repoId` is stringified because bigint is not JSON-native, the
 // array is deliberately unpaginated, the response is `no-store`, and a
 // GitHub failure is a 401 or 502 rather than a DB-only fallback. Beneath it
-// sit the per-repo collaborators leaf and the per-PR subtree, each behind
-// its per-repo gate.
+// sit the per-repo attachments purge and collaborators leaves and the per-PR
+// subtree, each behind its per-repo gate.
 import { ProductQueryIds } from "contract";
 import {
   productRouter,
@@ -16,6 +16,7 @@ import type { AuthRouteDeps } from "../auth/session/types";
 import type { InstallationResolver } from "../installation-resolver";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import type { InstallationGitHubPort } from "../github-port";
+import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
 import createReposHandlers from "./handler";
 import { prRoutes } from "./pr";
@@ -46,6 +47,7 @@ export function reposRoutes(
     handlers.listRepos,
   );
 
+  app.route("/:repoId/attachments", purgeAttachmentsRoute(deps, installations));
   app.route("/:repoId/collaborators", collaboratorsRoute(deps, installations));
   app.route("/:repoId/pulls/:prNumber", prRoutes(deps, installations));
 

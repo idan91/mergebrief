@@ -56,6 +56,7 @@ const KindForCode = {
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
   [ApiErrorCodes.REPO_ADMIN_ONLY]: "upstream",
   [ApiErrorCodes.ATTACHMENTS_DISABLED]: "upstream",
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "upstream",
   [ApiErrorCodes.NOT_FOUND]: "not-found",
   [ApiErrorCodes.INVALID_REQUEST]: "upstream",
   [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "upstream",

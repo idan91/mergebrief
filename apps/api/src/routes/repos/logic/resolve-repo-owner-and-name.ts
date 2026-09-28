@@ -1,4 +1,4 @@
-// The gated-route fresh re-resolve, shared by every mutating pr route: the
+// The gated-route fresh re-resolve, shared by every mutating repo route: the
 // gate's cached slug may be up to 60s stale, and a rename + name-reuse
 // inside that window would point an outward write at the wrong repository.
 // The matching handler-side posture mapper lives here too, a denial at this
@@ -9,23 +9,27 @@ import {
   fetchRepositoryById,
   GitHubApiErrorCodes,
   type GitHubApiError,
+  type RepositoryInfo,
 } from "github";
 import type { RepoId } from "persistence";
 import type { Result } from "types/utils";
 import { ApiErrorCodes } from "contract";
-import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
+import {
+  FailureKinds,
+  buildGitHubDeniedResult,
+} from "../../../shared-errors/failures";
 import {
   BadGateway,
   Forbidden,
   NotFound,
   Unauthorized,
-} from "../../../../shared-errors/api-error";
+} from "../../../shared-errors/api-error";
 import type {
   GitHubDeniedFailure,
   TokenUnreadableFailure,
-} from "../../../../shared-errors/failures";
-import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import { parseOwnerAndName } from "../../utils";
+} from "../../../shared-errors/failures";
+import type { ReviewerGitHubClient } from "../../auth/reviewer-github-client";
+import { parseOwnerAndName } from "../utils";
 
 export type RepoResolveFailure =
   | TokenUnreadableFailure
@@ -36,15 +40,21 @@ export interface RepoOwnerAndName {
   readonly repo: string;
 }
 
+/** The repository as GitHub shows it to the viewer NOW, with its current name pair. */
+export interface FreshRepository {
+  readonly info: RepositoryInfo;
+  readonly ownerAndName: RepoOwnerAndName;
+}
+
 /**
- * The repo's CURRENT `{ owner, repo }` name pair, fetched by numeric id with
- * the viewer's token. Call it immediately before an outward write, the
- * gate's cached slug may be up to 60s stale.
+ * The repo fetched by numeric id with the viewer's token, immediately
+ * before an outward write: the gate's cached slug may be up to 60s stale,
+ * and so may its admin bit.
  */
-export async function resolveRepoOwnerAndName(
+export async function fetchRepositoryFresh(
   deps: { readonly github: ReviewerGitHubClient },
   repoId: RepoId,
-): Promise<Result<RepoOwnerAndName, RepoResolveFailure>> {
+): Promise<Result<FreshRepository, RepoResolveFailure>> {
   const repoInfo = await deps.github.run((token) => {
     const octokit = createUserOctokit(token);
     return fetchRepositoryById(octokit, repoId);
@@ -56,7 +66,19 @@ export async function resolveRepoOwnerAndName(
   if (ownerAndName === undefined) {
     throw new NotFound();
   }
-  return { ok: true, value: ownerAndName };
+  return { ok: true, value: { info: repoInfo.value, ownerAndName } };
+}
+
+/** The repo's CURRENT `{ owner, repo }` name pair, for an outward write. */
+export async function resolveRepoOwnerAndName(
+  deps: { readonly github: ReviewerGitHubClient },
+  repoId: RepoId,
+): Promise<Result<RepoOwnerAndName, RepoResolveFailure>> {
+  const fresh = await fetchRepositoryFresh(deps, repoId);
+  if (!fresh.ok) {
+    return fresh;
+  }
+  return { ok: true, value: fresh.value.ownerAndName };
 }
 
 /**
@@ -71,7 +93,7 @@ export function throwRepoResolveFailure(
   failure: RepoResolveFailure,
   urlBoxOnly = false,
 ): never {
-  if (failure.kind === "token-unreadable") {
+  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {

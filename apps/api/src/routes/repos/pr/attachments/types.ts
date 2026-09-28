@@ -19,7 +19,7 @@ import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { Result } from "types/utils";
 import type { TtlCache } from "../../../ttl-cache";
-import type { RepoResolveFailure } from "../logic/resolve-repo-owner-and-name";
+import type { RepoResolveFailure } from "../../logic/resolve-repo-owner-and-name";
 
 /** The read side needs the viewer's token; the upload also needs the App's. */
 export interface AttachmentsRouteDeps extends AuthRouteDeps {

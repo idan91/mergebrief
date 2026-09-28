@@ -62,6 +62,12 @@
       "owner": "idan"
     }
   },
+  "purge-attachments": {
+    "webOnly": {
+      "reason": "Deleting a repository's attachment branch is a Home affordance behind a typed confirm, and the route is cookie-only; a token cannot sign the reviewer's confirmation",
+      "owner": "idan"
+    }
+  },
   "read-attachment": {
     "webOnly": {
       "reason": "An image the browser loads inline from a comment body; the CLI prints the body's markdown with the GitHub URL in it",

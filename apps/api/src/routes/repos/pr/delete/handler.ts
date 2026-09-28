@@ -11,9 +11,9 @@ import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { requireInstallationScope, type AuthzEnv } from "../../../authz";
 import { prNumberSchema } from "../../../wire-bounds";
-import { throwRepoResolveFailure } from "../logic/resolve-repo-owner-and-name";
+import { throwRepoResolveFailure } from "../../logic/resolve-repo-owner-and-name";
 import { deleteController } from "./controller";
-import { resolveRepoAdmin } from "./logic/resolve-repo-admin";
+import { resolveRepoAdmin } from "../../logic/resolve-repo-admin";
 import type { DeletePullInput } from "./types";
 
 const NO_STORE = { "cache-control": "no-store" } as const;

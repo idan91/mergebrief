@@ -77,6 +77,7 @@ const KindForCode = {
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "forbidden",
   [ApiErrorCodes.REPO_ADMIN_ONLY]: "forbidden",
   [ApiErrorCodes.ATTACHMENTS_DISABLED]: "forbidden",
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "forbidden",
   [ApiErrorCodes.NOT_FOUND]: "not-found",
   [ApiErrorCodes.INVALID_REQUEST]: "failed",
   [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "failed",
@@ -125,6 +126,34 @@ export async function deleteOwnPull(
     return { kind: await readRowWriteFailure(response, path) };
   }
   return { kind: "deleted" };
+}
+
+export type PurgeAttachmentsResult =
+  | { kind: "purged" }
+  /** A rule on the branch refuses the App: the admin's move is on GitHub. */
+  | { kind: "disabled" }
+  /** The App's own permission is short: Contents kept read-only, or an archived repository. */
+  | { kind: "app-permission" }
+  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
+  | { kind: RowWriteFailureKind };
+
+/** The gated delete of a repository's whole attachments branch. */
+export async function purgeAttachments(
+  repoId: string,
+): Promise<PurgeAttachmentsResult> {
+  const path = `/api/repos/${encodeURIComponent(repoId)}/attachments`;
+  const response = await apiFetch(path, { method: "DELETE" });
+  if (response.ok) {
+    return { kind: "purged" };
+  }
+  const { code } = await errorFromResponse(response, path);
+  if (code === ApiErrorCodes.ATTACHMENTS_DISABLED) {
+    return { kind: "disabled" };
+  }
+  if (code === ApiErrorCodes.GITHUB_PERMISSION) {
+    return { kind: "app-permission" };
+  }
+  return { kind: KindForCode[code] };
 }
 
 /** The gated delete of one pull request's briefs. */

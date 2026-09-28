@@ -286,6 +286,7 @@ function countingConversationPort(): {
     ): Promise<Result<PrConversation, GitHubApiError>>;
     listRepoCollaborators(): Promise<never>;
     commitAttachment(): Promise<never>;
+    deleteAttachmentBranch(): Promise<never>;
   };
   calls: () => number;
 } {
@@ -300,6 +301,9 @@ function countingConversationPort(): {
         throw new Error("collaborators port must not be called in this suite");
       },
       commitAttachment: async () => {
+        throw new Error("attachment port must not be called in this suite");
+      },
+      deleteAttachmentBranch: async () => {
         throw new Error("attachment port must not be called in this suite");
       },
     },

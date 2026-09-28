@@ -166,6 +166,9 @@ const unusedConversationPort = {
   commitAttachment: async () => {
     throw new Error("attachment port must not be called in this suite");
   },
+  deleteAttachmentBranch: async () => {
+    throw new Error("attachment port must not be called in this suite");
+  },
 };
 
 describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {

@@ -21,12 +21,12 @@ import {
   it,
   vi,
 } from "vitest";
-import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
+import { createReviewerGitHubClient } from "../../auth/reviewer-github-client";
 import {
   AuthChannels,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "../../../auth/session/types";
+} from "../../auth/session/types";
 import { resolveRepoOwnerAndName } from "./resolve-repo-owner-and-name";
 
 vi.mock("github", async (importOriginal) => ({

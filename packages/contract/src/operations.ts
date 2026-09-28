@@ -41,6 +41,7 @@ export const ProductActionIds = {
   REVOKE_TOKEN: "revoke-token",
   REVOKE_SESSIONS: "revoke-sessions",
   UPLOAD_ATTACHMENT: "upload-attachment",
+  PURGE_ATTACHMENTS: "purge-attachments",
   // The Review Session writes. Declared here ahead of their routes because
   // the Attention List's `clearedBy` names them: the vocabulary is what a
   // client branches on, and an id it cannot resolve to a name is worse than

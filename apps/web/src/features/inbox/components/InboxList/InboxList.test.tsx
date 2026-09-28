@@ -397,6 +397,82 @@ describe("InboxList", () => {
     });
   });
 
+  it("purging a repository's attachment branch asks for its name first", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ viewerCanDelete: true })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    await openRowMenu();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Delete attachment branch" }),
+      );
+    });
+    const dialog = screen.getByRole("dialog", { name: /attachment branch/ });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        within(dialog).getByRole("button", { name: "Cancel" }),
+      );
+    });
+    const confirm = within(dialog).getByRole("button", {
+      name: "Delete branch",
+    });
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.change(
+      within(dialog).getByLabelText("Type acme/payments to confirm"),
+      { target: { value: "acme/payments" } },
+    );
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url ?? "")).toMatch(
+      /\/api\/repos\/424242\/attachments$/,
+    );
+    expect(init?.method).toBe("DELETE");
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: /attachment branch/ }),
+      ).toBeNull();
+      expect(screen.getByText("Attachment branch deleted")).toBeTruthy();
+    });
+    expect(readRows()).toHaveLength(1);
+  });
+
+  it("cancelling the purge modal returns focus to the row's menu trigger", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ viewerCanDelete: true })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const trigger = await openRowMenu();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Delete attachment branch" }),
+      );
+    });
+    const dialog = screen.getByRole("dialog", { name: /attachment branch/ });
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
+    expect(readRows()).toHaveLength(1);
+  });
+
   it("cancelling the delete modal returns focus to the row's menu trigger", async () => {
     await renderInRouter(
       <InboxList

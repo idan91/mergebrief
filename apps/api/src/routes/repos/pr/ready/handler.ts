@@ -8,7 +8,7 @@ import type { AuthzEnv } from "../../../authz";
 import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
-} from "../logic/resolve-repo-owner-and-name";
+} from "../../logic/resolve-repo-owner-and-name";
 import { prNumberSchema } from "../../../wire-bounds";
 import readyController from "./controller";
 import { throwMarkReadyFailure } from "./logic/wire-failures";

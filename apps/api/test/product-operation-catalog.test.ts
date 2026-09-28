@@ -100,6 +100,12 @@ const EXPECTED_CATALOG = [
     endpoint: "POST /api/auth/tokens",
   },
   {
+    id: "purge-attachments",
+    kind: "action",
+    classification: "external-write",
+    endpoint: "DELETE /api/repos/:repoId/attachments",
+  },
+  {
     id: "read-attachment",
     kind: "query",
     classification: "read",

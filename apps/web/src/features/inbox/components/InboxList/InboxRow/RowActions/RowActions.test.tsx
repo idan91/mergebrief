@@ -78,6 +78,7 @@ async function renderActions(
 ) {
   const onAnnounce = vi.fn();
   const onDelete = vi.fn();
+  const onPurgeAttachments = vi.fn();
   const onRemoved = vi.fn();
   const { queryClient } = await renderInRouter(
     <RowActions
@@ -85,11 +86,12 @@ async function renderActions(
       item={item}
       onAnnounce={onAnnounce}
       onDelete={onDelete}
+      onPurgeAttachments={onPurgeAttachments}
       onRemoved={onRemoved}
     />,
   );
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-  return { onAnnounce, onDelete, onRemoved, invalidate };
+  return { onAnnounce, onDelete, onPurgeAttachments, onRemoved, invalidate };
 }
 
 async function openMenu() {
@@ -156,6 +158,35 @@ describe("RowActions", () => {
 
     expect(onDelete).toHaveBeenCalledWith(URL_ROW);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("an admin's installation row offers the attachment-branch purge", async () => {
+    const { onPurgeAttachments } = await renderActions(ADMIN_ROW);
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Delete attachment branch" }),
+      );
+    });
+
+    expect(onPurgeAttachments).toHaveBeenCalledWith(ADMIN_ROW);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("a pasted row and a non-admin row offer no purge", async () => {
+    await renderActions(URL_ROW);
+    await openMenu();
+    expect(
+      screen.queryByRole("menuitem", { name: "Delete attachment branch" }),
+    ).toBeNull();
+
+    cleanup();
+    await renderActions(makeItem());
+    await openMenu();
+    expect(
+      screen.queryByRole("menuitem", { name: "Delete attachment branch" }),
+    ).toBeNull();
   });
 
   it("Archive on any row calls the archive transport and frees the row", async () => {

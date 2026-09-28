@@ -266,6 +266,11 @@ Two things to know before you write a query against it:
   to write, so nothing is recorded. Those refusals appear as
   `api.access` lines with a 401, and that is where to look for them.
 
+Two rows name a repository rather than a pull request: `upload-attachment`
+and `purge-attachments`, the App's only pushes ([attachments.md](attachments.md)),
+carry `target_type = repository` and the repository's id, on a denial past
+the gate as well as on success.
+
 Three knobs, all instance environment variables:
 
 | Variable | Default | What it does |
@@ -343,3 +348,5 @@ Prefer more slots over more workers unless you want the restart isolation.
   endpoints, and alert recipes; `/healthz` vs `/readyz` semantics.
 - [generators.md](./generators.md) — provider/model config and the daily
   generation cap.
+- [attachments.md](./attachments.md) — the one push the App makes, and how
+  an admin deletes it.

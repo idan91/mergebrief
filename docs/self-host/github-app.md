@@ -11,16 +11,19 @@ This doc is the canonical setup reference for both contributors and self-hosters
 
 | Repository permission | Access | Why |
 |---|---|---|
-| **Contents** | Read & write | **Read** PR diffs. **Write** is required *only* because GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance) is gated on `contents: write` — that is GitHub's permission granularity for the mutation, not a MergeBrief code-write path. The App still **never pushes code, branches, or file contents**; the only write it performs is flipping a draft PR to ready. |
+| **Contents** | Read & write | **Read** PR diffs. **Write** serves two things: GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance) is gated on `contents: write`, and image attachments a reviewer pastes into a comment are pushed to an orphan `mergebrief/attachments` branch ([attachments.md](attachments.md)). The App still **never writes code**: that branch holds images only, and no other branch is ever touched. |
 | **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. Also authorizes reading the primary ticket when it is a GitHub issue (`Get an issue` accepts `Pull requests: read`), so the ticket-alignment read needs no `Issues` permission — see [trackers.md](trackers.md). |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
-> `FORBIDDEN` unless the App holds `contents: write`. This is a quirk of GitHub's own permission
-> mapping for that mutation — MergeBrief writes no code. If you keep Contents at Read-only, brief
+> `FORBIDDEN` unless the App holds `contents: write`, a quirk of GitHub's own permission
+> mapping for that mutation. Image attachments are the one real push: an orphan
+> `mergebrief/attachments` branch of image files, which a ruleset on `mergebrief/*` can refuse
+> and a repository admin can delete from Home. If you keep Contents at Read-only, brief
 > generation and reads still work, but "Mark ready for review" fails with a permission error
-> (`403 github-permission`); the UI tells the author to grant this permission and retry.
+> (`403 github-permission`) and so does attaching an image, with the same code; a rule on
+> `mergebrief/*` refusing the push is `403 attachments-disabled`. The UI names each.
 
 **Deliberately NOT enabled:**
 - **Issues** — a comment on the PR *conversation* timeline uses the issue-comments endpoint,

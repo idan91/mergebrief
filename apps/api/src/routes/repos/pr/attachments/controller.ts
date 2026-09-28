@@ -9,7 +9,7 @@ import {
   buildGitHubDeniedResult,
   isGitHubDenial,
 } from "../../../../shared-errors/failures";
-import { resolveRepoOwnerAndName } from "../logic/resolve-repo-owner-and-name";
+import { resolveRepoOwnerAndName } from "../../logic/resolve-repo-owner-and-name";
 import { SOURCES_REFETCH_MIN_AGE_MS, SOURCES_TTL_MS } from "./consts";
 import {
   fetchAttachmentBytes,

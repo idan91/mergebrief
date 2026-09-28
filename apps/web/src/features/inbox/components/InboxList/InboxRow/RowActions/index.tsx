@@ -1,6 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters, type InboxArchivedFilter } from "types/inbox";
+import { PullRequestSources } from "@web/features/pulls/types";
 
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { IconButton } from "@web/components/IconButton";
@@ -21,6 +22,8 @@ export interface RowActionsProps {
   onAnnounce: (message: string) => void;
   /** The reviewer asked to delete this row; the list confirms and runs it. */
   onDelete: (item: InboxItem) => void;
+  /** The reviewer asked to delete the repository's attachment branch; the list confirms and runs it. */
+  onPurgeAttachments: (item: InboxItem) => void;
   /** The row left the list; the list decides where focus goes. */
   onRemoved: () => void;
 }
@@ -29,14 +32,16 @@ export interface RowActionsProps {
  * The right-edge actions a hover or the keyboard cursor reveals: Open on
  * GitHub when the repository is known, and a menu with Copy link, Archive
  * (Unarchive in the archived view) and, on the rows the viewer may delete,
- * Delete. Regenerate leads the menu when GitHub has commits the latest
- * brief does not cover.
+ * Delete. An installation row an admin may delete also offers the
+ * repository's attachment-branch purge. Regenerate leads the menu when
+ * GitHub has commits the latest brief does not cover.
  */
 export function RowActions({
   item,
   archived,
   onAnnounce,
   onDelete,
+  onPurgeAttachments,
   onRemoved,
 }: RowActionsProps) {
   const { t } = useTranslation();
@@ -49,6 +54,8 @@ export function RowActions({
   const inArchive = archived === InboxArchivedFilters.ONLY;
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
   const canRegenerate = item.behind && githubUrl !== null;
+  const canPurgeAttachments =
+    item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 
   return (
     <div className={styles["actions"]}>
@@ -109,6 +116,15 @@ export function RowActions({
               onSelect={() => onDelete(item)}
             >
               {t("home.inbox.actions.delete")}
+            </Menu.Item>
+          ) : null}
+          {canPurgeAttachments ? (
+            <Menu.Item
+              danger
+              glyph={<Icon name={IconNames.IMAGE} size={IconSizes.MD} />}
+              onSelect={() => onPurgeAttachments(item)}
+            >
+              {t("home.inbox.actions.purgeAttachments")}
             </Menu.Item>
           ) : null}
         </Menu.Content>

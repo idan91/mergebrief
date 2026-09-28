@@ -16,6 +16,7 @@ export const ApiErrorCodes = {
   NO_REPO_WRITE_ACCESS: "no-repo-write-access",
   REPO_ADMIN_ONLY: "repo-admin-only",
   ATTACHMENTS_DISABLED: "attachments-disabled",
+  ATTACHMENTS_ADMIN_ONLY: "attachments-admin-only",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   ATTACHMENT_UNSUPPORTED_TYPE: "attachment-unsupported-type",
@@ -77,6 +78,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: 403,
   [ApiErrorCodes.REPO_ADMIN_ONLY]: 403,
   [ApiErrorCodes.ATTACHMENTS_DISABLED]: 403,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: 403,
   [ApiErrorCodes.NOT_FOUND]: 404,
   [ApiErrorCodes.INVALID_REQUEST]: 400,
   [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: 400,
@@ -120,6 +122,8 @@ export const ApiErrorEnglishByCode = {
     "only a repository admin can delete a pull request's briefs",
   [ApiErrorCodes.ATTACHMENTS_DISABLED]:
     "attachments are disabled for this repository",
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]:
+    "only a repository admin can delete its attachment branch",
   [ApiErrorCodes.NOT_FOUND]: "not found",
   [ApiErrorCodes.INVALID_REQUEST]: "invalid request",
   [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]:

@@ -149,6 +149,9 @@ const unusedConversationPort = {
   commitAttachment: async () => {
     throw new Error("attachment port must not be called in this suite");
   },
+  deleteAttachmentBranch: async () => {
+    throw new Error("attachment port must not be called in this suite");
+  },
 };
 
 /** No GitHub call belongs on this path; any fetch is a test failure. */

@@ -41,6 +41,7 @@ export interface InboxRowProps {
   archived: InboxArchivedFilter;
   onAnnounce: (message: string) => void;
   onDelete: (item: InboxItem) => void;
+  onPurgeAttachments: (item: InboxItem) => void;
   /** The row archived or unarchived and is leaving the list. */
   onRemoved: (item: InboxItem) => void;
 }
@@ -66,6 +67,7 @@ export function InboxRow({
   archived,
   onAnnounce,
   onDelete,
+  onPurgeAttachments,
   onRemoved,
 }: InboxRowProps) {
   const { t } = useTranslation();
@@ -196,6 +198,7 @@ export function InboxRow({
           item={item}
           onAnnounce={onAnnounce}
           onDelete={onDelete}
+          onPurgeAttachments={onPurgeAttachments}
           onRemoved={handleRemoved}
         />
       </span>

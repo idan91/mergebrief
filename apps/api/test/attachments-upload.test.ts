@@ -51,6 +51,9 @@ function makePort(commit = vi.fn()): {
       throw new Error("collaborators port must not be called in this suite");
     },
     commitAttachment: commit,
+    deleteAttachmentBranch: async () => {
+      throw new Error("attachment port must not be called in this suite");
+    },
   };
   return { port, commit };
 }
