@@ -18,6 +18,8 @@ import { groupFlagsByFile } from "./utils";
 export interface RiskSurfaceProps {
   group: AttributedGroupView;
   groupFlags: RiskFlag[];
+  /** The files to list rows in; the group's own chunk order by default. */
+  fileOrder?: string[] | undefined;
   dispositions: Record<string, Disposition | undefined>;
   flagsReadOnly: boolean;
   selectedFlagSet: Set<string>;
@@ -31,6 +33,7 @@ export interface RiskSurfaceProps {
 export function RiskSurface({
   group,
   groupFlags,
+  fileOrder: fileOrderOverride,
   dispositions,
   flagsReadOnly,
   selectedFlagSet,
@@ -41,7 +44,8 @@ export function RiskSurface({
   toggleRiskGroup,
 }: RiskSurfaceProps) {
   const { t } = useTranslation();
-  const fileOrder = group.chunks.map((chunk) => chunk.file);
+  const fileOrder =
+    fileOrderOverride ?? group.chunks.map((chunk) => chunk.file);
   const rows = groupFlagsByFile(groupFlags, dispositions, fileOrder);
   const openRows = rows.filter((row) => row.openFlags.length > 0);
   const resolvedRows = rows.filter((row) => row.openFlags.length === 0);

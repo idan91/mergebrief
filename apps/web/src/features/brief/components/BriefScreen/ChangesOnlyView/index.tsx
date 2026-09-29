@@ -25,6 +25,7 @@ import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import { GuestDiff } from "./GuestDiff";
 import { RawSpanDiff } from "./RawSpanDiff";
 import { GuestDiffVariants } from "./GuestDiff/types";
+import { SectionFlags } from "./SectionFlags";
 import type { ChangesReviewWiring } from "./types";
 import {
   collectNarrativeRows,
@@ -65,19 +66,30 @@ export interface ChangesOnlyViewProps {
   review?: ChangesReviewWiring | undefined;
   /** Where the delta's rows stand; a card shows its summary first, rows when they land. */
   deltaSpan?: DeltaSpanStatus | undefined;
+  /** Where a flag's jump lands: the screen exits to Full and lands on the chunk. */
+  jumpToChunk?: ((chunkId: string) => void) | undefined;
+}
+
+function ignoreJump(): void {
+  return undefined;
 }
 
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
+  const jumpToChunk = props.jumpToChunk ?? ignoreJump;
   const summary =
     props.compare === "last-review" ? (
       <LastReviewChanges
+        brief={props.brief}
         delta={props.delta}
         deltaSpan={props.deltaSpan ?? DeltaSpanStatuses.ABSENT}
+        fullModel={props.model}
+        jumpToChunk={jumpToChunk}
         review={props.review}
       />
     ) : (
       <PreviousBriefChanges
         brief={props.brief}
+        jumpToChunk={jumpToChunk}
         model={props.model}
         narrative={props.narrative}
         review={props.review}
@@ -101,6 +113,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
 
 interface PreviousBriefChangesProps {
   brief: Brief;
+  jumpToChunk: (chunkId: string) => void;
   model: BriefViewModel;
   narrative: RevisionNarrative | null;
   review: ChangesReviewWiring | undefined;
@@ -109,6 +122,7 @@ interface PreviousBriefChangesProps {
 
 function PreviousBriefChanges({
   brief,
+  jumpToChunk,
   model,
   narrative,
   review,
@@ -198,6 +212,13 @@ function PreviousBriefChanges({
                 {categoryLabel(group.group.dominantCategory)}
               </span>
             </div>
+            <SectionFlags
+              chunks={brief.chunks}
+              flags={model.flags}
+              group={group}
+              jumpToChunk={jumpToChunk}
+              regions={chunks}
+            />
             <WindowedNarrativeList
               brief={brief}
               chunks={chunks}
@@ -371,8 +392,12 @@ function NarrativeChunkCard({ brief, chunk, review }: NarrativeChunkCardProps) {
 }
 
 interface LastReviewChangesProps {
+  /** The full brief and its model: their flags and chunks are what a section's regions match. */
+  brief: Brief;
+  fullModel: BriefViewModel;
   delta: Brief | null;
   deltaSpan: DeltaSpanStatus;
+  jumpToChunk: (chunkId: string) => void;
   review: ChangesReviewWiring | undefined;
 }
 
@@ -387,8 +412,11 @@ function LengthGuidanceNote() {
 }
 
 function LastReviewChanges({
+  brief,
+  fullModel,
   delta,
   deltaSpan,
+  jumpToChunk,
   review,
 }: LastReviewChangesProps) {
   const { t } = useTranslation();
@@ -421,6 +449,13 @@ function LastReviewChanges({
                 {categoryLabel(group.group.dominantCategory)}
               </span>
             </div>
+            <SectionFlags
+              chunks={brief.chunks}
+              flags={fullModel.flags}
+              group={group}
+              jumpToChunk={jumpToChunk}
+              regions={group.chunks}
+            />
             {group.chunks.map((chunk) => (
               <div className={styles["chunk"]} key={chunk.id}>
                 <div className={styles["chunkFile"]}>{chunk.file}</div>

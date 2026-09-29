@@ -97,6 +97,7 @@ export function BriefScreen({
     storyEverShownRef,
     chunkWindowsRef,
     queueJumpFromChanges,
+    queueChunkJumpFromChanges,
     submitOpen,
     toast,
     liveMessage,
@@ -351,6 +352,7 @@ export function BriefScreen({
                           delta={overlay.delta}
                           rawSpanDiff={overlay.activeRawSpanDiff}
                           deltaSpan={overlay.deltaSpanStatus}
+                          jumpToChunk={queueChunkJumpFromChanges}
                           review={changesReview}
                         />
                       </LensPane>

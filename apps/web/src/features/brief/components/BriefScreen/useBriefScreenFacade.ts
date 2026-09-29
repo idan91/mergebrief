@@ -200,9 +200,20 @@ export function useBriefScreenFacade({
     exitChangesScope();
   };
 
-  // A chunk parked by a deep-link arrival in Changes scope, landed once the
-  // story pane renders.
+  // A chunk parked by a deep-link arrival in Changes scope, or by a flag's
+  // jump from a Changes section, landed once the story pane renders.
   const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
+  const queueChunkJumpFromChanges = (chunkId: string) => {
+    if (!inChangesScope) {
+      jumpToChunk(chunkId);
+      return;
+    }
+    if (exitChangesScope === undefined) {
+      return;
+    }
+    setPendingDeepLink(chunkId);
+    exitChangesScope();
+  };
 
   // The link param follows the selection with replace. The ref remembers
   // what this page wrote, so a clear never drops a link the reader arrived on.
@@ -609,6 +620,7 @@ export function useBriefScreenFacade({
     storyEverShownRef,
     chunkWindowsRef,
     queueJumpFromChanges,
+    queueChunkJumpFromChanges,
     submitOpen,
     toast,
     liveMessage,

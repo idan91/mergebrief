@@ -1,0 +1,7 @@
+@use "functions";
+
+@layer components {
+  .sectionFlags {
+    margin-block-end: functions.to-rem(12px);
+  }
+}

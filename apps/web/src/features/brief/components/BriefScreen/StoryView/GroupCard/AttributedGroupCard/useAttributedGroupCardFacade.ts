@@ -1,15 +1,12 @@
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useShallow } from "zustand/react/shallow";
 
 import {
-  type Disposition,
   useReviewActions,
-  useReviewFlow,
   useReviewSession,
   useReviewSessionActions,
 } from "@web/features/review/session";
 import type { Category } from "../../../../../types";
+import { useFlagSurface } from "../../../../../hooks/useFlagSurface";
 import type {
   AttributedGroupView,
   BriefViewModel,
@@ -24,9 +21,8 @@ export interface AttributedGroupCardFacadeParams {
 }
 
 /**
- * Group-scoped store slices and the card's risk/dominant actions. Whole-map
- * subscriptions would re-render every card (in both kept-warm scope panes)
- * on any disposition/comment write anywhere in the brief.
+ * Group-scoped store slices and the card's risk/dominant actions. The flag
+ * slice is the one a Changes section reads too, so both surfaces agree.
  */
 export function useAttributedGroupCardFacade({
   group,
@@ -40,41 +36,9 @@ export function useAttributedGroupCardFacade({
   const isReclassified = useReviewSession((state) =>
     state.reclassifiedGroups.has(group.id),
   );
-  const groupDispositions = useReviewSession(
-    useShallow((state) =>
-      groupFlags.map((flag) => state.dispositions[flag.id]),
-    ),
-  );
-  const dispositions = useMemo(() => {
-    const byId: Record<string, Disposition | undefined> = {};
-    groupFlags.forEach((flag, index) => {
-      byId[flag.id] = groupDispositions[index];
-    });
-    return byId;
-  }, [groupDispositions, groupFlags]);
+  const flagSurface = useFlagSurface(groupFlags);
   const actions = useReviewSessionActions();
-  const { announce, setDismissTarget, setEvidenceTarget, toggleRiskGroup } =
-    useReviewActions();
-  const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
-
-  const groupFlagIds = useMemo(
-    () => groupFlags.map((flag) => flag.id),
-    [groupFlags],
-  );
-  const selectedRiskFlags = useReviewFlow(
-    useShallow((state) =>
-      groupFlagIds.filter((id) => state.selectedRiskFlags.has(id)),
-    ),
-  );
-  const selectedFlagSet = useMemo(
-    () => new Set(selectedRiskFlags),
-    [selectedRiskFlags],
-  );
-
-  function reopenFlag(flag: RiskFlag) {
-    actions.disposeFlag([flag.id], { kind: "open" });
-    announce(t("brief.group.reopenAnnounce"));
-  }
+  const { announce } = useReviewActions();
 
   function chooseDominant(category: Category) {
     actions.reclassifyGroup(group.id, category);
@@ -85,13 +49,13 @@ export function useAttributedGroupCardFacade({
     groupFlags,
     dominant,
     isReclassified,
-    dispositions,
-    flagsReadOnly,
-    selectedFlagSet,
-    reopenFlag,
+    dispositions: flagSurface.dispositions,
+    flagsReadOnly: flagSurface.flagsReadOnly,
+    selectedFlagSet: flagSurface.selectedFlagSet,
+    reopenFlag: flagSurface.reopenFlag,
     chooseDominant,
-    setDismissTarget,
-    setEvidenceTarget,
-    toggleRiskGroup,
+    setDismissTarget: flagSurface.setDismissTarget,
+    setEvidenceTarget: flagSurface.setEvidenceTarget,
+    toggleRiskGroup: flagSurface.toggleRiskGroup,
   };
 }
