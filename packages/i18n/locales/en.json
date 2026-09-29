@@ -479,6 +479,8 @@
       "eyebrowPreviousBrief": "Changes Only · since the previous Brief",
       "eyebrowLastReview": "Changes Only · since your last review",
       "otherChanges": "Other changes",
+      "showInFull": "Show in Full brief",
+      "showInFullAria": "Show in Full brief, {{file}}",
       "removedLines_one": "−{{count}} line removed",
       "removedLines_other": "−{{count}} lines removed",
       "linesNotShown_one": "{{count}} line not shown",

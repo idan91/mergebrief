@@ -9,7 +9,12 @@ import {
   type RevisionNarrativeChunk,
   Roles,
 } from "../../../types";
-import { collectNarrativeRows, countLines, shapeGuestRows } from "./utils";
+import {
+  collectNarrativeRows,
+  countLines,
+  resolveCardOwnerChunkId,
+  shapeGuestRows,
+} from "./utils";
 
 function stubChunk(id: string, file: string, diff: DiffLine[]): BriefChunk {
   return {
@@ -277,5 +282,41 @@ describe("countLines", () => {
         { start: 9, end: 9 },
       ]),
     ).toBe(4);
+  });
+});
+
+describe("resolveCardOwnerChunkId", () => {
+  const chunks: BriefChunk[] = [
+    {
+      ...stubChunk("a", "src/n.ts", []),
+      addedRanges: [{ start: 10, end: 11 }],
+    },
+    {
+      ...stubChunk("b", "src/n.ts", []),
+      changeGroupId: "g2",
+      addedRanges: [{ start: 12, end: 13 }],
+    },
+    stubChunk("other", "src/b.ts", []),
+  ];
+
+  it("names the chunk whose added range holds the card's first added line", () => {
+    expect(
+      resolveCardOwnerChunkId(chunks, "src/n.ts", [{ start: 12, end: 13 }]),
+    ).toBe("b");
+    expect(
+      resolveCardOwnerChunkId(chunks, "src/n.ts", [
+        { start: 12, end: 13 },
+        { start: 10, end: 11 },
+      ]),
+    ).toBe("a");
+  });
+
+  it("falls back to the file's chunk in the card's group with nothing added", () => {
+    expect(resolveCardOwnerChunkId(chunks, "src/n.ts", [], "g2")).toBe("b");
+    expect(resolveCardOwnerChunkId(chunks, "src/n.ts", [])).toBe("a");
+  });
+
+  it("names nothing for a file no chunk of the brief touches", () => {
+    expect(resolveCardOwnerChunkId(chunks, "src/zzz.ts", [])).toBeUndefined();
   });
 });

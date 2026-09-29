@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
+import { Icon } from "@web/components/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { IconButton } from "@web/components/IconButton";
 import { Markdown } from "@web/components/Markdown";
 import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
@@ -32,6 +35,7 @@ import {
   collectNarrativeRows,
   countLines,
   hasLengthViolations,
+  resolveCardOwnerChunkId,
   shapeGuestRows,
 } from "./utils";
 import styles from "./ChangesOnlyView.module.scss";
@@ -67,7 +71,7 @@ export interface ChangesOnlyViewProps {
   review?: ChangesReviewWiring | undefined;
   /** Where the delta's rows stand; a card shows its summary first, rows when they land. */
   deltaSpan?: DeltaSpanStatus | undefined;
-  /** Where a flag's jump lands: the screen exits to Full and lands on the chunk. */
+  /** Where a flag's or a card's jump lands: the screen exits to Full and lands on the chunk. */
   jumpToChunk?: ((chunkId: string) => void) | undefined;
   /** The previous-brief span diff by file; a narrative card takes its removed lines from it. */
   narrativeSpanRows?: FileRowsCache | undefined;
@@ -186,9 +190,6 @@ function PreviousBriefChanges({
       !brief.changeGroups.some((g) => g.id === chunk.briefChangeGroupId),
   );
 
-  // Deduped: the collector can emit the same line once per direction.
-  const warnings = [...new Set(narrative.generationWarnings ?? [])];
-
   return (
     <div className={styles["changesOnly"]}>
       <div className={styles["eyebrow"]}>
@@ -196,13 +197,6 @@ function PreviousBriefChanges({
       </div>
       {restartNote}
       {lengthNote}
-      {warnings.length > 0 ? (
-        <div className={styles["generationWarnings"]} role="note">
-          {warnings.map((warning) => (
-            <div key={warning}>{warning}</div>
-          ))}
-        </div>
-      ) : null}
       <p className={styles["overview"]}>{narrative.overview}</p>
       {model.groups.map((group) => {
         if (group.kind !== GroupViewKinds.ATTRIBUTED) return null;
@@ -228,6 +222,7 @@ function PreviousBriefChanges({
             <WindowedNarrativeList
               brief={brief}
               chunks={chunks}
+              jumpToChunk={jumpToChunk}
               review={review}
               spanRows={spanRows}
             />
@@ -244,6 +239,7 @@ function PreviousBriefChanges({
           <WindowedNarrativeList
             brief={brief}
             chunks={orphanChunks}
+            jumpToChunk={jumpToChunk}
             review={review}
             spanRows={spanRows}
           />
@@ -256,6 +252,7 @@ function PreviousBriefChanges({
 interface WindowedNarrativeListProps {
   brief: Brief;
   chunks: readonly RevisionNarrativeChunk[];
+  jumpToChunk: (chunkId: string) => void;
   review: ChangesReviewWiring | undefined;
   spanRows: FileRowsCache | undefined;
 }
@@ -279,6 +276,7 @@ function deriveNarrativeHostId(chunk: RevisionNarrativeChunk): string {
 function WindowedNarrativeList({
   brief,
   chunks,
+  jumpToChunk,
   review,
   spanRows,
 }: WindowedNarrativeListProps) {
@@ -343,6 +341,7 @@ function WindowedNarrativeList({
             <NarrativeChunkCard
               brief={brief}
               chunk={chunk}
+              jumpToChunk={jumpToChunk}
               review={review}
               spanRows={spanRows}
             />
@@ -356,6 +355,7 @@ function WindowedNarrativeList({
 interface NarrativeChunkCardProps {
   brief: Brief;
   chunk: RevisionNarrativeChunk;
+  jumpToChunk: (chunkId: string) => void;
   review: ChangesReviewWiring | undefined;
   spanRows: FileRowsCache | undefined;
 }
@@ -363,6 +363,7 @@ interface NarrativeChunkCardProps {
 function NarrativeChunkCard({
   brief,
   chunk,
+  jumpToChunk,
   review,
   spanRows,
 }: NarrativeChunkCardProps) {
@@ -398,10 +399,29 @@ function NarrativeChunkCard({
   // The count stands in until the span diff supplies the removed lines.
   const removedCount =
     narrative.removedShown > 0 ? 0 : countLines(chunk.removedRanges);
+  // The chunk the card's first row came from is the exact owner; the
+  // resolver covers a card with no rendered head row.
+  const firstOrigin = narrative.origins.find((origin) => origin !== undefined);
+  const ownerId =
+    firstOrigin?.chunkId ??
+    resolveCardOwnerChunkId(
+      brief.chunks,
+      chunk.file,
+      chunk.addedRanges,
+      chunk.briefChangeGroupId,
+    );
+  const summaryId = `${host.id}-summary`;
   return (
     <div className={styles["chunk"]}>
-      <div className={styles["chunkFile"]}>{chunk.file}</div>
-      <p className={styles["chunkSummary"]}>{chunk.summary}</p>
+      <CardHead
+        describedBy={summaryId}
+        file={chunk.file}
+        jumpToChunk={jumpToChunk}
+        ownerId={ownerId}
+      />
+      <p className={styles["chunkSummary"]} id={summaryId}>
+        {chunk.summary}
+      </p>
       {narrative.rows.length > 0 ? (
         <GuestDiff
           chunk={host}
@@ -416,6 +436,36 @@ function NarrativeChunkCard({
           {t("brief.changes.removedLines", { count: removedCount })}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export interface CardHeadProps {
+  /** The card's summary element, so cards on one file read apart in a buttons list. */
+  describedBy: string | undefined;
+  file: string;
+  jumpToChunk: (chunkId: string) => void;
+  /** The full brief chunk the card stands for; absent leaves the file line alone. */
+  ownerId: string | undefined;
+}
+
+function CardHead({ describedBy, file, jumpToChunk, ownerId }: CardHeadProps) {
+  const { t } = useTranslation();
+  return (
+    <div className={styles["chunkHead"]}>
+      <div className={styles["chunkFile"]}>{file}</div>
+      {ownerId === undefined ? null : (
+        <IconButton
+          aria-describedby={describedBy}
+          aria-label={t("brief.changes.showInFullAria", { file })}
+          callout="right"
+          className={styles["chunkJump"]}
+          label={t("brief.changes.showInFull")}
+          onClick={() => jumpToChunk(ownerId)}
+        >
+          <Icon name={IconNames.ARROW_ELBOW_DOWN_RIGHT} size={IconSizes.MD} />
+        </IconButton>
+      )}
     </div>
   );
 }
@@ -486,21 +536,61 @@ function LastReviewChanges({
               regions={group.chunks}
             />
             {group.chunks.map((chunk) => (
-              <div className={styles["chunk"]} key={chunk.id}>
-                <div className={styles["chunkFile"]}>{chunk.file}</div>
-                {chunk.summary ? (
-                  <p className={styles["chunkSummary"]}>{chunk.summary}</p>
-                ) : null}
-                <DeltaChunkDiff
-                  chunk={chunk}
-                  deltaSpan={deltaSpan}
-                  review={review}
-                />
-              </div>
+              <DeltaCard
+                brief={brief}
+                chunk={chunk}
+                deltaSpan={deltaSpan}
+                jumpToChunk={jumpToChunk}
+                key={chunk.id}
+                review={review}
+              />
             ))}
           </section>
         );
       })}
+    </div>
+  );
+}
+
+interface DeltaCardProps {
+  brief: Brief;
+  chunk: BriefChunk;
+  deltaSpan: DeltaSpanStatus;
+  jumpToChunk: (chunkId: string) => void;
+  review: ChangesReviewWiring | undefined;
+}
+
+function DeltaCard({
+  brief,
+  chunk,
+  deltaSpan,
+  jumpToChunk,
+  review,
+}: DeltaCardProps) {
+  // A delta chunk's id is the delta's own, so the Full chunk comes from the
+  // file and head lines.
+  const ownerId = resolveCardOwnerChunkId(
+    brief.chunks,
+    chunk.file,
+    chunk.addedRanges,
+  );
+  const summaryId = chunk.summary
+    ? `${GuestHostPrefixes.DELTA}${chunk.id}-summary`
+    : undefined;
+  return (
+    <div className={styles["chunk"]}>
+      <CardHead
+        describedBy={summaryId}
+        file={chunk.file}
+        jumpToChunk={jumpToChunk}
+        ownerId={ownerId}
+      />
+      {chunk.summary ? (
+        <p className={styles["chunkSummary"]} id={summaryId}>
+          {chunk.summary}
+        </p>
+      ) : null}
+      <DeltaChunkDiff chunk={chunk} deltaSpan={deltaSpan} review={review} />
     </div>
   );
 }

@@ -14,12 +14,6 @@
     text-transform: uppercase;
   }
 
-  .generationWarnings {
-    color: var(--color-warning);
-    font-size: var(--font-size-sm);
-    line-height: 1.5;
-  }
-
   .overview {
     color: var(--color-text-2);
     font-size: var(--font-size-xl);
@@ -72,10 +66,21 @@
     }
   }
 
+  .chunkHead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(4px);
+    align-items: center;
+  }
+
   .chunkFile {
     color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-md);
+  }
+
+  .chunkJump {
+    flex: none;
   }
 
   .chunkSummary {

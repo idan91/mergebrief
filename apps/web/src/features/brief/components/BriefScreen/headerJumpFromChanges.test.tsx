@@ -102,56 +102,71 @@ const narrative: RevisionNarrative = {
   ],
 };
 
+function NarrativeHarness() {
+  const [search, setSearch] = useState<BriefSearchParams>({
+    view: "changes",
+    compare: "previous-brief",
+  });
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      }),
+  );
+  return (
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <BriefView
+          artifacts={[]}
+          brief={briefFixture}
+          briefId="fixture-brief-1"
+          comparisonPlan={{
+            previousBrief: {
+              marks: {
+                queryKey: ["test-previous-marks"],
+                queryFn: () => Promise.resolve(previousBriefMarks),
+              },
+              narrative: {
+                queryKey: ["test-narrative"],
+                queryFn: () => Promise.resolve(narrative),
+              },
+            },
+          }}
+          exitChangesScope={() =>
+            setSearch({ view: "full", compare: "previous-brief" })
+          }
+          searchParams={search}
+        />
+      </QueryClientProvider>
+    </I18nProvider>
+  );
+}
+
 describe("Flag jump from Changes scope", () => {
   it("exits to Full and lands on the flagged chunk", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    function Harness() {
-      const [search, setSearch] = useState<BriefSearchParams>({
-        view: "changes",
-        compare: "previous-brief",
-      });
-      const [queryClient] = useState(
-        () =>
-          new QueryClient({
-            defaultOptions: { queries: { retry: false } },
-          }),
-      );
-      return (
-        <I18nProvider>
-          <QueryClientProvider client={queryClient}>
-            <BriefView
-              artifacts={[]}
-              brief={briefFixture}
-              briefId="fixture-brief-1"
-              comparisonPlan={{
-                previousBrief: {
-                  marks: {
-                    queryKey: ["test-previous-marks"],
-                    queryFn: () => Promise.resolve(previousBriefMarks),
-                  },
-                  narrative: {
-                    queryKey: ["test-narrative"],
-                    queryFn: () => Promise.resolve(narrative),
-                  },
-                },
-              }}
-              exitChangesScope={() =>
-                setSearch({ view: "full", compare: "previous-brief" })
-              }
-              searchParams={search}
-            />
-          </QueryClientProvider>
-        </I18nProvider>
-      );
-    }
-
-    await renderInRouter(<Harness />);
+    await renderInRouter(<NarrativeHarness />);
     const fileButton = await screen.findByRole("button", {
       name: "src/leak.ts",
     });
 
     fireEvent.click(fileButton);
+
+    await waitFor(() => expect(document.activeElement?.id).toBe("chunk-a"));
+  });
+});
+
+describe("Card jump from Changes scope", () => {
+  it("exits to Full and lands on the card's owner chunk", async () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+
+    await renderInRouter(<NarrativeHarness />);
+    const jump = await screen.findByRole("button", {
+      name: "Show in Full brief, src/leak.ts",
+    });
+
+    fireEvent.click(jump);
 
     await waitFor(() => expect(document.activeElement?.id).toBe("chunk-a"));
   });

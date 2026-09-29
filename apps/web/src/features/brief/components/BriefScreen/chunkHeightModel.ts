@@ -32,8 +32,8 @@ export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
   return input.diffRowCount * DIFF_ROW_HEIGHT_PX + CHUNK_CARD_OVERHEAD_PX;
 }
 
-/** Narrative card chrome: file line, summary paragraph, margins. */
-export const NARRATIVE_CARD_OVERHEAD_PX = 140;
+/** Narrative card chrome: the head with its action, summary paragraph, margins. */
+export const NARRATIVE_CARD_OVERHEAD_PX = 145;
 
 /** The removed-lines note under a card's rows. */
 export const REMOVED_NOTE_PX = 24;

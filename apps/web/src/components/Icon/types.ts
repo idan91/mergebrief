@@ -3,6 +3,7 @@ import type { ValueOf } from "types/utils";
 /** The set: one file per name under `components/icons`, Phosphor's names. */
 export const IconNames = {
   ARCHIVE: "archive",
+  ARROW_ELBOW_DOWN_RIGHT: "arrow-elbow-down-right",
   ARROW_UP: "arrow-up",
   ARROW_UP_RIGHT: "arrow-up-right",
   ARROWS_CLOCKWISE: "arrows-clockwise",

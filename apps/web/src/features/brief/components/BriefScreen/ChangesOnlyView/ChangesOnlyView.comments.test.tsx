@@ -262,6 +262,7 @@ interface RenderOptions {
   deltaSpan?: DeltaSpanStatus;
   /** The previous-brief span diff, the source of a card's removed lines. */
   narrativeSpanRows?: FileRowsCache;
+  jumpToChunk?: (chunkId: string) => void;
 }
 
 function renderChanges(options: RenderOptions = {}) {
@@ -331,6 +332,7 @@ function renderChanges(options: RenderOptions = {}) {
                       ? (next.narrative ?? NARRATIVE)
                       : null
                   }
+                  jumpToChunk={next.jumpToChunk}
                   narrativeSpanRows={next.narrativeSpanRows}
                   review={review}
                   skipReason={null}
@@ -510,6 +512,35 @@ describe("Previous Brief narrative cards take comments", () => {
   });
 });
 
+describe("Previous Brief narrative cards lead back to Full", () => {
+  it("jumps to the owner chunk in Full from the card's Show in Full brief", () => {
+    const jumpToChunk = vi.fn();
+    renderChanges({ jumpToChunk });
+
+    const jump = screen.getByRole("button", {
+      name: "Show in Full brief, src/a.ts",
+    });
+    fireEvent.click(jump);
+
+    expect(jumpToChunk).toHaveBeenCalledWith("chunk-a");
+    expect(jump.getAttribute("aria-describedby")).toBe(
+      "narrative:src/a.ts#rc1-summary",
+    );
+  });
+
+  it("renders no Show in Full brief for a file no chunk of the brief touches", () => {
+    const elsewhere: RevisionNarrative = {
+      ...NARRATIVE,
+      chunks: [{ ...NARRATIVE.chunks[0]!, file: "src/zzz.ts" }],
+    };
+    renderChanges({ jumpToChunk: vi.fn(), narrative: elsewhere });
+
+    expect(
+      screen.queryByRole("button", { name: /Show in Full brief/ }),
+    ).toBeNull();
+  });
+});
+
 describe("Your last review delta cards take comments", () => {
   it("anchors a comment on an added row to the owner of its head line", () => {
     const { view, openCommentComposer } = renderChanges({
@@ -562,6 +593,29 @@ describe("Your last review delta cards take comments", () => {
     expect(document.getElementById(reasonId)?.textContent).toBe(
       appI18n.t("brief.diff.guest.removedBeforeHead"),
     );
+  });
+});
+
+describe("Your last review cards lead back to Full", () => {
+  it("jumps to the full brief chunk on the delta card's file from its head", () => {
+    const jumpToChunk = vi.fn();
+    const ownDelta: Brief = {
+      ...DELTA,
+      chunks: [
+        {
+          ...DELTA_CHUNK,
+          id: "delta-1",
+          addedRanges: [{ start: 11, end: 11 }],
+        },
+      ],
+    };
+    renderChanges({ compare: "last-review", delta: ownDelta, jumpToChunk });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show in Full brief, src/a.ts" }),
+    );
+
+    expect(jumpToChunk).toHaveBeenCalledWith("chunk-a");
   });
 });
 

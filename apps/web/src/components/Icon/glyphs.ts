@@ -2,6 +2,7 @@ import type { ComponentType, SVGProps } from "react";
 
 import AnthropicGlyph from "../icons/anthropic.svg?react";
 import ArchiveGlyph from "../icons/archive.svg?react";
+import ArrowElbowDownRightGlyph from "../icons/arrow-elbow-down-right.svg?react";
 import ArrowUpGlyph from "../icons/arrow-up.svg?react";
 import ArrowUpRightGlyph from "../icons/arrow-up-right.svg?react";
 import ArrowsClockwiseGlyph from "../icons/arrows-clockwise.svg?react";
@@ -54,6 +55,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.ARCHIVE]: ArchiveGlyph,
   [IconNames.ARROW_UP]: ArrowUpGlyph,
   [IconNames.ARROW_UP_RIGHT]: ArrowUpRightGlyph,
+  [IconNames.ARROW_ELBOW_DOWN_RIGHT]: ArrowElbowDownRightGlyph,
   [IconNames.ARROWS_CLOCKWISE]: ArrowsClockwiseGlyph,
   [IconNames.CARET_DOWN]: CaretDownGlyph,
   [IconNames.CHAT_TEXT]: ChatTextGlyph,

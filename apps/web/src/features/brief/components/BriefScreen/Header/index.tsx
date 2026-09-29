@@ -221,8 +221,8 @@ export function Header({
                     href={prLink}
                     target="_blank"
                   >
-                    #{brief.pr.number}{" "}
-                    <Icon name={IconNames.ARROW_UP_RIGHT} size={IconSizes.SM} />
+                    #{brief.pr.number}
+                    <Icon name={IconNames.GITHUB_LOGO} size={IconSizes.SM} />
                   </AccessibleLink>
                 ) : (
                   <span>#{brief.pr.number}</span>

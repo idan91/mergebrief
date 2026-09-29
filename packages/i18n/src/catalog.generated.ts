@@ -131,6 +131,7 @@ export type Catalog = typeof en & {
       splitterValueText: "Change-group column {{width}} pixels wide";
     };
     changes: (typeof en)["brief"]["changes"] & {
+      showInFullAria: "Show in Full brief, {{file}}";
       removedLines_one: "−{{count}} line removed";
       removedLines_other: "−{{count}} lines removed";
       linesNotShown_one: "{{count}} line not shown";

@@ -502,14 +502,10 @@ describe("Changes Only rendering", () => {
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
   });
 
-  it("renders deduped narrative generationWarnings on the compare surface", () => {
+  it("keeps narrative generation warnings out of the reading path", () => {
     const warned: RevisionNarrative = {
       ...narrative,
-      generationWarnings: [
-        "narrative missed 2 changed spans",
-        "narrative missed 2 changed spans",
-        "salvaged 1 chunk",
-      ],
+      generationWarnings: ["narrative missed 2 changed spans"],
     };
     render(
       withClient(
@@ -524,29 +520,7 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    const note = screen.getByRole("note");
-    expect(note.textContent).toContain("narrative missed 2 changed spans");
-    expect(note.textContent).toContain("salvaged 1 chunk");
-    // Duplicates collapse to one line.
-    expect(
-      screen.getAllByText("narrative missed 2 changed spans"),
-    ).toHaveLength(1);
-  });
-
-  it("renders no warnings block when generationWarnings is absent or empty", () => {
-    render(
-      withClient(
-        <ChangesOnlyView
-          compare="previous-brief"
-          brief={fullBrief}
-          model={buildBriefViewModel(fullBrief)}
-          narrative={{ ...narrative, generationWarnings: [] }}
-          marks={previousBriefMarks}
-          skipReason={null}
-          delta={null}
-        />,
-      ),
-    );
+    expect(screen.queryByText("narrative missed 2 changed spans")).toBeNull();
     expect(screen.queryByRole("note")).toBeNull();
   });
 

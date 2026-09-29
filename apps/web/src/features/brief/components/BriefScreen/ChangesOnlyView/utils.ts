@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 
+import { CommentSides, resolveChunkForLine } from "@web/features/review/utils";
 import {
   type DiffLine,
   DiffLineKinds,
@@ -283,4 +284,27 @@ export function collectNarrativeRows(
 
 function chunksForFile(brief: Brief, file: string): BriefChunk[] {
   return brief.chunks.filter((chunk) => chunk.file === file);
+}
+
+/**
+ * Narrative and delta chunks carry their own ids, so a card finds the Full
+ * chunk it stands for by file and head lines.
+ */
+export function resolveCardOwnerChunkId(
+  chunks: readonly BriefChunk[],
+  file: string,
+  addedRanges: readonly LineRange[],
+  groupId?: string,
+): string | undefined {
+  const firstAdded = addedRanges
+    .map((range) => range.start)
+    .toSorted((left, right) => left - right)[0];
+  if (firstAdded !== undefined) {
+    return resolveChunkForLine(chunks, file, CommentSides.NEW, firstAdded)?.id;
+  }
+
+  const inFile = chunks.filter((chunk) => chunk.file === file);
+  const inGroup = inFile.find((chunk) => chunk.changeGroupId === groupId);
+
+  return (inGroup ?? inFile[0])?.id;
 }
