@@ -133,6 +133,8 @@ export type Catalog = typeof en & {
     changes: (typeof en)["brief"]["changes"] & {
       removedLines_one: "−{{count}} line removed";
       removedLines_other: "−{{count}} lines removed";
+      linesNotShown_one: "{{count}} line not shown";
+      linesNotShown_other: "{{count}} lines not shown";
     };
     diff: (typeof en)["brief"]["diff"] & {
       summarySkipped: "Summary skipped — {{reason}}.";

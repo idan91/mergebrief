@@ -304,6 +304,8 @@ export interface TicketAlignment {
  */
 export const GuestHostPrefixes = {
   RAW: "raw:",
+  NARRATIVE: "narrative:",
+  DELTA: "delta:",
 } as const;
 
 /** Why a guest row takes no comment: GitHub can hold one only on a line of the PR diff. */

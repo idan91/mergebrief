@@ -2,7 +2,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { appI18n } from "../../../../i18n/I18nProvider";
+import {
+  createReviewFlowStore,
+  initialReviewFlowState,
+  ReviewFlowProvider,
+  ReviewSessionProvider,
+} from "@web/features/review/session";
 
 import {
   buildChunkComparisonView,
@@ -247,15 +255,17 @@ describe("Full Brief comparison overlay", () => {
 describe("Changes Only rendering", () => {
   it("Previous Brief groups narrative chunks under full Brief groups", () => {
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(
       screen.getByText("This revision adds a validation guard."),
@@ -275,15 +285,17 @@ describe("Changes Only rendering", () => {
       anchor: { state: "fresh-restart", reason: "model-swap" },
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={restarted}
-        model={buildBriefViewModel(restarted)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={restarted}
+          model={buildBriefViewModel(restarted)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
   });
@@ -294,15 +306,17 @@ describe("Changes Only rendering", () => {
       anchor: { state: "fresh-restart", reason: "model-swap" },
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={restarted}
-        model={buildBriefViewModel(restarted)}
-        narrative={null}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={restarted}
+          model={buildBriefViewModel(restarted)}
+          narrative={null}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
     expect(screen.getByText(/Revision summary unavailable/)).toBeTruthy();
@@ -314,15 +328,17 @@ describe("Changes Only rendering", () => {
       anchor: { state: "fresh-restart", reason: "model-swap" },
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={restarted}
-        model={buildBriefViewModel(restarted)}
-        narrative={null}
-        marks={previousBriefMarks}
-        skipReason="span too large"
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={restarted}
+          model={buildBriefViewModel(restarted)}
+          narrative={null}
+          marks={previousBriefMarks}
+          skipReason="span too large"
+          delta={null}
+        />,
+      ),
     );
     expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
     expect(screen.getByText(/No revision summary/)).toBeTruthy();
@@ -341,15 +357,17 @@ describe("Changes Only rendering", () => {
       ],
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={verbose}
-        model={buildBriefViewModel(verbose)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={verbose}
+          model={buildBriefViewModel(verbose)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(
       screen.getByText(/Some brief text exceeds length guidance/),
@@ -369,15 +387,17 @@ describe("Changes Only rendering", () => {
       ],
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={verboseNarrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={verboseNarrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(
       screen.getByText(/Some brief text exceeds length guidance/),
@@ -397,15 +417,17 @@ describe("Changes Only rendering", () => {
       ],
     };
     render(
-      <ChangesOnlyView
-        compare="last-review"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={null}
-        marks={checkpointMarks}
-        skipReason={null}
-        delta={verboseDelta}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={checkpointMarks}
+          skipReason={null}
+          delta={verboseDelta}
+        />,
+      ),
     );
     expect(
       screen.getByText(/Some brief text exceeds length guidance/),
@@ -414,15 +436,17 @@ describe("Changes Only rendering", () => {
 
   it("hides the length-guidance line on a clean brief", () => {
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
   });
@@ -430,15 +454,17 @@ describe("Changes Only rendering", () => {
   it("hides the fresh-restart line on a none-stamped brief", () => {
     const none: Brief = { ...fullBrief, anchor: { state: "none" } };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={none}
-        model={buildBriefViewModel(none)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={none}
+          model={buildBriefViewModel(none)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
   });
@@ -446,28 +472,32 @@ describe("Changes Only rendering", () => {
   it("hides the fresh-restart line on anchored and unstamped briefs", () => {
     const anchored: Brief = { ...fullBrief, anchor: { state: "anchored" } };
     const { unmount } = render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={anchored}
-        model={buildBriefViewModel(anchored)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={anchored}
+          model={buildBriefViewModel(anchored)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
     unmount();
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
   });
@@ -482,15 +512,17 @@ describe("Changes Only rendering", () => {
       ],
     };
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={warned}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={warned}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     const note = screen.getByRole("note");
     expect(note.textContent).toContain("narrative missed 2 changed spans");
@@ -503,30 +535,34 @@ describe("Changes Only rendering", () => {
 
   it("renders no warnings block when generationWarnings is absent or empty", () => {
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={{ ...narrative, generationWarnings: [] }}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={{ ...narrative, generationWarnings: [] }}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("Your last review renders the Delta artifact under Changes Only copy", () => {
     render(
-      <ChangesOnlyView
-        compare="last-review"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={null}
-        marks={null}
-        skipReason={null}
-        delta={delta}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={null}
+          skipReason={null}
+          delta={delta}
+        />,
+      ),
     );
     expect(
       screen.getByText(/Changes Only · since your last review/),
@@ -558,14 +594,37 @@ function rawDiffQuery(base: string): ComparisonQuery<string> {
   };
 }
 
+/** Changes Only hosts guest tables, which read the session stores like Full. */
 function withClient(node: ReactNode) {
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
+    },
+    initialReviewFlowState({
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    }),
+    appI18n.t,
+  );
   return (
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      {node}
+      <ReviewSessionProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(fullBrief)}
+      >
+        <ReviewFlowProvider store={flowStore}>{node}</ReviewFlowProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>
   );
 }
@@ -573,15 +632,17 @@ function withClient(node: ReactNode) {
 describe("Changes Only raw span diff toggle", () => {
   it("offers no toggle when no raw span diff descriptor is supplied", () => {
     render(
-      <ChangesOnlyView
-        compare="previous-brief"
-        brief={fullBrief}
-        model={buildBriefViewModel(fullBrief)}
-        narrative={narrative}
-        marks={previousBriefMarks}
-        skipReason={null}
-        delta={null}
-      />,
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+        />,
+      ),
     );
     expect(screen.queryByRole("button", { name: /raw diff/i })).toBeNull();
   });

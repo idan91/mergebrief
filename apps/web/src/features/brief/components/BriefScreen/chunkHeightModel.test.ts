@@ -34,7 +34,7 @@ describe("estimateChunkCardHeight", () => {
     );
   });
 
-  it("is deterministic — same input, same number (SSR parity relies on it)", () => {
+  it("gives the same number for the same input, so SSR and client agree", () => {
     const input = { diffRowCount: 27, open: true };
     expect(estimateChunkCardHeight(input)).toBe(
       estimateChunkCardHeight({ ...input }),

@@ -84,28 +84,6 @@
     line-height: 1.6;
   }
 
-  .diff {
-    margin: 0;
-    overflow-x: auto;
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-1);
-  }
-
-  .diffTable {
-    inline-size: 100%;
-    border-collapse: collapse;
-  }
-
-  .lineNo {
-    inline-size: functions.to-rem(44px);
-    min-inline-size: functions.to-rem(44px);
-    padding-inline-end: functions.to-rem(8px);
-    color: var(--color-text-3);
-    text-align: end;
-    user-select: none;
-  }
-
   .removedNote {
     color: var(--color-text-3);
     font-size: var(--font-size-md);

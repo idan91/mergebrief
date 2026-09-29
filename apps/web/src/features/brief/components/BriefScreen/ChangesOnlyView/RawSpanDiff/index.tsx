@@ -9,14 +9,11 @@ import { useReviewActions, useReviewFlow } from "@web/features/review/session";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, type SyntheticEvent, useMemo, useState } from "react";
 
-import type { ChunkComparisonView } from "../../../../comparison/runs";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
-import { useFileRows } from "../../../../hooks/useFileRows";
-import type { GuestRowsInput } from "../../../../utils/guest-rows";
 import { buildRawSpanDiffChunks } from "../../../../utils/rawSpanDiff";
-import type { AddressedReviewComment, BriefChunk } from "../../../../types";
-import type { DiffLine } from "@web/utils/diffTokens/types";
-import { DiffTable } from "../../DiffTable";
+import type { BriefChunk } from "../../../../types";
+import { GuestDiff } from "../GuestDiff";
+import { GuestDiffVariants } from "../GuestDiff/types";
 import type { ChangesReviewWiring } from "../types";
 import styles from "./RawSpanDiff.module.scss";
 
@@ -28,17 +25,6 @@ export interface RawSpanDiffProps {
   /** The Changes Only summary, shown when the raw diff is toggled off. */
   children: ReactNode;
 }
-
-// A guest table paints no overlay, so this never mutates, hoisted so every
-// file's table shares one identity.
-const EMPTY_COMPARISON_VIEW: ChunkComparisonView = {
-  marks: new Map(),
-  runs: [],
-  runByRow: new Map(),
-};
-const NO_ADDRESSED_COMMENTS: AddressedReviewComment[] = [];
-/** A file the loaded PR diff has no rows for. */
-const NO_FILE_ROWS: DiffLine[] = [];
 
 interface RawSpanDiffState {
   showRaw: boolean;
@@ -177,48 +163,11 @@ function SpanFile({ chunk, openByDefault, review }: SpanFileProps) {
       open={openByDefault}
     >
       <summary className={styles["fileName"]}>{chunk.file}</summary>
-      <SpanFileTable chunk={chunk} review={review} />
+      <GuestDiff
+        chunk={chunk}
+        review={review}
+        variant={GuestDiffVariants.FILE}
+      />
     </details>
-  );
-}
-
-interface SpanFileTableProps {
-  chunk: BriefChunk;
-  review: ChangesReviewWiring | undefined;
-}
-
-/**
- * One file of the span diff as a guest table: every row resolves to the
- * full brief's chunk that owns its line, against the PR diff's rows for
- * the file, and the file's live threads sit at their lines. While the PR
- * diff is not loaded the rows say so instead of claiming the diff lacks
- * them.
- */
-function SpanFileTable({ chunk, review }: SpanFileTableProps) {
-  const { t } = useTranslation();
-  const cache = useFileRows();
-  const diffLoaded = cache !== undefined && !cache.isEmpty;
-  const fileRows = diffLoaded
-    ? (cache.getFileRows(chunk.file) ?? NO_FILE_ROWS)
-    : undefined;
-  const owners = review?.lineOwnersByFile.get(chunk.file);
-  // One identity per file, or every drag re-render re-resolves the rows.
-  const guest = useMemo<GuestRowsInput>(
-    () => ({ file: chunk.file, fileRows, owners }),
-    [chunk.file, fileRows, owners],
-  );
-
-  return (
-    <DiffTable
-      addressedComments={NO_ADDRESSED_COMMENTS}
-      chunk={chunk}
-      comparisonSkipReason={null}
-      comparisonSource={{ kind: "last-review", delta: null }}
-      comparisonView={EMPTY_COMPARISON_VIEW}
-      conversationComposer={review?.conversationComposer}
-      fileThreads={review?.lineThreadsByFile?.get(chunk.file)}
-      guest={guest}
-      reviewCommentLabel={t("brief.chunk.reviewComment")}
-    />
   );
 }

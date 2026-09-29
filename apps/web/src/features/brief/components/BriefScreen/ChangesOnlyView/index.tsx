@@ -1,36 +1,36 @@
-import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown";
+import { useReviewFlow } from "@web/features/review/session";
+import { TokenizeModes } from "@web/utils/diffTokens/types";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { DiffRows } from "@web/components/DiffRows";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import { useSnippetTokens } from "@web/hooks/useSnippetTokens";
-import { useTokenPlan } from "@web/hooks/useTokenPlan";
-import {
-  ChunkTokenStatuses,
-  TokenizeModes,
-  type TokenizeMode,
-} from "@web/utils/diffTokens/types";
-import { buildSnippetKey } from "@web/utils/diffTokens/utils";
 import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import type {
-  Brief,
-  BriefChunk,
-  ComparisonMarks,
-  LengthViolation,
-  LineRange,
-  RevisionNarrative,
-  RevisionNarrativeChunk,
-  RevisionNarrativeSkipReason,
+import {
+  type Brief,
+  type BriefChunk,
+  type ComparisonMarks,
+  Concerns,
+  GuestHostPrefixes,
+  type RevisionNarrative,
+  type RevisionNarrativeChunk,
+  type RevisionNarrativeSkipReason,
+  Roles,
 } from "../../../types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";
 import { DeltaContext } from "../DeltaContext";
+import { GuestDiff } from "./GuestDiff";
 import { RawSpanDiff } from "./RawSpanDiff";
+import { GuestDiffVariants } from "./GuestDiff/types";
 import type { ChangesReviewWiring } from "./types";
+import {
+  collectNarrativeRows,
+  countLines,
+  hasLengthViolations,
+  shapeGuestRows,
+} from "./utils";
 import styles from "./ChangesOnlyView.module.scss";
 
 /**
@@ -67,12 +67,13 @@ export interface ChangesOnlyViewProps {
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
   const summary =
     props.compare === "last-review" ? (
-      <LastReviewChanges delta={props.delta} />
+      <LastReviewChanges delta={props.delta} review={props.review} />
     ) : (
       <PreviousBriefChanges
         brief={props.brief}
         model={props.model}
         narrative={props.narrative}
+        review={props.review}
         skipReason={props.skipReason}
       />
     );
@@ -95,6 +96,7 @@ interface PreviousBriefChangesProps {
   brief: Brief;
   model: BriefViewModel;
   narrative: RevisionNarrative | null;
+  review: ChangesReviewWiring | undefined;
   skipReason: RevisionNarrativeSkipReason | null;
 }
 
@@ -102,6 +104,7 @@ function PreviousBriefChanges({
   brief,
   model,
   narrative,
+  review,
   skipReason,
 }: PreviousBriefChangesProps) {
   const { t } = useTranslation();
@@ -188,7 +191,11 @@ function PreviousBriefChanges({
                 {categoryLabel(group.group.dominantCategory)}
               </span>
             </div>
-            <WindowedNarrativeList brief={brief} chunks={chunks} />
+            <WindowedNarrativeList
+              brief={brief}
+              chunks={chunks}
+              review={review}
+            />
           </section>
         );
       })}
@@ -199,7 +206,11 @@ function PreviousBriefChanges({
               {t("brief.changes.otherChanges")}
             </h2>
           </div>
-          <WindowedNarrativeList brief={brief} chunks={orphanChunks} />
+          <WindowedNarrativeList
+            brief={brief}
+            chunks={orphanChunks}
+            review={review}
+          />
         </section>
       ) : null}
     </div>
@@ -209,23 +220,52 @@ function PreviousBriefChanges({
 interface WindowedNarrativeListProps {
   brief: Brief;
   chunks: readonly RevisionNarrativeChunk[];
+  review: ChangesReviewWiring | undefined;
+}
+
+/**
+ * The host id a narrative card's guest table renders under: file-qualified
+ * like the window keys, since narrative chunk ids are the model's and
+ * nothing checks them for uniqueness, and never a brief chunk's.
+ */
+function deriveNarrativeHostId(chunk: RevisionNarrativeChunk): string {
+  return `${GuestHostPrefixes.NARRATIVE}${chunk.file}#${chunk.id}`;
 }
 
 /**
  * Windowed narrative cards, same shape as the story pane's chunk column:
  * absolute cards in a totalSize column, explicit inline-size (absolute cards
- * have no intrinsic width). No jump registry, nothing navigates to a
+ * have no intrinsic width). The card hosting the composer stays mounted
+ * offscreen, as a story card does. No jump registry, nothing navigates to a
  * narrative card by id.
  */
-function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
+function WindowedNarrativeList({
+  brief,
+  chunks,
+  review,
+}: WindowedNarrativeListProps) {
   const chunkKeys = useMemo(
     () => chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
     [chunks],
   );
+  const composerHost = useReviewFlow((state) => state.composerHost);
+  const hostedIndex = useMemo(
+    () =>
+      chunks.findIndex(
+        (chunk) => deriveNarrativeHostId(chunk) === composerHost,
+      ),
+    [chunks, composerHost],
+  );
+  const pinnedKeys = useMemo(() => {
+    const key = hostedIndex === -1 ? undefined : chunkKeys[hostedIndex];
+    return key === undefined ? undefined : new Set([key]);
+  }, [chunkKeys, hostedIndex]);
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = chunks[index];
-      if (!chunk) return 0;
+      if (!chunk) {
+        return 0;
+      }
       return estimateNarrativeCardHeight({
         addedRowCount: countLines(chunk.addedRanges),
         hasRemovedNote: countLines(chunk.removedRanges) > 0,
@@ -233,7 +273,7 @@ function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
     },
     [chunks],
   );
-  const window = useGroupWindow({ chunkKeys, estimateChunk });
+  const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
   return (
     <div
       ref={window.listRef}
@@ -260,7 +300,7 @@ function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
               inlineSize: "100%",
             }}
           >
-            <NarrativeChunkCard brief={brief} chunk={chunk} />
+            <NarrativeChunkCard brief={brief} chunk={chunk} review={review} />
           </div>
         );
       })}
@@ -271,22 +311,48 @@ function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
 interface NarrativeChunkCardProps {
   brief: Brief;
   chunk: RevisionNarrativeChunk;
+  review: ChangesReviewWiring | undefined;
 }
 
-function NarrativeChunkCard({ brief, chunk }: NarrativeChunkCardProps) {
+function NarrativeChunkCard({ brief, chunk, review }: NarrativeChunkCardProps) {
   const { t } = useTranslation();
-  // The snippet key is derived from this array's identity.
-  const addedRows = useMemo(
-    () => addedRowsForNarrativeChunk(brief, chunk),
-    [brief, chunk],
+  // The snippet key and the guest input derive from these identities.
+  const narrative = useMemo(
+    () => collectNarrativeRows(brief, chunk, t),
+    [brief, chunk, t],
+  );
+  const host = useMemo<BriefChunk>(
+    () => ({
+      id: deriveNarrativeHostId(chunk),
+      changeGroupId: chunk.briefChangeGroupId,
+      file: chunk.file,
+      concern: Concerns.IMPLEMENTATION,
+      role: Roles.CORE,
+      loc: { added: narrative.rows.length, deleted: 0 },
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [],
+      diff: narrative.rows,
+    }),
+    [chunk, narrative.rows],
+  );
+  const originOf = useCallback(
+    (index: number) => narrative.origins[index],
+    [narrative.origins],
   );
   const removedCount = countLines(chunk.removedRanges);
   return (
     <div className={styles["chunk"]}>
       <div className={styles["chunkFile"]}>{chunk.file}</div>
       <p className={styles["chunkSummary"]}>{chunk.summary}</p>
-      {addedRows.length > 0 ? (
-        <ReadonlyDiff file={chunk.file} rows={addedRows} />
+      {narrative.rows.length > 0 ? (
+        <GuestDiff
+          chunk={host}
+          originOf={originOf}
+          review={review}
+          tokenizeMode={TokenizeModes.STANDALONE}
+          variant={GuestDiffVariants.CARD}
+        />
       ) : null}
       {removedCount > 0 ? (
         <div className={styles["removedNote"]}>
@@ -299,6 +365,7 @@ function NarrativeChunkCard({ brief, chunk }: NarrativeChunkCardProps) {
 
 interface LastReviewChangesProps {
   delta: Brief | null;
+  review: ChangesReviewWiring | undefined;
 }
 
 /** The over-length muted line, shared by both compare lenses. */
@@ -311,15 +378,7 @@ function LengthGuidanceNote() {
   );
 }
 
-function hasLengthViolations(
-  ...artifacts: ({ lengthViolations?: LengthViolation[] } | null)[]
-): boolean {
-  return artifacts.some(
-    (artifact) => (artifact?.lengthViolations ?? []).length > 0,
-  );
-}
-
-function LastReviewChanges({ delta }: LastReviewChangesProps) {
+function LastReviewChanges({ delta, review }: LastReviewChangesProps) {
   const { t } = useTranslation();
   if (!delta) {
     return (
@@ -356,7 +415,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
                 {chunk.summary ? (
                   <p className={styles["chunkSummary"]}>{chunk.summary}</p>
                 ) : null}
-                <DeltaChunkDiff chunk={chunk} />
+                <DeltaChunkDiff chunk={chunk} review={review} />
               </div>
             ))}
           </section>
@@ -368,74 +427,38 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
 
 interface DeltaChunkDiffProps {
   chunk: BriefChunk;
+  review: ChangesReviewWiring | undefined;
 }
 
 /**
  * A delta chunk carries del rows beside their add replacements, so its rows
- * reconstruct as a hunk. The filtered array is memoized because the snippet
- * key is derived from its identity.
+ * reconstruct as a hunk. The host id is the delta's own, prefixed, so it
+ * never collides with a full brief chunk id the flow store keys on.
  */
-function DeltaChunkDiff({ chunk }: DeltaChunkDiffProps) {
-  const rows = useMemo(
-    () => (chunk.diff ?? []).filter(isCodeRow),
-    [chunk.diff],
-  );
-
-  if (rows.length === 0) return null;
-
-  return (
-    <ReadonlyDiff file={chunk.file} mode={TokenizeModes.HUNK} rows={rows} />
-  );
-}
-
-interface ReadonlyDiffProps {
-  file: string;
-  rows: DiffLine[];
-  /**
-   * Added-only rows are one side already. Rows carrying del beside its add
-   * replacement have to reconstruct, or the two spell one broken statement.
-   */
-  mode?: TokenizeMode | undefined;
-}
-
-/** Compact, read-only diff slice; Changes Only is a read view with no comment machinery. */
-function ReadonlyDiff({ file, rows, mode }: ReadonlyDiffProps) {
+function DeltaChunkDiff({ chunk, review }: DeltaChunkDiffProps) {
   const { t } = useTranslation();
-  const plan = useTokenPlan();
-  const snippetKey = useMemo(() => buildSnippetKey(file, rows), [file, rows]);
-  const tokens = useSnippetTokens({
-    briefKey: plan.briefKey,
-    snippetKey,
-    filePath: file,
-    rows,
-    admitted: plan.admitted,
-    mode,
-  });
-  const tokensByRow =
-    tokens.status === ChunkTokenStatuses.READY ? tokens.tokensByRow : undefined;
-
-  return (
-    <div className={styles["diff"]}>
-      <table className={styles["diffTable"]}>
-        <ScreenReaderOnly as="caption">
-          {t("brief.diff.caption", { file })}
-        </ScreenReaderOnly>
-        <DiffRows
-          gutterCell={buildNarrativeLineNumber}
-          lineNumbers={false}
-          rows={rows}
-          tokensByRow={tokensByRow}
-          tokensPending={tokens.status === ChunkTokenStatuses.PENDING}
-        />
-      </table>
-    </div>
+  const host = useMemo<BriefChunk>(
+    () => ({
+      ...chunk,
+      id: `${GuestHostPrefixes.DELTA}${chunk.id}`,
+      addedRanges: [],
+      removedRanges: [],
+      diff: shapeGuestRows(chunk.diff ?? [], t),
+    }),
+    [chunk, t],
   );
-}
 
-/** One line number per row: the narrative slice is one side of the file. */
-function buildNarrativeLineNumber(row: DiffLine): ReactNode {
+  if (host.diff === undefined || host.diff.length === 0) {
+    return null;
+  }
+
   return (
-    <td className={styles["lineNo"]}>{row.newLine ?? row.oldLine ?? ""}</td>
+    <GuestDiff
+      chunk={host}
+      review={review}
+      tokenizeMode={TokenizeModes.HUNK}
+      variant={GuestDiffVariants.CARD}
+    />
   );
 }
 
@@ -449,51 +472,4 @@ function EmptyState({ children }: EmptyStateProps) {
       {children}
     </div>
   );
-}
-
-function isCodeRow(row: DiffLine): boolean {
-  return row.kind === "add" || row.kind === "del" || row.kind === "ctx";
-}
-
-function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {
-  return (
-    typeof line === "number" &&
-    ranges.some((range) => line >= range.start && line <= range.end)
-  );
-}
-
-function countLines(ranges: LineRange[]): number {
-  return ranges.reduce(
-    (total, range) => total + (range.end - range.start + 1),
-    0,
-  );
-}
-
-/**
- * The added/context rows for a narrative chunk, pulled from the full Brief's
- * head-coordinate diffs. Removed (prevHead-only) lines have no row at head,
- * the FE holds base→head diffs, not prevHead→head, so callers summarize
- * those as a count instead.
- */
-function addedRowsForNarrativeChunk(
-  brief: Brief,
-  chunk: RevisionNarrativeChunk,
-): DiffLine[] {
-  const rows: DiffLine[] = [];
-  for (const briefChunk of chunksForFile(brief, chunk.file)) {
-    if (!briefChunk.diff) continue;
-    for (const row of briefChunk.diff) {
-      if (
-        (row.kind === "add" || row.kind === "ctx") &&
-        lineInRanges(row.newLine, chunk.addedRanges)
-      ) {
-        rows.push(row);
-      }
-    }
-  }
-  return rows;
-}
-
-function chunksForFile(brief: Brief, file: string): BriefChunk[] {
-  return brief.chunks.filter((chunk) => chunk.file === file);
 }

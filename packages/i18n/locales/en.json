@@ -481,6 +481,8 @@
       "otherChanges": "Other changes",
       "removedLines_one": "−{{count}} line removed",
       "removedLines_other": "−{{count}} lines removed",
+      "linesNotShown_one": "{{count}} line not shown",
+      "linesNotShown_other": "{{count}} lines not shown",
       "lengthGuidance": "Some brief text exceeds length guidance — a stronger model may keep summaries tighter."
     },
     "diff": {
