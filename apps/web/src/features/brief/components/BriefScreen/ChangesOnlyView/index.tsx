@@ -21,6 +21,7 @@ import {
 } from "../../../types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";
 import { DeltaContext } from "../DeltaContext";
+import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import { GuestDiff } from "./GuestDiff";
 import { RawSpanDiff } from "./RawSpanDiff";
 import { GuestDiffVariants } from "./GuestDiff/types";
@@ -62,12 +63,18 @@ export interface ChangesOnlyViewProps {
   rawSpanDiff?: ComparisonQuery<string> | undefined;
   /** What the guest tables need to take a comment; absent leaves them inert. */
   review?: ChangesReviewWiring | undefined;
+  /** Where the delta's rows stand; a card shows its summary first, rows when they land. */
+  deltaSpan?: DeltaSpanStatus | undefined;
 }
 
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
   const summary =
     props.compare === "last-review" ? (
-      <LastReviewChanges delta={props.delta} review={props.review} />
+      <LastReviewChanges
+        delta={props.delta}
+        deltaSpan={props.deltaSpan ?? DeltaSpanStatuses.ABSENT}
+        review={props.review}
+      />
     ) : (
       <PreviousBriefChanges
         brief={props.brief}
@@ -365,6 +372,7 @@ function NarrativeChunkCard({ brief, chunk, review }: NarrativeChunkCardProps) {
 
 interface LastReviewChangesProps {
   delta: Brief | null;
+  deltaSpan: DeltaSpanStatus;
   review: ChangesReviewWiring | undefined;
 }
 
@@ -378,7 +386,11 @@ function LengthGuidanceNote() {
   );
 }
 
-function LastReviewChanges({ delta, review }: LastReviewChangesProps) {
+function LastReviewChanges({
+  delta,
+  deltaSpan,
+  review,
+}: LastReviewChangesProps) {
   const { t } = useTranslation();
   if (!delta) {
     return (
@@ -415,7 +427,11 @@ function LastReviewChanges({ delta, review }: LastReviewChangesProps) {
                 {chunk.summary ? (
                   <p className={styles["chunkSummary"]}>{chunk.summary}</p>
                 ) : null}
-                <DeltaChunkDiff chunk={chunk} review={review} />
+                <DeltaChunkDiff
+                  chunk={chunk}
+                  deltaSpan={deltaSpan}
+                  review={review}
+                />
               </div>
             ))}
           </section>
@@ -427,6 +443,7 @@ function LastReviewChanges({ delta, review }: LastReviewChangesProps) {
 
 interface DeltaChunkDiffProps {
   chunk: BriefChunk;
+  deltaSpan: DeltaSpanStatus;
   review: ChangesReviewWiring | undefined;
 }
 
@@ -435,7 +452,7 @@ interface DeltaChunkDiffProps {
  * reconstruct as a hunk. The host id is the delta's own, prefixed, so it
  * never collides with a full brief chunk id the flow store keys on.
  */
-function DeltaChunkDiff({ chunk, review }: DeltaChunkDiffProps) {
+function DeltaChunkDiff({ chunk, deltaSpan, review }: DeltaChunkDiffProps) {
   const { t } = useTranslation();
   const host = useMemo<BriefChunk>(
     () => ({
@@ -449,7 +466,16 @@ function DeltaChunkDiff({ chunk, review }: DeltaChunkDiffProps) {
   );
 
   if (host.diff === undefined || host.diff.length === 0) {
-    return null;
+    // The summary stands alone while the span diff loads; a failed fetch
+    // says so under it, the raw toggle's copy, with no retry of its own.
+    if (deltaSpan !== DeltaSpanStatuses.ERROR) {
+      return null;
+    }
+    return (
+      <p className={styles["removedNote"]} role="note">
+        {t("brief.diff.rawUnavailable")}
+      </p>
+    );
   }
 
   return (

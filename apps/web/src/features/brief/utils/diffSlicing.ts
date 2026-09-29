@@ -1,7 +1,7 @@
 // Pure unified-diff parsing + per-chunk slicing, on the client for both the
 // local sidecar patches and the live proxied diff. No I/O, no framework
 // imports; keep it that way.
-import type { DiffLine } from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import type { Brief, BriefChunk, LineRange } from "../types";
 import type { FileRowsCache } from "./fileRows";
 
@@ -79,6 +79,44 @@ export function attachSlicedDiffs(
   }
 
   return withDiffs;
+}
+
+/**
+ * The delta with every chunk's and remainder entry's rows sliced from the
+ * span diff, baseline to head, and tagged as guest rows: a guest row's new
+ * line is head's and its old line is the baseline's, so a del row has no
+ * line at head and the guest resolver refuses a comment on it. Pure: a
+ * delta whose files the cache does not hold comes back as the same object.
+ */
+export function attachSpanDiffs(delta: Brief, spanRows: FileRowsCache): Brief {
+  const attached = attachSlicedDiffs(delta, spanRows);
+  if (attached === delta) {
+    return delta;
+  }
+
+  const asGuest: Brief = {
+    ...attached,
+    chunks: attached.chunks.map(tagGuestRows),
+  };
+  if (attached.unattributed !== undefined) {
+    asGuest.unattributed = attached.unattributed.map(tagGuestRows);
+  }
+
+  return asGuest;
+}
+
+function tagGuestRows<Entry extends { diff?: DiffLine[] }>(
+  entry: Entry,
+): Entry {
+  if (entry.diff === undefined) {
+    return entry;
+  }
+
+  return { ...entry, diff: entry.diff.map(toGuestRow) };
+}
+
+function toGuestRow(row: DiffLine): DiffLine {
+  return { ...row, origin: DiffRowOrigins.GUEST };
 }
 
 function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {

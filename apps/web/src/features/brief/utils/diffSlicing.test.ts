@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   attachSlicedDiffs,
+  attachSpanDiffs,
   parseUnifiedDiffPatch,
   sliceChunkDiff,
   splitUnifiedDiffByFile,
@@ -269,5 +270,71 @@ describe("attachSlicedDiffs", () => {
     expect(attachSlicedDiffs(brief, createFileRowsCache(new Map()))).toBe(
       brief,
     );
+  });
+});
+
+/** A checkpoint to head span: the left side is the checkpoint file. */
+const SPAN_DIFF = [
+  "diff --git a/src/app.ts b/src/app.ts",
+  "--- a/src/app.ts",
+  "+++ b/src/app.ts",
+  "@@ -8,4 +8,4 @@",
+  " const a = 1;",
+  "-const b = 2;",
+  "+const b = 20;",
+  " const d = 4;",
+  " const e = 5;",
+].join("\n");
+
+describe("attachSpanDiffs", () => {
+  const stubSpanCache = () =>
+    createFileRowsCache(splitUnifiedDiffByFile(SPAN_DIFF));
+
+  it("gives a delta chunk its span rows as guest rows, del and add alike", () => {
+    const delta = stubBrief([
+      stubChunk({
+        addedRanges: [{ start: 9, end: 9 }],
+        removedRanges: [{ start: 9, end: 9 }],
+      }),
+    ]);
+    const attached = attachSpanDiffs(delta, stubSpanCache());
+    const rows = attached.chunks[0]?.diff ?? [];
+
+    expect(rows.map((row) => [row.kind, row.content])).toEqual([
+      ["hunk", "@@ -8,4 +8,4 @@"],
+      ["ctx", "const a = 1;"],
+      ["del", "const b = 2;"],
+      ["add", "const b = 20;"],
+      ["ctx", "const d = 4;"],
+      ["ctx", "const e = 5;"],
+    ]);
+    expect(rows.every((row) => row.origin === "guest")).toBe(true);
+    expect(delta.chunks[0]?.diff).toBeUndefined();
+  });
+
+  it("tags a remainder entry's rows as guest rows too", () => {
+    const delta: Brief = {
+      ...stubBrief([]),
+      unattributed: [
+        {
+          file: "src/app.ts",
+          addedRanges: [{ start: 9, end: 9 }],
+          removedRanges: [],
+        },
+      ],
+    };
+    const attached = attachSpanDiffs(delta, stubSpanCache());
+    const rows = attached.unattributed?.[0]?.diff ?? [];
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.origin === "guest")).toBe(true);
+  });
+
+  it("leaves a chunk whose file the span does not carry without rows", () => {
+    const delta = stubBrief([stubChunk({ id: "c2", file: "not/in/diff.ts" })]);
+
+    expect(
+      attachSpanDiffs(delta, stubSpanCache()).chunks[0]?.diff,
+    ).toBeUndefined();
   });
 });

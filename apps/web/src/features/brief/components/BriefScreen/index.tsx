@@ -350,6 +350,7 @@ export function BriefScreen({
                           skipReason={overlay.skipReason}
                           delta={overlay.delta}
                           rawSpanDiff={overlay.activeRawSpanDiff}
+                          deltaSpan={overlay.deltaSpanStatus}
                           review={changesReview}
                         />
                       </LensPane>

@@ -35,6 +35,7 @@ import { FileRowsProvider } from "../../../hooks/useFileRows";
 import type { FileRowsCache } from "../../../utils/fileRows";
 import { buildLineOwnersByFile } from "../../../utils/lineOwner";
 import { buildBriefViewModel } from "../../../utils/viewModel";
+import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import type { ChangesReviewWiring } from "./types";
 import { ChangesOnlyView } from ".";
 
@@ -242,6 +243,9 @@ interface RenderOptions {
   narrative?: RevisionNarrative;
   /** The flow store's composer host at render, as a pinned card would see it. */
   composerHost?: string;
+  /** The last-review delta to render; the fixture with rows by default. */
+  delta?: Brief;
+  deltaSpan?: DeltaSpanStatus;
 }
 
 function renderChanges(options: RenderOptions = {}) {
@@ -281,42 +285,50 @@ function renderChanges(options: RenderOptions = {}) {
         : new Map([["src/a.ts", options.threads]]),
     conversationComposer: stubComposer(),
   };
-  const compare = options.compare ?? "previous-brief";
-  const view = render(
-    <QueryClientProvider client={new QueryClient()}>
-      <TokenPlanProvider
-        briefKey="brief-1"
-        chunkSizes={[{ file: "src/a.ts", rowCount: 3 }]}
-      >
-        <FileRowsProvider cache={FILE_ROWS_CACHE}>
-          <ReviewSessionProvider
-            briefId="test-brief"
-            model={model}
-            session={options.session}
-          >
-            <ReviewFlowProvider store={flowStore}>
-              <ChangesOnlyView
-                brief={FULL_BRIEF}
-                compare={compare}
-                delta={compare === "last-review" ? DELTA : null}
-                marks={null}
-                model={model}
-                narrative={
-                  compare === "previous-brief"
-                    ? (options.narrative ?? NARRATIVE)
-                    : null
-                }
-                review={review}
-                skipReason={null}
-              />
-            </ReviewFlowProvider>
-          </ReviewSessionProvider>
-        </FileRowsProvider>
-      </TokenPlanProvider>
-    </QueryClientProvider>,
-  );
+  const client = new QueryClient();
+  function buildTree(next: RenderOptions) {
+    const compare = next.compare ?? "previous-brief";
+    return (
+      <QueryClientProvider client={client}>
+        <TokenPlanProvider
+          briefKey="brief-1"
+          chunkSizes={[{ file: "src/a.ts", rowCount: 3 }]}
+        >
+          <FileRowsProvider cache={FILE_ROWS_CACHE}>
+            <ReviewSessionProvider
+              briefId="test-brief"
+              model={model}
+              session={next.session}
+            >
+              <ReviewFlowProvider store={flowStore}>
+                <ChangesOnlyView
+                  brief={FULL_BRIEF}
+                  compare={compare}
+                  delta={
+                    compare === "last-review" ? (next.delta ?? DELTA) : null
+                  }
+                  deltaSpan={next.deltaSpan}
+                  marks={null}
+                  model={model}
+                  narrative={
+                    compare === "previous-brief"
+                      ? (next.narrative ?? NARRATIVE)
+                      : null
+                  }
+                  review={review}
+                  skipReason={null}
+                />
+              </ReviewFlowProvider>
+            </ReviewSessionProvider>
+          </FileRowsProvider>
+        </TokenPlanProvider>
+      </QueryClientProvider>
+    );
+  }
+  const view = render(buildTree(options));
+  const rerender = (next: RenderOptions) => view.rerender(buildTree(next));
 
-  return { view, flowStore, openCommentComposer };
+  return { view, rerender, flowStore, openCommentComposer };
 }
 
 function findGutterSign(row: HTMLElement): HTMLElement {
@@ -512,6 +524,54 @@ describe("Your last review delta cards take comments", () => {
     expect(document.getElementById(reasonId)?.textContent).toBe(
       appI18n.t("brief.diff.guest.removedBeforeHead"),
     );
+  });
+});
+
+describe("Your last review cards show code", () => {
+  const { diff: _rows, ...deltaCore } = DELTA_CHUNK;
+  const rowless: Brief = { ...DELTA, chunks: [deltaCore] };
+
+  it("shows the summary alone while the span diff loads", () => {
+    const { view } = renderChanges({
+      compare: "last-review",
+      delta: rowless,
+      deltaSpan: DeltaSpanStatuses.LOADING,
+    });
+
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
+    expect(view.container.querySelector("[data-line-kind]")).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("keeps the summary and says the diff is not viewable when it fails", () => {
+    renderChanges({
+      compare: "last-review",
+      delta: rowless,
+      deltaSpan: DeltaSpanStatuses.ERROR,
+    });
+
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
+    expect(screen.getByRole("note").textContent).toBe(
+      appI18n.t("brief.diff.rawUnavailable"),
+    );
+  });
+
+  it("shows the summary first and the rows once the span diff lands", () => {
+    const { view, rerender } = renderChanges({
+      compare: "last-review",
+      delta: rowless,
+      deltaSpan: DeltaSpanStatuses.LOADING,
+    });
+    expect(view.container.querySelector("[data-line-kind]")).toBeNull();
+
+    rerender({ compare: "last-review", deltaSpan: DeltaSpanStatuses.READY });
+
+    const deleted = view.container.querySelector('tr[data-line-kind="del"]');
+    const added = view.container.querySelector('tr[data-line-kind="add"]');
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
+    expect(deleted?.getAttribute("aria-disabled")).toBe("true");
+    expect(added?.hasAttribute("data-commentable")).toBe(true);
+    expect(screen.queryByRole("note")).toBeNull();
   });
 });
 

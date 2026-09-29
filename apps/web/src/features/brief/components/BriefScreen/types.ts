@@ -28,6 +28,20 @@ import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { BriefComparisonPlan } from "./useComparisonOverlay";
 
 /**
+ * Where the last-review delta's rows stand: the database path fetches the
+ * span diff after the delta lands, so a card shows its summary first and
+ * its rows when the diff arrives. `absent` covers the local path, where the
+ * delta's own sidecar carries the rows, and a plan with no span diff.
+ */
+export const DeltaSpanStatuses = {
+  ABSENT: "absent",
+  LOADING: "loading",
+  READY: "ready",
+  ERROR: "error",
+} as const;
+export type DeltaSpanStatus = ValueOf<typeof DeltaSpanStatuses>;
+
+/**
  * Present only while `draft && viewerIsAuthor`. Hides submit/receipt, mirrors
  * flags read-only, and puts Mark ready in the terminal-action slot.
  */

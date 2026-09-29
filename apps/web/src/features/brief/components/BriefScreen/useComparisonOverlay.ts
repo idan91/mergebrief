@@ -22,7 +22,11 @@ import {
   buildLocalComparisonMarksQueryOptions,
   buildLocalRevisionNarrativeQueryOptions,
 } from "../../queries";
-import { attachSlicedDiffs } from "../../utils/diffSlicing";
+import {
+  attachSlicedDiffs,
+  attachSpanDiffs,
+  splitUnifiedDiffByFile,
+} from "../../utils/diffSlicing";
 import { createFileRowsCache } from "../../utils/fileRows";
 import { buildBriefTimeline, type BriefTimeline } from "../../utils/timeline";
 import type {
@@ -33,6 +37,7 @@ import type {
   RevisionNarrativeArtifact,
   RevisionNarrativeSkipReason,
 } from "../../types";
+import { type DeltaSpanStatus, DeltaSpanStatuses } from "./types";
 import {
   countComparisonRuns,
   disabledComparisonQuery,
@@ -99,6 +104,8 @@ export interface UseComparisonOverlayValue {
   delta: Brief | null;
   /** The ACTIVE baseline's raw span-diff descriptor (Changes Only toggle). */
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
+  /** Where the delta's rows stand on the database path; `absent` elsewhere. */
+  deltaSpanStatus: DeltaSpanStatus;
   /**
    * Last-review marks fetched INDEPENDENT of the active baseline: the
    * per-group since-marker renders with Compare off. Null without a
@@ -216,8 +223,37 @@ export function useComparisonOverlay(
       activeCompare === "last-review" &&
       planLastReview?.delta !== undefined,
   });
+  // The stored delta core carries no rows: they slice from the span diff,
+  // the same query the raw toggle runs, so the two never fetch twice. Only
+  // Changes scope shows delta rows, and a descriptor that disabled itself
+  // stays unfetched.
+  const planSpanOptions =
+    planLastReview?.rawDiff ?? disabledComparisonQuery<string>("delta-span");
+  const spanWanted =
+    planActive &&
+    compareState.view === "changes" &&
+    activeCompare === "last-review" &&
+    planLastReview?.rawDiff !== undefined &&
+    planSpanOptions.enabled !== false &&
+    planDelta.data !== undefined;
+  const planSpan = useQuery({ ...planSpanOptions, enabled: spanWanted });
+  const planDeltaCore = planDelta.data;
+  const planSpanDiff = planSpan.data;
+  const planDeltaWithRows = useMemo(() => {
+    if (planDeltaCore === undefined || planSpanDiff === undefined) {
+      return planDeltaCore;
+    }
+    const spanRows = createFileRowsCache(splitUnifiedDiffByFile(planSpanDiff));
+    return attachSpanDiffs(planDeltaCore, spanRows);
+  }, [planDeltaCore, planSpanDiff]);
   const delta =
-    (comparisonPlan === undefined ? slicedLocalDelta : planDelta.data) ?? null;
+    (comparisonPlan === undefined ? slicedLocalDelta : planDeltaWithRows) ??
+    null;
+  const deltaSpanStatus = resolveDeltaSpanStatus(
+    spanWanted,
+    planSpanDiff !== undefined,
+    planSpan.isError,
+  );
 
   // Since-marker source: the last-review marks, fetched whenever the
   // checkpoint slot EXISTS rather than when it is the active baseline. Shares
@@ -287,6 +323,23 @@ export function useComparisonOverlay(
     skipReason,
     delta,
     activeRawSpanDiff,
+    deltaSpanStatus,
     sinceReviewMarks,
   };
+}
+
+/** Rows that landed stay ready through a failed background refetch. */
+function resolveDeltaSpanStatus(
+  wanted: boolean,
+  landed: boolean,
+  failed: boolean,
+): DeltaSpanStatus {
+  if (!wanted) {
+    return DeltaSpanStatuses.ABSENT;
+  }
+  if (landed) {
+    return DeltaSpanStatuses.READY;
+  }
+
+  return failed ? DeltaSpanStatuses.ERROR : DeltaSpanStatuses.LOADING;
 }
