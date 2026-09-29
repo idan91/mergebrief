@@ -20,6 +20,7 @@ import {
   Roles,
 } from "../../../types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";
+import type { FileRowsCache } from "../../../utils/fileRows";
 import { DeltaContext } from "../DeltaContext";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import { GuestDiff } from "./GuestDiff";
@@ -68,6 +69,8 @@ export interface ChangesOnlyViewProps {
   deltaSpan?: DeltaSpanStatus | undefined;
   /** Where a flag's jump lands: the screen exits to Full and lands on the chunk. */
   jumpToChunk?: ((chunkId: string) => void) | undefined;
+  /** The previous-brief span diff by file; a narrative card takes its removed lines from it. */
+  narrativeSpanRows?: FileRowsCache | undefined;
 }
 
 function ignoreJump(): void {
@@ -94,6 +97,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
         narrative={props.narrative}
         review={props.review}
         skipReason={props.skipReason}
+        spanRows={props.narrativeSpanRows}
       />
     );
   if (props.rawSpanDiff === undefined) return summary;
@@ -118,6 +122,7 @@ interface PreviousBriefChangesProps {
   narrative: RevisionNarrative | null;
   review: ChangesReviewWiring | undefined;
   skipReason: RevisionNarrativeSkipReason | null;
+  spanRows: FileRowsCache | undefined;
 }
 
 function PreviousBriefChanges({
@@ -127,6 +132,7 @@ function PreviousBriefChanges({
   narrative,
   review,
   skipReason,
+  spanRows,
 }: PreviousBriefChangesProps) {
   const { t } = useTranslation();
   // Brief origin, not narrative content, so it renders independently of
@@ -223,6 +229,7 @@ function PreviousBriefChanges({
               brief={brief}
               chunks={chunks}
               review={review}
+              spanRows={spanRows}
             />
           </section>
         );
@@ -238,6 +245,7 @@ function PreviousBriefChanges({
             brief={brief}
             chunks={orphanChunks}
             review={review}
+            spanRows={spanRows}
           />
         </section>
       ) : null}
@@ -249,6 +257,7 @@ interface WindowedNarrativeListProps {
   brief: Brief;
   chunks: readonly RevisionNarrativeChunk[];
   review: ChangesReviewWiring | undefined;
+  spanRows: FileRowsCache | undefined;
 }
 
 /**
@@ -271,6 +280,7 @@ function WindowedNarrativeList({
   brief,
   chunks,
   review,
+  spanRows,
 }: WindowedNarrativeListProps) {
   const chunkKeys = useMemo(
     () => chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
@@ -294,12 +304,14 @@ function WindowedNarrativeList({
       if (!chunk) {
         return 0;
       }
+      const removed = countLines(chunk.removedRanges);
+      const spanLanded = spanRows?.getFileRows(chunk.file) !== undefined;
       return estimateNarrativeCardHeight({
-        addedRowCount: countLines(chunk.addedRanges),
-        hasRemovedNote: countLines(chunk.removedRanges) > 0,
+        rowCount: countLines(chunk.addedRanges) + (spanLanded ? removed : 0),
+        hasRemovedNote: !spanLanded && removed > 0,
       });
     },
-    [chunks],
+    [chunks, spanRows],
   );
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
   return (
@@ -328,7 +340,12 @@ function WindowedNarrativeList({
               inlineSize: "100%",
             }}
           >
-            <NarrativeChunkCard brief={brief} chunk={chunk} review={review} />
+            <NarrativeChunkCard
+              brief={brief}
+              chunk={chunk}
+              review={review}
+              spanRows={spanRows}
+            />
           </div>
         );
       })}
@@ -340,14 +357,21 @@ interface NarrativeChunkCardProps {
   brief: Brief;
   chunk: RevisionNarrativeChunk;
   review: ChangesReviewWiring | undefined;
+  spanRows: FileRowsCache | undefined;
 }
 
-function NarrativeChunkCard({ brief, chunk, review }: NarrativeChunkCardProps) {
+function NarrativeChunkCard({
+  brief,
+  chunk,
+  review,
+  spanRows,
+}: NarrativeChunkCardProps) {
   const { t } = useTranslation();
+  const fileSpanRows = spanRows?.getFileRows(chunk.file);
   // The snippet key and the guest input derive from these identities.
   const narrative = useMemo(
-    () => collectNarrativeRows(brief, chunk, t),
-    [brief, chunk, t],
+    () => collectNarrativeRows(brief, chunk, t, fileSpanRows),
+    [brief, chunk, fileSpanRows, t],
   );
   const host = useMemo<BriefChunk>(
     () => ({
@@ -356,19 +380,24 @@ function NarrativeChunkCard({ brief, chunk, review }: NarrativeChunkCardProps) {
       file: chunk.file,
       concern: Concerns.IMPLEMENTATION,
       role: Roles.CORE,
-      loc: { added: narrative.rows.length, deleted: 0 },
+      loc: {
+        added: narrative.rows.length - narrative.removedShown,
+        deleted: narrative.removedShown,
+      },
       addedRanges: [],
       removedRanges: [],
       riskSurface: [],
       diff: narrative.rows,
     }),
-    [chunk, narrative.rows],
+    [chunk, narrative],
   );
   const originOf = useCallback(
     (index: number) => narrative.origins[index],
     [narrative.origins],
   );
-  const removedCount = countLines(chunk.removedRanges);
+  // The count stands in until the span diff supplies the removed lines.
+  const removedCount =
+    narrative.removedShown > 0 ? 0 : countLines(chunk.removedRanges);
   return (
     <div className={styles["chunk"]}>
       <div className={styles["chunkFile"]}>{chunk.file}</div>

@@ -27,7 +27,7 @@ import {
   attachSpanDiffs,
   splitUnifiedDiffByFile,
 } from "../../utils/diffSlicing";
-import { createFileRowsCache } from "../../utils/fileRows";
+import { createFileRowsCache, type FileRowsCache } from "../../utils/fileRows";
 import { buildBriefTimeline, type BriefTimeline } from "../../utils/timeline";
 import type {
   Brief,
@@ -42,6 +42,7 @@ import {
   countComparisonRuns,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
+  hasRemovedLines,
   resolveLocalComparisonIds,
 } from "./utils";
 
@@ -106,6 +107,11 @@ export interface UseComparisonOverlayValue {
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
   /** Where the delta's rows stand on the database path; `absent` elsewhere. */
   deltaSpanStatus: DeltaSpanStatus;
+  /**
+   * The previous-brief span diff by file, the one source of the lines a
+   * revision removed; absent until Changes scope shows a narrative with any.
+   */
+  narrativeSpanRows: FileRowsCache | undefined;
   /**
    * Last-review marks fetched INDEPENDENT of the active baseline: the
    * per-group since-marker renders with Compare off. Null without a
@@ -255,6 +261,34 @@ export function useComparisonOverlay(
     planSpan.isError,
   );
 
+  const { narrative, skipReason } =
+    discriminateNarrativeArtifact(narrativeArtifact);
+
+  // Narrative cards show the lines a revision removed from the span diff,
+  // whose old side is the previous head; the brief's own rows run base to
+  // head and cannot name them. Same query the raw toggle runs.
+  const narrativeSpanOptions =
+    planPrevious?.rawDiff ?? disabledComparisonQuery<string>("narrative-span");
+  const narrativeSpanWanted =
+    planActive &&
+    compareState.view === "changes" &&
+    activeCompare === "previous-brief" &&
+    planPrevious?.rawDiff !== undefined &&
+    narrativeSpanOptions.enabled !== false &&
+    hasRemovedLines(narrative);
+  const narrativeSpan = useQuery({
+    ...narrativeSpanOptions,
+    enabled: narrativeSpanWanted,
+  });
+  const narrativeSpanDiff = narrativeSpan.data;
+  const narrativeSpanRows = useMemo(
+    () =>
+      narrativeSpanDiff === undefined
+        ? undefined
+        : createFileRowsCache(splitUnifiedDiffByFile(narrativeSpanDiff)),
+    [narrativeSpanDiff],
+  );
+
   // Since-marker source: the last-review marks, fetched whenever the
   // checkpoint slot EXISTS rather than when it is the active baseline. Shares
   // the queryKey with the active fetch above, so React Query dedupes when
@@ -278,9 +312,6 @@ export function useComparisonOverlay(
     (comparisonPlan === undefined
       ? localSinceMarks.data
       : planSinceMarks.data) ?? null;
-
-  const { narrative, skipReason } =
-    discriminateNarrativeArtifact(narrativeArtifact);
 
   const comparisonSource: ComparisonSource = useMemo(
     () =>
@@ -324,6 +355,7 @@ export function useComparisonOverlay(
     delta,
     activeRawSpanDiff,
     deltaSpanStatus,
+    narrativeSpanRows,
     sinceReviewMarks,
   };
 }

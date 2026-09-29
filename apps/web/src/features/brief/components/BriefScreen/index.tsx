@@ -352,6 +352,7 @@ export function BriefScreen({
                           delta={overlay.delta}
                           rawSpanDiff={overlay.activeRawSpanDiff}
                           deltaSpan={overlay.deltaSpanStatus}
+                          narrativeSpanRows={overlay.narrativeSpanRows}
                           jumpToChunk={queueChunkJumpFromChanges}
                           review={changesReview}
                         />

@@ -39,8 +39,8 @@ export const NARRATIVE_CARD_OVERHEAD_PX = 140;
 export const REMOVED_NOTE_PX = 24;
 
 export interface NarrativeCardSizeInput {
-  /** Added rows the card's guest table renders. */
-  addedRowCount: number;
+  /** Rows the card's guest table renders, removed lines included. */
+  rowCount: number;
   hasRemovedNote: boolean;
 }
 
@@ -48,7 +48,7 @@ export function estimateNarrativeCardHeight(
   input: NarrativeCardSizeInput,
 ): number {
   return (
-    input.addedRowCount * DIFF_ROW_HEIGHT_PX +
+    input.rowCount * DIFF_ROW_HEIGHT_PX +
     NARRATIVE_CARD_OVERHEAD_PX +
     (input.hasRemovedNote ? REMOVED_NOTE_PX : 0)
   );

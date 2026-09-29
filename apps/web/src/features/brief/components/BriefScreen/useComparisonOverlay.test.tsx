@@ -5,7 +5,12 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
-import type { Brief, ComparisonMarks } from "../../types";
+import type {
+  Brief,
+  ComparisonMarks,
+  RevisionNarrative,
+  RevisionNarrativeArtifact,
+} from "../../types";
 import { DeltaSpanStatuses } from "./types";
 import {
   type BriefComparisonPlan,
@@ -82,6 +87,32 @@ const SPAN_DIFF = [
   " export { a };",
 ].join("\n");
 
+const NARRATIVE: RevisionNarrative = {
+  artifactKind: "revisionNarrative",
+  pr: PR,
+  prevHeadSha: "prev1234",
+  headSha: "head1234",
+  prevIndex: 1,
+  headIndex: 2,
+  generation: { provider: "anthropic", model: "m", effort: null },
+  overview: "Replaces the log with a validation.",
+  chunks: [
+    {
+      id: "rc1",
+      briefChangeGroupId: "g1",
+      file: "src/a.ts",
+      addedRanges: [{ start: 2, end: 2 }],
+      removedRanges: [{ start: 2, end: 2 }],
+      summary: "Validates instead of logging.",
+    },
+  ],
+};
+
+const ADDED_ONLY_NARRATIVE: RevisionNarrative = {
+  ...NARRATIVE,
+  chunks: [{ ...NARRATIVE.chunks[0]!, removedRanges: [] }],
+};
+
 function stubQuery<T>(
   key: string,
   value: () => Promise<T>,
@@ -106,14 +137,31 @@ function stubPlan(
   };
 }
 
+function stubNarrativePlan(
+  spanFn: () => Promise<string>,
+  narrative: RevisionNarrative,
+  spanEnabled = true,
+): BriefComparisonPlan {
+  return {
+    previousBrief: {
+      marks: stubQuery("prev-marks", () => Promise.resolve(MARKS)),
+      narrative: stubQuery<RevisionNarrativeArtifact>("narrative", () =>
+        Promise.resolve(narrative),
+      ),
+      rawDiff: { ...stubQuery("prev-span", spanFn), enabled: spanEnabled },
+    },
+    lastReview: {
+      marks: stubQuery("marks", () => Promise.resolve(MARKS)),
+    },
+  };
+}
+
 function renderOverlay(
   plan: BriefComparisonPlan,
   compare: "last-review" | "previous-brief",
   view: "changes" | "full" = "changes",
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
 ) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -240,5 +288,79 @@ describe("useComparisonOverlay delta rows on the database path", () => {
     await waitFor(() => expect(result.current.marks).not.toBeNull());
     expect(spanFn).not.toHaveBeenCalled();
     expect(result.current.deltaSpanStatus).toBe(DeltaSpanStatuses.ABSENT);
+  });
+});
+
+describe("useComparisonOverlay narrative removed lines", () => {
+  it("fetches the span once a narrative with removed lines shows in Changes", async () => {
+    const spanFn = vi.fn(async () => SPAN_DIFF);
+    const { result } = renderOverlay(
+      stubNarrativePlan(spanFn, NARRATIVE),
+      "previous-brief",
+    );
+
+    await waitFor(() =>
+      expect(result.current.narrativeSpanRows).not.toBeUndefined(),
+    );
+    expect(spanFn).toHaveBeenCalledTimes(1);
+    const rows = result.current.narrativeSpanRows?.getFileRows("src/a.ts");
+    expect(rows?.some((row) => row.kind === "del")).toBe(true);
+  });
+
+  it("leaves the span alone when the narrative removed nothing", async () => {
+    const spanFn = vi.fn(async () => SPAN_DIFF);
+    const { result } = renderOverlay(
+      stubNarrativePlan(spanFn, ADDED_ONLY_NARRATIVE),
+      "previous-brief",
+    );
+
+    await waitFor(() => expect(result.current.narrative).not.toBeNull());
+    expect(spanFn).not.toHaveBeenCalled();
+    expect(result.current.narrativeSpanRows).toBeUndefined();
+  });
+
+  it("leaves the span alone in Full scope, which shows no narrative cards", async () => {
+    const spanFn = vi.fn(async () => SPAN_DIFF);
+    const { result } = renderOverlay(
+      stubNarrativePlan(spanFn, NARRATIVE),
+      "previous-brief",
+      "full",
+    );
+
+    await waitFor(() => expect(result.current.narrative).not.toBeNull());
+    expect(spanFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("useComparisonOverlay narrative span gate", () => {
+  it("leaves a span descriptor that disabled itself unfetched", async () => {
+    const spanFn = vi.fn(async () => SPAN_DIFF);
+    const { result } = renderOverlay(
+      stubNarrativePlan(spanFn, NARRATIVE, false),
+      "previous-brief",
+    );
+
+    await waitFor(() => expect(result.current.narrative).not.toBeNull());
+    expect(spanFn).not.toHaveBeenCalled();
+    expect(result.current.narrativeSpanRows).toBeUndefined();
+  });
+
+  it("never fetches the previous-brief span under the last-review lens", async () => {
+    const spanFn = vi.fn(async () => SPAN_DIFF);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    // A narrative read under Previous brief stays cached after a lens switch.
+    client.setQueryData(["narrative"], NARRATIVE);
+    const { result } = renderOverlay(
+      stubNarrativePlan(spanFn, NARRATIVE),
+      "last-review",
+      "changes",
+      client,
+    );
+
+    await waitFor(() => expect(result.current.marks).not.toBeNull());
+    expect(result.current.narrative).not.toBeNull();
+    expect(spanFn).not.toHaveBeenCalled();
   });
 });

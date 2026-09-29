@@ -554,3 +554,11 @@ export function buildReplyRecordingPlan(
     },
   };
 }
+
+/** Whether any narrative chunk names a line the revision removed. */
+export function hasRemovedLines(narrative: RevisionNarrative | null): boolean {
+  return (
+    narrative !== null &&
+    narrative.chunks.some((chunk) => chunk.removedRanges.length > 0)
+  );
+}

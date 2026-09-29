@@ -45,17 +45,17 @@ describe("estimateChunkCardHeight", () => {
 describe("estimateNarrativeCardHeight", () => {
   it("scales by added rows plus chrome", () => {
     expect(
-      estimateNarrativeCardHeight({ addedRowCount: 10, hasRemovedNote: false }),
+      estimateNarrativeCardHeight({ rowCount: 10, hasRemovedNote: false }),
     ).toBe(10 * DIFF_ROW_HEIGHT_PX + NARRATIVE_CARD_OVERHEAD_PX);
   });
 
   it("adds the removed-note line only when present", () => {
     const withNote = estimateNarrativeCardHeight({
-      addedRowCount: 0,
+      rowCount: 0,
       hasRemovedNote: true,
     });
     const without = estimateNarrativeCardHeight({
-      addedRowCount: 0,
+      rowCount: 0,
       hasRemovedNote: false,
     });
     expect(withNote).toBeGreaterThan(without);

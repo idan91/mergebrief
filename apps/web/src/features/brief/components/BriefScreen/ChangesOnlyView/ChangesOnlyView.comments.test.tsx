@@ -183,6 +183,20 @@ const FILE_ROWS_CACHE: FileRowsCache = {
   getFileRows: (path) => (path === "src/a.ts" ? OWNER.diff : undefined),
 };
 
+/** Previous head to head: lines 20 and 21 of the previous head went away. */
+const SPAN_ROWS_CACHE: FileRowsCache = {
+  isEmpty: false,
+  getFileRows: (path) =>
+    path === "src/a.ts"
+      ? [
+          { kind: "hunk", content: "@@ -19,3 +19,1 @@" },
+          { kind: "ctx", content: "keep();", oldLine: 19, newLine: 19 },
+          { kind: "del", content: "stale(a);", oldLine: 20 },
+          { kind: "del", content: "stale(b);", oldLine: 21 },
+        ]
+      : undefined,
+};
+
 function stubThread(line: number): DigestThreadRow {
   return {
     kind: "thread",
@@ -246,6 +260,8 @@ interface RenderOptions {
   /** The last-review delta to render; the fixture with rows by default. */
   delta?: Brief;
   deltaSpan?: DeltaSpanStatus;
+  /** The previous-brief span diff, the source of a card's removed lines. */
+  narrativeSpanRows?: FileRowsCache;
 }
 
 function renderChanges(options: RenderOptions = {}) {
@@ -315,6 +331,7 @@ function renderChanges(options: RenderOptions = {}) {
                       ? (next.narrative ?? NARRATIVE)
                       : null
                   }
+                  narrativeSpanRows={next.narrativeSpanRows}
                   review={review}
                   skipReason={null}
                 />
@@ -513,6 +530,27 @@ describe("Your last review delta cards take comments", () => {
       }),
       "delta:chunk-a",
     );
+  });
+
+  it("shows the lines this revision removed as inert rows from the span diff", () => {
+    const { view } = renderChanges({ narrativeSpanRows: SPAN_ROWS_CACHE });
+
+    const removed = view.container.querySelectorAll(
+      'tr[data-line-kind="del"][aria-disabled="true"]',
+    );
+    expect(removed).toHaveLength(2);
+    expect(removed[0]?.textContent).toContain("stale(a);");
+    expect(screen.queryByText("−2 lines removed")).toBeNull();
+  });
+
+  it("keeps the removed-lines count while the span has no rows for the file", () => {
+    const elsewhere: FileRowsCache = {
+      isEmpty: false,
+      getFileRows: () => undefined,
+    };
+    renderChanges({ narrativeSpanRows: elsewhere });
+
+    expect(screen.getByText("−2 lines removed")).toBeTruthy();
   });
 
   it("keeps a deleted row inert with the removed-before-head reason", () => {

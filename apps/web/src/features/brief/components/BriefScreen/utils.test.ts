@@ -25,6 +25,7 @@ import {
   discriminateNarrativeArtifact,
   groupSinceMarkers,
   groupStartIndexes,
+  hasRemovedLines,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
   resolveLocalComparisonIds,
@@ -364,6 +365,22 @@ describe("discriminateNarrativeArtifact", () => {
     headIndex: 1,
     skipped: "span too large",
   };
+
+  it("reports removed lines only when a chunk names some", () => {
+    const removed = { start: 3, end: 4 };
+    const removing = {
+      id: "rc1",
+      briefChangeGroupId: "g1",
+      file: "src/a.ts",
+      addedRanges: [],
+      removedRanges: [removed],
+      summary: "s",
+    };
+
+    expect(hasRemovedLines(null)).toBe(false);
+    expect(hasRemovedLines(narrative)).toBe(false);
+    expect(hasRemovedLines({ ...narrative, chunks: [removing] })).toBe(true);
+  });
 
   it("returns neither for an absent artifact", () => {
     expect(discriminateNarrativeArtifact(null)).toEqual({

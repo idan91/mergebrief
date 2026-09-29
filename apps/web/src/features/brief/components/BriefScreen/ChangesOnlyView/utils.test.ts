@@ -93,6 +93,117 @@ describe("collectNarrativeRows", () => {
   });
 });
 
+describe("collectNarrativeRows with the span diff", () => {
+  /** Previous head to head: the lines this revision removed sit beside their replacements. */
+  const SPAN: DiffLine[] = [
+    { kind: "hunk", content: "@@ -9,3 +9,4 @@" },
+    { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+    { kind: "del", content: "gone-old", oldLine: 10 },
+    { kind: "add", content: "b", newLine: 10 },
+    { kind: "add", content: "c", newLine: 11 },
+    { kind: "ctx", content: "d", oldLine: 11, newLine: 12 },
+    { kind: "hunk", content: "@@ -30,2 +39,2 @@" },
+    { kind: "ctx", content: "m", oldLine: 30, newLine: 39 },
+    { kind: "del", content: "old-z", oldLine: 31 },
+    { kind: "add", content: "z", newLine: 40 },
+  ];
+  const withRemoved: RevisionNarrativeChunk = {
+    ...NARRATIVE_CHUNK,
+    removedRanges: [
+      { start: 10, end: 10 },
+      { start: 31, end: 31 },
+    ],
+  };
+
+  it("seats each removed line before the head line that replaced it", () => {
+    const { rows, origins, removedShown } = collectNarrativeRows(
+      BRIEF,
+      withRemoved,
+      appI18n.t,
+      SPAN,
+    );
+
+    expect(rows.map((row) => row.content)).toEqual([
+      "early",
+      "7 lines not shown",
+      "gone-old",
+      "b",
+      "c",
+      "28 lines not shown",
+      "old-z",
+      "z",
+    ]);
+    expect(rows.filter((row) => row.kind === "del")).toHaveLength(2);
+    expect(removedShown).toBe(2);
+    expect(origins[2]).toBeUndefined();
+    expect(origins[3]).toEqual({ chunkId: "c1", index: 2 });
+  });
+
+  it("takes removed lines from the span only, never the base diff", () => {
+    const { rows, removedShown } = collectNarrativeRows(
+      BRIEF,
+      withRemoved,
+      appI18n.t,
+    );
+
+    expect(rows.some((row) => row.kind === "del")).toBe(false);
+    expect(removedShown).toBe(0);
+  });
+
+  it("seats a deletion at the start of a hunk after the hunk's head start", () => {
+    const span: DiffLine[] = [
+      { kind: "hunk", content: "@@ -5,1 +4,0 @@" },
+      { kind: "del", content: "lonely", oldLine: 5 },
+    ];
+    const lonely: RevisionNarrativeChunk = {
+      ...NARRATIVE_CHUNK,
+      addedRanges: [
+        { start: 2, end: 2 },
+        { start: 10, end: 11 },
+      ],
+      removedRanges: [{ start: 5, end: 5 }],
+    };
+
+    const { rows } = collectNarrativeRows(BRIEF, lonely, appI18n.t, span);
+
+    expect(rows.map((row) => row.content)).toEqual([
+      "early",
+      "2 lines not shown",
+      "lonely",
+      "5 lines not shown",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("counts the seat of a removed line among the hidden lines after it", () => {
+    const span: DiffLine[] = [
+      { kind: "hunk", content: "@@ -5,1 +4,0 @@" },
+      { kind: "del", content: "lonely", oldLine: 5 },
+      { kind: "hunk", content: "@@ -9,1 +7,0 @@" },
+      { kind: "del", content: "second", oldLine: 9 },
+    ];
+    const twoRemoved: RevisionNarrativeChunk = {
+      ...NARRATIVE_CHUNK,
+      addedRanges: [{ start: 11, end: 11 }],
+      removedRanges: [
+        { start: 5, end: 5 },
+        { start: 9, end: 9 },
+      ],
+    };
+
+    const { rows } = collectNarrativeRows(BRIEF, twoRemoved, appI18n.t, span);
+
+    expect(rows.map((row) => row.content)).toEqual([
+      "lonely",
+      "3 lines not shown",
+      "second",
+      "3 lines not shown",
+      "c",
+    ]);
+  });
+});
+
 describe("collectNarrativeRows over neighbouring chunks", () => {
   /** Each slice carries the other's changed lines as context, as sliceChunkDiff does. */
   const SHARED: DiffLine[] = [

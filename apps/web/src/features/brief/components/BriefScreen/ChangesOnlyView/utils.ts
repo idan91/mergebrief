@@ -19,12 +19,19 @@ import type { GuestRowOrigin } from "../../../utils/guest-rows";
 export interface NarrativeRows {
   rows: DiffLine[];
   origins: (GuestRowOrigin | undefined)[];
+  /** Removed lines the span diff supplied; the card's count note stands in when zero. */
+  removedShown: number;
 }
 
 interface OriginRow {
   row: DiffLine;
-  origin: GuestRowOrigin;
+  /** Absent for a removed line: the full brief holds no row for it. */
+  origin: GuestRowOrigin | undefined;
+  /** The row's seat in head numbering; a removed line takes the slot below the head line above it. */
+  headSeat: number;
 }
+
+const HUNK_NEW_RANGE = /\+(\d+)(?:,(\d+))?/;
 
 export function hasLengthViolations(
   ...artifacts: ({ lengthViolations?: LengthViolation[] } | null)[]
@@ -104,31 +111,46 @@ export function shapeGuestRows(
   return shaped;
 }
 
-function compareByNewLine(left: OriginRow, right: OriginRow): number {
-  return (left.row.newLine ?? 0) - (right.row.newLine ?? 0);
+function compareByHeadSeat(left: OriginRow, right: OriginRow): number {
+  if (left.headSeat !== right.headSeat) {
+    return left.headSeat - right.headSeat;
+  }
+  const leftRemoved = left.row.kind === DiffLineKinds.DEL;
+  const rightRemoved = right.row.kind === DiffLineKinds.DEL;
+  if (leftRemoved !== rightRemoved) {
+    return leftRemoved ? -1 : 1;
+  }
+
+  return (left.row.oldLine ?? 0) - (right.row.oldLine ?? 0);
+}
+
+function buildRowKey(row: DiffLine): string | undefined {
+  if (row.kind === DiffLineKinds.DEL) {
+    return row.oldLine === undefined ? undefined : `old:${String(row.oldLine)}`;
+  }
+
+  return row.newLine === undefined ? undefined : `new:${String(row.newLine)}`;
 }
 
 /**
- * One row per head line. A chunk's sliced diff carries its neighbours'
- * changed lines as context, so two chunks side by side each hold the
- * other's lines; the chunk whose added ranges hold the line owns it.
+ * One row per line. A chunk's sliced diff carries its neighbours' changed
+ * lines as context, so two chunks side by side each hold the other's lines;
+ * the chunk whose added ranges hold the line owns it.
  */
 function pickOneRowPerLine(
   picked: readonly OriginRow[],
   chunksById: ReadonlyMap<string, BriefChunk>,
 ): OriginRow[] {
-  const byLine = new Map<number, OriginRow>();
+  const byLine = new Map<string, OriginRow>();
   for (const candidate of picked) {
-    const line = candidate.row.newLine;
-    if (line === undefined) {
+    const key = buildRowKey(candidate.row);
+    if (key === undefined) {
       continue;
     }
-    const held = byLine.get(line);
-    if (held === undefined || ownsLine(chunksById, candidate, line)) {
-      const heldOwns = held !== undefined && ownsLine(chunksById, held, line);
-      if (!heldOwns) {
-        byLine.set(line, candidate);
-      }
+    const held = byLine.get(key);
+    const heldOwns = held !== undefined && ownsLine(chunksById, held);
+    if (held === undefined || (!heldOwns && ownsLine(chunksById, candidate))) {
+      byLine.set(key, candidate);
     }
   }
 
@@ -138,25 +160,88 @@ function pickOneRowPerLine(
 function ownsLine(
   chunksById: ReadonlyMap<string, BriefChunk>,
   candidate: OriginRow,
-  line: number,
 ): boolean {
+  if (candidate.origin === undefined) {
+    return false;
+  }
   const chunk = chunksById.get(candidate.origin.chunkId);
 
-  return chunk !== undefined && lineInRanges(line, chunk.addedRanges);
+  return (
+    chunk !== undefined &&
+    lineInRanges(candidate.row.newLine, chunk.addedRanges)
+  );
 }
 
 /**
- * The added and context rows a narrative chunk names, pulled from the full
- * brief's head-coordinate diffs with the owner row each came from, so a
- * comment on the card keeps the owner's exact row id. Rows come out in
- * line order with a note over every gap. Removed lines have no row at head
- * (the brief holds base to head diffs, not previous head to head), so
- * callers summarize those as a count.
+ * The head line above a hunk's first row. A hunk with no new lines names
+ * the line the deletion follows; every other hunk names its first new line.
+ */
+function parseHunkHeadAbove(content: string): number {
+  const match = HUNK_NEW_RANGE.exec(content);
+  if (match?.[1] === undefined) {
+    return 0;
+  }
+  const start = Number(match[1]);
+  const count = match[2] === undefined ? 1 : Number(match[2]);
+
+  return count === 0 ? start : start - 1;
+}
+
+/**
+ * Head lines the card leaves out between two rows. A head row sits on its
+ * line; a removed row sits between the head line above and its seat, so the
+ * seat itself is hidden when the next row is not on it.
+ */
+function countHiddenLines(previous: OriginRow, next: OriginRow): number {
+  const previousOnLine = previous.row.kind !== DiffLineKinds.DEL;
+  const seatsBetween = next.headSeat - previous.headSeat;
+
+  return previousOnLine ? seatsBetween - 1 : seatsBetween;
+}
+
+/**
+ * The lines a revision removed, from the span diff: previous head to head,
+ * the one diff whose old side matches the narrative's removed ranges. Each
+ * takes the head seat right below the last head line the diff showed.
+ */
+function collectRemovedRows(
+  chunk: RevisionNarrativeChunk,
+  spanRows: readonly DiffLine[],
+): OriginRow[] {
+  const removed: OriginRow[] = [];
+  let lastHead = 0;
+  for (const row of spanRows) {
+    if (row.kind === DiffLineKinds.HUNK) {
+      lastHead = parseHunkHeadAbove(row.content);
+      continue;
+    }
+    if (row.newLine !== undefined) {
+      lastHead = row.newLine;
+      continue;
+    }
+    const wanted =
+      row.kind === DiffLineKinds.DEL &&
+      lineInRanges(row.oldLine, chunk.removedRanges);
+    if (wanted) {
+      removed.push({ row, origin: undefined, headSeat: lastHead + 1 });
+    }
+  }
+
+  return removed;
+}
+
+/**
+ * The rows a narrative chunk names. Added and context rows come from the
+ * full brief's head-coordinate diffs with the owner row each came from, so
+ * a comment on the card keeps the owner's exact row id; removed lines come
+ * from the span diff when a caller has it. Rows come out in head order with
+ * a note over every gap.
  */
 export function collectNarrativeRows(
   brief: Brief,
   chunk: RevisionNarrativeChunk,
   t: TFunction,
+  spanRows: readonly DiffLine[] = [],
 ): NarrativeRows {
   const candidates: OriginRow[] = [];
   const fileChunks = chunksForFile(brief, chunk.file);
@@ -165,32 +250,35 @@ export function collectNarrativeRows(
       const shown =
         (row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.CTX) &&
         lineInRanges(row.newLine, chunk.addedRanges);
-      if (shown) {
-        candidates.push({ row, origin: { chunkId: briefChunk.id, index } });
+      if (shown && row.newLine !== undefined) {
+        const origin = { chunkId: briefChunk.id, index };
+        candidates.push({ row, origin, headSeat: row.newLine });
       }
     });
   }
+  const removed = collectRemovedRows(chunk, spanRows);
   const chunksById = new Map(fileChunks.map((entry) => [entry.id, entry]));
-  const picked = pickOneRowPerLine(candidates, chunksById).toSorted(
-    compareByNewLine,
-  );
+  const picked = pickOneRowPerLine(
+    candidates.concat(removed),
+    chunksById,
+  ).toSorted(compareByHeadSeat);
 
   const rows: DiffLine[] = [];
   const origins: (GuestRowOrigin | undefined)[] = [];
-  let previous: DiffLine | undefined;
-  for (const { row, origin } of picked) {
+  let previous: OriginRow | undefined;
+  for (const entry of picked) {
     const skipped =
-      previous === undefined ? 0 : countLinesBetween(previous, row);
+      previous === undefined ? 0 : countHiddenLines(previous, entry);
     if (skipped > 0) {
       rows.push(buildGapNote(t, skipped));
       origins.push(undefined);
     }
-    rows.push({ ...row, origin: DiffRowOrigins.GUEST });
-    origins.push(origin);
-    previous = row;
+    rows.push({ ...entry.row, origin: DiffRowOrigins.GUEST });
+    origins.push(entry.origin);
+    previous = entry;
   }
 
-  return { rows, origins };
+  return { rows, origins, removedShown: removed.length };
 }
 
 function chunksForFile(brief: Brief, file: string): BriefChunk[] {
