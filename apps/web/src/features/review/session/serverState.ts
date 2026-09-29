@@ -5,13 +5,13 @@ import type { BriefChunk, Category } from "../../brief/types";
 import { CommentAnchorKinds, type Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {
-  CommentSides,
   createFileCommentAnchor,
   rowId,
   type CommentSide,
   type LineCommentAnchor,
   type ReviewComment,
 } from "../utils/comments";
+import { resolveChunkForLine } from "../utils/chunk-for-line";
 import { getChunkRegion, isFlagUnderAnchor } from "../utils/state";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { Disposition } from "./disposition";
@@ -123,47 +123,16 @@ function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
   return side === "old" ? row.oldLine : row.newLine;
 }
 
-function rangesOnDraftStartSide(
-  chunk: BriefChunk,
-  draft: SessionLineDraftComment,
-) {
-  const startSide = draft.startSide ?? draft.side;
-  return startSide === CommentSides.OLD
-    ? chunk.removedRanges
-    : chunk.addedRanges;
-}
-
-function chunkOwnsDraftStart(
-  chunk: BriefChunk,
-  draft: SessionLineDraftComment,
-): boolean {
-  return rangesOnDraftStartSide(chunk, draft).some(
-    (range) => draft.startLine >= range.start && draft.startLine <= range.end,
-  );
-}
-
-/**
- * Prefer actual changed ranges over envelopes so disjoint ranges cannot claim another
- * chunk's leftover line. Envelope coverage is only the fallback for context lines.
- * Files outside this brief have no home and remain in the attention list.
- * A File comment has no line: path-in-brief is the only home test.
- */
 function chunkForDraft(
   chunks: BriefChunk[],
   draft: SessionLineDraftComment,
 ): BriefChunk | undefined {
-  const inFile = chunks.filter((chunk) => chunk.file === draft.filePath);
-  const covering = inFile.find((chunk) => chunkOwnsDraftStart(chunk, draft));
-  if (covering !== undefined) return covering;
-  const envelope = inFile.find((chunk) => {
-    const region = getChunkRegion(chunk);
-    return draft.startLine >= region.start && draft.startLine <= region.end;
-  });
-  if (envelope !== undefined) return envelope;
-  const preceding = inFile.filter(
-    (chunk) => getChunkRegion(chunk).start <= draft.startLine,
+  return resolveChunkForLine(
+    chunks,
+    draft.filePath,
+    draft.startSide ?? draft.side,
+    draft.startLine,
   );
-  return preceding.at(-1) ?? inFile[0];
 }
 
 interface CoveredRow {

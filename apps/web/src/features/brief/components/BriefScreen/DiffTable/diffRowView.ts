@@ -16,7 +16,11 @@ import {
   type ComparisonRowKind,
   type ComparisonRun,
 } from "../../../comparison/runs";
-import type { AddressedReviewComment, BriefChunk } from "../../../types";
+import type {
+  AddressedReviewComment,
+  BriefChunk,
+  GuestRowReason,
+} from "../../../types";
 
 export interface DiffRowViewParams {
   line: DiffLine;
@@ -45,6 +49,8 @@ export interface DiffRowView {
   showComposer: boolean;
   /** GitHub rejects a comment on a line the diff does not carry. */
   isCommentable: boolean;
+  /** Why a guest row takes no comment; absent on a commentable or a host row. */
+  disabledReason?: GuestRowReason;
 }
 
 /**

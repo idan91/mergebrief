@@ -1,4 +1,5 @@
 import type { SiblingSpan } from "../../../utils/siblingSpans";
+import type { GuestRowResolution } from "../../../utils/guest-rows";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { SplitRow } from "@web/components/DiffRows/types";
 import type { DragSelection } from "./types";
@@ -33,3 +34,5 @@ export const NO_EDGES: ExpandableEdge[] = [];
 export const NO_HIDDEN_THREADS: DigestThreadRow[] = [];
 
 export const NO_SPANS: SiblingSpan[] = [];
+
+export const NO_GUEST_ROWS: (GuestRowResolution | undefined)[] = [];

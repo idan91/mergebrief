@@ -27,6 +27,7 @@ import { useExpandLanding } from "./useExpandLanding";
 import { useRailHover } from "./useRailHover";
 import {
   buildExpandedRowView,
+  buildGuestRowView,
   collectAnchoredIndexes,
   resolveSelectionGlyph,
   collectDragBaseIndexes,
@@ -52,10 +53,11 @@ export function useDiffTableFacade({
   addressedComments,
   conversationThreadsByRow,
   readOnlyReason,
-  expansion,
+  expansion: ownExpansion,
   hiddenThreads = NO_HIDDEN_THREADS,
   fileThreads = NO_HIDDEN_THREADS,
   lineOwners,
+  guest,
 }: DiffTableProps) {
   const { t } = useTranslation();
   const hiddenThreadLines = useMemo(
@@ -63,6 +65,8 @@ export function useDiffTableFacade({
     [hiddenThreads],
   );
   const baseRows = chunk.diff ?? NO_DIFF;
+  // A guest table's rows came from another diff already; it splices nothing.
+  const expansion = guest === undefined ? ownExpansion : undefined;
   // Rendered rows are the spliced ones; comments, marks and threads stay
   // keyed on base indexes and translate through `baseIndexOf`.
   const rows = expansion?.rows ?? baseRows;
@@ -74,6 +78,7 @@ export function useDiffTableFacade({
     rows,
     chunk,
     lineOwners,
+    guest,
     hasExpandedRows,
     diffView,
     tokensByRow,
@@ -85,6 +90,7 @@ export function useDiffTableFacade({
     chunk,
     chunkKey,
     readOnlyReason,
+    isGuest: model.isGuest,
     spanOwnerIds: model.spanOwnerIds,
     conversationThreadsByRow,
     fileThreads,
@@ -179,6 +185,18 @@ export function useDiffTableFacade({
     index: number,
   ): DiffRowView | undefined {
     if (isFullWidthDiffRow(line)) return undefined;
+    if (model.isGuest) {
+      return buildGuestRowView({
+        line,
+        index,
+        hostId: chunk.id,
+        resolution: model.guestByRow[index],
+        comments: review.spanComments,
+        activeCommentAnchor,
+        dragIndexes,
+        activeIndexes: activeSpanIndexes,
+      });
+    }
     const baseIndex = baseIndexOf?.[index] ?? index;
     if (baseIndex < 0) {
       return buildExpandedRowView({
@@ -219,6 +237,7 @@ export function useDiffTableFacade({
     rowViews,
     spanOwnerByRow: model.spanOwnerByRow,
     ownerChunkById: model.ownerChunkById,
+    guest,
     composerDisabledReason: review.composerDisabledReason,
     composerDisabledReasonId,
     expandedReasonId,

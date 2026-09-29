@@ -298,6 +298,14 @@ export interface TicketAlignment {
   response: string;
 }
 
+/** Why a guest row takes no comment: GitHub can hold one only on a line of the PR diff. */
+export const GuestRowReasons = {
+  REMOVED_BEFORE_HEAD: "removed-before-head",
+  NOT_IN_PR_DIFF: "not-in-pr-diff",
+  FILE_NOT_IN_BRIEF: "file-not-in-brief",
+} as const;
+export type GuestRowReason = ValueOf<typeof GuestRowReasons>;
+
 export const TicketTrackers = { GITHUB: "github", NOTION: "notion" } as const;
 export type TicketTracker = ValueOf<typeof TicketTrackers>;
 

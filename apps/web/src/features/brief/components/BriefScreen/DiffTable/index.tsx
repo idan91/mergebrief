@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import type { DigestThreadRow } from "@web/features/conversation/utils";
 import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
@@ -26,6 +27,7 @@ import {
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
   resolveSpanLines,
+  showsThreadOnGuestRow,
   showsThreadOnRow,
 } from "./utils";
 import { RailSides } from "./types";
@@ -44,6 +46,7 @@ export function DiffTable(props: DiffTableProps) {
     lineOwners,
     jumpToLine,
     deriveChunkUrl,
+    guest,
   } = props;
   const table = useDiffTableFacade(props);
   const { t, rows, model, review, rowViews, railHover } = table;
@@ -212,6 +215,20 @@ export function DiffTable(props: DiffTableProps) {
     return <RevisionTag run={view.revRun} />;
   }
 
+  function resolveForeignThreads(
+    line: DiffLine,
+    baseIndex: number,
+  ): DigestThreadRow[] {
+    if (guest !== undefined) {
+      return fileThreads.filter((row) => showsThreadOnGuestRow(row, line));
+    }
+    if (baseIndex < 0) {
+      return fileThreads.filter((row) => showsThreadOnRow(row, line));
+    }
+
+    return conversationThreadsByRow?.get(baseIndex) ?? [];
+  }
+
   function buildUnderRow(
     line: DiffLine,
     index: number,
@@ -221,12 +238,9 @@ export function DiffTable(props: DiffTableProps) {
     const view = rowViews[index];
     if (view === undefined) return null;
     const baseIndex = table.baseIndexOf?.[index] ?? index;
-    // An expanded row has no base index: its threads are the file's whose
-    // line it now shows, a sibling's or a hidden one.
-    const conversationRows =
-      baseIndex < 0
-        ? fileThreads.filter((row) => showsThreadOnRow(row, line))
-        : (conversationThreadsByRow?.get(baseIndex) ?? []);
+    // An expanded or guest row has no base index: its threads are the
+    // file's whose line it now shows, a sibling's or a hidden one.
+    const conversationRows = resolveForeignThreads(line, baseIndex);
     return (
       <UnderRows
         activeCommentAnchor={review.activeCommentAnchor}

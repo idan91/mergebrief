@@ -21,6 +21,7 @@ export {
   type ReviewComment,
   type ReviewCommentStatus,
 } from "./comments";
+export { resolveChunkForLine } from "./chunk-for-line";
 export { buildReceipt, type Receipt } from "./receipt";
 export {
   deriveCarriedItems,

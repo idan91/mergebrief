@@ -3,21 +3,26 @@ import type {
   LineSelection,
 } from "@web/features/review/utils";
 import { rowId } from "@web/features/review/utils";
-import type {
-  DiffRowAttributeSlot,
-  DiffRowAttributes,
-  SplitRow,
-  SplitSide,
+import {
+  type DiffRowAttributeSlot,
+  type DiffRowAttributes,
+  type SplitRow,
+  type SplitSide,
+  SplitSides,
 } from "@web/components/DiffRows/types";
 import { rangeBetween } from "@web/utils/collections";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../types";
+import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { DiffRowView } from "./diffRowView";
 import { COMMENT_ANCHOR_SELECTOR, SELECT_ANCHOR_SELECTOR } from "./consts";
 import { type DragMode, DragModes, type DragSelection } from "./types";
 import {
+  buildGuestLineSelection,
   buildLineAnchor,
   buildLineSelection,
+  collectGuestRowIds,
+  collectNewSideIndexes,
   collectOwnerRowIds,
   compareAscending,
   collectSideIndexes,
@@ -36,6 +41,8 @@ export interface RowAttributesDeps {
   rowViews: readonly (DiffRowView | undefined)[];
   spanOwnerByRow: ReadonlyMap<number, string>;
   ownerChunkById: ReadonlyMap<string, BriefChunk>;
+  /** Present when every row is a guest row: anchors and selections name the owner. */
+  guest: GuestRowsInput | undefined;
   composerDisabledReason: string | undefined;
   composerDisabledReasonId: string;
   expandedReasonId: string;
@@ -93,6 +100,7 @@ export function buildRowAttributesFor(
     rowViews,
     spanOwnerByRow,
     ownerChunkById,
+    guest,
     composerDisabledReason,
     composerDisabledReasonId,
     expandedReasonId,
@@ -124,6 +132,9 @@ export function buildRowAttributesFor(
       ? collectSideIndexes(pairs, startSide, startIndex, endIndex)
       : rangeBetween(startIndex, endIndex);
     const side = sameSide ? startSide : undefined;
+    if (guest !== undefined) {
+      return resolveGuestAnchor(indexes, guest);
+    }
     const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
     if (baseIndexes !== undefined) {
       return buildLineAnchor(chunk.id, chunk.file, baseRows, baseIndexes, side);
@@ -142,6 +153,39 @@ export function buildRowAttributesFor(
     if (anchor === null) return null;
 
     return { ...anchor, rowIds: collectOwnerRowIds(owner, rows, indexes) };
+  }
+
+  // A guest range comments on its head lines only, on the new side: a
+  // deleted row between them is a baseline's and drops out of the range.
+  function resolveGuestAnchor(
+    indexes: number[],
+    guestInput: GuestRowsInput,
+  ): LineCommentAnchor | null {
+    const picked = collectNewSideIndexes(rows, indexes);
+    const owner = resolveSpanRangeOwner(
+      picked,
+      spanOwnerByRow,
+      rowViews,
+      ownerChunkById,
+    );
+    if (owner === undefined) {
+      return null;
+    }
+    const anchor = buildLineAnchor(
+      owner.id,
+      chunk.file,
+      rows,
+      picked,
+      SplitSides.RIGHT,
+    );
+    if (anchor === null) {
+      return null;
+    }
+
+    return {
+      ...anchor,
+      rowIds: collectGuestRowIds(picked, guestInput.originOf, owner.id),
+    };
   }
 
   function finishSelection(rowIndex: number, side?: SplitSide): void {
@@ -175,7 +219,9 @@ export function buildRowAttributesFor(
     if (composerDisabledReason !== undefined) {
       return;
     }
-    const picked = [...selectionIndexes].toSorted(compareAscending);
+    const selected = [...selectionIndexes].toSorted(compareAscending);
+    const picked =
+      guest === undefined ? selected : collectNewSideIndexes(rows, selected);
     const first = picked[0];
     const last = picked.at(-1);
     if (first === undefined || last === undefined) {
@@ -185,7 +231,8 @@ export function buildRowAttributesFor(
       return;
     }
     const placement = resolveSelectionSide(side);
-    const baseIndexes = mapToBaseIndexes(picked, baseIndexOf);
+    const baseIndexes =
+      guest === undefined ? mapToBaseIndexes(picked, baseIndexOf) : undefined;
     const anchor =
       baseIndexes === undefined
         ? resolveAnchor(first, placement, last, placement)
@@ -211,13 +258,32 @@ export function buildRowAttributesFor(
     const indexes = sameSide
       ? collectSideIndexes(pairs, startSide, startIndex, endIndex)
       : rangeBetween(startIndex, endIndex);
+    const side = sameSide ? startSide : undefined;
+    if (guest !== undefined) {
+      const owner = resolveSpanRangeOwner(
+        collectNewSideIndexes(rows, indexes),
+        spanOwnerByRow,
+        rowViews,
+        ownerChunkById,
+      );
+      if (owner === undefined) {
+        return null;
+      }
+      return buildGuestLineSelection(
+        owner.id,
+        chunk.file,
+        rows,
+        indexes,
+        guest.originOf,
+      );
+    }
 
     return buildLineSelection(
       chunk.id,
       chunk.file,
       rows,
       indexes,
-      sameSide ? startSide : undefined,
+      side,
       baseIndexOf,
     );
   }

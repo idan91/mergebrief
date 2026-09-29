@@ -11,13 +11,15 @@ import {
 } from "@web/features/review/session";
 import type { BriefChunk } from "../../../types";
 import { EMPTY_EXPANDED_THREADS, EMPTY_REVIEW_COMMENTS } from "./consts";
-import { demoteSubmitted } from "./utils";
+import { demoteSubmitted, isNewSideAnchor } from "./utils";
 
 export interface DiffTableCommentsInput {
   chunk: BriefChunk;
   /** Store-owned key for this table's expanded threads; file-qualified. */
   chunkKey: string;
   readOnlyReason: string | undefined;
+  /** The table hosts guest rows: a selection on one of its owners is its own. */
+  isGuest: boolean;
   spanOwnerIds: readonly string[];
   conversationThreadsByRow: ReadonlyMap<number, DigestThreadRow[]> | undefined;
   fileThreads: readonly DigestThreadRow[];
@@ -33,6 +35,7 @@ export function useDiffTableComments({
   chunk,
   chunkKey,
   readOnlyReason,
+  isGuest,
   spanOwnerIds,
   conversationThreadsByRow,
   fileThreads,
@@ -88,10 +91,23 @@ export function useDiffTableComments({
     return state.composerHost === chunk.id ? anchor : null;
   });
   const activeCommentAnchor = readOnly ? null : anchorForChunk;
-  // Chunk-scoped: a selection elsewhere never re-renders this table.
-  const lineSelection = useReviewFlow((state) =>
-    state.lineSelection?.chunkId === chunk.id ? state.lineSelection : null,
-  );
+  // Chunk-scoped: a selection elsewhere never re-renders this table. A
+  // guest selection names the owner, so a guest table reads its owners'.
+  const lineSelection = useReviewFlow((state) => {
+    const selection = state.lineSelection;
+    if (selection === null) {
+      return null;
+    }
+    if (selection.chunkId === chunk.id) {
+      return selection;
+    }
+    const ownersSelection =
+      isGuest &&
+      spanOwnerIds.includes(selection.chunkId) &&
+      isNewSideAnchor(selection);
+
+    return ownersSelection ? selection : null;
+  });
   // While a draft waits for its new lines, every row pick places it.
   const reanchorArmed = useReviewFlow(
     (state) => state.reanchorDraftId !== null,
@@ -112,12 +128,13 @@ export function useDiffTableComments({
   const postBlockedExternally = useReviewFlow(
     (state) => state.postBlockedExternally,
   );
-  // In-flight post-now ids scoped to THIS chunk's comments (the registry's
-  // set covers the whole brief, so an unscoped read would re-render every
-  // expanded table on any post).
+  // In-flight post-now ids scoped to the comments THIS table shows, its
+  // own and its owners' (the registry's set covers the whole brief, so an
+  // unscoped read would re-render every expanded table on any post).
   const postingCommentIds = useReviewFlow(
     useShallow((state) =>
       comments
+        .concat(spanComments)
         .filter((comment) => state.postingCommentIds.has(comment.id))
         .map((comment) => comment.id),
     ),

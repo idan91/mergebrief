@@ -3,14 +3,22 @@ import { useCallback, useMemo } from "react";
 import { rangeBetween } from "@web/utils/collections";
 import { computeIntraLineEmphasis } from "@web/components/DiffRows/diffPairedTokens";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
-import { hasPairedSides } from "@web/components/DiffRows/utils";
+import {
+  hasPairedSides,
+  isFullWidthDiffRow,
+} from "@web/components/DiffRows/utils";
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../types";
 import type { FileLineOwners } from "../../../utils/lineOwner";
 import { resolveSpanOwner } from "../../../utils/lineOwner";
 import { groupSiblingSpans } from "../../../utils/siblingSpans";
-import { NO_PAIRS, NO_SPANS } from "./consts";
+import {
+  type GuestRowResolution,
+  type GuestRowsInput,
+  resolveGuestRows,
+} from "../../../utils/guest-rows";
+import { NO_GUEST_ROWS, NO_PAIRS, NO_SPANS } from "./consts";
 import {
   buildPairPartners,
   collectSpannedRows,
@@ -24,9 +32,28 @@ export interface DiffTableModelInput {
   rows: DiffLine[];
   chunk: BriefChunk;
   lineOwners: FileLineOwners | undefined;
+  guest: GuestRowsInput | undefined;
   hasExpandedRows: boolean;
   diffView: DiffView;
   tokensByRow: RowTokenMap | undefined;
+}
+
+function isCodeRow(line: DiffLine): boolean {
+  return !isFullWidthDiffRow(line);
+}
+
+/** Row index to owner for the guest rows that take a comment. */
+function collectGuestOwners(
+  guestByRow: readonly (GuestRowResolution | undefined)[],
+): Map<number, string> {
+  const byRow = new Map<number, string>();
+  guestByRow.forEach((resolution, index) => {
+    if (resolution?.commentable === true) {
+      byRow.set(index, resolution.chunkId);
+    }
+  });
+
+  return byRow;
 }
 
 /**
@@ -38,23 +65,36 @@ export function useDiffTableModel({
   rows,
   chunk,
   lineOwners,
+  guest,
   hasExpandedRows,
   diffView,
   tokensByRow,
 }: DiffTableModelInput) {
+  const isGuest = guest !== undefined;
+  const guestByRow = useMemo(
+    () =>
+      guest === undefined
+        ? NO_GUEST_ROWS
+        : resolveGuestRows(rows, guest, isCodeRow),
+    [rows, guest],
+  );
   // A line the chunk's own ranges hold is never a sibling's, whatever the
-  // owner index says about it.
+  // owner index says about it. A guest table frames nothing: its card
+  // already names the group.
   const spans = useMemo(
     () =>
-      lineOwners === undefined || !hasExpandedRows
+      isGuest || lineOwners === undefined || !hasExpandedRows
         ? NO_SPANS
         : groupSiblingSpans(rows, (line) => {
             const owner = resolveSpanOwner(lineOwners, line)?.chunkId;
             return owner === chunk.id ? undefined : owner;
           }),
-    [rows, lineOwners, hasExpandedRows, chunk.id],
+    [rows, lineOwners, hasExpandedRows, chunk.id, isGuest],
   );
   const spanOwnerByRow = useMemo(() => {
+    if (isGuest) {
+      return collectGuestOwners(guestByRow);
+    }
     const byRow = new Map<number, string>();
     for (const span of spans) {
       for (const index of rangeBetween(span.start, span.end)) {
@@ -62,17 +102,22 @@ export function useDiffTableModel({
       }
     }
     return byRow;
-  }, [spans]);
+  }, [spans, isGuest, guestByRow]);
   const canPairSides = useMemo(() => hasPairedSides(rows), [rows]);
-  const split = diffView === DiffViews.SPLIT && canPairSides;
+  // A guest table renders unified whatever the reader picked: its left side
+  // is a baseline no comment can land on, so a split would pair inert rows
+  // with live ones.
+  const split = diffView === DiffViews.SPLIT && canPairSides && !isGuest;
   const resolvedView = split ? DiffViews.SPLIT : DiffViews.UNIFIED;
 
+  // A guest table's pairs stay zipped for emphasis: a deleted row has no
+  // owner there, so unzipping would split every replacement.
   const pairRows = useCallback(
     () =>
       unzipPairsByOwner(pairSplitRows(rows), (index) =>
-        spanOwnerByRow.get(index),
+        isGuest ? undefined : spanOwnerByRow.get(index),
       ),
-    [rows, spanOwnerByRow],
+    [rows, spanOwnerByRow, isGuest],
   );
   const pairs = useMemo(
     () => (split ? pairRows() : NO_PAIRS),
@@ -95,16 +140,20 @@ export function useDiffTableModel({
     [spanFrames],
   );
   const spanOwnerIds = useMemo(
-    () => [...new Set(spans.map((span) => span.owner))].toSorted(),
-    [spans],
+    () => [...new Set(spanOwnerByRow.values())].toSorted(),
+    [spanOwnerByRow],
   );
+  const ownerChunks = guest?.owners?.chunks ?? lineOwners?.chunks;
   const ownerChunkById = useMemo(
-    () => new Map(lineOwners?.chunks.map((owner) => [owner.id, owner])),
-    [lineOwners],
+    () => new Map(ownerChunks?.map((owner) => [owner.id, owner])),
+    [ownerChunks],
   );
   // Once per row set, not per render: a drag re-renders the table on every
   // row the pointer crosses, and the owner's diff scan is per span row.
   const commentableSpanRows = useMemo(() => {
+    if (isGuest) {
+      return new Set(spanOwnerByRow.keys());
+    }
     const commentable = new Set<number>();
     for (const [index, owner] of spanOwnerByRow) {
       const line = rows[index];
@@ -114,7 +163,7 @@ export function useDiffTableModel({
       }
     }
     return commentable;
-  }, [rows, spanOwnerByRow, ownerChunkById]);
+  }, [rows, spanOwnerByRow, ownerChunkById, isGuest]);
   const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
   // Unified pairs the same rows for emphasis without rendering them paired.
   const emphasisByRow = useMemo(
@@ -123,6 +172,8 @@ export function useDiffTableModel({
   );
 
   return {
+    isGuest,
+    guestByRow,
     spans,
     spanOwnerByRow,
     split,

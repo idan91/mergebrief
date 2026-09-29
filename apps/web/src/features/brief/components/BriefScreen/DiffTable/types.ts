@@ -21,6 +21,7 @@ import type {
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
 import type { DiffRowView } from "./diffRowView";
 import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
+import type { GuestRowsInput } from "../../../utils/guest-rows";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
 // custom property cast-free.
@@ -62,6 +63,12 @@ export interface DiffTableProps {
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
   /** The URL that addresses a chunk, the sibling span control's link. */
   deriveChunkUrl?: ((chunkId: string) => string) | undefined;
+  /**
+   * Rows another diff produced. Every row is foreign: the resolver names
+   * the full brief's chunk that owns its line, or why it takes no comment.
+   * Sibling frames, expansion and the comparison overlay stay off.
+   */
+  guest?: GuestRowsInput | undefined;
 }
 
 export interface RailView {

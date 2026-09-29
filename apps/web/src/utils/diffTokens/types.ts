@@ -18,9 +18,14 @@ export const DiffLineKinds = {
 } as const;
 export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
 
-/** Absent means the row came from the PR diff; the one value marks a later read of the file. */
+/**
+ * Absent means the row came from the PR diff. `expanded` marks a later read
+ * of the file; `guest` a row another diff produced, hosted by a table whose
+ * chunk does not own it.
+ */
 export const DiffRowOrigins = {
   EXPANDED: "expanded",
+  GUEST: "guest",
 } as const;
 export type DiffRowOrigin = ValueOf<typeof DiffRowOrigins>;
 

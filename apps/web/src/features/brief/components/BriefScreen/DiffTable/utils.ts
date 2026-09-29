@@ -50,6 +50,10 @@ import {
   demotedSubmittedCommentIds,
 } from "@web/features/conversation/utils";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
+import type {
+  GuestRowOrigin,
+  GuestRowResolution,
+} from "../../../utils/guest-rows";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -336,6 +340,106 @@ export function buildExpandedRowView({
   };
 }
 
+export interface GuestRowViewParams {
+  line: DiffLine;
+  index: number;
+  hostId: string;
+  resolution: GuestRowResolution | undefined;
+  comments: readonly ReviewComment[];
+  activeCommentAnchor: CommentAnchor | null;
+  dragIndexes: ReadonlySet<number>;
+  activeIndexes: ReadonlySet<number>;
+}
+
+/**
+ * An anchor whose every line is a head line. A guest row's old number is in
+ * a baseline's coordinates, so an old-side or crossing anchor cannot match
+ * it; only new-side anchors show on guest rows.
+ */
+export function isNewSideAnchor(
+  anchor: Pick<LineSelection, "side" | "startSide">,
+): boolean {
+  const startsNew =
+    anchor.startSide === undefined || anchor.startSide === CommentSides.NEW;
+
+  return anchor.side === CommentSides.NEW && startsNew;
+}
+
+function hasNewSideAnchor(comment: ReviewComment): boolean {
+  return isLineCommentAnchor(comment.anchor) && isNewSideAnchor(comment.anchor);
+}
+
+/** The picked rows that carry a head line; a guest range comments on those only. */
+export function collectNewSideIndexes(
+  rows: readonly DiffLine[],
+  indexes: readonly number[],
+): number[] {
+  return indexes.filter((index) => rows[index]?.newLine !== undefined);
+}
+
+/**
+ * A row another diff produced: an expanded row's view with the owner the
+ * resolver named, carrying the reason when it named none.
+ */
+export function buildGuestRowView({
+  line,
+  index,
+  hostId,
+  resolution,
+  comments,
+  activeCommentAnchor,
+  dragIndexes,
+  activeIndexes,
+}: GuestRowViewParams): DiffRowView {
+  const commentable = resolution?.commentable === true;
+  const newSideActive =
+    activeCommentAnchor !== null &&
+    isLineCommentAnchor(activeCommentAnchor) &&
+    isNewSideAnchor(activeCommentAnchor);
+  const view = buildExpandedRowView({
+    line,
+    index,
+    hostId,
+    owner: resolution?.commentable === true ? resolution.chunkId : undefined,
+    commentable,
+    comments: comments.filter(hasNewSideAnchor),
+    activeCommentAnchor: newSideActive ? activeCommentAnchor : null,
+    dragIndexes,
+    activeIndexes,
+  });
+  view.id = `${hostId}:guest:${String(index)}`;
+  if (resolution !== undefined && !resolution.commentable) {
+    view.disabledReason = resolution.reason;
+  }
+
+  return view;
+}
+
+/**
+ * The owner's row ids for guest rows, when every picked row came from that
+ * owner's own diff; Full matches a draft by its last row id when it has
+ * any, so an id on another chunk would hide the draft there.
+ */
+export function collectGuestRowIds(
+  indexes: readonly number[],
+  originOf: ((index: number) => GuestRowOrigin | undefined) | undefined,
+  ownerId: string,
+): string[] {
+  if (originOf === undefined) {
+    return [];
+  }
+  const rowIds: string[] = [];
+  for (const index of indexes) {
+    const origin = originOf(index);
+    if (origin === undefined || origin.chunkId !== ownerId) {
+      return [];
+    }
+    rowIds.push(rowId(origin.chunkId, origin.index));
+  }
+
+  return rowIds;
+}
+
 /**
  * The rendered rows a line anchor covers, by coordinates. Same-side: every
  * row whose line on that side is in range. Cross-side: the rows between the
@@ -494,6 +598,16 @@ export function showsThreadOnRow(
   return (
     threadLine === (side === ThreadSides.LEFT ? line.oldLine : line.newLine)
   );
+}
+
+/** A guest row shows right-side threads only: its old line is a baseline's. */
+export function showsThreadOnGuestRow(
+  row: DigestThreadRow,
+  line: DiffLine,
+): boolean {
+  const side = row.thread.side ?? ThreadSides.RIGHT;
+
+  return side === ThreadSides.RIGHT && showsThreadOnRow(row, line);
 }
 
 /** Where one span's header, gutter edge and end rule render. */
@@ -792,16 +906,49 @@ export function buildLineSelection(
   const anchor = buildLineAnchor(chunkId, file, rows, indexes, side);
   if (anchor === null) return null;
   const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
+  const rowIds =
+    baseIndexes === undefined
+      ? []
+      : baseIndexes.map((index) => rowId(chunkId, index));
+
+  return shapeLineSelection(anchor, rowIds);
+}
+
+/**
+ * A selection over guest rows names the owner, so its link lands on the
+ * owner's table in Full, and stays on the new side: a guest row's old line
+ * is a baseline's. Row ids come from the owner's own diff or not at all.
+ */
+export function buildGuestLineSelection(
+  ownerId: string,
+  file: string,
+  rows: DiffLine[],
+  indexes: number[],
+  originOf: ((index: number) => GuestRowOrigin | undefined) | undefined,
+): LineSelection | null {
+  const picked = collectNewSideIndexes(rows, indexes);
+  const anchor = buildLineAnchor(ownerId, file, rows, picked, SplitSides.RIGHT);
+  if (anchor === null) {
+    return null;
+  }
+
+  return shapeLineSelection(
+    anchor,
+    collectGuestRowIds(picked, originOf, ownerId),
+  );
+}
+
+function shapeLineSelection(
+  anchor: LineCommentAnchor,
+  rowIds: string[],
+): LineSelection {
   const selection: LineSelection = {
-    chunkId,
-    file,
+    chunkId: anchor.chunkId,
+    file: anchor.file,
     side: anchor.side,
     startLine: anchor.startLine,
     endLine: anchor.endLine,
-    rowIds:
-      baseIndexes === undefined
-        ? []
-        : baseIndexes.map((index) => rowId(chunkId, index)),
+    rowIds,
   };
   if (anchor.startSide !== undefined) selection.startSide = anchor.startSide;
 
