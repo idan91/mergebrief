@@ -25,6 +25,7 @@ function options(
     toggleFocusMode: vi.fn(),
     toggleHelp: vi.fn(),
     markViewed: vi.fn(),
+    markViewedAvailable: true,
     ...overrides,
   };
 }

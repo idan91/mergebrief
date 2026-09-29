@@ -42,11 +42,7 @@ import { RiskChipDisclosure } from "../RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useFileRows } from "../../../hooks/useFileRows";
-import {
-  buildLineOwnersByFile,
-  type FileLineOwners,
-  type LineTarget,
-} from "../../../utils/lineOwner";
+import { type FileLineOwners, type LineTarget } from "../../../utils/lineOwner";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
@@ -62,6 +58,8 @@ export interface StoryViewProps {
   brief: Brief;
   diffView?: DiffView;
   model: BriefViewModel;
+  /** Per file, so a card frames a sibling's expanded rows with its owner. */
+  lineOwnersByFile: ReadonlyMap<string, FileLineOwners>;
   comparison: ComparisonOverlayState;
   focusMode: boolean;
   openChunks: Set<string>;
@@ -113,11 +111,7 @@ export function StoryView(props: StoryViewProps) {
       : DiffViews.UNIFIED;
   const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
-  // Per file, so a card frames a sibling's expanded rows with its owner.
-  const lineOwnersByFile = useMemo(
-    () => buildLineOwnersByFile(props.model, t),
-    [props.model, t],
-  );
+  const { lineOwnersByFile } = props;
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
   // Gated on focus mode: outside it the selector pins null, so scroll-spy

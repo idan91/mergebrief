@@ -347,8 +347,12 @@ The reading mode that strips the Brief page to the story flow alone — summary,
 _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)
 
 **Scope** (Full vs Changes):
-Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions, keeping only the summary. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
+Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions: the summary plus the changed lines, reviewable in place. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
 _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)
+
+**Span diff**:
+The live diff from the active **Comparison baseline** to the selected head, fetched when the reader asks for it in Changes **Scope**. Its right side is head; its left side is the baseline, so a left-side row has no line at head and takes no comment. Every row it shows is a guest row of the full **Brief** chunk that owns the line, resolved the way a **Sibling span** resolves its owner.
+_Avoid_: raw diff (the toggle's label, not the concept), whole-PR diff, span patch
 
 **Unified view**:
 The default diff rendering: one column of rows, added and removed lines interleaved in file order. Per viewer, remembered in browser storage, overridable for one visit by the `diff` URL param.

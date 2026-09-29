@@ -992,7 +992,7 @@ describe("DiffTable line selection", () => {
     const {
       view: { container },
       flowStore,
-    } = renderTable({ readOnlyReason: "Read-only." });
+    } = renderTable({}, { composerDisabledReason: "Read-only." });
     const row = container.querySelector("tr[data-line-kind='add']");
     if (!(row instanceof HTMLElement)) throw new Error("expected a row");
     fireEvent.mouseDown(findNumberCell(row));

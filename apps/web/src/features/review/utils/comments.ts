@@ -184,6 +184,18 @@ export function createSideAnchor(
   };
 }
 
+/**
+ * The lines an anchor covers: its rows when the table that made it had
+ * them, else its span, which is one-sided for an anchor with no rows.
+ */
+export function countAnchorLines(anchor: LineCommentAnchor): number {
+  if (anchor.rowIds.length > 0) {
+    return anchor.rowIds.length;
+  }
+
+  return anchor.endLine - anchor.startLine + 1;
+}
+
 /** Every entry numbered and each one more than the last: no header crossed. */
 function isConsecutiveRun(lines: (number | undefined)[]): lines is number[] {
   return lines.every((line, at) => {

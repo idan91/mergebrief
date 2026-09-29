@@ -3,6 +3,7 @@
 export {
   CommentSides,
   ReviewCommentStatuses,
+  countAnchorLines,
   resolveJumpChunkId,
   createCommentAnchor,
   createSideAnchor,

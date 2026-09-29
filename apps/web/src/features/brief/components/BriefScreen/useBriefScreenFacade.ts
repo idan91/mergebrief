@@ -18,6 +18,7 @@ import {
 } from "@web/hooks/useViewportBoundary";
 import { DiffViews } from "@web/components/DiffRows/types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
 import { buildAttributeRail } from "../../utils/viewModel";
 import { createChunkWindowRegistry } from "./chunkWindows";
@@ -229,6 +230,15 @@ export function useBriefScreenFacade({
     postComment: undefined,
   });
   const flowActions = flowStore.getState().actions;
+  // Both panes stay mounted across a scope switch, so a composer hosted by
+  // the hidden pane would stay open unseen with the page shortcuts dead
+  // behind it.
+  useEffect(() => {
+    const host = flowStore.getState().composerHost;
+    if (host !== null && isGuestHost(host) !== inChangesScope) {
+      flowActions.cancelComposer();
+    }
+  }, [flowActions, flowStore, inChangesScope]);
   const announce = flowActions.announce;
   const toast = useStore(flowStore, (state) => state.toast);
   const liveMessage = useStore(flowStore, (state) => state.liveMessage);
@@ -543,6 +553,7 @@ export function useBriefScreenFacade({
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
     markViewed: markViewedFromShortcut,
+    markViewedAvailable: compareState.view === "full",
     lineSelected: lineSelection !== null,
     clearLineSelection: clearLineSelectionFromShortcut,
     jumpToConversation:

@@ -30,6 +30,7 @@ import type {
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";
 import { DeltaContext } from "../DeltaContext";
 import { RawSpanDiff } from "./RawSpanDiff";
+import type { ChangesReviewWiring } from "./types";
 import styles from "./ChangesOnlyView.module.scss";
 
 /**
@@ -59,6 +60,8 @@ export interface ChangesOnlyViewProps {
    * it drives the "Show raw diff" toggle. Absent → just the summary.
    */
   rawSpanDiff?: ComparisonQuery<string> | undefined;
+  /** What the guest tables need to take a comment; absent leaves them inert. */
+  review?: ChangesReviewWiring | undefined;
 }
 
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
@@ -81,6 +84,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
     <RawSpanDiff
       key={`${props.compare}:${JSON.stringify(props.rawSpanDiff.queryKey)}`}
       query={props.rawSpanDiff}
+      review={props.review}
     >
       {summary}
     </RawSpanDiff>

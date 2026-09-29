@@ -25,6 +25,7 @@ import { useDiffTableModel } from "./useDiffTableModel";
 import { useDragSelection } from "./useDragSelection";
 import { useExpandLanding } from "./useExpandLanding";
 import { useRailHover } from "./useRailHover";
+import { useComposerHostUnmount } from "./useComposerHostUnmount";
 import { useReasonRow } from "./useReasonRow";
 import type { GuestRowReason } from "../../../types";
 import {
@@ -55,7 +56,6 @@ export function useDiffTableFacade({
   comparisonView,
   addressedComments,
   conversationThreadsByRow,
-  readOnlyReason,
   expansion: ownExpansion,
   hiddenThreads = NO_HIDDEN_THREADS,
   fileThreads = NO_HIDDEN_THREADS,
@@ -92,7 +92,6 @@ export function useDiffTableFacade({
   const review = useDiffTableComments({
     chunk,
     chunkKey,
-    readOnlyReason,
     isGuest: model.isGuest,
     spanOwnerIds: model.spanOwnerIds,
     conversationThreadsByRow,
@@ -128,6 +127,7 @@ export function useDiffTableFacade({
   );
   const isOldSideRun = (run: ComparisonRun): boolean => oldSideRuns.has(run);
   const { activeCommentAnchor, lineSelection } = review;
+  useComposerHostUnmount(activeCommentAnchor !== null, review.cancelComposer);
   const unified = model.resolvedView === DiffViews.UNIFIED;
   const selectionIndexes = useMemo(() => {
     if (lineSelection === null) {

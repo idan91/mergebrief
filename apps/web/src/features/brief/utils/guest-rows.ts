@@ -2,7 +2,11 @@ import type { LineSide } from "@web/components/DiffRows/types";
 import { resolveChunkForLine } from "@web/features/review/utils";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 
-import { type GuestRowReason, GuestRowReasons } from "../types";
+import {
+  GuestHostPrefixes,
+  type GuestRowReason,
+  GuestRowReasons,
+} from "../types";
 import type { FileLineOwners } from "./lineOwner";
 
 /** The owner's own row a guest row came from, when it came from the owner's diff. */
@@ -14,7 +18,10 @@ export interface GuestRowOrigin {
 /** What a guest table needs to resolve every one of its rows. */
 export interface GuestRowsInput {
   file: string;
-  /** The PR base to head rows of the file; absent when the PR diff has none. */
+  /**
+   * The PR base to head rows of the file: empty when the PR diff carries
+   * none for it, absent while the PR diff itself is not available.
+   */
   fileRows: readonly DiffLine[] | undefined;
   /** The full brief's chunks of the file; absent when none touches it. */
   owners: FileLineOwners | undefined;
@@ -86,6 +93,9 @@ export function resolveGuestRow(
   }
   const fromOwner =
     origin !== undefined && isOwner(input.owners, origin.chunkId);
+  if (!fromOwner && input.fileRows === undefined) {
+    return refuse(GuestRowReasons.PR_DIFF_UNAVAILABLE);
+  }
   if (!fromOwner && !prLines.has(newLine)) {
     return refuse(GuestRowReasons.NOT_IN_PR_DIFF);
   }
@@ -102,6 +112,13 @@ export function resolveGuestRow(
     side: NEW_SIDE,
     line: newLine,
   };
+}
+
+/** Whether a composer host is a guest table of the Changes pane rather than a Full card. */
+export function isGuestHost(hostId: string): boolean {
+  return Object.values(GuestHostPrefixes).some((prefix) =>
+    hostId.startsWith(prefix),
+  );
 }
 
 /** Every code row of a guest table resolved once; a full-width row has no entry. */

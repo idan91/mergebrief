@@ -39,13 +39,6 @@ export interface DiffTableProps {
   conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   reviewCommentLabel: string;
-  /**
-   * Hard read-only override (the RawSpanDiff case): every write affordance
-   * stands down with THIS reason regardless of the flow store's posture, and
-   * no review comments render, a raw-span chunk id could collide with a
-   * brief chunk id, so the store's chunk-keyed reads must not apply.
-   */
-  readOnlyReason?: string | undefined;
   /** Syntax tokens keyed by row index; absent renders every row plain. */
   tokensByRow?: RowTokenMap | undefined;
   tokensPending?: boolean;

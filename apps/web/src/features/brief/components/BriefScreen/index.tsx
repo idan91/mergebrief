@@ -26,6 +26,8 @@ import { BRIEF_SHORTCUT_SECTIONS } from "./consts";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView";
 import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
+import { buildLineOwnersByFile } from "../../utils/lineOwner";
+import type { ChangesReviewWiring } from "./ChangesOnlyView/types";
 import { SummarySection } from "./SummarySection";
 import { ReadingPositionProvider } from "./readingPosition";
 import styles from "./BriefScreen.module.scss";
@@ -154,6 +156,24 @@ export function BriefScreen({
   const chunkSizes = useMemo(
     () => deriveChunkSizes(brief.chunks),
     [brief.chunks],
+  );
+  // Per file, shared by both scopes: a story card frames a sibling span with
+  // its owner, a Changes guest table anchors a row to it.
+  const lineOwnersByFile = useMemo(
+    () => buildLineOwnersByFile(model, t),
+    [model, t],
+  );
+  const changesReview = useMemo<ChangesReviewWiring>(
+    () => ({
+      lineOwnersByFile,
+      lineThreadsByFile: conversationWiring.lineThreadsByFile,
+      conversationComposer: conversationWiring.conversationComposer,
+    }),
+    [
+      lineOwnersByFile,
+      conversationWiring.lineThreadsByFile,
+      conversationWiring.conversationComposer,
+    ],
   );
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
@@ -330,6 +350,7 @@ export function BriefScreen({
                           skipReason={overlay.skipReason}
                           delta={overlay.delta}
                           rawSpanDiff={overlay.activeRawSpanDiff}
+                          review={changesReview}
                         />
                       </LensPane>
                     </div>
@@ -341,6 +362,7 @@ export function BriefScreen({
                           brief={brief}
                           diffView={diffView}
                           model={model}
+                          lineOwnersByFile={lineOwnersByFile}
                           comparison={overlay.comparison}
                           focusMode={session.focusMode}
                           sidebar={sidebarLayout}

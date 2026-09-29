@@ -12,6 +12,8 @@ export interface KeyboardShortcutsOptions {
   disabled: boolean;
   sheetOpen: boolean;
   focusModeActive: boolean;
+  /** Viewed exists only in Full scope; Changes has cards, not chunks. */
+  markViewedAvailable: boolean;
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
   toggleHelp: () => void;
@@ -40,6 +42,7 @@ export interface ShortcutState {
   disabled: boolean;
   sheetOpen: boolean;
   focusModeActive: boolean;
+  viewedAvailable: boolean;
   lineSelected: boolean;
 }
 
@@ -124,9 +127,13 @@ export function resolveShortcut(
 
   if (key === "s" && !event.shiftKey) return { type: "toggleSidebar" };
 
-  // Focus mode only, a global V would silently collapse arbitrary chunks.
-  if (key === "v" && state.focusModeActive && state.activeChunkId !== null) {
-    return { type: "markViewed", chunkId: state.activeChunkId };
+  // Focus mode only, a global V would silently collapse arbitrary chunks;
+  // and Full scope only, Changes shows cards that are not chunks.
+  if (key === "v" && state.focusModeActive && state.viewedAvailable) {
+    const { activeChunkId } = state;
+    return activeChunkId === null
+      ? null
+      : { type: "markViewed", chunkId: activeChunkId };
   }
 
   return null;
@@ -163,6 +170,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           disabled: current.disabled,
           sheetOpen: current.sheetOpen,
           focusModeActive: current.focusModeActive,
+          viewedAvailable: current.markViewedAvailable,
           lineSelected: current.lineSelected === true,
         },
       );

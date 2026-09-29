@@ -492,7 +492,6 @@
       "colContent": "Content",
       "colContentOld": "Removed content",
       "colContentNew": "Added content",
-      "rawReadOnlyReason": "This is the raw diff for the comparison — comment from the brief itself.",
       "summarySkipped": "Summary skipped — {{reason}}.",
       "summaryUnavailable": "Summary unavailable for this span.",
       "rawToggle": "Raw diff",
@@ -545,6 +544,7 @@
       "guest": {
         "removedBeforeHead": "This line is gone from the pull request at head, so comment on it from the full brief if the base still has it.",
         "notInPrDiff": "The pull request diff does not carry this line, so GitHub has nowhere to hold a comment on it.",
+        "prDiffUnavailable": "The pull request diff is not available right now, so this line cannot take a comment yet.",
         "fileNotInBrief": "No chunk of this brief touches this file, so a comment here has nowhere to land.",
         "close": "Close"
       }

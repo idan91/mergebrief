@@ -24,7 +24,7 @@ const TWO_FILE_DIFF = [
 ].join("\n");
 
 describe("buildRawSpanDiffChunks", () => {
-  it("emits one read-only chunk per file with parsed display rows", () => {
+  it("emits one guest chunk per file with parsed display rows", () => {
     const chunks = buildRawSpanDiffChunks(t, TWO_FILE_DIFF);
     expect(chunks.map((chunk) => chunk.file)).toEqual(["src/a.ts", "src/b.ts"]);
     expect(chunks.map((chunk) => chunk.id)).toEqual([
@@ -35,6 +35,7 @@ describe("buildRawSpanDiffChunks", () => {
     const [first, second] = chunks;
     expect(first?.diff).toContainEqual({
       kind: "add",
+      origin: "guest",
       content: "validate(a);",
       newLine: 2,
     });
@@ -42,12 +43,13 @@ describe("buildRawSpanDiffChunks", () => {
     expect(second?.loc).toEqual({ added: 0, deleted: 1 });
     expect(second?.diff).toContainEqual({
       kind: "del",
+      origin: "guest",
       content: "legacy(b);",
       oldLine: 2,
     });
   });
 
-  it("claims no comment ranges, the raw diff is render-only", () => {
+  it("claims no comment ranges, every row anchors to its owner", () => {
     const chunks = buildRawSpanDiffChunks(t, TWO_FILE_DIFF);
     for (const chunk of chunks) {
       expect(chunk.addedRanges).toEqual([]);
@@ -68,8 +70,8 @@ describe("buildRawSpanDiffChunks", () => {
     const [chunk] = buildRawSpanDiffChunks(t, diff);
     expect(chunk?.file).toBe("bin/run.sh");
     expect(chunk?.diff).toEqual([
-      { kind: "note", content: "old mode 100644" },
-      { kind: "note", content: "new mode 100755" },
+      { kind: "note", origin: "guest", content: "old mode 100644" },
+      { kind: "note", origin: "guest", content: "new mode 100755" },
     ]);
   });
 
@@ -83,6 +85,7 @@ describe("buildRawSpanDiffChunks", () => {
     expect(chunk?.diff).toEqual([
       {
         kind: "note",
+        origin: "guest",
         content: "Binary files a/img.png and b/img.png differ",
       },
     ]);
@@ -100,7 +103,7 @@ describe("buildRawSpanDiffChunks", () => {
     // Never an empty panel: the parser returns zero rows here, so without the
     // fallback DiffTable would show its (wrong-context) unavailable copy.
     expect(chunk?.diff).toEqual([
-      { kind: "note", content: "new file mode 100644" },
+      { kind: "note", origin: "guest", content: "new file mode 100644" },
     ]);
   });
 
@@ -124,18 +127,20 @@ describe("buildRawSpanDiffChunks", () => {
     const [chunk] = buildRawSpanDiffChunks(t, diff);
     expect(chunk?.file).toBe("new.ts");
     expect(chunk?.diff?.slice(0, 4)).toEqual([
-      { kind: "note", content: "similarity index 90%" },
-      { kind: "note", content: "rename from old.ts" },
-      { kind: "note", content: "rename to new.ts" },
-      { kind: "hunk", content: "@@ -1,2 +1,2 @@" },
+      { kind: "note", origin: "guest", content: "similarity index 90%" },
+      { kind: "note", origin: "guest", content: "rename from old.ts" },
+      { kind: "note", origin: "guest", content: "rename to new.ts" },
+      { kind: "hunk", origin: "guest", content: "@@ -1,2 +1,2 @@" },
     ]);
     expect(chunk?.diff).toContainEqual({
       kind: "add",
+      origin: "guest",
       content: "validate(a);",
       newLine: 2,
     });
     expect(chunk?.diff).toContainEqual({
       kind: "del",
+      origin: "guest",
       content: "legacy(a);",
       oldLine: 2,
     });

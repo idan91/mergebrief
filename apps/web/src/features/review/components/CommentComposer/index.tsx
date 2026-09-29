@@ -11,6 +11,7 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   commentAnchorLabel,
+  countAnchorLines,
   isFileCommentAnchor,
   reviewCommentSubmitLabel,
   type CommentAnchor,
@@ -65,7 +66,7 @@ export function CommentComposer({
 
   const lineCount = isFileCommentAnchor(anchor)
     ? undefined
-    : t("review.comment.lines", { count: anchor.rowIds.length });
+    : t("review.comment.lines", { count: countAnchorLines(anchor) });
   const suggestionSeed = isFileCommentAnchor(anchor)
     ? undefined
     : anchor.selectedText;

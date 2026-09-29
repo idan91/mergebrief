@@ -11,6 +11,7 @@ import {
 } from "@web/features/review/session";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import { briefFixture } from "@web/features/brief/fixtures";
+import { buildLineOwnersByFile } from "../../../utils/lineOwner";
 import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,
@@ -33,6 +34,7 @@ const brief = {
   ],
 };
 const model = buildBriefViewModel(brief);
+const lineOwnersByFile = buildLineOwnersByFile(model, appI18n.t);
 const { remainder, remainderChunk } = resolveRemainder(model);
 
 function resolveRemainder(view: typeof model) {
@@ -83,6 +85,7 @@ function renderStory(focusMode: boolean) {
               comparison={comparison}
               focusMode={focusMode}
               jumpToChunk={() => undefined}
+              lineOwnersByFile={lineOwnersByFile}
               markReviewed={() => undefined}
               model={model}
               openChunks={new Set(remainder.chunks.map((chunk) => chunk.id))}

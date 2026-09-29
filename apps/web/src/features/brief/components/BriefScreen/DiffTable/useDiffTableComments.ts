@@ -10,14 +10,13 @@ import {
   useReviewFlow,
 } from "@web/features/review/session";
 import type { BriefChunk } from "../../../types";
-import { EMPTY_EXPANDED_THREADS, EMPTY_REVIEW_COMMENTS } from "./consts";
+import { EMPTY_EXPANDED_THREADS } from "./consts";
 import { demoteSubmitted, isNewSideAnchor } from "./utils";
 
 export interface DiffTableCommentsInput {
   chunk: BriefChunk;
   /** Store-owned key for this table's expanded threads; file-qualified. */
   chunkKey: string;
-  readOnlyReason: string | undefined;
   /** The table hosts guest rows: a selection on one of its owners is its own. */
   isGuest: boolean;
   spanOwnerIds: readonly string[];
@@ -34,13 +33,11 @@ export interface DiffTableCommentsInput {
 export function useDiffTableComments({
   chunk,
   chunkKey,
-  readOnlyReason,
   isGuest,
   spanOwnerIds,
   conversationThreadsByRow,
   fileThreads,
 }: DiffTableCommentsInput) {
-  const readOnly = readOnlyReason !== undefined;
   const {
     openComposer,
     cancelComposer,
@@ -54,10 +51,8 @@ export function useDiffTableComments({
     selectLines,
     clearLineSelection,
   } = useReviewActions();
-  const chunkComments = useChunkReviewComments(chunk.id);
-  const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
-  const ownerComments = useReviewCommentsForChunks(spanOwnerIds);
-  const allSpanComments = readOnly ? EMPTY_REVIEW_COMMENTS : ownerComments;
+  const allComments = useChunkReviewComments(chunk.id);
+  const allSpanComments = useReviewCommentsForChunks(spanOwnerIds);
   // Server-backed wins: once a posted comment's own GitHub thread renders in
   // this chunk, the local submitted card demotes out of display. With no
   // conversation loaded there are no own threads, so local cards stay.
@@ -85,12 +80,11 @@ export function useDiffTableComments({
   // Anchor-match selector: null (stable) unless the composer is hosted by
   // THIS table. A span row's composer anchors to the owner but opens here.
   const composerSaving = useReviewFlow((state) => state.composerSaving);
-  const anchorForChunk = useReviewFlow((state) => {
+  const activeCommentAnchor = useReviewFlow((state) => {
     const anchor = state.composerAnchor;
     if (anchor === null || !isLineCommentAnchor(anchor)) return null;
     return state.composerHost === chunk.id ? anchor : null;
   });
-  const activeCommentAnchor = readOnly ? null : anchorForChunk;
   // Chunk-scoped: a selection elsewhere never re-renders this table. A
   // guest selection names the owner, so a guest table reads its owners'.
   const lineSelection = useReviewFlow((state) => {
@@ -117,13 +111,11 @@ export function useDiffTableComments({
    * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
    * selection/composer entry is inert.
    */
-  const postureDisabledReason = useReviewFlow(
+  const composerDisabledReason = useReviewFlow(
     (state) => state.composerDisabledReason,
   );
-  const composerDisabledReason = readOnlyReason ?? postureDisabledReason;
   // Post a staged draft now; undefined hides the Post affordance entirely.
-  const postComment = useReviewFlow((state) => state.postComment);
-  const postReviewComment = readOnly ? undefined : postComment;
+  const postReviewComment = useReviewFlow((state) => state.postComment);
   // Wait-shaped reason every Post is blocked right now (submit in flight).
   const postBlockedExternally = useReviewFlow(
     (state) => state.postBlockedExternally,

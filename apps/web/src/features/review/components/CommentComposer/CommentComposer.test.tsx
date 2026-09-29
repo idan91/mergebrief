@@ -160,6 +160,32 @@ describe("CommentComposer store-backed submit label", () => {
   });
 });
 
+describe("CommentComposer line count", () => {
+  it("counts the rows of an anchor the table gave row ids", () => {
+    renderComposer([]);
+    expect(screen.getByText("1 line")).toBeTruthy();
+  });
+
+  it("counts the span of an anchor that carries no row ids", () => {
+    render(
+      <ReviewSessionProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(brief)}
+        session={sessionWith([])}
+      >
+        <ReviewFlowProvider store={makeFlowStore()}>
+          <CommentComposer
+            anchor={{ ...anchor, startLine: 2, endLine: 4, rowIds: [] }}
+            cancel={vi.fn()}
+            save={vi.fn()}
+          />
+        </ReviewFlowProvider>
+      </ReviewSessionProvider>,
+    );
+    expect(screen.getByText("3 lines")).toBeTruthy();
+  });
+});
+
 describe("CommentComposer navigation-guard registration", () => {
   it("registers while holding never-saved text, releases on unmount", () => {
     renderComposer([]);

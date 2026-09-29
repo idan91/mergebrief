@@ -11,8 +11,6 @@ import type { SplitRow } from "@web/components/DiffRows/types";
 import type { DragSelection } from "./types";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 
-export const EMPTY_REVIEW_COMMENTS: never[] = [];
-
 export const NO_PAIRS: SplitRow[] = [];
 
 // A zero-width space keeps the empty side of an under-row a real cell.
@@ -45,5 +43,6 @@ export const NO_GUEST_ROWS: (GuestRowResolution | undefined)[] = [];
 export const GUEST_REASON_KEYS: Record<GuestRowReason, TranslationKey> = {
   [GuestRowReasons.REMOVED_BEFORE_HEAD]: "brief.diff.guest.removedBeforeHead",
   [GuestRowReasons.NOT_IN_PR_DIFF]: "brief.diff.guest.notInPrDiff",
+  [GuestRowReasons.PR_DIFF_UNAVAILABLE]: "brief.diff.guest.prDiffUnavailable",
   [GuestRowReasons.FILE_NOT_IN_BRIEF]: "brief.diff.guest.fileNotInBrief",
 };

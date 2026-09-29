@@ -12,25 +12,106 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
+  emptySessionPayload,
+  initialReviewFlowState,
   ReviewSessionProvider,
   ReviewFlowProvider,
+  type ReviewFlowStore,
+  type ReviewSessionPayload,
+  useReviewSessionActions,
 } from "@web/features/review/session";
+import {
+  type ThreadSide,
+  ThreadSides,
+  ThreadSubjectTypes,
+} from "@web/features/conversation/types";
+import {
+  type DigestThreadRow,
+  DigestRowKinds,
+  ThreadPlacementKinds,
+} from "@web/features/conversation/utils";
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import { type ReactNode, useState } from "react";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
-import { briefFixture } from "@web/features/brief/fixtures";
+import { FileRowsProvider } from "../../../../hooks/useFileRows";
+import {
+  type Brief,
+  type BriefChunk,
+  Concerns,
+  Roles,
+} from "../../../../types";
+import type { FileRowsCache } from "../../../../utils/fileRows";
+import { buildLineOwnersByFile } from "../../../../utils/lineOwner";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
+import { DiffTable } from "../../DiffTable";
+import type { ChangesReviewWiring } from "../types";
 import { RawSpanDiff } from ".";
 
 afterEach(cleanup);
 
+/** The span diff: its left side is the baseline, which had a log line head lacks. */
 const DIFF = [
   "diff --git a/src/a.ts b/src/a.ts",
   "--- a/src/a.ts",
   "+++ b/src/a.ts",
-  "@@ -1,2 +1,3 @@",
+  "@@ -1,3 +1,3 @@",
   " const a = 1;",
+  "-console.log(a);",
   "+validate(a);",
   " export { a };",
 ].join("\n");
+
+/** The PR base to head rows of the file: the guard is the one added line. */
+const FILE_ROWS: DiffLine[] = [
+  { kind: "hunk", content: "@@ -1,2 +1,3 @@" },
+  { kind: "ctx", content: "const a = 1;", oldLine: 1, newLine: 1 },
+  { kind: "add", content: "validate(a);", newLine: 2 },
+  { kind: "ctx", content: "export { a };", oldLine: 2, newLine: 3 },
+];
+
+const OWNER: BriefChunk = {
+  id: "c1",
+  changeGroupId: "g1",
+  file: "src/a.ts",
+  concern: Concerns.IMPLEMENTATION,
+  role: Roles.CORE,
+  loc: { added: 1, deleted: 0 },
+  addedRanges: [{ start: 2, end: 2 }],
+  removedRanges: [],
+  riskSurface: [],
+  diff: FILE_ROWS,
+};
+
+const BRIEF: Brief = {
+  artifactKind: "brief",
+  pr: {
+    repo: "acme/widgets",
+    number: 7,
+    title: "t",
+    url: "https://example.com/pr/7",
+    sha: "head1234",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "Tighten validation",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [OWNER],
+  concernView: [],
+};
+
+const FILE_ROWS_CACHE: FileRowsCache = {
+  isEmpty: false,
+  getFileRows: (path) => (path === "src/a.ts" ? FILE_ROWS : undefined),
+};
 
 function diffQuery(
   base: string,
@@ -45,13 +126,123 @@ function diffQuery(
   };
 }
 
-function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
-  client ??= new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+const THREAD_COMPOSER = {
+  post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
+  onPosted: vi.fn(),
+};
+
+const NO_DIFF_CACHE: FileRowsCache = {
+  isEmpty: true,
+  getFileRows: () => undefined,
+};
+
+function stubThread(
+  side: ThreadSide,
+  line: number,
+  body: string,
+): DigestThreadRow {
+  return {
+    kind: DigestRowKinds.THREAD,
+    thread: {
+      rootCommentId: line,
+      path: "src/a.ts",
+      line,
+      side,
+      subjectType: ThreadSubjectTypes.LINE,
+      isResolved: false,
+      isOutdated: false,
+      comments: [
+        {
+          commentId: line,
+          author: { login: "alice", isBot: false },
+          body,
+          createdAt: "2026-07-01T10:00:00Z",
+          url: `https://example.test/c/${String(line)}`,
+        },
+      ],
+      hasMoreComments: false,
+    },
+    digestLine: body,
+    placement: {
+      kind: ThreadPlacementKinds.CHUNK,
+      chunkId: "c1",
+      rowId: `c1:${String(line)}`,
+    },
+    isOwn: false,
+  };
+}
+
+function stubPosture(composerDisabledReason: string | undefined) {
+  return initialReviewFlowState({
+    composerDisabledReason,
+    flagsReadOnly: false,
+    postingCommentIds: new Set(),
+    postBlockedExternally: undefined,
+    postComment: undefined,
   });
-  // DiffTable reads the session stores even in its read-only stand-down, so
-  // the raw span renders under the same providers the screen supplies.
-  const flowStore = createReviewFlowStore(
+}
+
+interface LiveFlowProps {
+  onStore: (store: ReviewFlowStore) => void;
+  children: ReactNode;
+}
+
+/** A flow store wired to the session, so a save lands in the session store. */
+function LiveFlow({ onStore, children }: LiveFlowProps) {
+  const actions = useReviewSessionActions();
+  const [store] = useState(() => {
+    const created = createReviewFlowStore(
+      actions,
+      stubPosture(undefined),
+      appI18n.t,
+    );
+    onStore(created);
+    return created;
+  });
+
+  return <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>;
+}
+
+function stubOwnerDraft(): ReviewSessionPayload {
+  return {
+    ...emptySessionPayload(),
+    draftComments: [
+      {
+        id: "81",
+        filePath: "src/a.ts",
+        kind: "line",
+        side: "new",
+        startLine: 2,
+        endLine: 2,
+        body: "owner draft",
+        status: "draft",
+      },
+    ],
+  };
+}
+
+interface RenderOptions {
+  client?: QueryClient;
+  session?: ReviewSessionPayload;
+  /** Render the owner's own table beside the span, as Full would. */
+  withOwnerTable?: boolean;
+  /** The flow store's read-only posture. */
+  composerDisabledReason?: string;
+  /** The PR diff rows; defaults to the loaded file. */
+  cache?: FileRowsCache;
+  fileThreads?: DigestThreadRow[];
+  /** Wire the flow store to the session instead of stubbing its gateway. */
+  liveSession?: boolean;
+}
+
+function renderRaw(
+  query: ComparisonQuery<string>,
+  options: RenderOptions = {},
+) {
+  const client =
+    options.client ??
+    new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let flowStore = createReviewFlowStore(
     {
       saveComment: vi.fn(),
       updateComment: vi.fn(),
@@ -59,29 +250,88 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
+    stubPosture(options.composerDisabledReason),
     appI18n.t,
   );
-  return render(
+  const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
+  flowStore.setState({
+    actions: {
+      ...flowStore.getState().actions,
+      openComposer: openCommentComposer,
+    },
+  });
+  const model = buildBriefViewModel(BRIEF);
+  const review: ChangesReviewWiring = {
+    lineOwnersByFile: buildLineOwnersByFile(model, appI18n.t),
+    lineThreadsByFile:
+      options.fileThreads === undefined
+        ? undefined
+        : new Map([["src/a.ts", options.fileThreads]]),
+    conversationComposer: THREAD_COMPOSER,
+  };
+  const tables = (
+    <>
+      <RawSpanDiff query={query} review={review}>
+        <p>Changes Only summary</p>
+      </RawSpanDiff>
+      {options.withOwnerTable === true ? (
+        <div data-testid="owner-table">
+          <DiffTable
+            addressedComments={[]}
+            chunk={OWNER}
+            comparisonSkipReason={null}
+            comparisonSource={{ kind: "last-review", delta: null }}
+            comparisonView={{
+              marks: new Map(),
+              runs: [],
+              runByRow: new Map(),
+            }}
+            reviewCommentLabel="review comment"
+          />
+        </div>
+      ) : null}
+    </>
+  );
+  const view = render(
     <QueryClientProvider client={client}>
-      <ReviewSessionProvider
-        briefId="test-brief"
-        model={buildBriefViewModel(briefFixture)}
-      >
-        <ReviewFlowProvider store={flowStore}>
-          <RawSpanDiff query={query}>
-            <p>Changes Only summary</p>
-          </RawSpanDiff>
-        </ReviewFlowProvider>
-      </ReviewSessionProvider>
+      <FileRowsProvider cache={options.cache ?? FILE_ROWS_CACHE}>
+        <ReviewSessionProvider
+          briefId="test-brief"
+          model={model}
+          session={options.session}
+        >
+          {options.liveSession === true ? (
+            <LiveFlow
+              onStore={(store) => {
+                flowStore = store;
+              }}
+            >
+              {tables}
+            </LiveFlow>
+          ) : (
+            <ReviewFlowProvider store={flowStore}>{tables}</ReviewFlowProvider>
+          )}
+        </ReviewSessionProvider>
+      </FileRowsProvider>
     </QueryClientProvider>,
   );
+
+  return { ...view, flowStore, openCommentComposer };
+}
+
+function findSpanRow(container: HTMLElement, content: string): HTMLElement {
+  const rows = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      '[data-line-origin="guest"][data-line-kind]',
+    ),
+  );
+  const row = rows.find((candidate) =>
+    candidate.textContent?.includes(content),
+  );
+  if (row === undefined) {
+    throw new Error(`no span row shows ${content}`);
+  }
+  return row;
 }
 
 /** The toggle button: its accessible NAME is stable, only aria-pressed flips. */
@@ -111,16 +361,165 @@ describe("RawSpanDiff toggle", () => {
     });
   });
 
-  it("renders the raw diff read-only, rows aria-disabled not commentable", async () => {
-    const { container } = renderRaw(diffQuery("chk", "head"));
+  it("anchors a comment on a right-side row to the chunk owning its line", async () => {
+    const { container, openCommentComposer } = renderRaw(
+      diffQuery("chk", "head"),
+    );
     fireEvent.click(toggleButton());
     await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
-    // Read-only posture: the added row is focusable but disabled, no
-    // commentable hook.
-    const disabledRow = container.querySelector('tr[aria-disabled="true"]');
-    expect(disabledRow).not.toBeNull();
-    expect(disabledRow?.getAttribute("tabindex")).toBe("0");
-    expect(container.querySelector("[data-commentable]")).toBeNull();
+    const row = findSpanRow(container, "validate(a);");
+
+    expect(row.hasAttribute("data-commentable")).toBe(true);
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    expect(openCommentComposer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "new",
+        startLine: 2,
+        endLine: 2,
+      }),
+      "raw:src/a.ts",
+    );
+    expect(screen.getByText("1 line")).toBeTruthy();
+  });
+
+  it("keeps every span row inert under a read-only posture", async () => {
+    const { container, openCommentComposer } = renderRaw(
+      diffQuery("chk", "head"),
+      { composerDisabledReason: "Frozen for this revision" },
+    );
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    const row = findSpanRow(container, "validate(a);");
+
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("names the PR diff unavailable rather than lacking the line", async () => {
+    const { container } = renderRaw(diffQuery("chk", "head"), {
+      cache: NO_DIFF_CACHE,
+    });
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    const row = findSpanRow(container, "validate(a);");
+    const reasonId = row.getAttribute("aria-describedby") ?? "";
+
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      appI18n.t("brief.diff.guest.prDiffUnavailable"),
+    );
+  });
+
+  it("shows a right-side thread on its span row and drops a left-side one", async () => {
+    const { container } = renderRaw(diffQuery("chk", "head"), {
+      fileThreads: [
+        stubThread(ThreadSides.RIGHT, 2, "right thread"),
+        stubThread(ThreadSides.LEFT, 2, "left thread"),
+      ],
+    });
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    const row = findSpanRow(container, "validate(a);");
+
+    expect(row.nextElementSibling?.textContent).toContain("right thread");
+    expect(screen.queryByText("left thread")).toBeNull();
+  });
+
+  it("saves a draft from the span row that the owner's table then shows", async () => {
+    const { container } = renderRaw(diffQuery("chk", "head"), {
+      liveSession: true,
+      withOwnerTable: true,
+    });
+    fireEvent.click(toggleButton());
+    await waitFor(() => findSpanRow(container, "validate(a);"));
+    fireEvent.keyDown(findSpanRow(container, "validate(a);"), {
+      key: "Enter",
+    });
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "from changes" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+
+    await waitFor(() =>
+      expect(screen.getAllByText("from changes")).toHaveLength(2),
+    );
+    expect(screen.getByTestId("owner-table").textContent).toContain(
+      "from changes",
+    );
+  });
+
+  it("cancels an open composer when its file panel is collapsed", async () => {
+    const { container, flowStore } = renderRaw(diffQuery("chk", "head"));
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    fireEvent.keyDown(findSpanRow(container, "validate(a);"), {
+      key: "Enter",
+    });
+    expect(flowStore.getState().composerAnchor).not.toBeNull();
+    const panel = container.querySelector("details");
+    if (!(panel instanceof HTMLDetailsElement)) {
+      throw new Error("expected a file panel");
+    }
+
+    panel.open = false;
+    fireEvent(panel, new Event("toggle"));
+
+    expect(flowStore.getState().composerAnchor).toBeNull();
+  });
+
+  it("cancels an open composer when the raw diff is toggled off", async () => {
+    const { container, flowStore } = renderRaw(diffQuery("chk", "head"));
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    fireEvent.keyDown(findSpanRow(container, "validate(a);"), {
+      key: "Enter",
+    });
+    expect(flowStore.getState().composerAnchor).not.toBeNull();
+
+    fireEvent.click(toggleButton());
+
+    await waitFor(() => expect(flowStore.getState().composerAnchor).toBeNull());
+    expect(flowStore.getState().composerHost).toBeNull();
+  });
+
+  it("opens the reason row on a left-side row instead of a composer", async () => {
+    const { container, openCommentComposer } = renderRaw(
+      diffQuery("chk", "head"),
+    );
+    fireEvent.click(toggleButton());
+    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
+    const row = findSpanRow(container, "console.log(a);");
+
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(row.hasAttribute("data-commentable")).toBe(false);
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+    expect(
+      container.querySelector('[data-testid="reason-row"]')?.textContent,
+    ).toContain(appI18n.t("brief.diff.guest.removedBeforeHead"));
+  });
+
+  it("shows a draft on the owner under the span row and the owner's table", async () => {
+    const { container } = renderRaw(diffQuery("chk", "head"), {
+      session: stubOwnerDraft(),
+      withOwnerTable: true,
+    });
+    fireEvent.click(toggleButton());
+    await waitFor(() => findSpanRow(container, "validate(a);"));
+
+    const drafts = screen.getAllByText("owner draft");
+    expect(drafts).toHaveLength(2);
+    const spanRow = findSpanRow(container, "validate(a);");
+    expect(spanRow.nextElementSibling?.textContent).toContain("owner draft");
+    expect(screen.getByTestId("owner-table").textContent).toContain(
+      "owner draft",
+    );
   });
 
   it("returns to the summary when toggled back off", async () => {
@@ -178,7 +577,7 @@ describe("RawSpanDiff toggle", () => {
         enabled: false,
         retry: false,
       },
-      client,
+      { client },
     );
     fireEvent.click(toggleButton());
     await waitFor(() =>

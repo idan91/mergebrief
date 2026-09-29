@@ -112,9 +112,18 @@ describe("resolveGuestRow", () => {
   it("treats a file the PR diff has no rows for as outside the PR diff", () => {
     const line: DiffLine = { kind: "add", content: "h", newLine: 40 };
 
-    expect(resolveGuestRow(line, stubInput({ fileRows: undefined }))).toEqual({
+    expect(resolveGuestRow(line, stubInput({ fileRows: [] }))).toEqual({
       commentable: false,
       reason: GuestRowReasons.NOT_IN_PR_DIFF,
+    });
+  });
+
+  it("names the PR diff unavailable while it has no rows to check against", () => {
+    const line: DiffLine = { kind: "add", content: "h", newLine: 40 };
+
+    expect(resolveGuestRow(line, stubInput({ fileRows: undefined }))).toEqual({
+      commentable: false,
+      reason: GuestRowReasons.PR_DIFF_UNAVAILABLE,
     });
   });
 

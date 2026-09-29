@@ -23,6 +23,7 @@ const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   disabled: false,
   sheetOpen: false,
   focusModeActive: false,
+  viewedAvailable: true,
   lineSelected: false,
   ...over,
 });
@@ -114,6 +115,15 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("v"), state({ focusModeActive: true }))).toEqual(
       { type: "markViewed", chunkId: "b" },
     );
+  });
+
+  it("V marks nothing in Changes scope, where cards are not chunks", () => {
+    expect(
+      resolveShortcut(
+        key("v"),
+        state({ focusModeActive: true, viewedAvailable: false }),
+      ),
+    ).toBeNull();
   });
 
   it("v is inert outside focus mode and with no active chunk", () => {
@@ -257,6 +267,7 @@ describe("conversation shortcut", () => {
     disabled: false,
     sheetOpen: false,
     focusModeActive: false,
+    viewedAvailable: true,
     lineSelected: false,
   };
 

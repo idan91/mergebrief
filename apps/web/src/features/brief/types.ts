@@ -298,10 +298,19 @@ export interface TicketAlignment {
   response: string;
 }
 
+/**
+ * The host id prefix of every guest table a Changes surface renders; no
+ * brief chunk id starts with one, so a composer host names its pane.
+ */
+export const GuestHostPrefixes = {
+  RAW: "raw:",
+} as const;
+
 /** Why a guest row takes no comment: GitHub can hold one only on a line of the PR diff. */
 export const GuestRowReasons = {
   REMOVED_BEFORE_HEAD: "removed-before-head",
   NOT_IN_PR_DIFF: "not-in-pr-diff",
+  PR_DIFF_UNAVAILABLE: "pr-diff-unavailable",
   FILE_NOT_IN_BRIEF: "file-not-in-brief",
 } as const;
 export type GuestRowReason = ValueOf<typeof GuestRowReasons>;

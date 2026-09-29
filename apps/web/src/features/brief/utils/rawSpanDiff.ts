@@ -1,10 +1,10 @@
-// Pure assembly of the raw span diff: the live whole-PR diff text for a
-// compare baseline → selected head, turned into one read-only chunk per file
-// so the EXISTING pipeline renders it. No I/O, no framework imports, the
-// toggle component owns the fetch and the render.
-import type { DiffLine } from "@web/utils/diffTokens/types";
+// Pure assembly of the span diff: the live diff text for a compare baseline
+// to selected head, turned into one chunk per file whose rows are all guest
+// rows. No I/O, no framework imports, the toggle component owns the fetch
+// and the render.
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./diffSlicing";
-import type { BriefChunk } from "../types";
+import { type BriefChunk, Concerns, GuestHostPrefixes, Roles } from "../types";
 import type { TFunction } from "i18next";
 
 /**
@@ -26,7 +26,13 @@ function metadataNoteRows(lines: string[]): DiffLine[] {
         line.length > 0 &&
         !METADATA_NOISE.some((prefix) => line.startsWith(prefix)),
     )
-    .map((content): DiffLine => ({ kind: "note", content }));
+    .map(
+      (content): DiffLine => ({
+        kind: "note",
+        content,
+        origin: DiffRowOrigins.GUEST,
+      }),
+    );
 }
 
 /**
@@ -44,19 +50,26 @@ function patchDisplayRows(t: TFunction, patch: string): DiffLine[] {
     // than falling into DiffTable's "diff unavailable" copy (wrong here).
     return notes.length > 0
       ? notes
-      : [{ kind: "note", content: t("brief.diff.noContentChanges") }];
+      : [
+          {
+            kind: "note",
+            content: t("brief.diff.noContentChanges"),
+            origin: DiffRowOrigins.GUEST,
+          },
+        ];
   }
+  const hunkRows = parseUnifiedDiffPatch(lines.slice(hunkStart).join("\n"));
   return [
     ...metadataNoteRows(lines.slice(0, hunkStart)),
-    ...parseUnifiedDiffPatch(lines.slice(hunkStart).join("\n")),
+    ...hunkRows.map((row) => ({ ...row, origin: DiffRowOrigins.GUEST })),
   ];
 }
 
 /**
- * Split a whole-PR unified diff into one synthetic `BriefChunk` per file, each
- * carrying that file's parsed display rows. Rendering ONLY: they claim no
- * added or removed ranges, so comment anchoring and comparison overlays are
- * inert here. `id` is stable per file so it keys React lists and row ids.
+ * Split a span diff into one synthetic `BriefChunk` per file, each carrying
+ * that file's rows as guest rows: a comment on one anchors to the full
+ * brief's chunk that owns the line, never to this chunk, which claims no
+ * ranges. `id` is stable per file so it keys React lists and row ids.
  */
 export function buildRawSpanDiffChunks(
   t: TFunction,
@@ -72,11 +85,11 @@ export function buildRawSpanDiffChunks(
       else if (row.kind === "del") deleted += 1;
     }
     chunks.push({
-      id: `raw:${file}`,
+      id: `${GuestHostPrefixes.RAW}${file}`,
       changeGroupId: "raw-span",
       file,
-      concern: "implementation",
-      role: "core",
+      concern: Concerns.IMPLEMENTATION,
+      role: Roles.CORE,
       loc: { added, deleted },
       addedRanges: [],
       removedRanges: [],
