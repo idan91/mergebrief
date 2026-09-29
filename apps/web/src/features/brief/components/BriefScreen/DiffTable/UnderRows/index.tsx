@@ -14,6 +14,7 @@ import {
 import type { LineCommentAnchor } from "@web/features/review/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { DiffRowView } from "../diffRowView";
+import { ReasonRow } from "../ReasonRow";
 import { SpanEndRow } from "../SpanEndRow";
 import type { UnderRowLayout } from "../types";
 import { UnderRow } from "../UnderRow";
@@ -34,6 +35,8 @@ export interface UnderRowsProps {
   conversationComposer: ThreadComposerWiring | undefined;
   expandedConversation: ReadonlySet<number>;
   onToggleConversationThread: (threadId: number) => void;
+  reasonRowOpen: boolean;
+  onCloseReasonRow: () => void;
   activeCommentAnchor: LineCommentAnchor | null;
   composerSaving: boolean;
   cancelComposer: ComposerProps["cancel"];
@@ -65,6 +68,8 @@ export function UnderRows({
   conversationComposer,
   expandedConversation,
   onToggleConversationThread,
+  reasonRowOpen,
+  onCloseReasonRow,
   activeCommentAnchor,
   composerSaving,
   cancelComposer,
@@ -84,6 +89,13 @@ export function UnderRows({
 
   return (
     <>
+      {reasonRowOpen && view.disabledReason !== undefined ? (
+        <ReasonRow
+          layout={layout}
+          onClose={onCloseReasonRow}
+          reason={view.disabledReason}
+        />
+      ) : null}
       {view.showComposer && activeCommentAnchor ? (
         <UnderRow
           layout={layout}

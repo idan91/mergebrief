@@ -541,7 +541,13 @@
       "siblingSpanGroupRemoved_other": "Removed lines {{lines}} belong to <0/> (group {{index}} of {{total}})",
       "siblingSpanJump": "Go to chunk",
       "siblingSpanJumpGroup": "Go to chunk in {{group}}",
-      "siblingSpanJumpRemainder": "Go to chunk in the unattributed remainder"
+      "siblingSpanJumpRemainder": "Go to chunk in the unattributed remainder",
+      "guest": {
+        "removedBeforeHead": "This line is gone from the pull request at head, so comment on it from the full brief if the base still has it.",
+        "notInPrDiff": "The pull request diff does not carry this line, so GitHub has nowhere to hold a comment on it.",
+        "fileNotInBrief": "No chunk of this brief touches this file, so a comment here has nowhere to land.",
+        "close": "Close"
+      }
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",

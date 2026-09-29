@@ -25,10 +25,13 @@ import { useDiffTableModel } from "./useDiffTableModel";
 import { useDragSelection } from "./useDragSelection";
 import { useExpandLanding } from "./useExpandLanding";
 import { useRailHover } from "./useRailHover";
+import { useReasonRow } from "./useReasonRow";
+import type { GuestRowReason } from "../../../types";
 import {
   buildExpandedRowView,
   buildGuestRowView,
   collectAnchoredIndexes,
+  collectGuestReasons,
   resolveSelectionGlyph,
   collectDragBaseIndexes,
   collectOldSideRuns,
@@ -99,6 +102,14 @@ export function useDiffTableFacade({
   // Instance-scoped ids for the reasons the disabled rows point at.
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
   const expandedReasonId = `${useId()}-outside-diff`;
+  const guestReasonIdBase = useId();
+  const reasonIdFor = (reason: GuestRowReason): string =>
+    `${guestReasonIdBase}-reason-${reason}`;
+  const guestReasons = useMemo(
+    () => collectGuestReasons(model.guestByRow),
+    [model.guestByRow],
+  );
+  const reasonRow = useReasonRow(rows);
   const drag = useDragSelection({
     chunkDiff: chunk.diff,
     resolvedView: model.resolvedView,
@@ -238,6 +249,10 @@ export function useDiffTableFacade({
     spanOwnerByRow: model.spanOwnerByRow,
     ownerChunkById: model.ownerChunkById,
     guest,
+    reasonIdFor,
+    openReasonRowId: reasonRow.openReasonRowId,
+    toggleReasonRow: reasonRow.toggleReasonRow,
+    closeReasonRow: reasonRow.closeReasonRow,
     composerDisabledReason: review.composerDisabledReason,
     composerDisabledReasonId,
     expandedReasonId,
@@ -270,6 +285,10 @@ export function useDiffTableFacade({
     tableRef,
     composerDisabledReasonId,
     expandedReasonId,
+    guestReasons,
+    reasonIdFor,
+    openReasonRowId: reasonRow.openReasonRowId,
+    closeReasonRow: reasonRow.closeReasonRow,
     rowViews,
     overlayActive,
     lineSelection,

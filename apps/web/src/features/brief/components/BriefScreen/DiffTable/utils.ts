@@ -20,7 +20,7 @@ import {
   isCommentableLine,
   type DiffRowView,
 } from "./diffRowView";
-import type { BriefChunk } from "../../../types";
+import type { BriefChunk, GuestRowReason } from "../../../types";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
   type LineSide,
@@ -413,6 +413,23 @@ export function buildGuestRowView({
   }
 
   return view;
+}
+
+/** The distinct reasons a guest table's inert rows carry, in first-seen order. */
+export function collectGuestReasons(
+  guestByRow: readonly (GuestRowResolution | undefined)[],
+): GuestRowReason[] {
+  const reasons: GuestRowReason[] = [];
+  for (const resolution of guestByRow) {
+    if (resolution === undefined || resolution.commentable) {
+      continue;
+    }
+    if (!reasons.includes(resolution.reason)) {
+      reasons.push(resolution.reason);
+    }
+  }
+
+  return reasons;
 }
 
 /**

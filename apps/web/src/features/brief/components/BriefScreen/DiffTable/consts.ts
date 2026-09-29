@@ -1,9 +1,14 @@
 import type { SiblingSpan } from "../../../utils/siblingSpans";
 import type { GuestRowResolution } from "../../../utils/guest-rows";
+import type { TranslationKey } from "i18n";
+import {
+  type ExpandableEdge,
+  type GuestRowReason,
+  GuestRowReasons,
+} from "../../../types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { SplitRow } from "@web/components/DiffRows/types";
 import type { DragSelection } from "./types";
-import type { ExpandableEdge } from "../../../types";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 
 export const EMPTY_REVIEW_COMMENTS: never[] = [];
@@ -36,3 +41,9 @@ export const NO_HIDDEN_THREADS: DigestThreadRow[] = [];
 export const NO_SPANS: SiblingSpan[] = [];
 
 export const NO_GUEST_ROWS: (GuestRowResolution | undefined)[] = [];
+
+export const GUEST_REASON_KEYS: Record<GuestRowReason, TranslationKey> = {
+  [GuestRowReasons.REMOVED_BEFORE_HEAD]: "brief.diff.guest.removedBeforeHead",
+  [GuestRowReasons.NOT_IN_PR_DIFF]: "brief.diff.guest.notInPrDiff",
+  [GuestRowReasons.FILE_NOT_IN_BRIEF]: "brief.diff.guest.fileNotInBrief",
+};

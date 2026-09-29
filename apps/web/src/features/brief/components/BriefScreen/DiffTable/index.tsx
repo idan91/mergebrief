@@ -7,6 +7,7 @@ import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import { ComparisonCallout } from "./ComparisonCallout";
 import {
   COMMENT_ANCHOR_ATTRIBUTES,
+  GUEST_REASON_KEYS,
   NO_HIDDEN_THREADS,
   SELECT_ANCHOR_ATTRIBUTES,
 } from "./consts";
@@ -253,10 +254,12 @@ export function DiffTable(props: DiffTableProps) {
         expandedConversation={review.expandedConversation}
         layout={{ columnCount, sideColumns }}
         line={line}
+        onCloseReasonRow={table.closeReasonRow}
         onToggleConversationThread={table.handleToggleConversationThread}
         postBlockedExternally={review.postBlockedExternally}
         postReviewComment={review.postReviewComment}
         postingCommentIds={review.postingCommentIds}
+        reasonRowOpen={table.openReasonRowId === view.id}
         reviewCommentLabel={reviewCommentLabel}
         saveComment={review.saveComment}
         spanned={model.spannedRows.has(index)}
@@ -287,6 +290,11 @@ export function DiffTable(props: DiffTableProps) {
           {t("brief.diff.expandOutsideDiff")}
         </ScreenReaderOnly>
       ) : null}
+      {table.guestReasons.map((reason) => (
+        <ScreenReaderOnly as="p" id={table.reasonIdFor(reason)} key={reason}>
+          {t(GUEST_REASON_KEYS[reason])}
+        </ScreenReaderOnly>
+      ))}
       <div className={styles["viewport"]} style={viewportStyle}>
         <table
           className={styles["diff"]}

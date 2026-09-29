@@ -7,7 +7,10 @@ import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
 import { RailSides } from "./types";
 import type { ComparisonRun } from "../../../comparison/runs";
+import { GuestRowReasons } from "../../../types";
+import type { GuestRowResolution } from "../../../utils/guest-rows";
 import {
+  collectGuestReasons,
   deriveSideRail,
   collectOldSideRuns,
   collectDragBaseIndexes,
@@ -398,5 +401,22 @@ describe("collectOldSideRuns", () => {
 
     expect(oldSide.has(withDeletion)).toBe(true);
     expect(oldSide.has(additionsOnly)).toBe(false);
+  });
+});
+
+describe("collectGuestReasons", () => {
+  it("lists each inert reason once, skipping commentable and full-width rows", () => {
+    const rows: (GuestRowResolution | undefined)[] = [
+      undefined,
+      { commentable: true, chunkId: "c1", side: "new", line: 10 },
+      { commentable: false, reason: GuestRowReasons.REMOVED_BEFORE_HEAD },
+      { commentable: false, reason: GuestRowReasons.NOT_IN_PR_DIFF },
+      { commentable: false, reason: GuestRowReasons.REMOVED_BEFORE_HEAD },
+    ];
+
+    expect(collectGuestReasons(rows)).toEqual([
+      GuestRowReasons.REMOVED_BEFORE_HEAD,
+      GuestRowReasons.NOT_IN_PR_DIFF,
+    ]);
   });
 });

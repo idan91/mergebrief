@@ -12,7 +12,7 @@ import {
 } from "@web/components/DiffRows/types";
 import { rangeBetween } from "@web/utils/collections";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { BriefChunk } from "../../../types";
+import type { BriefChunk, GuestRowReason } from "../../../types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { DiffRowView } from "./diffRowView";
 import { COMMENT_ANCHOR_SELECTOR, SELECT_ANCHOR_SELECTOR } from "./consts";
@@ -43,6 +43,11 @@ export interface RowAttributesDeps {
   ownerChunkById: ReadonlyMap<string, BriefChunk>;
   /** Present when every row is a guest row: anchors and selections name the owner. */
   guest: GuestRowsInput | undefined;
+  /** The id of the always-rendered text stating a guest row's reason. */
+  reasonIdFor: (reason: GuestRowReason) => string;
+  openReasonRowId: string | null;
+  toggleReasonRow: (rowId: string, opener: HTMLElement) => void;
+  closeReasonRow: () => void;
   composerDisabledReason: string | undefined;
   composerDisabledReasonId: string;
   expandedReasonId: string;
@@ -76,9 +81,24 @@ export interface RowAttributesDeps {
 }
 
 const BUTTON_SELECTOR = "button";
+/** Either gutter anchor: the line numbers or the sign. */
+const ANCHOR_SELECTOR = `${SELECT_ANCHOR_SELECTOR}, ${COMMENT_ANCHOR_SELECTOR}`;
 
 function isInside(target: EventTarget | null, selector: string): boolean {
   return target instanceof Element && target.closest(selector) !== null;
+}
+
+/** A non-collapsed text selection with an end inside this row's table. */
+function hasTextSelectionIn(row: Element): boolean {
+  const selection = window.getSelection();
+  const table = row.closest("table");
+  if (selection === null || selection.isCollapsed || table === null) {
+    return false;
+  }
+
+  return (
+    table.contains(selection.anchorNode) || table.contains(selection.focusNode)
+  );
 }
 
 /**
@@ -101,6 +121,10 @@ export function buildRowAttributesFor(
     spanOwnerByRow,
     ownerChunkById,
     guest,
+    reasonIdFor,
+    openReasonRowId,
+    toggleReasonRow,
+    closeReasonRow,
     composerDisabledReason,
     composerDisabledReasonId,
     expandedReasonId,
@@ -335,12 +359,136 @@ export function buildRowAttributesFor(
     return dragged || active;
   }
 
+  /**
+   * A guest row GitHub cannot hold a comment on: focusable, described by
+   * its reason, and Enter, Space or a primary click on the line numbers or
+   * the sign toggles the reason row in the composer slot. The line numbers
+   * still start and end a line selection drag, as on a commentable row, so
+   * a range across an inert row keeps its head lines; the code text stays
+   * reserved for text selection. Escape closes an open reason row, else
+   * clears a live selection.
+   */
+  function buildReasonRowAttributes(
+    view: DiffRowView,
+    reason: GuestRowReason,
+    line: DiffLine,
+    index: number,
+    side: SplitSide | undefined,
+  ): DiffRowAttributes {
+    const isOpen = openReasonRowId === view.id;
+    const toggle = (opener: HTMLElement) => toggleReasonRow(view.id, opener);
+    const reasonId = reasonIdFor(reason);
+    const attributes: DiffRowAttributes = {
+      commentable: false,
+      disabled: true,
+      describedById:
+        composerDisabledReason === undefined
+          ? reasonId
+          : `${composerDisabledReasonId} ${reasonId}`,
+      focusable: isSideFocusable(line, side),
+      revision: view.revMark,
+      selected: false,
+      onKeyDown: (event) => {
+        if (isInside(event.target, BUTTON_SELECTOR)) {
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          toggle(event.currentTarget);
+          return;
+        }
+        if (event.key === " ") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            extendLineSelection(index, side);
+          } else {
+            toggle(event.currentTarget);
+          }
+          return;
+        }
+        if (event.key !== "Escape") {
+          return;
+        }
+        if (isOpen) {
+          event.stopPropagation();
+          closeReasonRow();
+        } else if (!composerOpen && selectionIndexes.size > 0) {
+          event.stopPropagation();
+          clearLineSelection();
+        }
+      },
+      onMouseDown: (event) => {
+        if (isInside(event.target, BUTTON_SELECTOR)) {
+          return;
+        }
+        if (!isInside(event.target, ANCHOR_SELECTOR)) {
+          if (selectionIndexes.size > 0) {
+            clearLineSelection();
+          }
+          return;
+        }
+        window.getSelection()?.removeAllRanges();
+        event.preventDefault();
+        if (!isInside(event.target, SELECT_ANCHOR_SELECTOR)) {
+          return;
+        }
+        if (event.shiftKey) {
+          extendLineSelection(index, side);
+          return;
+        }
+        drag.beginDrag(index, side, DragModes.SELECT);
+      },
+      onMouseEnter: () => {
+        if (drag.dragStart !== null) {
+          drag.moveDrag(index, side);
+        }
+      },
+      onMouseUp: (event) => {
+        if (isInside(event.target, BUTTON_SELECTOR)) {
+          return;
+        }
+        // A press and release on this row's own numbers is a click, which
+        // toggles; a drag from elsewhere finishes as the drag it is, and a
+        // Shift click already extended the selection on the press.
+        if (drag.dragStart !== null && drag.dragStart !== index) {
+          if (drag.dragMode === DragModes.SELECT) {
+            finishLineSelection(index, side);
+          } else {
+            finishSelection(index, side);
+          }
+          return;
+        }
+        drag.clearDrag();
+        if (event.button !== 0 || event.shiftKey) {
+          return;
+        }
+        if (!isInside(event.target, ANCHOR_SELECTOR)) {
+          return;
+        }
+        if (hasTextSelectionIn(event.currentTarget)) {
+          return;
+        }
+        toggle(event.currentTarget);
+      },
+    };
+    return attributes;
+  }
+
   return function buildRowAttributes(
     line: DiffLine,
     index: number,
     side?: SplitSide,
   ): DiffRowAttributes {
     const view = rowViews[index];
+    if (view?.disabledReason !== undefined) {
+      return buildReasonRowAttributes(
+        view,
+        view.disabledReason,
+        line,
+        index,
+        side,
+      );
+    }
     const outsideDiff = view?.isCommentable !== true;
     const commentable = composerDisabledReason === undefined && !outsideDiff;
     const attributes: DiffRowAttributes = {
@@ -449,15 +597,7 @@ export function buildRowAttributesFor(
         // A text-selection drag released over the gutter: if either endpoint
         // of a non-collapsed selection touches this table, the reviewer was
         // selecting text.
-        const selection = window.getSelection();
-        const table = event.currentTarget.closest("table");
-        if (
-          selection &&
-          !selection.isCollapsed &&
-          table !== null &&
-          (table.contains(selection.anchorNode) ||
-            table.contains(selection.focusNode))
-        ) {
+        if (hasTextSelectionIn(event.currentTarget)) {
           return;
         }
         if (isLineSelected(index, side)) {

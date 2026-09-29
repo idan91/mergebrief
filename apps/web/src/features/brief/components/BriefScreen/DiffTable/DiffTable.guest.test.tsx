@@ -253,6 +253,7 @@ interface GuestTableOptions {
   session?: ReviewSessionPayload;
   /** Draft ids whose post-now call is in flight. */
   posting?: string[];
+  composerDisabledReason?: string;
   guest?: Partial<GuestRowsInput>;
   view?: DiffView;
   fileThreads?: DigestThreadRow[];
@@ -263,6 +264,7 @@ interface GuestTableOptions {
 function renderGuestTable({
   session,
   posting = [],
+  composerDisabledReason,
   guest: guestOverrides = {},
   view: diffView = DiffViews.UNIFIED,
   fileThreads,
@@ -278,7 +280,7 @@ function renderGuestTable({
       reanchorComment: vi.fn(),
     },
     initialReviewFlowState({
-      composerDisabledReason: undefined,
+      composerDisabledReason,
       flagsReadOnly: false,
       postingCommentIds: new Set(posting),
       postBlockedExternally: undefined,
@@ -343,6 +345,26 @@ function findRowByNewLine(container: HTMLElement, line: string): HTMLElement {
     throw new Error(`no row shows new line ${line}`);
   }
   return row;
+}
+
+function findNumber(row: HTMLElement): HTMLElement {
+  const number = row.querySelector("[data-select-anchor]");
+  if (!(number instanceof HTMLElement)) {
+    throw new Error("expected a line number");
+  }
+  return number;
+}
+
+function findCodeCell(row: HTMLElement): HTMLElement {
+  const cell = row.querySelector("td:last-child");
+  if (!(cell instanceof HTMLElement)) {
+    throw new Error("expected a code cell");
+  }
+  return cell;
+}
+
+function findReasonRow(container: HTMLElement): HTMLElement | null {
+  return container.querySelector<HTMLElement>('[data-testid="reason-row"]');
 }
 
 function findDeletedRow(container: HTMLElement): HTMLElement {
@@ -500,6 +522,88 @@ describe("DiffTable guest rows", () => {
     );
   });
 
+  it("describes an inert row by its reason before any key is pressed", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+    const reasonId = row.getAttribute("aria-describedby") ?? "";
+
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      appI18n.t("brief.diff.guest.removedBeforeHead"),
+    );
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).toBeNull();
+  });
+
+  it("opens the reason row on Enter, lands on Close, and Escape returns", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+    row.focus();
+
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    const reasonRow = view.container.querySelector(
+      '[data-testid="reason-row"]',
+    );
+    expect(reasonRow).not.toBeNull();
+    expect(row.nextElementSibling?.contains(reasonRow)).toBe(true);
+    expect(reasonRow?.textContent).toContain(
+      appI18n.t("brief.diff.guest.removedBeforeHead"),
+    );
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(document.activeElement).toBe(close);
+
+    fireEvent.keyDown(close, { key: "Escape" });
+
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("toggles the reason row on Space and on click, and Close returns", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+
+    fireEvent.keyDown(row, { key: " " });
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).not.toBeNull();
+    fireEvent.keyDown(row, { key: " " });
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).toBeNull();
+
+    fireEvent.mouseDown(findNumber(row));
+    fireEvent.mouseUp(findNumber(row));
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(
+      view.container.querySelector('[data-testid="reason-row"]'),
+    ).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("keeps one reason row open at a time", () => {
+    const { view } = renderGuestTable({
+      guest: { fileRows: FILE_ROWS.filter((row) => row.newLine !== 39) },
+    });
+    const deleted = findDeletedRow(view.container);
+    const missing = findRowByNewLine(view.container, "39");
+
+    fireEvent.keyDown(deleted, { key: "Enter" });
+    fireEvent.keyDown(missing, { key: "Enter" });
+
+    const open = view.container.querySelectorAll('[data-testid="reason-row"]');
+    expect(open).toHaveLength(1);
+    expect(missing.nextElementSibling?.contains(open[0] ?? null)).toBe(true);
+    expect(open[0]?.textContent).toContain(
+      appI18n.t("brief.diff.guest.notInPrDiff"),
+    );
+  });
+
   it("names the owner in a line selection so the link lands in Full", () => {
     const { view, flowStore } = renderGuestTable();
     const row = findRowByNewLine(view.container, "40");
@@ -518,5 +622,176 @@ describe("DiffTable guest rows", () => {
       endLine: 40,
       rowIds: [],
     });
+  });
+
+  it("describes Close by the reason it closes", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    const close = screen.getByRole("button", { name: "Close" });
+    const textId = close.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(textId)?.textContent).toBe(
+      appI18n.t("brief.diff.guest.removedBeforeHead"),
+    );
+  });
+
+  it("closes the reason row on Escape from the row itself", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(findReasonRow(view.container)).not.toBeNull();
+
+    row.focus();
+    fireEvent.keyDown(row, { key: "Escape" });
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("leaves the code text to text selection: a release there never toggles", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+
+    fireEvent.mouseDown(findCodeCell(row));
+    fireEvent.mouseUp(findCodeCell(row));
+
+    expect(findReasonRow(view.container)).toBeNull();
+  });
+
+  it("ignores a secondary button release on the line number", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+
+    fireEvent.mouseUp(findNumber(row), { button: 2 });
+
+    expect(findReasonRow(view.container)).toBeNull();
+  });
+
+  it("ignores a release that ends a text selection over the table", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+    const selection = window.getSelection();
+    if (selection === null) {
+      throw new Error("expected a selection api");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(findCodeCell(row));
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    fireEvent.mouseUp(findNumber(row));
+
+    expect(findReasonRow(view.container)).toBeNull();
+    selection.removeAllRanges();
+  });
+
+  it("finishes a number drag released on an inert row as a selection", () => {
+    const { view, flowStore } = renderGuestTable();
+    const start = findRowByNewLine(view.container, "11");
+
+    fireEvent.mouseDown(findNumber(start));
+    fireEvent.mouseUp(findNumber(findDeletedRow(view.container)));
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      chunkId: "c1",
+      startLine: 10,
+      endLine: 11,
+    });
+  });
+
+  it("starts a number drag on an inert row and keeps the head lines", () => {
+    const { view, flowStore } = renderGuestTable();
+
+    fireEvent.mouseDown(findNumber(findDeletedRow(view.container)));
+    fireEvent.mouseUp(findNumber(findRowByNewLine(view.container, "11")));
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      chunkId: "c1",
+      startLine: 10,
+      endLine: 11,
+    });
+  });
+
+  it("extends a selection to an inert row with Shift and Space", () => {
+    const { view, flowStore } = renderGuestTable();
+    const number = findNumber(findRowByNewLine(view.container, "11"));
+    fireEvent.mouseDown(number);
+    fireEvent.mouseUp(number);
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 11,
+      endLine: 11,
+    });
+
+    fireEvent.keyDown(findDeletedRow(view.container), {
+      key: " ",
+      shiftKey: true,
+    });
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 10,
+      endLine: 11,
+    });
+  });
+
+  it("extends a selection with a Shift click on an inert row's numbers", () => {
+    const { view, flowStore } = renderGuestTable();
+    const number = findNumber(findRowByNewLine(view.container, "11"));
+    fireEvent.mouseDown(number);
+    fireEvent.mouseUp(number);
+
+    const inertNumber = findNumber(findDeletedRow(view.container));
+    fireEvent.mouseDown(inertNumber, { shiftKey: true });
+    fireEvent.mouseUp(inertNumber, { shiftKey: true });
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(flowStore.getState().lineSelection).toMatchObject({
+      startLine: 10,
+      endLine: 11,
+    });
+  });
+
+  it("clears a live selection on Escape from an inert row", () => {
+    const { view, flowStore } = renderGuestTable();
+    const number = findNumber(findRowByNewLine(view.container, "11"));
+    fireEvent.mouseDown(number);
+    fireEvent.mouseUp(number);
+    expect(flowStore.getState().lineSelection).not.toBeNull();
+
+    fireEvent.keyDown(findDeletedRow(view.container), { key: "Escape" });
+
+    expect(flowStore.getState().lineSelection).toBeNull();
+  });
+
+  it("returns focus to the row when a click closes the reason row", () => {
+    const { view } = renderGuestTable();
+    const row = findDeletedRow(view.container);
+    fireEvent.mouseDown(findNumber(row));
+    fireEvent.mouseUp(findNumber(row));
+    expect(findReasonRow(view.container)).not.toBeNull();
+
+    fireEvent.mouseDown(findNumber(row));
+    fireEvent.mouseUp(findNumber(row));
+
+    expect(findReasonRow(view.container)).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("describes an inert row by the posture and its reason when read-only", () => {
+    const { view } = renderGuestTable({
+      composerDisabledReason: "Frozen for this revision",
+    });
+    const row = findDeletedRow(view.container);
+    const ids = (row.getAttribute("aria-describedby") ?? "").split(" ");
+    const texts = ids.map((id) => document.getElementById(id)?.textContent);
+
+    expect(texts).toEqual([
+      "Frozen for this revision",
+      appI18n.t("brief.diff.guest.removedBeforeHead"),
+    ]);
   });
 });

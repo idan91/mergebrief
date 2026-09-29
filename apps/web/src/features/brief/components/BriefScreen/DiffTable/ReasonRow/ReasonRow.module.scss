@@ -1,0 +1,23 @@
+@use "functions";
+
+@layer components {
+  .reason {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(16px);
+    margin-block: functions.to-rem(8px) functions.to-rem(4px);
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
+    font-family: var(--sans);
+    font-size: var(--font-size-md);
+  }
+
+  .text {
+    margin: 0;
+  }
+}
