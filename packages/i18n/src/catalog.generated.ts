@@ -54,6 +54,8 @@ export type Catalog = typeof en & {
       stackIndexAria: "pull request {{index}} of {{total}} in the stack";
       stackMember: "#{{number}} {{title}}";
       stackAsOf: "As of {{date}}";
+      stackPrevious: "Previous PR in stack, #{{number}}: {{title}}";
+      stackNext: "Next PR in stack, #{{number}}: {{title}}";
     };
     details: (typeof en)["brief"]["details"] & {
       commits_one: "{{count}} commit";

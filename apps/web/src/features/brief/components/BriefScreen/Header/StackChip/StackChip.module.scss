@@ -17,6 +17,31 @@
     }
   }
 
+  // The stack stepper's middle key: the stepper owns frame and fill.
+  [data-stack-stepper] > .hoverArea {
+    align-items: stretch;
+
+    > button {
+      block-size: auto;
+      min-height: 0;
+      padding-inline: functions.to-rem(4px);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      font-variant-numeric: tabular-nums;
+
+      &:hover {
+        background: color-mix(in srgb, var(--color-text-1) 5%, transparent);
+      }
+
+      &:focus-visible {
+        position: relative;
+        z-index: 1;
+        border-radius: var(--radius-chip);
+      }
+    }
+  }
+
   .mark {
     flex: none;
   }

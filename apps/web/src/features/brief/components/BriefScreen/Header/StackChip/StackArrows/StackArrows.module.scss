@@ -1,0 +1,58 @@
+@use "functions";
+
+@layer components {
+  // One pill on the chip's own skin, keys inside with no dividers: fill and
+  // an unbroken body are what set it apart from the keycap badges beside it.
+  // The frame never changes with the ends' state; a disabled end dims inside.
+  .stackArrows {
+    // Inner corner of a 1px frame: the outer radius less the border.
+    --stepper-inner-radius: calc(var(--radius-chip) - 1px);
+
+    // One step up from the body's tint, as the chip's own hover is.
+    --stepper-cell-hover: color-mix(
+      in srgb,
+      var(--color-text-1) 5%,
+      transparent
+    );
+
+    display: inline-flex;
+    flex: none;
+    align-items: stretch;
+    block-size: var(--header-meta-control-h);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-chip);
+    background: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+    transition: block-size var(--header-collapse-ease);
+  }
+
+  // Outranks IconButton's own [data-size] box: the cell fills the body.
+  .stackArrows > .arrow[data-size] {
+    inline-size: functions.to-rem(24px);
+    block-size: auto;
+    border: 0;
+    border-radius: 0;
+    color: var(--color-text-read);
+
+    &:not([aria-disabled="true"]):hover {
+      background: var(--stepper-cell-hover);
+      color: var(--color-text-1);
+    }
+
+    &:first-child {
+      border-start-start-radius: var(--stepper-inner-radius);
+      border-end-start-radius: var(--stepper-inner-radius);
+    }
+
+    &:last-child {
+      border-start-end-radius: var(--stepper-inner-radius);
+      border-end-end-radius: var(--stepper-inner-radius);
+    }
+
+    // A focused key rings whole, above its neighbours.
+    &:focus-visible {
+      position: relative;
+      z-index: 1;
+      border-radius: var(--radius-chip);
+    }
+  }
+}

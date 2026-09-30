@@ -430,11 +430,12 @@ describe("stack chip", () => {
     });
     const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
     const metaLine = titleLine?.parentElement?.lastElementChild;
-    const chipWrap = screen.getByTestId("stack-chip").parentElement;
+    const stackBlock = screen.getByTestId("stack-arrows");
     const pair = screen.getByTestId("branch-pair");
     const provider = document.querySelector("[data-provider-badge]");
-    expect(metaLine?.firstElementChild).toBe(chipWrap);
-    expect(chipWrap?.nextElementSibling).toBe(pair);
+    expect(stackBlock.contains(screen.getByTestId("stack-chip"))).toBe(true);
+    expect(metaLine?.firstElementChild).toBe(stackBlock);
+    expect(stackBlock.nextElementSibling).toBe(pair);
     expect(pair?.nextElementSibling).toBe(provider);
   });
 

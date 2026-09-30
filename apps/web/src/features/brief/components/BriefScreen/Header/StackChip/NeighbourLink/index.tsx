@@ -5,7 +5,8 @@ import clsx from "clsx";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import type { PrStackMember } from "../../../../../types";
 import { MemberRow } from "../MemberRow";
-import { rewritePullUrl } from "../utils";
+import { NeighbourTargetKinds } from "../types";
+import { resolveNeighbourTarget } from "../utils";
 import styles from "./NeighbourLink.module.scss";
 
 export interface NeighbourLinkProps {
@@ -41,13 +42,13 @@ export function NeighbourLink({
     );
   }
 
-  if (repoId !== undefined) {
-    const params = { repoId, prNumber: String(member.number) };
+  const target = resolveNeighbourTarget(member, repoId, prUrl);
+  if (target.kind === NeighbourTargetKinds.ROUTE) {
     return (
       <Link
         aria-label={label}
         className={rowClass}
-        params={params}
+        params={target.params}
         title={label}
         to="/repos/$repoId/pulls/$prNumber"
       >
@@ -56,8 +57,7 @@ export function NeighbourLink({
     );
   }
 
-  const href = rewritePullUrl(prUrl, member.number);
-  if (href === undefined) {
+  if (target.kind === NeighbourTargetKinds.NONE) {
     return (
       <span aria-label={label} className={styles["row"]} title={label}>
         <MemberRow member={member} />
@@ -69,7 +69,7 @@ export function NeighbourLink({
     <AccessibleLink
       aria-label={githubLabel}
       className={rowClass}
-      href={href}
+      href={target.href}
       title={label}
       target="_blank"
     >

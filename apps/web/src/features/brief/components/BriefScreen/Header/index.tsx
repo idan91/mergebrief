@@ -38,6 +38,7 @@ import { BranchPair } from "./BranchPair";
 import { BriefDetailsPanel } from "./BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge";
 import { StackChip } from "./StackChip";
+import { StackArrows } from "./StackChip/StackArrows";
 import { resolveStackView } from "./StackChip/utils";
 import { StateBadge } from "./StateBadge";
 import { SubmitReviewCta } from "./SubmitReviewCta";
@@ -235,15 +236,22 @@ export function Header({
                 at rest and two collapsed, which moves --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
               {stackView !== undefined ? (
-                <StackChip
-                  asOf={stackView.asOf}
-                  atGeneration={stackView.atGeneration}
+                <StackArrows
                   currentNumber={brief.pr.number}
                   prUrl={brief.pr.url}
                   repoId={repoId}
-                  snapshot={stackView.snapshot}
                   stack={stackView.stack}
-                />
+                >
+                  <StackChip
+                    asOf={stackView.asOf}
+                    atGeneration={stackView.atGeneration}
+                    currentNumber={brief.pr.number}
+                    prUrl={brief.pr.url}
+                    repoId={repoId}
+                    snapshot={stackView.snapshot}
+                    stack={stackView.stack}
+                  />
+                </StackArrows>
               ) : null}
               <BranchPair
                 baseRef={brief.pr.baseRef}

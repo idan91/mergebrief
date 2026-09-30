@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 import { PrStates, type PrState } from "@web/features/pulls/types";
 import type {
   LinearPrStack,
@@ -5,7 +7,15 @@ import type {
   PrStackMember,
   PullStack,
 } from "../../../../types";
-import type { StackView } from "./types";
+import {
+  NeighbourTargetKinds,
+  StackDirections,
+  type NeighbourTarget,
+  type StackArrowView,
+  type StackDirection,
+  type StackNeighbours,
+  type StackView,
+} from "./types";
 
 export function isLinearPrStack(stack: PrStack): stack is LinearPrStack {
   return "members" in stack;
@@ -88,4 +98,88 @@ export function rewritePullUrl(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The app route when the repo is known, GitHub otherwise, and nothing when
+ * the PR URL cannot be rewritten to the member's number.
+ */
+export function resolveNeighbourTarget(
+  member: PrStackMember,
+  repoId: string | undefined,
+  prUrl: string,
+): NeighbourTarget {
+  if (repoId !== undefined) {
+    return {
+      kind: NeighbourTargetKinds.ROUTE,
+      params: { repoId, prNumber: String(member.number) },
+    };
+  }
+  const href = rewritePullUrl(prUrl, member.number);
+  if (href === undefined) {
+    return { kind: NeighbourTargetKinds.NONE };
+  }
+  return { kind: NeighbourTargetKinds.GITHUB, href };
+}
+
+/** A fork, or a stack this PR is not in, has no previous and next. */
+export function resolveStackNeighbours(
+  stack: PrStack,
+  currentNumber: number,
+): StackNeighbours | undefined {
+  if (!isLinearPrStack(stack)) {
+    return undefined;
+  }
+  const position = stack.members.findIndex(
+    (member) => member.number === currentNumber,
+  );
+  if (position === -1) {
+    return undefined;
+  }
+
+  const neighbours: StackNeighbours = {};
+  const previous = stack.members[position - 1];
+  const next = stack.members[position + 1];
+  if (previous !== undefined) {
+    neighbours.previous = previous;
+  }
+  if (next !== undefined) {
+    neighbours.next = next;
+  }
+  return neighbours;
+}
+
+/**
+ * The arrow toward `member`, named for AT with its number and title; an end
+ * of the stack, or a member with nowhere to go, reads as having none.
+ */
+export function resolveStackArrow(
+  t: TFunction,
+  direction: StackDirection,
+  member: PrStackMember | undefined,
+  repoId: string | undefined,
+  prUrl: string,
+): StackArrowView {
+  const previous = direction === StackDirections.PREVIOUS;
+  if (member === undefined) {
+    const none = previous
+      ? t("brief.header.stackPreviousNone")
+      : t("brief.header.stackNextNone");
+    return {
+      label: none,
+      target: { kind: NeighbourTargetKinds.NONE },
+      disabled: true,
+    };
+  }
+
+  const values = { number: member.number, title: member.title };
+  const named = previous
+    ? t("brief.header.stackPrevious", values)
+    : t("brief.header.stackNext", values);
+  const target = resolveNeighbourTarget(member, repoId, prUrl);
+  const disabled = target.kind === NeighbourTargetKinds.NONE;
+  if (target.kind === NeighbourTargetKinds.GITHUB) {
+    return { label: `${named}${t("a11y.opensInNewTab")}`, target, disabled };
+  }
+  return { label: named, target, disabled };
 }

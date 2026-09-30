@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "i18n";
 
 import {
   isLinearPrStack,
   isSameStack,
+  resolveNeighbourTarget,
+  resolveStackArrow,
+  resolveStackNeighbours,
   resolveStackView,
   rewritePullUrl,
 } from "./utils";
@@ -134,5 +138,82 @@ describe("resolveStackView", () => {
     expect(resolveStackView(undefined, { stack: grown }, "open")).toEqual({
       stack: grown,
     });
+  });
+});
+
+const PR_URL = "https://github.com/acme/widgets/pull/2";
+const STACK = {
+  members: [
+    { number: 1, title: "a" },
+    { number: 2, title: "b" },
+    { number: 3, title: "c" },
+  ],
+  index: 2,
+};
+const t = createI18n().t;
+
+describe("resolveStackNeighbours", () => {
+  it("answers both neighbours in the middle of a linear stack", () => {
+    expect(resolveStackNeighbours(STACK, 2)).toEqual({
+      previous: { number: 1, title: "a" },
+      next: { number: 3, title: "c" },
+    });
+  });
+
+  it("leaves the missing side absent at either end", () => {
+    expect(resolveStackNeighbours(STACK, 1)).toEqual({
+      next: { number: 2, title: "b" },
+    });
+    expect(resolveStackNeighbours(STACK, 3)).toEqual({
+      previous: { number: 2, title: "b" },
+    });
+  });
+
+  it("answers nothing for a fork or a PR outside the stack", () => {
+    const forkStack = { children: [{ number: 2, title: "b" }] };
+    expect(resolveStackNeighbours(forkStack, 2)).toBeUndefined();
+    expect(resolveStackNeighbours(STACK, 9)).toBeUndefined();
+  });
+});
+
+describe("resolveNeighbourTarget", () => {
+  const member = { number: 3, title: "c" };
+
+  it("prefers the app route when the repo is known", () => {
+    expect(resolveNeighbourTarget(member, "42", PR_URL)).toEqual({
+      kind: "route",
+      params: { repoId: "42", prNumber: "3" },
+    });
+  });
+
+  it("falls back to GitHub, then to nowhere", () => {
+    expect(resolveNeighbourTarget(member, undefined, PR_URL)).toEqual({
+      kind: "github",
+      href: "https://github.com/acme/widgets/pull/3",
+    });
+    expect(
+      resolveNeighbourTarget(member, undefined, "https://example.com"),
+    ).toEqual({ kind: "none" });
+  });
+});
+
+describe("resolveStackArrow", () => {
+  it("names an end of the stack as having no neighbour", () => {
+    expect(resolveStackArrow(t, "next", undefined, "42", PR_URL)).toEqual({
+      label: "No next PR in stack",
+      target: { kind: "none" },
+      disabled: true,
+    });
+  });
+
+  it("names the neighbour and flags a new tab for GitHub", () => {
+    const view = resolveStackArrow(
+      t,
+      "previous",
+      { number: 1, title: "a" },
+      undefined,
+      PR_URL,
+    );
+    expect(view.label).toBe("Previous PR in stack, #1: a (opens in a new tab)");
   });
 });
