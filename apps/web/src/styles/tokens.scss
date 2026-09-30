@@ -278,10 +278,13 @@
     --top-bar-h: calc(
       var(--header-identity-tier) + var(--header-lens-min) + 1px
     );
+    --banner-stack-h: calc(
+      var(--focus-banner-h, 0px) + var(--reanchor-banner-h, 0px)
+    );
 
     // @property-registered in _layers.scss so JS reads a number.
     --sticky-stack-h: calc(
-      var(--top-bar-h) + var(--focus-banner-h, 0px) + var(--toolbar-h, 0px)
+      var(--top-bar-h) + var(--banner-stack-h) + var(--toolbar-h, 0px)
     );
     --sidebar-w-collapsed: 3rem;
     --sidebar-w-expanded: 26.5rem;

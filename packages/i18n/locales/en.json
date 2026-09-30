@@ -656,6 +656,12 @@
       "readFailed": "The lines this link names could not be loaded; the chunk is shown instead.",
       "dismiss": "Dismiss"
     },
+    "reanchorBanner": {
+      "lead": "Re-anchor mode",
+      "hint": "<0/> Pick the new lines for the draft on <1/>, or press <2/> to cancel.",
+      "cancel": "Cancel re-anchor",
+      "escKey": "Esc"
+    },
     "focusBanner": {
       "lead": "Focus mode",
       "hint": "<0/> — one chunk at a time. <1/><2/> to move, <3/> to mark viewed, <4/> to exit.",
@@ -733,8 +739,7 @@
       "actionAddress": "Address",
       "actionDismiss": "Dismiss",
       "fileGone": "This file is no longer in this brief, so the draft can only be deleted.",
-      "actionReanchorArmed": "Cancel re-anchor",
-      "reanchorHint": "Pick the lines this draft belongs on."
+      "actionReanchorArmed": "Cancel re-anchor"
     }
   },
   "review": {

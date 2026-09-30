@@ -13,11 +13,15 @@
     flex-wrap: wrap;
     align-items: flex-start;
     padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(8px);
     border-block-start: 1px solid var(--color-outline-1);
+    margin-inline: functions.to-rem(-8px);
     gap: functions.to-rem(8px) functions.to-rem(16px);
 
-    &:last-child {
-      padding-block-end: 0;
+    &[data-armed] {
+      border-radius: var(--radius-sm);
+      border-block-start-color: transparent;
+      background: var(--color-surface-3);
     }
   }
 

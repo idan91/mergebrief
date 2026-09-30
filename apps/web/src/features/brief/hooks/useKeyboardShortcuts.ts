@@ -24,6 +24,9 @@ export interface KeyboardShortcutsOptions {
   /** A line selection exists; Escape clears it before anything else. */
   lineSelected?: boolean | undefined;
   clearLineSelection?: (() => void) | undefined;
+  /** A carried draft waits for its lines; Escape disarms it first. */
+  reanchorArmed?: boolean | undefined;
+  cancelReanchor?: (() => void) | undefined;
 }
 
 export interface ShortcutEvent {
@@ -44,6 +47,7 @@ export interface ShortcutState {
   focusModeActive: boolean;
   viewedAvailable: boolean;
   lineSelected: boolean;
+  reanchorArmed: boolean;
 }
 
 export type StepKey = "j" | "k";
@@ -56,6 +60,7 @@ export type ShortcutAction =
   | { type: "toggleSidebar" }
   | { type: "toggleDiffView" }
   | { type: "clearLineSelection" }
+  | { type: "cancelReanchor" }
   | { type: "markViewed"; chunkId: string };
 
 function resolveGroupJump(
@@ -98,6 +103,7 @@ export function resolveShortcut(
 
   if (key === "Escape") {
     if (state.disabled) return null;
+    if (state.reanchorArmed) return { type: "cancelReanchor" };
     if (state.lineSelected) return { type: "clearLineSelection" };
     return state.focusModeActive ? { type: "toggleFocus" } : null;
   }
@@ -172,6 +178,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           focusModeActive: current.focusModeActive,
           viewedAvailable: current.markViewedAvailable,
           lineSelected: current.lineSelected === true,
+          reanchorArmed: current.reanchorArmed === true,
         },
       );
       if (!action) return;
@@ -189,6 +196,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
       else if (action.type === "toggleDiffView") current.toggleDiffView?.();
       else if (action.type === "clearLineSelection")
         current.clearLineSelection?.();
+      else if (action.type === "cancelReanchor") current.cancelReanchor?.();
       else if (action.type === "markViewed") current.markViewed(action.chunkId);
       else current.toggleHelp();
     }

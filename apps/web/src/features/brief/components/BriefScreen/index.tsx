@@ -20,6 +20,7 @@ import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
 import { ReadingToolbar } from "./ReadingToolbar";
+import { ReanchorBanner } from "./ReanchorBanner";
 import { RiskFlagModals } from "./RiskFlagModals";
 import { ShortcutsModal } from "@web/components/ShortcutsModal";
 import { BRIEF_SHORTCUT_SECTIONS } from "./consts";
@@ -101,6 +102,8 @@ export function BriefScreen({
     submitOpen,
     toast,
     liveMessage,
+    reanchorLocation,
+    cancelReanchorFromBanner,
     conversationWiring,
     revisionNav,
     submitFlow,
@@ -229,6 +232,12 @@ export function BriefScreen({
                   groups={model.groups}
                   jumpToChunk={session.jumpToChunk}
                   toggleFocusMode={session.toggleFocusMode}
+                />
+              ) : null}
+              {reanchorLocation !== undefined ? (
+                <ReanchorBanner
+                  cancel={cancelReanchorFromBanner}
+                  location={reanchorLocation}
                 />
               ) : null}
               <main

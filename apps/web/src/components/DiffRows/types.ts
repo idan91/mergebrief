@@ -21,6 +21,13 @@ export const SplitSides = {
 } as const;
 export type SplitSide = ValueOf<typeof SplitSides>;
 
+/** A row's standing while a pick mode waits for lines: `data-pick`. */
+export const DiffRowPicks = {
+  AVAILABLE: "available",
+  UNAVAILABLE: "unavailable",
+} as const;
+export type DiffRowPick = ValueOf<typeof DiffRowPicks>;
+
 /** One side of a paired row; `index` is the row's place in the unified diff. */
 export interface SplitCell {
   line: DiffLine;
@@ -77,6 +84,7 @@ export interface DiffRowAttributes {
   describedById?: string;
   disabled?: boolean;
   commentable?: boolean;
+  pick?: DiffRowPick | undefined;
   /** `data-rev`: this row's standing in a revision comparison. */
   revision?: string | undefined;
   selected?: boolean;

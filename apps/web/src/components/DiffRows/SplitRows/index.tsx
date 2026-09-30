@@ -256,6 +256,7 @@ function SideCells({
         data-line-old={side === SplitSides.LEFT ? number : undefined}
         data-line-new={side === SplitSides.RIGHT ? number : undefined}
         data-line-origin={line.origin}
+        data-pick={attributes.pick}
         data-selected={selected}
         data-side={side}
         data-state={numberContent ? NumberCellStates.COVERED : undefined}
@@ -275,6 +276,7 @@ function SideCells({
         data-commentable={commentable}
         data-line-kind={line.kind}
         data-line-origin={line.origin}
+        data-pick={attributes.pick}
         data-rev={attributes.revision}
         data-selected={selected}
         data-side={side}

@@ -16,6 +16,7 @@ import {
   CommentSides,
   ReviewCommentStatuses,
   countDraftComments,
+  findDraftComment,
   type ReviewComment,
 } from "./comments";
 
@@ -427,5 +428,22 @@ describe("countDraftComments", () => {
 
   it("counts an empty list as zero", () => {
     expect(countDraftComments([])).toBe(0);
+  });
+});
+
+describe("findDraftComment", () => {
+  const draft = makeComment({ id: "a", status: ReviewCommentStatuses.DRAFT });
+  const submitted = makeComment({
+    id: "b",
+    status: ReviewCommentStatuses.SUBMITTED,
+  });
+
+  it("finds the draft by id", () => {
+    expect(findDraftComment([submitted, draft], "a")).toBe(draft);
+  });
+
+  it("finds nothing for a submitted comment or no id", () => {
+    expect(findDraftComment([submitted, draft], "b")).toBeUndefined();
+    expect(findDraftComment([submitted, draft], null)).toBeUndefined();
   });
 });

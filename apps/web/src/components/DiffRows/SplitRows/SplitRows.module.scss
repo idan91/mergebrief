@@ -61,6 +61,16 @@
       cursor: pointer;
     }
 
+    > td[data-pick="available"][data-line-number],
+    > td[data-pick="available"] [data-comment-anchor] {
+      cursor: cell;
+    }
+
+    > td[data-pick="unavailable"][data-line-number],
+    > td[data-pick="unavailable"] [data-comment-anchor] {
+      cursor: not-allowed;
+    }
+
     // :not([data-selected]) keeps the selection tint on a row the drag passes.
     &:has(> td[data-side="left"][data-commentable]:hover)
       > td[data-side="left"]:not([data-selected]),
@@ -69,6 +79,18 @@
       background: color-mix(
         in srgb,
         var(--row-hue) var(--row-hover-tint),
+        transparent
+      );
+    }
+
+    &:has(> td[data-side="left"][data-pick="available"]:hover)
+      > td[data-side="left"][data-pick="available"],
+    &:has(> td[data-side="right"][data-pick="available"]:hover)
+      > td[data-side="right"][data-pick="available"],
+    > td[data-pick="available"]:focus-visible {
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-tint),
         transparent
       );
     }

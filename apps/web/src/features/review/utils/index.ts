@@ -8,6 +8,7 @@ export {
   createCommentAnchor,
   createSideAnchor,
   createFileCommentAnchor,
+  findDraftComment,
   isFileCommentAnchor,
   isLineCommentAnchor,
   postCommentBlockedReason,
@@ -25,6 +26,7 @@ export {
 export { resolveChunkForLine } from "./chunk-for-line";
 export { buildReceipt, type Receipt } from "./receipt";
 export {
+  commentLocation,
   deriveCarriedItems,
   deriveUnresolvedItems,
   riskEvidenceLabel,

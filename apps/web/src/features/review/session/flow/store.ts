@@ -109,6 +109,8 @@ export interface ReviewFlowActions {
   cancelComposer: () => void;
   /** Arms re-anchoring for a carried draft; the next picked row places it. */
   startReanchor: (draftId: string) => void;
+  /** Disarms re-anchoring; a no-op when nothing is armed. */
+  cancelReanchor: () => void;
   /**
    * @description Trim-and-save a draft at the anchor; an empty body announces
    * and keeps the composer open. The composer closes when the WRITE lands;
@@ -293,12 +295,11 @@ export function createReviewFlowStore(
           });
         },
         startReanchor(draftId) {
-          // Armed twice on the same draft = disarmed: the control is a toggle,
-          // so an armed state the reviewer changed their mind about has a way
-          // out that is not "pick a row you did not mean".
+          // Armed twice on the same draft = disarmed, so an armed state the
+          // reviewer changed their mind about has a way out that is not
+          // "pick a row you did not mean".
           if (get().reanchorDraftId === draftId) {
-            set({ reanchorDraftId: null });
-            announce(translate("review.announce.reanchorCancelled"));
+            get().actions.cancelReanchor();
             return;
           }
           const reason = get().composerDisabledReason;
@@ -309,9 +310,18 @@ export function createReviewFlowStore(
           set({
             composerAnchor: null,
             composerHost: null,
+            lineSelection: null,
             reanchorDraftId: draftId,
           });
-          announce(translate("review.announce.reanchorArmed"));
+          // The mode banner shows it; the hidden region only says it.
+          announceQuietly(translate("review.announce.reanchorArmed"));
+        },
+        cancelReanchor() {
+          if (get().reanchorDraftId === null) {
+            return;
+          }
+          set({ reanchorDraftId: null });
+          announceQuietly(translate("review.announce.reanchorCancelled"));
         },
         async saveComment(anchor, body) {
           const trimmed = body.trim();

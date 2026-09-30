@@ -95,6 +95,16 @@
       cursor: pointer;
     }
 
+    &[data-pick="available"] > .lineNumber,
+    &[data-pick="available"] .sign {
+      cursor: cell;
+    }
+
+    &[data-pick="unavailable"] > .lineNumber,
+    &[data-pick="unavailable"] .sign {
+      cursor: not-allowed;
+    }
+
     &[data-commentable] {
       &:hover {
         background: color-mix(
@@ -103,6 +113,15 @@
           transparent
         );
       }
+    }
+
+    &[data-pick="available"]:hover,
+    &[data-pick="available"]:focus-visible {
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-tint),
+        transparent
+      );
     }
 
     // The :hover arm matches the commentable-hover rule's specificity so

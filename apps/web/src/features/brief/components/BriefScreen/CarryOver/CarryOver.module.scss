@@ -14,8 +14,10 @@
     color: var(--color-text-2);
   }
 
+  // The last item keeps its own block padding for the armed tint, so the
+  // box's end padding is the difference.
   .row[data-state="pending"] {
-    padding: functions.to-rem(12px) functions.to-rem(16px);
+    padding: functions.to-rem(12px) functions.to-rem(16px) functions.to-rem(2px);
   }
 
   .row[data-state="pending"] .summary {

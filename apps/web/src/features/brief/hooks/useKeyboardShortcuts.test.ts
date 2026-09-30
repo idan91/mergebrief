@@ -25,6 +25,7 @@ const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   focusModeActive: false,
   viewedAvailable: true,
   lineSelected: false,
+  reanchorArmed: false,
   ...over,
 });
 
@@ -167,6 +168,25 @@ describe("resolveShortcut", () => {
     ).toEqual({ type: "clearLineSelection" });
   });
 
+  it("Escape disarms re-anchoring before any other claim on the key", () => {
+    expect(
+      resolveShortcut(
+        key("Escape"),
+        state({
+          reanchorArmed: true,
+          lineSelected: true,
+          focusModeActive: true,
+        }),
+      ),
+    ).toEqual({ type: "cancelReanchor" });
+    expect(
+      resolveShortcut(
+        key("Escape"),
+        state({ reanchorArmed: true, disabled: true }),
+      ),
+    ).toBeNull();
+  });
+
   it("Escape does nothing when focus mode is not active", () => {
     expect(resolveShortcut(key("Escape"), state())).toBeNull();
   });
@@ -269,6 +289,7 @@ describe("conversation shortcut", () => {
     focusModeActive: false,
     viewedAvailable: true,
     lineSelected: false,
+    reanchorArmed: false,
   };
 
   it("maps C to jump-to-conversation", () => {

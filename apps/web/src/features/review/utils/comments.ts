@@ -78,6 +78,20 @@ export function listDraftComments(
   );
 }
 
+/** The draft with this id; a submitted comment of the same id is not one. */
+export function findDraftComment(
+  comments: readonly ReviewComment[],
+  id: string | null,
+): ReviewComment | undefined {
+  if (id === null) {
+    return undefined;
+  }
+  return comments.find(
+    (comment) =>
+      comment.id === id && comment.status === ReviewCommentStatuses.DRAFT,
+  );
+}
+
 export function countDraftComments(comments: readonly ReviewComment[]): number {
   return listDraftComments(comments).length;
 }

@@ -255,9 +255,9 @@ describe("carry-over row", () => {
   it("disarms placement when the re-anchor control is pressed again", async () => {
     await renderScreen(buildOrphanedDraft());
     fireEvent.click(getReanchorControl());
-    expect(getReanchorControl().getAttribute("aria-pressed")).toBe("true");
+    expect(getReanchorControl().textContent).toBe("Cancel re-anchor");
     fireEvent.click(getReanchorControl());
-    expect(getReanchorControl().getAttribute("aria-pressed")).toBe("false");
+    expect(getReanchorControl().textContent).toBe("Re-anchor");
     // Disarmed: the next picked row opens a composer, as it always would.
     const gutter = document.querySelector(
       "[data-commentable] [data-comment-anchor]",
@@ -265,6 +265,93 @@ describe("carry-over row", () => {
     fireEvent.mouseDown(gutter as Element);
     fireEvent.mouseUp(gutter as Element);
     expect(screen.getByPlaceholderText("Leave a comment")).toBeTruthy();
+  });
+
+  it("reads the re-anchor control as an action, never a pressed toggle", async () => {
+    await renderScreen(buildOrphanedDraft());
+    fireEvent.click(getReanchorControl());
+    expect(getReanchorControl().hasAttribute("aria-pressed")).toBe(false);
+  });
+
+  it("highlights the armed item and drops the inline hint", async () => {
+    await renderScreen(buildOrphanedDraft());
+    const item = screen.getByTestId("attention-item");
+    expect(item.hasAttribute("data-armed")).toBe(false);
+    fireEvent.click(getReanchorControl());
+    expect(item.hasAttribute("data-armed")).toBe(true);
+    expect(item.textContent).not.toContain("Pick the lines");
+  });
+
+  it("shows the mode banner while armed and hides it on cancel", async () => {
+    await renderScreen(buildOrphanedDraft());
+    expect(screen.queryByTestId("reanchor-banner")).toBeNull();
+    fireEvent.click(getReanchorControl());
+    const banner = screen.getByTestId("reanchor-banner");
+    expect(banner.textContent).toContain("src/leak.ts:+10");
+    fireEvent.click(
+      within(banner).getByRole("button", { name: "Cancel re-anchor" }),
+    );
+    expect(screen.queryByTestId("reanchor-banner")).toBeNull();
+    expect(getReanchorControl().textContent).toBe("Re-anchor");
+  });
+
+  it("cancels re-anchoring on Escape from anywhere on the page", async () => {
+    await renderScreen(buildOrphanedDraft());
+    fireEvent.click(getReanchorControl());
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByTestId("reanchor-banner")).toBeNull();
+    expect(
+      screen.getByTestId("attention-item").hasAttribute("data-armed"),
+    ).toBe(false);
+  });
+
+  it("returns focus to the content when the banner's Cancel is pressed", async () => {
+    await renderScreen(buildOrphanedDraft());
+    fireEvent.click(getReanchorControl());
+    const cancel = within(screen.getByTestId("reanchor-banner")).getByRole(
+      "button",
+      { name: "Cancel re-anchor" },
+    );
+    cancel.focus();
+    fireEvent.click(cancel);
+    expect(document.activeElement?.id).toBe("main-content");
+  });
+
+  it("ends the mode when the armed draft is deleted", async () => {
+    await renderScreen(buildOrphanedDraft());
+    fireEvent.click(getReanchorControl());
+    fireEvent.click(
+      screen.getByTestId("attention-action-delete-draft-comment"),
+    );
+    expect(screen.queryByTestId("reanchor-banner")).toBeNull();
+    expect(document.querySelector("[data-pick]")).toBeNull();
+  });
+
+  it("stacks the re-anchor banner after the focus banner", async () => {
+    await renderScreen(buildOrphanedDraft());
+    fireEvent.keyDown(window, { key: "z" });
+    const focusBanner = await screen.findByTestId("focus-banner");
+    fireEvent.click(getReanchorControl());
+    const reanchorBanner = screen.getByTestId("reanchor-banner");
+    const follows =
+      focusBanner.compareDocumentPosition(reanchorBanner) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(follows).toBeTruthy();
+  });
+
+  it("marks the draft's file rows pickable while armed", async () => {
+    await renderScreen(buildOrphanedDraft());
+    expect(document.querySelector("[data-pick]")).toBeNull();
+    fireEvent.click(getReanchorControl());
+    const draftFileCard = document.getElementById("chunk-a");
+    expect(
+      draftFileCard?.querySelector('tr[data-pick="available"]'),
+    ).toBeTruthy();
+    expect(
+      draftFileCard?.querySelector('[data-pick="unavailable"]'),
+    ).toBeNull();
+    fireEvent.click(getReanchorControl());
+    expect(document.querySelector("[data-pick]")).toBeNull();
   });
 
   it("offers both clearing operations for a reopened disposition", async () => {

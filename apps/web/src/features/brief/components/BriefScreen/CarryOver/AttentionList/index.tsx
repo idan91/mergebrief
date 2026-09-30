@@ -44,7 +44,11 @@ function AttentionRow({
   const hint = item.unplaceable ? t("brief.carryOver.fileGone") : t(copy.hint);
 
   return (
-    <li className={styles["item"]} data-testid="attention-item">
+    <li
+      className={styles["item"]}
+      data-armed={armed ? "" : undefined}
+      data-testid="attention-item"
+    >
       <div className={styles["body"]}>
         <span className={styles["kind"]}>{t(copy.title)}</span>
         <span className={styles["where"]}>
@@ -63,17 +67,11 @@ function AttentionRow({
         <p className={styles["hint"]} id={hintId}>
           {hint}
         </p>
-        {armed ? (
-          <p className={styles["hint"]}>{t("brief.carryOver.reanchorHint")}</p>
-        ) : null}
       </div>
       <span className={styles["actions"]}>
         {getRunnableActions(item).map((action) => (
           <Button
             aria-describedby={hintId}
-            aria-pressed={
-              action === "reanchor-draft-comment" ? armed : undefined
-            }
             data-testid={`attention-action-${action}`}
             disabled={item.unplaceable && action !== "delete-draft-comment"}
             key={action}

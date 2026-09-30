@@ -10,7 +10,11 @@ import {
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
 import { useReviewSubmit } from "@web/features/review/hooks";
-import type { UnresolvedItem } from "@web/features/review/utils";
+import {
+  commentLocation,
+  findDraftComment,
+  type UnresolvedItem,
+} from "@web/features/review/utils";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import {
   useViewportBoundary,
@@ -254,6 +258,16 @@ export function useBriefScreenFacade({
   const toast = useStore(flowStore, (state) => state.toast);
   const liveMessage = useStore(flowStore, (state) => state.liveMessage);
   const lineSelection = useStore(flowStore, (state) => state.lineSelection);
+  const reanchorDraftId = useStore(flowStore, (state) => state.reanchorDraftId);
+  const reanchorDraft = findDraftComment(reviewComments, reanchorDraftId);
+  const reanchorLocation =
+    reanchorDraft === undefined ? undefined : commentLocation(reanchorDraft);
+  // The Cancel button leaves with the banner; focus goes to the content it
+  // sat above rather than dropping to the body.
+  const cancelReanchorFromBanner = () => {
+    flowActions.cancelReanchor();
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  };
   const clearLineSelectionFromShortcut = () => {
     flowActions.clearLineSelection();
     flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
@@ -567,6 +581,8 @@ export function useBriefScreenFacade({
     markViewedAvailable: compareState.view === "full",
     lineSelected: lineSelection !== null,
     clearLineSelection: clearLineSelectionFromShortcut,
+    reanchorArmed: reanchorDraft !== undefined,
+    cancelReanchor: flowActions.cancelReanchor,
     jumpToConversation:
       conversation !== undefined && regions.conversation
         ? conversationWiring.jumpToConversation
@@ -624,6 +640,8 @@ export function useBriefScreenFacade({
     submitOpen,
     toast,
     liveMessage,
+    reanchorLocation,
+    cancelReanchorFromBanner,
     conversationWiring,
     revisionNav,
     submitFlow,

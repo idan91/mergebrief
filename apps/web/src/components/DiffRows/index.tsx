@@ -91,6 +91,7 @@ export function DiffRows({
               data-commentable={attributes.commentable ? "" : undefined}
               data-line-kind={row.kind}
               data-line-origin={row.origin}
+              data-pick={attributes.pick}
               data-rev={attributes.revision}
               data-selected={attributes.selected ? "" : undefined}
               onKeyDown={attributes.onKeyDown}

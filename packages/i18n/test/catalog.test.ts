@@ -83,6 +83,7 @@ describe("hard-fail catalog gates", () => {
       "brief.intent.doneButUnstated_other": 1,
       "brief.intent.statedButMissing_one": 1,
       "brief.intent.statedButMissing_other": 1,
+      "brief.reanchorBanner.hint": 3,
       "shell.attach.hint": 1,
       "shell.signInPrompt": 1,
       "tokens.disclaimer": 1,

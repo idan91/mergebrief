@@ -6,6 +6,7 @@ import { rowId } from "@web/features/review/utils";
 import {
   type DiffRowAttributeSlot,
   type DiffRowAttributes,
+  DiffRowPicks,
   type SplitRow,
   type SplitSide,
   SplitSides,
@@ -15,6 +16,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk, GuestRowReason } from "../../../types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { DiffRowView } from "./diffRowView";
+import { REANCHOR_HINT_ID } from "../consts";
 import { COMMENT_ANCHOR_SELECTOR, SELECT_ANCHOR_SELECTOR } from "./consts";
 import { type DragMode, DragModes, type DragSelection } from "./types";
 import {
@@ -76,6 +78,8 @@ export interface RowAttributesDeps {
   selectionPlacement: SplitSide | undefined;
   /** A draft waits for its lines: every row pick places it, none selects. */
   reanchorArmed: boolean;
+  /** A draft from another file waits for its lines: these rows stay inert. */
+  reanchorElsewhere: boolean;
   selectLines: (selection: LineSelection) => void;
   clearLineSelection: () => void;
 }
@@ -139,6 +143,7 @@ export function buildRowAttributesFor(
     selectionIndexes,
     selectionPlacement,
     reanchorArmed,
+    reanchorElsewhere,
     selectLines,
     clearLineSelection,
   } = deps;
@@ -489,6 +494,16 @@ export function buildRowAttributesFor(
         side,
       );
     }
+    if (reanchorElsewhere) {
+      return {
+        describedById: REANCHOR_HINT_ID,
+        disabled: true,
+        focusable: isSideFocusable(line, side),
+        pick: DiffRowPicks.UNAVAILABLE,
+        revision: view?.revMark,
+        selected: false,
+      };
+    }
     const outsideDiff = view?.isCommentable !== true;
     const commentable = composerDisabledReason === undefined && !outsideDiff;
     const attributes: DiffRowAttributes = {
@@ -615,6 +630,9 @@ export function buildRowAttributesFor(
       // arrived in the diff itself carries the state alone.
       if (hasExpandedRows) attributes.describedById = expandedReasonId;
       attributes.disabled = true;
+    }
+    if (reanchorArmed && commentable) {
+      attributes.pick = DiffRowPicks.AVAILABLE;
     }
 
     return attributes;

@@ -2,12 +2,16 @@ import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import type { DigestThreadRow } from "@web/features/conversation/utils";
-import { isLineCommentAnchor } from "@web/features/review/utils";
+import {
+  findDraftComment,
+  isLineCommentAnchor,
+} from "@web/features/review/utils";
 import {
   useChunkReviewComments,
   useReviewActions,
   useReviewCommentsForChunks,
   useReviewFlow,
+  useReviewSession,
 } from "@web/features/review/session";
 import type { BriefChunk } from "../../../types";
 import { EMPTY_EXPANDED_THREADS } from "./consts";
@@ -102,10 +106,16 @@ export function useDiffTableComments({
 
     return ownersSelection ? selection : null;
   });
-  // While a draft waits for its new lines, every row pick places it.
-  const reanchorArmed = useReviewFlow(
-    (state) => state.reanchorDraftId !== null,
+  // While a draft waits for its new lines, a row pick in its file places
+  // it and every other file's rows stand inert. Keyed on the draft still
+  // existing, as the banner is: a draft deleted while armed ends the mode.
+  const reanchorDraftId = useReviewFlow((state) => state.reanchorDraftId);
+  const reanchorFile = useReviewSession(
+    (state) =>
+      findDraftComment(state.reviewComments, reanchorDraftId)?.anchor.file,
   );
+  const reanchorArmed = reanchorFile === chunk.file;
+  const reanchorElsewhere = reanchorFile !== undefined && !reanchorArmed;
   /**
    * Why comment composition is disabled. When set, commentable rows stay
    * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
@@ -150,6 +160,7 @@ export function useDiffTableComments({
     clearLineSelection,
     lineSelection,
     reanchorArmed,
+    reanchorElsewhere,
     comments,
     spanComments,
     composerSaving,

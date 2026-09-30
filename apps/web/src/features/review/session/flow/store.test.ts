@@ -216,6 +216,53 @@ describe("ReviewFlow store", () => {
     });
   });
 
+  describe("re-anchor mode", () => {
+    it("arms quietly: the banner shows it, the toast stays empty", () => {
+      store.getState().actions.startReanchor("draft-1");
+      flushAnnounce();
+      expect(store.getState().reanchorDraftId).toBe("draft-1");
+      expect(store.getState().toast).toBe("");
+      expect(store.getState().liveMessage).toBe(
+        "Pick the lines this draft belongs on.",
+      );
+    });
+
+    it("cancels and announces the cancel", () => {
+      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.cancelReanchor();
+      flushAnnounce();
+      expect(store.getState().reanchorDraftId).toBeNull();
+      expect(store.getState().liveMessage).toBe("Re-anchoring cancelled.");
+    });
+
+    it("drops a live line selection when arming", () => {
+      store.setState({
+        lineSelection: {
+          chunkId: "chunk-a",
+          file: "src/a.ts",
+          side: CommentSides.NEW,
+          startLine: 10,
+          endLine: 10,
+          rowIds: ["row-1"],
+        },
+      });
+      store.getState().actions.startReanchor("draft-1");
+      expect(store.getState().lineSelection).toBeNull();
+    });
+
+    it("pressing the same draft's control again cancels", () => {
+      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.startReanchor("draft-1");
+      expect(store.getState().reanchorDraftId).toBeNull();
+    });
+
+    it("leaves the live region alone when nothing is armed", () => {
+      store.getState().actions.cancelReanchor();
+      flushAnnounce();
+      expect(store.getState().liveMessage).toBe("");
+    });
+  });
+
   describe("line selection", () => {
     const picked = {
       chunkId: "chunk-a",

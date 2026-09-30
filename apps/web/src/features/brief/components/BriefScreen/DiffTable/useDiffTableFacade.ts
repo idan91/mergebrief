@@ -267,6 +267,7 @@ export function useDiffTableFacade({
     selectionIndexes,
     selectionPlacement,
     reanchorArmed: review.reanchorArmed,
+    reanchorElsewhere: review.reanchorElsewhere,
     selectLines,
     clearLineSelection,
   });

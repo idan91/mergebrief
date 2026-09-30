@@ -434,6 +434,76 @@ describe("DiffTable draft restored from the server", () => {
   });
 });
 
+describe("DiffTable re-anchor pick affordance", () => {
+  const session: ReviewSessionPayload = {
+    ...emptySessionPayload(),
+    draftComments: [
+      {
+        id: "41",
+        filePath: "src/a.ts",
+        kind: "line",
+        side: "new",
+        startLine: 10,
+        endLine: 10,
+        body: "carried draft",
+        status: "draft",
+      },
+    ],
+  };
+
+  it("marks commentable rows pickable in the armed draft's file", () => {
+    const { view } = renderTable(
+      {},
+      { reanchorDraftId: "41" },
+      undefined,
+      session,
+    );
+    const rows = commentableRows(view.container);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.getAttribute("data-pick")).toBe("available");
+    }
+  });
+
+  it("leaves another file's rows inert and marked unavailable", () => {
+    const otherFile: BriefChunk = { ...chunk(), id: "c2", file: "src/b.ts" };
+    const { view, openCommentComposer } = renderTable(
+      { chunk: otherFile },
+      { reanchorDraftId: "41" },
+      undefined,
+      session,
+    );
+    const rows = [...view.container.querySelectorAll("tr[data-pick]")];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.getAttribute("data-pick")).toBe("unavailable");
+      expect(row.getAttribute("aria-disabled")).toBe("true");
+      expect(row.getAttribute("aria-describedby")).toBe("reanchor-hint");
+    }
+    const sign = view.container.querySelector("[data-comment-anchor]");
+    fireEvent.mouseDown(sign as Element);
+    fireEvent.mouseUp(sign as Element);
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("carries no pick state once the armed draft no longer exists", () => {
+    // A draft deleted from its thread, or submitted, leaves the id behind;
+    // the mode reads the draft itself, as the banner does.
+    const { view } = renderTable(
+      {},
+      { reanchorDraftId: "gone" },
+      undefined,
+      session,
+    );
+    expect(view.container.querySelector("[data-pick]")).toBeNull();
+  });
+
+  it("carries no pick state while nothing is armed", () => {
+    const { view } = renderTable({}, {}, undefined, session);
+    expect(view.container.querySelector("[data-pick]")).toBeNull();
+  });
+});
+
 describe("DiffTable read-only comment affordances", () => {
   const REASON = "You're viewing an earlier revision.";
 
@@ -617,7 +687,21 @@ describe("DiffTable line selection", () => {
       view: { container },
       flowStore,
       openCommentComposer,
-    } = renderTable({}, { reanchorDraftId: "draft-1" });
+    } = renderTable({}, { reanchorDraftId: "41" }, undefined, {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "41",
+          filePath: "src/a.ts",
+          kind: "line",
+          side: "new",
+          startLine: 10,
+          endLine: 10,
+          body: "carried draft",
+          status: "draft",
+        },
+      ],
+    });
     const [, second] = commentableRows(container);
     if (!second) throw new Error("expected two diff rows");
     fireEvent.mouseDown(findNumberCell(second));

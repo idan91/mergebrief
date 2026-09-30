@@ -8,7 +8,7 @@
   // hidden clips its own anchored panels.
   .toolbar {
     position: sticky;
-    inset-block-start: var(--top-bar-h);
+    inset-block-start: calc(var(--top-bar-h) + var(--reanchor-banner-h, 0px));
 
     // Clears the sticky chunk headers (z-index 10) so the bar and its
     // anchored panels ride above them while pinned.

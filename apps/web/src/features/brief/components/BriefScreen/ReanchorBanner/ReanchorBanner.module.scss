@@ -1,0 +1,47 @@
+@use "functions";
+
+@layer components {
+  .reanchorBannerWrap {
+    position: sticky;
+    inset-block-start: calc(var(--top-bar-h) + var(--focus-banner-h, 0px));
+    z-index: 50;
+    margin-block-end: functions.to-rem(14px);
+    padding-block: functions.to-rem(8px) functions.to-rem(10px);
+    padding-inline: functions.to-rem(20px);
+    border-block-end: 1px solid var(--color-outline-1);
+    background: color-mix(in srgb, var(--color-background) 85%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .reanchorBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(16px);
+    max-inline-size: functions.to-rem(880px);
+    margin-inline: auto;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(18px);
+    border: 1px solid
+      color-mix(in srgb, var(--color-accent) 40%, var(--color-outline-2));
+    border-radius: var(--radius-md);
+    background: color-mix(
+      in srgb,
+      var(--color-accent) 10%,
+      var(--color-surface-1)
+    );
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+
+    b {
+      color: var(--color-text-1);
+    }
+  }
+
+  .location {
+    color: var(--color-text-1);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    overflow-wrap: anywhere;
+  }
+}
