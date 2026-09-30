@@ -5,8 +5,10 @@ import type { ValueOf } from "types/utils";
 import { Tabs } from "@web/components/Tabs";
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@web/hooks/useFocusTrap";
+import type { RevisionTimelinePlan } from "../../../../types";
 import type { GroupView } from "../../../../utils/viewModel";
 import { SIDEBAR_PANEL_ID } from "../consts";
+import { Revisions } from "../Tabs/Revisions";
 import { ThisPr } from "../Tabs/ThisPr";
 import { SidebarTabs, type JumpFromSidebar, type SidebarTab } from "../types";
 import { isSidebarTab } from "../utils";
@@ -26,6 +28,9 @@ export interface SheetProps {
   tab: SidebarTab;
   selectTab: (tab: SidebarTab) => void;
   jumpToGroup: JumpFromSidebar;
+  revisions?: RevisionTimelinePlan | undefined;
+  /** Runs after a revision row activates; the caller closes the sheet. */
+  afterRevision: () => void;
   close: () => void;
 }
 
@@ -41,6 +46,8 @@ export function Sheet({
   tab,
   selectTab,
   jumpToGroup,
+  revisions,
+  afterRevision,
   close,
 }: SheetProps) {
   const { t } = useTranslation();
@@ -104,6 +111,11 @@ export function Sheet({
             <Tabs.Tab value={SidebarTabs.THIS_PR}>
               {t("brief.sidebar.tabs.thisPr")}
             </Tabs.Tab>
+            {revisions === undefined ? null : (
+              <Tabs.Tab value={SidebarTabs.REVISIONS}>
+                {t("brief.sidebar.tabs.revisions")}
+              </Tabs.Tab>
+            )}
           </Tabs.List>
           <Tabs.Panel value={SidebarTabs.THIS_PR}>
             <ThisPr
@@ -113,6 +125,11 @@ export function Sheet({
               jumpToGroup={jumpToGroup}
             />
           </Tabs.Panel>
+          {revisions === undefined ? null : (
+            <Tabs.Panel value={SidebarTabs.REVISIONS}>
+              <Revisions afterActivate={afterRevision} plan={revisions} />
+            </Tabs.Panel>
+          )}
         </Tabs>
       </div>
     </>

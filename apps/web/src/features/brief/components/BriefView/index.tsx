@@ -11,7 +11,12 @@ import type { SubmitReviewAction } from "@web/features/review/utils";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { FileRowsCache } from "../../utils/fileRows";
 import type { RepoConfigContext } from "../../utils/repoConfig";
-import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
+import type {
+  Brief,
+  LivePrState,
+  LocalBriefSummary,
+  RevisionTimelinePlan,
+} from "../../types";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import {
   BriefScreen,
@@ -63,6 +68,8 @@ export interface BriefViewProps {
   writes?: SessionWrites | undefined;
   /** The content region dims and goes inert; the header stays live. */
   revisionPending?: boolean | undefined;
+  /** The PR's revisions for the Sidebar tab; route-owned. */
+  revisions?: RevisionTimelinePlan | undefined;
 }
 
 /** One frozen default so the prop keeps its identity across renders. */
@@ -91,6 +98,7 @@ export function BriefView({
   readOnly,
   repoConfig,
   revisionPending,
+  revisions,
   searchParams,
   session,
   staleHead,
@@ -132,6 +140,7 @@ export function BriefView({
         readOnly={readOnly}
         reviewSession={session}
         revisionPending={revisionPending}
+        revisions={revisions}
         searchParams={searchParams}
         staleHead={staleHead}
         submitReview={submitReview}

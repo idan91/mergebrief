@@ -76,6 +76,7 @@ export function BriefScreen({
   readOnly,
   reviewSession,
   revisionPending,
+  revisions,
   staleHead,
   submitReview,
 }: BriefScreenProps) {
@@ -430,6 +431,7 @@ export function BriefScreen({
                   toggleShortcuts={session.toggleShortcuts}
                   diffView={diffView}
                   toggleDiffView={toggleDiffView}
+                  revisions={revisions}
                 />
               ) : null}
               {ownDraftActive ? null : (

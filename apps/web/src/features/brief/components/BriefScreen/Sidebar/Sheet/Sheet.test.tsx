@@ -22,6 +22,7 @@ function renderSheet(overrides: Partial<SheetProps> = {}) {
     tab: "this-pr",
     selectTab: noop,
     jumpToGroup: noop,
+    afterRevision: noop,
     close: noop,
     ...overrides,
   };

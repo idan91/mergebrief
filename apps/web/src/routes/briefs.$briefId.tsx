@@ -163,6 +163,17 @@ function BriefRoute() {
     },
     [navigate],
   );
+  // Keeps View and Compare for the new brief to re-normalise; drops only the
+  // link, whose chunk id means nothing in another brief.
+  const selectRevision = useCallback(
+    (targetBriefId: string) => {
+      void navigate({
+        params: { briefId: targetBriefId },
+        search: ({ l: _link, ...rest }) => rest,
+      });
+    },
+    [navigate],
+  );
   return (
     <BriefPage
       artifacts={artifacts}
@@ -173,6 +184,7 @@ function BriefRoute() {
       link={searchParams.l}
       navigateLink={navigateLink}
       revisionPending={revisionPending}
+      selectRevision={selectRevision}
     />
   );
 }

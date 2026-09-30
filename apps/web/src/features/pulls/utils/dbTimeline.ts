@@ -140,3 +140,11 @@ export function buildRevisionTimelineViewFromDb(
   });
   return buildRevisionTimeline(points);
 }
+
+/** The revision a timeline row's key names; undefined for a stale key. */
+export function findDbTimelinePoint(
+  selection: DbTimelineSelection,
+  key: string,
+): DbTimelinePoint | undefined {
+  return selection.points.find((point) => formatRevisionKey(point) === key);
+}

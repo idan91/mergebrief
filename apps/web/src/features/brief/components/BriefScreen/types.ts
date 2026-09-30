@@ -20,6 +20,7 @@ import type {
   LineRange,
   LivePrState,
   LocalBriefSummary,
+  RevisionTimelinePlan,
 } from "../../types";
 import type { LineTarget } from "../../utils/lineOwner";
 import type { buildBriefViewModel } from "../../utils/viewModel";
@@ -162,6 +163,8 @@ export interface BriefScreenProps {
   navigateLink?: ((link: string | undefined) => void) | undefined;
   /** Content goes inert; the sticky header stays live. */
   revisionPending?: boolean | undefined;
+  /** The PR's revisions for the Sidebar tab; route-owned, absent hides it. */
+  revisions?: RevisionTimelinePlan | undefined;
 }
 
 /** What the link param names: a chunk, or lines inside one. */

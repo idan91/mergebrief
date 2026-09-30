@@ -717,6 +717,13 @@ export interface RevisionTimelineView {
   rows: RevisionRow[];
 }
 
+/** What a route hands the Revisions tab: the rows and how to go to one. */
+export interface RevisionTimelinePlan {
+  view: RevisionTimelineView;
+  /** Route-owned; called with a row's key, never for the current row. */
+  selectRevision: (key: string) => void;
+}
+
 /** The head-file lines one click asks the file-range read for. */
 export interface ExpansionRange {
   from: number;

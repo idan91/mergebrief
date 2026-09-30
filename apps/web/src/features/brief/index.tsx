@@ -10,6 +10,8 @@ import {
 import type { LocalBriefSummary } from "./types";
 import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
+import { buildRevisionTimelineView } from "./utils/revision-timeline";
+import { buildBriefTimeline } from "./utils/timeline";
 import { BriefView, type ScopeExitOptions } from "./components/BriefView";
 
 // Curated feature entry: components only. NEVER re-export anything that
@@ -42,6 +44,8 @@ export interface BriefPageProps {
   navigateLink?: ((link: string | undefined) => void) | undefined;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
+  /** Goes to another brief of this PR by id; route-owned. */
+  selectRevision?: ((briefId: string) => void) | undefined;
 }
 
 /** Per-brief page over the LOCAL file-backed store: fetch, then render. */
@@ -54,6 +58,7 @@ export function BriefPage({
   link,
   navigateLink,
   revisionPending,
+  selectRevision,
 }: BriefPageProps) {
   const { t } = useTranslation();
   const artifact = useSuspenseQuery(buildLocalBriefQueryOptions(briefId)).data;
@@ -73,6 +78,14 @@ export function BriefPage({
     () => attachSlicedDiffs(artifact, fileRows),
     [artifact, fileRows],
   );
+  const revisionView = useMemo(
+    () => buildRevisionTimelineView(buildBriefTimeline(artifacts, briefId)),
+    [artifacts, briefId],
+  );
+  const revisions =
+    selectRevision === undefined
+      ? undefined
+      : { view: revisionView, selectRevision };
   // A file-backed Brief has no `brief` row, no installation and no reviewer,
   // so it carries no Review Session, and with nowhere to keep the work the
   // screen reads rather than writes.
@@ -89,6 +102,7 @@ export function BriefPage({
       link={link}
       navigateLink={navigateLink}
       revisionPending={revisionPending}
+      revisions={revisions}
     />
   );
 }

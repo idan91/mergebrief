@@ -20,6 +20,10 @@ export interface SidebarState {
   selectTab: (tab: SidebarTab) => void;
   /** False until a frame after the stored preference is applied, so the first paint never animates. */
   motionReady: boolean;
+  /** Marks a revision pick: the next brief's sidebar takes focus back. */
+  requestRevisionRefocus: () => void;
+  /** Answers the mark and clears it. */
+  takeRevisionRefocus: () => boolean;
 }
 
 /**
@@ -89,6 +93,18 @@ export function useSidebarState(
   const collapse = useCallback(() => setExpanded(false), [setExpanded]);
   const selectTab = useCallback((tab: SidebarTab) => update({ tab }), [update]);
 
+  // A ref, not state: the screen keys the Sidebar per brief, and only this
+  // hook outlives the remount a revision pick causes.
+  const revisionRefocus = useRef(false);
+  const requestRevisionRefocus = useCallback(() => {
+    revisionRefocus.current = true;
+  }, []);
+  const takeRevisionRefocus = useCallback(() => {
+    const due = revisionRefocus.current;
+    revisionRefocus.current = false;
+    return due;
+  }, []);
+
   return {
     expanded,
     tab: preference.tab,
@@ -97,5 +113,7 @@ export function useSidebarState(
     collapse,
     selectTab,
     motionReady,
+    requestRevisionRefocus,
+    takeRevisionRefocus,
   };
 }

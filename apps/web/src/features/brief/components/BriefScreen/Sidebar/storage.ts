@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { SidebarTabs, type SidebarPreference } from "./types";
 
@@ -13,7 +13,7 @@ export const DEFAULT_SIDEBAR_PREFERENCE: SidebarPreference = {
 // ships must not also forget whether the sidebar was open.
 const sidebarPreferenceSchema = z.object({
   expanded: z.boolean().catch(DEFAULT_SIDEBAR_PREFERENCE.expanded),
-  tab: z.literal(SidebarTabs.THIS_PR).catch(DEFAULT_SIDEBAR_PREFERENCE.tab),
+  tab: z.enum(SidebarTabs).catch(DEFAULT_SIDEBAR_PREFERENCE.tab),
 });
 
 export function readSidebarPreference(): SidebarPreference {

@@ -21,6 +21,7 @@ import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { Sidebar } from ".";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
+import type { RevisionTimelinePlan } from "../../../types";
 
 const model = buildBriefViewModel(briefFixture);
 const firstGroup = model.groups[0];
@@ -46,6 +47,9 @@ interface HarnessProps {
   toggleDiffView?: () => void;
   /** False renders the foot without the split view control. */
   diffToggleWired?: boolean;
+  revisions?: RevisionTimelinePlan;
+  /** The screen keys the Sidebar per brief; a new key remounts it. */
+  sidebarKey?: string;
 }
 
 function noop(): void {}
@@ -60,6 +64,8 @@ function Harness({
   diffView = DiffViews.UNIFIED,
   toggleDiffView = noop,
   diffToggleWired = true,
+  revisions,
+  sidebarKey,
 }: HarnessProps) {
   const state = useSidebarState(band, true);
   return (
@@ -68,6 +74,7 @@ function Harness({
         toggle
       </Button>
       <Sidebar
+        key={sidebarKey}
         band={band}
         conversationGroupIds={conversationGroupIds}
         groups={model.groups}
@@ -78,6 +85,7 @@ function Harness({
         toggleShortcuts={toggleShortcuts}
         diffView={diffView}
         toggleDiffView={diffToggleWired ? toggleDiffView : undefined}
+        revisions={revisions}
       />
     </>
   );
@@ -99,6 +107,51 @@ function renderSidebar(
       <Harness {...props} />
     </ReadingPositionProvider>,
   );
+}
+
+function makeRevisionPlan(
+  current = "a",
+  selectRevision: (key: string) => void = vi.fn(),
+): RevisionTimelinePlan {
+  return {
+    view: {
+      rows: [
+        {
+          key: "b",
+          ordinal: 2,
+          shortSha: "bbbbbbb",
+          current: current === "b",
+          newest: true,
+        },
+        {
+          key: "a",
+          ordinal: 1,
+          shortSha: "aaaaaaa",
+          current: current === "a",
+          newest: false,
+        },
+      ],
+    },
+    selectRevision,
+  };
+}
+
+/** A sidebar the test can move to another brief, as a revision pick does. */
+function renderSwitchingSidebar(band: ViewportBand) {
+  const store = createReadingPositionStore();
+  const selectRevision = vi.fn();
+  const renderTree = (current: string, pending: boolean) => (
+    <ReadingPositionProvider store={store}>
+      <Harness
+        band={band}
+        pending={pending}
+        revisions={makeRevisionPlan(current, selectRevision)}
+        sidebarKey={current}
+      />
+    </ReadingPositionProvider>
+  );
+  const view = render(renderTree("a", false));
+  return { view, renderTree, selectRevision };
 }
 
 function chevron(): HTMLElement {
@@ -287,6 +340,96 @@ describe("Sidebar", () => {
     });
 
     expect(aside.getAttribute("data-motion")).toBe("on");
+  });
+});
+
+describe("the Revisions tab", () => {
+  it("sits after This PR only when the route offers revisions", () => {
+    renderSidebar({ revisions: makeRevisionPlan() });
+    fireEvent.click(chevron());
+    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(tabs).toEqual(["This PR", "Revisions"]);
+    cleanup();
+
+    renderSidebar();
+    fireEvent.click(chevron());
+    expect(screen.queryByRole("tab", { name: "Revisions" })).toBeNull();
+  });
+
+  it("remembers the tab, and falls back to This PR where none is offered", () => {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "revisions" }),
+    );
+    renderSidebar({ revisions: makeRevisionPlan() });
+    expect(
+      screen
+        .getByRole("tab", { name: "Revisions" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    cleanup();
+
+    renderSidebar();
+    expect(
+      screen
+        .getByRole("tab", { name: "This PR" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("a row picked from the sheet selects it and closes the sheet", () => {
+    const revisions = makeRevisionPlan();
+    renderSidebar({ band: "narrow", revisions });
+    fireEvent.click(
+      within(screen.getByTestId("sidebar-bar")).getByRole("button", {
+        name: /sidebar/,
+      }),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    fireEvent.click(screen.getByRole("button", { name: /Revision 2/ }));
+    expect(revisions.selectRevision).toHaveBeenCalledWith("b");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("focus after a revision pick", () => {
+  it("returns to the new current row once the next brief is live", () => {
+    const { view, renderTree, selectRevision } =
+      renderSwitchingSidebar("desktop");
+    fireEvent.click(chevron());
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    fireEvent.click(screen.getByRole("button", { name: /Revision 2/ }));
+    expect(selectRevision).toHaveBeenCalledWith("b");
+
+    view.rerender(renderTree("b", true));
+    const picked = screen.getByRole("button", { name: /Revision 2/ });
+    expect(document.activeElement).not.toBe(picked);
+
+    view.rerender(renderTree("b", false));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Revision 2/ }),
+    );
+  });
+
+  it("returns to the bar chevron on the narrow band", () => {
+    const { view, renderTree } = renderSwitchingSidebar("narrow");
+    const bar = () => screen.getByTestId("sidebar-bar");
+    fireEvent.click(within(bar()).getByRole("button", { name: /sidebar/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    fireEvent.click(screen.getByRole("button", { name: /Revision 2/ }));
+
+    view.rerender(renderTree("b", false));
+    expect(document.activeElement).toBe(
+      within(bar()).getByRole("button", { name: /sidebar/ }),
+    );
+  });
+
+  it("leaves focus alone when no revision was picked", () => {
+    const { view, renderTree } = renderSwitchingSidebar("desktop");
+    const outside = screen.getByTestId("outside-toggle");
+    outside.focus();
+    view.rerender(renderTree("b", false));
+    expect(document.activeElement).toBe(outside);
   });
 });
 

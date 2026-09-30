@@ -39,6 +39,14 @@ describe("readSidebarPreference", () => {
     expect(readSidebarPreference()).toEqual(DEFAULT_SIDEBAR_PREFERENCE);
   });
 
+  it("reads a stored Revisions tab", () => {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: false, tab: "revisions" }),
+    );
+    expect(readSidebarPreference().tab).toBe("revisions");
+  });
+
   it("falls back to This PR for an unknown tab and keeps expanded", () => {
     window.localStorage.setItem(
       SIDEBAR_STORAGE_KEY,

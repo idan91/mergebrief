@@ -9,6 +9,7 @@ import {
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
 import { prefersReducedMotion } from "@web/utils/motion";
+import type { RevisionTimelinePlan } from "../../../types";
 import type { GroupView } from "../../../utils/viewModel";
 import { useReadingPosition } from "../readingPosition";
 import { SIDEBAR_PANEL_ID } from "./consts";
@@ -21,10 +22,11 @@ import {
 } from "@web/components/Icon/types";
 import { NarrowBar } from "./NarrowBar";
 import { Sheet } from "./Sheet";
+import { Revisions } from "./Tabs/Revisions";
 import { ThisPr } from "./Tabs/ThisPr";
 import { SidebarTabs, type JumpFromSidebar } from "./types";
 import type { SidebarState } from "./useSidebarState";
-import { isSidebarTab } from "./utils";
+import { isSidebarTab, resolveShownTab } from "./utils";
 import styles from "./Sidebar.module.scss";
 
 function scrollWindowToTop(): void {
@@ -55,6 +57,8 @@ export interface SidebarProps {
   diffView: DiffView;
   /** Absent where rows cannot split; the control stays out of the foot. */
   toggleDiffView?: (() => void) | undefined;
+  /** The PR's revisions and the route's way to one; absent hides the tab. */
+  revisions?: RevisionTimelinePlan | undefined;
 }
 
 /**
@@ -74,6 +78,7 @@ export function Sidebar({
   toggleShortcuts,
   diffView,
   toggleDiffView,
+  revisions,
 }: SidebarProps) {
   const { t } = useTranslation();
   const otherDiffView =
@@ -82,6 +87,7 @@ export function Sidebar({
     (position) => position.activeGroupId,
   );
   const chevronRef = useRef<HTMLButtonElement | null>(null);
+  const currentRevisionRef = useRef<HTMLButtonElement | null>(null);
   const { expanded } = state;
   const narrow = band === ViewportBands.NARROW;
   const wasExpanded = useRef(expanded);
@@ -132,6 +138,38 @@ export function Sidebar({
     chevronRef.current?.focus();
   };
 
+  // Same landing as a group jump on the narrow band: the sheet closes and
+  // focus returns to the bar. The column stays as it is.
+  const afterRevision = () => {
+    if (narrow) {
+      collapseToChevron();
+    }
+  };
+  const shownTab = resolveShownTab(state.tab, revisions !== undefined);
+  const { requestRevisionRefocus, takeRevisionRefocus } = state;
+  const revisionPlan =
+    revisions === undefined
+      ? undefined
+      : {
+          view: revisions.view,
+          selectRevision: (key: string) => {
+            requestRevisionRefocus();
+            revisions.selectRevision(key);
+          },
+        };
+
+  // A pick remounts this aside with the next brief, and the aside is inert
+  // while it loads, so the picked control is gone either way. Once the aside
+  // is live again, focus goes back where the reviewer was: the new current
+  // row in the column, the chevron on the narrow band.
+  useEffect(() => {
+    if (pending || !takeRevisionRefocus()) {
+      return;
+    }
+    const target = narrow ? chevronRef.current : currentRevisionRef.current;
+    target?.focus();
+  }, [pending, narrow, takeRevisionRefocus]);
+
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Escape" || !expanded) return;
 
@@ -166,8 +204,10 @@ export function Sidebar({
             conversationGroupIds={conversationGroupIds}
             groups={groups}
             jumpToGroup={jumpFromSidebar}
+            afterRevision={afterRevision}
+            revisions={revisionPlan}
             selectTab={state.selectTab}
-            tab={state.tab}
+            tab={shownTab}
           />
         ) : null}
         <NarrowBar
@@ -266,11 +306,16 @@ export function Sidebar({
       </div>
       <div className={styles["panel"]} hidden={!expanded} id={SIDEBAR_PANEL_ID}>
         {expanded ? (
-          <Tabs value={state.tab} onValueChange={selectTab}>
+          <Tabs value={shownTab} onValueChange={selectTab}>
             <Tabs.List label={t("brief.sidebar.tabs.ariaLabel")}>
               <Tabs.Tab value={SidebarTabs.THIS_PR}>
                 {t("brief.sidebar.tabs.thisPr")}
               </Tabs.Tab>
+              {revisionPlan === undefined ? null : (
+                <Tabs.Tab value={SidebarTabs.REVISIONS}>
+                  {t("brief.sidebar.tabs.revisions")}
+                </Tabs.Tab>
+              )}
             </Tabs.List>
             <Tabs.Panel value={SidebarTabs.THIS_PR}>
               <ThisPr
@@ -280,6 +325,15 @@ export function Sidebar({
                 jumpToGroup={jumpFromSidebar}
               />
             </Tabs.Panel>
+            {revisionPlan === undefined ? null : (
+              <Tabs.Panel value={SidebarTabs.REVISIONS}>
+                <Revisions
+                  afterActivate={afterRevision}
+                  currentRowRef={currentRevisionRef}
+                  plan={revisionPlan}
+                />
+              </Tabs.Panel>
+            )}
           </Tabs>
         ) : null}
       </div>

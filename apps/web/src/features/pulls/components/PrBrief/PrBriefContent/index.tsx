@@ -29,9 +29,11 @@ import {
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
-import type {
-  DbTimelinePoint,
-  DbTimelineSelection,
+import {
+  buildRevisionTimelineViewFromDb,
+  findDbTimelinePoint,
+  type DbTimelinePoint,
+  type DbTimelineSelection,
 } from "../../../utils/dbTimeline";
 import { usePrBriefPlans } from "../../../hooks/usePrBriefPlans";
 import {
@@ -249,6 +251,27 @@ export function PrBriefContent({
       searchView,
     ],
   );
+  const revisionView = useMemo(
+    () =>
+      timeline === undefined
+        ? undefined
+        : buildRevisionTimelineViewFromDb(timeline),
+    [timeline],
+  );
+  const revisions =
+    revisionView === undefined ||
+    timeline === undefined ||
+    onSelectRevision === undefined
+      ? undefined
+      : {
+          view: revisionView,
+          selectRevision: (key: string) => {
+            const point = findDbTimelinePoint(timeline, key);
+            if (point !== undefined) {
+              onSelectRevision(point);
+            }
+          },
+        };
   // Renders in the STICKY header's control slot so the controls are never
   // scrolled out of reach by the selection focus effect.
   const headerControls = (
@@ -302,6 +325,7 @@ export function PrBriefContent({
         ownDraft={ownDraft}
         readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}
+        revisions={revisions}
         session={session.data}
         writes={session.data === undefined ? undefined : writes}
         searchParams={searchParams}

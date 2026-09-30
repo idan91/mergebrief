@@ -3,6 +3,7 @@ import type { ValueOf } from "types/utils";
 
 export const SidebarTabs = {
   THIS_PR: "this-pr",
+  REVISIONS: "revisions",
 } as const;
 
 export type SidebarTab = ValueOf<typeof SidebarTabs>;

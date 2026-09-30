@@ -684,7 +684,12 @@
       "scrollToTop": "Scroll to top",
       "tabs": {
         "ariaLabel": "Sidebar tabs",
-        "thisPr": "This PR"
+        "thisPr": "This PR",
+        "revisions": "Revisions"
+      },
+      "revisions": {
+        "title": "Revision {{index}}",
+        "latest": "Latest"
       },
       "sheet": {
         "expandToFull": "Expand the sheet to full height",

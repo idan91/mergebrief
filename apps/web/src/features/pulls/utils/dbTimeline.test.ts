@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildRevisionTimelineViewFromDb,
+  findDbTimelinePoint,
   formatRevisionKey,
   resolveDbTimeline,
 } from "./dbTimeline";
@@ -187,5 +188,16 @@ describe("buildRevisionTimelineViewFromDb", () => {
   it("formats a revision key as its brief index", () => {
     const selection = resolveDbTimeline(REVISIONS, {});
     expect(selection && formatRevisionKey(selection.selected)).toBe("3");
+  });
+});
+
+describe("findDbTimelinePoint", () => {
+  it("finds the revision a row key names, and nothing for a stale key", () => {
+    const selection = resolveDbTimeline(REVISIONS, {});
+    if (selection === undefined) {
+      throw new Error("no selection");
+    }
+    expect(findDbTimelinePoint(selection, "2")?.headSha).toBe("h2");
+    expect(findDbTimelinePoint(selection, "9")).toBeUndefined();
   });
 });

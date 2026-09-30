@@ -188,6 +188,11 @@ export type Catalog = typeof en & {
       reviewCount: "{{count}} review";
       ariaLabelAddFileComment: "Add a comment on {{file}}";
     };
+    sidebar: (typeof en)["brief"]["sidebar"] & {
+      revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {
+        title: "Revision {{index}}";
+      };
+    };
     progress: (typeof en)["brief"]["progress"] & {
       segmentLabel: "{{label}} {{step}} of {{total}}: {{title}}";
     };
