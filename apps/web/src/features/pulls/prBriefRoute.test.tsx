@@ -18,6 +18,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,
@@ -903,6 +904,7 @@ describe("DB brief route, rev param", () => {
   });
 
   it("selecting a revision writes rev only, the link dropped", async () => {
+    window.localStorage.clear();
     const router = await renderRoute(
       meta({ revisions }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&l=c1`,
@@ -910,7 +912,8 @@ describe("DB brief route, rev param", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    fireEvent.click(screen.getByLabelText("Previous revision, 1"));
+    await openRevisionsTab();
+    fireEvent.click(listRevisionRows()[0]!);
     await waitFor(() => expect(readSearch(router).rev).toBe(1));
     expect(readSearch(router).head).toBeUndefined();
     expect(readSearch(router).base).toBeUndefined();

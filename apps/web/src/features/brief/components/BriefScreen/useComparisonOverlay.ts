@@ -85,7 +85,7 @@ export interface UseComparisonOverlayInput {
 }
 
 export interface UseComparisonOverlayValue {
-  /** The LOCAL timeline (header's revision strip on the file-backed path). */
+  /** The LOCAL timeline; its selected point drives availability. */
   timeline: BriefTimeline;
   /** Which Compare baselines the header controls may offer. */
   availability: CompareOptionFlags;

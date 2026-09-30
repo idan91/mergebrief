@@ -2,6 +2,8 @@
 
 > Superseded in part by ADR 0024: timeline points remain full Brief heads, but the `Full / Delta` lens is replaced by **View** (`Full Brief` / `Changes Only`) plus **Compare** (`Your last review` / `Previous Brief` / `Off`).
 
+> Amended by BRIEF-308 (2026-09-30): the navigator leaves the Header on both routes. Points are rows of the Sidebar's **Revisions** tab, newest first, each a button; there is no Previous/Next stepper, picker or visual stepper (§2, §5, §7). A selection still updates the URL and is announced through a polite live region; once the next brief is live, focus returns to the current row in the Sidebar column, or to the bar's expand control on the narrow band, not to the brief heading. The tab sits in the Sidebar, so Focus mode and Changes Only, which hide the Sidebar, offer no revision navigation.
+
 The Brief page exposes a discrete, accessible timeline of a PR's distinct head states. A timeline point is a full **Brief** at one head; a **Delta Brief** is a selectable lens on that same point when it is available for the selected reviewer baseline.
 
 ## Context

@@ -183,14 +183,6 @@
       "count": 4
     }
   },
-  "apps/web/e2e/perf/revisionLens.perf.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/e2e/specs/briefRender.e2e.ts": {
     "house/no-em-dash": {
       "count": 3

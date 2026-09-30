@@ -285,10 +285,8 @@ export function PrBriefContent({
       note={
         timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined
       }
-      onSelectRevision={onSelectRevision}
       readOnly={(readOnly ?? sessionReadOnly) !== undefined}
       staleHead={staleHead}
-      timeline={timeline}
       behind={behind}
       {...(onGoToNewest ? { onGoToNewest } : {})}
     />

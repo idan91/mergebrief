@@ -323,7 +323,7 @@ The list on **Home**: every pull request the **Reviewer** reaches, across every 
 _Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
 
 **Header**:
-The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (revision navigator and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
+The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (View and Compare, the revision notices, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
 
 **Account menu**:
@@ -335,7 +335,7 @@ The Brief page's permanent right-edge column, PR-contextual only, always present
 _Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell (charting-era word), tenant (the API's multi-tenancy noun)
 
 **Tab**:
-One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
+One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first, then "Revisions", the PR's revisions newest first, which is where a reader moves between them; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
 _Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
 
 **Not-ready screen**:

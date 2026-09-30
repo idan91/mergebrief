@@ -78,10 +78,24 @@ export function BriefPage({
     () => attachSlicedDiffs(artifact, fileRows),
     [artifact, fileRows],
   );
-  const revisionView = useMemo(
-    () => buildRevisionTimelineView(buildBriefTimeline(artifacts, briefId)),
+  const timeline = useMemo(
+    () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
   );
+  const revisionView = useMemo(
+    () => buildRevisionTimelineView(timeline),
+    [timeline],
+  );
+  const selectedPoint = timeline.selectedPoint;
+  // Moving to another brief keeps this page mounted, so the text changes and
+  // the polite region announces it; the first render stays silent.
+  const viewingAnnouncement =
+    selectedPoint === undefined
+      ? ""
+      : t("brief.timeline.viewingBrief", {
+          index: selectedPoint.index,
+          total: timeline.points.length,
+        });
   const revisions =
     selectRevision === undefined
       ? undefined
@@ -90,19 +104,24 @@ export function BriefPage({
   // so it carries no Review Session, and with nowhere to keep the work the
   // screen reads rather than writes.
   return (
-    <BriefView
-      artifacts={artifacts}
-      brief={brief}
-      briefId={briefId}
-      fileRows={fileRows}
-      readOnly={{ reason: t("brief.screen.fileBriefReadOnly") }}
-      searchParams={searchParams}
-      exitChangesScope={exitChangesScope}
-      clearDiffParam={clearDiffParam}
-      link={link}
-      navigateLink={navigateLink}
-      revisionPending={revisionPending}
-      revisions={revisions}
-    />
+    <>
+      <span aria-live="polite" className="sr-only" role="status">
+        {viewingAnnouncement}
+      </span>
+      <BriefView
+        artifacts={artifacts}
+        brief={brief}
+        briefId={briefId}
+        fileRows={fileRows}
+        readOnly={{ reason: t("brief.screen.fileBriefReadOnly") }}
+        searchParams={searchParams}
+        exitChangesScope={exitChangesScope}
+        clearDiffParam={clearDiffParam}
+        link={link}
+        navigateLink={navigateLink}
+        revisionPending={revisionPending}
+        revisions={revisions}
+      />
+    </>
   );
 }

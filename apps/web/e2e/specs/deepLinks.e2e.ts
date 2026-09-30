@@ -78,12 +78,14 @@ test("a comparison the revision cannot offer normalizes down", async ({
   ).toHaveAttribute("aria-disabled", "true");
 });
 
-test("the timeline navigates between the fixture's revisions", async ({
+test("the Revisions tab navigates between the fixture's revisions", async ({
   page,
 }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
-  await page.getByRole("button", { name: "Previous revision, 1" }).click();
+  await page.getByRole("button", { name: "Expand sidebar" }).click();
+  await page.getByRole("tab", { name: "Revisions" }).click();
+  await page.getByRole("button", { name: /^Revision 1\b/ }).click();
   // The repo route encodes the revision as `rev`, not in the path.
   await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
   await expect(page).not.toHaveURL(/head=/);

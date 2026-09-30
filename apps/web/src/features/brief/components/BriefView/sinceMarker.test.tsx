@@ -99,8 +99,8 @@ describe("per-group changed-since marker", () => {
   });
 
   it("local sidecar path: since-marks resolve with Compare OFF", async () => {
-    // Hook-level (a full BriefView with artifacts mounts TimelineNavigator's
-    // router Links, which need a RouterProvider): no comparisonPlan → the
+    // Hook-level (a full BriefView mounts LensControls, whose navigation
+    // needs a RouterProvider): no comparisonPlan → the
     // marks resolve from the artifact's last-review sidecar id even though
     // the active Compare baseline is off.
     const artifact: LocalBriefSummary = {

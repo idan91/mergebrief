@@ -67,7 +67,6 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   return {
     brief,
     briefId: "test-brief",
-    timeline: { points: [], selectedPoint: undefined },
     model: buildBriefViewModel(brief),
     totals: {
       reviewed: 1,
@@ -99,7 +98,6 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const props: HeaderProps = {
     brief,
     briefId: "test-brief",
-    timeline: { points: [], selectedPoint: undefined },
     model: buildBriefViewModel(brief),
     totals: {
       reviewed: 1,
@@ -138,8 +136,8 @@ describe("Header identity row", () => {
     const link = screen.getByRole("link", { name: /#7/ });
     expect(link.getAttribute("href")).toBe("https://example.com/pr/7");
     expect(link.getAttribute("target")).toBe("_blank");
-    // Artifact identity lives in the timeline navigator, the rest in the
-    // details panel.
+    // Artifact identity lives in the Revisions tab, the rest in the details
+    // panel.
     expect(screen.queryByText(/local brief @/)).toBeNull();
     expect(screen.queryByText(/brief _3/)).toBeNull();
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();

@@ -32,13 +32,6 @@ export type Catalog = typeof en & {
       postDrafts_one: "Post my {{count}} draft comment before marking ready";
       postDrafts_other: "Post my {{count}} draft comments before marking ready";
     };
-    timeline: (typeof en)["pulls"]["timeline"] & {
-      prevRevision: "Previous revision, {{index}}";
-      nextRevision: "Next revision, {{index}}";
-      option: "Revision {{index}} of {{total}} · {{sha}}";
-      optionBaseSuffix: "(base {{sha}})";
-      stepRevision: "Revision {{index}}";
-    };
     ownDraft: (typeof en)["pulls"]["ownDraft"] & {
       damped: "Draft mode — the brief can take up to {{window}} to refresh after the last push.";
       windowMinutes_one: "about {{count}} minute";
@@ -175,11 +168,7 @@ export type Catalog = typeof en & {
       srRepoPolicyWithImplication: " — defined by repo policy. {{implication}}";
     };
     timeline: (typeof en)["brief"]["timeline"] & {
-      briefOption: "Brief {{index}}";
-      viewingBrief: "Viewing Brief {{index}} of {{total}}";
-      briefOptionSha: "Brief {{index}} of {{total}} · {{sha}}";
-      ariaLabelPreviousBrief: "Previous brief, {{index}}";
-      ariaLabelNextBrief: "Next brief, {{index}}";
+      viewingBrief: "Viewing brief {{index}} of {{total}}.";
     };
     chunk: (typeof en)["brief"]["chunk"] & {
       drafts_one: "{{count}} draft";

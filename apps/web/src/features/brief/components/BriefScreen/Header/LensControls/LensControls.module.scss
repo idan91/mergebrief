@@ -1,0 +1,32 @@
+@use "functions";
+
+@layer components {
+  .lensRegion {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: functions.to-rem(8px);
+    min-inline-size: 0;
+  }
+
+  // SegmentedControl owns the bordered group; this only carries the metrics
+  // this surface had before the control was shared.
+  .lens {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  // Faint prefix label OUTSIDE the bordered group — inside it, it reads as
+  // a selectable option. The accessible name stays on the sr-only legend.
+  .labeledLens {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}

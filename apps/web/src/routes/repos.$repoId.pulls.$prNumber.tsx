@@ -493,10 +493,10 @@ function PrBriefRoute() {
     });
   }, [navigate, pinnedRev, search.base, search.head, search.rev]);
 
-  // Re-anchor onto the brief only when focus was left NOWHERE (e.g. the
-  // operated stepper went aria-disabled at a timeline boundary). The controls
-  // themselves survive a revision change, the brief subtree is no longer
-  // keyed by brief id, so focus normally just stays put. Never scrolls.
+  // Re-anchor onto the brief only when focus was left NOWHERE. A pick from
+  // the Revisions tab hands focus back to the Sidebar (its row, or the bar's
+  // chevron on the narrow band) once the next brief is live; this catches
+  // what nothing claims. Never scrolls.
   useEffect(() => {
     const active = document.activeElement;
     const focusSurvived =

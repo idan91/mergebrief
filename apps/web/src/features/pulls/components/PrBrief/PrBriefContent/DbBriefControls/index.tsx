@@ -1,25 +1,14 @@
-// Revision navigator + View/Compare lenses, rendered inside the sticky page
+// View/Compare lenses + revision notices, rendered inside the sticky page
 // Header's control slot: the header measures itself into --top-bar-h, so the
 // controls stay reachable after the focus-to-heading selection effect.
 import { useTranslation } from "react-i18next";
-import type {
-  DbTimelinePoint,
-  DbTimelineSelection,
-} from "../../../../utils/dbTimeline";
 import { DbCompareBar, type DbCompareBarProps } from "./DbCompareBar";
-import { DbTimelineNavigator } from "./DbTimelineNavigator";
 import { BehindNotice } from "./BehindNotice";
 import type { BehindNoticeState } from "./BehindNotice/useBehindNoticeFacade";
 import { StaleRevisionChip } from "./StaleRevisionChip";
 import styles from "./DbBriefControls.module.scss";
 
 export interface DbBriefControlsProps {
-  /**
-   * The revision timeline; absent on legacy metas without `revisions[]`,
-   * the View/Compare lenses still render.
-   */
-  timeline?: DbTimelineSelection | undefined;
-  onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
   /** The View/Compare lens wiring. */
   compare: DbCompareBarProps;
   /**
@@ -38,8 +27,6 @@ export interface DbBriefControlsProps {
 }
 
 export function DbBriefControls({
-  timeline,
-  onSelectRevision,
   compare,
   note,
   readOnly,
@@ -49,10 +36,7 @@ export function DbBriefControls({
 }: DbBriefControlsProps) {
   const { t } = useTranslation();
   const showRevisionRegion =
-    timeline !== undefined ||
-    staleHead === true ||
-    readOnly === true ||
-    behind?.notice !== undefined;
+    staleHead === true || readOnly === true || behind?.notice !== undefined;
   return (
     <>
       {/* The notice leaves once the brief it asked for lands; its outcomes
@@ -67,17 +51,12 @@ export function DbBriefControls({
           {behind.announcement}
         </span>
       )}
+      <div className={styles["lensRegion"]}>
+        <DbCompareBar {...compare} />
+        {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
+      </div>
       {showRevisionRegion ? (
         <div className={styles["revisionRow"]}>
-          {timeline !== undefined && onSelectRevision !== undefined ? (
-            <DbTimelineNavigator
-              next={timeline.next}
-              onSelect={onSelectRevision}
-              points={timeline.points}
-              previous={timeline.previous}
-              selectedIndex={timeline.selectedIndex}
-            />
-          ) : null}
           {staleHead ? (
             <StaleRevisionChip {...(onGoToNewest ? { onGoToNewest } : {})} />
           ) : null}
@@ -98,10 +77,6 @@ export function DbBriefControls({
           ) : null}
         </div>
       ) : null}
-      <div className={styles["lensRegion"]}>
-        <DbCompareBar {...compare} />
-        {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
-      </div>
     </>
   );
 }

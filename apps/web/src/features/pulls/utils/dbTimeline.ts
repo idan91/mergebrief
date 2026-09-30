@@ -30,8 +30,6 @@ export interface DbTimelineSelection {
    * SOMETHING with a polite note, never a 404.
    */
   readonly degraded: boolean;
-  readonly previous: DbTimelinePoint | undefined;
-  readonly next: DbTimelinePoint | undefined;
 }
 
 function toPoint(revision: RevisionSummary): DbTimelinePoint {
@@ -112,8 +110,6 @@ export function resolveDbTimeline(
     selected,
     selectedIndex,
     degraded,
-    previous: selectedIndex > 0 ? points[selectedIndex - 1] : undefined,
-    next: selectedIndex < latestIndex ? points[selectedIndex + 1] : undefined,
   };
 }
 

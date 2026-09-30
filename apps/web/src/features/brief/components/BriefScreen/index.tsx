@@ -200,7 +200,6 @@ export function BriefScreen({
                 repoConfig={repoConfig}
                 briefId={briefId}
                 repoId={repoId}
-                timeline={overlay.timeline}
                 model={model}
                 totals={session.totals}
                 progress={session.progress}

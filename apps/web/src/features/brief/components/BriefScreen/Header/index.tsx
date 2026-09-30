@@ -15,7 +15,6 @@ import type {
   CompareOptionFlags,
 } from "../../../comparison/compareState";
 import type { ProgressTotals } from "../../../utils/progress";
-import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import { isDbBriefId } from "../../../utils/briefIdentity";
@@ -42,7 +41,7 @@ import { StackArrows } from "./StackChip/StackArrows";
 import { resolveStackView } from "./StackChip/utils";
 import { StateBadge } from "./StateBadge";
 import { SubmitReviewCta } from "./SubmitReviewCta";
-import { TimelineNavigator } from "./TimelineNavigator";
+import { LensControls } from "./LensControls";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./Header.module.scss";
@@ -59,7 +58,6 @@ export interface HeaderProps {
   livePrState?: LivePrState | undefined;
   briefId: string;
   repoId?: string | undefined;
-  timeline: BriefTimeline;
   model: BriefViewModel;
   totals: ProgressTotals;
   progress: number;
@@ -68,8 +66,8 @@ export interface HeaderProps {
   availability: CompareOptionFlags;
   compareState: BriefSearch;
   /**
-   * The DB route's unified revision/compare controls: rendered in the local
-   * TimelineNavigator's slot so BOTH paths keep their controls in the sticky
+   * The DB route's notices and compare controls: rendered in the local
+   * LensControls' slot so BOTH paths keep their controls in the sticky
    * header, discoverable and never scrolled out of reach.
    */
   controlsSlot?: ReactNode | undefined;
@@ -97,7 +95,6 @@ export function Header({
   livePrState,
   briefId,
   repoId,
-  timeline,
   model,
   totals,
   progress,
@@ -321,11 +318,10 @@ export function Header({
         {controlsSlot !== undefined ? (
           <div className={styles["lensCluster"]}>{controlsSlot}</div>
         ) : (
-          <TimelineNavigator
+          <LensControls
             availability={availability}
             briefId={briefId}
             compareState={compareState}
-            timeline={timeline}
           />
         )}
         {revisionPending === true ? (

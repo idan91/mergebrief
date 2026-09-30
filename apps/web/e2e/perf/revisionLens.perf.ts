@@ -1,16 +1,11 @@
-// Revision/lens interaction measurement harness, run on the generated large
-// fixture (`pnpm perf:fixture` first):
-//   revision-nav  — click prev/next brief → target revision's content visible
-//   lens-flip     — click a View lens radio → lens content committed
-// Samples are click-to-visible wall time from the driver; absolute values
-// carry protocol overhead, so treat them as BEFORE/AFTER comparisons, not
-// truth. Each metric prints one `PERF_RESULT {json}` line for the PR body.
-//
-// Scope: brief queries carry staleTime Infinity, so after the warmup round
-// every revision-nav sample hits the query cache — these numbers isolate the
-// key={briefId} REMOUNT cost and cannot see fetch latency. Only cold-load
-// touches fetch (as a full document load). A fetch-side change needs a
-// cold-cache variant or the DB route to show up here.
+// Revision and lens interaction timing on the generated large fixture
+// (`pnpm perf:fixture` first). revision-nav picks a revision in the sidebar
+// and waits for its content; lens-flip clicks a View lens radio and waits
+// for the lens to commit. Samples are click-to-visible wall time with
+// protocol overhead, so compare before and after, never read them as
+// absolute. Brief queries never go stale, so warm revision-nav samples hit
+// the cache and isolate the key={briefId} remount. Each metric prints one
+// `PERF_RESULT {json}` line for the PR body.
 import { expect, test, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
@@ -37,8 +32,12 @@ test("revision navigation timing", async ({ page }) => {
   });
   await settleOnRevision(page, "r2");
 
-  const toPrev = page.getByRole("button", { name: "Previous revision, 1" });
-  const toNext = page.getByRole("button", { name: "Next revision, 2" });
+  // Revision navigation lives in the sidebar's Revisions tab; the tab stays
+  // open across the switches below.
+  await page.getByRole("button", { name: "Expand sidebar" }).click();
+  await page.getByRole("tab", { name: "Revisions" }).click();
+  const toPrev = page.getByRole("button", { name: /^Revision 1\b/ });
+  const toNext = page.getByRole("button", { name: /^Revision 2\b/ });
 
   // Warmup round: both revisions' loaders and code paths warm before timing.
   await toPrev.click();
@@ -65,7 +64,7 @@ test("revision navigation timing", async ({ page }) => {
 
 test("lens flip timing", async ({ page }) => {
   // Rev 2 carries previous-brief marks, so the Changes Only lens is live.
-  // Hydration gate: the radios are controlled inputs — a pre-hydration click
+  // Hydration gate: the radios are controlled inputs, so a pre-hydration click
   // toggles nothing (the known lost-keystroke window `waitForInteractive`
   // exists for).
   await gotoBrief(page, PERF_ROUTE_REV2, {
@@ -74,7 +73,7 @@ test("lens flip timing", async ({ page }) => {
   await settleOnRevision(page, "r2");
 
   // The radio input sits under a styled option span that intercepts pointer
-  // events — click the visible label text, assert state on the input.
+  // events: click the visible label text, assert state on the input.
   const changesRadio = page.getByText("Changes Only", { exact: true });
   const fullRadio = page.getByText("Full brief", { exact: true });
   const changesEyebrow = page.getByText(
@@ -112,7 +111,7 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
   page,
 }) => {
   // Keep-warm latch proof. Lens radios NAVIGATE (compare rides the URL), so
-  // the router resets scroll to top on every flip — pre-existing product
+  // the router resets scroll to top on every flip, a pre-existing product
   // behavior, deliberately not asserted here. What the latch owns: while the
   // story pane is hidden its windowed DOM must stay exactly as it was (no
   // re-derive against hidden zero-rects), and the flip back must render a
@@ -158,7 +157,7 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
   await page.waitForTimeout(500);
 
   // Router reset scroll to top; the story window must cover the viewport
-  // there — a blank band here would mean the latch fed stale geometry.
+  // there; a blank band here would mean the latch fed stale geometry.
   expect(await firstVisible()).not.toBeNull();
 });
 

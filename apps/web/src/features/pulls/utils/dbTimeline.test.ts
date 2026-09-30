@@ -41,8 +41,8 @@ describe("resolveDbTimeline", () => {
     ]);
     expect(selection?.selected.headSha).toBe("h3");
     expect(selection?.degraded).toBe(false);
-    expect(selection?.next).toBeUndefined();
-    expect(selection?.previous?.headSha).toBe("h2");
+    expect(selection?.selectedIndex).toBe(2);
+    expect(selection?.points[1]?.headSha).toBe("h2");
   });
 
   it("carries a revision's generatedAt onto its point", () => {
@@ -61,12 +61,11 @@ describe("resolveDbTimeline", () => {
     expect(selection?.points[0]?.generatedAt).toBeUndefined();
   });
 
-  it("selects a historical head with ITS OWN base, exposing prev/next", () => {
+  it("selects a historical head with ITS OWN base", () => {
     const selection = resolveDbTimeline(REVISIONS, { head: "h1" });
     expect(selection?.selected.headSha).toBe("h1");
     expect(selection?.selected.baseSha).toBe("b1");
-    expect(selection?.previous).toBeUndefined();
-    expect(selection?.next?.headSha).toBe("h2");
+    expect(selection?.selectedIndex).toBe(0);
   });
 
   it("carries the per-entry drifted base for a middle revision", () => {
@@ -106,7 +105,7 @@ describe("resolveDbTimeline with duplicate heads from a retarget", () => {
     expect(selection?.selectedIndex).toBe(1);
     expect(selection?.degraded).toBe(false);
     // Both duplicates stay addressable as distinct points.
-    expect(selection?.next?.baseSha).toBe("b-new");
+    expect(selection?.points[2]?.baseSha).toBe("b-new");
   });
 
   it("head plus an unknown base falls back to the highest-index head", () => {

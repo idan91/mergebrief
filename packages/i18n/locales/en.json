@@ -171,17 +171,6 @@
       "postDrafts_one": "Post my {{count}} draft comment before marking ready",
       "postDrafts_other": "Post my {{count}} draft comments before marking ready"
     },
-    "timeline": {
-      "navLabel": "PR revision timeline",
-      "prevRevision": "Previous revision, {{index}}",
-      "prevNone": "Previous revision (none)",
-      "nextRevision": "Next revision, {{index}}",
-      "nextNone": "Next revision (none)",
-      "selectLabel": "Select PR revision",
-      "option": "Revision {{index}} of {{total}} · {{sha}}",
-      "optionBaseSuffix": "(base {{sha}})",
-      "stepRevision": "Revision {{index}}"
-    },
     "compare": {
       "navLabel": "Brief view and compare",
       "viewLegend": "View",
@@ -614,8 +603,6 @@
       "srDeEmphasized": " — de-emphasized by repo policy"
     },
     "timeline": {
-      "selectLabel": "Select PR revision",
-      "briefOption": "Brief {{index}}",
       "viewLegend": "Scope",
       "compareLegend": "Compare",
       "fullBrief": "Full brief",
@@ -624,11 +611,7 @@
       "offOnlyFull": "Off is only available in Full brief",
       "lastReview": "Your last review",
       "previousBrief": "Previous brief",
-      "ariaLabelNav": "PR revision timeline",
-      "viewingBrief": "Viewing Brief {{index}} of {{total}}",
-      "briefOptionSha": "Brief {{index}} of {{total}} · {{sha}}",
-      "ariaLabelPreviousBrief": "Previous brief, {{index}}",
-      "ariaLabelNextBrief": "Next brief, {{index}}"
+      "viewingBrief": "Viewing brief {{index}} of {{total}}."
     },
     "chunk": {
       "viewed": "Viewed",

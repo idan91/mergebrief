@@ -31,6 +31,7 @@ import type {
   LocalBriefSummary,
 } from "../features/brief/types";
 import { routeTree } from "../routeTree.gen";
+import { listRevisionRows, openRevisionsTab } from "../test/revisions";
 
 const SIGNED_IN_VIEWER: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
@@ -344,7 +345,44 @@ async function renderAt(
  * route-level behavior through the actual routed screen, not store internals.
  */
 describe("comparison state matrix characterization", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+  });
+
+  it("a Revisions pick keeps View and Compare and drops the line link", async () => {
+    const { router } = await renderAt(
+      "/briefs/head-brief-2?view=full&compare=off&l=c1",
+      async (queryClient) => {
+        queryClient.setQueryData(
+          buildLocalBriefQueryOptions(prevSummary.id).queryKey,
+          headBrief,
+        );
+        queryClient.setQueryData(
+          buildLocalRevisionChangesQueryOptions(prevSummary.id).queryKey,
+          null,
+        );
+      },
+    );
+    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    // The same region must stay mounted across the pick: a remounted one
+    // starts with its text and announces nothing.
+    const status = screen.getByText("Viewing brief 2 of 2.");
+    await openRevisionsTab();
+    fireEvent.click(listRevisionRows()[0]!);
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/briefs/prev-brief-1"),
+    );
+    expect(router.state.location.search).toEqual({
+      view: "full",
+      compare: "off",
+    });
+    await waitFor(() =>
+      expect(status.textContent).toBe("Viewing brief 1 of 2."),
+    );
+    expect(status.isConnected).toBe(true);
+  });
 
   it("renders the full Brief unchanged at compare=off when one is available", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");

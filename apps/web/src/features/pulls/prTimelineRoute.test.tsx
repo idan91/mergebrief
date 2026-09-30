@@ -26,6 +26,7 @@ import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
 } from "@web/test/attachments";
+import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
@@ -141,32 +142,15 @@ async function renderTimeline(
   return router;
 }
 
-const PICKER_NAME = /Select PR revision/;
-
-async function findPicker(): Promise<HTMLElement> {
-  return waitFor(() => screen.getByRole("button", { name: PICKER_NAME }));
-}
-
-/** Open the picker and hand back its rows, the current one ticked. */
-async function openPicker(): Promise<HTMLElement[]> {
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: PICKER_NAME }));
-  });
-  return screen.getAllByRole("option");
-}
-
-async function expectPickerAt(position: number): Promise<void> {
-  const options = await openPicker();
-  expect(options[position]?.getAttribute("aria-selected")).toBe("true");
-  await act(async () => {
-    fireEvent.keyDown(options[position]!, { key: "Escape" });
-  });
+function expectCurrentAt(position: number): void {
+  expect(listRevisionRows()[position]?.getAttribute("aria-current")).toBe(
+    "true",
+  );
 }
 
 async function choosePosition(position: number): Promise<void> {
-  const options = await openPicker();
   await act(async () => {
-    fireEvent.click(options[position]!);
+    fireEvent.click(listRevisionRows()[position]!);
   });
 }
 
@@ -175,22 +159,22 @@ describe("DB brief route revision timeline", () => {
 
   beforeEach(() => {
     setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+    window.localStorage.clear();
   });
 
-  it("renders the navigator with every revision in order, latest selected", async () => {
+  it("lists every revision in the Revisions tab, latest current", async () => {
     await renderTimeline(`/repos/${REPO_ID}/pulls/${PR_NUMBER}`);
-    await findPicker();
-    const options = await openPicker();
-    expect(options).toHaveLength(2);
-    expect(options[1]?.getAttribute("aria-selected")).toBe("true");
+    await openRevisionsTab();
+    expect(listRevisionRows()).toHaveLength(2);
+    expectCurrentAt(1);
   });
 
   it("selects a historical revision from ?head=, submit gated by the ack", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
-    await findPicker();
-    await expectPickerAt(0);
+    await openRevisionsTab();
+    expectCurrentAt(0);
     // No hard block: the read-only reason and posture are gone…
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
@@ -281,22 +265,24 @@ describe("DB brief route revision timeline", () => {
     });
   });
 
-  it("keeps focus on the navigator across a selection, so stepping continues", async () => {
+  it("hands focus back to the picked row once the next brief lands", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await findPicker();
-    picker.focus();
+    await openRevisionsTab();
+    const row = listRevisionRows()[0]!;
+    row.focus();
     await choosePosition(0);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
-    // No remount: the subtree is no longer keyed by brief id, so the very
-    // node the reviewer operated keeps focus and stepping continues.
-    await waitFor(() => expect(document.activeElement).toBe(picker));
+    // The sidebar remounts per brief; the new current row takes focus back.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(listRevisionRows()[0]),
+    );
   });
 
-  it("keeps focus on the arrow so a second press keeps stepping", async () => {
+  it("a second pick from the same list keeps navigating", async () => {
     const REV3: RevisionSummary = {
       headSha: "head-3",
       baseSha: "base-3",
@@ -312,36 +298,23 @@ describe("DB brief route revision timeline", () => {
         headSha: REV3.headSha,
       }),
     );
-    const prev = await waitFor(() =>
-      screen.getByRole("button", { name: /previous revision, 2/i }),
-    );
-    prev.focus();
-    fireEvent.click(prev);
+    await openRevisionsTab();
+    await choosePosition(1);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["rev"]).toBe(2),
     );
-    // No remount: the same arrow keeps focus, and pressing it again steps on.
-    await waitFor(() => expect(document.activeElement).toBe(prev));
-    fireEvent.click(
-      screen.getByRole("button", { name: /previous revision, 1/i }),
-    );
+    await choosePosition(0);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
-    // Oldest revision: the arrow is aria-disabled, not hard-disabled, so
-    // focus STAYS on it.
-    await waitFor(() =>
-      expect(document.activeElement?.getAttribute("aria-disabled")).toBe(
-        "true",
-      ),
-    );
+    expectCurrentAt(0);
   });
 
   it("selects without resetting scroll, a revision is a lateral move", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    await findPicker();
+    await openRevisionsTab();
     // jsdom has no layout to observe scroll with, so pin the option.
     const navigateSpy = vi.spyOn(router, "navigate");
     await choosePosition(0);
@@ -356,22 +329,23 @@ describe("DB brief route revision timeline", () => {
     navigateSpy.mockRestore();
   });
 
-  it("re-anchors to the brief when a selection left focus nowhere", async () => {
+  it("returns focus to the picked row even when the pick dropped it", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
-    const picker = await findPicker();
-    const options = await openPicker();
-    // The choice hands focus to the picker at once; dropping it in the same
-    // tick is the case nothing holds focus when the navigation lands.
-    fireEvent.click(options[0]!);
-    picker.blur();
+    await openRevisionsTab();
+    const row = listRevisionRows()[0]!;
+    // Focus dropped in the same tick as the pick: the tab still claims it
+    // once the next brief is live, rather than the brief's main region.
+    row.focus();
+    fireEvent.click(row);
+    row.blur();
     await act(async () => undefined);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["rev"]).toBe(1),
     );
     await waitFor(() =>
-      expect(document.activeElement?.id).toBe("main-content"),
+      expect(document.activeElement).toBe(listRevisionRows()[0]),
     );
   });
 
@@ -383,8 +357,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
     );
-    await findPicker();
-    await expectPickerAt(1);
+    await openRevisionsTab();
+    expectCurrentAt(1);
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     // The advisory view fronts the modal when unresolved items exist;
@@ -528,8 +502,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
       withBaseline,
     );
-    await findPicker();
-    await expectPickerAt(1);
+    await openRevisionsTab();
+    expectCurrentAt(1);
     fireEvent.click(screen.getByRole("radio", { name: /^previous brief$/i }));
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
@@ -551,14 +525,15 @@ describe("DB brief route revision timeline", () => {
         screen.getByText(/that revision link is no longer available/i),
       ).toBeTruthy(),
     );
-    await expectPickerAt(1);
+    await openRevisionsTab();
+    expectCurrentAt(1);
   });
 
   it("navigates to the picked revision's rev on selection", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
     );
-    await findPicker();
+    await openRevisionsTab();
     await choosePosition(0);
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
@@ -573,7 +548,6 @@ describe("DB brief route revision timeline", () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}&view=changes`,
     );
-    await findPicker();
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
       expect(search["rev"]).toBe(1);
@@ -581,7 +555,8 @@ describe("DB brief route revision timeline", () => {
       expect(search["base"]).toBeUndefined();
       expect(search["view"]).toBe("changes");
     });
-    await expectPickerAt(0);
+    // Changes Only hides the sidebar; the page announcer names the revision.
+    expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
   });
 
   it("addresses duplicate-head revisions by span, stale base read-only", async () => {
@@ -612,32 +587,25 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=head-2&base=base-old`,
       metaValue,
     );
-    const picker = await findPicker();
-    const rows = await openPicker();
-    expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
-    // …its picker entry is disambiguated by base…
+    await openRevisionsTab();
+    expectCurrentAt(1);
+    // …its row is told apart by its brief index, not its head…
     expect(
-      screen.getByRole("option", { name: /revision 2.*base base-ol/i }),
-    ).toBeDefined();
-    await act(async () => {
-      fireEvent.keyDown(rows[1]!, { key: "Escape" });
-    });
+      listRevisionRows().map((row) => row.textContent?.slice(0, 10)),
+    ).toEqual(["Revision 1", "Revision 2", "Revision 3"]);
     // …and although its head IS the current head, its base is superseded,
     // writes stay disabled with the base-drift reason (anchors would be read
     // against a diff that is not the PR's current one).
     expect(
       screen.getAllByText(/generated against a superseded base/i).length,
     ).toBeGreaterThan(0);
-    // Same head, different base: the selection resolves by full span, no
-    // remount, the operated picker keeps focus.
-    picker.focus();
-    expect(document.activeElement).toBe(picker);
+    // Same head, different base: the selection resolves by full span.
     await choosePosition(2);
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["rev"]).toBe(3),
     );
-    await waitFor(() => expect(document.activeElement).toBe(picker));
     cleanup();
+    window.localStorage.clear();
 
     // A BARE head resolves to the newest duplicate (backend at(-1) choice),
     // which is the current span → writable.
@@ -645,8 +613,8 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=head-2`,
       metaValue,
     );
-    await findPicker();
-    await expectPickerAt(2);
+    await openRevisionsTab();
+    expectCurrentAt(2);
     expect(screen.queryByText(/superseded base/i)).toBeNull();
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });
@@ -665,7 +633,7 @@ describe("DB brief route revision timeline", () => {
       },
     );
 
-    await findPicker();
+    await waitFor(() => screen.getByTestId("pr-description-toggle"));
     await act(async () => {
       fireEvent.click(screen.getByTestId("pr-description-toggle"));
     });
