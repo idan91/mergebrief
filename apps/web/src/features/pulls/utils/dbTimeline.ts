@@ -2,6 +2,11 @@
 // The selected revision's own base drives the brief GET because bases can drift.
 import type { PrComparisons, RevisionSummary } from "../types";
 import type { Mutable } from "types/utils";
+import { buildRevisionTimeline } from "@web/features/brief/utils";
+import type {
+  RevisionPoint,
+  RevisionTimelineView,
+} from "@web/features/brief/types";
 
 export interface DbTimelinePoint {
   readonly headSha: string;
@@ -110,4 +115,28 @@ export function resolveDbTimeline(
     previous: selectedIndex > 0 ? points[selectedIndex - 1] : undefined,
     next: selectedIndex < latestIndex ? points[selectedIndex + 1] : undefined,
   };
+}
+
+/** A DB revision's key in the timeline: its brief index, which `rev` names. */
+export function formatRevisionKey(point: DbTimelinePoint): string {
+  return String(point.headIndex);
+}
+
+/** The DB route's rows; the selected revision is current, dated when known. */
+export function buildRevisionTimelineViewFromDb(
+  selection: DbTimelineSelection,
+): RevisionTimelineView {
+  const points = selection.points.map((point, position) => {
+    const revision: RevisionPoint = {
+      key: formatRevisionKey(point),
+      ordinal: point.headIndex,
+      headSha: point.headSha,
+      current: position === selection.selectedIndex,
+    };
+    if (point.generatedAt !== undefined) {
+      revision.at = point.generatedAt;
+    }
+    return revision;
+  });
+  return buildRevisionTimeline(points);
 }

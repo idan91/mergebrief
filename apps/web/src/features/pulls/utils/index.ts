@@ -5,6 +5,8 @@ export {
   type Span,
 } from "./briefRouteState";
 export {
+  buildRevisionTimelineViewFromDb,
+  formatRevisionKey,
   resolveDbTimeline,
   type DbTimelinePoint,
   type RevisionRequest,

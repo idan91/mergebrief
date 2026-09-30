@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDbTimeline } from "./dbTimeline";
+import {
+  buildRevisionTimelineViewFromDb,
+  formatRevisionKey,
+  resolveDbTimeline,
+} from "./dbTimeline";
 import type { RevisionSummary } from "../types";
 
 function revision(overrides: Partial<RevisionSummary>): RevisionSummary {
@@ -145,5 +149,43 @@ describe("resolveDbTimeline with a rev request", () => {
     expect(resolveDbTimeline(duplicates, { rev: 3 })?.selected.baseSha).toBe(
       "b-new",
     );
+  });
+});
+
+describe("buildRevisionTimelineViewFromDb", () => {
+  it("keys rows by brief index, newest first, current on the selection", () => {
+    const selection = resolveDbTimeline(REVISIONS, { rev: 2 });
+    if (selection === undefined) {
+      throw new Error("no selection");
+    }
+    const view = buildRevisionTimelineViewFromDb(selection);
+    expect(view.rows.map((row) => row.key)).toEqual(["3", "2", "1"]);
+    expect(view.rows.map((row) => row.current)).toEqual([false, true, false]);
+    expect(view.rows[0]?.newest).toBe(true);
+  });
+
+  it("dates a row from its generation start when the point has one", () => {
+    const selection = resolveDbTimeline(
+      [
+        revision({ headSha: "h1", headIndex: 1 }),
+        revision({
+          headSha: "h2",
+          headIndex: 2,
+          generatedAt: "2026-09-30T10:00:00Z",
+        }),
+      ],
+      {},
+    );
+    if (selection === undefined) {
+      throw new Error("no selection");
+    }
+    const [newest, oldest] = buildRevisionTimelineViewFromDb(selection).rows;
+    expect(newest?.at).toBe("2026-09-30T10:00:00Z");
+    expect(oldest).not.toHaveProperty("at");
+  });
+
+  it("formats a revision key as its brief index", () => {
+    const selection = resolveDbTimeline(REVISIONS, {});
+    expect(selection && formatRevisionKey(selection.selected)).toBe("3");
   });
 });

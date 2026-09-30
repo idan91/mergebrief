@@ -1,10 +1,6 @@
 import type { TFunction } from "i18next";
 
-const SHORT_SHA_LENGTH = 7;
-
-export function getShortSha(sha: string): string {
-  return sha.slice(0, SHORT_SHA_LENGTH);
-}
+import { getShortSha } from "../../../utils/short-sha";
 
 /**
  * The span the row always states. The revision count is suppressed when both

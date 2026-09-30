@@ -691,6 +691,32 @@ export interface LocalBriefSummary {
   comparisons?: ComparisonAvailability;
 }
 
+/** One revision of a PR before it becomes a timeline row; route-shaped. */
+export interface RevisionPoint {
+  /** The route's own handle for the revision; selection resolves by it. */
+  key: string;
+  ordinal: number;
+  headSha: string;
+  /** ISO time the revision was briefed; absent where the route has none. */
+  at?: string;
+  current: boolean;
+}
+
+/** One row of the Revisions tab. */
+export interface RevisionRow {
+  key: string;
+  ordinal: number;
+  shortSha: string;
+  at?: string;
+  current: boolean;
+  newest: boolean;
+}
+
+/** The Revisions tab's rows, newest first; selection stays route-owned. */
+export interface RevisionTimelineView {
+  rows: RevisionRow[];
+}
+
 /** The head-file lines one click asks the file-range read for. */
 export interface ExpansionRange {
   from: number;

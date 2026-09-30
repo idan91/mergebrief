@@ -28,6 +28,10 @@ export {
 } from "./remainder";
 export { parseBriefContext, type RepoConfigContext } from "./repoConfig";
 export {
+  buildRevisionTimeline,
+  buildRevisionTimelineView,
+} from "./revision-timeline";
+export {
   parseBrief,
   parseComparisonMarks,
   parseDeltaBrief,

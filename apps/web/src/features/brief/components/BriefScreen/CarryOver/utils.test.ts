@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { appI18n } from "../../../../../i18n/I18nProvider";
-import { getShortSha, getSpanLabel } from "./utils";
+import { getSpanLabel } from "./utils";
 
 describe("getSpanLabel", () => {
   it("states both ends, and counts the revisions past the first", () => {
@@ -19,11 +19,5 @@ describe("getSpanLabel", () => {
     expect(getSpanLabel(appI18n.t, "a84c1de0000", "a84c1de0000", 4)).toBe(
       "a84c1de → a84c1de",
     );
-  });
-});
-
-describe("getShortSha", () => {
-  it("takes the first seven characters", () => {
-    expect(getShortSha("abcdef1234567890")).toBe("abcdef1");
   });
 });
