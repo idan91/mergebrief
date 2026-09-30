@@ -4,18 +4,23 @@
   .row {
     padding: functions.to-rem(8px) functions.to-rem(14px);
     border: 1px solid var(--color-outline-1);
-    border-inline-start: 2px solid var(--color-accent);
     border-radius: var(--radius-md);
     margin-block-end: functions.to-rem(16px);
     background: var(--color-surface-1);
-
-    &[data-state="pending"] {
-      border-inline-start-color: var(--color-warning);
-    }
   }
 
   .summary {
     margin: 0;
     color: var(--color-text-2);
+  }
+
+  .row[data-state="pending"] {
+    padding: functions.to-rem(12px) functions.to-rem(16px);
+  }
+
+  .row[data-state="pending"] .summary {
+    padding-block-end: functions.to-rem(6px);
+    color: var(--color-text-1);
+    font-weight: 600;
   }
 }

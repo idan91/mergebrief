@@ -18,13 +18,28 @@ export const ATTENTION_ACTION_COPY = {
 
 export type AttentionActionId = keyof typeof ATTENTION_ACTION_COPY;
 
-const KIND_COPY: Record<AttentionItemKind, TranslationKey> = {
-  "orphaned-anchor": "brief.carryOver.kindOrphanedAnchor",
-  "reopened-disposition": "brief.carryOver.kindReopenedDisposition",
-  "missing-evidence": "brief.carryOver.kindMissingEvidence",
+/** What happened to the item, and what clears it. */
+export interface KindCopy {
+  title: TranslationKey;
+  hint: TranslationKey;
+}
+
+const KIND_COPY: Record<AttentionItemKind, KindCopy> = {
+  "orphaned-anchor": {
+    title: "brief.carryOver.kindOrphanedAnchor",
+    hint: "brief.carryOver.hintOrphanedAnchor",
+  },
+  "reopened-disposition": {
+    title: "brief.carryOver.kindReopenedDisposition",
+    hint: "brief.carryOver.hintReopenedDisposition",
+  },
+  "missing-evidence": {
+    title: "brief.carryOver.kindMissingEvidence",
+    hint: "brief.carryOver.hintMissingEvidence",
+  },
 };
 
-export function getKindCopyKey(item: CarriedItem): TranslationKey {
+export function getKindCopy(item: CarriedItem): KindCopy {
   return KIND_COPY[item.kind];
 }
 

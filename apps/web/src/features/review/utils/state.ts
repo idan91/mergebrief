@@ -216,6 +216,10 @@ export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
   actionTargetId: string;
   /** This Brief renders nothing for the item's file, there is no jump. */
   unplaceable: boolean;
+  /** What the jump reads: the flag's file, or the draft's location. */
+  locationLabel: string;
+  /** The flag's risk attribute; absent on a draft. */
+  attribute?: string;
 }
 
 export interface CarriedInput {
@@ -309,6 +313,7 @@ function buildCarriedDraftItem(
       clearedBy: item.clearedBy,
       actionTargetId: id,
       unplaceable: false,
+      locationLabel: commentLocation(live),
     };
   }
   // No live draft: deleted (cleared) unless this Brief never had a row to put
@@ -325,6 +330,7 @@ function buildCarriedDraftItem(
     clearedBy: item.clearedBy,
     actionTargetId: id,
     unplaceable: true,
+    locationLabel: formatAttentionLocationLabel(item.location),
   };
 }
 
@@ -370,6 +376,8 @@ function buildCarriedDispositionItem(
     clearedBy: item.clearedBy,
     actionTargetId: pending.id,
     unplaceable: false,
+    locationLabel: pending.file,
+    attribute: pending.attr,
   };
 }
 

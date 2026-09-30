@@ -2,17 +2,21 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
+import { LinkButton } from "@web/components/LinkButton";
 import type { CarriedItem } from "@web/features/review/utils";
+import { RiskBadge } from "../../RiskBadge";
 import styles from "./AttentionList.module.scss";
 import {
   getActionCopyKey,
-  getKindCopyKey,
+  getKindCopy,
   getRunnableActions,
   type AttentionActionId,
 } from "./utils";
 
 export interface AttentionListProps {
   items: CarriedItem[];
+  /** The verdict the list stands in for; its accessible name. */
+  label: string;
   /** The draft waiting for its new home; its control reads as armed. */
   armedDraftId: string | null;
   /** Jumps to the item's location, which is the submit list's own mechanic. */
@@ -20,74 +24,86 @@ export interface AttentionListProps {
   runAction: (item: CarriedItem, action: AttentionActionId) => void;
 }
 
-/**
- * The carried items still needing a re-look. Each row states what happened,
- * where, and offers exactly the operations the server said would clear it.
- */
-export function AttentionList({
-  items,
+interface AttentionRowProps extends Omit<
+  AttentionListProps,
+  "items" | "label"
+> {
+  item: CarriedItem;
+}
+
+function AttentionRow({
+  item,
   armedDraftId,
   jumpToItem,
   runAction,
-}: AttentionListProps) {
+}: AttentionRowProps) {
   const { t } = useTranslation();
-  const noteId = useId();
+  const hintId = useId();
+  const armed = armedDraftId === item.actionTargetId;
+  const copy = getKindCopy(item);
+  const hint = item.unplaceable ? t("brief.carryOver.fileGone") : t(copy.hint);
 
   return (
-    <ul aria-label={t("brief.carryOver.listLabel")} className={styles["list"]}>
-      {items.map((item, index) => {
-        const itemNoteId = `${noteId}-${String(index)}`;
-        const armed = armedDraftId === item.actionTargetId;
-        return (
-          <li
-            className={styles["item"]}
-            data-testid="attention-item"
-            key={item.id}
+    <li className={styles["item"]} data-testid="attention-item">
+      <div className={styles["body"]}>
+        <span className={styles["kind"]}>{t(copy.title)}</span>
+        <span className={styles["where"]}>
+          {item.attribute === undefined ? null : (
+            <RiskBadge>{item.attribute}</RiskBadge>
+          )}
+          <LinkButton
+            className={styles["location"]}
+            data-testid="attention-jump"
+            disabled={item.unplaceable}
+            onClick={() => jumpToItem(item)}
           >
-            <span className={styles["kind"]}>{t(getKindCopyKey(item))}</span>
-            <Button
-              className={styles["location"]}
-              data-testid="attention-jump"
-              disabled={item.unplaceable}
-              onClick={() => jumpToItem(item)}
-              size="sm"
-              variant="quiet"
-            >
-              {item.label}
-            </Button>
-            <span className={styles["actions"]}>
-              {getRunnableActions(item).map((action) => (
-                <Button
-                  aria-describedby={item.unplaceable ? itemNoteId : undefined}
-                  aria-pressed={
-                    action === "reanchor-draft-comment" ? armed : undefined
-                  }
-                  data-testid={`attention-action-${action}`}
-                  disabled={
-                    item.unplaceable && action !== "delete-draft-comment"
-                  }
-                  key={action}
-                  onClick={() => runAction(item, action)}
-                  size="sm"
-                  variant="secondary"
-                >
-                  {t(getActionCopyKey(action, armed))}
-                </Button>
-              ))}
-            </span>
-            {armed ? (
-              <p className={styles["note"]}>
-                {t("brief.carryOver.reanchorHint")}
-              </p>
-            ) : null}
-            {item.unplaceable ? (
-              <p className={styles["note"]} id={itemNoteId}>
-                {t("brief.carryOver.fileGone")}
-              </p>
-            ) : null}
-          </li>
-        );
-      })}
+            {item.locationLabel}
+          </LinkButton>
+        </span>
+        <p className={styles["hint"]} id={hintId}>
+          {hint}
+        </p>
+        {armed ? (
+          <p className={styles["hint"]}>{t("brief.carryOver.reanchorHint")}</p>
+        ) : null}
+      </div>
+      <span className={styles["actions"]}>
+        {getRunnableActions(item).map((action) => (
+          <Button
+            aria-describedby={hintId}
+            aria-pressed={
+              action === "reanchor-draft-comment" ? armed : undefined
+            }
+            data-testid={`attention-action-${action}`}
+            disabled={item.unplaceable && action !== "delete-draft-comment"}
+            key={action}
+            onClick={() => runAction(item, action)}
+            size="sm"
+            variant="secondary"
+          >
+            {t(getActionCopyKey(action, armed))}
+          </Button>
+        ))}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * The carried items still needing a re-look. Each row states what happened,
+ * where, what clears it, and offers exactly the operations the server said
+ * would.
+ */
+export function AttentionList({
+  items,
+  label,
+  ...rowProps
+}: AttentionListProps) {
+  return (
+    <ul aria-label={label} className={styles["list"]}>
+      {items.map((item) => (
+        <AttentionRow item={item} key={item.id} {...rowProps} />
+      ))}
     </ul>
   );
 }

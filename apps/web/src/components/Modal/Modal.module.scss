@@ -115,6 +115,7 @@
     color: var(--color-warning);
     font-family: var(--mono);
     font-size: var(--font-size-md);
+    overflow-wrap: anywhere;
   }
 
   .warn {

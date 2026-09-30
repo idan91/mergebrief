@@ -199,8 +199,8 @@ export type Catalog = typeof en & {
       span: "{{from}} → {{to}}";
       spanRevisions_one: "{{from}} → {{to}} · {{count}} revision";
       spanRevisions_other: "{{from}} → {{to}} · {{count}} revisions";
-      pending_one: "{{count}} item needs a re-look";
-      pending_other: "{{count}} items need a re-look";
+      pending_one: "{{count}} item from your last review needs a re-look";
+      pending_other: "{{count}} items from your last review need a re-look";
     };
   };
   review: (typeof en)["review"] & {

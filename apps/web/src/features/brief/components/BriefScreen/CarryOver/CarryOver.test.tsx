@@ -3,7 +3,7 @@
 // attention list's clearing affordances, driven through the real screen,
 // because the list is what replaces the row and both are one region.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderInRouter } from "../../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -136,6 +136,10 @@ function getRowText(): string {
   return screen.getByTestId("carry-over-row").textContent ?? "";
 }
 
+function getRowStatus(): HTMLElement {
+  return within(screen.getByTestId("carry-over-row")).getByRole("status");
+}
+
 describe("carry-over row", () => {
   it("renders no row at all on a first-ever session", async () => {
     await renderScreen(buildPayload({ carriedFrom: null }));
@@ -193,23 +197,43 @@ describe("carry-over row", () => {
     expect(getRowText()).not.toContain("revisions");
   });
 
-  it("replaces the receipt verdict with pending items and keeps the span", async () => {
+  it("states the clean receipt as the box's single visible line", async () => {
+    await renderScreen(buildPayload({}));
+    const row = screen.getByTestId("carry-over-row");
+    const status = getRowStatus();
+    expect(row.querySelectorAll("p")).toHaveLength(1);
+    expect(row.getAttribute("data-state")).toBe("clean");
+    expect(status.textContent).toContain("Your review carried forward");
+  });
+
+  it("heads the pending list with its verdict", async () => {
     await renderScreen(buildOrphanedDraft());
-    expect(getRowText()).toContain("1 item needs a re-look");
-    expect(getRowText()).toContain("a84c1de → abcdef1");
+    const status = getRowStatus();
+    const verdict = "1 item from your last review needs a re-look";
+    expect(
+      screen.getByTestId("carry-over-row").getAttribute("data-state"),
+    ).toBe("pending");
+    expect(status.textContent).toBe(verdict);
+    expect(getRowText()).not.toContain("Your review carried forward");
+    expect(screen.getByRole("list", { name: verdict })).toBeTruthy();
     expect(screen.getAllByTestId("attention-item")).toHaveLength(1);
     expect(screen.getByText("Draft comment lost its lines")).toBeTruthy();
     // Not a notification: nothing dismisses the row.
     expect(screen.queryByRole("button", { name: /dismiss$/i })).toBeNull();
   });
 
-  it("returns to the receipt when the last item clears, never to nothing", async () => {
+  it("announces the receipt in the same live region once the last clears", async () => {
     await renderScreen(buildOrphanedDraft());
+    const status = getRowStatus();
     fireEvent.click(
       screen.getByTestId("attention-action-delete-draft-comment"),
     );
     expect(screen.queryByTestId("attention-item")).toBeNull();
-    expect(getRowText()).toContain("nothing needs a re-look");
+    expect(getRowStatus()).toBe(status);
+    expect(status.textContent).toContain("nothing needs a re-look");
+    expect(
+      screen.getByTestId("carry-over-row").getAttribute("data-state"),
+    ).toBe("clean");
   });
 
   it("arms placement for the re-anchor operation the item names", async () => {
@@ -245,7 +269,9 @@ describe("carry-over row", () => {
 
   it("offers both clearing operations for a reopened disposition", async () => {
     await renderScreen(buildCarriedDisposition("reopened-disposition"));
-    expect(screen.getByText("Flagged region changed again")).toBeTruthy();
+    expect(
+      screen.getByText("Flagged code changed after your decision"),
+    ).toBeTruthy();
     expect(screen.getByTestId("attention-action-address-risk")).toBeTruthy();
     fireEvent.click(screen.getByTestId("attention-action-dismiss-risk"));
     expect(screen.getByText("Dismiss flag")).toBeTruthy();
@@ -253,9 +279,25 @@ describe("carry-over row", () => {
 
   it("offers both clearing operations for carried evidence that is gone", async () => {
     await renderScreen(buildCarriedDisposition("missing-evidence"));
-    expect(screen.getByText("Evidence for this decision is gone")).toBeTruthy();
+    expect(screen.getByText("Evidence for your decision is gone")).toBeTruthy();
     expect(screen.getByTestId("attention-action-dismiss-risk")).toBeTruthy();
     fireEvent.click(screen.getByTestId("attention-action-address-risk"));
     expect(screen.getByText("Address risk with evidence")).toBeTruthy();
+  });
+
+  it("says what clears the item and ties the hint to its actions", async () => {
+    await renderScreen(buildCarriedDisposition("reopened-disposition"));
+    const hint = screen.getByText(
+      "Re-check the new code, then address the flag again or dismiss it.",
+    );
+    const address = screen.getByTestId("attention-action-address-risk");
+    expect(address.getAttribute("aria-describedby")).toBe(hint.id);
+  });
+
+  it("shows a flag's attribute apart from the file it jumps to", async () => {
+    await renderScreen(buildCarriedDisposition("reopened-disposition"));
+    const item = screen.getByTestId("attention-item");
+    expect(within(item).getByText(FLAG_ATTRIBUTE)).toBeTruthy();
+    expect(screen.getByTestId("attention-jump").textContent).toBe(FLAG_FILE);
   });
 });

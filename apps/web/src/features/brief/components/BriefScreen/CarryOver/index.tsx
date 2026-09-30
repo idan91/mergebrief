@@ -18,8 +18,8 @@ export interface CarryOverProps {
 }
 
 /**
- * The carry-over row: a receipt for work that moved with this revision, and
- * the attention list in its place while carried items still need a re-look.
+ * The carry-over row: a one-line receipt once nothing needs a re-look, and
+ * the verdict over the attention list while carried items still do.
  *
  * No dismiss control. Silent carry-over is invisible, and an unseen carry
  * gets re-checked by hand, which is the exact cost the carry-over removes.
@@ -33,42 +33,45 @@ export function CarryOver({
   const { t } = useTranslation();
   const view = useCarryOver({ session, model, jumpToItem });
 
-  if (view === null) return null;
+  if (view === null) {
+    return null;
+  }
 
-  // Every state says the same three things; only the verdict changes, and it
-  // never becomes "nothing", because the last cleared item lands back on it.
-  const getVerdict = (): string => {
-    if (view.items.length === 0) return t("brief.carryOver.clean");
-    return t("brief.carryOver.pending", { count: view.items.length });
-  };
+  const pending = view.items.length > 0;
+  const verdict = pending
+    ? t("brief.carryOver.pending", { count: view.items.length })
+    : t("brief.carryOver.clean");
+  const receipt = t("brief.carryOver.receipt", {
+    count: view.carriedFrom.items,
+    span: getSpanLabel(
+      t,
+      view.carriedFrom.headSha,
+      headSha,
+      view.carriedFrom.revisions,
+    ),
+    verdict,
+  });
+  const statusText = pending ? verdict : receipt;
 
   return (
     <aside
       aria-label={t("brief.carryOver.regionLabel")}
       className={styles["row"]}
-      data-state={view.items.length > 0 ? "pending" : "clean"}
+      data-state={pending ? "pending" : "clean"}
       data-testid="carry-over-row"
     >
-      {/* Live: the last cleared item turns the list back into the receipt,
-        and a reviewer who cleared it from the diff never saw this region. */}
+      {/* One live region across both states, so the last cleared item
+          announces the receipt it lands on. */}
       <p className={styles["summary"]} role="status">
-        {t("brief.carryOver.receipt", {
-          count: view.carriedFrom.items,
-          span: getSpanLabel(
-            t,
-            view.carriedFrom.headSha,
-            headSha,
-            view.carriedFrom.revisions,
-          ),
-          verdict: getVerdict(),
-        })}
+        {statusText}
       </p>
 
-      {view.items.length > 0 ? (
+      {pending ? (
         <AttentionList
           armedDraftId={view.armedDraftId}
           items={view.items}
           jumpToItem={jumpToItem}
+          label={verdict}
           runAction={view.runAction}
         />
       ) : null}
