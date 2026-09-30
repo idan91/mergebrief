@@ -176,6 +176,8 @@ export function BriefScreen({
       conversationWiring.conversationComposer,
     ],
   );
+  const readThroughAvailable =
+    overlay.compareState.view === "full" && session.chunkIds.length > 0;
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
       ? {}
@@ -285,6 +287,11 @@ export function BriefScreen({
                     key={`toolbar-${briefId}`}
                     comparison={overlay.comparison}
                     revisionNav={revisionNav}
+                    startReadThrough={
+                      readThroughAvailable
+                        ? session.startReadThrough
+                        : undefined
+                    }
                     filter={
                       conversation !== undefined &&
                       onConversationFilterChange !== undefined &&
@@ -395,10 +402,6 @@ export function BriefScreen({
                           markReviewed={session.markReviewed}
                           marksDisabled={writesDisabled}
                           toggleChunk={session.toggleChunk}
-                          {...(overlay.compareState.view === "full" &&
-                          session.chunkIds.length > 0
-                            ? { startReadThrough: session.startReadThrough }
-                            : {})}
                         />
                       </LensPane>
                     </div>

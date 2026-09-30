@@ -47,7 +47,6 @@ import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
 import { deriveGroupSectionId, type SidebarLayout } from "../utils";
-import { Button } from "@web/components/Button";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import styles from "./StoryView.module.scss";
 
@@ -65,8 +64,6 @@ export interface StoryViewProps {
   openChunks: Set<string>;
   addressedReviewComments: AddressedReviewComment[] | undefined;
   jumpToChunk: (chunkId: string) => void;
-  /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
-  startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
   /** Writes are off (no session): the Viewed toggles disable. */
   marksDisabled?: boolean;
@@ -109,7 +106,6 @@ export function StoryView(props: StoryViewProps) {
     requestedView === DiffViews.SPLIT && splitWidth.wideEnough
       ? DiffViews.SPLIT
       : DiffViews.UNIFIED;
-  const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
   const { lineOwnersByFile } = props;
   const addressedReviewComments =
@@ -129,19 +125,6 @@ export function StoryView(props: StoryViewProps) {
       className={styles["storyView"]}
       data-zen={props.focusMode ? "on" : undefined}
     >
-      {/* Start read-through stays in the flow it enters, and scrolls away
-          with it. */}
-      {props.startReadThrough && !props.focusMode ? (
-        <div className={`${styles["entryRow"]} reveal`}>
-          <Button
-            className={styles["readThrough"]}
-            size="sm"
-            onClick={props.startReadThrough}
-          >
-            {t("brief.story.startReadThrough")}
-          </Button>
-        </div>
-      ) : null}
       {props.model.groups.map((group) => {
         const isActiveFocusGroup =
           props.focusMode && group.id === activeFocusGroupId;

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -166,7 +172,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
 
     const nav = screen.getByRole("navigation", {
@@ -190,7 +196,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
 
     fireEvent.click(
@@ -203,7 +209,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
 
     fireEvent.click(viewedCheckboxFor("chunk-1"));
@@ -221,7 +227,7 @@ describe("Read-through progress + auto-advance", () => {
       expect(viewedCheckboxFor("chunk-2").checked).toBe(true),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
@@ -238,7 +244,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
 
     fireEvent.keyDown(window, { key: "v" });
@@ -278,7 +284,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
@@ -296,7 +302,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
     for (const chunkId of ["chunk-1", "chunk-2", "chunk-3"]) {
       fireEvent.click(viewedCheckboxFor(chunkId));
@@ -326,6 +332,21 @@ describe("Read-through progress + auto-advance", () => {
       expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
     );
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
+  });
+
+  it("offers Start read-through in the toolbar and hides it in focus mode", async () => {
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    const toolbar = screen.getByTestId("reading-toolbar");
+    expect(
+      within(toolbar).getByRole("button", { name: /Start read-through/ }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "z" });
+    await screen.findByTestId("focus-banner");
+    expect(
+      screen.queryByRole("button", { name: /Start read-through/ }),
+    ).toBeNull();
   });
 
   it("keeps the focus banner's key hints as kbd elements", async () => {
@@ -358,7 +379,7 @@ describe("Read-through progress + auto-advance", () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));

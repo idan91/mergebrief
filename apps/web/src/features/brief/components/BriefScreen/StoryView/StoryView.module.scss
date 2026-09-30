@@ -7,24 +7,6 @@
     flex-direction: column;
   }
 
-  // The read-through entry affordance's own slim row.
-  .entryRow {
-    display: flex;
-    justify-content: flex-end;
-    margin-block: 0 functions.to-rem(14px);
-  }
-
-  // Read-through entry point: solid surface (never transparent over diff
-  // content); chrome comes from Button sm.
-  .readThrough {
-    flex: none;
-    background: var(--color-surface-1);
-
-    &:hover {
-      background: var(--color-surface-1);
-    }
-  }
-
   // Sticky column capped to the viewport; the rail itself never scrolls —
   // only .railScroller (the region below the stats divider) does, so the
   // toggle + step/meta header stays fixed while details scroll under it.

@@ -271,3 +271,29 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
   });
 });
+
+describe("ReadingToolbar read-through entry", () => {
+  it("starts the read-through from the nav cluster, ahead of collapse", () => {
+    const startReadThrough = vi.fn();
+    renderToolbar({ startReadThrough });
+    const button = screen.getByRole("button", { name: /Start read-through/ });
+    const collapse = screen.getByRole("button", {
+      name: /Collapse supporting/,
+    });
+    const precedesCollapse =
+      button.compareDocumentPosition(collapse) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+
+    expect(button.parentElement).toBe(collapse.parentElement);
+    expect(precedesCollapse).toBeTruthy();
+    fireEvent.click(button);
+    expect(startReadThrough).toHaveBeenCalledOnce();
+  });
+
+  it("offers no read-through entry when the screen withholds it", () => {
+    renderToolbar();
+    expect(
+      screen.queryByRole("button", { name: /Start read-through/ }),
+    ).toBeNull();
+  });
+});

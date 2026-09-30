@@ -1,6 +1,6 @@
 // The reduced-motion contract. `prefersReducedMotion()` is read at CALL time
 // inside the chunk scroller, so only a real media query in a real browser can
-// judge it — jsdom has no `matchMedia` to emulate against.
+// judge it: jsdom has no `matchMedia` to emulate against.
 //
 // The observable is the scroll REQUEST, not the resulting offset: a smooth
 // scroll animates over frames, so asserting on `window.scrollY` would race
@@ -48,14 +48,15 @@ async function readThroughBehaviors(
 ): Promise<(string | undefined)[]> {
   await page.addInitScript(RECORD_SCROLL_REQUESTS);
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  // Drop the scroll restoration the router performs on arrival — only the
+  // Drop the scroll restoration the router performs on arrival; only the
   // read-through's own request is under test.
   await page.evaluate(() => {
     (
       window as unknown as { e2eScrollRequests: unknown[] }
     ).e2eScrollRequests.length = 0;
   });
-  await page.getByRole("button", { name: "Start read-through" }).click();
+  // At 1280px and below the toolbar shows the short label, "Read-through".
+  await page.getByRole("button", { name: /read-through/i }).click();
   await expect.poll(() => scrollBehaviors(page)).not.toHaveLength(0);
   return scrollBehaviors(page);
 }

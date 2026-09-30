@@ -51,6 +51,8 @@ export interface ReadingToolbarProps {
   /** Screen-owned: the jump needs the model target list and the window
    * registry, which live above this bar. */
   revisionNav: RevisionNavigation;
+  /** Enters Read-through at step 1; absent while comparing or with no chunks. */
+  startReadThrough?: (() => void) | undefined;
 }
 
 /**
@@ -67,6 +69,7 @@ export function ReadingToolbar({
   toggleCollapseSupporting,
   comparison,
   revisionNav,
+  startReadThrough,
 }: ReadingToolbarProps) {
   const { t } = useTranslation();
   const { jumpPrev, jumpNext } = revisionNav;
@@ -119,6 +122,16 @@ export function ReadingToolbar({
         <RiskAttrsDisclosure jumpToGroup={jumpToGroup} rail={rail} />
       ) : null}
       <div className={styles["navCluster"]}>
+        {startReadThrough !== undefined ? (
+          <ToolbarButton onClick={startReadThrough}>
+            <span className={styles["labelShort"]}>
+              {t("brief.toolbar.startReadThroughShort")}
+            </span>
+            <span className={styles["labelLong"]}>
+              {t("brief.toolbar.startReadThrough")}
+            </span>
+          </ToolbarButton>
+        ) : null}
         <ToolbarButton
           aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
           onClick={toggleCollapseSupporting}

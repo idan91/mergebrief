@@ -196,11 +196,6 @@
       "count": 3
     }
   },
-  "apps/web/e2e/specs/reducedMotion.e2e.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/e2e/specs/storyInteractions.e2e.ts": {
     "house/no-em-dash": {
       "count": 3
