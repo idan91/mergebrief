@@ -29,6 +29,7 @@ import {
   type CommentAnchor,
 } from "@web/features/review/utils";
 import { ChunkCard } from "./ChunkCard";
+import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
@@ -81,6 +82,8 @@ export interface StoryViewProps {
   sidebar?: SidebarLayout | undefined;
   /** Card column width control; absent leaves the groups without a splitter. */
   cardTrack?: StoryCardTrackControl | undefined;
+  /** Focus mode's step and Viewed controls under the chunk. */
+  chunkFooter?: ChunkFooterWiring | undefined;
 }
 
 export interface StoryCardTrackControl {
@@ -187,6 +190,13 @@ export function StoryView(props: StoryViewProps) {
           </section>
         );
       })}
+      {props.focusMode && props.chunkFooter ? (
+        <ChunkFooter
+          groups={props.model.groups}
+          marksDisabled={props.marksDisabled}
+          wiring={props.chunkFooter}
+        />
+      ) : null}
     </div>
   );
 }

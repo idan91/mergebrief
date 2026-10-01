@@ -83,6 +83,7 @@ export function BriefScreen({
 }: BriefScreenProps) {
   const {
     t,
+    chunkFooter,
     focusPanel,
     focusPanelShown,
     attributeRail,
@@ -419,6 +420,7 @@ export function BriefScreen({
                           markReviewed={session.markReviewed}
                           marksDisabled={writesDisabled}
                           toggleChunk={session.toggleChunk}
+                          chunkFooter={chunkFooter}
                         />
                       </LensPane>
                     </div>

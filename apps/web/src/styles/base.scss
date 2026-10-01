@@ -323,12 +323,14 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
 
   // margin-inline: auto inside the story view's flex column shrinks the
   // section to its content without the explicit inline-size.
-  [data-zen="on"] .story-group {
+  [data-zen="on"] .story-group,
+  [data-zen="on"] .chunk-footer {
     display: block;
     inline-size: 100%;
     max-inline-size: var(--focus-max);
     margin-inline: auto;
     padding-inline: var(--focus-gutter);
+    margin-block-end: 0;
     transition: translate 260ms var(--ease-out);
   }
 
@@ -336,6 +338,16 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     --chunk-head-reserve: calc(
       var(--focus-panel-w) + var(--focus-panel-inset) - var(--focus-gutter)
     );
+  }
+
+  .main[data-focus-panel="open"] .chunk-footer {
+    --chunk-head-reserve: calc(
+      var(--focus-panel-w) + 2 * var(--focus-panel-inset) - var(--focus-gutter)
+    );
+  }
+
+  [data-zen="on"] .chunk-footer {
+    padding-inline-end: calc(var(--focus-gutter) + var(--chunk-head-reserve));
   }
 
   // 1832px is --focus-max - --focus-gutter + --focus-panel-w + two
@@ -350,11 +362,13 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
       --focus-panel-end: calc((100vw - var(--focus-pair-w)) / 2);
     }
 
-    .main[data-focus-panel="open"] .story-group {
+    .main[data-focus-panel="open"] .story-group,
+    .main[data-focus-panel="open"] .chunk-footer {
       translate: calc((var(--focus-panel-w) + var(--focus-gutter)) / -2) 0;
     }
 
-    .main[data-focus-panel="open"] .group-chunks article[data-current] {
+    .main[data-focus-panel="open"] .group-chunks article[data-current],
+    .main[data-focus-panel="open"] .chunk-footer {
       /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
       --chunk-head-reserve: 0px;
     }

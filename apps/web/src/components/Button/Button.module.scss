@@ -49,26 +49,26 @@
 
       &:hover {
         border-color: color-mix(
-          in srgb,
-          var(--color-accent) 90%,
+          in oklch,
+          var(--color-accent) 85%,
           var(--color-background)
         );
         background: color-mix(
-          in srgb,
-          var(--color-accent) 90%,
+          in oklch,
+          var(--color-accent) 85%,
           var(--color-background)
         );
       }
 
       &:active {
         border-color: color-mix(
-          in srgb,
-          var(--color-accent) 82%,
+          in oklch,
+          var(--color-accent) 75%,
           var(--color-background)
         );
         background: color-mix(
-          in srgb,
-          var(--color-accent) 82%,
+          in oklch,
+          var(--color-accent) 75%,
           var(--color-background)
         );
       }

@@ -1,0 +1,19 @@
+@use "functions";
+
+@layer components {
+  .button {
+    gap: functions.to-rem(8px);
+
+    &[aria-disabled="true"] {
+      opacity: 0.4;
+    }
+  }
+
+  .key {
+    display: inline-flex;
+
+    @media (hover: none) {
+      display: none;
+    }
+  }
+}

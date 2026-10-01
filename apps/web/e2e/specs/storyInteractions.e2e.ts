@@ -130,6 +130,26 @@ test("focus mode quiets the header and lands the chunk below the pill", async ({
     .toBeGreaterThanOrEqual(0);
 });
 
+test("the chunk footer steps on and keeps focus on its button", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await page.keyboard.press("z");
+  const footer = page.getByTestId("chunk-footer");
+  const current = page.locator("main article[data-current]");
+  const firstId = await current.getAttribute("id");
+
+  await expect(
+    footer.getByRole("button", { name: "Previous chunk" }),
+  ).toHaveAttribute("aria-disabled", "true");
+  const next = footer.getByRole("button", { name: /^Next/ });
+  await next.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(current).not.toHaveAttribute("id", firstId ?? "");
+  await expect(next).toBeFocused();
+});
+
 test("the focus panel hides for a group and returns on the next", async ({
   page,
 }) => {

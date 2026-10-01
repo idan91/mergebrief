@@ -542,6 +542,11 @@ export function useBriefScreenFacade({
     );
   };
 
+  const chunkFooter = {
+    jumpToChunk: session.jumpToChunkFromShortcut,
+    toggleViewed: markViewedFromShortcut,
+  };
+
   const cardTrack = useStoryCardTrack();
 
   const diffPreference = useDiffViewPreference({
@@ -628,6 +633,7 @@ export function useBriefScreenFacade({
 
   return {
     t,
+    chunkFooter,
     focusPanel,
     focusPanelShown,
     conversationPlan,

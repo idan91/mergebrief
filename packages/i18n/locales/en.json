@@ -654,6 +654,15 @@
       "exit": "exit",
       "all": "all"
     },
+    "chunkFooter": {
+      "ariaLabel": "Chunk navigation",
+      "previousChunk": "Previous chunk",
+      "previousGroup": "Previous group",
+      "nextChunk": "Next chunk",
+      "nextGroup": "Next group",
+      "markViewed": "Mark viewed",
+      "markUnviewed": "Mark unviewed"
+    },
     "focusPanel": {
       "ariaLabel": "Focused change-group context",
       "detailsLabel": "Change-group details",

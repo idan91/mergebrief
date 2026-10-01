@@ -1,0 +1,19 @@
+@use "functions";
+
+@layer components {
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(8px);
+    margin-block: 0 functions.to-rem(48px);
+  }
+
+  .end {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(8px);
+    margin-inline-start: auto;
+  }
+}
