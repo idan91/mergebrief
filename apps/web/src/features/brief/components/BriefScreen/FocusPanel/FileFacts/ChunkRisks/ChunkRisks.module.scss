@@ -1,0 +1,21 @@
+@use "functions";
+
+@layer components {
+  .label {
+    margin-block-end: functions.to-rem(8px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    font-weight: 400;
+  }
+
+  .risks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
+  }
+
+  .noRisks {
+    color: var(--color-text-3);
+    font-size: var(--font-size-lg);
+  }
+}

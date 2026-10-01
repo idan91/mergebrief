@@ -237,11 +237,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/readingPosition.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/useDelayedPending.test.tsx": {
     "house/no-em-dash": {
       "count": 2

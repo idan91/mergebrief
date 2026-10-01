@@ -4,15 +4,15 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 /**
  * Reading-position store (zustand-in-context, the ReviewFlow recipe): where
- * the reader IS — written by the scroll-spy and every explicit navigation,
+ * the reader IS, written by the scroll-spy and every explicit navigation,
  * subscribed to by the few components that show position (active card, TOC
- * bar, toolbar counter, focus rail, read-through progress). The screen shell
+ * bar, toolbar counter, focus panel, read-through progress). The screen shell
  * never subscribes, so a scroll-spy tick re-renders only those consumers.
  */
 export interface ReadingPositionState {
   activeChunkId: string | null;
   /** Set together with the chunk by the writer (which holds the chunk→group
-   * map) — consumers never re-derive the group. */
+   * map); consumers never re-derive the group. */
   activeGroupId: string | null;
 }
 

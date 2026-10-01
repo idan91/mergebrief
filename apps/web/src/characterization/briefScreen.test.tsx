@@ -168,31 +168,25 @@ describe("brief screen characterization", () => {
     expect(document.querySelector("article[data-current]")).toBeTruthy();
   });
 
-  it("shows collapsible change-group context in focus mode", async () => {
+  it("shows the change-group context panel in focus mode and hides it", async () => {
     await renderBriefScreen();
 
     fireEvent.keyDown(window, { key: "z" });
 
-    const rail = await screen.findByRole("complementary", {
+    const panel = await screen.findByRole("complementary", {
       name: "Focused change-group context",
     });
-    expect(rail.textContent).toContain(briefFixture.changeGroups[0]!.title);
-    expect(rail.textContent).toContain(briefFixture.changeGroups[0]!.summary);
-    expect(rail.textContent).toContain("Active chunk risks");
-    expect(rail.textContent).toContain("no-tests");
+    expect(panel.textContent).toContain(briefFixture.changeGroups[0]!.title);
+    expect(panel.textContent).toContain(briefFixture.changeGroups[0]!.summary);
+    expect(panel.textContent).toContain("Active chunk risks");
+    expect(panel.textContent).toContain("no-tests");
 
-    const toggle = screen.getByRole("button", {
-      name: "Collapse group context",
-    });
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Hide context (S)" }));
 
-    fireEvent.click(toggle);
-
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(rail.textContent).toContain("Group 1");
-    expect(rail.textContent).not.toContain(
-      briefFixture.changeGroups[0]!.summary,
-    );
+    expect(panel.dataset["state"]).toBe("closed");
+    expect(
+      screen.getByRole("button", { name: "Group 1: show context (S)" }),
+    ).toBeTruthy();
   });
 
   it("top-aligns the next chunk when using J in focus mode", async () => {

@@ -2,15 +2,12 @@ import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../types";
 import { hasPairedSides } from "@web/components/DiffRows/utils";
-import { LocSign, LocSigns } from "@web/components/LocSign";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useSplitWidth } from "./useSplitWidth";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { useTranslation } from "react-i18next";
 import {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useState,
   type FocusEvent,
@@ -19,10 +16,7 @@ import {
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief, BriefChunk } from "../../../types";
 import { countExpandedRows } from "../../../utils/expansionState";
-import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
-import { GroupViewKinds } from "../../../utils/viewModel";
-import { resolveGroupName } from "../../../utils/resolveGroupName";
-import { isUnattributedRemainderChunk } from "../../../utils/remainder";
+import type { BriefViewModel } from "../../../utils/viewModel";
 import type {
   DigestRow,
   DigestThreadRow,
@@ -37,9 +31,6 @@ import {
 import { ChunkCard } from "./ChunkCard";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
-import { RiskBadge } from "../RiskBadge";
-import { RiskChipDisclosure } from "../RiskChipDisclosure";
-import { RiskDetailList } from "../RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useFileRows } from "../../../hooks/useFileRows";
 import { type FileLineOwners, type LineTarget } from "../../../utils/lineOwner";
@@ -47,11 +38,9 @@ import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
 import { deriveGroupSectionId, type SidebarLayout } from "../utils";
-import { ToolbarButton } from "@web/components/ToolbarButton";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
-const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
 export interface StoryViewProps {
   brief: Brief;
@@ -106,7 +95,6 @@ export function StoryView(props: StoryViewProps) {
     requestedView === DiffViews.SPLIT && splitWidth.wideEnough
       ? DiffViews.SPLIT
       : DiffViews.UNIFIED;
-  const [focusRailOpen, setFocusRailOpen] = useState(true);
   const { lineOwnersByFile } = props;
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
@@ -117,8 +105,6 @@ export function StoryView(props: StoryViewProps) {
   const activeFocusGroupId = useReadingPosition((state) =>
     focusMode ? state.activeGroupId : null,
   );
-  const focusRailState = focusRailOpen ? "open" : "collapsed";
-  const focusRailAttr = props.focusMode ? focusRailState : undefined;
 
   return (
     <div
@@ -138,7 +124,6 @@ export function StoryView(props: StoryViewProps) {
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
             data-diff-view={groupView}
-            data-focus-rail={focusRailAttr}
           >
             {props.focusMode ? (
               <div className="group-chunks" ref={splitWidth.attachWrapper}>
@@ -179,15 +164,6 @@ export function StoryView(props: StoryViewProps) {
                 view={props}
               />
             )}
-            {isActiveFocusGroup ? (
-              <FocusGroupRail
-                group={group}
-                model={props.model}
-                open={focusRailOpen}
-                setOpen={setFocusRailOpen}
-                jumpToChunk={props.jumpToChunk}
-              />
-            ) : null}
             {props.focusMode || props.cardTrack === undefined ? null : (
               <StorySplitter
                 sidebar={props.sidebar}
@@ -453,194 +429,6 @@ function WindowedChunkList({
         );
       })}
     </div>
-  );
-}
-
-interface FocusGroupRailProps {
-  group: BriefViewModel["groups"][number];
-  model: BriefViewModel;
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  jumpToChunk: (chunkId: string) => void;
-}
-
-function FocusGroupRail({
-  group,
-  model,
-  open,
-  setOpen,
-  jumpToChunk,
-}: FocusGroupRailProps) {
-  const { t } = useTranslation();
-  const activeChunkId = useReadingPosition((state) => state.activeChunkId);
-  const panelId = useId();
-  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
-  const isRemainder = group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER;
-  const activeChunk =
-    group.chunks.find((chunk) => chunk.id === activeChunkId) ??
-    group.chunks[0] ??
-    null;
-
-  return (
-    <aside
-      aria-label={t("brief.story.ariaLabelFocusContext")}
-      className={`${styles["focusRail"]} focus-group-rail`}
-      data-state={open ? "open" : "collapsed"}
-    >
-      <ToolbarButton
-        aria-controls={panelId}
-        aria-expanded={open}
-        aria-label={
-          open
-            ? t("brief.story.ariaLabelCollapseContext")
-            : t("brief.story.ariaLabelExpandContext")
-        }
-        className={styles["railToggle"]}
-        onClick={() => setOpen(!open)}
-      >
-        <span className={styles["railToggleText"]}>
-          {group.readingOrderStep !== undefined
-            ? t("brief.story.stepLabel", { step: group.readingOrderStep })
-            : t("brief.story.groupLabel", { index: group.index + 1 })}
-        </span>
-        <span aria-hidden="true" className={styles["railToggleMark"]}>
-          {open ? "−" : "+"}
-        </span>
-      </ToolbarButton>
-      {open ? (
-        <div className={styles["railPanel"]} id={panelId}>
-          <div className={styles["railHead"]}>
-            <div className={styles["railMeta"]}>
-              {group.readingOrderStep !== undefined
-                ? t("brief.story.stepOf", {
-                    step: group.readingOrderStep,
-                    total: model.groups.length,
-                  })
-                : t("brief.story.groupOf", {
-                    index: group.index + 1,
-                    total: model.groups.length,
-                  })}
-            </div>
-            <h2 className={styles["railTitle"]}>
-              {resolveGroupName(t, group)}
-            </h2>
-            <p className={styles["railSummary"]}>
-              {group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER
-                ? t("brief.unattributed.remainderSummary")
-                : group.group.summary}
-            </p>
-            {group.kind === GroupViewKinds.ATTRIBUTED &&
-            group.readingOrderWhy ? (
-              <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
-            ) : null}
-            {group.kind === GroupViewKinds.ATTRIBUTED ? (
-              <div className={styles["railChips"]}>
-                <span className={styles["railChip"]} data-kind="dominant">
-                  {t("brief.story.railDominant", {
-                    category: group.group.dominantCategory,
-                  })}
-                </span>
-                {group.group.secondaryCategories.map((category) => (
-                  <span className={styles["railChip"]} key={category}>
-                    {t("brief.story.railSecondary", { category })}
-                  </span>
-                ))}
-                {group.group.uncertain ? (
-                  <span className={styles["railChip"]} data-kind="uncertain">
-                    {t("brief.story.railUncertain")}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <div
-            aria-label={t("brief.story.ariaLabelGroupDetails")}
-            className={styles["railScroller"]}
-            role="region"
-            tabIndex={0}
-          >
-            <div className={styles["railStats"]}>
-              <span>
-                <LocSign sign={LocSigns.ADD} count={group.added} /> /{" "}
-                <LocSign sign={LocSigns.DEL} count={group.deleted} />
-              </span>
-              {isRemainder ? null : (
-                <span>
-                  {t("brief.story.flags", { count: groupFlags.length })}
-                </span>
-              )}
-            </div>
-            {isRemainder || !activeChunk ? null : (
-              <div className={styles["railRiskFacts"]}>
-                <div className={styles["railLabel"]}>
-                  {t("brief.story.railActiveRisks")}
-                </div>
-                {activeChunk.riskSurface.length > 0 ? (
-                  <div className={styles["railRiskChips"]}>
-                    {activeChunk.riskSurface.map((risk) => {
-                      const meta = model.riskMetaByChunk
-                        .get(activeChunk.id)
-                        ?.get(risk);
-                      if (
-                        meta?.source === "repo-policy" ||
-                        meta?.deEmphasized
-                      ) {
-                        return (
-                          <RiskChipDisclosure
-                            detail={
-                              <RiskDetailList
-                                attrs={[risk]}
-                                metaFor={() => meta}
-                              />
-                            }
-                            key={risk}
-                          >
-                            <RiskBadge meta={meta}>{risk}</RiskBadge>
-                          </RiskChipDisclosure>
-                        );
-                      }
-                      return (
-                        <RiskBadge key={risk} meta={meta}>
-                          {risk}
-                        </RiskBadge>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className={styles["railNoRisks"]}>
-                    {t("brief.story.railNoRisks")}
-                  </p>
-                )}
-              </div>
-            )}
-            <div className={styles["railChunkList"]}>
-              <div className={styles["railLabel"]}>
-                {t("brief.story.railChunks")}
-              </div>
-              {group.chunks.map((chunk) => (
-                // oxlint-disable-next-line house/no-raw-button -- multi-line card-as-button: arbitrary block content
-                <button
-                  className={styles["railChunkButton"]}
-                  data-current={chunk.id === activeChunkId ? "" : undefined}
-                  key={`${chunk.file}#${chunk.id}`}
-                  type="button"
-                  onClick={() => jumpToChunk(chunk.id)}
-                >
-                  <span className={styles["railChunkFile"]}>{chunk.file}</span>
-                  <span className={styles["railChunkMeta"]}>
-                    {isUnattributedRemainderChunk(chunk) ? null : (
-                      <>{chunk.role} · </>
-                    )}
-                    <LocSign sign={LocSigns.ADD} count={chunk.loc.added} /> /{" "}
-                    <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </aside>
   );
 }
 

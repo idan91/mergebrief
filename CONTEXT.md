@@ -343,8 +343,12 @@ What the Brief page shows in place of a **Brief** while there is none to read: w
 _Avoid_: state card, error card, placeholder
 
 **Focus mode**:
-The reading mode that strips the Brief page to the story flow alone — summary, toolbar, conversation, group TOC and **Sidebar** all hidden — with a single exit control. A mode of the page, not a filter of its content.
+The reading mode that strips the Brief page to one chunk at a time on a wide column. Summary, toolbar, conversation, group TOC and **Sidebar** are all hidden; a pill at the top carries progress and the single exit, and the **Context panel** sits beside the chunk. A mode of the page, not a filter of its content.
 _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)
+
+**Context panel**:
+The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, counts), the current chunk's file facts and risks, and the group's chunk list. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group.
+_Avoid_: rail (that is the **Jump-rail**), sidebar (that is the **Sidebar**), drawer, overlay (that is the **Comparison overlay**)
 
 **Scope** (Full vs Changes):
 Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions: the summary plus the changed lines, reviewable in place. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.

@@ -40,6 +40,7 @@
     // surface-3 sits below outline-1 on purpose: a menu's fill is darker
     // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
+    --color-focus-ground: oklch(11.5% 0.008 var(--brand-hue)); // focus mode
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
     --color-surface-3: var(--gray-750); // top: toasts, chips, highest hovers
@@ -192,6 +193,7 @@
     --motion-slow: 320ms;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
     // ── Layout ───────────────────────────────────────────────────────────
     // The one-tier Header's height; the Brief page's two tiers derive below.
@@ -206,9 +208,23 @@
       calc((100% - #{functions.to-rem(1080px)}) / 2)
     );
 
-    // What focus mode paints behind its chrome, so content scrolls out of
-    // sight under the header and the pill's band.
-    --focus-page-bg: var(--color-background);
+    // Focus mode: the reading column's cap and gutter, and the context panel
+    // beside it.
+    --focus-max: 1440px;
+    --focus-gutter: 32px;
+    --focus-panel-w: min(400px, 30vw);
+    --focus-panel-inset: 12px;
+
+    // What focus mode paints behind the page and its chrome; fixed, so the
+    // header and the pill's band match the page pixel for pixel.
+    --focus-page-bg:
+      radial-gradient(
+          120% 70% at 50% 0%,
+          var(--color-background) 0%,
+          var(--color-focus-ground) 62%
+        )
+        fixed,
+      var(--color-focus-ground);
 
     // ── Elevation ────────────────────────────────────────────────────────
     // Two steps and what floats.

@@ -1,0 +1,105 @@
+@use "functions";
+
+@layer components {
+  .panel {
+    position: fixed;
+    inset-block: calc(var(--top-bar-h) + #{functions.to-rem(12px)})
+      var(--focus-panel-inset);
+    inset-inline-end: var(--focus-panel-inset);
+    z-index: 91;
+    display: flex;
+    flex-direction: column;
+    inline-size: var(--focus-panel-w);
+    border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklch, var(--color-surface-1) 80%, transparent);
+    backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: var(--shadow-float);
+    transition:
+      opacity 220ms var(--ease-out),
+      transform 260ms var(--ease-drawer),
+      visibility 0s linear 0s;
+
+    &[data-state="closed"] {
+      visibility: hidden;
+      opacity: 0;
+      transform: translateX(16px);
+      transition:
+        opacity 140ms ease,
+        transform 160ms ease,
+        visibility 0s linear 160ms;
+    }
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block-start: functions.to-rem(16px);
+    padding-inline: functions.to-rem(22px) functions.to-rem(16px);
+  }
+
+  .meta {
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .body {
+    flex: 1;
+    min-block-size: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    padding-block: functions.to-rem(6px) functions.to-rem(18px);
+    padding-inline: functions.to-rem(22px);
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .tab[data-width] {
+    --icon-button-inset-start: #{functions.to-rem(12px)};
+
+    position: fixed;
+    inset-block-start: calc(var(--top-bar-h) + #{functions.to-rem(12px)});
+    inset-inline-end: var(--focus-panel-inset);
+    z-index: 91;
+    column-gap: functions.to-rem(8px);
+    border-color: var(--color-outline-1);
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--color-surface-2) 80%, transparent);
+    backdrop-filter: blur(12px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    transition:
+      opacity 180ms var(--ease-out) 80ms,
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+
+    &:not([aria-disabled="true"]):hover {
+      border-color: var(--color-outline-2);
+      background: color-mix(in oklch, var(--color-surface-2) 80%, transparent);
+      color: var(--color-text-1);
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .panel {
+      background: var(--color-surface-1);
+      backdrop-filter: none;
+    }
+
+    .tab[data-width] {
+      background: var(--color-surface-2);
+      backdrop-filter: none;
+    }
+  }
+}

@@ -128,10 +128,12 @@ describe("remainder stamps", () => {
     assertNoStamps(region);
   });
 
-  it("renders Focus without concern, role, or category text on the remainder", () => {
+  it("renders Focus without concern or role stamps on the remainder chunk", () => {
     renderStory(true);
     const region = remainderRegion();
-    expect(region).toBeTruthy();
-    assertNoStamps(region);
+    expect(region.querySelector("[data-concern]")).toBeNull();
+    expect(
+      within(region).queryByText(appI18n.t("brief.chunk.roleCore")),
+    ).toBeNull();
   });
 });

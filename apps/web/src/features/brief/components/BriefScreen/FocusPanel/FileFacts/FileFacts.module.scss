@@ -1,0 +1,52 @@
+@use "functions";
+
+@layer components {
+  .fileFacts {
+    margin-block-start: functions.to-rem(18px);
+    padding-block-start: functions.to-rem(14px);
+    border-block-start: 1px solid var(--color-outline-1);
+  }
+
+  .label {
+    margin-block-end: functions.to-rem(8px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    font-weight: 400;
+  }
+
+  .path {
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .directory {
+    color: var(--color-text-3);
+  }
+
+  .basename {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    column-gap: functions.to-rem(20px);
+    margin-block: functions.to-rem(12px) functions.to-rem(14px);
+
+    dt {
+      color: var(--color-text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    dd {
+      margin-block-start: functions.to-rem(2px);
+      color: var(--color-text-read);
+      font-family: var(--mono);
+      font-size: var(--font-size-md);
+    }
+  }
+}

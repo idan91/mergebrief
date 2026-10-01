@@ -8,7 +8,6 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { GroupView } from "../../../utils/viewModel";
 import { ReadThroughProgress } from "../ReadThroughProgress";
 import { useReadingPosition } from "../readingPosition";
-import { deriveFocusCount, describeFocusCount } from "./utils";
 import styles from "./FocusIndicator.module.scss";
 
 export interface FocusIndicatorProps {
@@ -27,8 +26,15 @@ export function FocusIndicator({
 }: FocusIndicatorProps) {
   const { t } = useTranslation();
   const activeGroupId = useReadingPosition((state) => state.activeGroupId);
-  const count = deriveFocusCount(groups, activeGroupId);
-  const countLabel = count ? describeFocusCount(t, count) : undefined;
+  const activeGroup = groups.find((group) => group.id === activeGroupId);
+  const groupNumber = activeGroup ? activeGroup.index + 1 : undefined;
+  const countLabel =
+    groupNumber === undefined
+      ? undefined
+      : t("brief.focusIndicator.groupOf", {
+          index: groupNumber,
+          total: groups.length,
+        });
 
   return (
     <div className={styles["stickyWrapper"]}>
@@ -46,16 +52,16 @@ export function FocusIndicator({
             {t("brief.focusIndicator.label")}
           </span>
           <ReadThroughProgress groups={groups} jumpToChunk={jumpToChunk} />
-          {count ? (
+          {groupNumber === undefined ? null : (
             <>
               <span aria-hidden="true" className={styles["countFigures"]}>
-                <b>{count.position}</b>
+                <b>{groupNumber}</b>
                 <span>/</span>
-                <span>{count.total}</span>
+                <span>{groups.length}</span>
               </span>
               <ScreenReaderOnly>{countLabel}</ScreenReaderOnly>
             </>
-          ) : null}
+          )}
           <span aria-hidden="true" className={styles["separator"]} />
           <IconButton
             callout="bottom"

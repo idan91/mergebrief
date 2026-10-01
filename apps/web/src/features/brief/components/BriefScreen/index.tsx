@@ -14,6 +14,7 @@ import { ChunkWindowProvider } from "./chunkWindows";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip";
 import { FocusIndicator } from "./FocusIndicator";
+import { FocusPanel } from "./FocusPanel";
 import { FocusShortcuts } from "./FocusShortcuts";
 import { LineLinkNotice } from "./LineLinkNotice";
 import { IntentBar } from "./IntentBar";
@@ -182,6 +183,7 @@ export function BriefScreen({
   );
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;
+  const focusPanelShown = session.focusMode && !inChangesScope;
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
       ? {}
@@ -493,6 +495,9 @@ export function BriefScreen({
                 close={session.closeShortcuts}
                 sections={BRIEF_SHORTCUT_SECTIONS}
               />
+              {focusPanelShown ? (
+                <FocusPanel model={model} jumpToChunk={session.jumpToChunk} />
+              ) : null}
               {session.focusMode ? <FocusShortcuts /> : null}
               <div
                 className={styles["toast"]}

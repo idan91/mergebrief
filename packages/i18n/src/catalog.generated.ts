@@ -114,15 +114,9 @@ export type Catalog = typeof en & {
       selectFile: "Select flags on {{file}}";
     };
     story: (typeof en)["brief"]["story"] & {
-      stepLabel: "Step {{step}}";
-      groupLabel: "Group {{index}}";
       stepOf: "Step {{step}} of {{total}}";
       groupOf: "Change-group {{index}} of {{total}}";
       dominantAnnounce: "Dominant category set to {{category}} — recorded on the receipt.";
-      railDominant: "dominant {{category}}";
-      flags_one: "{{count}} flag";
-      flags_other: "{{count}} flags";
-      railSecondary: "secondary {{category}}";
       splitterValueText: "Change-group column {{width}} pixels wide";
     };
     changes: (typeof en)["brief"]["changes"] & {
@@ -179,6 +173,12 @@ export type Catalog = typeof en & {
     };
     focusIndicator: (typeof en)["brief"]["focusIndicator"] & {
       groupOf: "Group {{index}} of {{total}}";
+    };
+    focusPanel: (typeof en)["brief"]["focusPanel"] & {
+      show: "{{label}}: show context (S)";
+      groupLabel: "Group {{index}}";
+      flags_one: "{{count}} flag";
+      flags_other: "{{count}} flags";
     };
     sidebar: (typeof en)["brief"]["sidebar"] & {
       revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {
