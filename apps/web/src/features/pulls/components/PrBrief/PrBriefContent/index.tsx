@@ -65,6 +65,8 @@ export interface PrBriefContentProps {
   link?: string | undefined;
   /** Writes or drops the link param with replace; route-owned. */
   navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** Writes the focus param with replace; route-owned. */
+  setFocusParam?: ((focus: boolean) => void) | undefined;
   readOnly?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
@@ -91,6 +93,7 @@ export function PrBriefContent({
   clearDiffParam,
   link,
   navigateLink,
+  setFocusParam,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -320,6 +323,7 @@ export function PrBriefContent({
         clearDiffParam={clearDiffParam}
         link={link}
         navigateLink={navigateLink}
+        setFocusParam={setFocusParam}
         ownDraft={ownDraft}
         readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}

@@ -166,6 +166,8 @@ export interface BriefScreenProps {
    * is wired.
    */
   navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** Writes the focus param with replace; route-owned, absent where no navigation is wired. */
+  setFocusParam?: ((focus: boolean) => void) | undefined;
   /** Content goes inert; the sticky header stays live. */
   revisionPending?: boolean | undefined;
   /** The PR's revisions for the Sidebar tab; route-owned, absent hides it. */

@@ -284,6 +284,8 @@ export interface UseReadingSessionInput {
    */
   ownDraftActive: boolean;
   repoConfig: RepoConfigContext | null | undefined;
+  /** Focus mode at mount: the URL asked for it, so the first paint reads in it. */
+  initialFocusMode?: boolean;
   /** Jump routing into windowed chunk lists; null = mounted DOM only. */
   chunkWindows?: ChunkWindowRegistry | null | undefined;
   /**
@@ -358,6 +360,7 @@ export function useReadingSession(
     repoConfig,
     chunkWindows,
     position,
+    initialFocusMode = false,
   } = input;
   // Session/domain state lives in the per-brief Review Session store.
   const dispositions = useReviewSession((state) => state.dispositions);
@@ -430,7 +433,7 @@ export function useReadingSession(
       return next;
     });
   }, [supportingChunkIds]);
-  const [focusMode, setFocusMode] = useState(false);
+  const [focusMode, setFocusMode] = useState(initialFocusMode);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // Brief switch without remount: reading posture is per-brief and used to
   // reset via the subtree remount, adjust during render so the new brief

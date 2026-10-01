@@ -36,6 +36,7 @@ import {
   deriveLineLink,
   deriveShareUrl,
   parseLinkParam,
+  resolveLinkChunkId,
   buildReplyRecordingPlan,
 } from "./utils";
 import { LinkParamErrors } from "./types";
@@ -857,5 +858,17 @@ describe("buildReplyRecordingPlan", () => {
     await unwrapped.postReply(1, "x");
 
     expect(record).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveLinkChunkId", () => {
+  it("names the chunk of a chunk link and of a line link", () => {
+    expect(resolveLinkChunkId("c2")).toBe("c2");
+    expect(resolveLinkChunkId("c3.R38")).toBe("c3");
+  });
+
+  it("names nothing without a well-formed link", () => {
+    expect(resolveLinkChunkId(undefined)).toBeUndefined();
+    expect(resolveLinkChunkId("")).toBeUndefined();
   });
 });

@@ -30,6 +30,8 @@ export interface BriefSearchParams {
   compare?: CompareParam;
   /** Rows unified or paired per hunk; absent means the viewer's default. */
   diff?: DiffView;
+  /** Focus mode is on; absent means the page reads in full. */
+  focus?: true;
 }
 
 /**
@@ -75,17 +77,31 @@ export function parseDiffParam(value: unknown): DiffView | undefined {
     : undefined;
 }
 
+export function parseFocusParam(value: unknown): true | undefined {
+  return value === true || value === "true" ? true : undefined;
+}
+
 /** Only a present param lands as a key; absent stays absent, never `undefined`. */
 export function buildBriefSearchParams(
   view: ViewParam | undefined,
   compare: CompareParam | undefined,
   diff?: DiffView,
+  focus?: true,
 ): BriefSearchParams {
   const search: BriefSearchParams = {};
 
-  if (view !== undefined) search.view = view;
-  if (compare !== undefined) search.compare = compare;
-  if (diff !== undefined) search.diff = diff;
+  if (view !== undefined) {
+    search.view = view;
+  }
+  if (compare !== undefined) {
+    search.compare = compare;
+  }
+  if (diff !== undefined) {
+    search.diff = diff;
+  }
+  if (focus !== undefined) {
+    search.focus = focus;
+  }
 
   return search;
 }

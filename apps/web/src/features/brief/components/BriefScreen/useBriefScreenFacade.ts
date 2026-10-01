@@ -33,6 +33,7 @@ import { useSidebarState } from "./Sidebar/useSidebarState";
 import type { BriefScreenProps, ChunkShare } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useChunkDeepLink } from "./useChunkDeepLink";
+import { useFocusAddress } from "./useFocusAddress";
 import { useLineLinkLanding } from "./useLineLinkLanding";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import { useConversationWiring } from "./useConversationWiring";
@@ -80,6 +81,7 @@ export function useBriefScreenFacade({
   clearDiffParam,
   link,
   navigateLink,
+  setFocusParam,
   ownDraft,
   readOnly,
   revisionPending,
@@ -133,6 +135,7 @@ export function useBriefScreenFacade({
     repoConfig,
     chunkWindows: chunkWindowsRef.current,
     position: readingPosition,
+    initialFocusMode: searchParams.focus === true,
   });
   const {
     actions,
@@ -301,6 +304,19 @@ export function useBriefScreenFacade({
     writtenLinkRef.current = next;
     navigateLink(next);
   }, [lineSelection, link, navigateLink]);
+  useFocusAddress({
+    focusMode,
+    focusInUrl: searchParams.focus === true,
+    setFocusParam,
+    link,
+    navigateLink,
+    writtenLink: writtenLinkRef,
+    chunkIds,
+    position: readingPosition,
+    lineSelected: lineSelection !== null,
+    inChangesScope,
+    startReadThrough: session.startReadThrough,
+  });
   const composerOpen = useStore(
     flowStore,
     (state) => state.composerAnchor !== null,

@@ -13,6 +13,7 @@ import {
   buildBriefSearchParams,
   parseCompareParam,
   parseDiffParam,
+  parseFocusParam,
   parseViewParam,
   type BriefSearchParams,
 } from "@web/features/brief/comparison";
@@ -167,6 +168,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
     const diff = parseDiffParam(search["diff"]);
+    const focus = parseFocusParam(search["focus"]);
     const thread = resolvePositiveInteger(search["thread"]);
     const link = search["l"];
     const parsed: PrBriefSearch = {};
@@ -180,10 +182,21 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     if (nonEmpty(head) && nonEmpty(base)) {
       parsed.base = base;
     }
-    if (view !== undefined) parsed.view = view;
-    if (compare !== undefined) parsed.compare = compare;
-    if (diff !== undefined) parsed.diff = diff;
-    if (thread !== undefined) parsed.thread = thread;
+    if (view !== undefined) {
+      parsed.view = view;
+    }
+    if (compare !== undefined) {
+      parsed.compare = compare;
+    }
+    if (diff !== undefined) {
+      parsed.diff = diff;
+    }
+    if (focus !== undefined) {
+      parsed.focus = focus;
+    }
+    if (thread !== undefined) {
+      parsed.thread = thread;
+    }
     if (nonEmpty(link)) {
       parsed.l = link;
     }
@@ -388,8 +401,14 @@ function PrBriefRoute() {
   );
 
   const briefSearch = useMemo<BriefSearchParams>(
-    () => buildBriefSearchParams(search.view, search.compare, search.diff),
-    [search.view, search.compare, search.diff],
+    () =>
+      buildBriefSearchParams(
+        search.view,
+        search.compare,
+        search.diff,
+        search.focus,
+      ),
+    [search.view, search.compare, search.diff, search.focus],
   );
 
   /** Drop the pinned revision so it re-resolves to latest. */
@@ -553,6 +572,25 @@ function PrBriefRoute() {
     [navigate],
   );
 
+  // Focus mode's address. Replace: a toggle is a posture, not a page.
+  const setFocusParam = useCallback(
+    (focus: boolean) => {
+      void navigate({
+        search: ({ focus: _focus, ...rest }) => {
+          const next: PrBriefSearch = { ...rest };
+          if (focus) {
+            next.focus = true;
+          }
+
+          return next;
+        },
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+
   // Identity is stabilized on the raw param STRINGS: the parsed filter holds
   // fresh Sets every render, and it rides into the memo boundaries that keep
   // inline threads off the render path.
@@ -602,6 +640,7 @@ function PrBriefRoute() {
         clearDiffParam={clearDiffParam}
         link={search.l}
         navigateLink={navigateLink}
+        setFocusParam={setFocusParam}
         conversationFilter={conversationFilter}
         onConversationFilterChange={onConversationFilterChange}
         conversationFocusThreadId={search.thread}

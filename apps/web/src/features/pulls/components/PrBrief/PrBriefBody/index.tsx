@@ -98,6 +98,8 @@ export interface PrBriefBodyProps {
   link?: string | undefined;
   /** Writes or drops the link param with replace; route-owned. */
   navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** Writes the focus param with replace; route-owned. */
+  setFocusParam?: ((focus: boolean) => void) | undefined;
   /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
   /**
@@ -131,6 +133,7 @@ function PrBriefBodyState({
   clearDiffParam,
   link,
   navigateLink,
+  setFocusParam,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -156,6 +159,7 @@ function PrBriefBodyState({
           clearDiffParam={clearDiffParam}
           link={link}
           navigateLink={navigateLink}
+          setFocusParam={setFocusParam}
           onSelectRevision={onSelectRevision}
           prNumber={prNumber}
           readOnly={readOnly}

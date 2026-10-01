@@ -16,6 +16,7 @@ import {
   buildBriefSearchParams,
   parseCompareParam,
   parseDiffParam,
+  parseFocusParam,
   parseViewParam,
   type BriefSearchParams,
 } from "@web/features/brief/comparison";
@@ -47,11 +48,13 @@ export const Route = createFileRoute("/briefs/$briefId")({
     const view = parseViewParam(search["view"]);
     const diff = parseDiffParam(search["diff"]);
     const compare = parseCompareParam(search["compare"]);
+    const focus = parseFocusParam(search["focus"]);
     const link = search["l"];
     const parsed: BriefRouteSearch = buildBriefSearchParams(
       view,
       compare,
       diff,
+      focus,
     );
     if (typeof link === "string" && link.length > 0) {
       parsed.l = link;
@@ -163,6 +166,25 @@ function BriefRoute() {
     },
     [navigate],
   );
+  // Focus mode's address. Replace: a toggle is a posture, not a page.
+  const setFocusParam = useCallback(
+    (focus: boolean) => {
+      void navigate({
+        search: ({ focus: _focus, ...rest }) => {
+          const next: BriefRouteSearch = { ...rest };
+          if (focus) {
+            next.focus = true;
+          }
+
+          return next;
+        },
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
+
   // Keeps View and Compare for the new brief to re-normalise; drops only the
   // link, whose chunk id means nothing in another brief.
   const selectRevision = useCallback(
@@ -183,6 +205,7 @@ function BriefRoute() {
       clearDiffParam={clearDiffParam}
       link={searchParams.l}
       navigateLink={navigateLink}
+      setFocusParam={setFocusParam}
       revisionPending={revisionPending}
       selectRevision={selectRevision}
     />

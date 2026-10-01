@@ -493,6 +493,23 @@ export function parseLinkParam(
   return { ok: false, error: LinkParamErrors.MALFORMED };
 }
 
+/** The chunk a link names, alone or around its lines; absent when it names none. */
+export function resolveLinkChunkId(
+  link: string | undefined,
+): string | undefined {
+  if (link === undefined) {
+    return undefined;
+  }
+  const parsed = parseLinkParam(link);
+  if (!parsed.ok) {
+    return undefined;
+  }
+
+  return parsed.value.kind === LinkTargetKinds.CHUNK
+    ? parsed.value.chunkId
+    : parsed.value.lines.chunkId;
+}
+
 /** Whether a written link names lines rather than a chunk; absent is neither. */
 export function isLineLink(link: string | undefined): boolean {
   if (link === undefined) {

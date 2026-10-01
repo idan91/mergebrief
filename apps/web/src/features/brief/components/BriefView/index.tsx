@@ -57,6 +57,8 @@ export interface BriefViewProps {
   link?: string | undefined;
   /** Writes or drops the link param with replace; route-owned. */
   navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** Writes the focus param with replace; route-owned. */
+  setFocusParam?: ((focus: boolean) => void) | undefined;
   conversationFocusThreadId?: number | undefined;
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
@@ -94,6 +96,7 @@ export function BriefView({
   clearDiffParam,
   link,
   navigateLink,
+  setFocusParam,
   ownDraft,
   readOnly,
   repoConfig,
@@ -136,6 +139,7 @@ export function BriefView({
         clearDiffParam={clearDiffParam}
         link={link}
         navigateLink={navigateLink}
+        setFocusParam={setFocusParam}
         ownDraft={ownDraft}
         readOnly={readOnly}
         reviewSession={session}

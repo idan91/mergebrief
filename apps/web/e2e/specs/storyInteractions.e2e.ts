@@ -150,6 +150,24 @@ test("the chunk footer steps on and keeps focus on its button", async ({
   await expect(next).toBeFocused();
 });
 
+test("focus mode and its chunk survive a reload through the URL", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await page.keyboard.press("z");
+  await page.keyboard.press("j");
+  const current = page.locator("main article[data-current]");
+  await expect(page).toHaveURL(/focus=true/);
+  const chunkId = await current.getAttribute("id");
+  await expect(page).toHaveURL(new RegExp(`l=${chunkId ?? ""}`));
+
+  await page.reload();
+  await expect(
+    page.getByRole("group", { name: "Focus mode", exact: true }),
+  ).toBeVisible();
+  await expect(current).toHaveAttribute("id", chunkId ?? "");
+});
+
 test("the focus panel hides for a group and returns on the next", async ({
   page,
 }) => {

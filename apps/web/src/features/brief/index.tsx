@@ -42,6 +42,8 @@ export interface BriefPageProps {
   link?: string | undefined;
   /** Writes or drops the link param with replace; route-owned. */
   navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** Writes the focus param with replace; route-owned. */
+  setFocusParam?: ((focus: boolean) => void) | undefined;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
   /** Goes to another brief of this PR by id; route-owned. */
@@ -57,6 +59,7 @@ export function BriefPage({
   clearDiffParam,
   link,
   navigateLink,
+  setFocusParam,
   revisionPending,
   selectRevision,
 }: BriefPageProps) {
@@ -119,6 +122,7 @@ export function BriefPage({
         clearDiffParam={clearDiffParam}
         link={link}
         navigateLink={navigateLink}
+        setFocusParam={setFocusParam}
         revisionPending={revisionPending}
         revisions={revisions}
       />
