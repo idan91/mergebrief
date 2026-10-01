@@ -1,160 +1,102 @@
-import { useId, useLayoutEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useId } from "react";
 
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton, IconButtonSizes } from "@web/components/IconButton";
 import { Kbd, KbdSizes } from "@web/components/Kbd";
-import {
-  isAttributedGroupView,
-  type BriefViewModel,
-} from "../../../utils/viewModel";
-import { useReadingPosition } from "../readingPosition";
-import { ChunkList } from "./ChunkList";
-import { FileFacts } from "./FileFacts";
-import { GroupFacts } from "./GroupFacts";
+import type { BriefViewModel } from "../../../utils/viewModel";
+import { PanelContent } from "./PanelContent";
+import { useFocusPanelFacade } from "./useFocusPanelFacade";
 import styles from "./FocusPanel.module.scss";
 
 export interface FocusPanelProps {
   model: BriefViewModel;
   jumpToChunk: (chunkId: string) => void;
   open: boolean;
+  /** Below the tablet breakpoint: a modal bottom sheet, not a side panel. */
+  sheet: boolean;
   setOpen: (open: boolean) => void;
 }
 
-type FocusReturn = "heading" | "tab";
-
 /**
- * Non-modal: the diff beside it stays readable and interactive. A pointer
- * open moves focus to the heading and a pointer close returns it to the tab.
- * S moves focus only out of a panel it hides, so focus never lands in inert,
- * and into one it reopens from the tab, which unmounts under it.
+ * On desktop a non-modal complementary panel beside a readable, usable diff;
+ * below the tablet breakpoint a modal sheet over a scrim.
  */
-export function FocusPanel({
-  model,
-  jumpToChunk,
-  open,
-  setOpen,
-}: FocusPanelProps) {
-  const { t } = useTranslation();
+export function FocusPanel(props: FocusPanelProps) {
+  const { model, open, sheet } = props;
   const panelId = useId();
-  const panelRef = useRef<HTMLElement>(null);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const tabRef = useRef<HTMLButtonElement>(null);
-  const focusReturn = useRef<FocusReturn | undefined>(undefined);
-  const tabHeldFocus = useRef(false);
-  const activeGroupId = useReadingPosition((state) => state.activeGroupId);
-  const activeChunkId = useReadingPosition((state) => state.activeChunkId);
-
-  // Before paint: an inert panel sheds focus at the next rendering update.
-  useLayoutEffect(() => {
-    const target = focusReturn.current;
-    focusReturn.current = undefined;
-    const focusInHiddenPanel =
-      !open && panelRef.current?.contains(document.activeElement) === true;
-    const reopenedFromTab = open && tabHeldFocus.current;
-    tabHeldFocus.current = false;
-    if (target === "heading" || reopenedFromTab) {
-      headingRef.current?.focus({ preventScroll: true });
-    } else if (target === "tab" || focusInHiddenPanel) {
-      tabRef.current?.focus();
-    }
-  }, [open]);
-
-  const group = model.groups.find(
-    (candidate) => candidate.id === activeGroupId,
-  );
+  const facade = useFocusPanelFacade(props);
+  const { t, group } = facade;
   if (!group) {
     return null;
   }
 
-  const chunk =
-    group.chunks.find((candidate) => candidate.id === activeChunkId) ??
-    group.chunks[0];
-  const groupNumber = group.index + 1;
-  const meta = t("brief.focusIndicator.groupOf", {
-    index: groupNumber,
-    total: model.groups.length,
-  });
-  const tabLabel = t("brief.focusPanel.groupLabel", { index: groupNumber });
-  const flagCount = model.flagsByGroup.get(group.id)?.length ?? 0;
-  const chunkRiskMeta = chunk ? model.riskMetaByChunk.get(chunk.id) : undefined;
-  const showRisks = isAttributedGroupView(group);
-
-  const openFromPointer = () => {
-    focusReturn.current = "heading";
-    setOpen(true);
-  };
-  const closeFromPointer = () => {
-    focusReturn.current = "tab";
-    setOpen(false);
-  };
+  const state = open ? "open" : "closed";
+  const variant = sheet ? "sheet" : "side";
+  const role = sheet ? "dialog" : "complementary";
+  const sheetOpen = sheet && open;
+  const content = (
+    <PanelContent
+      activeChunkId={facade.activeChunkId}
+      chunk={facade.chunk}
+      group={group}
+      headingRef={facade.headingRef}
+      hide={facade.closeFromPointer}
+      jumpToChunk={facade.jumpFromList}
+      meta={facade.meta}
+      model={model}
+    />
+  );
 
   return (
     <>
-      <aside
+      {sheetOpen ? (
+        // oxlint-disable-next-line house/no-raw-button -- full-viewport scrim: a tap target with no chrome
+        <button
+          aria-label={t("brief.focusPanel.hide")}
+          className={styles["scrim"]}
+          type="button"
+          onClick={facade.closeFromPointer}
+        />
+      ) : null}
+      {/* One element for both layouts, so crossing the breakpoint never remounts the content under focus. The keydown is the sheet's Tab trap and Escape; focus and blur only track where focus sits. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- the role is dialog or complementary, set from the layout */}
+      <div
         aria-label={t("brief.focusPanel.ariaLabel")}
+        aria-modal={sheet || undefined}
         className={styles["panel"]}
-        data-state={open ? "open" : "closed"}
+        data-state={state}
         data-testid="focus-panel"
+        data-variant={variant}
         id={panelId}
         inert={!open || undefined}
-        ref={panelRef}
+        ref={facade.panelRef}
+        role={role}
+        tabIndex={sheet ? -1 : undefined}
+        onBlur={facade.trackPanelBlur}
+        onFocus={facade.trackPanelFocus}
+        onKeyDown={sheet ? facade.handleSheetKeyDown : undefined}
       >
-        <div className={styles["head"]}>
-          <span className={styles["meta"]}>{meta}</span>
-          <IconButton
-            label={t("brief.focusPanel.hide")}
-            onClick={closeFromPointer}
-          >
-            <Icon name={IconNames.X} size={IconSizes.MD} />
-          </IconButton>
-        </div>
-        <div
-          aria-label={t("brief.focusPanel.detailsLabel")}
-          className={styles["body"]}
-          role="region"
-          tabIndex={0}
-        >
-          <GroupFacts
-            flagCount={flagCount}
-            group={group}
-            headingRef={headingRef}
-          />
-          {chunk ? (
-            <FileFacts
-              chunk={chunk}
-              riskMeta={chunkRiskMeta}
-              showRisks={showRisks}
-            />
-          ) : null}
-          <ChunkList
-            activeChunkId={activeChunkId}
-            chunks={group.chunks}
-            jumpToChunk={jumpToChunk}
-          />
-        </div>
-      </aside>
+        {content}
+      </div>
       {open ? null : (
         <IconButton
           aria-controls={panelId}
           aria-expanded={false}
+          aria-haspopup={sheet ? "dialog" : undefined}
           autoWidth
           className={styles["tab"]}
+          data-layout={variant}
           data-testid="focus-panel-tab"
-          label={t("brief.focusPanel.show", { label: tabLabel })}
-          ref={tabRef}
+          label={t("brief.focusPanel.show", { label: facade.tabLabel })}
+          ref={facade.tabRef}
           size={IconButtonSizes.MD}
-          onBlur={() => {
-            tabHeldFocus.current = false;
-          }}
-          onClick={openFromPointer}
-          onFocus={() => {
-            tabHeldFocus.current = true;
-          }}
+          onBlur={() => facade.trackTabFocus(false)}
+          onClick={facade.openFromPointer}
+          onFocus={() => facade.trackTabFocus(true)}
         >
           <Icon name={IconNames.LIST_BULLETS} size={IconSizes.MD} />
-          <span>{tabLabel}</span>
+          <span>{facade.tabLabel}</span>
           <Kbd size={KbdSizes.SM}>S</Kbd>
         </IconButton>
       )}

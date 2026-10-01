@@ -186,7 +186,8 @@ export function BriefScreen({
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;
   const focusPanelState = focusPanel.open ? "open" : "closed";
-  const focusPanelAttr = focusPanelShown ? focusPanelState : undefined;
+  const focusPanelBeside = focusPanelShown && !focusPanel.sheet;
+  const focusPanelAttr = focusPanelBeside ? focusPanelState : undefined;
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
       ? {}
@@ -504,6 +505,7 @@ export function BriefScreen({
                   model={model}
                   jumpToChunk={session.jumpToChunk}
                   open={focusPanel.open}
+                  sheet={focusPanel.sheet}
                   setOpen={focusPanel.setOpen}
                 />
               ) : null}

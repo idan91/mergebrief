@@ -1,0 +1,32 @@
+@use "functions";
+
+@layer components {
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block-start: functions.to-rem(16px);
+    padding-inline: functions.to-rem(22px) functions.to-rem(16px);
+  }
+
+  .meta {
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .body {
+    flex: 1;
+    min-block-size: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    padding-block: functions.to-rem(6px) functions.to-rem(18px);
+    padding-inline: functions.to-rem(22px);
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+}

@@ -149,14 +149,17 @@ export function useBriefScreenFacade({
     toggleFocusMode,
   } = session;
 
-  const focusPanel = useFocusPanel({ position: readingPosition, focusMode });
-
   const regions = deriveVisibleRegions({
     scope: compareState.view,
     focus: focusMode,
   });
 
   const band = useViewportBoundary();
+  const focusPanel = useFocusPanel({
+    position: readingPosition,
+    focusMode,
+    band,
+  });
   const sidebar = useSidebarState(band, regions.sidebar);
   const sidebarLayout = resolveSidebarLayout(band, sidebar.expanded);
   const sheetOpen =

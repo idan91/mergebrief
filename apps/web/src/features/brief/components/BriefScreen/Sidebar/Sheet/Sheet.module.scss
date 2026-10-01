@@ -8,7 +8,7 @@
     z-index: 95;
     padding: 0;
     border: 0;
-    background: rgb(0 0 0 / 55%);
+    background: var(--color-scrim);
     cursor: default;
     touch-action: pinch-zoom;
   }

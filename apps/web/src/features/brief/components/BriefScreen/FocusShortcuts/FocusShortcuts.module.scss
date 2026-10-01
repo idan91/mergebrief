@@ -62,6 +62,12 @@
     }
   }
 
+  @media (hover: none), (width <= 1120px) {
+    .corner {
+      display: none;
+    }
+  }
+
   @media (prefers-reduced-transparency: reduce) {
     .corner {
       background: var(--color-surface-1);

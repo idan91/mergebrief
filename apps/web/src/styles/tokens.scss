@@ -41,6 +41,7 @@
     // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
     --color-focus-ground: oklch(11.5% 0.008 var(--brand-hue)); // focus mode
+    --color-scrim: rgb(0 0 0 / 55%);
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
     --color-surface-3: var(--gray-750); // top: toasts, chips, highest hovers
@@ -350,6 +351,7 @@
   @media (width < 760px) {
     :root {
       --page-gutter: var(--space-5);
+      --focus-gutter: var(--space-5);
     }
   }
 }

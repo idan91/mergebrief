@@ -190,6 +190,8 @@ export type LinkParamError = ValueOf<typeof LinkParamErrors>;
 
 export interface FocusPanelControl {
   open: boolean;
+  /** Below the tablet breakpoint the panel is a modal bottom sheet. */
+  sheet: boolean;
   /** Pointer open and close, from the panel's own controls. */
   setOpen: (open: boolean) => void;
   toggle: () => void;

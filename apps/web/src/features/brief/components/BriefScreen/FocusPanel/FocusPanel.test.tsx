@@ -14,9 +14,15 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
 import {
+  ViewportBands,
+  type ViewportBand,
+} from "@web/hooks/useViewportBoundary";
+import {
   createReadingPositionStore,
   ReadingPositionProvider,
+  type ReadingPositionStore,
 } from "../readingPosition";
+import { useFocusPanel } from "../useFocusPanel";
 import { FocusPanel } from ".";
 
 afterEach(cleanup);
@@ -47,18 +53,38 @@ function findRemainder() {
 
 interface ControlledPanelProps {
   jumpToChunk: (chunkId: string) => void;
+  sheet: boolean;
 }
 
-function ControlledPanel({ jumpToChunk }: ControlledPanelProps) {
-  const [open, setOpen] = useState(true);
+function ControlledPanel({ jumpToChunk, sheet }: ControlledPanelProps) {
+  const [open, setOpen] = useState(!sheet);
   return (
     <FocusPanel
       jumpToChunk={jumpToChunk}
       model={model}
       open={open}
       setOpen={setOpen}
+      sheet={sheet}
     />
   );
+}
+
+function renderSheet() {
+  const position = createReadingPositionStore();
+  const jumpToChunk = vi.fn();
+  position.getState().actions.setActive("chunk-a", "g1");
+  render(
+    <I18nProvider>
+      <ReadingPositionProvider store={position}>
+        <ControlledPanel jumpToChunk={jumpToChunk} sheet />
+      </ReadingPositionProvider>
+    </I18nProvider>,
+  );
+  fireEvent.click(screen.getByTestId("focus-panel-tab"));
+  const sheet = screen.getByRole("dialog", {
+    name: "Focused change-group context",
+  });
+  return { sheet, jumpToChunk };
 }
 
 interface ToggledPanelProps {
@@ -74,6 +100,25 @@ function ToggledPanel({ captureToggle }: ToggledPanelProps) {
       model={model}
       open={open}
       setOpen={setOpen}
+      sheet={false}
+    />
+  );
+}
+
+interface BandPanelProps {
+  band: ViewportBand;
+  position: ReadingPositionStore;
+}
+
+function BandPanel({ band, position }: BandPanelProps) {
+  const control = useFocusPanel({ position, focusMode: true, band });
+  return (
+    <FocusPanel
+      jumpToChunk={() => undefined}
+      model={model}
+      open={control.open}
+      setOpen={control.setOpen}
+      sheet={control.sheet}
     />
   );
 }
@@ -85,7 +130,7 @@ function renderPanel(chunkId: string, groupId: string) {
   render(
     <I18nProvider>
       <ReadingPositionProvider store={position}>
-        <ControlledPanel jumpToChunk={jumpToChunk} />
+        <ControlledPanel jumpToChunk={jumpToChunk} sheet={false} />
       </ReadingPositionProvider>
     </I18nProvider>,
   );
@@ -175,6 +220,38 @@ describe("FocusPanel", () => {
     );
   });
 
+  it("opens as a modal sheet with focus on its heading when narrow", () => {
+    const { sheet } = renderSheet();
+
+    expect(sheet.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(
+      within(sheet).getByRole("heading", { name: "Fix the cross-param leak" }),
+    );
+  });
+
+  it("closes the sheet on Escape and returns focus to the tab", () => {
+    const { sheet } = renderSheet();
+
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    expect(sheet.dataset["state"]).toBe("closed");
+    expect(document.activeElement).toBe(screen.getByTestId("focus-panel-tab"));
+  });
+
+  it("closes the sheet on S and returns focus to the tab", () => {
+    const { sheet } = renderSheet();
+
+    fireEvent.keyDown(sheet, { key: "s" });
+    expect(sheet.dataset["state"]).toBe("closed");
+    expect(document.activeElement).toBe(screen.getByTestId("focus-panel-tab"));
+  });
+
+  it("closes the sheet after a jump from its chunk list", () => {
+    const { sheet, jumpToChunk } = renderSheet();
+
+    fireEvent.click(within(sheet).getByRole("button", { name: /leak\.test/ }));
+    expect(jumpToChunk).toHaveBeenCalledWith("chunk-b");
+    expect(sheet.dataset["state"]).toBe("closed");
+  });
   it("sends focus to the tab when S hides it and back when S reopens it", () => {
     const toggler: { toggle?: () => void } = {};
     const position = createReadingPositionStore();
@@ -201,5 +278,42 @@ describe("FocusPanel", () => {
     expect(document.activeElement).toBe(
       within(panel).getByRole("heading", { name: "Fix the cross-param leak" }),
     );
+  });
+
+  it("keeps focus on the tab when the viewport crosses the breakpoint", () => {
+    const position = createReadingPositionStore();
+    position.getState().actions.setActive("chunk-a", "g1");
+    const panelAt = (band: ViewportBand) => (
+      <I18nProvider>
+        <ReadingPositionProvider store={position}>
+          <BandPanel band={band} position={position} />
+        </ReadingPositionProvider>
+      </I18nProvider>
+    );
+    const { rerender } = render(panelAt(ViewportBands.DESKTOP));
+    screen.getByRole("button", { name: "Hide context (S)" }).focus();
+
+    rerender(panelAt(ViewportBands.NARROW));
+    expect(document.activeElement).toBe(screen.getByTestId("focus-panel-tab"));
+    expect(screen.getByTestId("focus-panel").getAttribute("role")).toBe(
+      "dialog",
+    );
+  });
+
+  it("leaves focus alone at a crossing when it was never in the panel", () => {
+    const position = createReadingPositionStore();
+    position.getState().actions.setActive("chunk-a", "g1");
+    const panelAt = (band: ViewportBand) => (
+      <I18nProvider>
+        <ReadingPositionProvider store={position}>
+          <BandPanel band={band} position={position} />
+        </ReadingPositionProvider>
+      </I18nProvider>
+    );
+    const { rerender } = render(panelAt(ViewportBands.DESKTOP));
+    expect(document.activeElement).toBe(document.body);
+
+    rerender(panelAt(ViewportBands.NARROW));
+    expect(document.activeElement).toBe(document.body);
   });
 });
