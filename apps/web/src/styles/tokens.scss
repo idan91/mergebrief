@@ -206,6 +206,10 @@
       calc((100% - #{functions.to-rem(1080px)}) / 2)
     );
 
+    // What focus mode paints behind its chrome, so content scrolls out of
+    // sight under the header and the pill's band.
+    --focus-page-bg: var(--color-background);
+
     // ── Elevation ────────────────────────────────────────────────────────
     // Two steps and what floats.
     --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
@@ -279,7 +283,7 @@
       var(--header-identity-tier) + var(--header-lens-min) + 1px
     );
     --banner-stack-h: calc(
-      var(--focus-banner-h, 0px) + var(--reanchor-banner-h, 0px)
+      var(--focus-indicator-h, 0px) + var(--reanchor-banner-h, 0px)
     );
 
     // @property-registered in _layers.scss so JS reads a number.

@@ -14,6 +14,28 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import sessionController from "./controller";
+import { resolveSessionTarget } from "./logic/brief-target";
+import { UnreadableBriefError } from "./logic/carry-over-inputs";
+
+vi.mock("persistence", async (importOriginal) => {
+  const actual = await importOriginal<{
+    createTenantRepository: typeof createTenantRepository;
+  }>();
+  return {
+    ...actual,
+    createTenantRepository: vi.fn(actual.createTenantRepository),
+  };
+});
+
+vi.mock("./logic/brief-target", async (importOriginal) => {
+  const actual = await importOriginal<{
+    resolveSessionTarget: typeof resolveSessionTarget;
+  }>();
+  return {
+    ...actual,
+    resolveSessionTarget: vi.fn(actual.resolveSessionTarget),
+  };
+});
 
 const log: Logger = {
   error: vi.fn(),
@@ -127,5 +149,54 @@ describe("sessionController.resolveWrite", () => {
       async (writer) => (await writer.draftComments()).length,
     );
     expect(written).toEqual({ ok: true, value: 0 });
+  });
+});
+
+describe("sessionController.previewSession", () => {
+  const span = { base: "base1", head: "head1" };
+
+  async function previewWithUnreadableBrief(stillThere: boolean) {
+    const target = await resolveSessionTarget(
+      deps,
+      ctx,
+      repoId,
+      PR_NUMBER,
+      span,
+    );
+    if (target === undefined) {
+      throw new Error("fixture brief missing");
+    }
+    vi.mocked(resolveSessionTarget)
+      .mockResolvedValueOnce(target)
+      .mockResolvedValueOnce(stillThere ? target : undefined);
+    vi.mocked(createTenantRepository).mockReturnValueOnce({
+      reviewSessions: {
+        preview: () =>
+          Promise.reject(new UnreadableBriefError("brief row vanished")),
+      },
+    } as unknown as ReturnType<typeof createTenantRepository>);
+
+    return sessionController.previewSession(deps, {
+      ctx,
+      repoId,
+      prNumber: PR_NUMBER,
+      span,
+      reviewerId: brand(REVIEWER_ID, isReviewerId),
+      log,
+    });
+  }
+
+  it("answers not found when the brief is purged mid-read", async () => {
+    expect(await previewWithUnreadableBrief(false)).toEqual({
+      ok: false,
+      error: { kind: "target-not-found" },
+    });
+  });
+
+  it("keeps an unreadable brief that still exists a fault", async () => {
+    expect(await previewWithUnreadableBrief(true)).toEqual({
+      ok: false,
+      error: { kind: "unreadable-brief" },
+    });
   });
 });

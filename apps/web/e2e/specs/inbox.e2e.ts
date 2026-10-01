@@ -10,6 +10,7 @@ import {
   INBOX_URL_ROW_TITLE,
 } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
+import { waitForFirstLoad } from "../support/page";
 
 const [fresh, changed, inProgress, reviewed, yours] = INBOX_ROWS;
 
@@ -100,7 +101,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   const behindRow = rows.nth(4);
   await expect(behindRow.getByText("new commits")).toBeVisible();
   // The actions answer only once the first-load fade has settled.
-  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
+  await waitForFirstLoad(page);
   await behindRow.hover();
   const more = behindRow.getByRole("button", { name: "More actions" });
   await more.click();
@@ -116,7 +117,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
 
 test("the Generate button waits for a pasted URL", async ({ page }) => {
   await page.goto("/");
-  await page.locator('[data-first-load="false"]').waitFor();
+  await waitForFirstLoad(page);
   const generate = page.getByRole("button", { name: "Generate brief" });
   await expect(generate).toBeHidden();
 
@@ -128,7 +129,7 @@ test("the Generate button waits for a pasted URL", async ({ page }) => {
 
 test("the View control unfolds the list into one", async ({ page }) => {
   await page.goto("/");
-  await page.locator('[data-first-load="false"]').waitFor();
+  await waitForFirstLoad(page);
   await expect(page.getByText("Not waiting on you")).toBeVisible();
 
   await page.getByRole("button", { name: "View", exact: true }).click();
@@ -144,7 +145,7 @@ test("the controls never scroll the page sideways at 320px", async ({
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/?review=new&layout=mixed");
-  await page.locator('[data-first-load="false"]').waitFor();
+  await waitForFirstLoad(page);
   await expect(page.getByRole("button", { name: "Clear" })).toBeVisible();
   await expect(page.getByRole("button", { name: "View Mixed" })).toBeVisible();
 

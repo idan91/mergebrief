@@ -26,11 +26,4 @@
       transform: translate(-50%, 0);
     }
   }
-
-  .focusExit {
-    position: fixed;
-    inset-block-end: functions.to-rem(24px);
-    inset-inline-end: functions.to-rem(24px);
-    z-index: 110;
-  }
 }

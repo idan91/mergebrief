@@ -3,7 +3,7 @@
 @layer components {
   .reanchorBannerWrap {
     position: sticky;
-    inset-block-start: calc(var(--top-bar-h) + var(--focus-banner-h, 0px));
+    inset-block-start: calc(var(--top-bar-h) + var(--focus-indicator-h, 0px));
     z-index: 50;
     margin-block-end: functions.to-rem(14px);
     padding-block: functions.to-rem(8px) functions.to-rem(10px);

@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 
 import { INBOX_DELETE_ROW_NUMBER, INBOX_ROWS } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
+import { waitForFirstLoad } from "../support/page";
 
 const deleteRow = INBOX_ROWS.find(
   (row) => row.prNumber === INBOX_DELETE_ROW_NUMBER,
@@ -25,13 +26,13 @@ test("an admin deletes a row behind a confirm; a non-admin row has no Delete", a
   const target = rows.filter({ hasText: deleteRow.title });
   await expect(target).toHaveCount(1);
   // The actions answer only once the first-load fade has settled.
-  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
+  await waitForFirstLoad(page);
 
   await target.hover();
   const more = target.getByRole("button", { name: "More actions" });
   await more.click();
   await expect(more).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
 
   const dialog = page.getByRole("dialog");
   const heading = dialog.getByRole("heading", {
@@ -47,7 +48,7 @@ test("an admin deletes a row behind a confirm; a non-admin row has no Delete", a
   await expect(target).toHaveCount(1);
 
   await more.click();
-  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(heading).toBeVisible();
   await dialog.getByRole("button", { name: "Delete" }).click();
 
@@ -63,7 +64,9 @@ test("an admin deletes a row behind a confirm; a non-admin row has no Delete", a
   await otherMore.click();
   await expect(otherMore).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
+  await expect(
+    page.getByRole("menuitem", { name: "Delete", exact: true }),
+  ).toHaveCount(0);
 
   expect(faults).toEqual([]);
 });

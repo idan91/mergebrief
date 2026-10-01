@@ -103,6 +103,7 @@ function readMainTrack(): string {
 describe("StorySplitter", () => {
   it("is a vertical separator naming both panes", () => {
     stubHarness();
+    measure(1400, 450);
     const separator = screen.getByRole("separator");
 
     expect(separator.getAttribute("aria-orientation")).toBe("vertical");
@@ -120,6 +121,7 @@ describe("StorySplitter", () => {
     expect(separator.hasAttribute("aria-valuenow")).toBe(false);
     expect(separator.hasAttribute("aria-valuemax")).toBe(false);
     expect(separator.hasAttribute("aria-valuetext")).toBe(false);
+    expect(separator.hasAttribute("tabindex")).toBe(false);
   });
 
   it("reports the floor, the measured ceiling and the card width", () => {

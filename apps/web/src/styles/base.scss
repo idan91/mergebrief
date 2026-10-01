@@ -315,6 +315,11 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     display: none;
   }
 
+  // The pill's dock takes no layout, so the top of the page reserves it.
+  .main[data-zen="on"] {
+    padding-block-start: var(--focus-indicator-h);
+  }
+
   // Fixed track lengths (not minmax) so the collapse animates:
   // grid-template-columns only interpolates between structurally identical
   // track lists of plain lengths. Reduced-motion zeroes the transition below.

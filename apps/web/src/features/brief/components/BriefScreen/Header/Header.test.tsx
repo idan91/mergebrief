@@ -83,6 +83,7 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     jumpToGroup: vi.fn(),
     jumpToGroupHeading: vi.fn(),
     toggleShortcuts: vi.fn(),
+    focusMode: false,
   };
 }
 
@@ -114,6 +115,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     jumpToGroup: vi.fn(),
     jumpToGroupHeading: vi.fn(),
     toggleShortcuts: vi.fn(),
+    focusMode: false,
     ...overrides,
   };
   const { router } = await renderInRouter(
@@ -141,6 +143,13 @@ describe("Header identity row", () => {
     expect(screen.queryByText(/local brief @/)).toBeNull();
     expect(screen.queryByText(/brief _3/)).toBeNull();
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
+  });
+
+  it("marks itself in focus mode so its styles can quiet it", async () => {
+    await renderHeader({ focusMode: true });
+    expect(document.querySelector("header")?.hasAttribute("data-focus")).toBe(
+      true,
+    );
   });
 
   it("renders the keycap origin badge on the meta line", async () => {

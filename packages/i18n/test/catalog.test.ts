@@ -71,7 +71,6 @@ describe("hard-fail catalog gates", () => {
       "brief.diff.siblingSpanGroupRemoved_other": 1,
       "brief.diff.siblingSpanGroup_one": 1,
       "brief.diff.siblingSpanGroup_other": 1,
-      "brief.focusBanner.hint": 5,
       "brief.group.splitIntent": 1,
       "brief.intent.accomplished_one": 1,
       "brief.intent.accomplished_other": 1,

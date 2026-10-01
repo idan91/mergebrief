@@ -59,6 +59,11 @@ export interface StoryMainStyle extends CSSProperties {
   "--story-card-track"?: string;
 }
 
+export interface ProgressFillStyle extends CSSProperties {
+  /** The filled fraction of a read-through segment's track, 0 to 1. */
+  "--fill": string;
+}
+
 export interface LensPaneProps {
   frozen: boolean;
   children: ReactNode;

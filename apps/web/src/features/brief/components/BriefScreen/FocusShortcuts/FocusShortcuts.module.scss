@@ -1,0 +1,71 @@
+@use "functions";
+
+@layer components {
+  .corner {
+    position: fixed;
+    inset-block-end: functions.to-rem(14px);
+    inset-inline-start: functions.to-rem(16px);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    padding: functions.to-rem(4px);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--color-surface-1) 90%, transparent);
+    backdrop-filter: blur(12px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    transition: border-color var(--motion-base) var(--ease-out);
+
+    &[data-state="open"] {
+      border-color: var(--color-outline-2);
+    }
+  }
+
+  .trigger {
+    --icon-button-inset-start: #{functions.to-rem(8px)};
+
+    padding-inline-end: functions.to-rem(8px);
+    color: var(--color-text-3);
+    cursor: default;
+  }
+
+  .keys {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(12px);
+    max-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    list-style: none;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+    transition:
+      max-inline-size 220ms var(--ease-out),
+      opacity var(--motion-base) ease,
+      visibility 0s linear 220ms;
+
+    li {
+      display: inline-flex;
+      align-items: center;
+      gap: functions.to-rem(4px);
+    }
+
+    [data-state="open"] > & {
+      max-inline-size: functions.to-rem(720px);
+      padding-inline: functions.to-rem(4px) functions.to-rem(8px);
+      opacity: 1;
+      visibility: visible;
+      transition-delay: 0s;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .corner {
+      background: var(--color-surface-1);
+      backdrop-filter: none;
+    }
+  }
+}

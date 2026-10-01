@@ -77,6 +77,8 @@ export interface HeaderProps {
   jumpToGroupHeading: (groupId: string) => void;
   /** The Account menu's Keyboard shortcuts row opens the shortcuts modal. */
   toggleShortcuts: () => void;
+  /** Focus mode quiets the header and drops its lens row and progress bar. */
+  focusMode: boolean;
 }
 
 const SETTLE_MS = 200;
@@ -108,6 +110,7 @@ export function Header({
   jumpToGroup,
   jumpToGroupHeading,
   toggleShortcuts,
+  focusMode,
 }: HeaderProps) {
   const { t } = useTranslation();
   const stackView = resolveStackView(
@@ -197,6 +200,7 @@ export function Header({
       className={styles["header"]}
       ref={headerRef}
       data-collapsed={collapsed ? "" : undefined}
+      data-focus={focusMode ? "" : undefined}
     >
       <div className={styles["identityRow"]}>
         {/* Lead is inert on wide viewports (display: contents, one flex

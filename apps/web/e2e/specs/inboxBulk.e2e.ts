@@ -9,6 +9,7 @@ import {
   INBOX_ROWS,
 } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
+import { waitForFirstLoad } from "../support/page";
 
 const [, , , nonAdminRow] = INBOX_ROWS;
 const deleteRow = INBOX_ROWS.find(
@@ -35,7 +36,7 @@ test("ticked rows archive together, and Delete counts the deletable ones", async
   await page.goto("/");
   const rows = page.getByTestId("inbox-row");
   const bar = page.getByTestId("selection-header");
-  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
+  await waitForFirstLoad(page);
 
   // The input is visually replaced by a drawn box: a click lands on its label.
   await rows.filter({ hasText: firstArchive.title }).locator("label").click();

@@ -561,7 +561,6 @@
       "fileBriefReadOnly": "This brief was loaded from a file, so there is no review session to save work to. It is read-only.",
       "staleRevisionReason": "This isn't the pull request's current revision. Switch to the latest revision to comment.",
       "mockupSubmit": "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
-      "exitFocus": "Exit focus (Z)",
       "ariaLabelShortcuts": "Keyboard shortcuts",
       "sessionFrozen": "This brief is superseded and read-only — your review carried to the newest one."
     },
@@ -650,11 +649,22 @@
       "cancel": "Cancel re-anchor",
       "escKey": "Esc"
     },
-    "focusBanner": {
-      "lead": "Focus mode",
-      "hint": "<0/> — one chunk at a time. <1/><2/> to move, <3/> to mark viewed, <4/> to exit.",
-      "exit": "Exit focus",
-      "escKey": "Esc"
+    "focusIndicator": {
+      "ariaLabel": "Focus mode",
+      "label": "Focus",
+      "exit": "Exit focus mode (Esc)",
+      "groupOf": "Group {{index}} of {{total}}"
+    },
+    "focusShortcuts": {
+      "ariaLabel": "Focus mode shortcuts",
+      "trigger": "Keys",
+      "shift": "Shift",
+      "chunk": "chunk",
+      "group": "group",
+      "viewed": "viewed",
+      "split": "split",
+      "exit": "exit",
+      "all": "all"
     },
     "toc": {
       "ariaLabel": "Change groups",
@@ -683,9 +693,7 @@
     },
     "progress": {
       "ariaLabel": "Read-through progress",
-      "step": "Step",
-      "group": "Group",
-      "segmentLabel": "{{label}} {{step}} of {{total}}: {{title}}"
+      "segmentLabel": "Group {{index}} of {{total}}: {{title}}"
     },
     "sinceMarker": {
       "titleOpenDeltaLens": "Open the delta lens — compare against your last review",

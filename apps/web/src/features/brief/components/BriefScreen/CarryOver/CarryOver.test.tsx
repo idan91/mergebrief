@@ -327,16 +327,24 @@ describe("carry-over row", () => {
     expect(document.querySelector("[data-pick]")).toBeNull();
   });
 
-  it("stacks the re-anchor banner after the focus banner", async () => {
+  it("stacks the re-anchor banner after the focus pill", async () => {
     await renderScreen(buildOrphanedDraft());
-    fireEvent.keyDown(window, { key: "z" });
-    const focusBanner = await screen.findByTestId("focus-banner");
     fireEvent.click(getReanchorControl());
+    fireEvent.keyDown(window, { key: "z" });
+    const focusIndicator = await screen.findByTestId("focus-indicator");
     const reanchorBanner = screen.getByTestId("reanchor-banner");
     const follows =
-      focusBanner.compareDocumentPosition(reanchorBanner) &
+      focusIndicator.compareDocumentPosition(reanchorBanner) &
       Node.DOCUMENT_POSITION_FOLLOWING;
     expect(follows).toBeTruthy();
+  });
+
+  it("hides the carry-over bar in focus mode", async () => {
+    await renderScreen(buildOrphanedDraft());
+    expect(getReanchorControl()).toBeTruthy();
+    fireEvent.keyDown(window, { key: "z" });
+    await screen.findByTestId("focus-indicator");
+    expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
   it("marks the draft's file rows pickable while armed", async () => {

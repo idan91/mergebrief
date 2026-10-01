@@ -343,23 +343,48 @@ describe("Read-through progress + auto-advance", () => {
     ).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "z" });
-    await screen.findByTestId("focus-banner");
+    await screen.findByTestId("focus-indicator");
     expect(
       screen.queryByRole("button", { name: /Start read-through/ }),
     ).toBeNull();
   });
 
-  it("keeps the focus banner's key hints as kbd elements", async () => {
-    // The banner is one <Trans> sentence: a short components array would drop
-    // a <kbd> and its letter with it, leaving "to move," with nothing to press.
+  it("shows the focus pill with its count and one exit", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     fireEvent.keyDown(window, { key: "z" });
-    const banner = await screen.findByTestId("focus-banner");
+
+    const pill = await screen.findByRole("group", { name: "Focus mode" });
+    expect(within(pill).getByText(/Group 1 of \d+/)).toBeTruthy();
     expect(
-      [...banner.querySelectorAll("kbd")].map((k) => k.textContent),
-    ).toEqual(["J", "K", "V", "Esc"]);
-    expect(banner.textContent).toContain("Focus mode");
+      screen.getAllByRole("button", { name: /Exit focus mode/ }),
+    ).toHaveLength(1);
+  });
+
+  it("leaves focus mode from the pill's exit", async () => {
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    fireEvent.keyDown(window, { key: "z" });
+
+    const pill = await screen.findByRole("group", { name: "Focus mode" });
+    fireEvent.click(
+      within(pill).getByRole("button", { name: "Exit focus mode (Esc)" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId("focus-indicator")).toBeNull(),
+    );
+    expect(screen.queryByTestId("focus-shortcuts")).toBeNull();
+  });
+
+  it("lists the focus keys as kbd elements in the shortcuts corner", async () => {
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    fireEvent.keyDown(window, { key: "z" });
+
+    const corner = await screen.findByTestId("focus-shortcuts");
+    expect(
+      [...corner.querySelectorAll("kbd")].map((cap) => cap.textContent),
+    ).toEqual(["J", "K", "⇧Shift J", "⇧Shift K", "V", "D", "Esc", "?"]);
   });
 
   it("does not auto-advance outside focus mode entirely", async () => {

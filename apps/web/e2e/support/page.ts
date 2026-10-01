@@ -1,25 +1,45 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** The shortcuts dialog's outer wrapper — `display:none` while closed. */
+/** The shortcuts dialog's outer wrapper, `display:none` while closed. */
 export function shortcutsDialog(page: Page): Locator {
   return page.locator('[aria-labelledby="shortcuts-modal-heading"]');
 }
 
 /**
- * Resolve once the page's window-level keydown listeners are live.
- *
- * The brief screen is server-rendered, so every control is in the DOM long
- * before React hydrates and attaches handlers — a keystroke sent in that
- * window is simply lost, with no DOM signal that it was. Nothing observable
- * marks the transition either: `__TSR_ROUTER__` is set by the client entry
- * before hydration, and a React fiber lands on the container before the
- * effects that register the listeners run (both measured, both still raced).
- *
- * So the gate is the behaviour itself: press the shortcut, assert the dialog
- * opened, retry the pair until it does. Asserting after EVERY press is what
- * keeps a toggle safe — a press either lands (assertion passes, loop ends) or
- * is lost (nothing toggled, retry). The dialog is closed again before
- * returning, leaving the page in its arrival state.
+ * Resolve once the Inbox rows have settled after their first-load fade. The
+ * first visit also compiles the app on a cold dev server, hence the budget.
+ */
+export async function waitForFirstLoad(
+  page: Page,
+  { timeout = 20_000 }: { timeout?: number } = {},
+): Promise<void> {
+  await expect(page.locator('[data-first-load="false"]')).toBeAttached({
+    timeout,
+  });
+}
+
+/**
+ * Click until the click's effect lands. A click sent before hydration is
+ * lost with no DOM signal, like the keystrokes `waitForInteractive` retries.
+ */
+export async function clickUntilLanded(
+  target: Locator,
+  landed: () => Promise<void>,
+  { timeout = 20_000 }: { timeout?: number } = {},
+): Promise<void> {
+  await expect(async () => {
+    await target.click();
+    await landed();
+  }).toPass({ timeout });
+}
+
+/**
+ * Resolve once the page's window-level keydown listeners are live. Nothing
+ * observable marks hydration: `__TSR_ROUTER__` and the React fiber both land
+ * before the listeners do, so an early keystroke is lost silently. The gate
+ * is the behaviour itself. Press the shortcut, assert the dialog opened, and
+ * retry the pair; asserting after every press keeps the toggle safe. The
+ * dialog is closed again before returning.
  */
 export async function waitForInteractive(
   page: Page,

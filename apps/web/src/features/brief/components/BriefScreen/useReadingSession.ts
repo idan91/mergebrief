@@ -314,8 +314,8 @@ export interface UseReadingSessionValue {
   groupBoundaries: number[];
   // view / focus state,
   focusMode: boolean;
-  /** The focus banner strip's measurement target (publishes --focus-banner-h). */
-  focusBannerRef: RefObject<HTMLDivElement | null>;
+  /** The focus pill's measurement target (publishes --focus-indicator-h). */
+  focusIndicatorRef: RefObject<HTMLDivElement | null>;
   openChunks: Set<string>;
   /** Bulk action over `openChunks`, never an override, derived state. */
   supportingCollapse: SupportingCollapseState;
@@ -458,24 +458,24 @@ export function useReadingSession(
   // through a ref keeps its identity stable across review actions (a Set dep
   // would re-render every memoized card per click).
   const reviewedChunksRef = useLatestRef(reviewedChunks);
-  // Publishes --focus-banner-h so sticky chunk headers and the focus rail
-  // stack below the strip; 0px whenever focus mode is off (strip unmounted).
-  const focusBannerRef = useRef<HTMLDivElement | null>(null);
+  // Publishes --focus-indicator-h so sticky chunk heads stack below the
+  // pill; 0px whenever focus mode is off (pill unmounted).
+  const focusIndicatorRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const setBannerHeight = (value: string) =>
-      document.documentElement.style.setProperty("--focus-banner-h", value);
-    const el = focusBannerRef.current;
+    const setIndicatorHeight = (value: string) =>
+      document.documentElement.style.setProperty("--focus-indicator-h", value);
+    const el = focusIndicatorRef.current;
     if (!focusMode || !el) {
-      setBannerHeight("0px");
+      setIndicatorHeight("0px");
       return;
     }
-    const apply = () => setBannerHeight(`${el.offsetHeight}px`);
+    const apply = () => setIndicatorHeight(`${el.offsetHeight}px`);
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(el);
     return () => {
       observer.disconnect();
-      setBannerHeight("0px");
+      setIndicatorHeight("0px");
     };
   }, [focusMode]);
   const firstChunkId = chunkIds[0] ?? null;
@@ -654,9 +654,9 @@ export function useReadingSession(
     const entering = !focusModeRef.current;
     setFocusMode(entering);
     if (!entering) return;
-    // align="top" required: the focus banner only mounts once `focusMode`
+    // align="top" required: the focus pill only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via
-    // focusScrollOffset() or the banner covers the chunk.
+    // focusScrollOffset() or the pill covers the chunk.
     const target = position.getState().activeChunkId ?? firstChunkId;
     if (!target) return;
     // Focus mode reads the active card; a collapsed one would show nothing.
@@ -730,7 +730,7 @@ export function useReadingSession(
     chunkIds,
     groupBoundaries,
     focusMode,
-    focusBannerRef,
+    focusIndicatorRef,
     openChunks,
     supportingCollapse,
     toggleCollapseSupporting,

@@ -14,16 +14,18 @@ describe("deriveVisibleRegions", () => {
       toolbar: true,
       conversation: true,
       sidebar: true,
+      carryOver: true,
     });
   });
 
-  it("Changes keeps only the summary", () => {
+  it("Changes keeps the summary and the carry-over bar", () => {
     const regions = deriveVisibleRegions({ scope: "changes", focus: false });
     expect(regions).toEqual({
       summary: true,
       toolbar: false,
       conversation: false,
       sidebar: false,
+      carryOver: true,
     });
   });
 
@@ -34,6 +36,7 @@ describe("deriveVisibleRegions", () => {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      carryOver: false,
     });
   });
 
@@ -44,6 +47,7 @@ describe("deriveVisibleRegions", () => {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      carryOver: false,
     });
   });
 });

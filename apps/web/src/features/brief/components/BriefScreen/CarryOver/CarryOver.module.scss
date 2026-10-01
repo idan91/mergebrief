@@ -2,6 +2,8 @@
 
 @layer components {
   .row {
+    inline-size: fit-content;
+    max-inline-size: 100%;
     padding: functions.to-rem(8px) functions.to-rem(14px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);

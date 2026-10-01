@@ -1,0 +1,78 @@
+@use "functions";
+
+@layer components {
+  .stickyWrapper {
+    position: sticky;
+    inset-block-start: var(--top-bar-h);
+    z-index: 90;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    block-size: 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline: 0;
+      block-size: var(--focus-indicator-h);
+      background: var(--focus-page-bg);
+    }
+  }
+
+  .focusIndicator {
+    position: relative;
+    padding-block: functions.to-rem(12px);
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(12px);
+    block-size: functions.to-rem(32px);
+    padding-inline: functions.to-rem(14px) functions.to-rem(4px);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--color-surface-1) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: var(--shadow-float);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    transition: border-color var(--motion-base) ease;
+
+    &:hover,
+    &:focus-within {
+      border-color: var(--color-outline-2);
+    }
+  }
+
+  .label {
+    color: var(--color-text-2);
+    font-weight: 500;
+  }
+
+  .countFigures {
+    display: inline-flex;
+    gap: functions.to-rem(4px);
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+
+    b {
+      color: var(--color-text-1);
+      font-weight: 500;
+    }
+  }
+
+  .separator {
+    inline-size: 1px;
+    block-size: functions.to-rem(14px);
+    background: var(--color-outline-2);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .pill {
+      background: var(--color-surface-1);
+      backdrop-filter: none;
+    }
+  }
+}

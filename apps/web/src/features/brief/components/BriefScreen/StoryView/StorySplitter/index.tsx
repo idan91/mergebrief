@@ -45,7 +45,7 @@ export function StorySplitter({
       aria-valuemax={splitter.measured ? splitter.ceiling : undefined}
       aria-valuenow={splitter.measured ? splitter.cardWidth : undefined}
       aria-valuetext={splitter.measured ? valueText : undefined}
-      tabIndex={0}
+      tabIndex={splitter.measured ? 0 : undefined}
       onKeyDown={splitter.onKeyDown}
       onPointerDown={splitter.onPointerDown}
       onPointerMove={splitter.onPointerMove}

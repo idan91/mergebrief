@@ -1,5 +1,5 @@
-// The fixture brief renders end to end through the real server — story
-// sections, chunk cards, diff rows — with a clean console.
+// The fixture brief renders end to end through the real server: story
+// sections, chunk cards and diff rows, with a clean console.
 import { expect, test } from "@playwright/test";
 
 import {
@@ -30,10 +30,10 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
   }
 
-  // Chunk cards are the spans of the story — each is an <article> keyed by
-  // chunk id, carrying its file path.
+  // Four attributed chunks plus the two unattributed ones, which render as
+  // the remainder group's cards.
   const chunks = page.getByTestId("brief-chunk");
-  await expect(chunks).toHaveCount(4);
+  await expect(chunks).toHaveCount(6);
   await expect(chunks.first()).toContainText(
     "apps/web/src/features/brief/components/Header/Header.tsx",
   );

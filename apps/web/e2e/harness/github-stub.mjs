@@ -14,7 +14,40 @@ const INBOX = JSON.parse(
 );
 const MINUTE_MS = 60_000;
 const SYNTHETIC_FILE_LINES = 900;
+const FIXTURE_PR_NUMBER = 1;
 const realFetch = globalThis.fetch;
+
+function buildFixturePull(number) {
+  const repo = {
+    id: Number(REPO_ID),
+    name: REPO_SLUG.split("/")[1],
+    full_name: REPO_SLUG,
+    owner: { login: REPO_SLUG.split("/")[0] },
+  };
+  return {
+    number,
+    state: "open",
+    draft: false,
+    merged: false,
+    title: "feat: front-door accessibility and keyboard navigation",
+    body: "",
+    html_url: `https://github.com/${REPO_SLUG}/pull/${number}`,
+    commits: 2,
+    user: { login: "e2e-author" },
+    closed_at: null,
+    updated_at: new Date(0).toISOString(),
+    head: {
+      sha: "22222222eeee3333ffff4444aaaa5555bbbb6666",
+      ref: "e2e-fixture",
+      repo,
+    },
+    base: {
+      sha: "0000000099998888777766665555444433332222",
+      ref: "main",
+      repo,
+    },
+  };
+}
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -179,6 +212,14 @@ globalThis.fetch = async (input, init) => {
   if (pathname === `/repos/${REPO_SLUG}/pulls`) {
     // The Inbox reads the open list for its stacks; the fixture has none.
     return jsonResponse([]);
+  }
+  const pull = new RegExp(`^/repos/${REPO_SLUG}/pulls/(?<number>\\d+)$`).exec(
+    pathname,
+  );
+  if (pull?.groups.number === String(FIXTURE_PR_NUMBER)) {
+    // The stack read fetches a PR missing from the open list above; the
+    // fixture PR answers as one that stands alone.
+    return jsonResponse(buildFixturePull(FIXTURE_PR_NUMBER));
   }
   const contents = new RegExp(
     `^/repos/${REPO_SLUG}/contents/(?<path>.+)$`,

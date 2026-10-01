@@ -1,6 +1,5 @@
 import { memo, useMemo } from "react";
 
-import { Button } from "@web/components/Button";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ExpansionSourceProvider } from "../../hooks/useExpansionSource";
 import { FileRowsProvider } from "../../hooks/useFileRows";
@@ -14,7 +13,8 @@ import { MarkReadyModal } from "@web/features/pulls/components";
 import { ChunkWindowProvider } from "./chunkWindows";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip";
-import { FocusBanner } from "./FocusBanner";
+import { FocusIndicator } from "./FocusIndicator";
+import { FocusShortcuts } from "./FocusShortcuts";
 import { LineLinkNotice } from "./LineLinkNotice";
 import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
@@ -195,6 +195,7 @@ export function BriefScreen({
             <ReadingPositionProvider store={readingPosition}>
               <Header
                 toggleShortcuts={session.toggleShortcuts}
+                focusMode={session.focusMode}
                 brief={brief}
                 livePrState={livePrState}
                 repoConfig={repoConfig}
@@ -227,11 +228,11 @@ export function BriefScreen({
                 <LineLinkNotice onDismiss={dismissLineLinkMiss} />
               ) : null}
               {session.focusMode ? (
-                <FocusBanner
-                  bannerRef={session.focusBannerRef}
+                <FocusIndicator
+                  indicatorRef={session.focusIndicatorRef}
                   groups={model.groups}
                   jumpToChunk={session.jumpToChunk}
-                  toggleFocusMode={session.toggleFocusMode}
+                  exitFocusMode={session.toggleFocusMode}
                 />
               ) : null}
               {reanchorLocation !== undefined ? (
@@ -253,7 +254,7 @@ export function BriefScreen({
                 aria-busy={pendingShown || undefined}
                 inert={pendingShown || undefined}
               >
-                {reviewSession !== undefined ? (
+                {regions.carryOver && reviewSession !== undefined ? (
                   <CarryOver
                     headSha={brief.pr.sha}
                     jumpToItem={jumpToSubmitItem}
@@ -492,13 +493,7 @@ export function BriefScreen({
                 close={session.closeShortcuts}
                 sections={BRIEF_SHORTCUT_SECTIONS}
               />
-              {session.focusMode ? (
-                <div className={styles["focusExit"]}>
-                  <Button onClick={session.toggleFocusMode}>
-                    {t("brief.screen.exitFocus")}
-                  </Button>
-                </div>
-              ) : null}
+              {session.focusMode ? <FocusShortcuts /> : null}
               <div
                 className={styles["toast"]}
                 data-testid="brief-toast"

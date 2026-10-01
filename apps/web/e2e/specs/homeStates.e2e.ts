@@ -13,6 +13,10 @@ import {
 } from "../harness/env";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import { collectPageFaults } from "../support/console";
+import { clickUntilLanded } from "../support/page";
+
+/** Each try waits this long for the URL before clicking again. */
+const LANDING_TIMEOUT_MS = 2_000;
 
 async function openHomeAs(
   page: Page,
@@ -71,9 +75,10 @@ test("filtered to nothing explains the default status and clears", async ({
   await expect(page.getByTestId("inbox-row")).toHaveCount(0);
   await expectNoSeriousAxeViolations(page, testInfo, "home-filtered");
 
-  await page.getByRole("button", { name: "Clear filters" }).click();
-
-  await expect(page).toHaveURL(/\/$/);
+  await clickUntilLanded(
+    page.getByRole("button", { name: "Clear filters" }),
+    () => expect(page).toHaveURL(/\/$/, { timeout: LANDING_TIMEOUT_MS }),
+  );
   await expect(page.getByTestId("inbox-row").first()).toBeVisible();
 
   await page.goto("/?state=merged");
@@ -101,10 +106,13 @@ test("merged and closed rows are hidden until one click shows them", async ({
   await expect(page.getByTestId("inbox-row")).toHaveCount(0);
   await expectNoSeriousAxeViolations(page, testInfo, "home-hidden");
 
-  await page.getByRole("button", { name: "Show merged and closed" }).click();
-
-  await expect(page).toHaveURL(
-    /state=open(,|%2C)draft(,|%2C)merged(,|%2C)closed/,
+  await clickUntilLanded(
+    page.getByRole("button", { name: "Show merged and closed" }),
+    () =>
+      expect(page).toHaveURL(
+        /state=open(,|%2C)draft(,|%2C)merged(,|%2C)closed/,
+        { timeout: LANDING_TIMEOUT_MS },
+      ),
   );
   await expect(page.getByTestId("inbox-row")).toHaveCount(1);
   await expect(
@@ -160,9 +168,11 @@ test("a failed list keeps the header and URL box and asks again on Try again", a
   await expectNoSeriousAxeViolations(page, testInfo, "home-failed");
 
   const before = inboxReads;
-  await page.getByRole("button", { name: "Try again" }).click();
-
-  await expect.poll(() => inboxReads).toBeGreaterThan(before);
+  await clickUntilLanded(page.getByRole("button", { name: "Try again" }), () =>
+    expect
+      .poll(() => inboxReads, { timeout: LANDING_TIMEOUT_MS })
+      .toBeGreaterThan(before),
+  );
   await expect(alert).toBeVisible();
   expect(faults).toEqual([]);
 });

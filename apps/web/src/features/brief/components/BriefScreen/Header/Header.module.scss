@@ -260,6 +260,27 @@
     flex: none;
   }
 
+  .header[data-focus] {
+    border-block-end-color: transparent;
+    background: var(--focus-page-bg);
+    backdrop-filter: none;
+
+    > * {
+      opacity: 0.32;
+      transition: opacity var(--motion-base) var(--ease-out);
+    }
+
+    &:hover > *,
+    &:focus-within > * {
+      opacity: 1;
+    }
+
+    .lensRow,
+    .progressBar {
+      display: none;
+    }
+  }
+
   // scaleX, not inline-size: a percentage re-fires the transition every
   // resize frame. `0 50%` = inline-start; transform-origin has no logical
   // keywords yet.

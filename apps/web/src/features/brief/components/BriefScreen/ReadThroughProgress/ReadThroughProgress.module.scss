@@ -5,63 +5,77 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: functions.to-rem(4px);
-    inline-size: 100%;
-    max-inline-size: 220px;
+    gap: functions.to-rem(2px);
+    max-inline-size: 50vw;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .segment {
+    --track-h: 3px;
+
     position: relative;
-    flex: 1;
-    inline-size: 100%;
-    block-size: 6px;
+    flex: 0 1 functions.to-rem(24px);
+    min-inline-size: functions.to-rem(22px);
+    block-size: functions.to-rem(24px);
     padding: 0;
-    overflow: hidden;
-    border: 1px solid var(--color-outline-2);
+    border: 0;
     border-radius: var(--radius-sm);
-    background: color-mix(
-      in srgb,
-      var(--color-surface-1) 60%,
-      var(--color-background)
-    );
+    background: transparent;
     cursor: pointer;
 
-    &:hover {
-      border-color: color-mix(
-        in srgb,
-        var(--color-outline-2) 60%,
-        var(--color-text-1)
-      );
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline: 2px;
+      inset-block-start: calc(50% - var(--track-h) / 2);
+      block-size: var(--track-h);
+      border-radius: var(--radius-pill);
+      background: var(--color-outline-2);
+      transition:
+        background var(--motion-fast) ease,
+        outline-color var(--motion-fast) ease;
     }
 
-    // Current segment: not color-only — also taller, so it reads distinctly
-    // under color-blindness / monochrome rendering.
+    &:hover {
+      --track-h: 5px;
+    }
+
+    &:hover::before {
+      background: var(--color-text-3);
+    }
+
     &[data-current] {
-      block-size: 9px;
-      border-color: var(--color-text-1);
+      --track-h: 5px;
+    }
+
+    &[data-current]::before {
+      outline: 1px solid var(--color-text-3);
+      outline-offset: 1px;
+    }
+
+    &:focus-visible {
+      outline-offset: -2px;
     }
   }
 
   .fill {
     position: absolute;
-    inset-block: 0;
-    inset-inline-start: 0;
+    inset-inline-start: 2px;
+    inset-block-start: calc(50% - var(--track-h) / 2);
     display: block;
-    background: var(--color-outline-2);
-    transition: inline-size var(--motion-fast) ease;
-  }
-
-  .segment[data-past] .fill {
+    inline-size: calc((100% - 4px) * var(--fill));
+    block-size: var(--track-h);
+    border-radius: var(--radius-pill);
     background: var(--color-text-2);
+    transition: inline-size var(--motion-slow) var(--ease-out);
   }
 
   .segment[data-current] .fill {
     background: var(--color-text-1);
   }
 
-  // Subtle, optional "read-through complete" cue: no color implying
-  // good/bad, just a slightly brighter, evenly-filled bar.
-  .progress[data-complete] .segment {
-    border-color: var(--color-text-1);
+  .progress[data-complete] .segment::before {
+    background: var(--color-text-3);
   }
 }

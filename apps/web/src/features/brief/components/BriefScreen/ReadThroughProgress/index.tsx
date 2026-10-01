@@ -1,17 +1,14 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { GroupView } from "../../../utils/viewModel";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
 import { useReadingPosition } from "../readingPosition";
+import { deriveFillStyle, revealSegment } from "./utils";
 import styles from "./ReadThroughProgress.module.scss";
 
 export interface ReadThroughSegment {
   groupId: string;
-  step: number;
-  /** Whether `step` comes from a real Reading order vs the source-order
-   * fallback, mirrors FocusGroupRail/GroupCard's "Step N" vs "Group N"
-   * wording so the progress bar never implies an authored order that isn't
-   * there. */
-  hasReadingOrder: boolean;
+  position: number;
   title: string;
   firstChunkId: string | undefined;
   /** 0–100; within-group chunk position, not review completion. */
@@ -48,8 +45,7 @@ export function buildReadThroughSegments(
     }
     return {
       groupId: group.id,
-      step: group.readingOrderStep ?? index + 1,
-      hasReadingOrder: group.readingOrderStep !== undefined,
+      position: index + 1,
       title: groupTitle(group),
       firstChunkId: group.chunks[0]?.id,
       fillPercent,
@@ -77,9 +73,21 @@ export function ReadThroughProgress({
 }: ReadThroughProgressProps) {
   const { t } = useTranslation();
   const activeChunkId = useReadingPosition((state) => state.activeChunkId);
+  const navRef = useRef<HTMLElement>(null);
   const segments = buildReadThroughSegments(groups, activeChunkId, (group) =>
     resolveGroupName(t, group),
   );
+  const currentIndex = segments.findIndex((segment) => segment.isCurrent);
+
+  // The nav scrolls, with its scrollbar hidden, once the segments outgrow it.
+  useEffect(() => {
+    const nav = navRef.current;
+    const current = nav?.children[currentIndex];
+    if (nav && current instanceof HTMLElement) {
+      revealSegment(nav, current);
+    }
+  }, [currentIndex]);
+
   if (segments.length === 0) return null;
   const complete =
     segments.length > 0 && segments[segments.length - 1]?.isCurrent
@@ -89,35 +97,38 @@ export function ReadThroughProgress({
     <nav
       aria-label={t("brief.progress.ariaLabel")}
       className={styles["progress"]}
+      ref={navRef}
       data-complete={complete ? "" : undefined}
     >
-      {segments.map((segment) => (
-        // oxlint-disable-next-line house/no-raw-button -- progress segment as click target: the hit area is not a visual control
-        <button
-          aria-current={segment.isCurrent ? "step" : undefined}
-          aria-label={t("brief.progress.segmentLabel", {
-            label: segment.hasReadingOrder
-              ? t("brief.progress.step")
-              : t("brief.progress.group"),
-            step: segment.step,
-            total: segments.length,
-            title: segment.title,
-          })}
-          className={styles["segment"]}
-          data-current={segment.isCurrent ? "" : undefined}
-          data-past={segment.isPast ? "" : undefined}
-          key={segment.groupId}
-          type="button"
-          onClick={() => {
-            if (segment.firstChunkId) jumpToChunk(segment.firstChunkId);
-          }}
-        >
-          <span
-            className={styles["fill"]}
-            style={{ inlineSize: `${segment.fillPercent}%` }}
-          />
-        </button>
-      ))}
+      {segments.map((segment) => {
+        const label = t("brief.progress.segmentLabel", {
+          index: segment.position,
+          total: segments.length,
+          title: segment.title,
+        });
+        const fillStyle = deriveFillStyle(segment.fillPercent);
+        const jump = () => {
+          if (segment.firstChunkId) {
+            jumpToChunk(segment.firstChunkId);
+          }
+        };
+
+        return (
+          // oxlint-disable-next-line house/no-raw-button -- progress segment as click target: the hit area is not a visual control
+          <button
+            aria-current={segment.isCurrent ? "step" : undefined}
+            aria-label={label}
+            className={styles["segment"]}
+            data-current={segment.isCurrent ? "" : undefined}
+            data-past={segment.isPast ? "" : undefined}
+            key={segment.groupId}
+            type="button"
+            onClick={jump}
+          >
+            <span className={styles["fill"]} style={fillStyle} />
+          </button>
+        );
+      })}
     </nav>
   );
 }

@@ -141,6 +141,21 @@ export default {
         value: buildSessionPayload(view, target.headIndex),
       } satisfies PreviewSessionResult;
     } catch (error) {
+      // A purge that lands between resolving the target and reading it
+      // leaves nothing to read: that is the brief being gone, not a fault.
+      const stillThere = await resolveSessionTarget(
+        deps,
+        input.ctx,
+        input.repoId,
+        input.prNumber,
+        input.span,
+      );
+      if (stillThere === undefined) {
+        return {
+          ok: false,
+          error: { kind: "target-not-found" },
+        } satisfies PreviewSessionResult;
+      }
       if (!(error instanceof UnreadableBriefError)) throw error;
       input.log.error("brief artifact unreadable — carry-over not evaluated", {
         briefId: String(target.briefId),

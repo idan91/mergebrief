@@ -1,4 +1,4 @@
-// The story surface's interactive affordances — disclosure and jump
+// The story surface's interactive affordances: disclosure and jump
 // behaviours that only exist once the page is hydrated, and that jsdom cannot
 // judge because they turn on layout and real focus.
 import { expect, test } from "@playwright/test";
@@ -61,7 +61,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
 
   // `hot-path` is carried by exactly one chunk in the fixture (viewModel.ts,
   // the second change group's first chunk), so the jump target is
-  // unambiguous — the group lands with that chunk at the top of the
+  // unambiguous: the group lands with that chunk at the top of the
   // viewport, which is a layout fact only a real browser can judge.
   const jump = page.getByRole("button", { name: /hot-path ×1/ });
   await expect(jump).toBeVisible();
@@ -80,7 +80,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
       ),
     )
     // Below the sticky stack (header ~97px + reading toolbar ~45px), with a
-    // little slack — "at the top" now means under the pinned chrome.
+    // little slack; "at the top" now means under the pinned chrome.
     .toBeLessThan(160);
 });
 
@@ -96,4 +96,36 @@ test("the shortcuts modal opens with ? and closes with Escape", async ({
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+});
+
+test("focus mode quiets the header and lands the chunk below the pill", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const readTopBar = () =>
+    page.evaluate(() =>
+      Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--top-bar-h",
+        ),
+      ),
+    );
+  const restingTopBar = await readTopBar();
+
+  await page.keyboard.press("z");
+  const pill = page.getByRole("group", { name: "Focus mode", exact: true });
+  await expect(pill).toBeVisible();
+  await expect.poll(readTopBar).toBeLessThan(restingTopBar);
+
+  const chunk = page.locator("main article[data-current]");
+  await expect
+    .poll(async () => {
+      const pillBox = await pill.boundingBox();
+      const chunkBox = await chunk.boundingBox();
+      if (!pillBox || !chunkBox) {
+        return -1;
+      }
+      return chunkBox.y - (pillBox.y + pillBox.height);
+    })
+    .toBeGreaterThanOrEqual(0);
 });

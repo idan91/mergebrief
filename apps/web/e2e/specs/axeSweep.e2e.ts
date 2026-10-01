@@ -4,13 +4,13 @@ import { expect, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
-import { gotoBrief, shortcutsDialog } from "../support/page";
+import { gotoBrief, shortcutsDialog, waitForFirstLoad } from "../support/page";
 
 test("the picker front door is clean", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // The rows fade up on first load; axe reads contrast through opacity.
-  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
+  await waitForFirstLoad(page);
   await expectNoSeriousAxeViolations(page, testInfo, "picker");
 });
 

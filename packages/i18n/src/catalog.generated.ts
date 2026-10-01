@@ -177,13 +177,16 @@ export type Catalog = typeof en & {
       reviewCount: "{{count}} review";
       ariaLabelAddFileComment: "Add a comment on {{file}}";
     };
+    focusIndicator: (typeof en)["brief"]["focusIndicator"] & {
+      groupOf: "Group {{index}} of {{total}}";
+    };
     sidebar: (typeof en)["brief"]["sidebar"] & {
       revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {
         title: "Revision {{index}}";
       };
     };
     progress: (typeof en)["brief"]["progress"] & {
-      segmentLabel: "{{label}} {{step}} of {{total}}: {{title}}";
+      segmentLabel: "Group {{index}} of {{total}}: {{title}}";
     };
     sinceMarker: (typeof en)["brief"]["sinceMarker"] & {
       changed_one: "{{count}} file changed since {{sha}}";

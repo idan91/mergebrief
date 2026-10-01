@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 
 import { INBOX_ROWS } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
+import { waitForFirstLoad } from "../support/page";
 
 const [, , inProgressRow] = INBOX_ROWS;
 
@@ -20,7 +21,7 @@ test("Archive hides a row until Unarchive, behind the Show filter", async ({
   const rows = page.getByTestId("inbox-row");
   const target = rows.filter({ hasText: inProgressRow.title });
   await expect(target).toHaveCount(1);
-  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
+  await waitForFirstLoad(page);
 
   await target.hover();
   const more = target.getByRole("button", { name: "More actions" });

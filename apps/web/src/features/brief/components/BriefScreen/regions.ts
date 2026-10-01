@@ -1,5 +1,5 @@
-// Which page regions are visible derives from the two reading modes — Scope
-// (Full/Changes) and Focus (on/off) — in one place. No per-region ad-hoc
+// Which page regions are visible derives from the two reading modes, Scope
+// (Full/Changes) and Focus (on/off), in one place. No per-region ad-hoc
 // gating conditions may exist outside this derivation.
 import type { ViewParam } from "../../comparison/compareState";
 
@@ -11,11 +11,13 @@ export interface ReadingModes {
 
 /** One flag per page region. */
 export interface VisibleRegions {
-  /** Summary + IntentBar (capped) — one flag for both. */
+  /** Summary + IntentBar (capped): one flag for both. */
   summary: boolean;
   toolbar: boolean;
   conversation: boolean;
   sidebar: boolean;
+  /** The carried-forward review bar. */
+  carryOver: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      carryOver: false,
     };
   }
   if (modes.scope === "changes") {
@@ -37,6 +40,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      carryOver: true,
     };
   }
   return {
@@ -44,5 +48,6 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
     toolbar: true,
     conversation: true,
     sidebar: true,
+    carryOver: true,
   };
 }

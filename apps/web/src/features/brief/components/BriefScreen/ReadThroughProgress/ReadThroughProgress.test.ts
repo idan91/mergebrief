@@ -31,15 +31,10 @@ describe("buildReadThroughSegments", () => {
     expect(current?.fillPercent).toBe(100); // 2nd of 2 chunks in the group.
   });
 
-  it("falls back to source-order step numbers when there is no readingOrder", () => {
+  it("numbers segments by their position in the group order", () => {
     const segments = buildReadThroughSegments(model.groups, null, titleOf);
-    expect(segments.map((segment) => segment.step)).toEqual(
-      model.groups.map((group, index) => group.readingOrderStep ?? index + 1),
+    expect(segments.map((segment) => segment.position)).toEqual(
+      model.groups.map((_group, index) => index + 1),
     );
-  });
-
-  it("flags hasReadingOrder false in the source-order fallback", () => {
-    const segments = buildReadThroughSegments(model.groups, null, titleOf);
-    expect(segments.every((segment) => !segment.hasReadingOrder)).toBe(true);
   });
 });
