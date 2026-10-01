@@ -216,9 +216,32 @@
     --focus-panel-w: min(400px, 30vw);
     --focus-panel-inset: 12px;
 
-    // The panel's and its tab's distance from the viewport edge; base.scss
-    // widens it where the chunk card and the panel centre as a pair.
-    --focus-panel-end: var(--focus-panel-inset);
+    // With the panel open the chunk card slides toward the start edge, to the
+    // panel's inset there, or only until card and panel centre as a pair
+    // where the viewport fits both side by side. --focus-overlap is how far
+    // the slid card still runs under the panel; negative once it clears it.
+    --focus-card-w: calc(
+      min(100vw, var(--focus-max)) - 2 * var(--focus-gutter)
+    );
+    --focus-card-start: calc((100vw - var(--focus-card-w)) / 2);
+    --focus-shift: min(
+      calc(var(--focus-card-start) - var(--focus-panel-inset)),
+      calc((var(--focus-panel-w) + var(--focus-gutter)) / 2)
+    );
+    --focus-pair-w: calc(
+      var(--focus-card-w) + var(--focus-gutter) + var(--focus-panel-w)
+    );
+    --focus-panel-end: max(
+      var(--focus-panel-inset),
+      calc((100vw - var(--focus-pair-w)) / 2)
+    );
+    --focus-card-end: calc(
+      var(--focus-card-start) + var(--focus-card-w) - var(--focus-shift)
+    );
+    --focus-panel-start: calc(
+      100vw - var(--focus-panel-end) - var(--focus-panel-w)
+    );
+    --focus-overlap: calc(var(--focus-card-end) - var(--focus-panel-start));
 
     // What focus mode paints behind the page and its chrome; fixed, so the
     // header and the pill's band match the page pixel for pixel.

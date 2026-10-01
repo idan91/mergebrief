@@ -348,44 +348,28 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     transition: translate 260ms var(--ease-out);
   }
 
+  // translate, not transform: the .reveal animation owns transform and
+  // replays when a hidden group shows.
+  .main[data-focus-panel="open"] .story-group,
+  .main[data-focus-panel="open"] .chunk-footer {
+    translate: calc(-1 * var(--focus-shift)) 0;
+  }
+
+  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
   .main[data-focus-panel="open"] .group-chunks article[data-current] {
-    --chunk-head-reserve: calc(
-      var(--focus-panel-w) + var(--focus-panel-inset) - var(--focus-gutter)
-    );
+    --chunk-head-reserve: max(0px, var(--focus-overlap));
   }
 
   .main[data-focus-panel="open"] .chunk-footer {
-    --chunk-head-reserve: calc(
-      var(--focus-panel-w) + 2 * var(--focus-panel-inset) - var(--focus-gutter)
+    --chunk-head-reserve: max(
+      0px,
+      calc(var(--focus-overlap) + var(--focus-panel-inset))
     );
   }
+  /* stylelint-enable length-zero-no-unit */
 
   [data-zen="on"] .chunk-footer {
     padding-inline-end: calc(var(--focus-gutter) + var(--chunk-head-reserve));
-  }
-
-  // 1832px is --focus-max - --focus-gutter + --focus-panel-w + two
-  // --focus-panel-inset: the first width where the chunk card and the panel
-  // fit side by side as one centred pair. translate, not transform: the
-  // .reveal animation owns transform and replays when a hidden group shows.
-  @media (width >= 1832px) {
-    :root {
-      --focus-pair-w: calc(
-        var(--focus-max) - var(--focus-gutter) + var(--focus-panel-w)
-      );
-      --focus-panel-end: calc((100vw - var(--focus-pair-w)) / 2);
-    }
-
-    .main[data-focus-panel="open"] .story-group,
-    .main[data-focus-panel="open"] .chunk-footer {
-      translate: calc((var(--focus-panel-w) + var(--focus-gutter)) / -2) 0;
-    }
-
-    .main[data-focus-panel="open"] .group-chunks article[data-current],
-    .main[data-focus-panel="open"] .chunk-footer {
-      /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
-      --chunk-head-reserve: 0px;
-    }
   }
 
   body:has(.main[data-zen="on"]) {
