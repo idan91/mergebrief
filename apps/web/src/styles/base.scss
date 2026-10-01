@@ -315,6 +315,20 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     display: none;
   }
 
+  // Sticks with the chunk head and paints the page into its rounded top
+  // corners, so the diff scrolling under the head never shows its edges
+  // there. Its z-index sits one under the head's 10 in ChunkCard.
+  [data-zen="on"] .group-chunks article[data-current]::before {
+    content: "";
+    position: sticky;
+    inset-block-start: var(--sticky-stack-h);
+    z-index: 9;
+    display: block;
+    block-size: var(--radius-panel);
+    margin-block-end: calc(-1 * var(--radius-panel));
+    background: var(--focus-page-bg);
+  }
+
   // The pill's dock takes no layout, so the top of the page reserves it.
   .main[data-zen="on"] {
     padding-block-start: var(--focus-indicator-h);
