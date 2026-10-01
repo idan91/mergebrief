@@ -68,6 +68,19 @@ describe("useSplitWidth", () => {
     expect(screen.getByRole("status").textContent).toBe("wide");
   });
 
+  it("ignores a hidden wrapper that measures zero", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    render(<Probe />);
+
+    act(() => {
+      observe?.([{ contentRect: { width: 0 } }]);
+      vi.runAllTimers();
+    });
+
+    expect(screen.getByRole("status").textContent).toBe("wide");
+  });
+
   it("arms once the wrapper attaches after a late diff", () => {
     vi.useFakeTimers();
     vi.stubGlobal("ResizeObserver", StubResizeObserver);

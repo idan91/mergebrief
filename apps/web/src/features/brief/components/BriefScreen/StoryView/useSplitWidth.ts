@@ -32,6 +32,11 @@ export function useSplitWidth(enabled: boolean): SplitWidth {
       let frame = 0;
       const observer = new ResizeObserver((entries) => {
         const width = entries[0]?.contentRect.width ?? node.clientWidth;
+        // A hidden wrapper measures zero. Focus mode hides every group but
+        // one, and each group's zero would flip the shown one to unified.
+        if (width === 0) {
+          return;
+        }
         cancelAnimationFrame(frame);
         frame = requestAnimationFrame(() => {
           setWideEnough(width >= SPLIT_MIN_WIDTH_PX);
