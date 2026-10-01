@@ -129,3 +129,43 @@ test("focus mode quiets the header and lands the chunk below the pill", async ({
     })
     .toBeGreaterThanOrEqual(0);
 });
+
+test("the focus panel hides for a group and returns on the next", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await page.keyboard.press("z");
+  const panel = page.getByTestId("focus-panel");
+  await expect(panel).toHaveAttribute("data-state", "open");
+
+  await page.keyboard.press("s");
+  await expect(panel).toHaveAttribute("data-state", "closed");
+  await page.keyboard.press("j");
+  await expect(page.locator("main article[data-current]")).toHaveId("c2");
+  await expect(panel).toHaveAttribute("data-state", "closed");
+
+  await page.keyboard.press("Shift+J");
+  await expect(panel).toHaveAttribute("data-state", "open");
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveAttribute("data-state", "closed");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("focus-indicator")).toHaveCount(0);
+});
+
+test("S reopening the panel from its tab moves focus to the heading", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await page.keyboard.press("z");
+  const panel = page.getByTestId("focus-panel");
+  await expect(panel).toHaveAttribute("data-state", "open");
+
+  await page.keyboard.press("s");
+  const tab = page.getByTestId("focus-panel-tab");
+  await tab.focus();
+  await page.keyboard.press("s");
+
+  await expect(panel).toHaveAttribute("data-state", "open");
+  await expect(panel.getByRole("heading", { level: 2 })).toBeFocused();
+});

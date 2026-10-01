@@ -7,6 +7,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
@@ -44,6 +45,39 @@ function findRemainder() {
   return { group, chunk };
 }
 
+interface ControlledPanelProps {
+  jumpToChunk: (chunkId: string) => void;
+}
+
+function ControlledPanel({ jumpToChunk }: ControlledPanelProps) {
+  const [open, setOpen] = useState(true);
+  return (
+    <FocusPanel
+      jumpToChunk={jumpToChunk}
+      model={model}
+      open={open}
+      setOpen={setOpen}
+    />
+  );
+}
+
+interface ToggledPanelProps {
+  captureToggle: (toggle: () => void) => void;
+}
+
+function ToggledPanel({ captureToggle }: ToggledPanelProps) {
+  const [open, setOpen] = useState(true);
+  captureToggle(() => setOpen((current) => !current));
+  return (
+    <FocusPanel
+      jumpToChunk={() => undefined}
+      model={model}
+      open={open}
+      setOpen={setOpen}
+    />
+  );
+}
+
 function renderPanel(chunkId: string, groupId: string) {
   const position = createReadingPositionStore();
   const jumpToChunk = vi.fn();
@@ -51,7 +85,7 @@ function renderPanel(chunkId: string, groupId: string) {
   render(
     <I18nProvider>
       <ReadingPositionProvider store={position}>
-        <FocusPanel jumpToChunk={jumpToChunk} model={model} />
+        <ControlledPanel jumpToChunk={jumpToChunk} />
       </ReadingPositionProvider>
     </I18nProvider>,
   );
@@ -136,6 +170,34 @@ describe("FocusPanel", () => {
 
     fireEvent.click(tab);
     expect(panel.dataset["state"]).toBe("open");
+    expect(document.activeElement).toBe(
+      within(panel).getByRole("heading", { name: "Fix the cross-param leak" }),
+    );
+  });
+
+  it("sends focus to the tab when S hides it and back when S reopens it", () => {
+    const toggler: { toggle?: () => void } = {};
+    const position = createReadingPositionStore();
+    position.getState().actions.setActive("chunk-a", "g1");
+    render(
+      <I18nProvider>
+        <ReadingPositionProvider store={position}>
+          <ToggledPanel
+            captureToggle={(toggle) => {
+              toggler.toggle = toggle;
+            }}
+          />
+        </ReadingPositionProvider>
+      </I18nProvider>,
+    );
+    const panel = screen.getByTestId("focus-panel");
+    within(panel).getByRole("region", { name: "Change-group details" }).focus();
+
+    act(() => toggler.toggle?.());
+    const tab = screen.getByTestId("focus-panel-tab");
+    expect(document.activeElement).toBe(tab);
+
+    act(() => toggler.toggle?.());
     expect(document.activeElement).toBe(
       within(panel).getByRole("heading", { name: "Fix the cross-param leak" }),
     );

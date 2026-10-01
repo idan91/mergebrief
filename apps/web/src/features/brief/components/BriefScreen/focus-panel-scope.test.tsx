@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
@@ -23,7 +23,7 @@ const lastReviewMarks: ComparisonMarks = {
 };
 
 describe("focus panel scope", () => {
-  it("keeps the context panel out of Changes scope", async () => {
+  it("keeps the panel and its Escape claim out of Changes scope", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -52,5 +52,10 @@ describe("focus panel scope", () => {
     fireEvent.keyDown(window, { key: "z" });
     await screen.findByTestId("focus-indicator");
     expect(screen.queryByTestId("focus-panel")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByTestId("focus-indicator")).toBeNull(),
+    );
   });
 });

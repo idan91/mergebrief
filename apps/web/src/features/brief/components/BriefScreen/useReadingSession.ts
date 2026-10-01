@@ -554,6 +554,17 @@ export function useReadingSession(
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [briefId]);
 
+  // Leaving focus mode unmounts its chrome; focus that sat on it lands on
+  // the main landmark instead of the body.
+  const wasFocusModeRef = useRef(focusMode);
+  useEffect(() => {
+    const leftFocusMode = wasFocusModeRef.current && !focusMode;
+    wasFocusModeRef.current = focusMode;
+    if (leftFocusMode && document.activeElement === document.body) {
+      document.getElementById("main-content")?.focus({ preventScroll: true });
+    }
+  }, [focusMode]);
+
   // The position has two write sources: scroll-spy (below) and explicit nav
   // (toggleChunk/jumpToChunk). Scroll-spy only runs on the full brief outside
   // focus mode.

@@ -27,6 +27,10 @@ export interface KeyboardShortcutsOptions {
   /** A carried draft waits for its lines; Escape disarms it first. */
   reanchorArmed?: boolean | undefined;
   cancelReanchor?: (() => void) | undefined;
+  /** Focus mode's context panel is showing; Escape closes it first. */
+  focusPanelOpen?: boolean | undefined;
+  toggleFocusPanel?: (() => void) | undefined;
+  closeFocusPanel?: (() => void) | undefined;
 }
 
 export interface ShortcutEvent {
@@ -48,6 +52,7 @@ export interface ShortcutState {
   viewedAvailable: boolean;
   lineSelected: boolean;
   reanchorArmed: boolean;
+  focusPanelOpen: boolean;
 }
 
 export type StepKey = "j" | "k";
@@ -61,6 +66,8 @@ export type ShortcutAction =
   | { type: "toggleDiffView" }
   | { type: "clearLineSelection" }
   | { type: "cancelReanchor" }
+  | { type: "toggleFocusPanel" }
+  | { type: "closeFocusPanel" }
   | { type: "markViewed"; chunkId: string };
 
 function resolveGroupJump(
@@ -105,7 +112,12 @@ export function resolveShortcut(
     if (state.disabled) return null;
     if (state.reanchorArmed) return { type: "cancelReanchor" };
     if (state.lineSelected) return { type: "clearLineSelection" };
-    return state.focusModeActive ? { type: "toggleFocus" } : null;
+    if (!state.focusModeActive) {
+      return null;
+    }
+    return state.focusPanelOpen
+      ? { type: "closeFocusPanel" }
+      : { type: "toggleFocus" };
   }
   if (state.disabled) return null;
   if (event.metaKey || event.ctrlKey || event.altKey) return null;
@@ -131,7 +143,11 @@ export function resolveShortcut(
   const flat = FLAT_ACTIONS[key];
   if (flat) return flat;
 
-  if (key === "s" && !event.shiftKey) return { type: "toggleSidebar" };
+  if (key === "s" && !event.shiftKey) {
+    return state.focusModeActive
+      ? { type: "toggleFocusPanel" }
+      : { type: "toggleSidebar" };
+  }
 
   // Focus mode only, a global V would silently collapse arbitrary chunks;
   // and Full scope only, Changes shows cards that are not chunks.
@@ -143,6 +159,45 @@ export function resolveShortcut(
   }
 
   return null;
+}
+
+type ShortcutActionType = ShortcutAction["type"];
+
+type ShortcutActionOf<Type extends ShortcutActionType> = Extract<
+  ShortcutAction,
+  { type: Type }
+>;
+
+type ShortcutHandler = () => void;
+
+/** An absent callback answers undefined, so the key falls through unclaimed. */
+type ShortcutHandlers = {
+  [Type in ShortcutActionType]: (
+    options: KeyboardShortcutsOptions,
+    action: ShortcutActionOf<Type>,
+  ) => ShortcutHandler | undefined;
+};
+
+const SHORTCUT_HANDLERS: ShortcutHandlers = {
+  jump: (options, action) => () => options.jumpToChunk(action.chunkId),
+  toggleFocus: (options) => options.toggleFocusMode,
+  toggleHelp: (options) => options.toggleHelp,
+  jumpToConversation: (options) => options.jumpToConversation,
+  toggleSidebar: (options) => options.toggleSidebar,
+  toggleDiffView: (options) => options.toggleDiffView,
+  clearLineSelection: (options) => options.clearLineSelection,
+  cancelReanchor: (options) => options.cancelReanchor,
+  toggleFocusPanel: (options) => options.toggleFocusPanel,
+  closeFocusPanel: (options) => options.closeFocusPanel,
+  markViewed: (options, action) => () => options.markViewed(action.chunkId),
+};
+
+function resolveShortcutHandler<Type extends ShortcutActionType>(
+  options: KeyboardShortcutsOptions,
+  action: ShortcutActionOf<Type>,
+): ShortcutHandler | undefined {
+  const resolve: ShortcutHandlers[Type] = SHORTCUT_HANDLERS[action.type];
+  return resolve(options, action);
 }
 
 /**
@@ -179,26 +234,19 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           viewedAvailable: current.markViewedAvailable,
           lineSelected: current.lineSelected === true,
           reanchorArmed: current.reanchorArmed === true,
+          focusPanelOpen: current.focusPanelOpen === true,
         },
       );
-      if (!action) return;
-      if (action.type === "jumpToConversation" && !current.jumpToConversation) {
+      if (!action) {
         return;
       }
-      if (action.type === "toggleSidebar" && !current.toggleSidebar) return;
-      if (action.type === "toggleDiffView" && !current.toggleDiffView) return;
+      const handler = resolveShortcutHandler(current, action);
+      if (!handler) {
+        return;
+      }
+
       event.preventDefault();
-      if (action.type === "jump") current.jumpToChunk(action.chunkId);
-      else if (action.type === "toggleFocus") current.toggleFocusMode();
-      else if (action.type === "jumpToConversation")
-        current.jumpToConversation?.();
-      else if (action.type === "toggleSidebar") current.toggleSidebar?.();
-      else if (action.type === "toggleDiffView") current.toggleDiffView?.();
-      else if (action.type === "clearLineSelection")
-        current.clearLineSelection?.();
-      else if (action.type === "cancelReanchor") current.cancelReanchor?.();
-      else if (action.type === "markViewed") current.markViewed(action.chunkId);
-      else current.toggleHelp();
+      handler();
     }
 
     window.addEventListener("keydown", onKeyDown);

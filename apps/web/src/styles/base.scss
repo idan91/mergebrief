@@ -329,6 +329,35 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     max-inline-size: var(--focus-max);
     margin-inline: auto;
     padding-inline: var(--focus-gutter);
+    transition: translate 260ms var(--ease-out);
+  }
+
+  .main[data-focus-panel="open"] .group-chunks article[data-current] {
+    --chunk-head-reserve: calc(
+      var(--focus-panel-w) + var(--focus-panel-inset) - var(--focus-gutter)
+    );
+  }
+
+  // 1832px is --focus-max - --focus-gutter + --focus-panel-w + two
+  // --focus-panel-inset: the first width where the chunk card and the panel
+  // fit side by side as one centred pair. translate, not transform: the
+  // .reveal animation owns transform and replays when a hidden group shows.
+  @media (width >= 1832px) {
+    :root {
+      --focus-pair-w: calc(
+        var(--focus-max) - var(--focus-gutter) + var(--focus-panel-w)
+      );
+      --focus-panel-end: calc((100vw - var(--focus-pair-w)) / 2);
+    }
+
+    .main[data-focus-panel="open"] .story-group {
+      translate: calc((var(--focus-panel-w) + var(--focus-gutter)) / -2) 0;
+    }
+
+    .main[data-focus-panel="open"] .group-chunks article[data-current] {
+      /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+      --chunk-head-reserve: 0px;
+    }
   }
 
   body:has(.main[data-zen="on"]) {

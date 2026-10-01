@@ -215,6 +215,10 @@
     --focus-panel-w: min(400px, 30vw);
     --focus-panel-inset: 12px;
 
+    // The panel's and its tab's distance from the viewport edge; base.scss
+    // widens it where the chunk card and the panel centre as a pair.
+    --focus-panel-end: var(--focus-panel-inset);
+
     // What focus mode paints behind the page and its chrome; fixed, so the
     // header and the pill's band match the page pixel for pixel.
     --focus-page-bg:
@@ -309,6 +313,11 @@
     --sidebar-w-collapsed: 3rem;
     --sidebar-w-expanded: 26.5rem;
     --sidebar-bar-h: calc(3.25rem + env(safe-area-inset-bottom));
+
+    // What a chunk head keeps clear at its end; base.scss sets it while the
+    // focus panel covers that end.
+    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+    --chunk-head-reserve: 0px;
 
     // The width the Sidebar currently reserves; base.scss sets it from the
     // reading column's state.

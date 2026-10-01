@@ -20,6 +20,11 @@ export const FOCUS_SHORTCUTS: readonly FocusShortcut[] = [
     descriptionKey: "brief.focusShortcuts.viewed",
   },
   {
+    id: "context",
+    keys: [{ key: "S" }],
+    descriptionKey: "brief.focusShortcuts.context",
+  },
+  {
     id: "split",
     keys: [{ key: "D" }],
     descriptionKey: "brief.focusShortcuts.split",

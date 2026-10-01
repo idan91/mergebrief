@@ -374,6 +374,7 @@ describe("Read-through progress + auto-advance", () => {
       expect(screen.queryByTestId("focus-indicator")).toBeNull(),
     );
     expect(screen.queryByTestId("focus-shortcuts")).toBeNull();
+    expect(document.activeElement?.id).toBe("main-content");
   });
 
   it("lists the focus keys as kbd elements in the shortcuts corner", async () => {
@@ -384,7 +385,7 @@ describe("Read-through progress + auto-advance", () => {
     const corner = await screen.findByTestId("focus-shortcuts");
     expect(
       [...corner.querySelectorAll("kbd")].map((cap) => cap.textContent),
-    ).toEqual(["J", "K", "⇧Shift J", "⇧Shift K", "V", "D", "Esc", "?"]);
+    ).toEqual(["J", "K", "⇧Shift J", "⇧Shift K", "V", "S", "D", "Esc", "?"]);
   });
 
   it("does not auto-advance outside focus mode entirely", async () => {
@@ -409,6 +410,10 @@ describe("Read-through progress + auto-advance", () => {
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
 
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.getByTestId("focus-panel").dataset["state"]).toBe("closed"),
+    );
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() =>
       expect(

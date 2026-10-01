@@ -10,11 +10,12 @@ describe("BRIEF_SHORTCUT_SECTIONS", () => {
     ]);
   });
 
-  it("keeps Z, V and Esc together in the focus-mode section", () => {
+  it("keeps Z, V, S and Esc together in the focus-mode section", () => {
     const focusMode = BRIEF_SHORTCUT_SECTIONS[1];
     expect(focusMode?.shortcuts.map((shortcut) => shortcut.keys)).toEqual([
       ["Z"],
       ["V"],
+      ["S"],
       ["Esc"],
     ]);
   });

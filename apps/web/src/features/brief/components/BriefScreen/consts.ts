@@ -24,6 +24,7 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
     shortcuts: [
       { keys: ["Z"], descriptionKey: "brief.shortcuts.focusMode" },
       { keys: ["V"], descriptionKey: "brief.shortcuts.markViewed" },
+      { keys: ["S"], descriptionKey: "brief.shortcuts.toggleFocusPanel" },
       { keys: ["Esc"], descriptionKey: "brief.shortcuts.exitFocusMode" },
     ],
   },

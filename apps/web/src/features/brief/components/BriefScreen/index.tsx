@@ -83,6 +83,8 @@ export function BriefScreen({
 }: BriefScreenProps) {
   const {
     t,
+    focusPanel,
+    focusPanelShown,
     attributeRail,
     pendingShown,
     overlay,
@@ -183,7 +185,8 @@ export function BriefScreen({
   );
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;
-  const focusPanelShown = session.focusMode && !inChangesScope;
+  const focusPanelState = focusPanel.open ? "open" : "closed";
+  const focusPanelAttr = focusPanelShown ? focusPanelState : undefined;
   const mainStyle: StoryMainStyle =
     cardTrack.track === undefined
       ? {}
@@ -250,6 +253,7 @@ export function BriefScreen({
                 id="main-content"
                 tabIndex={-1}
                 data-zen={session.focusMode ? "on" : undefined}
+                data-focus-panel={focusPanelAttr}
                 data-pending={pendingShown ? "" : undefined}
                 data-sidebar={regions.sidebar ? sidebarLayout : undefined}
                 data-sidebar-motion={sidebar.motionReady ? "" : undefined}
@@ -496,7 +500,12 @@ export function BriefScreen({
                 sections={BRIEF_SHORTCUT_SECTIONS}
               />
               {focusPanelShown ? (
-                <FocusPanel model={model} jumpToChunk={session.jumpToChunk} />
+                <FocusPanel
+                  model={model}
+                  jumpToChunk={session.jumpToChunk}
+                  open={focusPanel.open}
+                  setOpen={focusPanel.setOpen}
+                />
               ) : null}
               {session.focusMode ? <FocusShortcuts /> : null}
               <div

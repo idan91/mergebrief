@@ -187,3 +187,11 @@ export const LinkParamErrors = {
 } as const;
 
 export type LinkParamError = ValueOf<typeof LinkParamErrors>;
+
+export interface FocusPanelControl {
+  open: boolean;
+  /** Pointer open and close, from the panel's own controls. */
+  setOpen: (open: boolean) => void;
+  toggle: () => void;
+  close: () => void;
+}

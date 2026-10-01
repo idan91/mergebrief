@@ -26,6 +26,7 @@ const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   viewedAvailable: true,
   lineSelected: false,
   reanchorArmed: false,
+  focusPanelOpen: false,
   ...over,
 });
 
@@ -290,6 +291,7 @@ describe("conversation shortcut", () => {
     viewedAvailable: true,
     lineSelected: false,
     reanchorArmed: false,
+    focusPanelOpen: false,
   };
 
   it("maps C to jump-to-conversation", () => {
@@ -351,5 +353,55 @@ describe("resolveShortcut for the diff view", () => {
 
   it("d stands down under a modifier", () => {
     expect(resolveShortcut(key("d", { metaKey: true }), state())).toBeNull();
+  });
+});
+
+describe("resolveShortcut for the focus panel", () => {
+  const focused = (over: Partial<ShortcutState> = {}) =>
+    state({ focusModeActive: true, ...over });
+
+  it("s toggles the focus panel in focus mode", () => {
+    expect(resolveShortcut(key("s"), focused())).toEqual({
+      type: "toggleFocusPanel",
+    });
+  });
+
+  it("s toggles the sidebar outside focus mode", () => {
+    expect(resolveShortcut(key("s"), state())).toEqual({
+      type: "toggleSidebar",
+    });
+  });
+
+  it("Escape closes an open panel before it leaves focus mode", () => {
+    expect(
+      resolveShortcut(key("Escape"), focused({ focusPanelOpen: true })),
+    ).toEqual({ type: "closeFocusPanel" });
+    expect(
+      resolveShortcut(key("Escape"), focused({ focusPanelOpen: false })),
+    ).toEqual({ type: "toggleFocus" });
+  });
+
+  it("Escape clears a line selection before it closes the panel", () => {
+    expect(
+      resolveShortcut(
+        key("Escape"),
+        focused({ focusPanelOpen: true, lineSelected: true }),
+      ),
+    ).toEqual({ type: "clearLineSelection" });
+  });
+
+  it("Escape disarms re-anchoring before it closes the panel", () => {
+    expect(
+      resolveShortcut(
+        key("Escape"),
+        focused({ focusPanelOpen: true, reanchorArmed: true }),
+      ),
+    ).toEqual({ type: "cancelReanchor" });
+  });
+
+  it("an open panel means nothing to Escape outside focus mode", () => {
+    expect(
+      resolveShortcut(key("Escape"), state({ focusPanelOpen: true })),
+    ).toBeNull();
   });
 });

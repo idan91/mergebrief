@@ -42,6 +42,7 @@ import { useStoryCardTrack } from "./useStoryCardTrack";
 import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
+import { useFocusPanel } from "./useFocusPanel";
 import { useReadingSession } from "./useReadingSession";
 import {
   buildReplyRecordingPlan,
@@ -148,6 +149,8 @@ export function useBriefScreenFacade({
     toggleFocusMode,
   } = session;
 
+  const focusPanel = useFocusPanel({ position: readingPosition, focusMode });
+
   const regions = deriveVisibleRegions({
     scope: compareState.view,
     focus: focusMode,
@@ -173,6 +176,7 @@ export function useBriefScreenFacade({
     heading: boolean;
   } | null>(null);
   const inChangesScope = compareState.view === "changes";
+  const focusPanelShown = focusMode && !inChangesScope;
 
   const changesEverShownRef = useRef(false);
   if (inChangesScope) changesEverShownRef.current = true;
@@ -583,6 +587,9 @@ export function useBriefScreenFacade({
     clearLineSelection: clearLineSelectionFromShortcut,
     reanchorArmed: reanchorDraft !== undefined,
     cancelReanchor: flowActions.cancelReanchor,
+    focusPanelOpen: focusPanelShown && focusPanel.open,
+    toggleFocusPanel: focusPanelShown ? focusPanel.toggle : undefined,
+    closeFocusPanel: focusPanel.close,
     jumpToConversation:
       conversation !== undefined && regions.conversation
         ? conversationWiring.jumpToConversation
@@ -618,6 +625,8 @@ export function useBriefScreenFacade({
 
   return {
     t,
+    focusPanel,
+    focusPanelShown,
     conversationPlan,
     attributeRail,
     pendingShown,

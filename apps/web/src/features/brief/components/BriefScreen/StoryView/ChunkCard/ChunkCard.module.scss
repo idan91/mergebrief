@@ -46,7 +46,8 @@
     align-items: center;
     gap: functions.to-rem(16px);
     padding-block: functions.to-rem(11px);
-    padding-inline: functions.to-rem(16px);
+    padding-inline: functions.to-rem(16px)
+      calc(#{functions.to-rem(16px)} + var(--chunk-head-reserve));
     border: 1px solid var(--color-outline-1);
     border-start-start-radius: var(--radius-panel);
     border-start-end-radius: var(--radius-panel);
