@@ -19,10 +19,10 @@ import {
 } from "@web/features/brief/comparison";
 import {
   type DbTimelinePoint,
-  deriveBriefRouteState,
   resolveDbTimeline,
+  resolveMetaPollMs,
   type RevisionRequest,
-  shouldPollMeta,
+  selectBriefRouteState,
   type Span,
 } from "@web/features/pulls/utils";
 import type { ScopeExitOptions } from "@web/features/brief";
@@ -43,8 +43,6 @@ import {
 } from "@web/features/conversation/utils";
 import { buildPrPageTitle, type PrPageTitleInput } from "@web/utils/pageTitle";
 import type { Mutable } from "types/utils";
-
-const META_POLL_MS = 4000;
 
 interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
   /** The brief's index on this PR; the one revision key fresh links carry. */
@@ -261,20 +259,10 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       // Prefetch the SELECTED revision's brief with ITS OWN base so a
       // historical revision SSRs correctly.
       const timeline = resolveDbTimeline(meta.revisions, deps);
-      if (timeline !== undefined) {
-        const span = {
-          base: timeline.selected.baseSha,
-          head: timeline.selected.headSha,
-        };
-        await Promise.all([
-          context.queryClient.ensureQueryData(
-            buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
-          ),
-          prefetchSession(context.queryClient, repoId, prNumber, span),
-        ]);
-        return pickPageTitleInput(meta);
-      }
-      const state = deriveBriefRouteState(meta, undefined);
+      const state = selectBriefRouteState(meta, timeline, {
+        explicitSpan: undefined,
+        rev: deps.rev,
+      });
       if (state.kind === "render") {
         await Promise.all([
           context.queryClient.ensureQueryData(
@@ -337,10 +325,13 @@ function PrBriefRoute() {
 
   const meta = useSuspenseQuery({
     ...buildPrMetaQueryOptions(repoId, prNumber),
-    refetchInterval: (query) =>
-      query.state.data !== undefined && shouldPollMeta(query.state.data)
-        ? META_POLL_MS
-        : false,
+    refetchInterval: (query) => {
+      const loaded = query.state.data;
+      if (loaded === undefined) {
+        return false;
+      }
+      return resolveMetaPollMs(loaded);
+    },
   }).data;
 
   const timeline = useMemo(() => {
@@ -366,16 +357,11 @@ function PrBriefRoute() {
 
   const state = useMemo(
     () =>
-      timeline !== undefined
-        ? ({
-            kind: "render",
-            span: {
-              base: timeline.selected.baseSha,
-              head: timeline.selected.headSha,
-            },
-          } as const)
-        : deriveBriefRouteState(meta, explicit),
-    [explicit, meta, timeline],
+      selectBriefRouteState(meta, timeline, {
+        explicitSpan: explicit,
+        rev: search.rev,
+      }),
+    [explicit, meta, search.rev, timeline],
   );
 
   // Base drift stays read-only because the rendered anchors may be wrong;

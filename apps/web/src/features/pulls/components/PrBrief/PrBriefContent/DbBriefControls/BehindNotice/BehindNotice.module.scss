@@ -1,9 +1,16 @@
 @layer components {
   .notice {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: var(--space-3);
     align-items: center;
     min-inline-size: 0;
+  }
+
+  .window {
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    text-wrap: pretty;
   }
 
   .failed {

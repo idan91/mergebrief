@@ -65,11 +65,9 @@ import {
   DIFF_CACHE_TTL_MS,
   FILE_BLOB_CACHE_TTL_MS,
   FILE_BLOB_MAX_BYTES,
+  PR_STACK_OPEN_PULLS_CACHE_TTL_MS,
 } from "./consts";
-import {
-  buildOpenPullsCacheKey,
-  OPEN_PULLS_CACHE_TTL_MS,
-} from "../../../open-pulls-cache";
+import { buildOpenPullsCacheKey } from "../../../open-pulls-cache";
 import type {
   DiffFailure,
   FileRangeFailure,
@@ -308,13 +306,15 @@ export default {
       input.viewerCanPush,
       waitReason,
     );
-    // INVARIANT: `briefAvailable` implies `headSha !== null` (`brief.head_sha`
-    // is NOT NULL), so the null check below is TypeScript narrowing only and
-    // can never skip stored revisions.
+    // Stored revisions list while a newer head is still generating, so the
+    // reader keeps the brief on screen. INVARIANT: a stored brief implies
+    // `headSha !== null` (`brief.head_sha` is NOT NULL), so the null check
+    // below is TypeScript narrowing only and can never skip stored revisions.
     let comparisons: RevisionComparisons = {};
     let revisions: RevisionView[] | undefined;
-    if (view.briefAvailable && view.headSha !== null) {
-      const headSha = view.headSha;
+    const revisionsHeadSha = latestBriefs.has(pr.id) ? view.headSha : null;
+    if (revisionsHeadSha !== null) {
+      const headSha = revisionsHeadSha;
       const pullRequestId = pr.id;
       const [
         briefs,
@@ -365,7 +365,10 @@ export default {
           }),
         ),
       );
-      comparisons = revisions.at(-1)?.comparisons ?? {};
+      // Top-level comparisons describe the current head only.
+      if (view.briefAvailable) {
+        comparisons = revisions.at(-1)?.comparisons ?? {};
+      }
     }
     // draftPolicy is meta-only (instance-wide, so the list would repeat it
     // per row for nothing). The FE must show the CONFIGURED window, never a
@@ -455,7 +458,7 @@ export default {
   },
   /**
    * The PR's stack as GitHub has it now, from the repo's open-PR list read
-   * with the viewer's token and held per session (~60s) so walking a stack
+   * with the viewer's token and held per session (~10s) so walking a stack
    * costs one list, not one per PR. A PR missing from the list (closed or
    * merged) is fetched once for its refs so its open neighbours still resolve.
    * A resolve is folded into the row's record. An open PR serves the live
@@ -497,7 +500,7 @@ export default {
       deps.openPullsCache.set(
         cacheKey,
         open,
-        now + OPEN_PULLS_CACHE_TTL_MS,
+        now + PR_STACK_OPEN_PULLS_CACHE_TTL_MS,
         now,
       );
     }

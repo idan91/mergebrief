@@ -18,3 +18,5 @@ export const FILE_BLOB_CACHE_TTL_MS = 60 * 1000;
 export const FILE_BLOB_CACHE_MAX_ENTRIES = 64;
 /** One entry per (session, repo); a viewer rarely has more than a few repos open. */
 export const OPEN_PULLS_CACHE_MAX_ENTRIES = 200;
+/** The web stack chip polls every 30s on top of this, so a stack change shows within ~40s. */
+export const PR_STACK_OPEN_PULLS_CACHE_TTL_MS = 10 * 1000;

@@ -32,6 +32,7 @@ import type {
   PullStack,
   RevisionNarrativeArtifact,
 } from "../brief/types";
+import { LIVE_POLL_MS } from "./consts";
 import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
 
 function spanQuery(base: string, head: string): string {
@@ -60,7 +61,10 @@ export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
   });
 }
 
-/** The PR's stack on GitHub now, or the record for a closed PR: a minute stale is fine. */
+/** Below the poll so a refocus after a hidden stretch refetches at once. */
+const STACK_STALE_MS = 15_000;
+
+/** The PR's stack on GitHub now, or the record for a closed PR, polled while the tab is visible. */
 export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-stack", repoId, prNumber],
@@ -73,7 +77,8 @@ export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
       }
       return parsed.value;
     },
-    staleTime: 60_000,
+    staleTime: STACK_STALE_MS,
+    refetchInterval: LIVE_POLL_MS,
     retry: false,
   });
 }

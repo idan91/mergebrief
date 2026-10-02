@@ -140,6 +140,37 @@ describe("useBehindNoticeFacade", () => {
     expect(refused.invalidate).toHaveBeenCalledTimes(1);
   });
 
+  it("carries the draft window while the author's regeneration is queued", () => {
+    const pending = {
+      status: "pending" as const,
+      phase: null,
+      attempts: 0,
+      errorCode: null,
+      errorDetail: null,
+      updatedAt: "2026-09-20T10:00:00.000Z",
+    };
+    const ownDraft = renderNotice(
+      makeMeta({
+        draft: true,
+        viewerIsAuthor: true,
+        draftPolicy: { generate: true, debounceSeconds: 900 },
+        generation: pending,
+      }),
+    );
+    const otherViewer = renderNotice(
+      makeMeta({
+        draft: true,
+        draftPolicy: { generate: true, debounceSeconds: 900 },
+        generation: pending,
+      }),
+    );
+
+    expect(ownDraft.result.current.notice?.queuedNotice).toContain(
+      "15 minutes",
+    );
+    expect(otherViewer.result.current.notice?.queuedNotice).toBeUndefined();
+  });
+
   it("offers no button while the repository name is unknown", () => {
     const { result } = renderNotice(makeMeta({ repoSlug: null }));
 

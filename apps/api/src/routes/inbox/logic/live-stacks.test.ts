@@ -7,8 +7,8 @@ import {
   type RepoId,
 } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { OPEN_PULLS_CACHE_TTL_MS } from "../../open-pulls-cache";
 import { createTtlCache } from "../../ttl-cache";
+import { INBOX_OPEN_PULLS_CACHE_TTL_MS } from "../consts";
 import {
   readLiveStacks,
   type LiveStacksDeps,
@@ -192,7 +192,7 @@ describe("readLiveStacks", () => {
     const deps = makeDeps(listOpenPulls);
     const rows = [makeRow(1n, 100n, 7)];
     const asked = Date.now();
-    const landed = asked + OPEN_PULLS_CACHE_TTL_MS + 1_000;
+    const landed = asked + INBOX_OPEN_PULLS_CACHE_TTL_MS + 1_000;
     const clock = vi.spyOn(Date, "now");
     clock.mockReturnValueOnce(asked).mockReturnValue(landed);
 

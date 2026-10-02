@@ -7,6 +7,7 @@ import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../../brief/utils";
 import { buildPrMetaQueryOptions } from "../../../../../queries";
+import { draftPolicyNotice } from "../../../../../utils/ownDraft";
 import { GenerationStatuses, type PrSummary } from "../../../../../types";
 import type { BehindNoticeProps } from ".";
 
@@ -66,6 +67,12 @@ export function useBehindNoticeFacade(
     queued: isGenerationUnderway(meta),
     pending: regenerate.isPending,
   };
+  if (notice.queued) {
+    const policy = draftPolicyNotice(t, meta.draftPolicy, meta);
+    if (policy?.kind === "damped") {
+      notice.queuedNotice = policy.text;
+    }
+  }
   if (regenerate.isError) {
     notice.failure = briefErrorDetail(t, regenerate.error);
   }

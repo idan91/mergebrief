@@ -1108,6 +1108,28 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(rev2.generatedAt).toBe(rev2.createdAt);
   });
 
+  it("meta: keeps stored revisions while a newer head is pending", async () => {
+    stubGate();
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await writeBrief(pr.id, "base-a", "head-1", 1);
+    const gen = createGenerationProjection(harness.handle, CTX);
+    await gen.upsertPending({
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
+    });
+
+    const body = await metaBody(cookie);
+
+    expect(body.briefAvailable).toBe(false);
+    expect(body).toMatchObject({ headSha: "head-2", comparisons: {} });
+    expect(
+      body.revisions?.map((revision) => [revision.headIndex, revision.headSha]),
+    ).toEqual([[1, "head-1"]]);
+  });
+
   it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {
     stubGate();
     const cookie = await seedSession(harness.handle, kp);

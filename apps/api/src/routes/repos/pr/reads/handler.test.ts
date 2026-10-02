@@ -632,6 +632,33 @@ describe("live stack read", () => {
     expect(listOpenPullRequests).toHaveBeenCalledTimes(1);
   });
 
+  it("re-reads the open list once the cached copy is ten seconds old", async () => {
+    const insideTtlMs = 9_000;
+    const pastTtlMs = 11_000;
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(PR_NUMBER, "feature/mid", "main"),
+        stubOpenPull(8, "feature/tip", "feature/mid"),
+      ]),
+    );
+    const app = await buildApp();
+    const start = Date.now();
+    vi.useFakeTimers({ toFake: ["Date"], now: start });
+    try {
+      expect((await app.request(STACK_PATH)).status).toBe(200);
+
+      vi.setSystemTime(start + insideTtlMs);
+      expect((await app.request(STACK_PATH)).status).toBe(200);
+      expect(listOpenPullRequests).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(start + pastTtlMs);
+      expect((await app.request(STACK_PATH)).status).toBe(200);
+      expect(listOpenPullRequests).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("records a resolved stack on the pull request row", async () => {
     vi.mocked(listOpenPullRequests).mockResolvedValue(
       stubOpenList([

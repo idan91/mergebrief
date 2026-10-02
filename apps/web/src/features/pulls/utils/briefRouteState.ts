@@ -4,6 +4,8 @@
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
 import type { WaitReason } from "contract";
+import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
+import type { DbTimelineSelection } from "./dbTimeline";
 import { isOwnDraft } from "./ownDraft";
 import type { GenerationFailureCode, PrSummary } from "../types";
 
@@ -123,6 +125,60 @@ export function deriveBriefRouteState(
   }
 }
 
+/** What the address asks for: a legacy span, or a revision index. */
+export interface BriefRouteRequest {
+  readonly explicitSpan: ExplicitSpan;
+  readonly rev?: number | undefined;
+}
+
+function requestNamesUnstoredRevision(
+  meta: PrSummary,
+  timeline: DbTimelineSelection,
+  request: BriefRouteRequest,
+): boolean {
+  const { explicitSpan } = request;
+  if (explicitSpan !== undefined) {
+    const storedExactly =
+      timeline.selected.headSha === explicitSpan.head &&
+      timeline.selected.baseSha === explicitSpan.base;
+    if (storedExactly) {
+      return false;
+    }
+    return explicitNamesGeneratingHead(meta, explicitSpan);
+  }
+
+  const lastStoredIndex = timeline.points.at(-1)?.headIndex ?? 0;
+  const revPastStored =
+    request.rev !== undefined && request.rev > lastStoredIndex;
+  return revPastStored;
+}
+
+/**
+ * A resolved revision renders, so a stored brief stays up while a newer head
+ * generates. A link naming that generating head, by span or by the next
+ * `rev` the entry comment links, waits on it instead of degrading to the
+ * latest stored brief.
+ */
+export function selectBriefRouteState(
+  meta: PrSummary,
+  timeline: DbTimelineSelection | undefined,
+  request: BriefRouteRequest,
+): BriefRouteState {
+  if (timeline === undefined) {
+    return deriveBriefRouteState(meta, request.explicitSpan);
+  }
+  const awaitsLinkedRevision =
+    !meta.briefAvailable &&
+    requestNamesUnstoredRevision(meta, timeline, request);
+  if (awaitsLinkedRevision) {
+    return deriveBriefRouteState(meta, request.explicitSpan);
+  }
+  return {
+    kind: "render",
+    span: { base: timeline.selected.baseSha, head: timeline.selected.headSha },
+  };
+}
+
 /**
  * Poll the PR-meta while something is (or may be) in flight: a non-terminal
  * generation, a superseded row (its replacement is pending momentarily), a
@@ -145,6 +201,12 @@ export function shouldPollMeta(meta: PrSummary): boolean {
     meta.comparisons?.lastReview?.kind === "unavailable" &&
     meta.comparisons.lastReview.reason === "pending"
   );
+}
+
+/** In-flight work re-reads fast; a settled page still picks up the row's state, draft and new commits. */
+export function resolveMetaPollMs(meta: PrSummary): number {
+  const pollMs = shouldPollMeta(meta) ? IN_FLIGHT_POLL_MS : LIVE_POLL_MS;
+  return pollMs;
 }
 
 /**

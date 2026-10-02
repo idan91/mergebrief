@@ -1,6 +1,12 @@
+// @vitest-environment jsdom
 // queryFn behavior for the session list: 401 is the EXPECTED logged-out
 // state, 200 parses, a malformed 200 throws typed.
-import { describe, expect, it, vi } from "vitest";
+import {
+  focusManager,
+  QueryClient,
+  QueryObserver,
+} from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../data/apiFetch";
 
@@ -20,6 +26,7 @@ import {
   buildDbComparisonMarksQueryOptions,
   buildDbDeltaQueryOptions,
   buildPrMetaQueryOptions,
+  buildPrStackQueryOptions,
   buildSessionQueryOptions,
 } from "./queries";
 
@@ -293,5 +300,61 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
     await expect(runBrief()).resolves.toMatchObject({
       pr: { state: "open", draft: true, merged: false },
     });
+  });
+});
+
+describe("buildPrStackQueryOptions polling", () => {
+  const pollMs = 30_000;
+  let stopObserving: (() => void) | undefined;
+
+  afterEach(() => {
+    stopObserving?.();
+    stopObserving = undefined;
+    focusManager.setFocused(undefined);
+    vi.useRealTimers();
+  });
+
+  function observeStack(): void {
+    const client = new QueryClient();
+    client.mount();
+    const observer = new QueryObserver(
+      client,
+      buildPrStackQueryOptions("424242", 7),
+    );
+    const unsubscribe = observer.subscribe(() => undefined);
+    stopObserving = () => {
+      unsubscribe();
+      client.unmount();
+      client.clear();
+    };
+  }
+
+  it("refetches the stack every thirty seconds while the tab is visible", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    observeStack();
+
+    await vi.advanceTimersByTimeAsync(pollMs - 1_000);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("pauses while the tab is hidden and catches up on focus", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    observeStack();
+    await vi.advanceTimersByTimeAsync(0);
+
+    focusManager.setFocused(false);
+    await vi.advanceTimersByTimeAsync(pollMs * 2);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
   });
 });

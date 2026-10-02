@@ -12,6 +12,8 @@ export interface BehindNoticeProps {
   queued: boolean;
   /** The regenerate request is in flight. */
   pending: boolean;
+  /** The draft refresh window, while the author's regeneration is queued. */
+  queuedNotice?: string | undefined;
   /** The last refusal's curated line; absent until one. */
   failure?: string | undefined;
   /** Absent while the repository name is unknown, so no pull request URL can be built. */
@@ -29,6 +31,7 @@ export interface BehindNoticeProps {
 export function BehindNotice({
   queued,
   pending,
+  queuedNotice,
   failure,
   onRegenerate,
 }: BehindNoticeProps) {
@@ -67,6 +70,9 @@ export function BehindNotice({
         >
           {label}
         </Button>
+      )}
+      {queuedNotice === undefined ? null : (
+        <span className={styles["window"]}>{queuedNotice}</span>
       )}
       {failure === undefined ? null : (
         <span className={styles["failed"]}>{failure}</span>

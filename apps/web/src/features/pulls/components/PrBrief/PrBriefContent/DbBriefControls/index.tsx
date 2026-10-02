@@ -65,6 +65,7 @@ export function DbBriefControls({
               failure={behind.notice.failure}
               pending={behind.notice.pending}
               queued={behind.notice.queued}
+              queuedNotice={behind.notice.queuedNotice}
               onRegenerate={behind.notice.onRegenerate}
             />
           )}

@@ -5,9 +5,12 @@ import { WaitReasons } from "contract";
 import {
   comparisonsWarming,
   deriveBriefRouteState,
+  resolveMetaPollMs,
+  selectBriefRouteState,
   shouldPollMeta,
 } from "./briefRouteState";
-import type { GenerationSummary, PrSummary } from "../types";
+import { resolveDbTimeline } from "./dbTimeline";
+import type { GenerationSummary, PrSummary, RevisionSummary } from "../types";
 
 function meta(overrides: Partial<PrSummary>): PrSummary {
   return {
@@ -376,5 +379,101 @@ describe("comparisonsWarming", () => {
         meta({ generation: generation({ status: "running" }) }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("resolveMetaPollMs", () => {
+  it("re-reads every four seconds while a generation is in flight", () => {
+    expect(
+      resolveMetaPollMs(
+        meta({ generation: generation({ status: "running" }) }),
+      ),
+    ).toBe(4_000);
+  });
+
+  it("keeps a thirty second poll once nothing is in flight", () => {
+    expect(
+      resolveMetaPollMs(
+        meta({
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+        }),
+      ),
+    ).toBe(30_000);
+  });
+});
+
+describe("selectBriefRouteState", () => {
+  const storedRevision: RevisionSummary = {
+    headSha: "head-1",
+    baseSha: "base-1",
+    headIndex: 1,
+    createdAt: "2026-07-06T12:00:00.000Z",
+    comparisons: {},
+  };
+  const newerHeadPending = meta({
+    headSha: "head-2",
+    briefAvailable: false,
+    generation: generation({ status: "pending" }),
+    revisions: [storedRevision],
+  });
+
+  it("keeps the stored brief on screen while a newer head generates", () => {
+    const timeline = resolveDbTimeline(newerHeadPending.revisions, {});
+
+    expect(
+      selectBriefRouteState(newerHeadPending, timeline, {
+        explicitSpan: undefined,
+      }),
+    ).toEqual({ kind: "render", span: { base: "base-1", head: "head-1" } });
+  });
+
+  it("waits when a link names the head that is still generating", () => {
+    const explicit = { base: "base-2", head: "head-2" };
+    const timeline = resolveDbTimeline(newerHeadPending.revisions, explicit);
+
+    expect(
+      selectBriefRouteState(newerHeadPending, timeline, {
+        explicitSpan: explicit,
+      }),
+    ).toMatchObject({ kind: "waiting", status: "pending" });
+  });
+
+  it("renders a stored span whose head is generating again on a new base", () => {
+    const reset = meta({
+      headSha: "head-1",
+      briefAvailable: false,
+      generation: generation({ status: "pending" }),
+      revisions: [
+        storedRevision,
+        { ...storedRevision, headSha: "head-2", headIndex: 2 },
+      ],
+    });
+    const stored = { base: "base-1", head: "head-1" };
+    const generating = { base: "base-3", head: "head-1" };
+
+    expect(
+      selectBriefRouteState(reset, resolveDbTimeline(reset.revisions, stored), {
+        explicitSpan: stored,
+      }),
+    ).toEqual({ kind: "render", span: stored });
+    expect(
+      selectBriefRouteState(
+        reset,
+        resolveDbTimeline(reset.revisions, generating),
+        { explicitSpan: generating },
+      ),
+    ).toMatchObject({ kind: "waiting" });
+  });
+
+  it("waits when a link names the next revision that is still generating", () => {
+    const timeline = resolveDbTimeline(newerHeadPending.revisions, { rev: 2 });
+
+    expect(
+      selectBriefRouteState(newerHeadPending, timeline, {
+        explicitSpan: undefined,
+        rev: 2,
+      }),
+    ).toMatchObject({ kind: "waiting", status: "pending" });
   });
 });

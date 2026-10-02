@@ -13,13 +13,14 @@ import type { Result } from "types/utils";
 import { isGitHubDenial } from "../../../shared-errors/failures";
 import type { ReviewerTokenFailure } from "../../auth/reviewer-github-client";
 import { runInPool } from "../../batches";
-import {
-  buildOpenPullsCacheKey,
-  OPEN_PULLS_CACHE_TTL_MS,
-} from "../../open-pulls-cache";
+import { buildOpenPullsCacheKey } from "../../open-pulls-cache";
 import { parseOwnerAndName } from "../../repos/utils";
 import type { TtlCache } from "../../ttl-cache";
-import { INBOX_LIVE_BUDGET_MS, INBOX_STACKS_CONCURRENCY } from "../consts";
+import {
+  INBOX_LIVE_BUDGET_MS,
+  INBOX_OPEN_PULLS_CACHE_TTL_MS,
+  INBOX_STACKS_CONCURRENCY,
+} from "../consts";
 
 export type ReadFailure = GitHubApiError | ReviewerTokenFailure;
 
@@ -107,7 +108,7 @@ function recordRefusal(
     deps.openPullsCache.set(
       cacheKey,
       [],
-      cachedAt + OPEN_PULLS_CACHE_TTL_MS,
+      cachedAt + INBOX_OPEN_PULLS_CACHE_TTL_MS,
       cachedAt,
     );
     deps.log.debug(
@@ -152,7 +153,7 @@ async function readOpenList(
   deps.openPullsCache.set(
     cacheKey,
     listed.value,
-    cachedAt + OPEN_PULLS_CACHE_TTL_MS,
+    cachedAt + INBOX_OPEN_PULLS_CACHE_TTL_MS,
     cachedAt,
   );
   return { open: listed.value };

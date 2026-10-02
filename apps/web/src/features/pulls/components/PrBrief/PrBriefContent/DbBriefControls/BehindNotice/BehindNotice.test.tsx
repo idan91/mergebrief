@@ -33,6 +33,21 @@ describe("BehindNotice", () => {
     expect(onRegenerate).not.toHaveBeenCalled();
   });
 
+  it("states how long a queued draft regeneration can take", () => {
+    render(
+      <BehindNotice
+        pending={false}
+        queued
+        queuedNotice="Draft mode, up to about 15 minutes."
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Draft mode, up to about 15 minutes."),
+    ).toBeTruthy();
+  });
+
   it("offers no button without a repository name and shows the refusal", () => {
     render(
       <BehindNotice
