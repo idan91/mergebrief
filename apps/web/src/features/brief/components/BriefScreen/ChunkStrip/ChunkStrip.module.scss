@@ -1,0 +1,93 @@
+@use "functions";
+@use "mixins";
+
+$columns-max: 18;
+$mark-gap: functions.to-rem(4px);
+$mark-min: functions.to-rem(24px);
+
+@layer components {
+  .marks {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(
+        max(
+          #{$mark-min},
+          calc((100% - #{$columns-max - 1} * #{$mark-gap}) / #{$columns-max})
+        ),
+        1fr
+      )
+    );
+    column-gap: $mark-gap;
+  }
+
+  .mark {
+    display: grid;
+    align-items: center;
+    min-inline-size: $mark-min;
+    block-size: $mark-min;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+      content: "";
+      block-size: functions.to-rem(4px);
+      border-radius: var(--radius-xs);
+      background: var(--color-outline-2);
+      transition: background-color var(--motion-fast) ease;
+    }
+
+    &[data-state="peek"]::before {
+      background: var(--color-text-3);
+    }
+
+    &[aria-current="true"]::before {
+      background: var(--color-text-1);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  @media (hover: hover) {
+    .mark:hover::before {
+      background: var(--color-text-3);
+    }
+
+    .mark[aria-current="true"]:hover::before {
+      background: var(--color-text-1);
+    }
+  }
+
+  .caption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: functions.to-rem(12px);
+    min-block-size: functions.to-rem(22px);
+    margin-block-start: functions.to-rem(2px);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+  }
+
+  .name {
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .line {
+    color: var(--color-text-3);
+  }
+
+  .position {
+    flex: none;
+    margin-inline-start: auto;
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+  }
+}

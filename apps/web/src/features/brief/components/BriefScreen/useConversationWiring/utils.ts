@@ -9,11 +9,8 @@ import {
   SCROLL_ABORT_EVENTS,
   STICKY_STACK_HEIGHT_VAR,
 } from "../utils";
-import {
-  LANDING_SETTLE_MS,
-  ROW_SCROLL_START_FRAMES,
-  ROW_SETTLE_FRAMES,
-} from "./consts";
+import { SCROLL_START_FRAMES } from "../consts";
+import { LANDING_SETTLE_MS, ROW_SETTLE_FRAMES } from "./consts";
 import type { ConversationLanding, LandingContext } from "./types";
 
 /**
@@ -148,7 +145,7 @@ function settleLanding(
     if (moved) {
       hasMoved = true;
     }
-    const scrollStarted = hasMoved || framesPolled > ROW_SCROLL_START_FRAMES;
+    const scrollStarted = hasMoved || framesPolled > SCROLL_START_FRAMES;
     if (moved || !scrollStarted) {
       stillFrames = 0;
     } else {

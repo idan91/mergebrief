@@ -2,6 +2,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { memo } from "react";
 
 import { Button } from "@web/components/Button";
+import { ChunkStrip } from "../../../ChunkStrip";
 import { GroupFacts } from "../../../GroupFacts";
 import { MetaRow } from "../../../GroupFacts/MetaRow";
 import { GroupFactsSurfaces } from "../../../GroupFacts/types";
@@ -95,6 +96,13 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
             </div>
           ) : null}
         </GroupFacts>
+      </div>
+      <div className={styles["stripSection"]}>
+        <ChunkStrip
+          chunks={group.chunks}
+          groupId={group.id}
+          jumpToChunk={jumpToChunk}
+        />
       </div>
       <RiskSurface
         dispositions={dispositions}

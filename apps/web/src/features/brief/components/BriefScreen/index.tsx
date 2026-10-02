@@ -133,6 +133,7 @@ export function BriefScreen({
     lineLinkMissed,
     dismissLineLinkMiss,
     shareChunk,
+    jumpToChunkUnderStack,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
@@ -418,7 +419,7 @@ export function BriefScreen({
                           conversationComposer={
                             conversationWiring.conversationComposer
                           }
-                          jumpToChunk={session.jumpToChunk}
+                          jumpToChunk={jumpToChunkUnderStack}
                           markReviewed={session.markReviewed}
                           marksDisabled={writesDisabled}
                           toggleChunk={session.toggleChunk}
@@ -507,7 +508,7 @@ export function BriefScreen({
               {focusPanelShown ? (
                 <FocusPanel
                   model={model}
-                  jumpToChunk={session.jumpToChunk}
+                  jumpToChunk={jumpToChunkUnderStack}
                   open={focusPanel.open}
                   sheet={focusPanel.sheet}
                   setOpen={focusPanel.setOpen}

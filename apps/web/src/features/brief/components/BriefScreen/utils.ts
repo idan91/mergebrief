@@ -34,6 +34,8 @@ import type {
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
 import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
+  type FilePathDirectory,
+  type FilePathParts,
   type LinkParamError,
   LinkParamErrors,
   type LinkTarget,
@@ -578,4 +580,17 @@ export function hasRemovedLines(narrative: RevisionNarrative | null): boolean {
     narrative !== null &&
     narrative.chunks.some((chunk) => chunk.removedRanges.length > 0)
   );
+}
+
+/** Each directory keeps its trailing slash, so a break can follow it. */
+export function splitFilePath(path: string): FilePathParts {
+  const cut = path.lastIndexOf("/") + 1;
+  const directories: FilePathDirectory[] = [];
+  let key = "";
+
+  for (const part of path.slice(0, cut).split("/").slice(0, -1)) {
+    key += `${part}/`;
+    directories.push({ key, text: `${part}/` });
+  }
+  return { directories, basename: path.slice(cut) };
 }

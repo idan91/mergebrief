@@ -38,6 +38,7 @@ import {
   parseLinkParam,
   resolveLinkChunkId,
   buildReplyRecordingPlan,
+  splitFilePath,
 } from "./utils";
 import { LinkParamErrors } from "./types";
 import { CommentSides } from "@web/features/review/utils";
@@ -870,5 +871,24 @@ describe("resolveLinkChunkId", () => {
   it("names nothing without a well-formed link", () => {
     expect(resolveLinkChunkId(undefined)).toBeUndefined();
     expect(resolveLinkChunkId("")).toBeUndefined();
+  });
+});
+
+describe("splitFilePath", () => {
+  it("splits the directory into slash-ended parts and the basename", () => {
+    expect(splitFilePath("apps/web/Header.tsx")).toEqual({
+      directories: [
+        { key: "apps/", text: "apps/" },
+        { key: "apps/web/", text: "web/" },
+      ],
+      basename: "Header.tsx",
+    });
+  });
+
+  it("has no directory parts for a root file", () => {
+    expect(splitFilePath("README.md")).toEqual({
+      directories: [],
+      basename: "README.md",
+    });
   });
 });

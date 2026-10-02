@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The resetKey contract: positional ids (c1..cN) are char-identical across
-// brief revisions, so the spy's effect key cannot rely on the id list alone —
+// brief revisions, so the spy's effect key cannot rely on the id list alone:
 // a brief switch replaces the DOM nodes while the ids stay the same, and
 // without a resetKey the observer keeps its OLD answer latched and dedupes
 // the new document's identical id away.
@@ -38,6 +38,21 @@ function scrollTick(): void {
 }
 
 describe("useScrollSpy", () => {
+  it("reads a function reading line on every tick", () => {
+    vi.useFakeTimers();
+    const el = mountCrossing("c1");
+    el.getBoundingClientRect = () => rectAt(200, 400);
+    const line = { at: 150 };
+    const onActive = vi.fn();
+    renderHook(() => useScrollSpy(["c1"], onActive, () => line.at));
+    expect(onActive).not.toHaveBeenCalled();
+
+    line.at = 250;
+    scrollTick();
+    expect(onActive.mock.calls).toEqual([["c1"]]);
+    vi.useRealTimers();
+  });
+
   it("reports the crossing id once and dedupes repeats", () => {
     vi.useFakeTimers();
     mountCrossing("c1");
@@ -80,7 +95,7 @@ describe("useScrollSpy", () => {
     rerender({ resetKey: "brief-a" });
     expect(onActive.mock.calls).toEqual([["c1"]]);
 
-    // New resetKey: re-initialise against the current document — the latch
+    // New resetKey: re-initialise against the current document; the latch
     // clears, so when the SAME id crosses again it fires again (a stale
     // latch would dedupe it away).
     rerender({ resetKey: "brief-b" });

@@ -24,6 +24,10 @@ import {
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
+import {
+  createReadingPositionStore,
+  ReadingPositionProvider,
+} from "../../readingPosition";
 import { GroupCard } from ".";
 
 afterEach(cleanup);
@@ -87,13 +91,15 @@ function renderCard(writes: SessionWrites, flagsReadOnly = false) {
   render(
     <ReviewSessionProvider briefId="test-brief" model={model} writes={writes}>
       <ReviewFlowProvider store={flowStore}>
-        <StoreTap />
-        <GroupCard
-          group={group}
-          brief={briefFixture}
-          model={model}
-          jumpToChunk={() => undefined}
-        />
+        <ReadingPositionProvider store={createReadingPositionStore()}>
+          <StoreTap />
+          <GroupCard
+            group={group}
+            brief={briefFixture}
+            model={model}
+            jumpToChunk={() => undefined}
+          />
+        </ReadingPositionProvider>
       </ReviewFlowProvider>
     </ReviewSessionProvider>,
   );

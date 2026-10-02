@@ -33,5 +33,9 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
 /** Air between a landed card's head and the pinned stack; the chunk scroller and the landing watch both aim here. */
 export const CHUNK_LANDING_GAP_PX = 40;
 
+// A smooth scroll can take a few frames to start; stillness before it has
+// moved is not a settled scroll. Past this many frames it is not coming.
+export const SCROLL_START_FRAMES = 12;
+
 /** The re-anchor banner's hint; inert rows in other files point at it. */
 export const REANCHOR_HINT_ID = "reanchor-hint";

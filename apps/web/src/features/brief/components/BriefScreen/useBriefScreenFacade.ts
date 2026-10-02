@@ -357,12 +357,15 @@ export function useBriefScreenFacade({
     [conversation, recordSubmittedReview],
   );
 
-  // A landing from a link or the conversation puts the card's head under the
-  // pinned stack, the same place the landing watch corrects to.
+  // A landing from a link, the conversation or a group's own controls puts
+  // the card's head under the pinned stack, where the landing watch corrects
+  // to. Keyed on the stable jump, not the session object, so the memoized
+  // group cards that take it keep their boundary.
+  const sessionJumpToChunk = session.jumpToChunk;
   const jumpToChunkUnderStack = useCallback(
     (chunkId: string, behavior?: ScrollBehavior) =>
-      session.jumpToChunk(chunkId, behavior, "top"),
-    [session],
+      sessionJumpToChunk(chunkId, behavior, "top"),
+    [sessionJumpToChunk],
   );
   const conversationWiring = useConversationWiring({
     briefId,
@@ -698,5 +701,6 @@ export function useBriefScreenFacade({
     lineLinkMissed: lineLanding.missed,
     dismissLineLinkMiss: lineLanding.dismissMiss,
     shareChunk: navigateLink === undefined ? undefined : shareChunk,
+    jumpToChunkUnderStack,
   };
 }

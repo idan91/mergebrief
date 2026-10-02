@@ -173,6 +173,13 @@ export type Catalog = typeof en & {
       show: "{{label}}: show context (S)";
       groupLabel: "Group {{index}}";
     };
+    chunkStrip: (typeof en)["brief"]["chunkStrip"] & {
+      markName: "{{file}} line {{line}}, chunk {{index}} of {{total}}";
+      markNameNoLine: "{{file}}, chunk {{index}} of {{total}}";
+      position: "{{index}} of {{total}}";
+      count_one: "{{count}} chunk";
+      count_other: "{{count}} chunks";
+    };
     sidebar: (typeof en)["brief"]["sidebar"] & {
       revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {
         title: "Revision {{index}}";

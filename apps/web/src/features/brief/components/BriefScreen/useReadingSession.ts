@@ -56,7 +56,7 @@ import {
   STICKY_STACK_HEIGHT_VAR,
   toggleSetMember,
 } from "./utils";
-import { CHUNK_LANDING_GAP_PX } from "./consts";
+import { CHUNK_LANDING_GAP_PX, SCROLL_START_FRAMES } from "./consts";
 
 const EMPTY_CHUNK_IDS: string[] = [];
 
@@ -65,6 +65,12 @@ function focusScrollOffset(): number {
   // re-added from its parts here, the parts drifting apart between call
   // sites is what put a landing underneath the toolbar.
   return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_LANDING_GAP_PX;
+}
+
+/** The spy reads the chunk at the line an under-stack jump parks a head on,
+ * so a landing never hands the position to the chunk above it. */
+function readingLineOffset(): number {
+  return focusScrollOffset() + 1;
 }
 
 function scrollElementToTop(
@@ -159,11 +165,12 @@ function useChunkScroller(
 
   useEffect(() => cancelPendingScroll, [cancelPendingScroll]);
 
-  // After a far jump: wait until the card mounts AND the scroll stops, then
+  // After a jump: wait until the card mounts AND the scroll stops, then
   // nudge once onto the real element. The user's own input aborts, a late
-  // correction would hijack a scroll they already took over.
+  // correction would hijack a scroll they already took over. A smooth jump
+  // must start moving before stillness counts, or the nudge cuts its glide.
   const settleAndCorrect = useCallback(
-    (chunkId: string, align: ChunkScrollAlign) => {
+    (chunkId: string, align: ChunkScrollAlign, awaitStart = false) => {
       const stop = () => {
         if (pending.current.pollFrame !== null) {
           window.cancelAnimationFrame(pending.current.pollFrame);
@@ -178,11 +185,15 @@ function useChunkScroller(
       let frames = 0;
       let stableFrames = 0;
       let lastY = window.scrollY;
+      let hasMoved = false;
 
       const scrollHasSettled = () => {
-        stableFrames = window.scrollY === lastY ? stableFrames + 1 : 0;
+        const moved = window.scrollY !== lastY;
+        hasMoved ||= moved;
+        stableFrames = moved ? 0 : stableFrames + 1;
         lastY = window.scrollY;
-        return stableFrames >= SETTLE_FRAMES;
+        const started = !awaitStart || hasMoved || frames > SCROLL_START_FRAMES;
+        return started && stableFrames >= SETTLE_FRAMES;
       };
 
       const poll = () => {
@@ -235,12 +246,17 @@ function useChunkScroller(
             Math.abs(element.getBoundingClientRect().top) <= farLimit
           ) {
             const resolvedBehavior = prefersReducedMotion() ? "auto" : behavior;
-            if (align_ === "top") scrollElementToTop(element, resolvedBehavior);
-            else
+            if (align_ !== "top") {
               element.scrollIntoView({
                 behavior: resolvedBehavior,
                 block: "start",
               });
+              return;
+            }
+            scrollElementToTop(element, resolvedBehavior);
+            // The pinned stack can shrink while the page scrolls, so the
+            // landing is re-read once the scroll stops.
+            settleAndCorrect(chunkId, "top", true);
             return;
           }
           if (element) {
@@ -574,7 +590,7 @@ export function useReadingSession(
   useScrollSpy(
     !focusMode && compareViewFull ? chunkIds : EMPTY_CHUNK_IDS,
     setActivePosition,
-    undefined,
+    readingLineOffset,
     briefId,
   );
 

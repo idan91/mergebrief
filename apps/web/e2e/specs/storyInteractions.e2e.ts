@@ -207,3 +207,57 @@ test("S reopening the panel from its tab moves focus to the heading", async ({
   await expect(panel).toHaveAttribute("data-state", "open");
   await expect(panel.getByRole("heading", { level: 2 })).toBeFocused();
 });
+
+test("the card's chunk strip follows the scroll and jumps on Enter", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const strip = page
+    .getByRole("toolbar", { name: "Chunks in this group" })
+    .first();
+  const marks = strip.getByRole("button");
+
+  // The scroll-spy reads the chunk crossing the landing line under the
+  // pinned stack, so park c2 across it.
+  await page.evaluate(() => {
+    const target = document.getElementById("c2");
+    if (target) {
+      const top = target.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top, behavior: "instant" });
+    }
+  });
+  await expect(marks.nth(1)).toHaveAttribute("aria-current", "true");
+
+  await marks.nth(0).focus();
+  await page.keyboard.press("Enter");
+  await expect(marks.nth(0)).toHaveAttribute("aria-current", "true");
+});
+
+test("a strip jump lands the chunk below the stack and keeps its mark", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const marks = page
+    .getByRole("toolbar", { name: "Chunks in this group" })
+    .first()
+    .getByRole("button");
+
+  await marks.nth(1).click();
+
+  await expect(marks.nth(1)).toHaveAttribute("aria-current", "true");
+  const readStackBottom = () =>
+    page.evaluate(() =>
+      Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--sticky-stack-h",
+        ),
+      ),
+    );
+  await expect
+    .poll(async () => {
+      const box = await page.locator("article#c2").boundingBox();
+      return box === null ? -1 : box.y - (await readStackBottom());
+    })
+    .toBeGreaterThanOrEqual(0);
+  await expect(marks.nth(1)).toHaveAttribute("aria-current", "true");
+});

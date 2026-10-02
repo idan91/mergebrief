@@ -675,6 +675,14 @@
       "noRisks": "No risk-surface attributes on this chunk.",
       "chunks": "Chunks in this group"
     },
+    "chunkStrip": {
+      "label": "Chunks in this group",
+      "markName": "{{file}} line {{line}}, chunk {{index}} of {{total}}",
+      "markNameNoLine": "{{file}}, chunk {{index}} of {{total}}",
+      "position": "{{index}} of {{total}}",
+      "count_one": "{{count}} chunk",
+      "count_other": "{{count}} chunks"
+    },
     "toc": {
       "ariaLabel": "Change groups",
       "srHasConversation": " — has conversation"

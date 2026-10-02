@@ -3,7 +3,7 @@
 // a scroll-spy tick re-renders position SUBSCRIBERS, never the component
 // hosting this hook (the screen shell).
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/fixtures";
@@ -20,9 +20,14 @@ import {
 
 const nativeScrollBy = window.scrollBy;
 
+beforeEach(() => {
+  document.documentElement.style.setProperty("--sticky-stack-h", "110px");
+});
+
 afterEach(() => {
   cleanup();
   document.body.innerHTML = "";
+  document.documentElement.style.removeProperty("--sticky-stack-h");
   vi.useRealTimers();
   window.scrollBy = nativeScrollBy;
 });
@@ -34,7 +39,8 @@ function rectAt(top: number, bottom: number): DOMRect {
   return new DOMRect(0, top, 0, bottom - top);
 }
 
-/** A chunk node the spy sees as crossing the reading line (top<=150<bottom). */
+/** A chunk node the spy sees as crossing the reading line (top<=151<bottom):
+ * the stack below is 110px and the landing gap 40px. */
 function mountChunk(id: string, crossing: boolean): HTMLElement {
   const el = document.createElement("article");
   el.id = id;

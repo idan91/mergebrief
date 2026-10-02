@@ -1,6 +1,6 @@
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { BriefChunk } from "../../../../../types";
-import { splitFilePath } from "../../utils";
+import { splitFilePath } from "../../../utils";
 import styles from "./ChunkRow.module.scss";
 
 export interface ChunkRowProps {

@@ -430,16 +430,6 @@
       "count": 1
     }
   },
-  "apps/web/src/hooks/useScrollSpy.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/hooks/useScrollSpy.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/hooks/useUnsavedComposerGuard.ts": {
     "house/comment-density": {
       "count": 1

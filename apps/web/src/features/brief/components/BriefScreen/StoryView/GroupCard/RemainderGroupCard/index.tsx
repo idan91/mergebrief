@@ -1,4 +1,5 @@
 import type { UnattributedRemainderGroupView } from "../../../../../utils/viewModel";
+import { ChunkStrip } from "../../../ChunkStrip";
 import { GroupFacts } from "../../../GroupFacts";
 import { MetaRow } from "../../../GroupFacts/MetaRow";
 import { GroupFactsSurfaces } from "../../../GroupFacts/types";
@@ -15,6 +16,7 @@ export function RemainderGroupCard({
   id,
   group,
   model,
+  jumpToChunk,
   sinceChangedFileCount,
   sinceBaselineShortSha,
   openDeltaLens,
@@ -41,6 +43,13 @@ export function RemainderGroupCard({
           group={group}
           headingId={headingId}
           surface={GroupFactsSurfaces.CARD}
+        />
+      </div>
+      <div className={styles["stripSection"]}>
+        <ChunkStrip
+          chunks={group.chunks}
+          groupId={group.id}
+          jumpToChunk={jumpToChunk}
         />
       </div>
     </article>

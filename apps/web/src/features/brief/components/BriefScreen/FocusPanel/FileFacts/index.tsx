@@ -5,7 +5,7 @@ import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { BriefChunk } from "../../../../types";
 import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
-import { splitFilePath } from "../utils";
+import { splitFilePath } from "../../utils";
 import { ChunkRisks } from "./ChunkRisks";
 import styles from "./FileFacts.module.scss";
 
