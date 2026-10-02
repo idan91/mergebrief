@@ -2,14 +2,27 @@
 
 @layer components {
   .file {
-    --twist-col: 12px;
-    --identity-gap: #{functions.to-rem(8px)};
-
+    position: relative;
     display: grid;
     grid-template-columns: functions.to-rem(24px) minmax(0, 1fr);
     gap: functions.to-rem(4px);
     min-inline-size: 0;
     align-items: start;
+
+    &[data-state="current"]::before {
+      position: absolute;
+      inset-block-start: functions.to-rem(5px);
+      inset-inline-start: functions.to-rem(-12px);
+      inline-size: 2px;
+      block-size: functions.to-rem(17px);
+      border-radius: var(--radius-xs);
+      background: var(--color-text-1);
+      content: "";
+    }
+  }
+
+  .file[data-state="current"] .path {
+    color: var(--color-text-1);
   }
 
   .check {
@@ -42,8 +55,8 @@
   .notesToggle {
     position: relative;
     display: grid;
-    flex: none;
-    inline-size: var(--twist-col);
+    grid-column: 1;
+    inline-size: functions.to-rem(24px);
     min-block-size: functions.to-rem(24px);
     place-items: center;
     padding: 0;
@@ -55,8 +68,7 @@
 
     &::before {
       position: absolute;
-      inset-block: 0;
-      inset-inline: 0 functions.to-rem(-12px);
+      inset: 0;
       content: "";
     }
 
@@ -77,8 +89,7 @@
   }
 
   .twistSlot {
-    flex: none;
-    inline-size: var(--twist-col);
+    grid-column: 1;
   }
 
   .twist {
@@ -107,16 +118,12 @@
   }
 
   .chipsRow {
-    display: flex;
-    grid-column: 2;
-    min-inline-size: 0;
-    align-items: start;
-    gap: var(--identity-gap);
+    display: contents;
   }
 
   .chips {
     display: flex;
-    flex: 1;
+    grid-column: 2;
     flex-wrap: wrap;
     gap: functions.to-rem(6px);
     min-inline-size: 0;
@@ -138,7 +145,6 @@
     gap: functions.to-rem(6px);
     margin: functions.to-rem(4px) 0 0;
     padding: 0;
-    padding-inline-start: calc(var(--twist-col) + var(--identity-gap));
     list-style: none;
     color: var(--color-text-2);
     font-size: var(--font-size-md);

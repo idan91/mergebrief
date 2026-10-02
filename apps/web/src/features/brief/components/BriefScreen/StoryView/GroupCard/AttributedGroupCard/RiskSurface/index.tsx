@@ -9,11 +9,12 @@ import type {
   AttributedGroupView,
   RiskFlag,
 } from "../../../../../../utils/viewModel";
+import { useReadingPositionIfMounted } from "../../../../readingPosition";
 import cardStyles from "../../GroupCard.module.scss";
 import { FileRow } from "./FileRow";
 import { ResolvedFold } from "./ResolvedFold";
 import styles from "./RiskSurface.module.scss";
-import { groupFlagsByFile } from "./utils";
+import { getChunkFile, groupFlagsByFile } from "./utils";
 
 export interface RiskSurfaceProps {
   group: AttributedGroupView;
@@ -28,6 +29,8 @@ export interface RiskSurfaceProps {
   setDismissTarget: ReviewFlowActions["setDismissTarget"];
   setEvidenceTarget: ReviewFlowActions["setEvidenceTarget"];
   toggleRiskGroup: ReviewFlowActions["toggleRiskGroup"];
+  /** Marks the row of the file the reader is in; the card's surface only. */
+  followsReader?: boolean;
 }
 
 export function RiskSurface({
@@ -42,8 +45,14 @@ export function RiskSurface({
   setDismissTarget,
   setEvidenceTarget,
   toggleRiskGroup,
+  followsReader = false,
 }: RiskSurfaceProps) {
   const { t } = useTranslation();
+  const readerFile = useReadingPositionIfMounted((state) =>
+    followsReader && state.activeGroupId === group.id
+      ? getChunkFile(group.chunks, state.activeChunkId)
+      : undefined,
+  );
   const fileOrder =
     fileOrderOverride ?? group.chunks.map((chunk) => chunk.file);
   const rows = groupFlagsByFile(groupFlags, dispositions, fileOrder);
@@ -111,18 +120,23 @@ export function RiskSurface({
         ) : null}
         {openRows.length > 0 ? (
           <ul className={styles["list"]}>
-            {openRows.map((row) => (
-              <FileRow
-                dispositions={dispositions}
-                flagsReadOnly={flagsReadOnly}
-                jumpToChunk={jumpToChunk}
-                key={row.file}
-                reopenFlag={reopenFlag}
-                row={row}
-                selectedFlagSet={selectedFlagSet}
-                toggleRiskGroup={toggleRiskGroup}
-              />
-            ))}
+            {openRows.map((row) => {
+              const current = row.file === readerFile;
+
+              return (
+                <FileRow
+                  current={current}
+                  dispositions={dispositions}
+                  flagsReadOnly={flagsReadOnly}
+                  jumpToChunk={jumpToChunk}
+                  key={row.file}
+                  reopenFlag={reopenFlag}
+                  row={row}
+                  selectedFlagSet={selectedFlagSet}
+                  toggleRiskGroup={toggleRiskGroup}
+                />
+              );
+            })}
           </ul>
         ) : null}
         {resolvedRows.length > 0 ? (

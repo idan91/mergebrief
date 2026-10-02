@@ -13,6 +13,10 @@ import {
   type AttributedGroupView,
   type RiskFlag,
 } from "../../../../../../utils/viewModel";
+import {
+  createReadingPositionStore,
+  ReadingPositionProvider,
+} from "../../../../readingPosition";
 import { RiskSurface } from ".";
 
 afterEach(cleanup);
@@ -294,5 +298,60 @@ describe("RiskSurface chooser", () => {
     expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "src/leak.ts" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "no-tests" })).toBeTruthy();
+  });
+});
+
+describe("RiskSurface reader's file", () => {
+  function renderFollowing(
+    activeChunkId: string,
+    activeGroupId: string,
+    followsReader = true,
+  ) {
+    const { group, flags } = requireAttributed(briefFixture);
+    const position = createReadingPositionStore();
+    position.getState().actions.setActive(activeChunkId, activeGroupId);
+    render(
+      <ReadingPositionProvider store={position}>
+        <RiskSurface
+          dispositions={{}}
+          flagsReadOnly={false}
+          followsReader={followsReader}
+          group={group}
+          groupFlags={flags}
+          jumpToChunk={vi.fn()}
+          reopenFlag={vi.fn()}
+          selectedFlagSet={new Set()}
+          setDismissTarget={vi.fn()}
+          setEvidenceTarget={vi.fn()}
+          toggleRiskGroup={vi.fn()}
+        />
+      </ReadingPositionProvider>,
+    );
+    return { group };
+  }
+
+  function getCurrentRows(): HTMLElement[] {
+    return screen
+      .getAllByRole("listitem")
+      .filter((row) => row.getAttribute("aria-current") === "true");
+  }
+
+  it("marks the row of the file the reader is in", () => {
+    const { group } = renderFollowing("chunk-a", "g1");
+    expect(group.id).toBe("g1");
+    const current = getCurrentRows();
+    expect(current).toHaveLength(1);
+    expect(current[0]?.dataset["state"]).toBe("current");
+    expect(current[0]?.textContent).toContain("src/leak.ts");
+  });
+
+  it("marks nothing while the reader is in another group", () => {
+    renderFollowing("chunk-a", "g2");
+    expect(getCurrentRows()).toHaveLength(0);
+  });
+
+  it("marks nothing on a surface that does not follow the reader", () => {
+    renderFollowing("chunk-a", "g1", false);
+    expect(getCurrentRows()).toHaveLength(0);
   });
 });

@@ -1,4 +1,5 @@
 import type { Disposition } from "@web/features/review/session";
+import type { BriefChunk } from "../../../../../../types";
 import type { RiskFlag } from "../../../../../../utils/viewModel";
 
 export interface FileFlagRow {
@@ -62,4 +63,11 @@ export function capitalizeSentence(text: string): string {
   const first = text[0];
   if (first === undefined) return text;
   return `${first.toLocaleUpperCase()}${text.slice(1)}`;
+}
+
+export function getChunkFile(
+  chunks: readonly BriefChunk[],
+  chunkId: string | null,
+): string | undefined {
+  return chunks.find((chunk) => chunk.id === chunkId)?.file;
 }

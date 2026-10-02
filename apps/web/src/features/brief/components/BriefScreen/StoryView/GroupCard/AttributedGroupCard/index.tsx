@@ -107,6 +107,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
       <RiskSurface
         dispositions={dispositions}
         flagsReadOnly={flagsReadOnly}
+        followsReader
         group={group}
         groupFlags={groupFlags}
         jumpToChunk={jumpToChunk}

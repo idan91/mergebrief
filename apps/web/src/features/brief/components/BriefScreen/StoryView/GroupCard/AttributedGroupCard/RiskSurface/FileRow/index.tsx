@@ -26,6 +26,8 @@ import {
 
 export interface FileRowProps {
   row: FileFlagRow;
+  /** The reader is in this file. */
+  current: boolean;
   flagsReadOnly: boolean;
   selectedFlagSet: Set<string>;
   dispositions: Record<string, Disposition | undefined>;
@@ -36,6 +38,7 @@ export interface FileRowProps {
 
 export function FileRow({
   row,
+  current,
   flagsReadOnly,
   selectedFlagSet,
   dispositions,
@@ -55,7 +58,12 @@ export function FileRow({
   const jumpChunkId = pickPathJumpChunkId(row);
 
   return (
-    <li className={styles["file"]} data-notes-open={notesOpen ? "" : undefined}>
+    <li
+      aria-current={current ? "true" : undefined}
+      className={styles["file"]}
+      data-notes-open={notesOpen ? "" : undefined}
+      data-state={current ? "current" : undefined}
+    >
       {flagsReadOnly ? (
         <span aria-hidden="true" className={styles["check"]} />
       ) : (

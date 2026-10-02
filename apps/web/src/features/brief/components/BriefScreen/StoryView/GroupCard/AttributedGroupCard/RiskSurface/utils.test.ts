@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { Disposition } from "@web/features/review/session";
+import { briefFixture } from "@web/features/brief/fixtures";
 import type { RiskFlag } from "../../../../../../utils/viewModel";
 import {
   capitalizeSentence,
+  getChunkFile,
   groupFlagsByFile,
   pickPathJumpChunkId,
 } from "./utils";
@@ -88,5 +90,18 @@ describe("capitalizeSentence", () => {
     );
     expect(capitalizeSentence("Already capped")).toBe("Already capped");
     expect(capitalizeSentence("")).toBe("");
+  });
+});
+
+describe("getChunkFile", () => {
+  it("names the file of a chunk in the list", () => {
+    expect(getChunkFile(briefFixture.chunks, "chunk-b")).toBe(
+      "src/leak.test.ts",
+    );
+  });
+
+  it("has no file for a chunk outside the list or no chunk", () => {
+    expect(getChunkFile(briefFixture.chunks, "elsewhere")).toBeUndefined();
+    expect(getChunkFile(briefFixture.chunks, null)).toBeUndefined();
   });
 });

@@ -83,3 +83,16 @@ export function useReadingPosition<T>(
   if (!store) throw new Error("ReadingPositionProvider is missing");
   return useStore(store, selector);
 }
+
+const DETACHED_STORE = createReadingPositionStore();
+
+/**
+ * The same read for a surface also mounted outside the provider (the Risk
+ * Surface in the Changes view's tests): there it sees a reader nowhere.
+ */
+export function useReadingPositionIfMounted<T>(
+  selector: (state: ReadingPositionStoreValue) => T,
+): T {
+  const store = useContext(ReadingPositionContext) ?? DETACHED_STORE;
+  return useStore(store, selector);
+}
