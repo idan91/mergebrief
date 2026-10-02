@@ -10,10 +10,10 @@ import {
   type BriefViewModel,
   type GroupView,
 } from "../../../../utils/viewModel";
+import { ChunkStrip } from "../../ChunkStrip";
 import { GroupFacts } from "../../GroupFacts";
 import { MetaRow } from "../../GroupFacts/MetaRow";
 import { GroupFactsSurfaces } from "../../GroupFacts/types";
-import { ChunkList } from "../ChunkList";
 import { FileFacts } from "../FileFacts";
 import styles from "./PanelContent.module.scss";
 
@@ -21,7 +21,6 @@ export interface PanelContentProps {
   model: BriefViewModel;
   group: GroupView;
   chunk: BriefChunk | undefined;
-  activeChunkId: string | null;
   /** The reader's dominant category, resolved; unset for the remainder. */
   dominant: Category | undefined;
   isReclassified: boolean;
@@ -35,7 +34,6 @@ export function PanelContent({
   model,
   group,
   chunk,
-  activeChunkId,
   dominant,
   isReclassified,
   headingRef,
@@ -80,6 +78,14 @@ export function PanelContent({
             </p>
           ) : null}
         </GroupFacts>
+        <div className={styles["strip"]}>
+          <ChunkStrip
+            chunks={group.chunks}
+            groupId={group.id}
+            key={group.id}
+            jumpToChunk={jumpToChunk}
+          />
+        </div>
         {chunk ? (
           <FileFacts
             chunk={chunk}
@@ -87,11 +93,6 @@ export function PanelContent({
             showRisks={attributed}
           />
         ) : null}
-        <ChunkList
-          activeChunkId={activeChunkId}
-          chunks={group.chunks}
-          jumpToChunk={jumpToChunk}
-        />
       </div>
     </>
   );

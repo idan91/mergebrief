@@ -21,6 +21,12 @@
     }
   }
 
+  .strip {
+    margin-block-start: functions.to-rem(18px);
+    padding-block-start: functions.to-rem(12px);
+    border-block-start: 1px solid var(--color-outline-1);
+  }
+
   .flags {
     margin-block-start: functions.to-rem(12px);
     color: var(--color-text-3);

@@ -37,7 +37,6 @@ export function FocusPanel(props: FocusPanelProps) {
   const sheetOpen = sheet && open;
   const content = (
     <PanelContent
-      activeChunkId={facade.activeChunkId}
       chunk={facade.chunk}
       dominant={facade.dominant}
       group={group}

@@ -32,7 +32,7 @@
 
   .facts {
     display: grid;
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(2, auto);
     justify-content: start;
     column-gap: functions.to-rem(20px);
     margin-block: functions.to-rem(12px) functions.to-rem(14px);

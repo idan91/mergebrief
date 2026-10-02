@@ -8,7 +8,13 @@ import { useFocusTrap } from "./useFocusTrap";
 
 afterEach(cleanup);
 
-function Trap({ empty = false }: { empty?: boolean }) {
+function Trap({
+  empty = false,
+  roving = false,
+}: {
+  empty?: boolean;
+  roving?: boolean;
+}) {
   const ref = useRef<HTMLDivElement | null>(null);
   const onKeyDown = useFocusTrap(ref);
   return (
@@ -25,6 +31,7 @@ function Trap({ empty = false }: { empty?: boolean }) {
         <>
           <Button>first</Button>
           <Button>last</Button>
+          {roving ? <Button tabIndex={-1}>off stop</Button> : null}
         </>
       )}
     </div>
@@ -32,6 +39,18 @@ function Trap({ empty = false }: { empty?: boolean }) {
 }
 
 describe("useFocusTrap", () => {
+  it("wraps from the last tabbable control past a roving off-stop", () => {
+    render(<Trap roving />);
+    const last = screen.getByRole("button", { name: "last" });
+    last.focus();
+
+    fireEvent.keyDown(last, { key: "Tab" });
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "first" }),
+    );
+  });
+
   it("wraps Tab from the last control to the first", () => {
     render(<Trap />);
     const last = screen.getByRole("button", { name: "last" });

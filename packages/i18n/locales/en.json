@@ -670,10 +670,8 @@
       "thisFile": "This file",
       "concern": "Concern",
       "role": "Role",
-      "lines": "Lines",
       "activeRisks": "Active chunk risks",
-      "noRisks": "No risk-surface attributes on this chunk.",
-      "chunks": "Chunks in this group"
+      "noRisks": "No risk-surface attributes on this chunk."
     },
     "chunkStrip": {
       "label": "Chunks in this group",

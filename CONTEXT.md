@@ -347,7 +347,7 @@ The reading mode that strips the Brief page to one chunk at a time on a wide col
 _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)
 
 **Context panel**:
-The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, counts), the current chunk's file facts and risks, and the group's chunk list. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group.
+The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, core line total), the group's chunk strip with the reader's place marked, and the current chunk's file facts and risks. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group.
 _Avoid_: rail (that is the **Jump-rail**), sidebar (that is the **Sidebar**), drawer, overlay (that is the **Comparison overlay**)
 
 **Change-group card**:

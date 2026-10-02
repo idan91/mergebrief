@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { BriefChunk } from "../../../../types";
 import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
@@ -36,27 +35,18 @@ export function FileFacts({ chunk, riskMeta, showRisks }: FileFactsProps) {
         ))}
         <span className={styles["basename"]}>{path.basename}</span>
       </p>
-      <dl className={styles["facts"]}>
-        {remainderChunk ? null : (
-          <>
-            <div>
-              <dt>{t("brief.focusPanel.concern")}</dt>
-              <dd>{chunk.concern}</dd>
-            </div>
-            <div>
-              <dt>{t("brief.focusPanel.role")}</dt>
-              <dd>{chunk.role}</dd>
-            </div>
-          </>
-        )}
-        <div>
-          <dt>{t("brief.focusPanel.lines")}</dt>
-          <dd>
-            <LocSign sign={LocSigns.ADD} count={chunk.loc.added} />{" "}
-            <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
-          </dd>
-        </div>
-      </dl>
+      {remainderChunk ? null : (
+        <dl className={styles["facts"]}>
+          <div>
+            <dt>{t("brief.focusPanel.concern")}</dt>
+            <dd>{chunk.concern}</dd>
+          </div>
+          <div>
+            <dt>{t("brief.focusPanel.role")}</dt>
+            <dd>{chunk.role}</dd>
+          </div>
+        </dl>
+      )}
       {showRisks ? <ChunkRisks chunk={chunk} riskMeta={riskMeta} /> : null}
     </section>
   );

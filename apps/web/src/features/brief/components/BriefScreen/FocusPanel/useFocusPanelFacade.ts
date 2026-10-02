@@ -163,7 +163,6 @@ export function useFocusPanelFacade({
     tabRef,
     group,
     chunk,
-    activeChunkId,
     dominant,
     isReclassified,
     tabLabel,

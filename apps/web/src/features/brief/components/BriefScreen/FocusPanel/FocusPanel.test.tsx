@@ -237,10 +237,52 @@ describe("FocusPanel", () => {
     expect(facts.textContent).toContain(
       "No risk-surface attributes on this chunk.",
     );
-    const current = within(panel)
+    const strip = within(panel).getByRole("toolbar", {
+      name: "Chunks in this group",
+    });
+    const current = within(strip)
       .getAllByRole("button")
-      .find((button) => button.getAttribute("aria-current") === "true");
-    expect(current?.textContent).toContain("leak.test.ts");
+      .filter((mark) => mark.getAttribute("aria-current") === "true");
+    expect(current.map((mark) => mark.getAttribute("aria-label"))).toEqual([
+      "leak.test.ts line 1, chunk 2 of 2",
+    ]);
+  });
+
+  it("gives the strip a fresh tab stop when the group changes", () => {
+    const remainder = findRemainder();
+    const { panel, position } = renderPanel("chunk-a", "g1");
+    const marks = within(panel).getAllByRole("button", { name: /chunk \d/ });
+    act(() => marks[1]?.focus());
+
+    act(() =>
+      position
+        .getState()
+        .actions.setActive(remainder.chunk.id, remainder.group.id),
+    );
+
+    const strip = within(panel).getByRole("toolbar");
+    const stops = within(strip)
+      .getAllByRole("button")
+      .filter((mark) => mark.tabIndex === 0);
+    expect(stops).toHaveLength(1);
+  });
+
+  it("names the reader's chunk in the strip's caption", () => {
+    const { panel } = renderPanel("chunk-b", "g1");
+    const strip = within(panel).getByRole("toolbar", {
+      name: "Chunks in this group",
+    });
+    expect(strip.nextElementSibling?.textContent).toBe("leak.test.ts :12 of 2");
+  });
+
+  it("keeps per-chunk line counts out of the panel", () => {
+    const { panel } = renderPanel("chunk-a", "g1");
+
+    const facts = getFileFacts(panel);
+    expect(facts.textContent).not.toContain("Lines");
+    expect(
+      [...facts.querySelectorAll("dt")].map((term) => term.textContent),
+    ).toEqual(["Concern", "Role"]);
   });
 
   it("omits flags and risks for the remainder group", () => {
@@ -256,7 +298,7 @@ describe("FocusPanel", () => {
     expect(panel.querySelector('[data-kind="dominant"]')).toBeNull();
   });
 
-  it("jumps to a chunk from the list", () => {
+  it("jumps to a chunk from the strip", () => {
     const { panel, jumpToChunk } = renderPanel("chunk-a", "g1");
 
     fireEvent.click(within(panel).getByRole("button", { name: /leak\.test/ }));
@@ -289,6 +331,23 @@ describe("FocusPanel", () => {
     );
   });
 
+  it("wraps Tab from the strip's tab stop to the sheet's first control", () => {
+    const { sheet } = renderSheet();
+    const strip = within(sheet).getByRole("toolbar", {
+      name: "Chunks in this group",
+    });
+    const stop = within(strip)
+      .getAllByRole("button")
+      .find((mark) => mark.tabIndex === 0);
+    act(() => stop?.focus());
+
+    fireEvent.keyDown(stop as HTMLElement, { key: "Tab" });
+
+    expect(document.activeElement).toBe(
+      within(sheet).getByRole("button", { name: /core$/ }),
+    );
+  });
+
   it("closes the sheet on Escape and returns focus to the tab", () => {
     const { sheet } = renderSheet();
 
@@ -305,7 +364,7 @@ describe("FocusPanel", () => {
     expect(document.activeElement).toBe(screen.getByTestId("focus-panel-tab"));
   });
 
-  it("closes the sheet after a jump from its chunk list", () => {
+  it("closes the sheet after a jump from its chunk strip", () => {
     const { sheet, jumpToChunk } = renderSheet();
 
     fireEvent.click(within(sheet).getByRole("button", { name: /leak\.test/ }));

@@ -16,9 +16,11 @@ export function useFocusTrap(
   return (event) => {
     if (event.key !== "Tab") return;
 
-    const nodes =
-      containerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
-    if (!nodes || nodes.length === 0) {
+    const matches =
+      containerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [];
+    // A roving group's off-stop members match the selector but are skipped by Tab.
+    const nodes = [...matches].filter((node) => node.tabIndex >= 0);
+    if (nodes.length === 0) {
       event.preventDefault();
       return;
     }
