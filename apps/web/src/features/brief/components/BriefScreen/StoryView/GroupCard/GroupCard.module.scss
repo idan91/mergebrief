@@ -3,136 +3,40 @@
 
 @layer components {
   .card {
+    --card-fill: color-mix(
+      in oklch,
+      var(--color-surface-1) 80%,
+      var(--color-background)
+    );
+
     margin-block-end: functions.to-rem(40px);
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-1);
+    border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--card-fill);
   }
 
   // Normally content-sized and fixed; on very short viewports it shrinks
-  // last — after .body hits its floor — and scrolls internally instead of
+  // last, after .body hits its floor, and scrolls internally instead of
   // collapsing the flags region to nothing.
   .head {
     min-block-size: 0;
     flex: 0 1 auto;
-    padding-block: functions.to-rem(26px) functions.to-rem(24px);
-    padding-inline: functions.to-rem(30px);
-    border-block-end: 1px solid var(--color-outline-1);
+    padding-block: functions.to-rem(16px) functions.to-rem(18px);
+    padding-inline: functions.to-rem(22px);
     overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
   }
 
-  // Narrow card columns are the norm here, not an edge case, so the row
-  // reflows between its items rather than breaking them mid-phrase.
-  .eyebrow {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: functions.to-rem(6px) functions.to-rem(12px);
-    margin-block-end: functions.to-rem(12px);
-  }
-
-  .number {
-    flex: none;
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
-    white-space: nowrap;
-  }
-
-  .metrics {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: flex-end;
-    gap: functions.to-rem(6px) functions.to-rem(12px);
-    margin-inline-start: auto;
-  }
-
-  .loc {
-    color: var(--color-text-3);
-    font-family: var(--mono);
-    font-size: var(--font-size-sm);
-  }
-
-  .title {
-    max-inline-size: 38em;
-    margin-block: 0 functions.to-rem(8px);
-    color: var(--color-text-1);
-    font-size: var(--font-size-3xl);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.45;
-
-    @include mixins.focus-visible;
-  }
-
-  .summary {
-    max-inline-size: 46em;
-    color: var(--color-text-2);
-    font-size: var(--font-size-lg);
-    line-height: 1.6;
-  }
-
-  // Explains order, never rank: kept visually subordinate to .title/.summary
-  // (smaller, muted, no chip/badge treatment) so it can't be misread as a
-  // priority label.
-  .readingOrder {
-    max-inline-size: 46em;
-    margin-block-start: functions.to-rem(6px);
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
-    font-style: italic;
-    line-height: 1.5;
-  }
-
-  .categoryRow {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+  .reclassify {
+    display: grid;
     gap: functions.to-rem(10px);
-    margin-block-start: functions.to-rem(18px);
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(7px);
-    padding-block: functions.to-rem(4px);
-    padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-pill);
-    color: var(--color-text-2);
-    font-size: var(--font-size-lg);
-    font-weight: 500;
-
-    &[data-kind="dominant"] {
-      border-color: var(--color-outline-2);
-      background: var(--color-surface-3);
-      color: var(--color-text-1);
-    }
-
-    &[data-kind="uncertain"] {
-      border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
-      color: var(--color-warning);
-    }
-
-    em {
-      color: var(--color-text-3);
-      font-style: normal;
-      font-weight: 400;
-    }
-  }
-
-  .uncertainPanel {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: functions.to-rem(14px);
-    padding-block: functions.to-rem(14px);
-    padding-inline: functions.to-rem(18px);
+    margin-block-start: functions.to-rem(14px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(14px);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-panel);
-    margin-block-start: functions.to-rem(16px);
-    background: var(--color-surface-1);
+    border-radius: var(--radius-md);
 
     b {
       color: var(--color-text-1);
@@ -141,21 +45,15 @@
   }
 
   .question {
-    flex: 1;
-    min-inline-size: functions.to-rem(260px);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
-    line-height: 1.6;
+    font-size: var(--font-size-md);
+    line-height: 1.5;
   }
 
   .pick {
     display: flex;
-    gap: functions.to-rem(8px);
-  }
-
-  .reclassNote {
-    color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
   }
 
   // The scroll region under the fixed head (base.scss makes the sticky card
@@ -172,5 +70,26 @@
     flex: 0 999 auto;
     border-end-end-radius: var(--radius-panel);
     border-end-start-radius: var(--radius-panel);
+  }
+
+  // The Changes view mounts the same Risk Surface outside a card; only the
+  // card's copy takes the panel's label scale and paddings.
+  .card > .body {
+    --scroller-bg: var(--card-fill);
+
+    border-block-start: 1px solid var(--color-outline-1);
+    border-end-end-radius: var(--radius-lg);
+    border-end-start-radius: var(--radius-lg);
+
+    > div {
+      padding-block: functions.to-rem(14px) functions.to-rem(20px);
+      padding-inline: functions.to-rem(22px);
+    }
+
+    h3 {
+      color: var(--color-text-3);
+      font-size: var(--font-size-md);
+      font-weight: 400;
+    }
   }
 }

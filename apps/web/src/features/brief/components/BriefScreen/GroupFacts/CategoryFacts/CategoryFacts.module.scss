@@ -2,6 +2,7 @@
 
 @layer components {
   .why {
+    max-inline-size: functions.to-rem(552px);
     margin-block-start: functions.to-rem(8px);
     color: var(--color-text-3);
     font-size: var(--font-size-md);
@@ -12,6 +13,7 @@
   .chips {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: functions.to-rem(6px);
     margin-block-start: functions.to-rem(14px);
   }
@@ -41,5 +43,10 @@
 
   .kind {
     color: var(--color-text-3);
+  }
+
+  .note {
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
   }
 }

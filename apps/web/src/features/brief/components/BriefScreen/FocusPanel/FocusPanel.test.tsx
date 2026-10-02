@@ -7,11 +7,17 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import {
+  ReviewSessionProvider,
+  useReviewSessionActions,
+  type ReviewSessionActions,
+} from "@web/features/review/session";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
+import { Categories } from "../../../types";
 import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
 import {
   ViewportBands,
@@ -51,6 +57,32 @@ function findRemainder() {
   return { group, chunk };
 }
 
+interface PanelProvidersProps {
+  position: ReadingPositionStore;
+  children: ReactNode;
+}
+
+function PanelProviders({ position, children }: PanelProvidersProps) {
+  return (
+    <I18nProvider>
+      <ReviewSessionProvider briefId="test-brief" model={model}>
+        <ReadingPositionProvider store={position}>
+          {children}
+        </ReadingPositionProvider>
+      </ReviewSessionProvider>
+    </I18nProvider>
+  );
+}
+
+interface SessionTapProps {
+  capture: (actions: ReviewSessionActions) => void;
+}
+
+function SessionTap({ capture }: SessionTapProps) {
+  capture(useReviewSessionActions());
+  return null;
+}
+
 interface ControlledPanelProps {
   jumpToChunk: (chunkId: string) => void;
   sheet: boolean;
@@ -74,11 +106,9 @@ function renderSheet() {
   const jumpToChunk = vi.fn();
   position.getState().actions.setActive("chunk-a", "g1");
   render(
-    <I18nProvider>
-      <ReadingPositionProvider store={position}>
-        <ControlledPanel jumpToChunk={jumpToChunk} sheet />
-      </ReadingPositionProvider>
-    </I18nProvider>,
+    <PanelProviders position={position}>
+      <ControlledPanel jumpToChunk={jumpToChunk} sheet />
+    </PanelProviders>,
   );
   fireEvent.click(screen.getByTestId("focus-panel-tab"));
   const sheet = screen.getByRole("dialog", {
@@ -128,11 +158,9 @@ function renderPanel(chunkId: string, groupId: string) {
   const jumpToChunk = vi.fn();
   position.getState().actions.setActive(chunkId, groupId);
   render(
-    <I18nProvider>
-      <ReadingPositionProvider store={position}>
-        <ControlledPanel jumpToChunk={jumpToChunk} sheet={false} />
-      </ReadingPositionProvider>
-    </I18nProvider>,
+    <PanelProviders position={position}>
+      <ControlledPanel jumpToChunk={jumpToChunk} sheet={false} />
+    </PanelProviders>,
   );
   const panel = screen.getByRole("complementary", {
     name: "Focused change-group context",
@@ -163,6 +191,38 @@ describe("FocusPanel", () => {
 
     const dominant = panel.querySelector('[data-kind="dominant"]');
     expect(dominant?.textContent).toBe("Dominant: bugfix");
+  });
+
+  it("heads the panel with the group position and its core lines", () => {
+    const { panel } = renderPanel("chunk-a", "g1");
+
+    expect(panel.textContent).toMatch(/Group 1 of \d+/);
+    expect(within(panel).getByRole("button", { name: /core$/ })).toBeTruthy();
+    expect(panel.textContent).toContain("2 flags");
+  });
+
+  it("shows the reader's dominant category after a reclassify", () => {
+    const position = createReadingPositionStore();
+    position.getState().actions.setActive("chunk-a", "g1");
+    const tap: { actions?: ReviewSessionActions } = {};
+    render(
+      <PanelProviders position={position}>
+        <SessionTap
+          capture={(actions) => {
+            tap.actions = actions;
+          }}
+        />
+        <ControlledPanel jumpToChunk={() => undefined} sheet={false} />
+      </PanelProviders>,
+    );
+    const panel = screen.getByTestId("focus-panel");
+    expect(panel.querySelector('[data-kind="uncertain"]')).not.toBeNull();
+
+    act(() => tap.actions?.reclassifyGroup("g1", Categories.LOGIC_REFACTOR));
+
+    const dominant = panel.querySelector('[data-kind="dominant"]');
+    expect(dominant?.textContent).toBe("Dominant: logic refactor");
+    expect(panel.querySelector('[data-kind="uncertain"]')).toBeNull();
   });
 
   it("follows the active chunk within the group", () => {
@@ -257,15 +317,13 @@ describe("FocusPanel", () => {
     const position = createReadingPositionStore();
     position.getState().actions.setActive("chunk-a", "g1");
     render(
-      <I18nProvider>
-        <ReadingPositionProvider store={position}>
-          <ToggledPanel
-            captureToggle={(toggle) => {
-              toggler.toggle = toggle;
-            }}
-          />
-        </ReadingPositionProvider>
-      </I18nProvider>,
+      <PanelProviders position={position}>
+        <ToggledPanel
+          captureToggle={(toggle) => {
+            toggler.toggle = toggle;
+          }}
+        />
+      </PanelProviders>,
     );
     const panel = screen.getByTestId("focus-panel");
     within(panel).getByRole("region", { name: "Change-group details" }).focus();
@@ -284,11 +342,9 @@ describe("FocusPanel", () => {
     const position = createReadingPositionStore();
     position.getState().actions.setActive("chunk-a", "g1");
     const panelAt = (band: ViewportBand) => (
-      <I18nProvider>
-        <ReadingPositionProvider store={position}>
-          <BandPanel band={band} position={position} />
-        </ReadingPositionProvider>
-      </I18nProvider>
+      <PanelProviders position={position}>
+        <BandPanel band={band} position={position} />
+      </PanelProviders>
     );
     const { rerender } = render(panelAt(ViewportBands.DESKTOP));
     screen.getByRole("button", { name: "Hide context (S)" }).focus();
@@ -304,11 +360,9 @@ describe("FocusPanel", () => {
     const position = createReadingPositionStore();
     position.getState().actions.setActive("chunk-a", "g1");
     const panelAt = (band: ViewportBand) => (
-      <I18nProvider>
-        <ReadingPositionProvider store={position}>
-          <BandPanel band={band} position={position} />
-        </ReadingPositionProvider>
-      </I18nProvider>
+      <PanelProviders position={position}>
+        <BandPanel band={band} position={position} />
+      </PanelProviders>
     );
     const { rerender } = render(panelAt(ViewportBands.DESKTOP));
     expect(document.activeElement).toBe(document.body);

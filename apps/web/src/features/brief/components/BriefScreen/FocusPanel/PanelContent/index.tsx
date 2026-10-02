@@ -4,15 +4,17 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
-import type { BriefChunk } from "../../../../types";
+import type { BriefChunk, Category } from "../../../../types";
 import {
   isAttributedGroupView,
   type BriefViewModel,
   type GroupView,
 } from "../../../../utils/viewModel";
+import { GroupFacts } from "../../GroupFacts";
+import { MetaRow } from "../../GroupFacts/MetaRow";
+import { GroupFactsSurfaces } from "../../GroupFacts/types";
 import { ChunkList } from "../ChunkList";
 import { FileFacts } from "../FileFacts";
-import { GroupFacts } from "../GroupFacts";
 import styles from "./PanelContent.module.scss";
 
 export interface PanelContentProps {
@@ -20,7 +22,9 @@ export interface PanelContentProps {
   group: GroupView;
   chunk: BriefChunk | undefined;
   activeChunkId: string | null;
-  meta: string | undefined;
+  /** The reader's dominant category, resolved; unset for the remainder. */
+  dominant: Category | undefined;
+  isReclassified: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   hide: () => void;
   jumpToChunk: (chunkId: string) => void;
@@ -32,7 +36,8 @@ export function PanelContent({
   group,
   chunk,
   activeChunkId,
-  meta,
+  dominant,
+  isReclassified,
   headingRef,
   hide,
   jumpToChunk,
@@ -40,15 +45,21 @@ export function PanelContent({
   const { t } = useTranslation();
   const flagCount = model.flagsByGroup.get(group.id)?.length ?? 0;
   const chunkRiskMeta = chunk ? model.riskMetaByChunk.get(chunk.id) : undefined;
-  const showRisks = isAttributedGroupView(group);
+  const attributed = isAttributedGroupView(group);
+  const closeButton = (
+    <IconButton label={t("brief.focusPanel.hide")} onClick={hide}>
+      <Icon name={IconNames.X} size={IconSizes.MD} />
+    </IconButton>
+  );
 
   return (
     <>
       <div className={styles["head"]}>
-        <span className={styles["meta"]}>{meta}</span>
-        <IconButton label={t("brief.focusPanel.hide")} onClick={hide}>
-          <Icon name={IconNames.X} size={IconSizes.MD} />
-        </IconButton>
+        <MetaRow
+          group={group}
+          total={model.groups.length}
+          trailing={closeButton}
+        />
       </div>
       <div
         aria-label={t("brief.focusPanel.detailsLabel")}
@@ -57,15 +68,23 @@ export function PanelContent({
         tabIndex={0}
       >
         <GroupFacts
-          flagCount={flagCount}
+          dominant={dominant}
           group={group}
           headingRef={headingRef}
-        />
+          isReclassified={isReclassified}
+          surface={GroupFactsSurfaces.PANEL}
+        >
+          {attributed ? (
+            <p className={styles["flags"]}>
+              {t("brief.group.flagsCount", { count: flagCount })}
+            </p>
+          ) : null}
+        </GroupFacts>
         {chunk ? (
           <FileFacts
             chunk={chunk}
             riskMeta={chunkRiskMeta}
-            showRisks={showRisks}
+            showRisks={attributed}
           />
         ) : null}
         <ChunkList

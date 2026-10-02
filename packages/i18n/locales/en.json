@@ -386,14 +386,13 @@
       "srJumpToCarryingGroup": " — jump to carrying group {{position}} of {{total}}, story order"
     },
     "group": {
-      "dominant": "dominant",
       "ariaLabelGroupRiskSurface": "{{title}} — risk surface",
       "titleMarkSelectedAddressed": "Mark selected risks as reviewed and handled",
       "titleMarkSelectedDismissed": "Mark selected risks as not applicable",
       "noGroupFlags": "No risk-surface attributes on this group.",
-      "changeGroupOf": "Change-group {{index}} of {{total}}",
-      "stepOf": "Step {{step}} of {{total}}",
-      "secondary": "secondary {{category}}",
+      "groupOf": "Group {{index}} of {{total}}",
+      "dominantKind": "Dominant:",
+      "secondaryKind": "Secondary:",
       "uncertain": "uncertain",
       "reclassNote": "set by you · recorded on receipt",
       "splitIntent": "The categorizer is split on this group’s intent: <0/>. Your call; the receipt records the override.",
@@ -639,8 +638,7 @@
     "focusIndicator": {
       "ariaLabel": "Focus mode",
       "label": "Focus",
-      "exit": "Exit focus mode (Esc)",
-      "groupOf": "Group {{index}} of {{total}}"
+      "exit": "Exit focus mode (Esc)"
     },
     "focusShortcuts": {
       "ariaLabel": "Focus mode shortcuts",
@@ -669,11 +667,6 @@
       "hide": "Hide context (S)",
       "show": "{{label}}: show context (S)",
       "groupLabel": "Group {{index}}",
-      "dominantKind": "Dominant:",
-      "secondaryKind": "Secondary:",
-      "uncertain": "uncertain",
-      "flags_one": "{{count}} flag",
-      "flags_other": "{{count}} flags",
       "thisFile": "This file",
       "concern": "Concern",
       "role": "Role",

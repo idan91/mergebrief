@@ -31,7 +31,7 @@ export function FocusIndicator({
   const countLabel =
     groupNumber === undefined
       ? undefined
-      : t("brief.focusIndicator.groupOf", {
+      : t("brief.group.groupOf", {
           index: groupNumber,
           total: groups.length,
         });

@@ -6,10 +6,14 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useReviewSession } from "@web/features/review/session";
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@web/hooks/useFocusTrap";
 import { isTypingTarget } from "@web/utils/typingTarget";
-import type { BriefViewModel } from "../../../utils/viewModel";
+import {
+  isAttributedGroupView,
+  type BriefViewModel,
+} from "../../../utils/viewModel";
 import { useReadingPosition } from "../readingPosition";
 
 type FocusReturn = "heading" | "tab";
@@ -46,6 +50,13 @@ export function useFocusPanelFacade({
   const lastSheet = useRef(sheet);
   const activeGroupId = useReadingPosition((state) => state.activeGroupId);
   const activeChunkId = useReadingPosition((state) => state.activeChunkId);
+  const sessionDominant = useReviewSession((state) =>
+    activeGroupId === null ? undefined : state.dominants[activeGroupId],
+  );
+  const isReclassified = useReviewSession(
+    (state) =>
+      activeGroupId !== null && state.reclassifiedGroups.has(activeGroupId),
+  );
   const trapFocus = useFocusTrap(panelRef);
   useBodyScrollLock(sheet && open);
 
@@ -89,14 +100,12 @@ export function useFocusPanelFacade({
   const chunk =
     group?.chunks.find((candidate) => candidate.id === activeChunkId) ??
     group?.chunks[0];
+  const modelDominant =
+    group && isAttributedGroupView(group)
+      ? group.group.dominantCategory
+      : undefined;
+  const dominant = sessionDominant ?? modelDominant;
   const groupNumber = group ? group.index + 1 : undefined;
-  const meta =
-    groupNumber === undefined
-      ? undefined
-      : t("brief.focusIndicator.groupOf", {
-          index: groupNumber,
-          total: model.groups.length,
-        });
   const tabLabel =
     groupNumber === undefined
       ? ""
@@ -155,7 +164,8 @@ export function useFocusPanelFacade({
     group,
     chunk,
     activeChunkId,
-    meta,
+    dominant,
+    isReclassified,
     tabLabel,
     trackTabFocus,
     trackPanelFocus,

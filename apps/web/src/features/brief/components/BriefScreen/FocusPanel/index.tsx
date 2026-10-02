@@ -39,11 +39,12 @@ export function FocusPanel(props: FocusPanelProps) {
     <PanelContent
       activeChunkId={facade.activeChunkId}
       chunk={facade.chunk}
+      dominant={facade.dominant}
       group={group}
       headingRef={facade.headingRef}
       hide={facade.closeFromPointer}
+      isReclassified={facade.isReclassified}
       jumpToChunk={facade.jumpFromList}
-      meta={facade.meta}
       model={model}
     />
   );

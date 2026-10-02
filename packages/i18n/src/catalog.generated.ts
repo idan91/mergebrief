@@ -98,9 +98,7 @@ export type Catalog = typeof en & {
     };
     group: (typeof en)["brief"]["group"] & {
       ariaLabelGroupRiskSurface: "{{title}} — risk surface";
-      changeGroupOf: "Change-group {{index}} of {{total}}";
-      stepOf: "Step {{step}} of {{total}}";
-      secondary: "secondary {{category}}";
+      groupOf: "Group {{index}} of {{total}}";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
       flagsIn_one: "{{count}} flag in {{attr}}";
       flagsIn_other: "{{count}} flags in {{attr}}";
@@ -171,14 +169,9 @@ export type Catalog = typeof en & {
       reviewCount: "{{count}} review";
       ariaLabelAddFileComment: "Add a comment on {{file}}";
     };
-    focusIndicator: (typeof en)["brief"]["focusIndicator"] & {
-      groupOf: "Group {{index}} of {{total}}";
-    };
     focusPanel: (typeof en)["brief"]["focusPanel"] & {
       show: "{{label}}: show context (S)";
       groupLabel: "Group {{index}}";
-      flags_one: "{{count}} flag";
-      flags_other: "{{count}} flags";
     };
     sidebar: (typeof en)["brief"]["sidebar"] & {
       revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {

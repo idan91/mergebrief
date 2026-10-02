@@ -1,0 +1,33 @@
+@use "functions";
+
+@layer components {
+  .metaRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(6px) functions.to-rem(12px);
+  }
+
+  .position {
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+  }
+
+  .trailing {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: functions.to-rem(6px) functions.to-rem(12px);
+    margin-inline-start: auto;
+  }
+
+  .lines {
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+}

@@ -350,6 +350,10 @@ _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mo
 The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, counts), the current chunk's file facts and risks, and the group's chunk list. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group.
 _Avoid_: rail (that is the **Jump-rail**), sidebar (that is the **Sidebar**), drawer, overlay (that is the **Comparison overlay**)
 
+**Change-group card**:
+The card beside each **Change-group** in the **Story view** outside **Focus mode**: the group's title, summary and categories, the reader's choice of **Dominant Category**, the group's chunk list with the reader's place marked, and its **Risk Surface**. It describes a group in the same words as the **Context panel**; only the Change-group card lets the reader reclassify a group or triage its flags.
+_Avoid_: group header, panel (that is the **Context panel**), rail (that is the **Jump-rail**)
+
 **Scope** (Full vs Changes):
 Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions: the summary plus the changed lines, reviewable in place. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
 _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)

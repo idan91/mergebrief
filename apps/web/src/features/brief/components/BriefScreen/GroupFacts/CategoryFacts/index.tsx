@@ -1,21 +1,29 @@
 import { useTranslation } from "react-i18next";
 
+import type { Category } from "../../../../types";
 import {
-  type AttributedGroupView,
   categoryLabel,
-} from "../../../../../utils/viewModel";
+  type AttributedGroupView,
+} from "../../../../utils/viewModel";
 import styles from "./CategoryFacts.module.scss";
 
 export interface CategoryFactsProps {
   group: AttributedGroupView;
+  dominant: Category;
+  isReclassified: boolean;
 }
 
 /** The why-line of the Reading order and the group's category chips. */
-export function CategoryFacts({ group }: CategoryFactsProps) {
+export function CategoryFacts({
+  group,
+  dominant,
+  isReclassified,
+}: CategoryFactsProps) {
   const { t } = useTranslation();
-  const dominant = categoryLabel(group.group.dominantCategory);
-  const dominantKind = t("brief.focusPanel.dominantKind");
-  const secondaryKind = t("brief.focusPanel.secondaryKind");
+  const dominantKind = t("brief.group.dominantKind");
+  const secondaryKind = t("brief.group.secondaryKind");
+  const dominantLabel = categoryLabel(dominant);
+  const showUncertain = group.group.uncertain && !isReclassified;
 
   return (
     <>
@@ -25,7 +33,7 @@ export function CategoryFacts({ group }: CategoryFactsProps) {
       <div className={styles["chips"]}>
         <span className={styles["chip"]} data-kind="dominant">
           <span className={styles["kind"]}>{dominantKind}</span>{" "}
-          <span>{dominant}</span>
+          <span>{dominantLabel}</span>
         </span>
         {group.group.secondaryCategories.map((category) => {
           const label = categoryLabel(category);
@@ -37,10 +45,13 @@ export function CategoryFacts({ group }: CategoryFactsProps) {
             </span>
           );
         })}
-        {group.group.uncertain ? (
+        {showUncertain ? (
           <span className={styles["chip"]} data-kind="uncertain">
-            {t("brief.focusPanel.uncertain")}
+            {t("brief.group.uncertain")}
           </span>
+        ) : null}
+        {isReclassified ? (
+          <span className={styles["note"]}>{t("brief.group.reclassNote")}</span>
         ) : null}
       </div>
     </>

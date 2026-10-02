@@ -130,6 +130,33 @@ describe("GroupCard Flag list chooser", () => {
   });
 });
 
+describe("GroupCard header", () => {
+  it("speaks the Context panel's words: position, kinds, no step", () => {
+    renderCard(writesSpy());
+    const card = screen.getByRole("article");
+
+    expect(card.textContent).toMatch(/Group 1 of \d+/);
+    expect(card.textContent).not.toMatch(/Change-group \d|Step \d/);
+    const dominant = card.querySelector('[data-kind="dominant"]');
+    expect(dominant?.textContent).toBe("Dominant: bugfix");
+    expect(card.querySelector('[data-kind="uncertain"]')).not.toBeNull();
+  });
+
+  it("shows the override and drops the uncertain chip on reclassify", () => {
+    const writes = writesSpy();
+    renderCard(writes);
+    const card = screen.getByRole("article");
+
+    fireEvent.click(screen.getByRole("button", { name: "logic-refactor" }));
+
+    const dominant = card.querySelector('[data-kind="dominant"]');
+    expect(dominant?.textContent).toBe("Dominant: logic refactor");
+    expect(card.querySelector('[data-kind="uncertain"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "logic-refactor" })).toBeNull();
+    expect(writes.reclassify).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("GroupCard reopen a dismissed risk", () => {
   it("offers no Reopen while the risk is open", () => {
     renderCard(writesSpy());
