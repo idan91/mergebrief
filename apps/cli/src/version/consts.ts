@@ -16,3 +16,14 @@ export const PACKAGE_NAME = "mergebrief";
 export const CLI_BEHIND_REASON = "some commands may fail";
 export const SERVER_BEHIND_REASON = "some commands may not exist there";
 export const MAJOR_GAP_SUFFIX = "major gap";
+
+/** Where the CLI asks about itself; the request carries nothing about the instance. */
+export const NPM_REGISTRY_LATEST_URL =
+  "https://registry.npmjs.org/mergebrief/latest";
+
+/** `<cacheDir>/update-check.json`, the answer printed on the next run. */
+export const UPDATE_CACHE_FILE = "update-check.json";
+
+export const UPDATE_CHECK_TIMEOUT_MS = 2000;
+
+export const UPDATE_CHECK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
