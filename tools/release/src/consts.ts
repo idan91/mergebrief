@@ -21,3 +21,29 @@ export const COMPOSE_PATHS = [
   "docker-compose.yml",
   "docker-compose.external-db.yml",
 ] as const;
+
+export const REPOSITORY = {
+  owner: "Idan91",
+  name: "code-review",
+} as const;
+
+export const REPOSITORY_URL = `https://github.com/${REPOSITORY.owner}/${REPOSITORY.name}`;
+
+export const NPM_PACKAGE = "mergebrief";
+
+/** Where an rc lands on npm; `latest` is never moved by a candidate. */
+export const RC_DIST_TAG = "next";
+
+export const OPERATIONS_DOC_PATH = "docs/self-host/operations.md";
+
+export const UPGRADE_CHAIN_PLACEHOLDER = "{{tag}}";
+
+// The chain in docs/self-host/operations.md, "The upgrade step", with the
+// tag as a placeholder. A test holds the two in step.
+export const UPGRADE_CHAIN = `DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \\
+  && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \\
+  && curl -fsSLo docker-compose.yml ${REPOSITORY_URL}/releases/download/${UPGRADE_CHAIN_PLACEHOLDER}/docker-compose.yml \\
+  && docker compose pull api web worker \\
+  && docker compose stop api web worker \\
+  && docker compose up -d --wait`;

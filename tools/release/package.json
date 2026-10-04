@@ -9,7 +9,9 @@
     "test": "vitest run --coverage",
     "check": "tsx src/main.ts check",
     "stamp": "tsx src/main.ts stamp",
-    "prune-manifest": "tsx src/main.ts prune-manifest"
+    "prune-manifest": "tsx src/main.ts prune-manifest",
+    "version-json": "tsx src/main.ts version-json",
+    "release-body": "tsx src/main.ts release-body"
   },
   "dependencies": {
     "types": "workspace:*",

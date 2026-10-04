@@ -45,6 +45,22 @@ export interface CheckReport {
   readonly tag?: TagReport;
 }
 
+/** One entry of `version.json`'s `releases`, the api's `ReleaseEntry`. */
+export interface VersionManifestRelease {
+  readonly version: string;
+  readonly date: string;
+  readonly breaking: boolean;
+  readonly security: boolean;
+  readonly notesUrl: string;
+}
+
+/** The file every instance fetches from the latest Release. */
+export interface VersionManifest {
+  readonly latest: string;
+  readonly releaseNotesUrl: string;
+  readonly releases: readonly VersionManifestRelease[];
+}
+
 export interface StampError {
   readonly path: string;
   readonly reason: string;
