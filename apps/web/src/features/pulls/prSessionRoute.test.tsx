@@ -25,6 +25,8 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import { buildVersionQueryOptions } from "@web/features/version/queries";
+import { VersionStates } from "@web/features/version/types";
 import { routeTree } from "../../routeTree.gen";
 import type { ReviewSessionPayload } from "../review/session";
 import { emptySessionPayload } from "../review/session";
@@ -114,6 +116,11 @@ async function renderRoute() {
     buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     "",
   );
+  // The loader also prefetches the version notice; cached so the one
+  // scripted Response below is read by the session alone.
+  queryClient.setQueryData(buildVersionQueryOptions().queryKey, {
+    kind: VersionStates.UNKNOWN,
+  });
   const router = createRouter({
     routeTree,
     context: { queryClient },

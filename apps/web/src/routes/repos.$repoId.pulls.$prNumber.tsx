@@ -42,6 +42,7 @@ import {
   type ConversationFilterSearch,
 } from "@web/features/conversation/utils";
 import { buildPrPageTitle, type PrPageTitleInput } from "@web/utils/pageTitle";
+import { buildVersionQueryOptions } from "../features/version/queries";
 import type { Mutable } from "types/utils";
 
 interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
@@ -223,6 +224,12 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
     const explicit = deps.rev === undefined ? spanFromSearch(deps) : undefined;
+    // The version notice sits above the content: prefetched so the band
+    // renders with the page instead of shifting it after scroll restore.
+    const versionPrefetch = context.queryClient.prefetchQuery({
+      ...buildVersionQueryOptions(),
+      retry: false,
+    });
     try {
       if (explicit !== undefined) {
         const [metaResult, briefResult] = await Promise.allSettled([
@@ -279,6 +286,8 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       return pickPageTitleInput(meta);
     } catch (error) {
       mapLoaderError(error);
+    } finally {
+      await versionPrefetch;
     }
   },
   head: ({ loaderData }) => {

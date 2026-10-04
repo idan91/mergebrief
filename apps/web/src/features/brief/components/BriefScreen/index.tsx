@@ -24,6 +24,7 @@ import { ReadingToolbar } from "./ReadingToolbar";
 import { ReanchorBanner } from "./ReanchorBanner";
 import { RiskFlagModals } from "./RiskFlagModals";
 import { ShortcutsModal } from "@web/components/ShortcutsModal";
+import { NoticeSurfaces, VersionNotice } from "@web/features/version";
 import { BRIEF_SHORTCUT_SECTIONS } from "./consts";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView";
@@ -234,6 +235,7 @@ export function BriefScreen({
                     : undefined
                 }
               />
+              <VersionNotice surface={NoticeSurfaces.BRIEF} />
               {lineLinkMissed ? (
                 <LineLinkNotice onDismiss={dismissLineLinkMiss} />
               ) : null}

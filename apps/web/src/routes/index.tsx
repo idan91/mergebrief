@@ -12,6 +12,8 @@ import {
 import { AccountMenu } from "@web/features/account";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { LocalBriefsSection } from "@web/features/brief";
+import { NoticeSurfaces, VersionNotice } from "@web/features/version";
+import { buildVersionQueryOptions } from "../features/version/queries";
 import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils";
 import {
@@ -65,6 +67,12 @@ export const Route = createFileRoute("/")({
       context.queryClient
         .ensureQueryData({ ...buildViewerQueryOptions(), retry: false })
         .catch(() => undefined),
+      // The version notice sits above the content: prefetched so the band
+      // renders with the page instead of shifting it after scroll restore.
+      context.queryClient.prefetchQuery({
+        ...buildVersionQueryOptions(),
+        retry: false,
+      }),
     ];
     // The DEV file surface, prefetched only behind a session (the readers
     // refuse without one) and never allowed to fail the page. The `if` is a
@@ -161,6 +169,7 @@ function HomeShell({ children, shortcuts }: HomeShellProps) {
   return (
     <div className={styles["page"]}>
       <Header end={<AccountMenu onOpenShortcuts={shortcuts?.open} />} />
+      <VersionNotice surface={NoticeSurfaces.HOME} />
       <main className={styles["home"]} id="main-content" tabIndex={-1}>
         {children}
       </main>

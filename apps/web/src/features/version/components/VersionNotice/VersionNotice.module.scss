@@ -1,0 +1,109 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .notice {
+    --notice-gutter: var(--page-gutter);
+
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sits over the header's 1px hairline: a border width, not rhythm */
+    margin-block-start: -1px;
+    margin-inline-end: var(--sidebar-w);
+    padding-inline: var(--notice-gutter);
+    border-block-start: 1px solid
+      color-mix(in srgb, var(--color-info) 60%, var(--color-outline-1));
+    border-block-end: 1px solid var(--color-outline-1);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    transition: opacity var(--motion-base) ease;
+
+    @starting-style {
+      opacity: 0;
+    }
+
+    &[data-surface="brief"] {
+      --notice-gutter: clamp(
+        #{functions.to-rem(18px)},
+        3vw,
+        #{functions.to-rem(28px)}
+      );
+    }
+
+    &[data-tone="warning"] {
+      border-block-start-color: color-mix(
+        in srgb,
+        var(--color-warning) 60%,
+        var(--color-outline-1)
+      );
+
+      .lead,
+      .version {
+        color: var(--color-warning);
+      }
+    }
+  }
+
+  .inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px) functions.to-rem(16px);
+    align-items: center;
+    min-block-size: functions.to-rem(42px);
+    padding-block: functions.to-rem(7px);
+  }
+
+  .mark {
+    flex: none;
+    color: var(--color-warning);
+  }
+
+  .text {
+    flex: 1 1 functions.to-rem(280px);
+    min-inline-size: 0;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .lead {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .version {
+    color: var(--color-info);
+    font-weight: 600;
+  }
+
+  .actions {
+    display: flex;
+    flex: none;
+    gap: functions.to-rem(8px);
+    align-items: center;
+    margin-inline-start: auto;
+  }
+
+  .link {
+    display: inline-flex;
+    gap: functions.to-rem(3px);
+    align-items: center;
+    border-radius: var(--radius-xs);
+    color: var(--color-text-read);
+    text-decoration: underline;
+    text-decoration-color: var(--color-outline-2);
+    text-underline-offset: 3px;
+    transition: color var(--motion-fast);
+
+    &:hover {
+      color: var(--color-text-1);
+      text-decoration-color: currentcolor;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .linkIcon {
+    color: var(--color-text-2);
+  }
+}

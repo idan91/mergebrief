@@ -1066,6 +1066,15 @@
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "footerRights": "© {{year}} Idan Ram. All rights reserved.",
+    "versionNotice": {
+      "regionLabel": "New version notice",
+      "available": "MergeBrief <0>{{latest}}</0> is available.",
+      "security": "MergeBrief <0>{{latest}}</0> fixes a security issue.",
+      "running": "This instance runs {{current}}.",
+      "breaking": "This upgrade needs an extra step; the release notes say which.",
+      "releaseNotes": "Release notes",
+      "dismiss": "Dismiss"
+    },
     "suggestedChange": "Suggested change",
     "nothingToPreview": "Nothing to preview.",
     "markdownSupported": "Markdown is supported",

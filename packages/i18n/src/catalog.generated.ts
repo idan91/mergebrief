@@ -268,6 +268,11 @@ export type Catalog = typeof en & {
   };
   shell: (typeof en)["shell"] & {
     footerRights: "© {{year}} Idan Ram. All rights reserved.";
+    versionNotice: (typeof en)["shell"]["versionNotice"] & {
+      available: "MergeBrief <0>{{latest}}</0> is available.";
+      security: "MergeBrief <0>{{latest}}</0> fixes a security issue.";
+      running: "This instance runs {{current}}.";
+    };
     pageTitle: (typeof en)["shell"]["pageTitle"] & {
       prNumber: "#{{number}}";
     };
