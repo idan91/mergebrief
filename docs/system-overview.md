@@ -83,6 +83,23 @@ Explicitly parked so the build doesn't scope-creep and nothing reads as forgotte
 - **Object storage + response streaming** → deferred.
 - **Check Run surface + redaction beyond high-confidence patterns** → deferred; M1 = branded comment + line-preserving high-confidence redaction.
 
+## 7. Versioning and releases
+
+One git tag `vX.Y.Z` is the version of everything a release ships; the
+repository itself carries no version (`dev` from a source build, `0.0.0` in
+the CLI manifest). The decision and its trade-offs are in the versioning
+decision record under `docs/adr/`.
+
+| Question | Where it is answered |
+| --- | --- |
+| The words (Release, Instance, Image, Expand and Contract step, Breaking release, Skew, Dev build, Version notice) | `CONTEXT.md` |
+| How a release is cut, what the tag publishes, candidates, the rehearsal | `docs/dev/releasing.md` |
+| The pass before a tag | `docs/dev/pre-release-testing.md` |
+| How an operator learns of a release, upgrades, rolls back, turns the check off | `docs/self-host/operations.md` |
+| What the CLI prints when versions differ | `docs/self-host/cli.md` |
+| The rules each member holds (anonymous update check, the version header, `instance_version`, the migration lint, the stamp and prune) | the `AGENTS.md` of `apps/api`, `packages/persistence`, `apps/cli`, `tools/release` |
+| Consumer-visible API changes by version | `docs/api-changelog.md` |
+
 ## References
 
 - [ADR 0006](./adr/0006-delta-brief-generation-and-state-model.md) — delta / state model

@@ -23,6 +23,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **One `.svg` asset file per mark or icon**, imported via svgr. Never a collection of path data grouped into one `.tsx`.
 - **Every interactive change declares its accessibility contract** — where focus lands, how async outcomes are announced, targets ≥ 24px — before review, not during.
 - **Client code may `console.error` on unexpected failure**; the user sees the failure via UI state, never a raw message.
+- **The version notice is one feature folder** (`features/version`): the band under the Header on Home and the brief page, the per-user dismissal, and the Account menu's dismissed row and avatar dot all read one query (`buildVersionQueryOptions` over `GET /api/version`); the menu's row and dot go through `useVersionPresence`. A security release has no dismiss; a `dev` server never shows it, so the browser suite cannot see it and the local arm in `docs/dev/pre-release-testing.md` is how it is exercised.
 
 ## Hooks and JSX
 

@@ -5,6 +5,31 @@ GitHub Release with the compose files. Nothing is committed during the run.
 The workflow is `.github/workflows/release.yml`; the tool behind it is
 `tools/release`.
 
+## Checklist
+
+1. Write `docs/releases/X.Y.Z.md` ([The notes file](#the-notes-file)) and
+   open its PR; `pnpm lint` refuses a malformed one.
+2. Run the pass in [`pre-release-testing.md`](./pre-release-testing.md)
+   against the last candidate's artifacts.
+3. Merge the notes PR as the last change before the tag.
+4. Tag the merge commit and push the tag ([Tagging](#tagging)).
+5. Watch the five jobs ([What the tag does](#what-the-tag-does)). A red job
+   is re-run as is; nothing needs undoing.
+6. Confirm the placement `verify` printed: `npm view mergebrief dist-tags`
+   shows the version under `latest` when the tag is the highest stable
+   one, under `maintenance` for a hotfix on an older line; `latest` on ghcr
+   and `releases/latest/download/version.json` move only in the first
+   case, and a hotfix leaving them alone is correct, not a failed run.
+7. Announce. The Release page is the link; the notice reaches instances
+   within a day.
+
+A candidate takes steps 1 to 5 with `X.Y.Z-rc.N`
+([Release candidates](#release-candidates)); step 6 is
+`npm view mergebrief dist-tags` showing the candidate under `next` when it
+is the newest tag of any kind and under `superseded` otherwise, plus the
+prerelease page (no `version.json`, nothing on ghcr but the rc tag), and
+step 7 has no notice to wait for.
+
 ## The notes file
 
 Every release has one notes file, `docs/releases/<X.Y.Z>.md` or
@@ -91,8 +116,9 @@ last candidate until the next one: after the release it previewed ships,
 The first rc before the first stable release is the live rehearsal of the
 whole path.
 
-Known limit: an instance or CLI on an rc compares equal to the final
-version, so it gets no banner or update line for that release.
+Known limit: a candidate is not a release to the version parsers, so an
+instance or a CLI running an rc gets no banner, no update line and no
+skew warning until it runs a stable version again.
 
 ## Rehearsing without publishing
 
@@ -109,14 +135,37 @@ Re-run the tag's workflow. Every job is idempotent: npm skips a version it
 already holds with the same bytes, the release job reuses its draft,
 uploads use `--clobber`, and the image push overwrites the same tag.
 
+## The publishing repository
+
+The release workflow runs from the repository that holds the public
+history, which is not this one: the public repository starts fresh. Three
+constants name the repository and move with it, in one change before the
+first tag there: the update check's default URL
+(`apps/api/src/update-check/consts.ts`), the release tool's repository
+constants (`tools/release/src/consts.ts`, which also feed the asset links
+in the Release body) and the CLI manifest's `repository` field. Every
+other mention follows in the same change, and there are many: the
+Dockerfile's source label, the default update-check URL as
+`.env.example` and `docs/self-host/operations.md` print it, the fresh-host
+download commands in `docs/self-host/compose.md`, the upgrade and rollback
+download commands in `docs/self-host/operations.md`, the README's clone
+and release links, and the release-notes links the api and the CLI
+print. `git grep -l 'Idan91/code-review'` lists all of them; the move is
+done when it lists nothing, and the public installation instructions are
+then the first thing to run against the public repository. The npm
+Trusted Publisher record below is registered on that repository, never on
+this one: npm keeps one such record per package, and it names the
+repository and the workflow file. The ghcr image name depends on the
+owner, not the repository, so it survives the move.
+
 ## One-time setup (maintainer)
 
 1. Turn on Actions billing for the account. Until then every run fails at
    zero steps.
 2. Add the npm Trusted Publisher on npmjs.com for the package `mergebrief`
    (it exists there already, which is what the settings page needs):
-   GitHub Actions, owner `Idan91`, repository `code-review`, workflow
-   `release.yml`, no environment.
+   GitHub Actions, the owner and name of the publishing repository,
+   workflow `release.yml`, no environment.
 3. Run the dispatch rehearsal.
 4. Confirm the written IP clearance the distribution decision record
    requires before any public work; the rc tag below publishes to npm and
