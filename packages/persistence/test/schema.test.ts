@@ -266,6 +266,7 @@ const M1_TABLES = [
   "github_grant",
   "hunk_span",
   "inbox_archive",
+  "instance_version",
   "pull_request",
   "review_draft_comment",
   "review_group_reclassification",

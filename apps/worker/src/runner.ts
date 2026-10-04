@@ -10,7 +10,9 @@ import {
   type RunnerOptions,
   type TaskList,
 } from "graphile-worker";
-import { ensureAppSchema } from "persistence";
+import type { Logger } from "logging";
+import type { Mutable } from "types/utils";
+import { ensureAppSchema, type EnsureAppSchemaOptions } from "persistence";
 
 /** One slot keeps a self-hosted worker's spend and memory bounded by default. */
 const DEFAULT_CONCURRENCY = 1;
@@ -28,6 +30,10 @@ export interface StartWorkerOptions {
   /** false = check-only (refuse boot when the schema is behind instead of
    * applying DDL). Omitted = apply. */
   readonly autoMigrate?: boolean;
+  /** Recorded in `instance_version` once the schema is current; omitted
+   * leaves the row alone (tests). Needs `log` to say so. */
+  readonly runningVersion?: string;
+  readonly log?: Logger;
 }
 
 /**
@@ -60,9 +66,14 @@ export async function startWorker(
   // Before any DDL: a schedule nobody handles is a config error, and a config
   // error must not migrate first.
   assertScheduledTasksRegistered(options.crontab, options.taskList);
-  const ensured = await ensureAppSchema(options.databaseUrl, {
+  const schemaOptions: Mutable<EnsureAppSchemaOptions> = {
     autoMigrate: options.autoMigrate ?? true,
-  });
+  };
+  if (options.runningVersion !== undefined && options.log !== undefined) {
+    schemaOptions.runningVersion = options.runningVersion;
+    schemaOptions.log = options.log;
+  }
+  const ensured = await ensureAppSchema(options.databaseUrl, schemaOptions);
   if (!ensured.ok) {
     throw new Error(`worker boot: ${ensured.error.message}`);
   }

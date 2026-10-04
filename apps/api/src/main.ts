@@ -122,9 +122,14 @@ async function main(): Promise<void> {
   // MERGEBRIEF_AUTO_MIGRATE=false this is a read-only check instead.
   const ensured = await ensureAppSchema(databaseUrl, {
     autoMigrate: boot.persistence.autoMigrate,
+    runningVersion: boot.api.serverVersion,
+    log: logger,
   });
   if (!ensured.ok) {
-    exitOnConfigError(`api composition: ${ensured.error.message}`);
+    // Exit 1, not the config-error 0: pending migrations are fixed by a
+    // migrate run, after which a restart succeeds.
+    logger.error(`api composition: ${ensured.error.message}`);
+    process.exit(1);
   }
   await migrateQueue(databaseUrl);
   const handle: AppDatabase = createDb(databaseUrl, {

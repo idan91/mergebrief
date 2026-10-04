@@ -1,7 +1,12 @@
 // The semver grammar: a parse that accepts a leading v and drops a suffix,
 // an ordering, and the canonical text.
 import { describe, expect, it } from "vitest";
-import { compareSemver, formatSemver, parseSemver } from "../src/version";
+import {
+  compareSemver,
+  formatSemver,
+  isDevVersion,
+  parseSemver,
+} from "../src/version";
 
 describe("parseSemver", () => {
   it("reads major.minor.patch with a leading v or build metadata", () => {
@@ -53,5 +58,15 @@ describe("compareSemver and formatSemver", () => {
 
   it("prints the canonical text", () => {
     expect(formatSemver({ major: 1, minor: 4, patch: 0 })).toBe("1.4.0");
+  });
+});
+
+describe("isDevVersion", () => {
+  it("names dev and the zero version as the sentinels", () => {
+    expect(isDevVersion("dev")).toBe(true);
+    expect(isDevVersion("0.0.0")).toBe(true);
+    expect(isDevVersion("v0.0.0")).toBe(true);
+    expect(isDevVersion("0.0.1")).toBe(false);
+    expect(isDevVersion("1.4.0")).toBe(false);
   });
 });

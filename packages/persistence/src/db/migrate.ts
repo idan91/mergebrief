@@ -12,9 +12,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import type { Logger } from "logging";
 import { Pool } from "pg";
 import { z } from "zod";
 import type { Result, ValueOf } from "../types";
+import { recordInstanceVersion } from "./instance-version";
 
 /**
  * Locate the checked-in `drizzle/` folder at RUNTIME. Two cases:
@@ -165,8 +167,8 @@ export async function checkAppSchemaWith(
         `database schema is ${pending} migration(s) behind the checked-in set ` +
         "and MERGEBRIEF_AUTO_MIGRATE=false forbids applying at boot. Run " +
         "`pnpm -C packages/persistence migrate` with a DDL-capable " +
-        "DATABASE_URL, then restart the worker (the web tier recovers on " +
-        "its next request)",
+        "DATABASE_URL, then restart the api and the worker (the web tier " +
+        "recovers on its next request)",
     },
   };
 }
@@ -189,6 +191,10 @@ export interface EnsureAppSchemaOptions {
   /** `true` (the default posture) applies via `migrateApp`; `false` runs the
    * read-only check and refuses when behind. */
   readonly autoMigrate: boolean;
+  /** The process's own version; recorded in `instance_version` after the
+   * apply. A check-only boot stays read-only and leaves the row alone. */
+  readonly runningVersion?: string;
+  readonly log?: Logger;
 }
 
 /** Injectable apply/check implementations, a TEST interface (the real ones need
@@ -198,6 +204,11 @@ export interface EnsureAppSchemaDeps {
   readonly check: (
     databaseUrl: string,
   ) => Promise<Result<undefined, SchemaCheckError>>;
+  readonly record: (
+    databaseUrl: string,
+    running: string,
+    log: Logger,
+  ) => Promise<void>;
 }
 
 /**
@@ -209,11 +220,19 @@ export interface EnsureAppSchemaDeps {
 export async function ensureAppSchema(
   databaseUrl: string,
   options: EnsureAppSchemaOptions,
-  deps: EnsureAppSchemaDeps = { apply: migrateApp, check: checkAppSchema },
+  deps: EnsureAppSchemaDeps = {
+    apply: migrateApp,
+    check: checkAppSchema,
+    record: recordInstanceVersion,
+  },
 ): Promise<Result<undefined, SchemaCheckError>> {
-  if (options.autoMigrate) {
-    await deps.apply(databaseUrl);
-    return { ok: true, value: undefined };
+  if (!options.autoMigrate) {
+    return deps.check(databaseUrl);
   }
-  return deps.check(databaseUrl);
+
+  await deps.apply(databaseUrl);
+  if (options.runningVersion !== undefined && options.log !== undefined) {
+    await deps.record(databaseUrl, options.runningVersion, options.log);
+  }
+  return { ok: true, value: undefined };
 }

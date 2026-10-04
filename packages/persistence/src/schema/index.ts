@@ -13,6 +13,7 @@ export { generation } from "./generation";
 export { githubGrant } from "./github-grant";
 export { hunkSpan } from "./hunk-span";
 export { inboxArchive } from "./inbox-archive";
+export { instanceVersion } from "./instance-version";
 export { pullRequest } from "./pull-request";
 export { revisionNarrative } from "./revision-narrative";
 export { reviewDraftComment } from "./review-draft-comment";

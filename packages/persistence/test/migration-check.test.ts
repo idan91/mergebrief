@@ -15,6 +15,7 @@ import {
   type SchemaCheckError,
   type SchemaQueryExecutor,
 } from "../src/db/migrate";
+import { createLogger } from "logging";
 import { freshPglite, virginPglite } from "./helpers";
 
 /** Journal entry count read straight from the checked-in file, the
@@ -106,6 +107,9 @@ describe("migration check ensureAppSchema dispatch", () => {
     message: "behind",
     pendingCount: 3,
   };
+  const stubNeverRecord = async (): Promise<void> => {
+    throw new Error("must not record");
+  };
 
   it("autoMigrate=true applies once and never checks", async () => {
     const applied: string[] = [];
@@ -121,6 +125,7 @@ describe("migration check ensureAppSchema dispatch", () => {
           checked += 1;
           return { ok: false, error: REFUSAL };
         },
+        record: stubNeverRecord,
       },
     );
     expect(result.ok).toBe(true);
@@ -138,6 +143,7 @@ describe("migration check ensureAppSchema dispatch", () => {
           applied += 1;
         },
         check: async () => ({ ok: false, error: REFUSAL }),
+        record: stubNeverRecord,
       },
     );
     expect(applied).toBe(0);
@@ -155,8 +161,54 @@ describe("migration check ensureAppSchema dispatch", () => {
           throw new Error("must not apply");
         },
         check: async () => ({ ok: true, value: undefined }),
+        record: stubNeverRecord,
       },
     );
     expect(result.ok).toBe(true);
+  });
+
+  it("records the running version after the apply, never on a check", async () => {
+    const recorded: string[] = [];
+    const log = createLogger({ env: {}, destination: { write: () => {} } });
+    const deps = {
+      apply: async () => {},
+      check: async (): Promise<{ ok: true; value: undefined }> => ({
+        ok: true,
+        value: undefined,
+      }),
+      record: async (_databaseUrl: string, running: string): Promise<void> => {
+        recorded.push(running);
+      },
+    };
+
+    await ensureAppSchema(
+      URL,
+      { autoMigrate: true, runningVersion: "1.4.0", log },
+      deps,
+    );
+    const checked = await ensureAppSchema(
+      URL,
+      { autoMigrate: false, runningVersion: "1.5.0", log },
+      deps,
+    );
+
+    expect(checked.ok).toBe(true);
+    expect(recorded).toEqual(["1.4.0"]);
+  });
+
+  it("never records when the check refuses", async () => {
+    const log = createLogger({ env: {}, destination: { write: () => {} } });
+
+    const result = await ensureAppSchema(
+      URL,
+      { autoMigrate: false, runningVersion: "1.5.0", log },
+      {
+        apply: async () => {},
+        check: async () => ({ ok: false, error: REFUSAL }),
+        record: stubNeverRecord,
+      },
+    );
+
+    expect(result.ok).toBe(false);
   });
 });

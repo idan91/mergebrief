@@ -49,6 +49,8 @@ changes get a breaking-change entry in
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
 | `update.available` | info; warn when `security` | api | `current`, `latest`, `breaking`, `security`, `releaseNotesUrl` | warn: yes, a vulnerability fix exists. Fires once when `latest` is first newer than the running version, and once at boot if behind |
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | no; the network blocks github.com or the release file is malformed, and `/api/version` carries no fresh `checkedAt` |
+| `db.version.upgrade` | info | api, worker | `from`, `to` | no; the one-row `instance_version` table moved forward at boot |
+| `db.version.ahead` | warn | api, worker | `db`, `running` | yes: an older process booted under a database a newer one last recorded, a rollback; it keeps running |
 | `api.access` | info | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 
 `api.access` is the per-request access line (numeric ids only, never a

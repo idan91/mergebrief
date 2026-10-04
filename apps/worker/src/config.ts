@@ -43,6 +43,8 @@ export interface WorkerConfig {
   readonly trackers: readonly TrackerConfig[];
   /** Operator PAT backstop for url-box jobs; undefined disables it. */
   readonly urlBoxToken: string | undefined;
+  /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
+  readonly serverVersion: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +172,7 @@ export function loadConfig(
       contextSources: generatorConfig.value.contextSources,
       trackers: generatorConfig.value.trackers,
       urlBoxToken: env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
+      serverVersion: env["SERVER_VERSION"] || "dev",
     },
   };
 }

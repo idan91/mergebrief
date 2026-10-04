@@ -52,3 +52,20 @@ export function compareSemver(left: Semver, right: Semver): number {
 export function formatSemver(version: Semver): string {
   return `${version.major}.${version.minor}.${version.patch}`;
 }
+
+const DEV_SENTINEL = "dev";
+
+/** `dev` and `0.0.0` (a leading `v` included) are the dev sentinels: never a release. */
+export function isDevVersion(value: string): boolean {
+  const isSentinel = value.trim() === DEV_SENTINEL;
+  if (isSentinel) {
+    return true;
+  }
+  const parsed = parseSemver(value);
+  if (!parsed.ok) {
+    return false;
+  }
+  const { major, minor, patch } = parsed.value;
+  const isZero = major === 0 && minor === 0 && patch === 0;
+  return isZero;
+}
