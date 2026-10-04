@@ -23,7 +23,7 @@ import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
-import { versionRoute } from "./version";
+import { versionDismissRoutes, versionRoute } from "./version";
 import {
   stampVersionHeader,
   type VersionHeaderVariables,
@@ -80,11 +80,13 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
     INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES,
   );
   app.route("/auth", authRoutes(deps));
-  const readVersion = (): VersionSnapshot =>
+  const readSnapshot = (): VersionSnapshot =>
     deps.updateCheck === undefined
       ? { version: serverVersion }
       : deps.updateCheck.snapshot();
-  app.route("/version", versionRoute(deps, readVersion));
+  const versionDeps = { ...deps, readSnapshot };
+  app.route("/version", versionRoute(versionDeps));
+  app.route("/version/dismiss", versionDismissRoutes(versionDeps));
   app.route("/capabilities", capabilitiesRoute(deps));
   app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation

@@ -35,6 +35,12 @@
   "dismiss-risk": {
     "command": "mergebrief risk dismiss <number>"
   },
+  "dismiss-version-notice": {
+    "webOnly": {
+      "reason": "A per-user banner preference; the CLI has no banner",
+      "owner": "idan"
+    }
+  },
   "generate-brief": {
     "command": "mergebrief generate <url>"
   },

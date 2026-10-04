@@ -96,5 +96,5 @@ export {
   type RevisionComparisons,
   type RevisionView,
 } from "./revisions";
+export type { DismissVersionRequest, VersionResponse } from "./version";
 export type { ViewerView } from "./viewer";
-export type { VersionResponse } from "./version";

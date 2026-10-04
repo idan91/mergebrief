@@ -99,6 +99,10 @@ export type {
 export { resolveUrlBoxOwner } from "./stores/url-box";
 export { createInboxStore } from "./stores/inbox";
 export {
+  createUserSettingsStore,
+  type UserSettingsStore,
+} from "./stores/user-settings";
+export {
   createInboxArchiveStore,
   InboxArchiveErrorCodes,
 } from "./stores/inbox-archive";

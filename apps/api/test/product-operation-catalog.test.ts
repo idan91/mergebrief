@@ -57,6 +57,12 @@ const EXPECTED_CATALOG = [
     endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/risks/dismiss",
   },
   {
+    id: "dismiss-version-notice",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "POST /api/version/dismiss",
+  },
+  {
     id: "generate-brief",
     kind: "action",
     classification: "private-write",

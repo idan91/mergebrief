@@ -1,8 +1,8 @@
 import type { VersionResponse } from "contract";
 import type { Logger } from "logging";
 
-/** What `GET /api/version` answers; the contract owns the shape. */
-export type VersionSnapshot = VersionResponse;
+/** What the check answers; the route adds the viewer's dismissal on top. */
+export type VersionSnapshot = Omit<VersionResponse, "dismissedVersion">;
 
 export interface ReleaseEntry {
   readonly version: string;

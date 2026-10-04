@@ -56,5 +56,6 @@ export const ProductActionIds = {
   ADDRESS_RISK: "address-risk",
   REOPEN_RISK: "reopen-risk",
   SET_REVIEW_OUTCOME: "set-review-outcome",
+  DISMISS_VERSION_NOTICE: "dismiss-version-notice",
 } as const;
 export type ProductActionId = ValueOf<typeof ProductActionIds>;

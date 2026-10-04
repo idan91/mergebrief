@@ -15,12 +15,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { createUpdateCheck, type UpdateCheck } from "../src/update-check";
 import { testLogger } from "./logging";
-import { KEY_REF, brandReviewerId } from "./fixtures";
+import { KEY_REF, SAME_ORIGIN_HEADERS, brandReviewerId } from "./fixtures";
+import { seedApiToken, seedSession } from "./session/fixtures";
+
+const COOKIE_NAME = "__Host-mergebrief_session";
 
 const MANIFEST = JSON.stringify({
   latest: "1.6.0",
   releaseNotesUrl: "https://example.test/releases/v1.6.0",
+  releases: [{ version: "1.6.0", breaking: false, security: false }],
+});
+const SECURITY_MANIFEST = JSON.stringify({
+  latest: "1.6.0",
   releases: [{ version: "1.6.0", breaking: false, security: true }],
+});
+const PREFIXED_MANIFEST = JSON.stringify({
+  latest: "v1.6.0",
+  releases: [{ version: "v1.6.0", breaking: false, security: false }],
 });
 const CHECKED_AT = new Date("2026-10-03T10:00:00Z");
 
@@ -29,16 +40,18 @@ describe("GET /api/version", () => {
   let app: ApiApp;
   let kp: KeyProvider;
   let updateCheck: UpdateCheck;
+  let manifestBody: string;
 
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(CHECKED_AT);
     harness = await createPgliteHarness();
+    manifestBody = MANIFEST;
     updateCheck = createUpdateCheck({
       serverVersion: "1.2.3",
       enabled: true,
       url: "https://releases.example.test/version.json",
-      fetch: async () => new Response(MANIFEST, { status: 200 }),
+      fetch: async () => new Response(manifestBody, { status: 200 }),
       log: testLogger(),
     });
     kp = createEnvKeyProvider({
@@ -122,7 +135,7 @@ describe("GET /api/version", () => {
       releaseNotesUrl: "https://example.test/releases/v1.6.0",
       checkedAt: CHECKED_AT.toISOString(),
       breaking: false,
-      security: true,
+      security: false,
     });
   });
 
@@ -133,5 +146,129 @@ describe("GET /api/version", () => {
       error: "unauthorized",
       code: "unauthorized",
     });
+  });
+
+  async function dismiss(cookie: string, body: unknown): Promise<Response> {
+    return app.request("/api/version/dismiss", {
+      method: "POST",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        "content-type": "application/json",
+        Cookie: `${COOKIE_NAME}=${cookie}`,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("stores the dismissed version for the viewer and reads it back", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+    await updateCheck.refresh();
+
+    const before = await app.request("/api/version", {
+      headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
+    });
+    expect(await before.json()).not.toHaveProperty("dismissedVersion");
+
+    const res = await dismiss(cookie, { version: "1.6.0" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ ok: true });
+
+    const after = await app.request("/api/version", {
+      headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
+    });
+    expect(await after.json()).toMatchObject({
+      latest: "1.6.0",
+      dismissedVersion: "1.6.0",
+    });
+  });
+
+  it("serves and stores the canonical triple whatever spelling arrives", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+    manifestBody = PREFIXED_MANIFEST;
+    await updateCheck.refresh();
+
+    const res = await dismiss(cookie, { version: "v1.6.0+build.7" });
+    expect(res.status).toBe(200);
+
+    const after = await app.request("/api/version", {
+      headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
+    });
+    expect(await after.json()).toMatchObject({
+      latest: "1.6.0",
+      dismissedVersion: "1.6.0",
+    });
+  });
+
+  it("refuses a dismiss of a release that is not the latest", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+    await updateCheck.refresh();
+
+    const res = await dismiss(cookie, { version: "1.5.0" });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "invalid-request" });
+  });
+
+  it("refuses a dismiss before the check has an answer", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+
+    const res = await dismiss(cookie, { version: "1.6.0" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses a dismiss of a security release", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+    manifestBody = SECURITY_MANIFEST;
+    await updateCheck.refresh();
+
+    const res = await dismiss(cookie, { version: "1.6.0" });
+
+    expect(res.status).toBe(400);
+    const after = await app.request("/api/version", {
+      headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
+    });
+    expect(await after.json()).not.toHaveProperty("dismissedVersion");
+  });
+
+  it("refuses a dismiss from a Bearer token as human-only", async () => {
+    const token = await seedApiToken(
+      harness.handle,
+      kp,
+      WriteClassifications.PRIVATE_WRITE,
+    );
+    await updateCheck.refresh();
+
+    const res = await app.request("/api/version/dismiss", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ version: "1.6.0" }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "human-only" });
+  });
+
+  it("rejects a dismiss body that is not a version", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+
+    const res = await dismiss(cookie, { version: "latest" });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "invalid-request" });
+  });
+
+  it("refuses a dismiss without a session", async () => {
+    const res = await app.request("/api/version/dismiss", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ version: "1.6.0" }),
+    });
+
+    expect(res.status).toBe(401);
   });
 });
