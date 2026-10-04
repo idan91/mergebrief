@@ -70,3 +70,13 @@ describe("loadConfig update check knobs", () => {
     ).toBe(false);
   });
 });
+
+describe("loadConfig SERVER_VERSION", () => {
+  const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
+
+  it("takes a printable version and refuses one a header cannot carry", () => {
+    expect(loadConfig({ ...BASE, SERVER_VERSION: "1.4.0" }).ok).toBe(true);
+    expect(loadConfig({ ...BASE, SERVER_VERSION: "1.4.0\n" }).ok).toBe(false);
+    expect(loadConfig({ ...BASE, SERVER_VERSION: "1 .4.0" }).ok).toBe(false);
+  });
+});

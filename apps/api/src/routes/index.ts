@@ -4,7 +4,7 @@
 import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types/drafts";
-import type { RequestLogEnv } from "../request-logging";
+import type { RequestLogVariables } from "../request-logging";
 import type { AuditEmitConfig } from "../product-operations/audit";
 import {
   productRouter,
@@ -24,7 +24,16 @@ import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
 import { versionRoute } from "./version";
+import {
+  stampVersionHeader,
+  type VersionHeaderVariables,
+} from "./version-header";
 import { webhookRoute } from "./webhook";
+
+/** The /api root env: the request log plus the principal the header reads. */
+export interface ApiRoutesEnv {
+  readonly Variables: RequestLogVariables & VersionHeaderVariables;
+}
 
 export interface AppDeps {
   readonly handle: AppDatabase;
@@ -55,8 +64,10 @@ export interface AppDeps {
 }
 
 /** Compose the `/api` router over injected deps. */
-export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
-  const app = productRouter<RequestLogEnv>();
+export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
+  const app = productRouter<ApiRoutesEnv>();
+  const serverVersion = deps.serverVersion ?? "dev";
+  app.use(stampVersionHeader<ApiRoutesEnv>(serverVersion));
   app.route("/webhooks", webhookRoute(deps));
   // ONE instance of each resolver: every route shares the reachable-set and
   // allowed-set caches, so one GitHub walk serves them all inside the TTL.
@@ -69,7 +80,6 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
     INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES,
   );
   app.route("/auth", authRoutes(deps));
-  const serverVersion = deps.serverVersion ?? "dev";
   const readVersion = (): VersionSnapshot =>
     deps.updateCheck === undefined
       ? { version: serverVersion }

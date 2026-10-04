@@ -35,6 +35,9 @@ export interface ApiConfig {
   readonly updateCheckUrl: string;
 }
 
+/** The value rides in a response header, which refuses whitespace and non-ASCII. */
+const HEADER_TOKEN_PATTERN = /^[\x21-\x7E]+$/;
+
 const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
 const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
 
@@ -84,7 +87,10 @@ const ConfigSchema = z.object({
     .string({ required_error: "PUBLIC_BASE_URL is required for reviewer auth" })
     .min(1, "PUBLIC_BASE_URL is required for reviewer auth")
     .refine(isHttpUrl, "PUBLIC_BASE_URL must be an absolute http(s) URL"),
-  SERVER_VERSION: z.string().min(1).optional(),
+  SERVER_VERSION: z
+    .string()
+    .regex(HEADER_TOKEN_PATTERN, "SERVER_VERSION must be printable ASCII")
+    .optional(),
   MERGEBRIEF_URL_BOX_TOKEN: z.string().min(1).optional(),
   MERGEBRIEF_UPDATE_CHECK: parseEnvBool(true),
   MERGEBRIEF_UPDATE_CHECK_URL: z
