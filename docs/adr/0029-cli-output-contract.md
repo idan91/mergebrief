@@ -1,5 +1,17 @@
 # CLI Output Contract — Passthrough, Additive-Only, Exit-Code Invariant
 
+> **Amended 2026-10-03: skew lines.** #8 gains the `MergeBrief-Version`
+> response header the API stamps on every `/api/*` response past the session
+> layer, which the CLI reads off the first response of a run, and three line
+> kinds, all on stderr, never a refusal, never an exit-code change: a daily
+> nag when npm has a newer `mergebrief`; a warning on every successful run
+> when the CLI and the server differ by a major, either direction; and the
+> suffix `[server x, cli y]` (`, major gap` when major) on the one error line
+> of a failed run while versions differ. `MERGEBRIEF_NO_VERSION_WARNING`
+> silences the first two; the suffix stays. A dev build on either side
+> (server `dev`, CLI `0.0.0`) prints nothing. #5 is unchanged: the versions
+> ride inside the one line.
+
 > **Amended 2026-08-21 — capability discovery.** `capabilities` joins `delta`
 > and `auth status` as the third sanctioned CLI-synthesized shape, exit code
 > **6 = INCOMPATIBLE** is appended to the table, and the skew-visibility

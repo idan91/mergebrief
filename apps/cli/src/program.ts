@@ -20,6 +20,15 @@ import {
 } from "./profile/config";
 import { CliError, ExitCodes } from "./exit";
 import {
+  buildFailureSuffix,
+  buildMajorWarning,
+  deriveSkew,
+  detectLaunchForm,
+  formatSemver,
+  NO_VERSION_WARNING_ENV,
+  parseSemver,
+} from "./version";
+import {
   runCollaborators,
   runConversation,
   runDelta,
@@ -87,6 +96,25 @@ export interface CliDeps {
   readonly readStdin: () => Promise<string>;
   /** `git remote get-url origin`, or undefined outside a repo. */
   readonly gitOriginUrl: () => string | undefined;
+  /** The build-time version by default; a test seam for the skew lines. */
+  readonly cliVersion?: string | undefined;
+}
+
+/** The release fields `/api/version` answers once a check succeeded. */
+interface ServerReleaseFields {
+  readonly latest?: string;
+  readonly releaseNotesUrl?: string;
+  readonly checkedAt?: string;
+  readonly breaking?: boolean;
+  readonly security?: boolean;
+}
+
+interface ServerStatus extends ServerReleaseFields {
+  readonly reachable: boolean;
+  /** null when unreachable (undetermined). */
+  readonly authenticated: boolean | null;
+  /** The server's version, null when undetermined. */
+  readonly version: string | null;
 }
 
 /** The two-level `auth status` shape, additive-only. */
@@ -94,13 +122,25 @@ interface AuthStatusBody {
   readonly profile: string;
   readonly baseUrl: string;
   readonly tokenConfigured: boolean;
-  readonly server: {
-    readonly reachable: boolean;
-    /** null when unreachable (undetermined). */
-    readonly authenticated: boolean | null;
-    /** The server's version, null when undetermined. */
-    readonly version: string | null;
-  };
+  readonly cli: { readonly version: string };
+  readonly server: ServerStatus;
+}
+
+const RELEASE_STRING_FIELDS = [
+  "latest",
+  "releaseNotesUrl",
+  "checkedAt",
+] as const;
+const RELEASE_FLAG_FIELDS = ["breaking", "security"] as const;
+
+/**
+ * The server version each run observed, keyed by the run's deps: one entry
+ * per `runCli`, read once the command succeeded for the major-gap warning.
+ */
+const observedServerVersions = new WeakMap<CliDeps, string>();
+
+function resolveCliVersion(deps: CliDeps): string {
+  return deps.cliVersion ?? CLI_VERSION;
 }
 
 interface GlobalOptions {
@@ -120,6 +160,12 @@ function clientFor(deps: CliDeps, resolved: ResolvedProfile): ApiClient {
     baseUrl: resolved.profile.baseUrl,
     token: resolved.token,
     headers: resolved.profile.headers,
+    cliVersion: resolveCliVersion(deps),
+    onServerVersion: (version) => {
+      if (!observedServerVersions.has(deps)) {
+        observedServerVersions.set(deps, version);
+      }
+    },
   });
 }
 
@@ -141,21 +187,41 @@ function resolveFromDisk(
   });
 }
 
+/** The release fields the server sent, passed through as they came. */
+function readReleaseFields(
+  parsed: Record<string, unknown>,
+): ServerReleaseFields {
+  const fields: Mutable<ServerReleaseFields> = {};
+  for (const key of RELEASE_STRING_FIELDS) {
+    const value = parsed[key];
+    if (typeof value === "string") {
+      fields[key] = value;
+    }
+  }
+  for (const key of RELEASE_FLAG_FIELDS) {
+    const value = parsed[key];
+    if (typeof value === "boolean") {
+      fields[key] = value;
+    }
+  }
+  return fields;
+}
+
 /** Probe the server (version + auth in one gated read); never throws. */
-async function probeServer(
-  client: ApiClient,
-): Promise<AuthStatusBody["server"]> {
+async function probeServer(client: ApiClient): Promise<ServerStatus> {
   try {
     const response = await client.request({ path: "/api/version" });
     const parsed: unknown = JSON.parse(response.bodyText);
     let version: string | null = null;
+    let release: ServerReleaseFields = {};
     if (isRecord(parsed)) {
       const value = parsed["version"];
       if (typeof value === "string") {
         version = value;
       }
+      release = readReleaseFields(parsed);
     }
-    return { reachable: true, authenticated: true, version };
+    return { reachable: true, authenticated: true, version, ...release };
   } catch (error) {
     if (error instanceof CliError && error.code === ExitCodes.AUTH) {
       return { reachable: true, authenticated: false, version: null };
@@ -172,6 +238,7 @@ async function authStatusBody(
     profile: resolved.name,
     baseUrl: resolved.profile.baseUrl,
     tokenConfigured: resolved.token !== undefined,
+    cli: { version: resolveCliVersion(deps) },
     server: await probeServer(clientFor(deps, resolved)),
   };
 }
@@ -184,6 +251,34 @@ function describeAuthState(authenticated: boolean | null): string {
   return "server unreachable";
 }
 
+const LAST_C0_CODE = 0x1f;
+const DELETE_CODE = 0x7f;
+const LAST_C1_CODE = 0x9f;
+
+function isPrintable(character: string): boolean {
+  const code = character.charCodeAt(0);
+  const isC0 = code <= LAST_C0_CODE;
+  const isDeleteOrC1 = code >= DELETE_CODE && code <= LAST_C1_CODE;
+  const printable = !isC0 && !isDeleteOrC1;
+  return printable;
+}
+
+/** A version as the terminal may show it: canonical when it parses, otherwise stripped of controls. */
+function describeVersionText(value: string): string {
+  const parsed = parseSemver(value);
+  if (parsed.ok) {
+    return formatSemver(parsed.value);
+  }
+  let printable = "";
+  for (const character of value) {
+    const keep = isPrintable(character);
+    if (keep) {
+      printable += character;
+    }
+  }
+  return printable;
+}
+
 function emitStatus(deps: CliDeps, json: boolean, body: AuthStatusBody): void {
   if (json) {
     deps.stdout(`${JSON.stringify(body)}\n`);
@@ -191,10 +286,17 @@ function emitStatus(deps: CliDeps, json: boolean, body: AuthStatusBody): void {
   }
   // TTY rendering, explicitly NON-contractual.
   const auth = describeAuthState(body.server.authenticated);
+  const versions = [`cli ${describeVersionText(body.cli.version)}`];
+  if (body.server.version !== null) {
+    versions.unshift(`server ${describeVersionText(body.server.version)}`);
+  }
+  if (body.server.latest !== undefined) {
+    versions.push(`latest ${describeVersionText(body.server.latest)}`);
+  }
   deps.stdout(
     `profile ${body.profile} → ${body.baseUrl}\n` +
       `token: ${body.tokenConfigured ? "configured" : "missing"} · ${auth}` +
-      `${body.server.version === null ? "" : ` · server ${body.server.version}`}\n`,
+      ` · ${versions.join(" · ")}\n`,
   );
 }
 
@@ -405,7 +507,7 @@ export function buildProgram(deps: CliDeps): Command {
     .description(
       "MergeBrief — PR briefs for humans and agents, over your deployment's API",
     )
-    .version(CLI_VERSION)
+    .version(resolveCliVersion(deps))
     .option("--json", "machine output: the documented JSON contract", false)
     .option("--agents", "deprecated: prints where the agent guide moved", false)
     .option(
@@ -1187,7 +1289,7 @@ export function buildProgram(deps: CliDeps): Command {
       const resolved = resolveFromDisk(deps, global.profile);
       await runCapabilities({
         client: clientFor(deps, resolved),
-        cliVersion: CLI_VERSION,
+        cliVersion: resolveCliVersion(deps),
         cliCatalogFingerprint: CLI_CATALOG_FINGERPRINT,
         operationsMapRaw: operationsMap,
         requireIds: options.require ?? [],
@@ -1232,6 +1334,30 @@ your deployment's <owner>/<repo>. With the skill installed, your agent
 needs nothing from this flag.
 `;
 
+/** After a successful command: one stderr line when the CLI and the server differ by a major. */
+function warnOnMajorGap(deps: CliDeps): void {
+  if (deps.env[NO_VERSION_WARNING_ENV] !== undefined) {
+    return;
+  }
+  const skew = deriveSkew(
+    observedServerVersions.get(deps),
+    resolveCliVersion(deps),
+  );
+  const warning = buildMajorWarning(skew, detectLaunchForm(deps.env));
+  if (warning !== undefined) {
+    deps.stderr(warning);
+  }
+}
+
+/** The one error line's tail while versions differ: `[server x, cli y]`. */
+function describeSkewSuffix(deps: CliDeps): string {
+  const skew = deriveSkew(
+    observedServerVersions.get(deps),
+    resolveCliVersion(deps),
+  );
+  return buildFailureSuffix(skew);
+}
+
 /**
  * Run the CLI: parse + execute + map every failure to the stream/exit
  * invariant. Returns the process exit code; never throws.
@@ -1246,10 +1372,11 @@ export async function runCli(
   }
   try {
     await buildProgram(deps).parseAsync([...argv], { from: "user" });
+    warnOnMajorGap(deps);
     return ExitCodes.OK;
   } catch (error) {
     if (error instanceof CliError) {
-      deps.stderr(error.message);
+      deps.stderr(`${error.message}${describeSkewSuffix(deps)}`);
       return error.code;
     }
     // Commander's own exits (bad flags, --help). Help/version are success.
@@ -1265,7 +1392,8 @@ export async function runCli(
       // Usage errors already printed one line via configureOutput.
       return ExitCodes.USAGE;
     }
-    deps.stderr(error instanceof Error ? error.message : "unexpected error");
+    const message = error instanceof Error ? error.message : "unexpected error";
+    deps.stderr(`${message}${describeSkewSuffix(deps)}`);
     return ExitCodes.GENERIC;
   }
 }

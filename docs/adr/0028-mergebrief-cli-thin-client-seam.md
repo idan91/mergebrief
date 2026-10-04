@@ -1,5 +1,13 @@
 # MergeBrief CLI — Thin-Client Seam over the Public HTTP API
 
+> **Amended 2026-10-03: one version number.** #6's "the CLI versions
+> independently of the server" is superseded. One git tag stamps the server
+> image and the npm package alike; a publish stamps the tag's version into
+> `apps/cli/package.json` right before build, never committed, and the repo
+> keeps `0.0.0`, the dev sentinel that switches the CLI's version checks off
+> (`prepublishOnly` refuses the sentinel until the stamp step exists).
+> `mergebrief --version` prints the stamped number.
+
 The product gains a command-line client — **`mergebrief`** — for humans and
 AI agents, wrapping the finished read/write API (PR-meta, groups, diff,
 delta, conversation, reply, submit). The agent-as-reviewer story is the

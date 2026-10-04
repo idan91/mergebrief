@@ -4,6 +4,7 @@
 import { createI18n, en } from "i18n";
 import type { Mutable } from "types/utils";
 import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
+import { VERSION_HEADER } from "./version";
 
 // One instance for the process, resources are baked in, init is sync.
 const i18n = createI18n();
@@ -16,7 +17,6 @@ const i18n = createI18n();
  */
 export const CLI_VERSION: string =
   typeof __CLI_VERSION__ === "string" ? __CLI_VERSION__ : "0.0.0";
-const USER_AGENT = `mergebrief/${CLI_VERSION}`;
 
 /** The request options the client hands its fetch. */
 export interface FetchInit {
@@ -35,6 +35,10 @@ export interface ApiClientOptions {
   readonly token: string | undefined;
   /** Extra static per-profile headers (the IdP escape hatch). */
   readonly headers?: Readonly<Record<string, string>> | undefined;
+  /** The build-time version by default; a test seam. */
+  readonly cliVersion?: string | undefined;
+  /** Told once, on the first response that carries `MergeBrief-Version`. */
+  readonly onServerVersion?: ((version: string) => void) | undefined;
 }
 
 /** A raw body sent as-is under its own content type (an image upload). */
@@ -112,12 +116,23 @@ export interface ApiClient {
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const base = options.baseUrl.replace(/\/+$/, "");
+  const cliVersion = options.cliVersion ?? CLI_VERSION;
+  const userAgent = `mergebrief/${cliVersion}`;
+  let serverVersion: string | undefined;
+
+  function noteServerVersion(response: Response): void {
+    const header = response.headers.get(VERSION_HEADER);
+    if (serverVersion === undefined && header !== null && header !== "") {
+      serverVersion = header;
+      options.onServerVersion?.(header);
+    }
+  }
 
   return {
     async request(req) {
       const headers: Record<string, string> = {
         accept: "application/json, text/plain",
-        "user-agent": USER_AGENT,
+        "user-agent": userAgent,
         ...options.headers,
       };
       if (options.token !== undefined) {
@@ -150,6 +165,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
           `could not reach ${base}: ${error instanceof Error ? error.message : "network error"}`,
         );
       }
+
+      noteServerVersion(response);
 
       // Proxy/IdP detection: the API never redirects and never serves HTML.
       // Either one means the base URL sits behind an interactive login.

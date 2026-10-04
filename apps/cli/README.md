@@ -31,7 +31,7 @@ compatibility.
    ```
 
    ```json
-   {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"server":{"reachable":true,"authenticated":true,"version":"0.4.0"}}
+   {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"cli":{"version":"1.2.0"},"server":{"reachable":true,"authenticated":true,"version":"1.4.0","latest":"1.6.0","releaseNotesUrl":"https://github.com/Idan91/code-review/releases/tag/v1.6.0","checkedAt":"2026-10-03T10:00:00.000Z","breaking":false,"security":false}}
    ```
 
 4. **First read** — your Inbox, every installation you reach (no repo
@@ -278,10 +278,12 @@ failure. Agents run this before driving a workflow.
 
 `auth login` reads the token from stdin (paste prompt on a TTY), stores it
 per profile, and verifies it immediately — its output is the `auth status`
-shape. `auth status` is two-level: config (profile, base URL, token
-present) and server (reachable, authenticated, **server version** — the API
-changelog is keyed to it). Dead token and unreachable server are data
-(exit 0), so scripts can diagnose without special-casing failures.
+shape. `auth status` is three-level: config (profile, base URL, token
+present), the CLI's own version, and server (reachable, authenticated,
+**server version** — the API changelog is keyed to it — plus the newest
+release the server knows of, when its update check has an answer). Dead
+token and unreachable server are data (exit 0), so scripts can diagnose
+without special-casing failures.
 
 ## Profiles
 

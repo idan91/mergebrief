@@ -25,6 +25,7 @@ import {
   startCliApiHarness,
   type CliApiHarness,
 } from "./harness/api";
+import { CLI_VERSION } from "../src/client";
 import { runCli, type CliDeps } from "../src/program";
 
 const REVIEWER_ID = 555;
@@ -169,6 +170,7 @@ describe("mergebrief commands over the real api", () => {
       profile: "default",
       baseUrl: BASE_URL,
       tokenConfigured: true,
+      cli: { version: CLI_VERSION },
       server: { reachable: true, authenticated: true, version: "test-version" },
     });
 
