@@ -16,6 +16,25 @@ build
 coverage
 **/coverage
 docs
+# Local-only output and other checkouts, never part of a release: the image
+# a developer builds must match the one CI builds from a clean checkout.
+# Patterns here anchor at the context root, unlike .gitignore, so every
+# entry carries `**/`. Instance config is mounted, not baked (see the
+# compose files).
+**/mergebrief.config.yaml
+**/logs
+**/*.log
+**/test-results
+**/playwright-report
+**/.playwright-cli
+**/.screenshots
+**/.artifacts
+**/.worktrees
+**/.pnpm-store
+**/.claude
+**/.serena
+**/eval-reports
+**/*.cert
 # Mirror .gitignore's secret patterns — nothing credential-shaped may enter
 # an image layer (COPY . . would otherwise bake it in).
 .env

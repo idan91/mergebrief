@@ -38,9 +38,11 @@ services:
         max-file: "3"
 
   api:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: Dockerfile
+    command: api
     # The boot path is written for this policy: a config error exits 0 and
     # stays down, a transient fault exits 1 and self-heals on the restart.
     restart: on-failure
@@ -92,9 +94,11 @@ services:
         max-file: "3"
 
   web:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: Dockerfile
+    command: web
     restart: on-failure
     ports:
       - "127.0.0.1:3000:3000"
@@ -112,9 +116,9 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
       MERGEBRIEF_API_ORIGIN: http://api:3001
     # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image already bakes the repo-root file via `COPY . .`; this mount
-    # shadows it so edits apply on restart instead of rebuild. Uncomment
-    # here AND in the worker service — both read the same file.
+    # the image carries no config file (.dockerignore), so this mount is
+    # required whenever MERGEBRIEF_CONFIG names one, and edits apply on
+    # restart. Uncomment here AND in the worker service, both read the file.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static — never /readyz here,
@@ -132,9 +136,11 @@ services:
     logging: *log-rotation
 
   worker:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: Dockerfile
+    command: worker
     depends_on:
       postgres:
         condition: service_healthy

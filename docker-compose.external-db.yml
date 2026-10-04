@@ -21,9 +21,11 @@
 # All published ports bind loopback-only, same as the default compose.
 services:
   api:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: Dockerfile
+    command: api
     # Same policy as the default compose: a config error exits 0 and stays
     # down, a transient fault (pending migrations included) exits 1 and
     # self-heals on the restart.
@@ -77,9 +79,11 @@ services:
         max-file: "3"
 
   web:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: Dockerfile
+    command: web
     restart: on-failure
     ports:
       - "127.0.0.1:3000:3000"
@@ -110,9 +114,11 @@ services:
     logging: *log-rotation
 
   worker:
+    image: ghcr.io/idan91/mergebrief:dev
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: Dockerfile
+    command: worker
     env_file:
       - path: .env
         required: false

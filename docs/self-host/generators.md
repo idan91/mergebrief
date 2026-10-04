@@ -95,12 +95,12 @@ working directory containing `pnpm-workspace.yaml` — never against bare
 cwd (the worker runs from `apps/worker`, the web app from `apps/web`;
 cwd-relative would let one env value silently name different files). So
 `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
-file everywhere, local and dockerized alike — the docker image is a full
+file everywhere, local and dockerized alike: the docker image is a full
 workspace checkout, so the anchor holds there too. Absolute paths pass
 through unchanged. No workspace root above cwd refuses boot and points at
-absolute paths. Dockerized live edits: uncomment the config mount in
-`docker-compose.yml` (both services) to shadow the baked copy so yaml
-changes apply on restart instead of rebuild.
+absolute paths. The image carries no config file, so dockerized services
+need the config mount in `docker-compose.yml` (api and worker) whenever
+`MERGEBRIEF_CONFIG` names one; edits then apply on restart.
 
 > **Packaged distributions (future)**: workspace-root anchoring assumes the
 > process runs inside a repo checkout. If MergeBrief ever ships as an
@@ -268,10 +268,10 @@ What the CLIs *are* for: host-side processes in the dev loop
 (`pnpm categorize`, the web app run with `pnpm dev` — not its docker
 image) where your existing subscription does the generating.
 
-The boundary is enforced, not just documented: the worker image bakes
-`MERGEBRIEF_RUNTIME=compose-worker`, and a harness provider under that
-marker refuses boot with a targeted message instead of a confusing
-missing-binary error. This matters because ONE config file can feed both
+The boundary is enforced, not just documented: the image bakes
+`MERGEBRIEF_RUNTIME=compose-worker` for every service it starts, and a
+harness provider under that marker refuses boot with a targeted message
+instead of a confusing missing-binary error. This matters because ONE config file can feed both
 runtimes — a `provider: codex` switch made for your local loop would
 otherwise take down the deployed worker. If you want a CLI provider
 locally AND a running compose worker, give the worker its own config: a
