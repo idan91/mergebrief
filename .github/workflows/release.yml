@@ -1,0 +1,95 @@
+name: Release
+
+# One git tag `vX.Y.Z` builds the one image a release ships and pushes it as
+# `ghcr.io/idan91/mergebrief:X.Y.Z` and `:latest` for linux/amd64 and
+# linux/arm64. A dispatch run builds the same way and never pushes, which is
+# how the workflow is verified before the first tag; only a tag push
+# publishes. Release notes, the npm package and the Release assets ride
+# later jobs in this file.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Fork-safety bundle, same as ci.yml: no ambient scopes, every job re-grants
+# the minimum, no checkout leaves credentials behind, every action pinned.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/idan91/mergebrief
+
+jobs:
+  image:
+    name: Build and push the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Only vX.Y.Z publishes. A pre-release or mistyped tag would otherwise
+      # push and move `latest` to it.
+      - name: Refuse a tag that is not a release
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::tag $TAG is not vX.Y.Z; only a release tag publishes"
+            exit 1
+          fi
+
+      # The install and the web build run on the runner's own platform; only
+      # the final stage runs per target, so QEMU sees no heavy step.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to ghcr
+        if: github.event_name == 'push'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `X.Y.Z` from the tag (no `v`); the action adds `latest` on its own
+      # for a stable semver tag, never for a pre-release or a branch. A
+      # dispatch run is named `dry-run` and stays on the runner.
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=dry-run,enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MERGEBRIEF_VERSION=${{ github.event_name == 'push' && steps.meta.outputs.version || 'dev' }}
+            MERGEBRIEF_REVISION=${{ github.sha }}
+          # No Actions cache: entries are scoped to the ref that wrote them,
+          # and no two tags share one, so a release build would upload
+          # gigabytes nobody reads. Build time lives in the Dockerfile.
