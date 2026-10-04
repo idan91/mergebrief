@@ -15,7 +15,7 @@ docker compose up -d --wait
 Replace `v1.6.0` with the release you want; the
 [releases page](https://github.com/Idan91/code-review/releases) lists them.
 Until the first tagged release publishes these assets, the developer path
-below, which builds the images from a checkout, is the one that runs.
+below, which builds the image from a checkout, is the one that runs.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
 > instance will ever be reachable beyond your own machine. Postgres writes
@@ -259,8 +259,8 @@ By default both services apply migrations at boot, which needs DDL. If
 your runtime role is read/write-only (least-privilege posture), set
 `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks*, read-only, that
 the database matches the release's migrations, and exits 1 naming the
-pending count when it is behind. The apply step moves to you and runs from
-a checkout of the release's tag; see
+pending count when it is behind. The apply step moves to you and runs as
+`docker compose run --rm api migrate` with a DDL-capable DSN; see
 [operations.md](./operations.md#external-database-auto-migratefalse).
 
 ## Other platforms
@@ -326,6 +326,10 @@ docker compose exec postgres \
 - The worker retries transient failures with backoff (graphile-owned);
   permanent conditions (e.g. GitHub's "diff too large" 406) are recorded as
   `failed` without retry.
+- `up` fails with a Dockerfile-not-found error: the image pull was denied
+  or the registry was unreachable, and Compose fell through to building
+  from source, which a release folder cannot do. The fix is the pull
+  (`docker compose pull`, then read its error), never a checkout.
 
 ## Hardening before real exposure
 

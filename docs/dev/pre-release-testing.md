@@ -114,9 +114,13 @@ release` — stated once here.
 - [ ] `MERGEBRIEF_AUTO_MIGRATE=false` against a behind DB → api and worker
       refuse with the pending count + the manual command and exit 1; web
       stays on `/healthz` but `/readyz` red / first API request 503.
-- [ ] The refusal's manual command (DDL-capable DSN, host-absolute
-      `sslrootcert` if pinned) → api and worker start clean on restart; web
-      recovers WITHOUT restart.
+- [ ] The refusal's manual command, `docker compose run --rm api migrate`
+      (DDL-capable DSN, `sslrootcert` as the container mount path if
+      pinned) → api and worker start clean on restart; web recovers
+      WITHOUT restart.
+- [ ] Fresh provider DB with `MERGEBRIEF_AUTO_MIGRATE=false`: the migrate
+      run creates the app schema AND `graphile_worker`; the first `up -d`
+      then boots clean with no DDL.
 - [ ] `DATABASE_URL_FILE` via the compose `secrets:` blocks boots; with
       BOTH variables set the boot warning names the shadowed
       `DATABASE_URL`.

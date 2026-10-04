@@ -181,20 +181,14 @@ behind**, naming the pending count. Both restart under
 meanwhile `web` answers `/api/*` with a sanitized 503 and its `/readyz`
 goes red while `/healthz` stays static. Once the migrations apply, the next
 restart succeeds and the web tier recovers on its own. The migrate command
-is the one the refusal names, and it runs from a checkout of the release's
-tag, because that is where drizzle-kit lives; a subcommand baked into the
-image is not built yet. This is the one place these pages need a copy of
-the repository: `mergebrief-src` beside the compose folder, created on the
-first run and reused after, holding one tag's tree and nothing of its
-history. Take the provider's snapshot, then prepare the checkout and pull
-the images, which needs no credential and stops at the first failure:
+is the one the refusal names, `docker compose run --rm api migrate`: the
+image carries it, it applies the app schema and the `graphile_worker` queue
+schema in one run, and it needs no checkout. Take the provider's snapshot,
+then fetch the release's compose file and pull the images, which needs no
+credential and stops at the first failure:
 
 ```sh
 curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/code-review/releases/download/v1.6.0/docker-compose.external-db.yml \
-  && { test -d mergebrief-src || git init -q mergebrief-src; } \
-  && git -C mergebrief-src fetch --depth 1 https://github.com/Idan91/code-review tag v1.6.0 \
-  && git -C mergebrief-src checkout -q v1.6.0 \
-  && pnpm -C mergebrief-src install --frozen-lockfile --filter "persistence..." \
   && docker compose pull api web worker
 ```
 
@@ -205,46 +199,40 @@ The `migrate` run needs a DSN whose role can DDL, and that credential
 should exist only for the duration of the command, which is the point of
 the mode: write it to `secrets/database-url.ddl` right before this block,
 which reads it into the one command's environment, never into your shell
-history. Run it only once the block above ended without an error. The
-file is deleted whether `migrate` succeeded or failed, and `up` runs only
-when it succeeded, so a failed migrate leaves the old release serving and
-no credential on disk; an interrupted migrate skips the delete, so check
-the file is gone before you walk away:
+history. Run it only once the block above ended without an error.
+`DATABASE_URL_FILE` is blanked on the same line because the file wins over
+the variable. The file is deleted whether `migrate` succeeded or failed,
+and `up` runs only when it succeeded, so a failed migrate leaves the old
+release serving and no credential on disk; an interrupted migrate skips the
+delete, so check the file is gone before you walk away:
 
 ```sh
-DATABASE_URL="$(cat secrets/database-url.ddl)" pnpm -C mergebrief-src/packages/persistence migrate; migrated=$?
+DATABASE_URL_FILE= DATABASE_URL="$(cat secrets/database-url.ddl)" docker compose run --rm api migrate; migrated=$?
 rm secrets/database-url.ddl
 test "$migrated" -eq 0 && docker compose up -d --wait
 ```
 
 The services keep reading the runtime DSN from `secrets/database-url`
-throughout. The command runs on the host, so an `sslrootcert` path in the
-DDL DSN is a host path, not the container mount.
+throughout. The command runs inside the `api` container, so an
+`sslrootcert` path in the DDL DSN is the container mount, not a host path.
+The DDL DSN sits in that one-off container's environment until it exits
+and `--rm` removes it; anyone who can `docker inspect` it already owns the
+host.
 
 Two caveats:
 
-- The check covers the **app schema** (the drizzle ledger) only. The
+- The boot check covers the **app schema** (the drizzle ledger) only. The
   `graphile_worker` queue schema is owned and migrated by graphile-worker
-  itself; it no-ops read-only when current, but it needs DDL whenever it is
-  not current, which under a restricted role surfaces as a loud permission
-  error, not a friendly refusal.
-- That includes the **first boot against a fresh database**: the `migrate`
-  command installs the app schema only, so the very first `up -d` still
-  needs to create `graphile_worker`. Bootstrap once with a DDL-capable
-  credential: either run the first boot with `DATABASE_URL` pointing at the
-  DDL role (auto-migrate can stay `false`; the graphile install happens
-  regardless), or grant the runtime role temporary DDL for that boot, then
-  switch to the restricted DSN. Using the `DATABASE_URL_FILE` secrets flow?
-  The file **wins over** `DATABASE_URL`, so for the bootstrap boot
-  temporarily point the secret file at the DDL DSN, then restore it. That
-  keeps the credential out of your shell history, consistent with the rule
-  in [compose.md](./compose.md) §3 about secrets on command lines. If you
-  must inline it instead, blank the file variable
-  (`DATABASE_URL_FILE= DATABASE_URL='<ddl-dsn>' docker compose up -d`; an
-  empty `_FILE` is treated as unset) and keep it out of history: a leading
-  space with `HISTCONTROL=ignorespace`, or `set +o history` around the
-  command. The same one-off applies later when a MergeBrief upgrade bumps
-  the bundled graphile-worker version.
+  itself; at boot it no-ops read-only when current, but it needs DDL
+  whenever it is not current, which under a restricted role surfaces as a
+  loud permission error, not a friendly refusal. The `migrate` run above
+  brings both schemas current, so run it before the first `up -d` against
+  a **fresh database** and again whenever a MergeBrief upgrade bumps the
+  bundled graphile-worker version; the release notes say when.
+- Keep the DDL DSN out of your shell history, consistent with the rule in
+  [compose.md](./compose.md) §3 about secrets on command lines: the
+  `$(cat ...)` form above, a leading space with `HISTCONTROL=ignorespace`,
+  or `set +o history` around the command.
 
 **Rolling upgrades against one database.** Expand and contract already
 covers old code running beside a new schema (above); nothing extra to do,
