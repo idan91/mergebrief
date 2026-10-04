@@ -1,6 +1,6 @@
 {
   "name": "mergebrief",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "description": "MergeBrief CLI — humans and AI agents over the read/write API.",
@@ -20,7 +20,8 @@
     "link-dev": "pnpm build && pnpm link --global",
     "docs:appendix": "tsx scripts/embed-help.ts",
     "docs:check": "tsx scripts/embed-help.ts --check",
-    "map:check": "tsx scripts/check-operations-map.ts"
+    "map:check": "tsx scripts/check-operations-map.ts",
+    "prepublishOnly": "tsx scripts/refuse-sentinel-publish.ts"
   },
   "dependencies": {
     "commander": "^14.0.2",

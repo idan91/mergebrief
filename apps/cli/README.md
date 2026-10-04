@@ -309,6 +309,7 @@ Usage: mergebrief [options] [command]
 MergeBrief — PR briefs for humans and agents, over your deployment's API
 
 Options:
+  -V, --version                            output the version number
   --json                                   machine output: the documented JSON contract (default: false)
   --agents                                 deprecated: prints where the agent guide moved (default: false)
   --profile <name>                         config profile (default: owners match, then the default profile)

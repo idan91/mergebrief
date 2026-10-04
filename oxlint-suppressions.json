@@ -139,19 +139,6 @@
       "count": 5
     }
   },
-  "apps/cli/test/units.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/cli/tsup.config.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/e2e/perf/generateFixture.ts": {
     "house/no-em-dash": {
       "count": 4

@@ -405,6 +405,7 @@ export function buildProgram(deps: CliDeps): Command {
     .description(
       "MergeBrief — PR briefs for humans and agents, over your deployment's API",
     )
+    .version(CLI_VERSION)
     .option("--json", "machine output: the documented JSON contract", false)
     .option("--agents", "deprecated: prints where the agent guide moved", false)
     .option(

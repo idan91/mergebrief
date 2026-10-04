@@ -9,12 +9,13 @@ import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
 const i18n = createI18n();
 
 /**
- * This CLI's version, sent as the user-agent so an audit row can say which
- * client did something. Pinned to `package.json` by a test, the bundle has no
- * package.json to read at runtime. Purely forensic: the server must never
- * branch on it.
+ * This CLI's version, stamped at build time from `package.json` (`0.0.0` in
+ * the repo, the dev sentinel that switches every version check off; the tag
+ * at publish). Sent as the user-agent so an audit row can say which client
+ * did something. Purely forensic: the server must never branch on it.
  */
-export const CLI_VERSION = "0.1.0";
+export const CLI_VERSION: string =
+  typeof __CLI_VERSION__ === "string" ? __CLI_VERSION__ : "0.0.0";
 const USER_AGENT = `mergebrief/${CLI_VERSION}`;
 
 /** The request options the client hands its fetch. */

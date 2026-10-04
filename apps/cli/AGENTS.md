@@ -10,7 +10,8 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 What the layout can't show:
 
-- `src/client.ts` is the API-client boundary (injected fetch, `CliError` mapping, the `mergebrief/<version>` user-agent pinned by a test).
+- `src/client.ts` is the API-client boundary (injected fetch, `CliError` mapping, the `mergebrief/<version>` user-agent).
+- **One version number, stamped at build.** `CLI_VERSION` reads the `__CLI_VERSION__` define (`src/version.d.ts`) that tsup and vitest inject from `package.json`; `mergebrief --version` prints it. The repo keeps `0.0.0`, the dev sentinel: a `0.0.0` CLI never checks for a newer version, never compares itself with the server and never warns. A publish stamps the tag's version into `package.json` right before build, uncommitted; the stamp step is not built yet, and `prepublishOnly` refuses to publish the sentinel until it is.
 - `src/exit.ts` is the PUBLIC exit-code contract.
 - `commands/diff-filter.ts`'s `--group` filter keeps output a valid diff.
 - `test/` holds runCli-level contract tests (stdout/stderr + exit code). `test/harness/` starts the API from its own executable against a migrated PGlite served over a socket, with GitHub answered by a stub in the test process; a suite writes its GitHub responses as plain functions over a URL, as before. One world per TEST, not per file, because the API's own caches would otherwise carry a previous test's gate verdict into the next one.

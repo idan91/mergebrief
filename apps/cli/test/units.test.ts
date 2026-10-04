@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import pkg from "../package.json" with { type: "json" };
 import { CLI_VERSION, createApiClient } from "../src/client";
+import { runCli } from "../src/program";
 import {
   fullNameFromOriginUrl,
   ownerFromOriginUrl,
@@ -12,7 +13,7 @@ import {
 } from "../src/profile/config";
 import { CliError, ExitCodes, exitCodeForStatus } from "../src/exit";
 
-describe("exit-code mapping (the contract table)", () => {
+describe("exit-code mapping, the contract table", () => {
   it.each([
     [401, ExitCodes.AUTH],
     [404, ExitCodes.NOT_FOUND],
@@ -27,7 +28,7 @@ describe("exit-code mapping (the contract table)", () => {
     expect(exitCodeForStatus(status)).toBe(code);
   });
 
-  it("pins the numeric values — additive-only, never renumbered", () => {
+  it("pins the numeric values, additive-only and never renumbered", () => {
     expect(ExitCodes).toEqual({
       OK: 0,
       GENERIC: 1,
@@ -145,7 +146,7 @@ function clientWith(response: Response) {
 }
 
 describe("client user-agent", () => {
-  it("sends mergebrief/<version>, pinned to package.json", async () => {
+  it("sends mergebrief/<version> from the build-time define", async () => {
     const seen: { agent: string | undefined } = { agent: undefined };
     const client = createApiClient({
       fetch: async (_input, init) => {
@@ -160,8 +161,6 @@ describe("client user-agent", () => {
     });
     await client.request({ path: "/api/version" });
     expect(seen.agent).toBe(`mergebrief/${CLI_VERSION}`);
-    // A drifting version would still be a valid token, and the server never
-    // branches on it — so the pin is here rather than at the boundary.
     expect(CLI_VERSION).toBe(pkg.version);
   });
 });
@@ -270,5 +269,33 @@ describe("saveConfig permissions", () => {
     writeFileSync(join(dir, "config.json"), "{}", { mode: 0o644 });
     saveConfig(dir, { profiles: {} });
     expect(statSync(join(dir, "config.json")).mode & 0o777).toBe(0o600);
+  });
+});
+
+describe("mergebrief --version", () => {
+  it("prints the build-time version and exits 0", async () => {
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const code = await runCli(["--version"], {
+      fetch: async () => {
+        throw new Error("no request expected");
+      },
+      env: {},
+      configDir: "/nonexistent/config",
+      cacheDir: "/nonexistent/cache",
+      stdout: (text) => out.push(text),
+      stderr: (line) => err.push(line),
+      readStdin: async () => "",
+      gitOriginUrl: () => undefined,
+    });
+
+    expect(code).toBe(0);
+    expect(out.join("")).toBe(`${pkg.version}\n`);
+    expect(err).toEqual([]);
+  });
+
+  it("the repo holds the 0.0.0 dev sentinel", () => {
+    expect(pkg.version).toBe("0.0.0");
   });
 });

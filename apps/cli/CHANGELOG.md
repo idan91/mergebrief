@@ -1,8 +1,9 @@
 # mergebrief changelog
 
-The CLI versions independently of the server (`0.x` private, `1.0.0` at OSS
-launch). The output contract is additive-only even pre-1.0; anything
-breaking ships expand/contract with a deprecation entry here first.
+The CLI carries the same version number as the server: one git tag stamps
+both at release, and the repo holds `0.0.0`, the dev sentinel. The output
+contract is additive-only even pre-1.0; anything breaking ships
+expand/contract with a deprecation entry here first.
 Server-side shape changes live in
 [`docs/api-changelog.md`](../../docs/api-changelog.md), keyed to the server
 version (`auth status` → `server.version`).
