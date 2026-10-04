@@ -21,7 +21,7 @@
 The `mergebrief` CLI's machine output is a public contract consumed by
 user-owned agent scripts — nothing of ours can migrate them. This ADR fixes
 what is promised, and how the contract evolves without breaking consumers
-(BRIEF-17; client boundary per ADR 0028).
+(client boundary per ADR 0028).
 
 ## Decision
 
@@ -107,5 +107,3 @@ what is promised, and how the contract evolves without breaking consumers
   `mergebrief` skill's contract reference) — they are what make unattended
   agent loops safe.
 - The TTY rendering layer is free to improve without ceremony.
-
-Implementation plan: `docs/plans/brief-17-mergebrief-cli.md`.

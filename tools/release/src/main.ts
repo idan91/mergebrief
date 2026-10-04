@@ -4,15 +4,24 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Mutable } from "types/utils";
 
 import { RELEASES_DIR } from "./consts";
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
+import { type CutOptions, executeCut, planCut } from "./logic/cut";
+import { createGitPort, GitCommandError } from "./logic/git-port";
 import { buildReleaseBody } from "./logic/release-body";
 import { pruneTree, stampTree } from "./logic/stamp";
 import { formatReleaseVersion } from "./logic/version";
 import { buildVersionManifest } from "./logic/version-json";
-import { type ExitCode, ExitCodes, type NotesError } from "./types";
+import {
+  type BumpLevel,
+  BumpLevels,
+  type ExitCode,
+  ExitCodes,
+  type NotesError,
+} from "./types";
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const NOTES_DIR = join(REPO_ROOT, RELEASES_DIR);
@@ -26,6 +35,8 @@ const USAGE = [
   "  release version-json <tag> [--known-tags v1,v2] --out <file>",
   "      version.json over every stable notes file; the tag must be the highest stable",
   "  release release-body <tag> --out <file> the GitHub Release body for the tag",
+  "  release cut <major|minor|patch> [--rc] [--at <ref>] [--push] [--dry-run]",
+  "      tag the tip of main as fetched, or --at a commit on it; the notes file must be in it",
 ].join("\n");
 
 const JSON_INDENT = 2;
@@ -195,6 +206,83 @@ function runReleaseBody(argv: readonly string[]): ExitCode {
   return ExitCodes.OK;
 }
 
+function isBumpLevel(value: string): value is BumpLevel {
+  const levels: readonly string[] = Object.values(BumpLevels);
+  const known = levels.includes(value);
+  return known;
+}
+
+function runCut(argv: readonly string[]): ExitCode {
+  const parsed = parseArgv(argv, {
+    valued: ["--at"],
+    boolean: ["--rc", "--push", "--dry-run"],
+    maxPositionals: 1,
+  });
+  const level = parsed.ok ? parsed.value.positionals[0] : undefined;
+  const usage = !parsed.ok || level === undefined || !isBumpLevel(level);
+  if (usage) {
+    const reason = parsed.ok ? "cut needs major, minor or patch" : parsed.error;
+    return refuseUsage(reason);
+  }
+  const dryRun = parsed.value.flags.has("--dry-run");
+  const push = parsed.value.flags.has("--push");
+  if (dryRun && push) {
+    return refuseUsage("--dry-run and --push exclude each other");
+  }
+
+  try {
+    return cutRelease(parsed.value, level, { dryRun, push });
+  } catch (cause) {
+    if (!(cause instanceof GitCommandError)) {
+      throw cause;
+    }
+    process.stderr.write(`release: ${cause.message}\n`);
+    return ExitCodes.REFUSED;
+  }
+}
+
+interface CutModes {
+  readonly dryRun: boolean;
+  readonly push: boolean;
+}
+
+function cutRelease(
+  parsed: ParsedArgv,
+  level: BumpLevel,
+  modes: CutModes,
+): ExitCode {
+  const git = createGitPort(REPO_ROOT);
+  const options: Mutable<CutOptions> = {
+    level,
+    candidate: parsed.flags.has("--rc"),
+  };
+  const at = readValuedFlag(parsed, "--at");
+  if (at !== undefined) {
+    options.ref = at;
+  }
+  const plan = planCut(git, options);
+  if (!plan.ok) {
+    process.stderr.write(`release: ${plan.error.reason}\n`);
+    return ExitCodes.REFUSED;
+  }
+
+  const summary = `${plan.value.tag} at ${plan.value.commit} (${plan.value.notesPath} ok)`;
+  if (modes.dryRun) {
+    process.stdout.write(`release: would tag ${summary}\n`);
+    return ExitCodes.OK;
+  }
+  const done = executeCut(git, plan.value, modes.push);
+  if (!done.ok) {
+    process.stderr.write(`release: ${done.error.reason}\n`);
+    return ExitCodes.REFUSED;
+  }
+  const next = modes.push
+    ? "pushed; the release workflow is running"
+    : `push it with: git push origin ${plan.value.tag}`;
+  process.stdout.write(`release: tagged ${summary}; ${next}\n`);
+  return ExitCodes.OK;
+}
+
 function main(argv: readonly string[]): ExitCode {
   const [command, ...rest] = argv;
   if (command === "check") {
@@ -211,6 +299,9 @@ function main(argv: readonly string[]): ExitCode {
   }
   if (command === "release-body") {
     return runReleaseBody(rest);
+  }
+  if (command === "cut") {
+    return runCut(rest);
   }
   return refuseUsage();
 }

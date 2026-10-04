@@ -60,12 +60,20 @@ export function readReleaseNotes(
 }
 
 function readOneNotesFile(path: string): Result<ReleaseNotes, NotesError> {
+  return parseReleaseNotes(path, readFileSync(path, "utf8"));
+}
+
+/** One notes file's text as it would parse at `path`; nothing is read. */
+export function parseReleaseNotes(
+  path: string,
+  text: string,
+): Result<ReleaseNotes, NotesError> {
   const version = parseVersionFromFilename(path);
   if (version === undefined) {
     return { ok: false, error: { path, reason: FILENAME_REASON } };
   }
 
-  const split = splitFrontMatter(readFileSync(path, "utf8"));
+  const split = splitFrontMatter(text);
   if (!split.ok) {
     return { ok: false, error: { path, reason: split.error } };
   }

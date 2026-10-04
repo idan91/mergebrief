@@ -31,6 +31,14 @@ export const REPOSITORY_URL = `https://github.com/${REPOSITORY.owner}/${REPOSITO
 
 export const NPM_PACKAGE = "mergebrief";
 
+/** Where tags are read from and pushed to; the publishing repository's remote. */
+export const GIT_REMOTE = "origin";
+
+export const DEFAULT_BRANCH = "main";
+
+/** The remote default branch as the cut fetched it; never FETCH_HEAD, which any other fetch rewrites. */
+export const DEFAULT_BRANCH_REF = `refs/remotes/${GIT_REMOTE}/${DEFAULT_BRANCH}`;
+
 /** Where an rc lands on npm; `latest` is never moved by a candidate. */
 export const RC_DIST_TAG = "next";
 

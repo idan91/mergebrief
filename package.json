@@ -23,6 +23,7 @@
     "check:baselines": "pnpm -C tools/baselines check",
     "check:migrations": "pnpm -C packages/persistence check:migrations",
     "check:releases": "pnpm -C tools/release check",
+    "release": "pnpm -C tools/release cut",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

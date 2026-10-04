@@ -61,6 +61,38 @@ export interface VersionManifest {
   readonly releases: readonly VersionManifestRelease[];
 }
 
+export const BumpLevels = {
+  MAJOR: "major",
+  MINOR: "minor",
+  PATCH: "patch",
+} as const;
+export type BumpLevel = ValueOf<typeof BumpLevels>;
+
+/** What `cut` will do, computed before any tag is written. */
+export interface CutPlan {
+  readonly version: string;
+  readonly tag: string;
+  readonly commit: string;
+  readonly notesPath: string;
+}
+
+export interface CutError {
+  readonly reason: string;
+}
+
+/** The git the cut needs, injected so the plan is testable without a repo. */
+export interface GitPort {
+  /** Brings the remote default branch to a ref of its own; the one fetch a cut does. */
+  fetchDefaultBranch(): void;
+  listRemoteTags(): readonly string[];
+  resolveCommit(ref: string): string | undefined;
+  isOnDefaultBranch(commit: string): boolean;
+  readFileAt(commit: string, path: string): string | undefined;
+  hasLocalTag(tag: string): boolean;
+  createTag(tag: string, commit: string): void;
+  pushTag(tag: string): void;
+}
+
 export interface StampError {
   readonly path: string;
   readonly reason: string;

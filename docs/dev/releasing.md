@@ -12,7 +12,8 @@ The workflow is `.github/workflows/release.yml`; the tool behind it is
 2. Run the pass in [`pre-release-testing.md`](./pre-release-testing.md)
    against the last candidate's artifacts.
 3. Merge the notes PR as the last change before the tag.
-4. Tag the merge commit and push the tag ([Tagging](#tagging)).
+4. Cut the tag from the tip of `main` ([Tagging](#tagging)):
+   `pnpm release patch --push`, or `minor` or `major`.
 5. Watch the five jobs ([What the tag does](#what-the-tag-does)). A red job
    is re-run as is; nothing needs undoing.
 6. Confirm the placement `verify` printed: `npm view mergebrief dist-tags`
@@ -63,11 +64,34 @@ precedes.
 
 ## Tagging
 
-Merge the notes PR, then tag the merge commit:
+Merge the notes PR, then cut the tag from the tip of `main`. You choose
+how far the version moves; the tool computes it over the tags already on
+the remote, so the repository's `0.0.0` never enters the calculation:
 
 ```sh
-git tag vX.Y.Z <merge commit> && git push origin vX.Y.Z
+pnpm release patch --dry-run   # prints the tag and commit it would write
+pnpm release patch --push      # writes the tag and pushes it
 ```
+
+| Highest stable tag `v0.2.3` | `pnpm release` computes |
+| --------------------------- | -------------- |
+| `patch`                     | `0.2.4`        |
+| `minor`                     | `0.3.0`        |
+| `major`                     | `1.0.0`        |
+| `minor --rc`                | `0.3.0-rc.1`, then `rc.2` on the next cut |
+
+Before it writes a tag, the tool fetches `main` from the remote (the dry
+run does that too, and nothing else) and tags its tip as fetched, so a
+clone that is behind never tags a stale commit; `--at <ref>` picks an
+older commit, which must still be on `main`. It refuses when the commit
+is not on `main`, when the computed version's notes file is not in that
+commit or does not parse, or when a local tag of that name already
+exists. Without `--push` it leaves the local tag and prints the
+push command; the push is what starts the workflow. A push that fails
+leaves the local tag and names the retry. The tool always bumps the
+highest stable tag, so a hotfix on an older line (`1.4.1` after `1.5.0`
+shipped) is tagged by hand: `git tag v1.4.1 <commit> && git push origin
+v1.4.1`.
 
 Only `vX.Y.Z` and `vX.Y.Z-rc.N` publish. Any other `v*` tag fails the first
 job.
@@ -114,7 +138,8 @@ last candidate until the next one: after the release it previewed ships,
 `next` is older than `latest`.
 
 The first rc before the first stable release is the live rehearsal of the
-whole path.
+whole path: `pnpm release minor --rc --push` on a tree whose
+`docs/releases/0.1.0-rc.1.md` is merged.
 
 Known limit: a candidate is not a release to the version parsers, so an
 instance or a CLI running an rc gets no banner, no update line and no

@@ -1,7 +1,7 @@
 # 0045: One version number, and expand and contract on every release
 
-Status: accepted (2026-10-02). Decided on the BRIEF-276 map; amends ADR
-0028 #6 and ADR 0029 #8 (both carry their amendment notes).
+Status: accepted (2026-10-02). Amends ADR 0028 #6 and ADR 0029 #8
+(both carry their amendment notes).
 
 One git tag `vX.Y.Z` is the version of everything a release ships: the
 image on ghcr, the `mergebrief` package on npm, the GitHub Release and its

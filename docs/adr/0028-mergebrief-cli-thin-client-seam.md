@@ -12,8 +12,7 @@ The product gains a command-line client — **`mergebrief`** — for humans and
 AI agents, wrapping the finished read/write API (PR-meta, groups, diff,
 delta, conversation, reply, submit). The agent-as-reviewer story is the
 sharpest use: a coding agent drives the same review loop a human does, over
-`--json` output (BRIEF-17; authorship-neutral framing per ADR 0026 as
-amended).
+`--json` output (authorship-neutral framing per ADR 0026 as amended).
 
 ## Decision
 
@@ -82,8 +81,6 @@ amended).
 - Authentication needs a non-cookie presentation: first-class API tokens —
   ADR 0016 #4 as amended (2026-07-09).
 - Output shapes become a public contract with stability rules — ADR 0029.
-- The web toggle remains the only role-aware layer in the product; if
-  BRIEF-30 ever commits to a distinct author view with server-side role
-  state, that is a new server concept and a follow-up CLI ticket.
-
-Implementation plan: `docs/plans/brief-17-mergebrief-cli.md`.
+- The web toggle remains the only role-aware layer in the product; a
+  distinct author view with server-side role state would be a new server
+  concept and require a separate CLI decision.

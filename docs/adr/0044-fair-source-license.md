@@ -1,6 +1,6 @@
 # 0044: Fair source license (FSL-1.1-Apache-2.0)
 
-Status: accepted (2026-10-03). Decided on BRIEF-49. Amends ADR 0023.
+Status: accepted (2026-10-03). Amends ADR 0023.
 
 The repository and the npm package ship under FSL-1.1-ALv2: anyone may
 self-host, modify and fork it, nobody may sell it as a competing product,
