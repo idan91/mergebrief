@@ -272,6 +272,7 @@ export type Catalog = typeof en & {
       available: "MergeBrief <0>{{latest}}</0> is available.";
       security: "MergeBrief <0>{{latest}}</0> fixes a security issue.";
       running: "This instance runs {{current}}.";
+      menuAvailable: "MergeBrief {{latest}} is available";
     };
     pageTitle: (typeof en)["shell"]["pageTitle"] & {
       prNumber: "#{{number}}";

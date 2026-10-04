@@ -19,6 +19,40 @@
     object-fit: cover;
   }
 
+  .presence {
+    position: relative;
+    display: inline-flex;
+
+    &[data-presence]::after {
+      position: absolute;
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the ring overhangs the avatar by its own width */
+      inset-block-start: -1px;
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the ring overhangs the avatar by its own width */
+      inset-inline-end: -1px;
+      inline-size: 8px;
+      block-size: 8px;
+      border: 2px solid var(--color-background);
+      border-radius: var(--radius-pill);
+      background: var(--color-accent);
+      content: "";
+    }
+  }
+
+  .presenceGlyph {
+    display: grid;
+    inline-size: 16px;
+    block-size: 16px;
+    place-items: center;
+
+    &::before {
+      inline-size: 6px;
+      block-size: 6px;
+      border-radius: var(--radius-pill);
+      background: var(--color-accent);
+      content: "";
+    }
+  }
+
   .person {
     display: block;
     box-sizing: border-box;

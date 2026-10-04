@@ -1,15 +1,27 @@
 // @vitest-environment jsdom
 import { QueryClient } from "@tanstack/react-query";
-import { cleanup, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { VersionResponse } from "contract";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
 import { buildVersionQueryOptions } from "../../queries";
 import { NoticeSurfaces, VersionStates, type VersionState } from "../../types";
 import { VersionNotice } from ".";
 
-afterEach(cleanup);
+const fetchMock = vi.fn<typeof fetch>();
+vi.stubGlobal("fetch", fetchMock);
+
+afterEach(() => {
+  cleanup();
+  fetchMock.mockReset();
+});
 
 const AVAILABLE: VersionResponse = {
   version: "1.4.0",
@@ -104,6 +116,44 @@ describe("VersionNotice", () => {
     await renderNotice({ kind: VersionStates.SIGNED_OUT });
 
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("dismiss posts the release, hides the band and focuses the content", async () => {
+    fetchMock.mockResolvedValue(Response.json({ ok: true }));
+    const main = document.createElement("main");
+    main.id = "main-content";
+    main.tabIndex = -1;
+    document.body.append(main);
+    await renderNotice(makeKnown(AVAILABLE));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    });
+
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchMock.mock.calls[0] ?? [];
+    expect(path).toBe("/api/version/dismiss");
+    expect(init).toMatchObject({ method: "POST" });
+    const body = typeof init?.body === "string" ? init.body : "";
+    expect(JSON.parse(body)).toEqual({ version: "1.6.0" });
+    expect(document.activeElement).toBe(main);
+    main.remove();
+  });
+
+  it("keeps the band when the dismiss write fails", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ error: "x", code: "internal-error" }, { status: 500 }),
+    );
+    await renderNotice(makeKnown(AVAILABLE));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeTruthy();
   });
 
   it("marks the surface it sits under", async () => {

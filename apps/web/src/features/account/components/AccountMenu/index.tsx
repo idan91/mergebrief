@@ -6,10 +6,12 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { Menu } from "@web/components/Menu";
+import { useVersionPresence } from "@web/features/version";
 import { ViewerStates } from "../../types";
 import { SignOutModal } from "./SignOutModal";
 import styles from "./AccountMenu.module.scss";
 import { useAccountMenuFacade } from "./useAccountMenuFacade";
+import { openReleaseNotes } from "./utils";
 
 export interface AccountMenuProps {
   /** Present where a shortcuts modal exists; the row is omitted otherwise. */
@@ -29,6 +31,7 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const { t } = useTranslation();
   const facade = useAccountMenuFacade();
   const { viewer } = facade;
+  const presence = useVersionPresence();
 
   if (viewer.kind === ViewerStates.UNKNOWN && facade.viewerPending) {
     return null;
@@ -46,24 +49,39 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
     signedIn && viewer.login !== null
       ? t("shell.accountMenu.ariaLabelTriggerSignedIn", { login: viewer.login })
       : t("shell.accountMenu.ariaLabelTrigger");
+  const triggerLabel =
+    presence.notice === undefined
+      ? label
+      : `${label}${t("shell.versionNotice.srPresence")}`;
   const glyphClass = styles["icon"];
+  const notesMissing = presence.notice?.releaseNotesUrl === undefined;
 
   return (
     <>
-      <Menu placement="bottom-end">
+      <Menu onOpen={presence.markSeen} placement="bottom-end">
         <Menu.Trigger>
           <IconButton
             autoWidth
             className={styles["trigger"]}
-            label={label}
+            label={triggerLabel}
             size="md"
             variant="ghost"
           >
-            {signedIn ? (
-              <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
-            ) : (
-              <Icon className={styles["person"]} name={IconNames.USER} />
-            )}
+            <span
+              className={styles["presence"]}
+              data-presence={presence.unseen ? "" : undefined}
+              data-testid="version-presence"
+            >
+              {signedIn ? (
+                <img
+                  alt=""
+                  className={styles["avatar"]}
+                  src={viewer.avatarUrl}
+                />
+              ) : (
+                <Icon className={styles["person"]} name={IconNames.USER} />
+              )}
+            </span>
             <Icon
               className={styles["caret"]}
               name={IconNames.CARET_DOWN}
@@ -77,6 +95,22 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
               {t("shell.accountMenu.signedInAs", { login: viewer.login })}
             </Menu.Label>
           ) : null}
+          {presence.notice === undefined ? null : (
+            <>
+              <Menu.Item
+                disabled={notesMissing}
+                glyph={<span className={styles["presenceGlyph"]} />}
+                onSelect={() =>
+                  openReleaseNotes(presence.notice?.releaseNotesUrl)
+                }
+              >
+                {t("shell.versionNotice.menuAvailable", {
+                  latest: presence.notice.latest,
+                })}
+              </Menu.Item>
+              <Menu.Separator />
+            </>
+          )}
           <Menu.Item
             glyph={
               <Icon

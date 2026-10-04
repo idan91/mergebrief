@@ -41,6 +41,8 @@ export interface PopoverOptions {
    */
   portal?: boolean | undefined;
   focusOnOpen?: PopoverFocusTarget | undefined;
+  /** Fires once per opening, whatever opened it: click, Enter, or an arrow key. */
+  onOpen?: (() => void) | undefined;
 }
 
 export interface PopoverState {
@@ -112,6 +114,7 @@ export function usePopover({
   offsetPx = POPOVER_OFFSET_PX,
   portal = true,
   focusOnOpen = PopoverFocusTargets.TRIGGER,
+  onOpen,
 }: PopoverOptions): PopoverState {
   const [open, setOpen] = useState(false);
   const fallbackId = useId();
@@ -127,6 +130,9 @@ export function usePopover({
     // it went, and nothing returns it a frame later on top of a modal.
     onOpenChange(next, _event, reason) {
       setOpen(next);
+      if (next) {
+        onOpen?.();
+      }
       if (!next && reason === "escape-key") {
         reclaimFocus(refs.domReference.current, refs.floating);
       }

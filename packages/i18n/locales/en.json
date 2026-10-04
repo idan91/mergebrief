@@ -1073,7 +1073,9 @@
       "running": "This instance runs {{current}}.",
       "breaking": "This upgrade needs an extra step; the release notes say which.",
       "releaseNotes": "Release notes",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "menuAvailable": "MergeBrief {{latest}} is available",
+      "srPresence": ", a new version is available"
     },
     "suggestedChange": "Suggested change",
     "nothingToPreview": "Nothing to preview.",

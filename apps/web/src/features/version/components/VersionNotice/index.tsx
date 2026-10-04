@@ -7,10 +7,12 @@ import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
+import { useDismissVersion } from "../../mutations";
 import { buildVersionQueryOptions } from "../../queries";
 import type { NoticeSurface } from "../../types";
 import { deriveReleaseNotice } from "../../utils";
 import styles from "./VersionNotice.module.scss";
+import { focusMainContent } from "./utils";
 
 export interface VersionNoticeProps {
   /** Which Header the band sits under; it sets the gutter the text aligns to. */
@@ -20,11 +22,16 @@ export interface VersionNoticeProps {
 export function VersionNotice({ surface }: VersionNoticeProps) {
   const { t } = useTranslation();
   const { data } = useQuery(buildVersionQueryOptions());
+  const dismiss = useDismissVersion();
   const notice = deriveReleaseNotice(data);
 
   if (notice === undefined) {
     return null;
   }
+
+  const dismissRelease = () => {
+    dismiss.mutate(notice.latest, { onSuccess: focusMainContent });
+  };
 
   const leadKey = notice.security
     ? "shell.versionNotice.security"
@@ -77,7 +84,12 @@ export function VersionNotice({ surface }: VersionNoticeProps) {
             </AccessibleLink>
           )}
           {notice.security ? null : (
-            <IconButton label={t("shell.versionNotice.dismiss")} size="sm">
+            <IconButton
+              disabled={dismiss.isPending}
+              label={t("shell.versionNotice.dismiss")}
+              onClick={dismissRelease}
+              size="sm"
+            >
               <Icon name={IconNames.X} size={IconSizes.MD} />
             </IconButton>
           )}

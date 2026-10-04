@@ -9,6 +9,8 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildVersionQueryOptions } from "@web/features/version/queries";
+import { VersionStates, type VersionState } from "@web/features/version/types";
 import { buildViewerQueryOptions } from "../../queries";
 import { ViewerStates, type ViewerState } from "../../types";
 import { AccountMenu } from ".";
@@ -28,11 +30,18 @@ beforeEach(() => {
   );
 });
 
-function renderWithViewer(viewer: ViewerState, onOpenShortcuts?: () => void) {
+function renderWithViewer(
+  viewer: ViewerState,
+  onOpenShortcuts?: () => void,
+  version?: VersionState,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(buildViewerQueryOptions().queryKey, viewer);
+  if (version !== undefined) {
+    queryClient.setQueryData(buildVersionQueryOptions().queryKey, version);
+  }
   render(
     <QueryClientProvider client={queryClient}>
       <AccountMenu onOpenShortcuts={onOpenShortcuts} />
@@ -320,5 +329,142 @@ describe("AccountMenu", () => {
       screen.getByRole("dialog", { hidden: true }).closest("[inert]"),
     ).not.toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+});
+
+const DISMISSED: VersionState = {
+  kind: VersionStates.KNOWN,
+  snapshot: {
+    version: "1.4.0",
+    latest: "1.6.0",
+    releaseNotesUrl: "https://example.test/releases/v1.6.0",
+    checkedAt: "2026-10-03T10:00:00.000Z",
+    breaking: false,
+    security: false,
+    dismissedVersion: "1.6.0",
+  },
+};
+
+describe("AccountMenu after the version notice is dismissed", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("marks the trigger with the dot and names the new version", () => {
+    renderWithViewer(SIGNED_IN, undefined, DISMISSED);
+
+    const trigger = screen.getByRole("button", {
+      name: "Account menu for octocat, a new version is available",
+    });
+    expect(
+      trigger.contains(screen.getByTestId("version-presence")) &&
+        screen.getByTestId("version-presence").hasAttribute("data-presence"),
+    ).toBe(true);
+  });
+
+  it("lists the release above Settings and opens its notes", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    renderWithViewer(SIGNED_IN, undefined, DISMISSED);
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: /Account menu for octocat/ }),
+      );
+    });
+
+    const rows = screen.getAllByRole("menuitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "MergeBrief 1.6.0 is available",
+      "Settings",
+      "Sign out",
+    ]);
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "MergeBrief 1.6.0 is available" }),
+      );
+    });
+    expect(open).toHaveBeenCalledWith(
+      "https://example.test/releases/v1.6.0",
+      "_blank",
+      "noreferrer",
+    );
+    open.mockRestore();
+  });
+
+  it("clears the dot on the first open and keeps the row", async () => {
+    renderWithViewer(SIGNED_IN, undefined, DISMISSED);
+    const trigger = screen.getByRole("button", {
+      name: /Account menu for octocat/,
+    });
+
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+
+    expect(
+      screen.getByTestId("version-presence").hasAttribute("data-presence"),
+    ).toBe(false);
+    expect(
+      screen.getByRole("menuitem", { name: "MergeBrief 1.6.0 is available" }),
+    ).toBeTruthy();
+    expect(window.localStorage.getItem("mergebrief.versionSeen")).toBe(
+      JSON.stringify("1.6.0"),
+    );
+  });
+
+  it("clears the dot when an arrow key opens the menu", async () => {
+    renderWithViewer(SIGNED_IN, undefined, DISMISSED);
+    const trigger = screen.getByRole("button", {
+      name: /Account menu for octocat/,
+    });
+
+    await act(async () => {
+      fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    });
+
+    expect(
+      screen.getByTestId("version-presence").hasAttribute("data-presence"),
+    ).toBe(false);
+    expect(window.localStorage.getItem("mergebrief.versionSeen")).toBe(
+      JSON.stringify("1.6.0"),
+    );
+  });
+
+  it("stays plain once a newer release reopens the band", async () => {
+    renderWithViewer(SIGNED_IN, undefined, {
+      kind: VersionStates.KNOWN,
+      snapshot: { ...DISMISSED.snapshot, dismissedVersion: "1.5.0" },
+    });
+    const trigger = screen.getByRole("button", {
+      name: "Account menu for octocat",
+    });
+    expect(
+      screen.getByTestId("version-presence").hasAttribute("data-presence"),
+    ).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+
+    expect(
+      screen.getAllByRole("menuitem").map((row) => row.textContent),
+    ).toEqual(["Settings", "Sign out"]);
+  });
+
+  it("never lists a security release as dismissed", async () => {
+    renderWithViewer(SIGNED_IN, undefined, {
+      kind: VersionStates.KNOWN,
+      snapshot: { ...DISMISSED.snapshot, security: true },
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Account menu for octocat" }),
+      );
+    });
+
+    expect(
+      screen.getAllByRole("menuitem").map((row) => row.textContent),
+    ).toEqual(["Settings", "Sign out"]);
   });
 });

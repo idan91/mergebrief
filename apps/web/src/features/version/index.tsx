@@ -5,3 +5,7 @@ export {
   type VersionNoticeProps,
 } from "./components/VersionNotice";
 export { NoticeSurfaces, type NoticeSurface } from "./types";
+export {
+  useVersionPresence,
+  type VersionPresence,
+} from "./hooks/useVersionPresence";

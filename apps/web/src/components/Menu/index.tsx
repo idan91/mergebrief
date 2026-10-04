@@ -25,11 +25,18 @@ export interface MenuProps extends Omit<PopoverOptions, "focusOnOpen"> {
  * The action list: a menu button whose rows fire `onSelect`. Same keys as
  * Dropdown; a row closes the menu unless it states a choice with `checked`.
  */
-function MenuRoot({ placement, offsetPx, portal, children }: MenuProps) {
+function MenuRoot({
+  placement,
+  offsetPx,
+  portal,
+  onOpen,
+  children,
+}: MenuProps) {
   const popover = usePopover({
     placement,
     offsetPx,
     portal,
+    onOpen,
     focusOnOpen: PopoverFocusTargets.LIST,
   });
   const list = useDropdownList(popover.context, { role: DropdownRoles.MENU });
