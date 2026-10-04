@@ -529,6 +529,52 @@ that advances `last_execution` enqueues the job. Each worker opens its own
 connection pool, so count that against Postgres's `max_connections`.
 Prefer more slots over more workers unless you want the restart isolation.
 
+## Running more than one api
+
+`API_COUNT=2` (or `docker compose up --scale api=2`) starts two api
+containers behind the one `web`. Every replica can serve every request:
+sessions, the audit log and the job queue live in Postgres, so any replica
+serves any cookie; CSRF and OAuth state ride the request itself; a GitHub
+token refresh is serialized on the grant row, so two replicas never spend
+one single-use refresh token; boot migrations take a Postgres advisory
+lock, so replicas starting together do not race, the first applies and the
+rest find the schema current. The api publishes no host port, so nothing
+else in the compose file changes.
+
+What is per replica: a handful of short caches (a PR's conversation for
+60 seconds, a viewer's reachable installations, GitHub access answers, diff
+and file reads) and the update check's snapshot. Two consequences. A write
+evicts the cache of the replica it landed on only, so a comment or review a
+reviewer just posted can be missing from the next read for up to a minute
+when that read lands on another replica; a load balancer that keeps a
+session on one replica (sticky on the session cookie) removes that. And
+each replica fetches `version.json` on its own schedule, so with N
+replicas there are N fetches an hour, N `update.available` lines per
+release, and `GET /api/version` can differ between replicas for up to an
+hour after a release.
+
+How requests spread under compose alone: `web` calls `http://api:3001`,
+Docker's DNS answers that name with every replica in rotating order, and
+each new connection lands on the next one. Requests sent back to back
+reuse one connection, so a burst stays on one replica while paused
+traffic and parallel fetches spread unevenly. Measured on the shipped
+file: thirty back-to-back requests through one `web` all went to one
+replica, twelve fresh connections split six and six, and with that replica
+exited every further request succeeded through the other, with no restart
+of `web`. That is failover when a replica exits; a replica that is stuck
+but still accepting connections keeps receiving them until `web`'s
+upstream timeout answers 502. For an even spread and health-aware routing
+put a load balancer in front of the apis (your reverse proxy can do it)
+and point `MERGEBRIEF_API_ORIGIN` at it. `web` is stateless as well, a
+server render plus the `/api/*` proxy, so it can be scaled the same way
+behind the proxy that already terminates TLS for it.
+
+Each api opens its own connection pool (up to ten connections), so count
+replicas against Postgres's `max_connections` the way you count workers.
+GitHub webhooks arrive through `web` and land on whichever replica
+answers; the debounce that folds pushes into one job is a queue key in
+Postgres, so it holds across replicas.
+
 ## The update check
 
 About a minute after it starts, and then at most once an hour, when a signed-in read of `/api/version` finds the last attempt older than an hour, the API fetches one static file, `version.json`, from this project's GitHub Releases. The read itself never waits on GitHub: it answers from the last snapshot and the fetch runs behind it, so when the fetch succeeds a stale answer lasts one more read. The browser asks every minute while a page is visible and on a return to the window, so a signed-in user sees a new release within about an hour of its publication; that polled read logs its `api.access` line at `debug`, so an open tab adds nothing to the `info` log. The request carries nothing about your instance: no id, no version, no counts, a default User-Agent. GitHub sees the IP address and the time, as for any download; we see nothing, because we have no access to GitHub's logs. The check sends nothing else.
