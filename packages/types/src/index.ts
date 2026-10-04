@@ -8,6 +8,7 @@ export type {
 } from "./utils";
 export { CommentAnchorKinds, type CommentAnchorKind } from "./comments";
 export { HttpStatuses, type HttpStatus } from "./http";
+export { Runtimes, type Runtime } from "./runtime";
 
 export type { DraftPolicy } from "./drafts";
 export type {

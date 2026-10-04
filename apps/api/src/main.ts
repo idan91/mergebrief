@@ -3,32 +3,27 @@
 // below stays env-INJECTED. A misconfigured API must fail LOUDLY at boot
 // rather than serve a half-wired surface.
 import { serve, type ServerType } from "@hono/node-server";
-import { loadInstancePolicy } from "generators";
-import {
-  createAppClient,
-  loadConfig as loadGitHubConfig,
-  type GitHubConfig,
-} from "github";
-import { createLogger, type Logger } from "logging";
+import { RUNTIME_MARKER_VAR } from "generators";
+import { createAppClient } from "github";
 import {
   closeDb,
   createDb,
   createEnvKeyProvider,
   ensureAppSchema,
-  loadConfig as loadPersistenceConfig,
   pingDb,
+  resolveMigrateCommand,
   type AppDatabase,
-  type PersistenceConfig,
 } from "persistence";
-import type { DraftPolicy } from "types/drafts";
 import { createApp } from "./app";
-import { loadConfig, SESSION_KEY_REF, type ApiConfig } from "./config";
+import { createBootLogger, exitOnConfigError, loadBootConfig } from "./boot";
+import { ExitCodes } from "./boot/types";
+import { SESSION_KEY_REF } from "./config";
 import { handleHealthRequest } from "./health";
 import { migrateQueue } from "./queue";
 import { appInstallationPort } from "./routes/github-port";
 import { createUpdateCheck, type UpdateCheck } from "./update-check";
 
-/** Load `apps/api/.env` if present, then return the ambient env. */
+/** Load the app's `.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
   try {
     process.loadEnvFile();
@@ -39,73 +34,10 @@ function readEnv(): NodeJS.ProcessEnv {
 }
 
 const env = readEnv();
-const logger = ((): Logger => {
-  try {
-    return createLogger({ env });
-  } catch (error) {
-    // oxlint-disable-next-line no-console -- the logging boundary itself failed to construct; bare console is the only channel left
-    console.error("api composition: invalid logging configuration", error);
-    process.exit(0);
-  }
-})();
-
-/**
- * Config errors exit 0: a restart can never fix one, so under a container's
- * `restart: on-failure` a zero exit stays down with the reason as the log's
- * last line. Transient faults keep the throw to exit(1) restart self-heal.
- */
-function exitOnConfigError(message: string): never {
-  logger.error(message);
-  process.exit(0);
-}
-
-interface BootConfig {
-  readonly api: ApiConfig;
-  readonly github: GitHubConfig;
-  readonly persistence: PersistenceConfig;
-  readonly draftPolicy: DraftPolicy;
-}
-
-/** Every config block, or the process exits before anything is constructed. */
-function loadBootConfig(): BootConfig {
-  const config = loadConfig(env);
-  if (!config.ok) {
-    exitOnConfigError(
-      `api composition: invalid configuration: ${config.error.issues.join("; ")}`,
-    );
-  }
-  const githubConfig = loadGitHubConfig(env);
-  if (!githubConfig.ok) {
-    exitOnConfigError(
-      `api composition: invalid GitHub configuration: ${githubConfig.error.issues.join("; ")}`,
-    );
-  }
-  const persistenceConfig = loadPersistenceConfig(env, {
-    onWarning: (message) => logger.warn(message),
-  });
-  if (!persistenceConfig.ok) {
-    exitOnConfigError(
-      `api composition: invalid persistence configuration: ${persistenceConfig.error.issues.join("; ")}`,
-    );
-  }
-  // Only the `drafts` block: the generator block is the worker's concern, so
-  // this process needs no adapter validation and no provider keys.
-  const instancePolicy = loadInstancePolicy(env);
-  if (!instancePolicy.ok) {
-    exitOnConfigError(
-      `api composition: invalid instance draft policy: ${instancePolicy.error.issues.join("; ")}`,
-    );
-  }
-  return {
-    api: config.value,
-    github: githubConfig.value,
-    persistence: persistenceConfig.value,
-    draftPolicy: instancePolicy.value.draftPolicy,
-  };
-}
+const logger = createBootLogger(env);
 
 async function main(): Promise<void> {
-  const boot = loadBootConfig();
+  const boot = loadBootConfig(env, logger);
 
   // Eager: a key changed post-deploy makes every stored ciphertext
   // undecryptable, which the gate reads as a mass logout.
@@ -113,6 +45,7 @@ async function main(): Promise<void> {
   const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
   if (!sessionKey.ok) {
     exitOnConfigError(
+      logger,
       `api composition: ${SESSION_KEY_REF} is missing or invalid: ${sessionKey.error.code}`,
     );
   }
@@ -124,12 +57,13 @@ async function main(): Promise<void> {
     autoMigrate: boot.persistence.autoMigrate,
     runningVersion: boot.api.serverVersion,
     log: logger,
+    migrateCommand: resolveMigrateCommand(env[RUNTIME_MARKER_VAR]),
   });
   if (!ensured.ok) {
-    // Exit 1, not the config-error 0: pending migrations are fixed by a
-    // migrate run, after which a restart succeeds.
+    // FAILURE, not the config-error SUCCESS: pending migrations are fixed by
+    // a migrate run, after which a restart succeeds.
     logger.error(`api composition: ${ensured.error.message}`);
-    process.exit(1);
+    process.exit(ExitCodes.FAILURE);
   }
   await migrateQueue(databaseUrl);
   const handle: AppDatabase = createDb(databaseUrl, {
@@ -203,10 +137,10 @@ function installShutdown(
     updateCheck.stop();
     server.close(() => {
       void closeDb(handle).then(
-        () => process.exit(0),
+        () => process.exit(ExitCodes.SUCCESS),
         (error: unknown) => {
           logger.warn("api shutdown: closing the pool failed", { err: error });
-          process.exit(0);
+          process.exit(ExitCodes.SUCCESS);
         },
       );
     });
@@ -218,5 +152,5 @@ function installShutdown(
 main().catch((error: unknown) => {
   // Transient faults keep the nonzero exit so a restart can self-heal.
   logger.error("api composition failed", { err: error });
-  process.exit(1);
+  process.exit(ExitCodes.FAILURE);
 });

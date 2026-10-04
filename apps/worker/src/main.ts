@@ -9,11 +9,16 @@ import {
   parseHugeSpanRatio,
   parseRevisionNarrativeFlag,
 } from "brief-core";
-import { createGenerator } from "generators";
+import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
 import { createGraphileLogFactory, createLogger } from "logging";
-import { closeDb, createDb, createEnvKeyProvider } from "persistence";
+import {
+  closeDb,
+  createDb,
+  createEnvKeyProvider,
+  resolveMigrateCommand,
+} from "persistence";
 import type { Mutable } from "types/utils";
 import { loadConfig } from "./config";
 import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
@@ -185,6 +190,7 @@ async function main(): Promise<void> {
     autoMigrate: config.value.autoMigrate,
     runningVersion: config.value.serverVersion,
     log: logger,
+    migrateCommand: resolveMigrateCommand(env[RUNTIME_MARKER_VAR]),
     concurrency: config.value.concurrency,
     // helpers.abortSignal is graphile's graceful-shutdown signal: SIGTERM
     // aborts an in-flight stream (job back to queue) instead of riding out the

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
-import type { Result, ValueOf } from "types/utils";
+import { Runtimes, type Result, type ValueOf } from "types";
 import {
   ClaudeCodeGenerator,
   CLAUDE_PROBE,
@@ -432,7 +432,7 @@ export const defaultGeneratorConfig: GeneratorConfig = {
  * missing-binary probe error would misdiagnose a deliberate boundary.
  */
 export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
-export const COMPOSE_WORKER_RUNTIME = "compose-worker";
+export const COMPOSE_WORKER_RUNTIME = Runtimes.COMPOSE_WORKER;
 
 const HARNESS_PROVIDERS: ReadonlySet<Provider> = new Set([
   Providers.CLAUDE_CODE,

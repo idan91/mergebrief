@@ -14,6 +14,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import type { Logger } from "logging";
 import { Pool } from "pg";
+import { Runtimes } from "types/runtime";
 import { z } from "zod";
 import type { Result, ValueOf } from "../types";
 import { recordInstanceVersion } from "./instance-version";
@@ -97,6 +98,27 @@ export const SchemaCheckErrorCodes = {
 } as const;
 export type SchemaCheckErrorCode = ValueOf<typeof SchemaCheckErrorCodes>;
 
+/** The manual migrate command a refusal names: the api's migrate entry, in
+ * its checkout form for a source run and its image form inside the shipped
+ * container. Both take the same lock and write the same version row as
+ * boot, which `drizzle-kit migrate` alone would not. The caller knows which
+ * runtime it is; this package never reads env. */
+export const CHECKOUT_MIGRATE_COMMAND = "pnpm -C apps/api migrate";
+export const IMAGE_MIGRATE_COMMAND = "docker compose run --rm api migrate";
+export type MigrateCommand =
+  | typeof CHECKOUT_MIGRATE_COMMAND
+  | typeof IMAGE_MIGRATE_COMMAND;
+
+/** The command for the runtime the caller read from `MERGEBRIEF_RUNTIME`. */
+export function resolveMigrateCommand(
+  runtime: string | undefined,
+): MigrateCommand {
+  if (runtime === Runtimes.COMPOSE_WORKER) {
+    return IMAGE_MIGRATE_COMMAND;
+  }
+  return CHECKOUT_MIGRATE_COMMAND;
+}
+
 export interface SchemaCheckError {
   readonly code: SchemaCheckErrorCode;
   /** Operator-facing refusal: pending count + the manual command. Never
@@ -145,6 +167,7 @@ async function latestAppliedMillis(
  */
 export async function checkAppSchemaWith(
   executor: SchemaQueryExecutor,
+  migrateCommand: MigrateCommand = CHECKOUT_MIGRATE_COMMAND,
 ): Promise<Result<undefined, SchemaCheckError>> {
   const journal = JournalSchema.parse(
     JSON.parse(
@@ -166,9 +189,9 @@ export async function checkAppSchemaWith(
       message:
         `database schema is ${pending} migration(s) behind the checked-in set ` +
         "and MERGEBRIEF_AUTO_MIGRATE=false forbids applying at boot. Run " +
-        "`pnpm -C packages/persistence migrate` with a DDL-capable " +
-        "DATABASE_URL, then restart the api and the worker (the web tier " +
-        "recovers on its next request)",
+        `\`${migrateCommand}\` with a DDL-capable DATABASE_URL, then ` +
+        "restart the api and the worker (the web tier recovers on its next " +
+        "request)",
     },
   };
 }
@@ -176,11 +199,13 @@ export async function checkAppSchemaWith(
 /** `checkAppSchemaWith` over a short-lived single-connection pool. */
 export async function checkAppSchema(
   databaseUrl: string,
+  migrateCommand: MigrateCommand = CHECKOUT_MIGRATE_COMMAND,
 ): Promise<Result<undefined, SchemaCheckError>> {
   const pool = new Pool({ connectionString: databaseUrl, max: 1 });
   try {
     return await checkAppSchemaWith(
       async (sql) => (await pool.query(sql)).rows,
+      migrateCommand,
     );
   } finally {
     await pool.end();
@@ -195,6 +220,8 @@ export interface EnsureAppSchemaOptions {
    * apply. A check-only boot stays read-only and leaves the row alone. */
   readonly runningVersion?: string;
   readonly log?: Logger;
+  /** Named in the refusal; defaults to the checkout form. */
+  readonly migrateCommand?: MigrateCommand;
 }
 
 /** Injectable apply/check implementations, a TEST interface (the real ones need
@@ -203,6 +230,7 @@ export interface EnsureAppSchemaDeps {
   readonly apply: (databaseUrl: string) => Promise<void>;
   readonly check: (
     databaseUrl: string,
+    migrateCommand: MigrateCommand,
   ) => Promise<Result<undefined, SchemaCheckError>>;
   readonly record: (
     databaseUrl: string,
@@ -227,7 +255,10 @@ export async function ensureAppSchema(
   },
 ): Promise<Result<undefined, SchemaCheckError>> {
   if (!options.autoMigrate) {
-    return deps.check(databaseUrl);
+    return deps.check(
+      databaseUrl,
+      options.migrateCommand ?? CHECKOUT_MIGRATE_COMMAND,
+    );
   }
 
   await deps.apply(databaseUrl);

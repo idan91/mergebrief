@@ -389,6 +389,7 @@
       // `process.env`. Everything else takes its values as parameters.
       "files": [
         "apps/api/src/main.ts",
+        "apps/api/src/migrate.ts",
         "apps/worker/src/main.ts",
         "apps/web/src/server/env.ts",
         "apps/cli/src/bin.ts",

@@ -398,6 +398,10 @@ _Avoid_: version (the number, not the thing), build (a dev artifact), deploy
 One running MergeBrief: an API, a web tier and a worker over one database, reporting one `SERVER_VERSION`. What an **Operator** upgrades.
 _Avoid_: server (ambiguous with the API process), deployment, installation (that is a GitHub App installation)
 
+**Image**:
+The one container artifact a **Release** ships, carrying its version. It runs the API, the web tier, the worker and the migrate step, each started by one word. A build from a checkout is a **Dev build** of it.
+_Avoid_: container (the running copy), images (plural; one per Release), docker (the tool)
+
 **Expand step** / **Contract step**:
 The two halves of a schema change: the Expand step adds, copies or widens in one **Release**; the Contract step drops, rewrites or tightens in the next Release of any kind, patch included. Release N-1 keeps working beside release N.
 _Avoid_: migration (the mechanism, not the promise), phase

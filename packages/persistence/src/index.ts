@@ -35,11 +35,15 @@ export {
   migrateApp,
   ensureAppSchema,
   SchemaCheckErrorCodes,
+  CHECKOUT_MIGRATE_COMMAND,
+  IMAGE_MIGRATE_COMMAND,
+  resolveMigrateCommand,
 } from "./db/migrate";
 export type {
   SchemaCheckError,
   SchemaCheckErrorCode,
   EnsureAppSchemaOptions,
+  MigrateCommand,
 } from "./db/migrate";
 
 // Persistence env config (Zod-parsed; injectable env, never reads process.env).

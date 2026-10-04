@@ -38,6 +38,14 @@ export interface ApiConfig {
 /** The value rides in a response header, which refuses whitespace and non-ASCII. */
 const HEADER_TOKEN_PATTERN = /^[\x21-\x7E]+$/;
 
+/** `SERVER_VERSION` rides the `MergeBrief-Version` header, so it must be a
+ * printable header token; unset means a dev build. */
+const ServerVersionSchema = z
+  .string()
+  .regex(HEADER_TOKEN_PATTERN, "SERVER_VERSION must be printable ASCII")
+  .optional();
+const DEV_SERVER_VERSION = "dev";
+
 const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
 const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
 
@@ -87,10 +95,7 @@ const ConfigSchema = z.object({
     .string({ required_error: "PUBLIC_BASE_URL is required for reviewer auth" })
     .min(1, "PUBLIC_BASE_URL is required for reviewer auth")
     .refine(isHttpUrl, "PUBLIC_BASE_URL must be an absolute http(s) URL"),
-  SERVER_VERSION: z
-    .string()
-    .regex(HEADER_TOKEN_PATTERN, "SERVER_VERSION must be printable ASCII")
-    .optional(),
+  SERVER_VERSION: ServerVersionSchema,
   MERGEBRIEF_URL_BOX_TOKEN: z.string().min(1).optional(),
   MERGEBRIEF_UPDATE_CHECK: parseEnvBool(true),
   MERGEBRIEF_UPDATE_CHECK_URL: z
@@ -101,6 +106,25 @@ const ConfigSchema = z.object({
     )
     .optional(),
 });
+
+/** The one API knob the migrate entry needs: the version it records. */
+export function loadServerVersion(
+  env: Readonly<Record<string, string | undefined>>,
+): Result<string, ConfigError> {
+  const parsed = ServerVersionSchema.safeParse(env["SERVER_VERSION"]);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: {
+        code: ConfigErrorCodes.INVALID,
+        issues: parsed.error.issues.map(
+          (issue) => `SERVER_VERSION: ${issue.message}`,
+        ),
+      },
+    };
+  }
+  return { ok: true, value: parsed.data ?? DEV_SERVER_VERSION };
+}
 
 /** Parse the process env into the API's own knobs. Never throws. */
 export function loadConfig(
@@ -125,7 +149,7 @@ export function loadConfig(
       host: value.MERGEBRIEF_API_HOST ?? DEFAULT_API_HOST,
       port: value.MERGEBRIEF_API_PORT ?? DEFAULT_API_PORT,
       publicBaseUrl: value.PUBLIC_BASE_URL,
-      serverVersion: value.SERVER_VERSION ?? "dev",
+      serverVersion: value.SERVER_VERSION ?? DEV_SERVER_VERSION,
       urlBoxFallbackToken: value.MERGEBRIEF_URL_BOX_TOKEN,
       updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
       updateCheckUrl:

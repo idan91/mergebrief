@@ -12,7 +12,11 @@ import {
 } from "graphile-worker";
 import type { Logger } from "logging";
 import type { Mutable } from "types/utils";
-import { ensureAppSchema, type EnsureAppSchemaOptions } from "persistence";
+import {
+  ensureAppSchema,
+  type EnsureAppSchemaOptions,
+  type MigrateCommand,
+} from "persistence";
 
 /** One slot keeps a self-hosted worker's spend and memory bounded by default. */
 const DEFAULT_CONCURRENCY = 1;
@@ -34,6 +38,8 @@ export interface StartWorkerOptions {
    * leaves the row alone (tests). Needs `log` to say so. */
   readonly runningVersion?: string;
   readonly log?: Logger;
+  /** Named in a check-only refusal; omitted = the checkout command. */
+  readonly migrateCommand?: MigrateCommand;
 }
 
 /**
@@ -72,6 +78,9 @@ export async function startWorker(
   if (options.runningVersion !== undefined && options.log !== undefined) {
     schemaOptions.runningVersion = options.runningVersion;
     schemaOptions.log = options.log;
+  }
+  if (options.migrateCommand !== undefined) {
+    schemaOptions.migrateCommand = options.migrateCommand;
   }
   const ensured = await ensureAppSchema(options.databaseUrl, schemaOptions);
   if (!ensured.ok) {

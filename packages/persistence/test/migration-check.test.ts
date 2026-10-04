@@ -9,13 +9,17 @@ import { fileURLToPath } from "node:url";
 import type { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
 import {
+  CHECKOUT_MIGRATE_COMMAND,
   checkAppSchemaWith,
   ensureAppSchema,
+  IMAGE_MIGRATE_COMMAND,
+  resolveMigrateCommand,
   SchemaCheckErrorCodes,
   type SchemaCheckError,
   type SchemaQueryExecutor,
 } from "../src/db/migrate";
 import { createLogger } from "logging";
+import { Runtimes } from "types/runtime";
 import { freshPglite, virginPglite } from "./helpers";
 
 /** Journal entry count read straight from the checked-in file, the
@@ -65,10 +69,24 @@ describe("migration check checkAppSchemaWith", () => {
     expect(result.error.code).toBe(SchemaCheckErrorCodes.PENDING_MIGRATIONS);
     expect(result.error.pendingCount).toBe(2);
     expect(result.error.message).toContain("2");
-    expect(result.error.message).toContain(
-      "pnpm -C packages/persistence migrate",
-    );
+    expect(result.error.message).toContain("pnpm -C apps/api migrate");
     expect(result.error.message).toContain("MERGEBRIEF_AUTO_MIGRATE");
+  });
+
+  it("refuses naming the command the caller passes", async () => {
+    const client = await virginPglite();
+    const result = await checkAppSchemaWith(
+      executorFor(client),
+      IMAGE_MIGRATE_COMMAND,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.message).toContain(
+      "docker compose run --rm api migrate",
+    );
+    expect(result.error.message).not.toContain("pnpm -C apps/api migrate");
   });
 
   it("treats a virgin database with no ledger table as fully behind", async () => {
@@ -95,6 +113,18 @@ describe("migration check checkAppSchemaWith", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.message).not.toContain("postgres://");
+  });
+});
+
+describe("migration check resolveMigrateCommand", () => {
+  it("names the image command under the compose runtime marker", () => {
+    expect(resolveMigrateCommand(Runtimes.COMPOSE_WORKER)).toBe(
+      IMAGE_MIGRATE_COMMAND,
+    );
+  });
+
+  it("names the checkout command for a source run", () => {
+    expect(resolveMigrateCommand(undefined)).toBe(CHECKOUT_MIGRATE_COMMAND);
   });
 });
 
@@ -150,6 +180,25 @@ describe("migration check ensureAppSchema dispatch", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toEqual(REFUSAL);
+  });
+
+  it("autoMigrate=false hands the caller's migrate command to the check", async () => {
+    const seen: string[] = [];
+    await ensureAppSchema(
+      URL,
+      { autoMigrate: false, migrateCommand: IMAGE_MIGRATE_COMMAND },
+      {
+        apply: async () => {
+          throw new Error("must not apply");
+        },
+        check: async (_databaseUrl, migrateCommand) => {
+          seen.push(migrateCommand);
+          return { ok: true, value: undefined };
+        },
+        record: stubNeverRecord,
+      },
+    );
+    expect(seen).toEqual([IMAGE_MIGRATE_COMMAND]);
   });
 
   it("autoMigrate=false passes a current database through", async () => {
