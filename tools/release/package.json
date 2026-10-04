@@ -1,0 +1,25 @@
+{
+  "name": "release",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The release tool: reads the per-release notes files, refuses a tag without one, stamps the tag's version into the shipped manifests, and writes the Release body and version.json the workflow uploads.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "check": "tsx src/main.ts check",
+    "stamp": "tsx src/main.ts stamp",
+    "prune-manifest": "tsx src/main.ts prune-manifest"
+  },
+  "dependencies": {
+    "types": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

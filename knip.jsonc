@@ -98,6 +98,7 @@
     "apps/worker": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/baselines": { "entry": ["src/main.ts"] },
     "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
+    "tools/release": { "entry": ["src/main.ts"] },
     "tools/oxlint-plugin-house": {
       "entry": ["src/index.mjs"],
       // Each rule's counter-examples: linted by the plugin's tests, never

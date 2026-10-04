@@ -16,11 +16,12 @@
     "test:persistence": "pnpm -C packages/persistence test",
     "typecheck:worker": "pnpm -C apps/worker typecheck",
     "test:worker": "pnpm -C apps/worker test",
-    "lint": "oxlint --type-aware --report-unused-disable-directives && depcruise --config .dependency-cruiser.cjs --cache --cache-strategy metadata apps packages tools && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog && pnpm check:config && pnpm check:migrations && pnpm check:baselines",
+    "lint": "oxlint --type-aware --report-unused-disable-directives && depcruise --config .dependency-cruiser.cjs --cache --cache-strategy metadata apps packages tools && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog && pnpm check:config && pnpm check:migrations && pnpm check:releases && pnpm check:baselines",
     "check:catalog": "pnpm -C apps/api manifest:check && pnpm -C apps/cli map:check",
     "check:config": "pnpm -C tools/oxlint-plugin-house test:config",
     "check:baselines": "pnpm -C tools/baselines check",
     "check:migrations": "pnpm -C packages/persistence check:migrations",
+    "check:releases": "pnpm -C tools/release check",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
