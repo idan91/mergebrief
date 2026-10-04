@@ -1,6 +1,6 @@
 # Brief / review
 
-An open-source, self-hostable **comprehension layer for code review.** It turns a pull request
+A source-available, self-hostable **comprehension layer for code review.** It turns a pull request
 from a flat file-list into a **Brief**: changes re-unitized into categorized **Change-groups**,
 each with a plain-language summary, a per-category **Playbook** (the known checklist for that
 kind of change), and **Risk Surface** attributes — facts worth a closer look, never a verdict.
@@ -163,7 +163,7 @@ something was erased without retaining *what*.
 ## Status
 
 This project follows [`docs/oss-roadmap.md`](./docs/oss-roadmap.md) — an early-stage, actively
-developed OSS project, not a finished product. The domain model is documented in
+developed self-hosted project, not a finished product. The domain model is documented in
 [`CONTEXT.md`](./CONTEXT.md); architectural decisions are recorded as ADRs under
 [`docs/adr/`](./docs/adr/).
 
@@ -175,4 +175,6 @@ Risk-Surface attribute needs no code at all. See [`CONTRIBUTING.md`](./CONTRIBUT
 
 ## License
 
-TBD.
+You may use, self-host, modify and fork MergeBrief. You may not offer it, or a substitute
+built on it, as a competing commercial product or service. Each release becomes Apache-2.0 two
+years after it ships. The full text is in [`LICENSE`](./LICENSE) (`FSL-1.1-ALv2`).

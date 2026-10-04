@@ -5,7 +5,7 @@
 > image and the npm package alike; a publish stamps the tag's version into
 > `apps/cli/package.json` right before build, never committed, and the repo
 > keeps `0.0.0`, the dev sentinel that switches the CLI's version checks off
-> (`prepublishOnly` refuses the sentinel until the stamp step exists).
+> (`prepublishOnly` and the release workflow refuse to publish the sentinel).
 > `mergebrief --version` prints the stamped number.
 
 The product gains a command-line client — **`mergebrief`** — for humans and

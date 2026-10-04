@@ -168,3 +168,10 @@ above before opening one. For anything architectural, read the relevant ADRs in
 [`docs/adr/`](./docs/adr/) first and open an issue to discuss; several tempting features
 (severity scores, AI-authored review comments, general-purpose bug hunting) are documented
 non-goals, and a PR won't change that.
+
+## License and the DCO
+
+Contributions land under the repository license, `FSL-1.1-ALv2` (see `LICENSE`).
+By opening a pull request you certify the Developer Certificate of Origin for its
+commits: that you may contribute the change under that license. No contributor
+license agreement, no sign-off trailer.

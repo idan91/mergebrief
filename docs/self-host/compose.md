@@ -14,8 +14,6 @@ docker compose up -d --wait
 
 Replace `v1.6.0` with the release you want; the
 [releases page](https://github.com/Idan91/code-review/releases) lists them.
-Until the first tagged release publishes these assets, the developer path
-below, which builds the image from a checkout, is the one that runs.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
 > instance will ever be reachable beyond your own machine. Postgres writes

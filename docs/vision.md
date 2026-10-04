@@ -6,7 +6,7 @@
 
 ## What it is
 
-An **open-source, self-hostable comprehension layer for code review.** It turns a pull
+A **source-available, self-hostable comprehension layer for code review.** It turns a pull
 request from a flat file-list into a **Brief**: changes re-unitized into categorized
 **Change-groups**, each with a plain-language summary, a per-category **playbook** (the
 known checklist for that kind of change), risk-surface attributes, and — across pushes — a
@@ -40,7 +40,7 @@ funded SaaS structurally cannot occupy:
   they don't have.
 - **No-verdict, receipt-not-approval values.** A point of view about trust, stated in the open.
 
-The goal is **a quality OSS project with good word-of-mouth** — something good engineers use
+The goal is **a quality self-hosted project with good word-of-mouth** — something good engineers use
 in the open, and a credible piece of public work. Mindshare for the thesis, not market share.
 
 ## Non-goals (what this project refuses to be)

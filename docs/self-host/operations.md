@@ -46,13 +46,13 @@ and only GitHub tells you.
 ### Before you upgrade
 
 1. Read the notes of every release between yours and the target, not only
-   the newest. Each GitHub Release body opens with the three lines of
+   the newest. Each GitHub Release body opens with
    [the upgrade step](#the-upgrade-step) for that release, its tag filled
    in.
 2. Check whether any release in that gap is breaking. The notice says an
    extra step is needed, and `breaking` is `true` in `GET /api/version` and
    in `mergebrief auth status --json`. A breaking release needs the extra steps its
-   notes list, in order, on top of the three lines
+   notes list, in order, on top of the upgrade step
    ([Breaking releases](#breaking-releases)).
 3. Skim [`docs/api-changelog.md`](../api-changelog.md) if anything scripts
    against `/api/*` or against the log event names. Breaking changes are
@@ -272,7 +272,7 @@ as in the upgrade step.
 
 ### Breaking releases
 
-A breaking release is one whose upgrade needs more than the three lines: a
+A breaking release is one whose upgrade needs more than the upgrade step: a
 new required or removed env key, a Postgres major bump in the shipped
 compose file, a suspended expand-and-contract rule, or a manual data step.
 Its notes say which, and list the steps. Any release still upgrades to the

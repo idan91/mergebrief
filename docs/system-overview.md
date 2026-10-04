@@ -8,7 +8,7 @@ Status: **distribution + topology locked**; gating decisions Q2–Q7 in progress
 
 ## 1. Distribution model — LOCKED
 
-**OSS self-host first, open-core.** The same codebase runs in three modes; we do **not** fork.
+**Self-host first, fair source.** The same codebase runs in three modes; we do **not** fork.
 
 - **Static demo** — the FE replaying pre-generated briefs (today's `apps/web` reading `tools/categorizer/out/*.json`). No live backend, no LLM calls. Free on Vercel. The zero-friction "see the value" funnel.
 - **Self-host** — `docker compose up` (or a Railway/Render blueprint). The adopter runs it in their own infra; **code and model keys never leave them**. `instance = tenant` (one installation per instance) — defers multi-tenancy entirely.

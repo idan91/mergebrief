@@ -63,6 +63,8 @@ Not gates yet:
       The harness itself stays a convention gate and never enters CI: live
       spend.
 
+How the release itself is cut: [`releasing.md`](./releasing.md).
+
 ---
 
 ## Residual manual walkthrough

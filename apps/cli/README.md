@@ -4,8 +4,8 @@ The MergeBrief CLI — the Brief review loop for humans and AI agents, over
 your deployment's HTTP API. One binary-shaped npm package; the web app stays
 the interactive surface.
 
-Private in v1 (this monorepo dogfoods it via `pnpm --dir apps/cli
-link-dev`); published to npm at OSS launch. Humans: `npm i -g mergebrief`.
+Published to npm by the release workflow as `mergebrief@X.Y.Z`; this
+monorepo dogfoods the dev build via `pnpm --dir apps/cli link-dev`. Humans: `npm i -g mergebrief`.
 Agents/CI: `npx mergebrief` — always-latest is safe, the output contract is
 additive-only (see below). Pinning is supported but never required for
 compatibility.

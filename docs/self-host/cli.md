@@ -93,7 +93,9 @@ lives in a secret store, not on disk.
 `mergebrief --version` prints the CLI's version. A CLI built from source
 reports `0.0.0`, and a server built from source reports `dev`. Either one
 is a dev build: it never checks for a newer version, never compares, and
-never warns.
+never warns. `mergebrief@next` is the most recent release candidate, not for
+production; a dist-tag never moves on its own, so `next` can be older than
+`latest` once the release it previewed is out.
 
 ### What the CLI prints when versions differ
 

@@ -1,5 +1,9 @@
 # OSS-Only — No Hosted or Commercial Arm
 
+> **Amended by [ADR 0044](./0044-fair-source-license.md) (2026-10-03):** the license is fair
+> source (FSL-1.1-Apache-2.0), source-available rather than OSI open source. The no-hosted-arm
+> decision and everything else here stand.
+
 The project is **open-source and self-hostable only**. There is **no hosted offering and no
 commercial/SaaS arm** — not deferred-behind-validation as ADR 0017 framed it, but a settled
 direction. The goal is a high-quality OSS project with good word-of-mouth and credible public
