@@ -1,6 +1,7 @@
 {
   "name": "code-review",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "engines": {
     "node": "^22 || ^24 || >=26"

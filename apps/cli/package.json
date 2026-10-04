@@ -4,8 +4,14 @@
   "private": true,
   "type": "module",
   "description": "MergeBrief CLI — humans and AI agents over the read/write API.",
+  "license": "FSL-1.1-ALv2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Idan91/code-review.git",
+    "directory": "apps/cli"
+  },
   "bin": {
-    "mergebrief": "./dist/mergebrief.js"
+    "mergebrief": "dist/mergebrief.js"
   },
   "engines": {
     "node": ">=20"
