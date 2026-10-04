@@ -384,6 +384,52 @@ _Avoid_: library, module (for a workspace member)
 A repo-local script run by hand, never deployed, never imported. Lives under `tools/`.
 _Avoid_: script (bare), dev package
 
+### Releases and upgrades
+
+**Operator**:
+The person who runs an **Instance**: installs it, upgrades it, backs up its database, reads its log. Not a role in the app; no admin exists, every signed-in user sees the **Version notice**, and the upgrade step runs on the host.
+_Avoid_: admin (no such role), self-hoster (informal only), maintainer (that is the project's)
+
+**Release**:
+One published version of MergeBrief, cut from one git tag: one version number, one image, one npm package, one notes file, one GitHub Release carrying the compose file and `version.json`.
+_Avoid_: version (the number, not the thing), build (a dev artifact), deploy
+
+**Instance**:
+One running MergeBrief: an API, a web tier and a worker over one database, reporting one `SERVER_VERSION`. What an **Operator** upgrades.
+_Avoid_: server (ambiguous with the API process), deployment, installation (that is a GitHub App installation)
+
+**Expand step** / **Contract step**:
+The two halves of a schema change: the Expand step adds, copies or widens in one **Release**; the Contract step drops, rewrites or tightens in the next Release of any kind, patch included. Release N-1 keeps working beside release N.
+_Avoid_: migration (the mechanism, not the promise), phase
+
+**Breaking release**:
+A **Release** whose upgrade needs more than the three documented lines: a new required or removed env key, a Postgres major bump, a suspended expand-and-contract rule, a manual data step. Flagged `breaking` in `version.json`.
+_Avoid_: major (semver, not the promise), incompatible
+
+**Security release**:
+A **Release** that fixes a vulnerability. Flagged `security`; the **Version notice** stays until the **Instance** runs it or newer.
+_Avoid_: hotfix, patch (semver)
+
+**Rollback**:
+Running the previous **Release** again. One release back needs no **Restore**.
+_Avoid_: downgrade, revert
+
+**Restore**:
+Loading a dump into an empty database. Part of a **Rollback** only two or more releases back or across a **Breaking release**.
+_Avoid_: recovery, rollback (the whole move)
+
+**Skew**:
+The installed CLI and the server it talks to run different **Releases**. A difference in what is installed, never in what was released.
+_Avoid_: mismatch, drift, version gap (informal only)
+
+**Dev build**:
+A server reporting `dev` or a CLI reporting `0.0.0`: never checks for a newer version, never compares, never warns.
+_Avoid_: local build, snapshot, unversioned
+
+**Version notice**:
+The band directly under the Header on Home and the Brief page saying a newer **Release** exists, with its release-notes link. Dismissible per user per Release, except for a **Security release**.
+_Avoid_: banner (the skin, not the concept), update prompt, nag (that is the CLI's line)
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.

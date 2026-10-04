@@ -19,11 +19,6 @@
       "count": 1
     }
   },
-  "apps/api/src/request-logging.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/api/src/routes/auth/tokens/consts.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -99,11 +94,6 @@
     }
   },
   "apps/api/test/product-operation-manifest.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/api/test/request-logging.test.ts": {
     "house/test-title": {
       "count": 1
     }

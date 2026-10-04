@@ -3,6 +3,7 @@
 // owns. Every other config block comes from the package that owns it.
 import { z } from "zod";
 import type { Result, ValueOf } from "types/utils";
+import { DEFAULT_UPDATE_CHECK_URL } from "./update-check/consts";
 
 /** Loopback by default: the API is reached through the web tier, not directly. */
 export const DEFAULT_API_HOST = "127.0.0.1";
@@ -29,6 +30,33 @@ export interface ApiConfig {
   readonly publicBaseUrl: string;
   readonly serverVersion: string;
   readonly urlBoxFallbackToken: string | undefined;
+  /** `MERGEBRIEF_UPDATE_CHECK`: the hourly fetch of the release manifest. */
+  readonly updateCheck: boolean;
+  readonly updateCheckUrl: string;
+}
+
+const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
+const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
+
+/** `z.coerce.boolean()` reads "false" as true; this maps the explicit tokens. */
+function parseEnvBool(
+  defaultValue: boolean,
+): z.ZodType<boolean, z.ZodTypeDef, unknown> {
+  return z.preprocess((value) => {
+    if (value === undefined) {
+      return defaultValue;
+    }
+    if (typeof value === "string") {
+      const token = value.trim().toLowerCase();
+      if (TRUE_TOKENS.has(token)) {
+        return true;
+      }
+      if (FALSE_TOKENS.has(token)) {
+        return false;
+      }
+    }
+    return value;
+  }, z.boolean());
 }
 
 const PortSchema = z
@@ -58,6 +86,14 @@ const ConfigSchema = z.object({
     .refine(isHttpUrl, "PUBLIC_BASE_URL must be an absolute http(s) URL"),
   SERVER_VERSION: z.string().min(1).optional(),
   MERGEBRIEF_URL_BOX_TOKEN: z.string().min(1).optional(),
+  MERGEBRIEF_UPDATE_CHECK: parseEnvBool(true),
+  MERGEBRIEF_UPDATE_CHECK_URL: z
+    .string()
+    .refine(
+      isHttpUrl,
+      "MERGEBRIEF_UPDATE_CHECK_URL must be an absolute http(s) URL",
+    )
+    .optional(),
 });
 
 /** Parse the process env into the API's own knobs. Never throws. */
@@ -85,6 +121,9 @@ export function loadConfig(
       publicBaseUrl: value.PUBLIC_BASE_URL,
       serverVersion: value.SERVER_VERSION ?? "dev",
       urlBoxFallbackToken: value.MERGEBRIEF_URL_BOX_TOKEN,
+      updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
+      updateCheckUrl:
+        value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,
     },
   };
 }

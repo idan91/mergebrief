@@ -11,6 +11,10 @@
 export * from "./schema/index";
 export * from "./types";
 
+// --- version/: the one semver grammar for a MergeBrief version string ------
+export { compareSemver, formatSemver, parseSemver } from "./version";
+export type { Semver } from "./version";
+
 // --- db/: the opaque handle + its lifecycle ---------------------------------
 
 // `AppDatabase` exposes no queryable shape; `AppDrizzle` and `internal()` are

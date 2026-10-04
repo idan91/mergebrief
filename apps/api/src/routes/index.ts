@@ -19,6 +19,7 @@ import type { OpenPullRequest } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
 import type { InstallationGitHubPort } from "./github-port";
+import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
@@ -36,6 +37,8 @@ export interface AppDeps {
   readonly github: InstallationGitHubPort;
   /** Exposed by GET /api/version for skew visibility. */
   readonly serverVersion?: string;
+  /** The release check `GET /api/version` reads; absent answers `{version}` only. */
+  readonly updateCheck?: UpdateCheck;
   /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
   /** Audit knobs from persistence config; omitted = private writes on,
@@ -66,7 +69,12 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
     INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES,
   );
   app.route("/auth", authRoutes(deps));
-  app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
+  const serverVersion = deps.serverVersion ?? "dev";
+  const readVersion = (): VersionSnapshot =>
+    deps.updateCheck === undefined
+      ? { version: serverVersion }
+      : deps.updateCheck.snapshot();
+  app.route("/version", versionRoute(deps, readVersion));
   app.route("/capabilities", capabilitiesRoute(deps));
   app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation

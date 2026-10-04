@@ -26,6 +26,7 @@ import { loadConfig, SESSION_KEY_REF, type ApiConfig } from "./config";
 import { handleHealthRequest } from "./health";
 import { migrateQueue } from "./queue";
 import { appInstallationPort } from "./routes/github-port";
+import { createUpdateCheck, type UpdateCheck } from "./update-check";
 
 /** Load `apps/api/.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
@@ -131,11 +132,20 @@ async function main(): Promise<void> {
       logger.warn("postgres pool error (idle client)", { err: error }),
   });
 
+  const updateCheck = createUpdateCheck({
+    serverVersion: boot.api.serverVersion,
+    enabled: boot.api.updateCheck,
+    url: boot.api.updateCheckUrl,
+    fetch,
+    log: logger,
+  });
+
   const app = createApp({
     handle,
     webhookSecret: boot.github.webhookSecret,
     logger,
     draftPolicy: boot.draftPolicy,
+    updateCheck,
     audit: {
       privateWrites: boot.persistence.auditPrivateWrites,
       callerIp: boot.persistence.auditCallerIp,
@@ -167,19 +177,25 @@ async function main(): Promise<void> {
     },
     (info) => {
       logger.info("api listening", { port: info.port });
+      updateCheck.start();
     },
   );
 
-  installShutdown(server, handle);
+  installShutdown(server, handle, updateCheck);
 }
 
 /** SIGTERM and SIGINT stop accepting, then release the pool before exiting. */
-function installShutdown(server: ServerType, handle: AppDatabase): void {
+function installShutdown(
+  server: ServerType,
+  handle: AppDatabase,
+  updateCheck: UpdateCheck,
+): void {
   let closing = false;
   const shutdown = (signal: string): void => {
     if (closing) return;
     closing = true;
     logger.info("api shutting down", { signal });
+    updateCheck.stop();
     server.close(() => {
       void closeDb(handle).then(
         () => process.exit(0),

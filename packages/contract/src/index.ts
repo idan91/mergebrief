@@ -97,3 +97,4 @@ export {
   type RevisionView,
 } from "./revisions";
 export type { ViewerView } from "./viewer";
+export type { VersionResponse } from "./version";

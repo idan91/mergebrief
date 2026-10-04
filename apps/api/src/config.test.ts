@@ -31,3 +31,42 @@ describe("loadConfig PUBLIC_BASE_URL", () => {
     expect(loadConfig({}).ok).toBe(false);
   });
 });
+
+describe("loadConfig update check knobs", () => {
+  const BASE = { PUBLIC_BASE_URL: "http://localhost:3000" };
+
+  it("defaults the check on with the GitHub release URL", () => {
+    const result = loadConfig(BASE);
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        updateCheck: true,
+        updateCheckUrl: expect.stringContaining("/releases/latest/download/"),
+      },
+    });
+  });
+
+  it("reads MERGEBRIEF_UPDATE_CHECK=false as off", () => {
+    const result = loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "false" });
+    expect(result).toMatchObject({ ok: true, value: { updateCheck: false } });
+  });
+
+  it("refuses an update check token it does not know", () => {
+    expect(loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "maybe" }).ok).toBe(
+      false,
+    );
+  });
+
+  it("takes an absolute update check URL and refuses a relative one", () => {
+    const mirror = "https://mirror.example.test/version.json";
+    expect(
+      loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK_URL: mirror }),
+    ).toMatchObject({ ok: true, value: { updateCheckUrl: mirror } });
+    expect(
+      loadConfig({
+        ...BASE,
+        MERGEBRIEF_UPDATE_CHECK_URL: "mirror/version.json",
+      }).ok,
+    ).toBe(false);
+  });
+});

@@ -19,10 +19,13 @@ function isRecord(value: unknown): value is CapturedLine {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function captureLogger(): { logger: Logger; lines: () => CapturedLine[] } {
+function captureLogger(env: Record<string, string> = {}): {
+  logger: Logger;
+  lines: () => CapturedLine[];
+} {
   const written: string[] = [];
   const logger = createLogger({
-    env: {},
+    env,
     destination: { write: (line: string) => void written.push(line) },
   });
   return {
@@ -51,10 +54,27 @@ function buildApp(logger: Logger): Hono<RequestLogEnv> {
     stampAccess(c, "404", { reviewerId: 42n });
     return c.json({ error: "not found" }, 404);
   });
+  app.get("/api/version", (c) => c.json({ version: "1.4.0" }));
   return app;
 }
 
 describe("requestLogging", () => {
+  it("logs a successful polled version read at debug, a failure at info", async () => {
+    const { logger, lines } = captureLogger({ LOG_LEVEL: "debug" });
+    const app = buildApp(logger);
+
+    await app.request("/api/version");
+    await app.request("/api/version", { method: "POST" });
+
+    const access = lines().filter((line) => line["evt"] === "api.access");
+    expect(
+      access.map((line) => [line["path"], line["level"], line["status"]]),
+    ).toEqual([
+      ["/api/version", "debug", 200],
+      ["/api/version", "info", 404],
+    ]);
+  });
+
   it("emits one api.access line with the access fields + reqId", async () => {
     const { logger, lines } = captureLogger();
     const res = await buildApp(logger).request("/api/ok");
@@ -99,7 +119,7 @@ describe("requestLogging", () => {
     expect(handlerLine?.["detail"]).toBe(7);
   });
 
-  it("still emits the access line when the handler throws (onError 500)", async () => {
+  it("still emits the access line when the handler throws", async () => {
     const { logger, lines } = captureLogger();
     const app = buildApp(logger);
     app.get("/api/boom", () => {
