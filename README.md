@@ -20,7 +20,9 @@ recognizable across every PR you ever review, and a Playbook can attach to it re
 
 - **Open and self-hostable.** One core, `docker compose up`, your infrastructure, your data.
 - **BYOK, no per-seat cost, no telemetry.** Your model key, your spend. Self-hosted instances
-  send nothing back to us, by design.
+  send nothing back to us, by design. Beyond the GitHub API and your model provider, the one
+  outbound request is an hourly fetch of a public release file from GitHub that carries nothing
+  about your instance; `MERGEBRIEF_UPDATE_CHECK=false` turns it off.
 - **Hackable.** The taxonomy and Playbooks are plain markdown — read them, extend them,
   contribute to them. An ESLint-rules-style commons, not a black box.
 - **Facts, never verdicts.** Risk Surface attributes are factual observations a reviewer can
@@ -138,7 +140,8 @@ docs/                 vision, ADRs, domain model (CONTEXT.md), roadmap
 ## Your data (what's stored, and how forgetting works)
 
 The self-host backend (in progress) keeps everything in **your own Postgres, on your own
-infrastructure, with your own API key** — nothing leaves your network, and there is no
+infrastructure, with your own API key**. Beyond the GitHub API, your model provider and
+the hourly update check described above, nothing leaves your network, and there is no
 telemetry. What it stores is deliberately minimal:
 
 - **Stored:** generated Briefs and revision summaries (descriptions *of* your code), review

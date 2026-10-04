@@ -5,9 +5,17 @@ dependency), the API, the web tier that proxies to it, and the background
 worker that generates Briefs on every push.
 
 ```sh
+mkdir mergebrief && cd mergebrief
+curl -fsSLo docker-compose.yml https://github.com/Idan91/code-review/releases/download/v1.6.0/docker-compose.yml
+curl -fsSLo .env.example https://github.com/Idan91/code-review/releases/download/v1.6.0/.env.example
 cp .env.example .env      # fill in (see the env table below)
-docker compose up -d
+docker compose up -d --wait
 ```
+
+Replace `v1.6.0` with the release you want; the
+[releases page](https://github.com/Idan91/code-review/releases) lists them.
+Until the first tagged release publishes these assets, the developer path
+below, which builds the images from a checkout, is the one that runs.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
 > instance will ever be reachable beyond your own machine. Postgres writes
@@ -24,6 +32,42 @@ Then install your GitHub App on a repo (see [`github-app.md`](./github-app.md)),
 point its webhook at your public URL, and open http://localhost:3000. From
 here on, every push to an open PR gets its Brief generated automatically in
 the background — push code, Brief appears, reviewer opens it.
+
+## What the host holds
+
+One folder, no checkout of the repository and no build:
+
+- **`docker-compose.yml`**, a GitHub Release asset. It pins that release's
+  exact image tag, and an upgrade replaces it byte for byte, so never edit
+  it.
+- **`.env`**, your settings, started from the same release's `.env.example`
+  asset.
+- **`docker-compose.override.yml`**, optional, for your own edits: ports,
+  volumes, resource limits, a mount for `mergebrief.config.yaml`, an
+  external database. Compose merges it into `docker-compose.yml` on its
+  own (on an external database, through `COMPOSE_FILE`: see below), and an
+  upgrade never touches it.
+
+**One image, three commands.** `api`, `web` and `worker` all run
+`ghcr.io/idan91/mergebrief:X.Y.Z`, each started with its own command. The
+image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one
+that matches the host. Postgres runs the official `postgres:17-alpine`
+image, never bundled into ours.
+
+**Exact pin, never `latest`.** The shipped compose file names one release,
+`ghcr.io/idan91/mergebrief:1.6.0`, and that pin is what makes the
+[upgrade](./operations.md#the-upgrade-step) and the
+[rollback](./operations.md#rolling-back) a matter of swapping one file. The
+registry also publishes a `latest` tag that moves to every release, majors
+included. Do not point the compose file at it: the next pull would upgrade
+the instance without the backup or the steps a breaking release needs, and
+the file would no longer say which release you run.
+
+**Building from source is the developer path.** From a checkout of this
+repository, `git pull && docker compose build && docker compose up -d`
+builds the images from the working tree. That is for working on MergeBrief,
+not for upgrading an instance: a source build reports its version as
+`dev`, so it never checks for releases and never shows the version notice.
 
 ## What runs
 
@@ -53,7 +97,7 @@ no-ops. There is no separate migrate step. (Exception: restricted database
 roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false` — see the external
 Postgres section below.)
 
-## Environment (`.env` at the repo root)
+## Environment (`.env` beside `docker-compose.yml`)
 
 Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
 `${...}` interpolation everywhere. `web` gets no `env_file`: it is the
@@ -75,11 +119,13 @@ doesn't apply — several loaders distinguish unset from empty.
 | `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
 | `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`; `docker compose up --scale worker=N` wins for that run |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
-| `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file. Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
+| `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
 | `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 | `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
 | `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
+| `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true`; the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off |
+| `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com, an absolute http(s) URL |
 
 ### Who owns which setting
 
@@ -97,19 +143,34 @@ in both.
 
 ## External Postgres (managed database)
 
-The second supported deployment shape: web + worker from compose, the database from a managed provider (Neon, Supabase, RDS, ...)
+The second supported deployment shape: `api`, `web` and `worker` from
+compose, the database from a managed provider (Neon, Supabase, RDS, ...)
 or any Postgres you operate yourself.
+
+A second shipped file, `docker-compose.external-db.yml`, carries the same
+three services without the bundled `postgres`. It is a separate file on
+purpose: an override cannot remove a service, and `depends_on` cannot name
+a profiled-out one. Fetch it from the release beside the default file and
+name it in `.env`, so every plain `docker compose` command in these pages
+reads it:
 
 ```sh
 # .env: DATABASE_URL=postgres://...?sslmode=verify-full&sslrootcert=...
-docker compose -f docker-compose.external-db.yml up -d
+# .env: COMPOSE_FILE=docker-compose.external-db.yml
+docker compose up -d --wait
 ```
 
-`docker-compose.external-db.yml` is a separate checked-in file — web and
-worker only, no `postgres` service, no `depends_on`. It reads
-`DATABASE_URL` (and the other variables below) from `.env`, or from the
-shell you run compose from (shell wins). The bundled `postgres` service and
-its `POSTGRES_*` derivation do not apply here.
+Setting `COMPOSE_FILE` turns off the automatic load of
+`docker-compose.override.yml`, and every file it lists must exist or each
+compose command fails before anything starts. Your own edits still live in
+the override file, which an upgrade never touches: once you create it,
+append it to the list, `COMPOSE_FILE=docker-compose.external-db.yml:docker-compose.override.yml`.
+
+`api` and `worker` then read `DATABASE_URL` (and the other variables below)
+from `.env`. The bundled `postgres` service and its `POSTGRES_*` derivation
+do not apply here, and neither does the `docker compose exec postgres`
+backup in [operations.md](./operations.md#backup): your provider's snapshot
+replaces it.
 
 **Supported Postgres: 16 or newer.** The bundled `postgres:17-alpine` image
 is the reference; anything a current managed provider offers is in range.
@@ -143,10 +204,11 @@ psql, and will change behavior again on a future driver bump. Write
 `verify-full` when you want verification (always, unless you know why not).
 
 Providers whose CA is not in the system store (RDS is the common case)
-need the CA bundle mounted into both containers — download the provider's
-bundle (for RDS: the region bundle from AWS's docs), drop it at
-`./secrets/provider-ca.pem`, and uncomment the CA mount lines in
-`docker-compose.external-db.yml`, then reference it:
+need the CA bundle mounted into `api` and `worker`. Download the
+provider's bundle (for RDS: the region bundle from AWS's docs), drop it at
+`./secrets/provider-ca.pem`, mount it in `docker-compose.override.yml` (the
+`volumes:` entries in the example under the next heading), then reference
+it:
 
 ```
 DATABASE_URL=postgres://app:...@db.xxx.rds.amazonaws.com:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
@@ -161,12 +223,32 @@ An env var is visible in `docker inspect` and every env dump; a compose
 DSN (surrounding whitespace trimmed, so the usual trailing newline of a
 secret file is harmless — the official postgres image convention):
 
-1. put the DSN in `./secrets/database-url` (the `secrets/` directory is
-   gitignored),
-2. uncomment the `secrets:` blocks in `docker-compose.external-db.yml`
-   (top-level and per-service),
+1. put the DSN in `./secrets/database-url`, and keep the `secrets/` folder
+   out of anything you commit or share,
+2. declare the secret in `docker-compose.override.yml` and hand it to `api`
+   and `worker`,
 3. set `DATABASE_URL_FILE=/run/secrets/database-url` in `.env` instead of
    `DATABASE_URL`.
+
+```yaml
+# docker-compose.override.yml
+services:
+  api:
+    secrets:
+      - database-url
+    volumes:
+      - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+  worker:
+    secrets:
+      - database-url
+    volumes:
+      - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+secrets:
+  database-url:
+    file: ./secrets/database-url
+```
+
+Drop the `volumes:` entries when the provider's CA is publicly trusted.
 
 If both variables are set, the file wins and boot logs a warning naming
 the shadowed `DATABASE_URL`.
@@ -175,19 +257,27 @@ the shadowed `DATABASE_URL`.
 
 By default both services apply migrations at boot, which needs DDL. If
 your runtime role is read/write-only (least-privilege posture), set
-`MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks* — read-only —
-that the database matches the checked-in migrations, and refuses with the
-pending count when it is behind. The apply workflow moves to you; see
+`MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks*, read-only, that
+the database matches the release's migrations, and exits 1 naming the
+pending count when it is behind. The apply step moves to you and runs from
+a checkout of the release's tag; see
 [operations.md](./operations.md#external-database-auto-migratefalse).
 
-### Deployment shapes: what is supported
+## Other platforms
 
-Supported: (1) the all-in-one compose, (2) compose + external Postgres —
-this section. Beyond that: every service is env-configured and stateless
-outside Postgres, so splitting them across machines (or into
-another orchestrator) works in principle — it is untested and unsupported;
-you are off the map, though probably not far off. Kubernetes/Helm
-packaging is out of scope until real demand shows up.
+Compose is the one supported way to run MergeBrief: the all-in-one compose
+above, or compose with an external Postgres. Every service is
+env-configured and stateless outside Postgres, so the same image runs under
+another orchestrator (Kubernetes, Nomad, ECS) in principle, but that is
+untested and unsupported, and no recipe for one ships yet.
+
+If you run it elsewhere anyway, the image tag is the knob. Start
+`ghcr.io/idan91/mergebrief:X.Y.Z` as the three services the shipped
+`docker-compose.yml` defines, with the commands and environment it gives
+them, and pin the exact tag. An upgrade changes that tag everywhere it
+appears; a rollback is the previous task definition. A rolling deploy,
+where old and new containers serve side by side, must take
+[one release at a time](./operations.md#what-happens-to-the-schema).
 
 ## The lifecycle of a push
 
@@ -227,13 +317,12 @@ docker compose exec postgres \
   after a superseding push; `failed` carries a sanitized reason; `capped`
   means the instance hit its daily generation cap and the run was skipped — see
   [generators.md](./generators.md#daily-generation-cap)).
-- Misconfiguration surfaces differently per service: the **worker fails
-  loudly at boot** (`docker compose logs worker` names the rejected env
-  var), while the **web tier composes lazily on the first `/api`
-  request** — it boots and reports healthy on bad env, then 503s the first
-  webhook delivery or login with the config error in `docker compose logs
-  web`. After `up`, hit `curl -i localhost:3000/api/repos/0/pulls/0/brief`
-  once: a 401 means the web env parsed; a 503 means check the logs.
+- Misconfiguration fails loudly at boot in the **api** and the **worker**
+  alike (`docker compose logs api` or `logs worker` names the rejected env
+  var); the web tier holds no credentials and only proxies `/api/*`. After
+  `up`, hit `curl -i localhost:3000/api/version` once: a 401 means both
+  tiers are up and the api parsed its env; a 503 means the api is down,
+  check its logs.
 - The worker retries transient failures with backoff (graphile-owned);
   permanent conditions (e.g. GitHub's "diff too large" 406) are recorded as
   `failed` without retry.

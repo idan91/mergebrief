@@ -69,7 +69,7 @@ per-profile `headers` in the CLI config are the escape hatch:
 
 `mergebrief auth status --json` is the end-to-end probe: it reports
 reachability, whether the token authenticates, and the server version in
-one shape.
+one shape ([Versions](#versions) lists the version fields).
 
 ## Profiles (multiple deployments / organizations)
 
@@ -87,6 +87,126 @@ Resolution order per invocation: `--profile` / `MERGEBRIEF_PROFILE` → an
 the default profile (the first one you logged into). `MERGEBRIEF_TOKEN`
 overrides the resolved profile's stored token — handy in CI where the token
 lives in a secret store, not on disk.
+
+## Versions
+
+`mergebrief --version` prints the CLI's version. A CLI built from source
+reports `0.0.0`, and a server built from source reports `dev`. Either one
+is a dev build: it never checks for a newer version, never compares, and
+never warns.
+
+### What the CLI prints when versions differ
+
+Three kinds of line, all on stderr, in human and `--json` mode alike. None
+changes the exit code, and none refuses a command.
+
+| Case | On a successful run | On a failed run |
+| --- | --- | --- |
+| A newer mergebrief exists on npm, any size | the update line, once per answer | nothing extra |
+| CLI and server differ by a major, either direction | a warning on every run | the error line gains `[server 1.4.0, cli 2.0.0, major gap]` |
+| CLI and server differ by minor or patch | nothing | the error line gains `[server 1.4.0, cli 1.6.0]` |
+| Either side is a dev build | nothing | no suffix |
+
+The lines, for a server on 1.4.0:
+
+```text
+A new version of mergebrief is available: 1.2.0 → 1.6.0. To update, run: npm i -g mergebrief@1.6.0
+mergebrief 1.2.0 is behind this server (2.0.0): some commands may fail. To update, run: npm i -g mergebrief@2.0.0
+This server (1.4.0) is behind mergebrief 2.0.0: some commands may not exist there. To match it, run: npx mergebrief@1.4.0
+request failed (HTTP 404) [server 1.4.0, cli 1.6.0]
+```
+
+The first is the update line; the second and third are the major warning
+for a CLI behind the server and ahead of it; the last is a failed run's one
+error line with its suffix. Every version prints as plain
+`major.minor.patch`.
+
+The update line and the CLI-behind warning suggest `npx mergebrief@x.y.z`
+when the CLI runs under `npx` (npm sets `npm_command=exec`), and
+`npm i -g mergebrief@x.y.z` otherwise. The server-behind warning always
+suggests `npx mergebrief@<server version>`, which runs a matching CLI
+without touching a global install.
+
+### How the CLI knows
+
+- **The server's version** comes from the `MergeBrief-Version` header on
+  the first response of the run, so the comparison costs no extra request.
+  The API sets the header on every signed-in `/api/*` response, and never on
+  a 401, on `/healthz` or on `/readyz`: an unauthenticated caller learns
+  nothing the signed-in `GET /api/version` would not tell it.
+- **A newer CLI** comes from npm. The CLI asks
+  `https://registry.npmjs.org/mergebrief/latest` beside the command it is
+  running, and keeps the answer only if it arrived by the time the command
+  finished, within 2 seconds; otherwise the request is dropped, so a slow
+  registry never delays a command. The answer lands in
+  `update-check.json` under `$XDG_CACHE_HOME/mergebrief/` (or
+  `~/.cache/mergebrief/`), and the update line prints once, on a later run,
+  never during the check. The CLI asks only when the cached answer is
+  missing or more than a day old, and only an answer that arrived in time
+  is written, so a dropped or failed check leaves the cache as it was and
+  the next run asks again. The line prints after the next successful
+  command, once per answer; a failed run keeps its one error line and
+  leaves the update line for the run after. The request carries nothing
+  about your instance, and a failed check is silent. A network that reaches
+  your server but blocks `registry.npmjs.org` never sees the update line,
+  and sees the dropped request on every run; `MERGEBRIEF_NO_VERSION_WARNING`
+  stops it.
+
+### Turning the warnings off
+
+`MERGEBRIEF_NO_VERSION_WARNING`, set to any value, silences the update line
+and the major warning, and the CLI then never asks npm. The failure suffix
+stays: it is part of the error message. Nothing is gated on CI or a TTY. An agent in CI hitting a major
+gap is the reader who most needs the warning, and the update line stays
+quiet there anyway, because a fresh container never has a cached check to
+print.
+
+The instance's own `MERGEBRIEF_UPDATE_CHECK=false`
+([operations.md](./operations.md#the-update-check)) does not silence the
+CLI: the update line is the CLI asking npm from your machine, and
+`MERGEBRIEF_NO_VERSION_WARNING` is its opt-out.
+
+### `auth status`
+
+`mergebrief auth status` prints the server's version, the CLI's version
+and the newest release the server knows of on its second line:
+
+```text
+profile default → https://mb.example
+token: configured · authenticated · server 1.4.0 · cli 1.2.0 · latest 1.6.0
+```
+
+It is the one place a CLI user sees that the server itself is behind.
+`--json` carries the version fields beside `profile`, `baseUrl`,
+`tokenConfigured`, `server.reachable` and `server.authenticated`:
+
+| Field | What it holds |
+| --- | --- |
+| `cli.version` | this CLI's version |
+| `server.version` | the server's version, `null` when the server could not be reached or the token did not authenticate |
+| `server.latest` | the newest release the server's update check has seen |
+| `server.releaseNotesUrl` | that release's notes |
+| `server.checkedAt` | when the server last checked successfully |
+| `server.breaking` | `true` when a release between the server's version and `latest` is a breaking release |
+| `server.security` | `true` when a release in that gap fixes a vulnerability |
+
+The five fields after `server.version` appear only when the server sent
+them: a server whose update check is off, has not succeeded yet, or
+predates the check yields `server.version` alone.
+
+### `npx` or a global install
+
+`npx mergebrief` fetches the package on demand and usually runs the newest
+release; against an older server a major apart, the major warning names
+the version to pin, `npx mergebrief@1.4.0`. A global install
+(`npm i -g mergebrief`) stays on the version you installed until you update
+it, and the update line tells you about once a day, on the run after each
+daily check, while a newer one exists.
+
+When the newest release is a major ahead of your server, the two lines
+point opposite ways across days: the update line offers 2.0.0, and once you
+take it the major warning asks you to match 1.4.0. They never print in the
+same run. Upgrading the server ends it.
 
 ## Local generation and the primary ticket
 

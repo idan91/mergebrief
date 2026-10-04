@@ -51,7 +51,7 @@ changes get a breaking-change entry in
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | no; the network blocks github.com or the release file is malformed, and `/api/version` carries no fresh `checkedAt` |
 | `db.version.upgrade` | info | api, worker | `from`, `to` | no; the one-row `instance_version` table moved forward at boot |
 | `db.version.ahead` | warn | api, worker | `db`, `running` | yes: an older process booted under a database a newer one last recorded, a rollback; it keeps running |
-| `api.access` | info | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
+| `api.access` | info; debug for a 2xx `GET /api/version`, the read the browser polls once a minute per visible tab | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 
 `api.access` is the per-request access line (numeric ids only, never a
 token or cookie). `decision` is the auth gate's outcome; `status` is what
@@ -108,7 +108,13 @@ JSON either way:
 Wire **restart policies and the compose healthcheck to `/healthz` only** —
 a database blip must flip you out of the load balancer (`/readyz`), never
 restart-churn either tier. `/api/version` is unrelated: it is the CLI's
-authenticated liveness probe, not orchestrator health.
+authenticated liveness probe, not orchestrator health. It also carries
+`latest`, the newest release the update check has seen, with
+`releaseNotesUrl`, `checkedAt`, `breaking` and `security`; with the check
+off or not yet succeeded it carries `version` alone
+([operations.md](./operations.md#the-update-check)). `dismissedVersion`,
+when present, is the release the signed-in viewer dismissed the notice
+for.
 
 The **worker has no HTTP surface** by design (cohort norm): its liveness is
 the process itself — compose runs it with `restart: on-failure`, so
