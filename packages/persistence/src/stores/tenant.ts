@@ -33,23 +33,6 @@ import type {
 import type { Result, ValueOf } from "types/utils";
 import { PrStates, type PrState } from "types/pull-requests";
 
-// The context boundary lives in `./scope`; re-exported here so the package
-// surface (`index.ts`) and existing imports stay stable.
-export {
-  parseScopeContext,
-  parseTenantContext,
-  safeParseScopeContext,
-  safeParseTenantContext,
-  isOwnerContext,
-  ScopeContextSchema,
-  TenantContextSchema,
-} from "./scope-context";
-export type {
-  OwnerContext,
-  ScopeContext,
-  TenantContext,
-} from "./scope-context";
-
 // ---------------------------------------------------------------------------
 // Repository errors, expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------

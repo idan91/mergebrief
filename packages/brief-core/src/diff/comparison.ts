@@ -17,9 +17,6 @@ import {
 /** Which comparison baseline these marks are relative to. */
 export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
 
-/** Per-file marks, structurally identical to a `RevisionChangeFile`. */
-export type ComparisonMarksFile = RevisionChangeFile;
-
 export interface ComparisonMarks {
   baselineSha: string;
   headSha: string;
@@ -27,7 +24,7 @@ export interface ComparisonMarks {
   /** Brief index of the baseline SHA; null when the baseline was never briefed
    * (e.g. a checkpoint that predates the first brief). */
   baselineIndex: number | null;
-  files: ComparisonMarksFile[];
+  files: RevisionChangeFile[];
 }
 
 /**

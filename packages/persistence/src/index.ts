@@ -8,7 +8,39 @@
 // repository.
 
 // --- root: shared types -----------------------------------------------------
-export * from "./types";
+export {
+  isInstallationId,
+  isRepoId,
+  isReviewerId,
+  isPullRequestRowId,
+  isBriefRowId,
+  isApiTokenRowId,
+  isGrantRowId,
+  isReviewSessionId,
+  WriteClassifications,
+  UncoveredWorks,
+  GenerationKinds,
+  AuditActorTypes,
+  AuditChannels,
+  AuditOutcomes,
+} from "./types";
+export type {
+  InstallationId,
+  RepoId,
+  ReviewerId,
+  PullRequestRowId,
+  BriefRowId,
+  ApiTokenRowId,
+  GrantRowId,
+  ReviewSessionId,
+  WriteClassification,
+  UncoveredWork,
+  GenerationKind,
+  GenerationFailure,
+  AuditChannel,
+  AuditOutcome,
+  DraftAnchor,
+} from "./types";
 
 // --- version/: the one semver grammar for a MergeBrief version string ------
 export {
@@ -26,7 +58,7 @@ export { isHttpUrl } from "./url";
 // `AppDatabase` exposes no queryable shape; `AppDrizzle` and `internal()` are
 // intentionally absent from this surface.
 export { createDb, closeDb, pingDb } from "./db/handle";
-export type { AppDatabase, AppSchema, CreateDbOptions } from "./db/handle";
+export type { AppDatabase, CreateDbOptions } from "./db/handle";
 
 // Programmatic, idempotent app-schema migration for composition roots. The
 // graphile_worker schema stays graphile-owned. `ensureAppSchema` is the boot
@@ -48,7 +80,7 @@ export type {
 } from "./db/migrate";
 
 // Persistence env config (Zod-parsed; injectable env, never reads process.env).
-// `LoadConfigOptions` carries the DATABASE_URL_FILE reader + warning sink;
+// `ResolveDsnOptions` carries the DATABASE_URL_FILE reader + warning sink;
 // composition roots pass their logger's `warn`.
 export {
   AUDIT_RETENTION_FLOOR_DAYS,
@@ -59,15 +91,15 @@ export type {
   PersistenceConfig,
   ConfigError,
   ConfigErrorCode,
-  LoadConfigOptions,
 } from "./db/config";
+export type { ResolveDsnOptions } from "./db/dsn";
 
 // --- stores/: ctx-bound + projection data access ----------------------------
 
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
+export { createTenantRepository, RepositoryErrorCodes } from "./stores/tenant";
 export {
-  createTenantRepository,
   parseTenantContext,
   safeParseTenantContext,
   parseScopeContext,
@@ -75,12 +107,13 @@ export {
   isOwnerContext,
   TenantContextSchema,
   ScopeContextSchema,
-  RepositoryErrorCodes,
-} from "./stores/tenant";
+} from "./stores/scope-context";
 export type {
   TenantContext,
   OwnerContext,
   ScopeContext,
+} from "./stores/scope-context";
+export type {
   TenantRepository,
   PullRequestRepository,
   CheckpointRepository,

@@ -12,7 +12,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 import type { PendingReview } from "./review";
 import { HttpStatuses } from "types/http";
 

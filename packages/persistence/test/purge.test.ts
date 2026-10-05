@@ -3,7 +3,7 @@
 // auth_session, cross-tenant purge deletes nothing, and both sweeps stay
 // tenant-scoped. Seeds go through a RAW drizzle handle over the same PGlite.
 import { and, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
+import { type PgliteDatabase, drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import {
@@ -27,9 +27,8 @@ import {
   reviewSubmittedReview,
   revisionNarrative,
 } from "../src/schema/index";
-import * as schema from "../src/schema/index";
 import { PurgeErrorCodes, createPurgeRoutines } from "../src/stores/purge";
-import type { TenantContext } from "../src/stores/tenant";
+import type { TenantContext } from "../src/stores/scope-context";
 import {
   AuditOutcomes,
   GenerationKinds,
@@ -66,7 +65,7 @@ async function insertGrant(db: Db): Promise<GrantRowId> {
   return row.id;
 }
 
-type Db = ReturnType<typeof drizzle<typeof schema>>;
+type Db = PgliteDatabase;
 
 interface Pair {
   readonly raw: Db;
@@ -74,7 +73,7 @@ interface Pair {
 }
 
 async function freshPair(): Promise<Pair> {
-  const raw = drizzle(await freshPglite(), { schema });
+  const raw = drizzle(await freshPglite());
   return { raw, handle: fromDrizzle(raw) };
 }
 

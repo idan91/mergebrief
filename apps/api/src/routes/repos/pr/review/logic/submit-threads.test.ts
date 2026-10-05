@@ -5,8 +5,8 @@ import {
   type AddReviewThreadInput,
   type ReviewThread,
   type ReviewThreadFailure,
-  type Result,
 } from "github";
+import type { Result } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
 import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
 import { postReviewThreads, type PostThread } from "./submit-threads";

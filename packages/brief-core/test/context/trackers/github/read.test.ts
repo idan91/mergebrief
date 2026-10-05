@@ -12,7 +12,7 @@ import {
   MAX_SNIPPET_CHARS,
   type ContextReadFailure,
 } from "../../../../src/context/types";
-import type { TicketReference } from "../../../../src/context/references";
+import type { TicketReference } from "../../../../src/context/trackers/types";
 import { TicketTrackers } from "types/trackers";
 import { ReferenceLocations, TicketUnreadReasons } from "../../../../src/types";
 

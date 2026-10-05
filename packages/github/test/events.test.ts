@@ -17,7 +17,7 @@ import {
   type ParsedWebhookEvent,
   type PullRequestAction,
 } from "../src/webhook/events";
-import type { Result } from "../src/types";
+import type { Result } from "types/utils";
 
 function jsonFixture(name: string): unknown {
   const url = new URL(`./fixtures/${name}`, import.meta.url);

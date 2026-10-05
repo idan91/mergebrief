@@ -18,7 +18,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import { isInstallationId, isReviewerId } from "../ids";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 // `Options<"github-app">` makes `createToken`/`refreshToken` resolve to the
 // WithExpiration authentication shapes, not the OAuth-App variant.

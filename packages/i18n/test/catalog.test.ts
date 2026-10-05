@@ -12,7 +12,7 @@ import {
   tagIndices,
 } from "./helpers";
 
-const LOCALES_DIR = fileURLToPath(new URL("../locales", import.meta.url));
+const LOCALES_DIR = fileURLToPath(new URL("../src/locales", import.meta.url));
 
 function localeFiles(): string[] {
   return readdirSync(LOCALES_DIR)

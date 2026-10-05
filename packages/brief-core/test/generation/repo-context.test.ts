@@ -8,10 +8,10 @@ import {
   sanitizeCustomAttributes,
   REPO_INSTRUCTION_CLASSES,
   inAttributeScope,
-  matchesGlob,
   renderCustomAttributes,
   renderRepoInstructions,
 } from "../../src/generation/repo-context";
+import { matchesGlob } from "../../src/path-matching";
 
 describe("REPO_INSTRUCTION_CLASSES", () => {
   it("carries both lists, non-empty, text-shaped", () => {
@@ -86,7 +86,7 @@ describe("renderRepoInstructions", () => {
     expect(openTag).not.toContain("<system>");
   });
 
-  it("omits whole (with a ⚠ warning) over the injected budget", () => {
+  it("omits the whole block with a ⚠ warning over the injected budget", () => {
     const rendered = renderRepoInstructions({
       ...base,
       content: "x".repeat(INSTRUCTIONS_INJECTION_BUDGET_BYTES + 1),
@@ -188,7 +188,7 @@ describe("inAttributeScope", () => {
   });
 });
 
-describe("sanitizeCustomAttributes (name floor — enum/prompt injection guard)", () => {
+describe("sanitizeCustomAttributes name floor, the prompt injection guard", () => {
   it("keeps kebab-case names and drops everything else, one warning per drop", () => {
     const { attributes, issues } = sanitizeCustomAttributes([
       { name: "touches-billing", criteria: "c" },
@@ -212,8 +212,8 @@ describe("sanitizeCustomAttributes (name floor — enum/prompt injection guard)"
   });
 });
 
-describe("matchesGlob — pathological patterns stay linear (no ReDoS)", () => {
-  it("a wildcard-chained pattern against a long non-matching path completes instantly", () => {
+describe("matchesGlob stays linear on pathological patterns", () => {
+  it("a wildcard chain against a long non-matching path completes instantly", () => {
     const pattern = "a/*/*/*/*/*/*/*/*/*/*/z";
     const path = `a/${"b/".repeat(40)}almost-z-but-not`;
     const started = performance.now();
@@ -243,8 +243,8 @@ describe("matchesGlob — pathological patterns stay linear (no ReDoS)", () => {
   });
 });
 
-describe("sanitizeCustomAttributes — collision + duplicate floor (codex r1)", () => {
-  it("drops built-in, parked, and reserved collisions with a collision warning", () => {
+describe("sanitizeCustomAttributes collision and duplicate floor", () => {
+  it("drops built-in, parked and reserved names with a collision warning", () => {
     const { attributes, issues } = sanitizeCustomAttributes([
       { name: "touches-auth", criteria: "redefined!" },
       { name: "unresolved-reference", criteria: "c" },
@@ -270,7 +270,7 @@ describe("sanitizeCustomAttributes — collision + duplicate floor (codex r1)", 
   });
 });
 
-describe("matchesGlob — segment-boundary correctness for **/ (codex r1)", () => {
+describe("matchesGlob respects segment boundaries for **/", () => {
   it.each([
     ["src/**/fixtures/*.json", "src/notfixtures/x.json", false],
     ["src/**/fixtures/*.json", "src/a/notfixtures/x.json", false],
@@ -286,7 +286,7 @@ describe("matchesGlob — segment-boundary correctness for **/ (codex r1)", () =
     expect(matchesGlob(pattern, file)).toBe(expected);
   });
 
-  it("star after globstar stays linear (codex r1 quadratic case)", () => {
+  it("a star after a globstar stays linear instead of quadratic", () => {
     const started = performance.now();
     expect(matchesGlob("***z", `${"b".repeat(10_000)}x`)).toBe(false);
     expect(performance.now() - started).toBeLessThan(100);

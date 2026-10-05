@@ -9,8 +9,7 @@ import {
   repoIdSchema,
   reviewerIdSchema,
 } from "../ids";
-import type { Result, ValueOf } from "../types";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).

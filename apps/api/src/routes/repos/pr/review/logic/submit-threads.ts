@@ -9,8 +9,8 @@ import {
   type GitHubApiError,
   type ReviewThread,
   type ReviewThreadFailure,
-  type Result,
 } from "github";
+import type { Result } from "types/utils";
 import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
 import { toThreadInput, type SubmitComment } from "./submit-comments";
 

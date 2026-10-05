@@ -2,7 +2,7 @@
 // Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
 import { mapRequestError, type GitHubApiError } from "../errors";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 
 export interface IssueRef {
   readonly owner: string;

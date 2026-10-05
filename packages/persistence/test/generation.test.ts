@@ -26,7 +26,6 @@ import {
 import { createPgliteHarness } from "../src/testing";
 import { drizzle } from "drizzle-orm/pglite";
 import { fromDrizzle } from "../src/db/handle";
-import * as schema from "../src/schema/index";
 import {
   brandWith,
   freshDatabase,
@@ -248,7 +247,7 @@ describe("createGenerationProjection status transitions", () => {
 
   it("the CHECK constraint rejects a code outside the vocabulary", async () => {
     const client = await freshPglite();
-    const handle = fromDrizzle(drizzle(client, { schema }));
+    const handle = fromDrizzle(drizzle(client));
     const repo = createTenantRepository(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,

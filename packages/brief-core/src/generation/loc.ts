@@ -14,8 +14,6 @@ import {
 import type { RevisionChangeFile } from "../diff/revchanges";
 import type { PrFile } from "../github/types";
 
-export type { UnattributedFile };
-
 export interface LocCount {
   added: number;
   deleted: number;
@@ -23,7 +21,7 @@ export interface LocCount {
 
 /**
  * Sort + merge overlapping/adjacent ranges into a canonical disjoint list.
- * Inverted ranges (end < start) drop — the schema doesn't forbid them and the
+ * Inverted ranges (end < start) drop: the schema doesn't forbid them and the
  * ranges are model-produced, so they must not corrupt counts or subtraction.
  */
 function normalize(ranges: LineRange[]): LineRange[] {
@@ -99,7 +97,7 @@ function indexChanged(
 }
 
 /**
- * Populate each chunk's `loc` as |chunk ranges ∩ the diff's changed lines| —
+ * Populate each chunk's `loc` as |chunk ranges ∩ the diff's changed lines|;
  * ranges spilling past the real change clamp to it, and a file absent from the
  * diff counts zero.
  */
@@ -157,7 +155,7 @@ export function unattributedTotals(files: UnattributedFile[]): LocCount {
 }
 
 /**
- * The mechanical concern rollup from chunks with derived loc — one entry per
+ * The mechanical concern rollup from chunks with derived loc, one entry per
  * concern present, in vocabulary order.
  */
 export function buildConcernView(
@@ -194,7 +192,7 @@ function overlapIssues(
 
 /**
  * Same-file, same-side line ranges claimed by more than one chunk. Report
- * only — overlapping lines stay counted in both chunks by design.
+ * only; overlapping lines stay counted in both chunks by design.
  */
 export function detectChunkOverlaps(
   chunks: Pick<Chunk, "id" | "file" | "addedRanges" | "removedRanges">[],
@@ -227,7 +225,7 @@ export function detectChunkOverlaps(
 /**
  * Per-file diff-derived totals vs gh's reported `additions`/`deletions`.
  * Warn-only, no threshold: any mismatch (including a file only one side
- * knows) is reported. Zero-count gh files absent from the diff are silent —
+ * knows) is reported. Zero-count gh files absent from the diff are silent,
  * nothing to reconcile.
  */
 export function crossCheckFileTotals(
@@ -263,7 +261,7 @@ export function crossCheckFileTotals(
   return issues;
 }
 
-/** Whole-diff added/deleted totals — the header/core numbers. */
+/** Whole-diff added/deleted totals: the header/core numbers. */
 export function diffLocTotals(changedFiles: RevisionChangeFile[]): LocCount {
   return {
     added: changedFiles.reduce((sum, f) => sum + countLines(f.addedRanges), 0),

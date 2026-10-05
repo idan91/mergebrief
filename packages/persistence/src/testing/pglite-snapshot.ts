@@ -1,18 +1,11 @@
-// Migration-cost amortization for the PGlite test harnesses.
-//
-// Migrating a virgin PGlite costs ~0.6s and every harness call used to pay it,
-// which under coverage instrumentation pushed setups past the 5s hook timeout.
-// Instead: migrate ONCE, `dumpDataDir()` the migrated cluster, and boot every
-// instance from that snapshot via `loadDataDir` (~0.12s). Per-test isolation is
-// unchanged — only the migration work is shared.
-//
-// Two levels of sharing, because vitest gives each test FILE its own process
-// and each package its own vitest run:
-//   - an in-process memo, so a file's tests migrate at most once between them;
-//   - a content-addressed file in `os.tmpdir()`, so every other worker,
-//     package and subsequent run reuses the same migrated cluster.
-// The cache key digests every input the snapshot is a function of, so a stale
-// snapshot can never be read; test/pglite-snapshot.test.ts pins that.
+// Migration-cost amortization for the PGlite test harnesses: migrate ONCE,
+// `dumpDataDir()` the migrated cluster, and boot every instance from that
+// snapshot via `loadDataDir` (~0.12s against ~0.6s for a virgin migrate).
+// Per-test isolation is unchanged; only the migration work is shared. Two
+// levels, since vitest gives each test FILE its own process: an in-process
+// memo, and a content-addressed file in `os.tmpdir()` that every other worker,
+// package and run reuses. The key digests every input the snapshot derives
+// from, so a stale one is never read; test/pglite-snapshot.test.ts pins that.
 import { createHash } from "node:crypto";
 import {
   access,
@@ -30,12 +23,14 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+const MIGRATIONS_FOLDER = fileURLToPath(
+  new URL("../../drizzle", import.meta.url),
+);
 const CACHE_DIR = join(tmpdir(), "mergebrief-pglite-snapshots");
 
 /**
  * Digest of every input the snapshot is derived from. The folder parameter
- * exists for the key-completeness test only — production callers always
+ * exists for the key-completeness test only; production callers always
  * digest the checked-in migrations.
  */
 export async function deriveSnapshotKey(
@@ -49,7 +44,7 @@ export async function deriveSnapshotKey(
   digest.update(require.resolve("@electric-sql/pglite"));
   digest.update(require.resolve("drizzle-orm/pglite/migrator"));
   // Drizzle's migrator takes the applied set, ORDER, and statement-breakpoint
-  // splitting from meta/_journal.json — a journal-only change with
+  // splitting from meta/_journal.json, so a journal-only change with
   // byte-identical .sql files still needs a new key.
   digest.update(
     await readFile(join(migrationsFolder, "meta", "_journal.json")),
@@ -74,7 +69,7 @@ async function buildSnapshot(): Promise<Uint8Array> {
   const seed = new PGlite();
   await migrate(drizzle(seed), { migrationsFolder: MIGRATIONS_FOLDER });
   // Uncompressed on purpose: `gzip` shrinks the dump ~41MB → ~4.7MB but adds
-  // ~70ms of inflate to EVERY instance — the wrong trade for bytes that only
+  // ~70ms of inflate to EVERY instance, the wrong trade for bytes that only
   // ever travel between this process and a local temp file.
   const dump = await seed.dumpDataDir("none");
   await seed.close();
@@ -111,7 +106,7 @@ export async function warmPgliteSnapshot(): Promise<void> {
 }
 
 /**
- * Process-wide memo. A rejected promise stays memoized on purpose — a broken
+ * Process-wide memo. A rejected promise stays memoized on purpose: a broken
  * migration set is an infra error, and re-running it per caller would only
  * multiply the failure output.
  */

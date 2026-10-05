@@ -12,7 +12,7 @@ import {
   mapRequestError,
   type GitHubApiError,
 } from "../errors";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export interface CommitAttachmentInput {

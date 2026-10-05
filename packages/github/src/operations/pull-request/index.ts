@@ -4,14 +4,13 @@
 import type { Octokit } from "octokit";
 import type { CompareFile, CompareFiles } from "brief-core";
 import type { OpenPullRequest, RepoIdentity } from "brief-core/pr-stack";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
 } from "../../errors";
 import { repoIdSchema } from "../../ids";
-import type { Result } from "../../types";
 
 import {
   compareFilesSchema,

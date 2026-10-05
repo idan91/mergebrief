@@ -76,7 +76,6 @@ export {
   diffsName,
   commentsName,
   revChangesName,
-  comparisonMarksName,
   revisionNarrativeName,
 } from "./artifacts/output";
 export {
@@ -89,9 +88,9 @@ export {
 } from "./diff/revchanges";
 export {
   buildComparisonMarks,
+  comparisonMarksName,
   writeComparisonMarks,
   type ComparisonMarks,
-  type ComparisonMarksFile,
   type ComparisonBaselineLabel,
 } from "./diff/comparison";
 export {
@@ -132,11 +131,11 @@ export {
   REPO_INSTRUCTION_CLASSES,
   RESERVED_ATTRIBUTE_WORDS,
   inAttributeScope,
-  matchesGlob,
   type CustomRiskAttributeInput,
   type RepoContext,
   type RepoInstructionsInput,
 } from "./generation/repo-context";
+export { matchesGlob } from "./path-matching";
 export {
   parseRevisionNarrativeFlag,
   type RevisionNarrativeConfig,
@@ -161,7 +160,6 @@ export {
   subtractRanges,
   unattributedTotals,
   type LocCount,
-  type UnattributedFile,
 } from "./generation/loc";
 // The worker builds AnchorViewInput from its plan; renderAnchorView is
 // exported for tests/CLI.
@@ -235,4 +233,5 @@ export {
   type RevisionNarrativeChunk,
   type RevisionNarrativeSkipped,
   type ReviewComment,
+  type UnattributedFile,
 } from "./types";

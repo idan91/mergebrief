@@ -6,8 +6,8 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod/v4";
 import type { ReviewerId } from "persistence";
+import type { Result, ValueOf } from "types/utils";
 import { isReviewerId } from "./ids";
-import type { Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
 // Public config shape.

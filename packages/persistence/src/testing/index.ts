@@ -6,9 +6,8 @@
 // ASSERTIONS only, and production never sees this module.
 import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { type AppDatabase, fromDrizzle } from "./db/handle";
+import { type AppDatabase, fromDrizzle } from "../db/handle";
 import { createMigratedPglite } from "./pglite-snapshot";
-import * as schema from "./schema/index";
 
 // For consumers' vitest `globalSetup`: builds the migrated snapshot once,
 // before workers fork, so a cold cache is paid sequentially instead of by
@@ -83,7 +82,7 @@ export async function createPgliteHarness(
     await client.exec(GRAPHILE_WORKER_STUB_SQL);
   }
   return {
-    handle: fromDrizzle(drizzle(client, { schema })),
+    handle: fromDrizzle(drizzle(client)),
     database: client,
     async raw(query, params) {
       const result = await client.query<Record<string, unknown>>(query, params);

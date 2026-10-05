@@ -1,6 +1,6 @@
 # i18n
 
-The string catalog. English ships as the source locale (`locales/en.json`);
+The string catalog. English ships as the source locale (`src/locales/en.json`);
 every other locale is community-contributed. The web app and the CLI both
 render from this package — one catalog, no per-app copies.
 
@@ -8,7 +8,7 @@ render from this package — one catalog, no per-app copies.
 
 A locale PR is two files touched, no build steps:
 
-1. **Copy `locales/en.json` to `locales/<id>.json`** — `<id>` is the
+1. **Copy `src/locales/en.json` to `src/locales/<id>.json`** — `<id>` is the
    BCP 47 tag (`fr`, `pt-BR`). Translate the values; never change the keys
    or the `{{param}}` tokens. Numbered slots (`<0/>`) must all survive, but
    move them wherever your language needs — see below.

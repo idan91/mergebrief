@@ -10,7 +10,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export interface CreatePullRequestReviewInput {

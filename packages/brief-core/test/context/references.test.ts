@@ -3,8 +3,8 @@ import {
   canonicalizeTicketUrl,
   collectTicketReferences,
   resolvePrimaryTicket,
-  type TicketReferenceInput,
 } from "../../src/context/references";
+import type { TicketReferenceInput } from "../../src/context/trackers/types";
 
 const REPO = { owner: "acme", repo: "widget" };
 const NOTION = {
@@ -242,7 +242,7 @@ describe("collectTicketReferences: shapes", () => {
     ).toEqual([]);
   });
 
-  it("keeps the closing flag when a plain mention of the same ticket comes first", () => {
+  it("keeps the closing flag when a plain mention of the ticket comes first", () => {
     const refs = collectTicketReferences(
       makeInput({ body: "Part of #7. Relates to #8. Closes #8." }),
     );
@@ -344,7 +344,7 @@ describe("resolvePrimaryTicket", () => {
     expect(resolvePrimaryTicket(refs)?.number).toBe(4);
   });
 
-  it("with a notion tracker, a key in the title outranks a bare #N in the description", () => {
+  it("with a notion tracker, a title key outranks a description #N", () => {
     const refs = collectTicketReferences(
       makeInput({
         title: "[BRIEF-239] x",

@@ -1,6 +1,6 @@
 // Key-completeness invariant for the snapshot cache: every migration input
 // must move the key. If a change to the migrations
-// directory can leave the key unchanged, a warm cache serves a stale schema —
+// directory can leave the key unchanged, a warm cache serves a stale schema,
 // silently, and only on machines that had the old snapshot.
 import {
   cp,
@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { deriveSnapshotKey } from "../src/pglite-snapshot";
+import { deriveSnapshotKey } from "../src/testing/pglite-snapshot";
 
 const REAL_MIGRATIONS = fileURLToPath(new URL("../drizzle", import.meta.url));
 

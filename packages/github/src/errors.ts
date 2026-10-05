@@ -3,7 +3,7 @@
 // token, request URL, or raw response body reaches a `Result` error, only an
 // HTTP status and a static, caller-supplied context string.
 import { RequestError } from "octokit";
-import type { ValueOf } from "./types";
+import type { ValueOf } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export const GitHubApiErrorCodes = {

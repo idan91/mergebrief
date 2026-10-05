@@ -1,5 +1,5 @@
-// Generated from locales/en.json. Run pnpm generate:types after catalog changes.
-import type en from "../locales/en.json";
+// Generated from src/locales/en.json. Run pnpm generate:types after catalog changes.
+import type en from "./locales/en.json";
 
 export type Catalog = typeof en & {
   errors: (typeof en)["errors"] & {

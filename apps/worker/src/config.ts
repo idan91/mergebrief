@@ -10,7 +10,7 @@ import {
   isHttpUrl,
   loadConfig as loadPersistenceConfig,
   parseServerVersion,
-  type LoadConfigOptions as PersistenceLoadOptions,
+  type ResolveDsnOptions,
 } from "persistence";
 import type { Result, ValueOf } from "types/utils";
 
@@ -201,7 +201,7 @@ export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,
   // Forwarded to persistence's loader: the DATABASE_URL_FILE reader + the
   // shadow-warning sink live there; this loader adds nothing.
-  persistenceOptions: PersistenceLoadOptions = {},
+  persistenceOptions: ResolveDsnOptions = {},
 ): Result<WorkerConfig, ConfigError> {
   const issues: string[] = [];
 

@@ -3,12 +3,6 @@ import { ReferenceLocations, type ReferenceLocation } from "../types";
 import { TRACKERS } from "./trackers";
 import type { TicketReference, TicketReferenceInput } from "./trackers/types";
 
-export type {
-  TicketReference,
-  TicketReferenceInput,
-  TicketReferenceRepo,
-} from "./trackers/types";
-
 const CLOSING_KEYWORDS = [
   "close",
   "closes",

@@ -9,8 +9,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import { ReviewSubjectTypes, type ReviewCommentSide } from "./review-thread";
-import type { Result } from "../types";
-import { HttpStatuses, type Mutable } from "types";
+import { HttpStatuses, type Mutable, type Result } from "types";
 
 export interface CreateInlineReviewCommentBase {
   readonly owner: string;

@@ -207,8 +207,6 @@ export function sanitizeCustomAttributes(
   return { attributes: kept, issues };
 }
 
-export { matchesGlob };
-
 /** True when `filePath` is inside the attribute's scope (no globs = everywhere). */
 export function inAttributeScope(
   attribute: Pick<CustomRiskAttributeInput, "paths">,

@@ -1,8 +1,5 @@
-import {
-  collectTicketReferences,
-  resolvePrimaryTicket,
-  type TicketReferenceInput,
-} from "./references";
+import { collectTicketReferences, resolvePrimaryTicket } from "./references";
+import type { TicketReferenceInput } from "./trackers/types";
 import type { ContextQuery } from "./types";
 
 /**

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
-import type { TicketReference } from "../../src/context/references";
 import type {
   PrimaryRead,
+  TicketReference,
   TrackerReads,
 } from "../../src/context/trackers/types";
 import {
@@ -151,7 +151,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
     expect(primaryTicket).toEqual({ status: "read", snippet });
   });
 
-  it("reports a primary whose tracker this root cannot read as unread, touching no other read", async () => {
+  it("flags an unreadable tracker's primary unread, touching no other read", async () => {
     const notionRef: TicketReference = {
       tracker: "notion",
       key: "BRIEF-1",

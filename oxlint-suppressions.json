@@ -495,11 +495,6 @@
       "count": 5
     }
   },
-  "packages/brief-core/src/generation/loc.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "packages/brief-core/test/artifacts/manifest.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -523,26 +518,8 @@
       "count": 2
     }
   },
-  "packages/brief-core/test/context/primary.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/context/references.test.ts": {
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "packages/brief-core/test/context/trackers/github/transport.test.ts": {
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/context/trackers/notion/read.test.ts": {
-    "house/test-title": {
-      "count": 6
-    },
-    "house/comment-run": {
       "count": 1
     }
   },
@@ -597,14 +574,6 @@
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "packages/brief-core/test/generation/repo-context.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 8
     }
   },
   "packages/brief-core/test/generation/salvage.test.ts": {
@@ -731,11 +700,6 @@
       "count": 1
     }
   },
-  "packages/github/src/webhook/verify.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/github/test/collaborators.test.ts": {
     "house/no-em-dash": {
       "count": 6
@@ -801,16 +765,6 @@
       "count": 2
     }
   },
-  "packages/i18n/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "packages/i18n/src/locales.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "packages/i18n/src/pseudo.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -867,22 +821,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/db/handle.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/comment-density": {
-      "count": 1
-    }
-  },
-  "packages/persistence/src/pglite-snapshot.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
   "packages/persistence/src/schema/checkpoint.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -935,16 +873,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "packages/persistence/test/global-setup.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "packages/persistence/test/pglite-snapshot.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "packages/persistence/test/ping.test.ts": {

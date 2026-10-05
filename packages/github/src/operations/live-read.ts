@@ -11,7 +11,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import { repoIdSchema } from "../ids";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 import type { PullRequestRef } from "./pull-request/types";
 import type { RepoId } from "persistence";
 

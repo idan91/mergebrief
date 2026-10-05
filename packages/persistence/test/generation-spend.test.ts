@@ -6,7 +6,6 @@
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle, type AppDatabase } from "../src/db/handle";
-import * as schema from "../src/schema/index";
 import {
   createTenantRepository,
   createGenerationProjection,
@@ -57,7 +56,7 @@ async function harness(): Promise<
   Harness & { pullRequestId: PullRequestRowId }
 > {
   const client = await freshPglite();
-  const handle = fromDrizzle(drizzle(client, { schema }));
+  const handle = fromDrizzle(drizzle(client));
   const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.upsert({
     repoId: REPO,

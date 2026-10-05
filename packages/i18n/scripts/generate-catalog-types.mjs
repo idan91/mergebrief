@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
-const catalogPath = `${packageDir}/locales/en.json`;
+const catalogPath = `${packageDir}/src/locales/en.json`;
 const outputPath = `${packageDir}/src/catalog.generated.ts`;
 
 function parameterizedTree(value) {
@@ -47,7 +47,7 @@ if (tree === undefined || typeof tree === "string") {
   throw new Error("en.json must contain parameterized nested catalog entries");
 }
 
-const generated = `// Generated from locales/en.json. Run pnpm generate:types after catalog changes.\nimport type en from "../locales/en.json";\n\nexport type Catalog = ${renderOverrides(tree)};\n`;
+const generated = `// Generated from src/locales/en.json. Run pnpm generate:types after catalog changes.\nimport type en from "./locales/en.json";\n\nexport type Catalog = ${renderOverrides(tree)};\n`;
 
 if (process.argv.includes("--check")) {
   const current = readFileSync(outputPath, "utf8");

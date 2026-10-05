@@ -1,17 +1,12 @@
 /**
- * Invariants:
- * - key path: databases → data source schema → query by unique_id number;
- *   the page's prefix must equal the tracker's, case-insensitively
- * - a prefix miss, an empty query, a 404 are all `not-found`
- * - URL path: one page read, no board needed
- * - body: every block's rich text, one line per block, nested blocks
- *   indented, pages of 100 followed, capped at 20,000 chars
- * - header: title · Status · Type · Priority · assignees · key; empty
- *   pieces omitted
- * - 401/403 `no-credential`, 429 `rate-limited`, abort `timeout`
- * - every request carries the bearer and the API version; no detail or log
- *   line carries the token, a body, or a query string
- * - malformed JSON or an unexpected shape never throws
+ * Key path: databases → data source schema → query by unique_id number, page
+ * prefix equal to the tracker's case-insensitively; a prefix miss, an empty
+ * query and a 404 are all `not-found`. URL path: one page read, no board.
+ * Body: one line per block, nested indented, pages of 100, capped at 20,000
+ * chars. Header: title · Status · Type · Priority · assignees · key, empty
+ * pieces omitted. 401/403 `no-credential`, 429 `rate-limited`, abort `timeout`.
+ * Every request carries the bearer and API version; no detail or log line
+ * carries the token, a body or a query; bad JSON or shape never throws.
  */
 import { describe, expect, it } from "vitest";
 import { createNotionRead } from "../../../../src/context/trackers/notion";
@@ -23,7 +18,7 @@ import {
   ContextProviderTypes,
   type ContextProviderDeps,
 } from "../../../../src/context/types";
-import type { TicketReference } from "../../../../src/context/references";
+import type { TicketReference } from "../../../../src/context/trackers/types";
 import { TicketUnreadReasons } from "../../../../src/types";
 
 const TOKEN = "ntn_secret_value_never_shown";
@@ -296,7 +291,7 @@ describe("createNotionRead", () => {
     expect(read.error.issues.join("; ")).toContain("contextSources");
   });
 
-  it("reads the token from the named var and refuses an unset one, never echoing a value", () => {
+  it("reads the named token var and refuses an unset one without echoing it", () => {
     const named = createNotionRead(
       {
         env: { MY_NOTION: "ntn_y" },
@@ -319,7 +314,7 @@ describe("createNotionRead", () => {
     expect(text).not.toContain("ntn_");
   });
 
-  it("refuses a token value pasted where the var NAME belongs without echoing it", () => {
+  it("refuses a token pasted where the var NAME belongs without echoing it", () => {
     const read = createNotionRead(
       {
         env: {},
@@ -334,7 +329,7 @@ describe("createNotionRead", () => {
     expect(text).not.toContain("ntn_pasted");
   });
 
-  it("reads a key when the block names the data source: data source → query → blocks", async () => {
+  it("reads a key via its named data source: data source, query, blocks", async () => {
     const { result, calls } = await readThroughProvider(KEY_ROUTES, {
       ...makeKeyReference(),
       databaseId: DATA_SOURCE_ID,
@@ -348,7 +343,7 @@ describe("createNotionRead", () => {
     ]);
   });
 
-  it("reads a key through the board when the block names the database: database → data source → query → blocks", async () => {
+  it("reads a key via a named database: database, source, query, blocks", async () => {
     const { result, calls } = await readThroughProvider(
       KEY_ROUTES,
       makeKeyReference(),
@@ -423,7 +418,7 @@ describe("createNotionRead", () => {
     ).toContain(`POST /v1/data_sources/${DATA_SOURCE_ID}/query`);
   });
 
-  it("is not-found, naming the fix, when several data sources carry the prefix", async () => {
+  it("is not-found and names the fix when many data sources carry the prefix", async () => {
     const twinId = "f".repeat(32);
     const { result, calls } = await readThroughProvider(
       {
@@ -540,7 +535,7 @@ describe("createNotionRead", () => {
     expect(calls[3]?.headers["Content-Type"]).toBe("application/json");
   });
 
-  it("omits empty header pieces and reads the key from the page on the URL path", async () => {
+  it("omits empty header pieces and reads the page's key on the URL path", async () => {
     const page = {
       ...PAGE,
       properties: {

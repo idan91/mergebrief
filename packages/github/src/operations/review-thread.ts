@@ -10,7 +10,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 /** GitHub wire values for a review comment's diff side. */
 export const ReviewCommentSides = {

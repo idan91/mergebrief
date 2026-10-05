@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/testing.ts` is the PGlite cross-package test harness (`exports["./testing"]`, dev-only).
+`src/testing/` is the PGlite cross-package test harness (`exports["./testing"]`, dev-only).
 
 What the layout can't show:
 

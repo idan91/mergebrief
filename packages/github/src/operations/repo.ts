@@ -11,7 +11,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import { repoIdSchema } from "../ids";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 
 export interface RepositoryInfo {
   readonly repoId: RepoId;

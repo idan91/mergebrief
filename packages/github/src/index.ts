@@ -3,10 +3,6 @@
 
 // --- root: cross-cutting plumbing ------------------------------------------
 
-// Local `Result`/`ValueOf`, never imported from `persistence` at runtime
-// (type-only imports of branded ids are the sole exception).
-export type { Result, ValueOf } from "./types";
-
 // Zod-parsed env config; env is injected, never read from `process.env`.
 export { loadConfig, ConfigErrorCodes } from "./config";
 export type {

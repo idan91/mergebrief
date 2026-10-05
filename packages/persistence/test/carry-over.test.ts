@@ -18,7 +18,6 @@ import type {
   SessionWriter,
   TenantContext,
 } from "../src/index";
-import * as schema from "../src/schema/index";
 import {
   isInstallationId,
   isRepoId,
@@ -61,7 +60,7 @@ interface World {
 
 async function freshWorld(): Promise<World> {
   const client = await freshPglite();
-  const handle = fromDrizzle(drizzle(client, { schema }));
+  const handle = fromDrizzle(drizzle(client));
   const pr = await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,

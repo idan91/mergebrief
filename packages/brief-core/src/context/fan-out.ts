@@ -1,9 +1,9 @@
 import type { Result } from "types/utils";
 import type { Log } from "../github/types";
 import { TicketUnreadReasons } from "../types";
-import { resolvePrimaryTicket, type TicketReference } from "./references";
+import { resolvePrimaryTicket } from "./references";
 import type { TrackerReads } from "./trackers";
-import type { PrimaryRead } from "./trackers/types";
+import type { PrimaryRead, TicketReference } from "./trackers/types";
 import type {
   ContextProvider,
   ContextProviderDeps,

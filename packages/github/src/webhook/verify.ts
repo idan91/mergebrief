@@ -1,9 +1,9 @@
 // Webhook HMAC verification. `@octokit/webhooks-methods` does a CONSTANT-TIME
-// comparison of the `sha256=…` HMAC — the crypto is never hand-rolled here. The
+// comparison of the `sha256=…` HMAC; the crypto is never hand-rolled here. The
 // verified subject is the RAW request body: callers MUST pass the exact bytes
 // GitHub signed, before any JSON re-encode.
 import { verify } from "@octokit/webhooks-methods";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 export const WebhookVerifyErrorCodes = {
   MISSING_SIGNATURE: "missing-signature",
@@ -19,7 +19,7 @@ export interface WebhookVerifyError {
 
 export interface VerifyWebhookSignatureInput {
   readonly secret: string;
-  /** The RAW request body exactly as received — the bytes GitHub signed. */
+  /** The RAW request body exactly as received: the bytes GitHub signed. */
   readonly payload: string;
   /** The `x-hub-signature-256` header value (`sha256=…`). */
   readonly signature: string | undefined;
@@ -49,7 +49,7 @@ export async function verifyWebhookSignature(
   try {
     matches = await verify(secret, payload, signature);
   } catch {
-    // `verify` throws on a malformed signature — untrusted input, so an
+    // `verify` throws on a malformed signature: untrusted input, so an
     // expected `Result`. The thrown error may quote the signature bytes, so it
     // is discarded.
     return {

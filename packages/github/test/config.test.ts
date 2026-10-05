@@ -13,7 +13,7 @@ import {
   type ConfigError,
   type GitHubConfig,
 } from "../src/config";
-import type { Result } from "../src/types";
+import type { Result } from "types/utils";
 
 const VALID_PEM =
   "-----BEGIN RSA PRIVATE KEY-----\nfake-pem-contents\n-----END RSA PRIVATE KEY-----\n";

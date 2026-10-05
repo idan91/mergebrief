@@ -6,7 +6,7 @@
   "description": "Owns everything DB: Drizzle schema, migrations, the tenant-scoped repository, the ArtifactStore seam, audit emit, and generation projection writes.",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

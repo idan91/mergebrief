@@ -8,6 +8,7 @@ import {
   type PrRef,
   type ReviewComment,
   type RevisionNarrative,
+  type UnattributedFile,
 } from "../types";
 import {
   inAttributeScope,
@@ -44,7 +45,6 @@ import {
   deriveUnattributed,
   detectChunkOverlaps,
   unattributedTotals,
-  type UnattributedFile,
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
 import {
@@ -76,8 +76,6 @@ import type {
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
 import { attributeSafe, stripKnownFences } from "./fences";
-
-export type { Logger };
 
 /**
  * Applied when a caller passes no explicit effort. Configured values arrive

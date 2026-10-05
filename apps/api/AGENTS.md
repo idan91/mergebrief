@@ -27,7 +27,7 @@ Layering: controllers are Hono-free and return `Result<T, XxxFailure>` for anyth
 **Adding a new error code** (the recipe):
 
 1. Add the kebab-case code to `ApiErrorCodes` in `packages/contract/src/errors.ts`, its status to `ApiErrorStatusByCode` (1:1 — a code needing two statuses is two codes), and its English template to `ApiErrorEnglishByCode` (i18next `{{param}}` syntax for any params, typed in `ApiErrorParams`). The status places the code in its class's `CodeFor<status>` automatically — throw it via that class.
-2. Add the identical template as `errors.<code>` in `packages/i18n/locales/en.json` — `packages/contract/test/wire-pin.test.ts` pins completeness and wording equality against the exported maps.
+2. Add the identical template as `errors.<code>` in `packages/i18n/src/locales/en.json` — `packages/contract/test/wire-pin.test.ts` pins completeness and wording equality against the exported maps.
 3. Add the matching `pulls.briefError.<code>` copy in the catalog. `apps/web` needs no code mirror: it spreads `contract`'s map and adds only its own `malformed`. The copy lookup is total by a template-literal key type, so a missing entry breaks `apps/web`'s typecheck. The two catalog blocks are different copy: `errors.<code>` is the wire line, `pulls.briefError.<code>` is what a reader sees.
 4. A param value must never carry free-form upstream text unless pre-sanitized (`sanitizeErrorDetail` from `logging`).
 

@@ -12,10 +12,8 @@ import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
 import type { Mutable, Result } from "types/utils";
-import {
-  createTenantRepository,
-  parseTenantContext,
-} from "../src/stores/tenant";
+import { createTenantRepository } from "../src/stores/tenant";
+import { parseTenantContext } from "../src/stores/scope-context";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
   GenerationKinds,

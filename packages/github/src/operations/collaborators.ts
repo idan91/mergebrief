@@ -8,8 +8,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result } from "../types";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 
 export interface RepoCollaborator {
   readonly login: string;

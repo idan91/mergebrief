@@ -38,13 +38,12 @@ export {
   type IssueRecord,
 } from "./trackers/github";
 export { buildContextQuery } from "./query";
-export {
-  collectTicketReferences,
-  resolvePrimaryTicket,
-  type TicketReference,
-  type TicketReferenceInput,
-  type TicketReferenceRepo,
-} from "./references";
+export { collectTicketReferences, resolvePrimaryTicket } from "./references";
+export type {
+  TicketReference,
+  TicketReferenceInput,
+  TicketReferenceRepo,
+} from "./trackers/types";
 export {
   createNotionRead,
   createNotionHttpTransport,

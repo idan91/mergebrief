@@ -138,10 +138,6 @@ const ConfigSchema = z.object({
 // Loader.
 // ---------------------------------------------------------------------------
 
-/** Injectable collaborators for `loadConfig`: the secret-file reader and the
- * warning sink `dsn.ts` documents. */
-export type LoadConfigOptions = ResolveDsnOptions;
-
 /**
  * Parse persistence config from an injected env map into a `PersistenceConfig`,
  * or a `ConfigError` listing the invalid fields, values omitted because a
@@ -152,7 +148,7 @@ export type LoadConfigOptions = ResolveDsnOptions;
  */
 export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,
-  options: LoadConfigOptions = {},
+  options: ResolveDsnOptions = {},
 ): Result<PersistenceConfig, ConfigError> {
   const dsn = resolveDatabaseUrl(env, options);
   if (!dsn.ok) {

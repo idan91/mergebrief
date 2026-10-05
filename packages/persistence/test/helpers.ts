@@ -1,7 +1,7 @@
-// Shared test setup for this package's suites. Boots a fresh in-memory
-// instance from the process's migrated snapshot (`src/pglite-snapshot`) and
-// wraps it as the opaque `AppDatabase` the repository consumes; the
-// real-Postgres suites share the tenant fixture below.
+// Shared PGlite test setup for this package's suites. Boots a fresh in-memory
+// instance from the process's migrated snapshot
+// (`src/testing/pglite-snapshot`) and wraps it as the opaque `AppDatabase` the
+// repository consumes; the real-Postgres suites share the tenant fixture below.
 import { randomInt } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,9 +17,8 @@ import {
   ensureAppSchema,
   type TenantContext,
 } from "../src/index";
-import { createMigratedPglite } from "../src/pglite-snapshot";
+import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 import { generation } from "../src/schema/generation";
-import * as schema from "../src/schema/index";
 import { pullRequest } from "../src/schema/pull-request";
 import {
   GenerationKinds,
@@ -126,7 +125,7 @@ export async function freshPglite(): Promise<PGlite> {
 
 /** A migrated, isolated database wrapped as the opaque handle. */
 export async function freshDatabase(): Promise<AppDatabase> {
-  return fromDrizzle(drizzle(await freshPglite(), { schema }));
+  return fromDrizzle(drizzle(await freshPglite()));
 }
 
 /** Brand a bigint via its guard, the sanctioned no-`as` path. */

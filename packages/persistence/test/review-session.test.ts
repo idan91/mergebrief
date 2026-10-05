@@ -24,7 +24,6 @@ import type {
   SessionWriter,
   TenantContext,
 } from "../src/index";
-import * as schema from "../src/schema/index";
 import {
   isInstallationId,
   isRepoId,
@@ -50,7 +49,7 @@ import { brandWith, freshPglite } from "./helpers";
  */
 async function freshPair(): Promise<{ client: PGlite; handle: AppDatabase }> {
   const client = await freshPglite();
-  return { client, handle: fromDrizzle(drizzle(client, { schema })) };
+  return { client, handle: fromDrizzle(drizzle(client)) };
 }
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);

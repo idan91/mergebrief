@@ -1,4 +1,4 @@
-import type en from "../locales/en.json";
+import type en from "./locales/en.json";
 import type { Catalog } from "./catalog.generated";
 
 // Typed keys for every consumer: an unknown catalog key fails to compile.

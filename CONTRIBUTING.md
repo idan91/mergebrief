@@ -154,7 +154,7 @@ loosening triggers and will be revisited when the project earns a second maintai
 ## Translations
 
 The UI ships English-only today; every other locale is community-contributed. A locale
-PR touches two files — `packages/i18n/locales/<id>.json` plus one registry row — and the
+PR touches two files — `packages/i18n/src/locales/<id>.json` plus one registry row — and the
 package's test suite is the review bar (mechanical checks hard-fail; completeness only
 reports, so partial locales ship and fall back to English). The full walkthrough lives in
 [`packages/i18n/README.md`](./packages/i18n/README.md). Machine translation is fine as a
