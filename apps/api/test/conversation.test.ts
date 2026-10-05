@@ -832,6 +832,20 @@ describe("conversation surface", () => {
       expect(counts.reply).toBe(2);
     });
 
+    it("502s a reply GitHub answers 500 after one reply call", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyStatus(500),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "x" });
+      expect(res.status).toBe(502);
+      expect(counts.reply).toBe(1);
+      expect(await replyAuditCount(harness)).toBe(0);
+    });
+
     it("collapses reply-create 403 to the gate's uniform 404", async () => {
       const { port } = stubPort([okResult()]);
       stubGitHub({

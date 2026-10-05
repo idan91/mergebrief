@@ -43,8 +43,7 @@ import {
 
 // Not the harness: POST .../comments is on octokit's `triggersNotification`
 // list, so consecutive writes are spaced ~3s by module-global Bottleneck
-// groups, and the hard-failure case rides the retry ladder on top (measured
-// 17.0s). Matches the timeout its two throttle-bound siblings carry.
+// groups. Matches the timeout its two throttle-bound siblings carry.
 vi.setConfig({ testTimeout: 30_000 });
 
 const REPO_ID = 424242;
@@ -604,8 +603,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(await commentAuditCount(harness)).toBe(0);
   });
 
-  it("502 on a hard GitHub failure; no audit row", async () => {
-    stubGitHub({
+  it("502s a hard GitHub failure after one comment call, no audit row", async () => {
+    const counts = stubGitHub({
       repositories: () => repoOk(),
       comments: () => commentStatus(500),
     });
@@ -614,6 +613,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(502);
+    expect(counts.comments).toBe(1);
     expect(await commentAuditCount(harness)).toBe(0);
   });
 

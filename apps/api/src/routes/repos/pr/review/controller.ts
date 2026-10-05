@@ -29,6 +29,7 @@ import {
   isTokenUnreadableFailure,
   type TokenUnreadableFailure,
 } from "../../../../shared-errors/failures";
+import { createMutationOctokit } from "../mutation-octokit";
 import {
   foldCommentsIntoBody,
   type SubmitComment,
@@ -67,16 +68,6 @@ function isStalePendingRefusal(
     return false;
   }
   return error.validation === ReviewValidationClasses.PENDING_REVIEW_EXISTS;
-}
-
-type MutationOctokit = ReturnType<typeof createUserOctokit>;
-
-/**
- * Every write rides a client with octokit's retry off: a replayed create,
- * thread or submit is a second review object, never a repeat of the first.
- */
-function createMutationOctokit(token: string): MutationOctokit {
-  return createUserOctokit(token, { retry: false });
 }
 
 /** A thread call's 401 sits inside `request-failed`; the default predicate cannot see it. */

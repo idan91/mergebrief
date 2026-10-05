@@ -7,17 +7,18 @@ import {
   setReviewThreadResolution,
 } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
+import { createMutationOctokit } from "../mutation-octokit";
 import type { CommentsControllerDeps } from "./types";
 
 export default {
   /** POST one held draft as an inline review comment. A 401'd POST created
-   * nothing, so the client's refreshed retry cannot double-post. */
+   * nothing, so the client's refreshed re-run cannot double-post. */
   async postInlineComment(
     deps: CommentsControllerDeps,
     input: Parameters<typeof createInlineReviewComment>[1],
   ) {
     const posted = await deps.github.run((token) =>
-      createInlineReviewComment(createUserOctokit(token), input),
+      createInlineReviewComment(createMutationOctokit(token), input),
     );
     if (!posted.ok) {
       return buildGitHubDeniedResult(posted.error, "mutation");
@@ -31,7 +32,7 @@ export default {
     input: Parameters<typeof createReviewCommentReply>[1],
   ) {
     const created = await deps.github.run((token) =>
-      createReviewCommentReply(createUserOctokit(token), input),
+      createReviewCommentReply(createMutationOctokit(token), input),
     );
     if (!created.ok) {
       return buildGitHubDeniedResult(created.error, "mutation");
