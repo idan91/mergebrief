@@ -50,11 +50,11 @@
     }
   },
   "apps/api/src/routes/repos/pr/scope.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 2
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "apps/api/src/routes/repos/utils.ts": {
@@ -63,10 +63,10 @@
     }
   },
   "apps/api/src/routes/ttl-cache.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
@@ -140,19 +140,19 @@
     }
   },
   "apps/web/e2e/perf/jumpScroll.perf.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 7
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "apps/web/e2e/perf/renderCommits.perf.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 4
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "apps/web/src/components/Markdown/utils.test.ts": {
@@ -179,14 +179,14 @@
     }
   },
   "apps/web/src/data/ssrWarnSink.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    },
     "house/comment-density": {
       "count": 1
     },
     "house/comment-run": {
       "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/consts.ts": {
@@ -235,14 +235,14 @@
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/useInFlightDraftPosts.ts": {
+    "house/no-em-dash": {
+      "count": 3
+    },
     "house/comment-density": {
       "count": 1
     },
     "house/comment-run": {
       "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/web/src/features/brief/server/legacyRevchangesAlias.server.test.ts": {
@@ -287,11 +287,11 @@
     }
   },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/useThreadResolution.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 9
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "apps/web/src/features/conversation/resolve.test.ts": {
@@ -323,11 +323,11 @@
     }
   },
   "apps/web/src/features/conversation/wiring.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 6
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "apps/web/src/features/pulls/components/PrBrief/CappedCard/utils.ts": {
@@ -393,11 +393,11 @@
     }
   },
   "apps/web/src/hooks/useUnsavedComposerGuard.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 3
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "apps/web/src/i18n/I18nProvider.test.tsx": {
@@ -439,11 +439,11 @@
     }
   },
   "apps/web/src/styles/tokensDefined.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 4
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "apps/web/src/utils/motion.ts": {
@@ -467,11 +467,11 @@
     }
   },
   "apps/worker/src/task/sweep-audit.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 3
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "apps/worker/test/payload.test.ts": {
@@ -488,11 +488,11 @@
     }
   },
   "packages/brief-core/src/anchoring/types.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 5
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "packages/brief-core/src/cli/config.ts": {
@@ -554,11 +554,11 @@
     }
   },
   "packages/brief-core/test/context/trackers/notion/read.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/test-title": {
       "count": 6
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "packages/brief-core/test/context/url-provider.test.ts": {
@@ -641,19 +641,19 @@
     }
   },
   "packages/generators/src/contract/generator.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 6
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "packages/generators/src/validation/openaiStrict.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 4
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "packages/generators/test/anthropic.contract.test.ts": {
@@ -739,11 +739,11 @@
     }
   },
   "packages/github/src/auth/app.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 3
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "packages/github/src/webhook/verify.ts": {
@@ -883,19 +883,19 @@
     }
   },
   "packages/persistence/src/db/handle.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 4
+    },
+    "house/comment-density": {
+      "count": 1
     }
   },
   "packages/persistence/src/pglite-snapshot.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 5
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "packages/persistence/src/schema/checkpoint.ts": {
@@ -908,25 +908,20 @@
       "count": 2
     }
   },
-  "packages/persistence/src/schema/delta.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "packages/persistence/src/schema/diff-snapshot.ts": {
     "house/no-em-dash": {
       "count": 1
     }
   },
   "packages/persistence/src/schema/github-grant.ts": {
+    "house/no-em-dash": {
+      "count": 3
+    },
     "house/comment-density": {
       "count": 1
     },
     "house/comment-run": {
       "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "packages/persistence/src/schema/hunk-span.ts": {
@@ -942,11 +937,6 @@
   "packages/persistence/src/schema/review-submitted-review.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/src/schema/revision-narrative.ts": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "packages/persistence/src/stores/url-box.ts": {
@@ -1039,58 +1029,58 @@
     }
   },
   "tools/categorizer/eval/cases/delta-read-api-contract/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
   "tools/categorizer/eval/cases/intent-adversarial-ticket/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
   "tools/categorizer/eval/cases/intent-broad-epic/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
   "tools/categorizer/eval/cases/intent-legit-demotion/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
   "tools/categorizer/eval/cases/intent-masked-fix/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
   "tools/categorizer/eval/cases/intent-none-no-ticket/expected.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
     "house/no-em-dash": {
       "count": 3
+    },
+    "house/comment-run": {
+      "count": 2
     }
   },
   "tools/categorizer/eval/cases/intent-precise-ticket/expected.ts": {
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     },
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     }
   },
@@ -1185,11 +1175,11 @@
     }
   },
   "tools/categorizer/scripts/probe-enum-enforcement.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 3
+    },
+    "house/comment-run": {
+      "count": 1
     }
   },
   "tools/categorizer/scripts/probe-sol-fullschema.ts": {
@@ -1277,11 +1267,11 @@
     }
   },
   "vitest.shared.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 4
+    },
+    "house/comment-density": {
+      "count": 1
     }
   }
 }

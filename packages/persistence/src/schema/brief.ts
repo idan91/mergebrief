@@ -12,7 +12,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
-import { artifactColumns, tenantColumns } from "./columns";
+import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
 export const brief = pgTable(
@@ -50,6 +50,7 @@ export const brief = pgTable(
      * is never re-minted; null before the column, healed by the next run.
      */
     usedGroupIds: text("used_group_ids"),
+    bodyVersion: bodyVersionColumn(),
     ...artifactColumns(),
   },
   (table) => [

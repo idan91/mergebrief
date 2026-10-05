@@ -31,6 +31,7 @@ import {
   type StoredRevisionNarrativeReadResult,
 } from "./types";
 
+export { STORED_BODY_VERSION } from "./consts";
 export {
   ArtifactIssueCodes,
   type ArtifactIssue,

@@ -767,3 +767,148 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
     ).toHaveLength(0);
   });
 });
+
+const BODY_VERSION = 3;
+
+async function makeOpenPullRequestStore(prNumber: number) {
+  const handle = await freshDatabase();
+  const store = createArtifactStore(handle, CTX_A);
+  const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
+    repoId: REPO,
+    prNumber,
+    state: PrStates.OPEN,
+  });
+  return { store, pr };
+}
+
+describe("createArtifactStore body version stamp", () => {
+  it("brief: keeps the stamp, NULL when omitted or rewritten without", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(21);
+    const span = {
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "brief",
+    };
+
+    const stamped = await store.briefs.write({
+      ...span,
+      bodyVersion: BODY_VERSION,
+    });
+    if (!stamped.ok) {
+      throw new Error("expected success");
+    }
+    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    const read = await store.briefs.get(pr.id, "base", "head");
+    expect(read?.bodyVersion).toBe(BODY_VERSION);
+
+    const rewritten = await store.briefs.write(span);
+    if (!rewritten.ok) {
+      throw new Error("expected success");
+    }
+    expect(rewritten.value.bodyVersion).toBeNull();
+    const reread = await store.briefs.get(pr.id, "base", "head");
+    expect(reread?.bodyVersion).toBeNull();
+
+    const omitted = await store.briefs.write({
+      ...span,
+      baseSha: "base-2",
+      headIndex: 1,
+    });
+    if (!omitted.ok) {
+      throw new Error("expected success");
+    }
+    expect(omitted.value.bodyVersion).toBeNull();
+  });
+
+  it("delta: keeps the stamp, NULL when omitted or rewritten without", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(22);
+    const span = {
+      pullRequestId: pr.id,
+      baselineSha: "chk",
+      headSha: "head",
+      ...PROV,
+      body: "delta",
+    };
+
+    const stamped = await store.deltas.write({
+      ...span,
+      bodyVersion: BODY_VERSION,
+    });
+    if (!stamped.ok) {
+      throw new Error("expected success");
+    }
+    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    const read = await store.deltas.get(pr.id, "chk", "head");
+    expect(read?.bodyVersion).toBe(BODY_VERSION);
+
+    const rewritten = await store.deltas.write(span);
+    if (!rewritten.ok) {
+      throw new Error("expected success");
+    }
+    expect(rewritten.value.bodyVersion).toBeNull();
+    const reread = await store.deltas.get(pr.id, "chk", "head");
+    expect(reread?.bodyVersion).toBeNull();
+
+    const omitted = await store.deltas.write({ ...span, baselineSha: "chk-2" });
+    if (!omitted.ok) {
+      throw new Error("expected success");
+    }
+    expect(omitted.value.bodyVersion).toBeNull();
+  });
+
+  it("narrative: keeps the stamp, NULL when omitted or rewritten without", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(23);
+    const brief = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 1,
+      commitCount: 1,
+      ...PROV,
+      body: "brief",
+    });
+    if (!brief.ok) {
+      throw new Error("brief write failed");
+    }
+    const span = {
+      pullRequestId: pr.id,
+      briefId: brief.value.id,
+      prevHeadSha: "prev",
+      headSha: "head",
+      ...PROV,
+      body: "narrative",
+    };
+
+    const stamped = await store.revisionNarratives.write({
+      ...span,
+      bodyVersion: BODY_VERSION,
+    });
+    if (!stamped.ok) {
+      throw new Error("expected success");
+    }
+    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    const read = await store.revisionNarratives.get(pr.id, "prev", "head");
+    expect(read?.bodyVersion).toBe(BODY_VERSION);
+
+    const rewritten = await store.revisionNarratives.write(span);
+    if (!rewritten.ok) {
+      throw new Error("expected success");
+    }
+    expect(rewritten.value.bodyVersion).toBeNull();
+    const reread = await store.revisionNarratives.get(pr.id, "prev", "head");
+    expect(reread?.bodyVersion).toBeNull();
+
+    const omitted = await store.revisionNarratives.write({
+      ...span,
+      prevHeadSha: "prev-2",
+    });
+    if (!omitted.ok) {
+      throw new Error("expected success");
+    }
+    expect(omitted.value.bodyVersion).toBeNull();
+  });
+});

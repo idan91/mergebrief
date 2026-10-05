@@ -5,7 +5,10 @@ import {
   isHugeSpan,
   type DeltaInput,
 } from "brief-core";
-import { checkDeltaBriefForWrite } from "brief-core/artifact";
+import {
+  checkDeltaBriefForWrite,
+  STORED_BODY_VERSION,
+} from "brief-core/artifact";
 import { GenerationKinds } from "persistence";
 import { PermanentJobError } from "../../failure";
 import type { ParsedGeneratePayload } from "../../payload";
@@ -138,6 +141,7 @@ export async function generateCheckpointDeltas(
       headSha,
       ...getGenerationOrigin(delta.generation),
       body: JSON.stringify(delta),
+      bodyVersion: STORED_BODY_VERSION,
     });
     if (!written.ok) {
       throw new PermanentJobError(written.error.message);

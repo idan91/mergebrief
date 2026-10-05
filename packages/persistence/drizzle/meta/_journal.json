@@ -330,6 +330,13 @@
       "when": 1790986609782,
       "tag": "0047_user-settings-dismissed-version",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791132469539,
+      "tag": "0048_artifact-body-version",
+      "breakpoints": true
     }
   ]
 }

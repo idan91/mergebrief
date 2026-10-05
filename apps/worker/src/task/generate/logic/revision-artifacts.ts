@@ -8,6 +8,7 @@ import {
 } from "brief-core";
 import {
   checkRevisionNarrativeForWrite,
+  STORED_BODY_VERSION,
   type StoredRevisionNarrative,
 } from "brief-core/artifact";
 import type { Logger } from "logging";
@@ -99,6 +100,7 @@ export async function writeRevisionArtifacts(
       headSha,
       ...getGenerationOrigin(origin),
       body: JSON.stringify(narrative),
+      bodyVersion: STORED_BODY_VERSION,
     });
     if (!written.ok) {
       throw new PermanentJobError(written.error.message);

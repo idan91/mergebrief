@@ -1,11 +1,11 @@
-// The `ArtifactStore`: the typed write/read surface for the six immutable
-// artifact families, bound to one scope `ctx` like `createTenantRepository`
-// and the ONLY way this package writes those tables. Every write is
-// content-addressed on its natural UNIQUE key (leading with `installation_id`,
-// NULLS NOT DISTINCT) and resolves the parent `pull_request` within the scope
-// in the SAME transaction, so a parent in another scope is a Result error,
-// never a DB write. `revision_narrative` also resolves its `brief` in the same
-// transaction; marks and hunk-span bodies are Zod-held to coordinates only.
+// The `ArtifactStore`: the ONLY write path for the six immutable artifact
+// tables, bound to one scope `ctx` like `createTenantRepository`. It unwraps
+// `AppDatabase` with the in-package `internal()`, never re-exported. Every
+// write is an `ON CONFLICT (natural_key) DO UPDATE` on a UNIQUE NULLS NOT
+// DISTINCT key leading with `installation_id`, and resolves the parent
+// `pull_request` in scope in the same transaction: a foreign parent is a
+// Result error, never a write. `revision_narrative` also resolves its `brief`
+// in (ctx, same PR); `comparison_marks` and `hunk_span` bodies are strict Zod.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -52,7 +52,7 @@ function fail(
 // ---------------------------------------------------------------------------
 
 /**
- * A contiguous inclusive line run: mirrors the CLI's `LineRange`: 1-based,
+ * A contiguous inclusive line run mirroring the CLI's `LineRange`: 1-based,
  * inclusive, `start <= end`. Enforced so malformed marks (zero/negative
  * lines, inverted ranges) are rejected at the write boundary instead of
  * pushing cleanup into every reader.
@@ -80,7 +80,7 @@ const marksFileSchema = z
 /**
  * The persisted `comparison_marks` body: exactly `{baselineSha, headSha,
  * files[]}`. `.strict()` at every level REJECTS the CLI's read-time context
- * (`baselineLabel`, `baselineIndex`) and any per-line content key; the marks
+ * (`baselineLabel`, `baselineIndex`) and any per-line content key: the marks
  * content is a pure function of the SHA pair, and the
  * checkpoint-equals-prevHead re-review case would otherwise demand two rows the
  * span-only unique key forbids.
@@ -123,7 +123,7 @@ export type HunkSpans = z.infer<typeof HunkSpansSchema>;
 
 /**
  * A JSON `string[]` id column as stored (`carried_chunk_ids`,
- * `used_group_ids`); rows predating a column are NULL, and garbage fails
+ * `used_group_ids`): rows predating a column are NULL, and garbage fails
  * the parse rather than passing through.
  */
 export const StoredIdsSchema = z
@@ -149,7 +149,7 @@ export interface BriefSpanRow {
   readonly baseSha: string;
   readonly headSha: string;
   readonly headIndex: number;
-  /** Row creation timestamp: the revision's briefed-at moment. */
+  /** Row creation timestamp, the revision's briefed-at moment. */
   readonly createdAt: Date;
 }
 
@@ -184,9 +184,14 @@ export interface Origin {
   readonly effort: string;
 }
 
-export interface BriefWriteInput extends Origin {
+interface BodyVersionStamp {
+  /** Omitted stores NULL on a rewrite too: a stale stamp must not outlive its body. */
+  readonly bodyVersion?: number;
+}
+
+export interface BriefWriteInput extends Origin, BodyVersionStamp {
   readonly pullRequestId: PullRequestRowId;
-  /** PR-base SHA: the whole-PR span's lower bound. */
+  /** PR-base SHA, the whole-PR span's lower bound. */
   readonly baseSha: string;
   readonly headSha: string;
   /** Per-distinct-head display index. */
@@ -218,7 +223,7 @@ export interface BriefWriteInput extends Origin {
   readonly usedGroupIds?: readonly string[];
 }
 
-export interface DeltaWriteInput extends Origin {
+export interface DeltaWriteInput extends Origin, BodyVersionStamp {
   readonly pullRequestId: PullRequestRowId;
   /** Checkpoint baseline: a prior head at last submit. */
   readonly baselineSha: string;
@@ -233,11 +238,11 @@ export interface DiffSnapshotWriteInput {
   readonly body: string;
 }
 
-export interface RevisionNarrativeWriteInput extends Origin {
+export interface RevisionNarrativeWriteInput extends Origin, BodyVersionStamp {
   readonly pullRequestId: PullRequestRowId;
   /** The anchoring `brief` row; verified in-tenant + same-PR. */
   readonly briefId: BriefRowId;
-  /** Prior briefed head: the third SHA role. */
+  /** Prior briefed head, the third SHA role. */
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly body: string;
@@ -249,7 +254,7 @@ export interface HunkSpanWriteInput {
   readonly baselineSha: string;
   readonly headSha: string;
   /**
-   * The `@@` coordinates: validated with `HunkSpansSchema`. Typed `unknown`
+   * The `@@` coordinates, validated with `HunkSpansSchema`. Typed `unknown`
    * because this is the boundary that rejects anything content-bearing.
    */
   readonly spans: unknown;
@@ -258,7 +263,7 @@ export interface HunkSpanWriteInput {
 export interface ComparisonMarksWriteInput {
   readonly pullRequestId: PullRequestRowId;
   /**
-   * The marks payload: validated with `ComparisonMarksBodySchema`. Typed
+   * The marks payload, validated with `ComparisonMarksBodySchema`. Typed
    * `unknown` because this is the boundary that rejects the CLI's extra keys;
    * the natural-key SHAs are taken from the validated body, not passed apart.
    */
@@ -390,13 +395,13 @@ export interface ComparisonMarksStore {
 export interface HunkSpanStore {
   write(input: HunkSpanWriteInput): Promise<Result<HunkSpanRow, ArtifactError>>;
   /**
-   * Every hop recorded on a PR, ordered by row id: insertion order, NOT chain
-   * order, since a re-generated span keeps its original id. A caller links a
-   * chain `baseline_sha → head_sha`, never by position. Rows can FORK on a
-   * shared baseline (a head whose generation failed still left its hop), so a
-   * chain follows consecutive brief heads, never every row matching a
-   * baseline. A pair with no row enters the chain as `undefined`, never
-   * skipped: skipping it passes anchors through onto post-push line numbers.
+   * Every hop on a PR, full rows, ordered by row id: insertion order, NOT
+   * chain order (a re-generated span keeps its original id). A chain links
+   * `baseline_sha → head_sha` along consecutive brief heads, never by position
+   * or by every row matching a baseline: rows FORK on a shared baseline when a
+   * head's generation failed after its hop. A pair with no row enters the
+   * chain as `undefined`, never skipped: skipping it passes anchors through
+   * onto post-push line numbers.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<HunkSpanRow[]>;
 }
@@ -433,7 +438,7 @@ export function createArtifactStore(
   const db = internal(handle);
   const scope = resolveScope(ctx);
 
-  /** Invariant (a): parent PR resolved within ctx's tenant BEFORE any write. */
+  /** The parent PR is resolved within ctx's tenant BEFORE any write. */
   async function parentInTenant(
     tx: Tx,
     pullRequestId: PullRequestRowId,
@@ -482,6 +487,7 @@ export function createArtifactStore(
             anchorReason: input.anchorReason ?? null,
             carriedChunkIds: serializedChunkIds,
             usedGroupIds: serializedGroupIds,
+            bodyVersion: input.bodyVersion ?? null,
           })
           .onConflictDoUpdate({
             target: [
@@ -503,6 +509,7 @@ export function createArtifactStore(
               anchorReason: input.anchorReason ?? null,
               carriedChunkIds: serializedChunkIds,
               usedGroupIds: serializedGroupIds,
+              bodyVersion: input.bodyVersion ?? null,
             },
           })
           .returning();
@@ -625,6 +632,7 @@ export function createArtifactStore(
             effort: input.effort,
             body: input.body,
             byteSize: byteSize(input.body),
+            bodyVersion: input.bodyVersion ?? null,
           })
           .onConflictDoUpdate({
             target: [
@@ -639,6 +647,7 @@ export function createArtifactStore(
               effort: input.effort,
               body: input.body,
               byteSize: byteSize(input.body),
+              bodyVersion: input.bodyVersion ?? null,
             },
           })
           .returning();
@@ -792,6 +801,7 @@ export function createArtifactStore(
             effort: input.effort,
             body: input.body,
             byteSize: byteSize(input.body),
+            bodyVersion: input.bodyVersion ?? null,
           })
           .onConflictDoUpdate({
             target: [
@@ -807,6 +817,7 @@ export function createArtifactStore(
               effort: input.effort,
               body: input.body,
               byteSize: byteSize(input.body),
+              bodyVersion: input.bodyVersion ?? null,
             },
           })
           .returning();

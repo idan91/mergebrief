@@ -54,6 +54,7 @@ import {
   type GenerateTaskDeps,
 } from "../src/task/generate";
 import type { CompareFile } from "brief-core";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 import { GitHubApiErrorCodes } from "github";
 import type {
   GitHubApiError,
@@ -1109,6 +1110,7 @@ describe("generate task", () => {
     expect(brief).toBeDefined();
     expect(brief?.headIndex).toBe(1);
     expect(brief?.provider).toBe("stub");
+    expect(brief?.bodyVersion).toBe(STORED_BODY_VERSION);
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
       summary: "stub brief",
       index: 1,
@@ -1827,6 +1829,7 @@ describe("generate task", () => {
       HEAD_2,
     );
     expect(narrative).toBeDefined();
+    expect(narrative?.bodyVersion).toBe(STORED_BODY_VERSION);
     const narrativeBody = JSON.parse(narrative?.body ?? "{}") as Record<
       string,
       unknown
@@ -1883,6 +1886,7 @@ describe("generate task", () => {
     const store = createArtifactStore(harness.handle, ctx);
     const delta = await store.deltas.get(second.pr.id, HEAD_1, HEAD_2);
     expect(delta).toBeDefined();
+    expect(delta?.bodyVersion).toBe(STORED_BODY_VERSION);
     expect(JSON.parse(delta?.body ?? "{}")).toMatchObject({
       baselineSha: HEAD_1,
       headSha: HEAD_2,

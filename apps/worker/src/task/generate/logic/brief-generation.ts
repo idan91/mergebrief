@@ -5,7 +5,7 @@ import {
   type Brief,
   type FetchedPr,
 } from "brief-core";
-import { checkBriefForWrite } from "brief-core/artifact";
+import { checkBriefForWrite, STORED_BODY_VERSION } from "brief-core/artifact";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
 import { GenerationPhases } from "types/generations";
 import type { Mutable } from "types/utils";
@@ -131,6 +131,7 @@ export async function generateBrief(
     commitCount: prInfo.commitCount,
     ...getGenerationOrigin(brief.generation),
     body: JSON.stringify(stamped),
+    bodyVersion: STORED_BODY_VERSION,
     ...getAnchorColumns(anchor),
     carriedChunkIds,
     usedGroupIds: [
