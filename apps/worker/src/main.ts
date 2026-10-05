@@ -6,8 +6,6 @@ import {
   checkConfiguredTrackerReads,
   NotionTransports,
   resolveTrackerReads,
-  parseHugeSpanRatio,
-  parseRevisionNarrativeFlag,
 } from "brief-core";
 import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
@@ -162,10 +160,8 @@ async function main(): Promise<void> {
     // No `spend` block → uncapped.
     spend: config.value.spend,
     trackerRoot,
-    revisionNarrative: parseRevisionNarrativeFlag(
-      env["REVISION_NARRATIVE_ENABLED"],
-    ),
-    hugeSpanRatio: parseHugeSpanRatio(env["HUGE_SPAN_RATIO"]),
+    revisionNarrative: config.value.revisionNarrative,
+    hugeSpanRatio: config.value.hugeSpanRatio,
     log: logger,
   };
 

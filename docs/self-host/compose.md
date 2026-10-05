@@ -115,10 +115,13 @@ doesn't apply — several loaders distinguish unset from empty.
 | `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | optional; an operator GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied |
 | `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | api, worker | required when the token is set, or boot is refused; the only reviewers the token is used for, as comma-separated numeric GitHub user ids (the `id` field of `https://api.github.com/users/<login>`) |
 | `SESSION_KEY_V1` | api | `openssl rand -base64 32` |
-| `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
+| `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it. An absolute http(s) URL with no credentials in it, or api and worker refuse boot |
+| `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
 | `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
 | `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
+| `REVISION_NARRATIVE_ENABLED` | worker | optional, default `true`; `false` skips the revision narrative. A token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
+| `HUGE_SPAN_RATIO` | worker | optional, default `0.65`; the share of a PR's changed lines at which an incremental span falls back to the full brief. Above 0 and at most 1, or boot is refused |
 | `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`; `docker compose up --scale worker=N` wins for that run |
 | `API_COUNT` | compose | optional; api containers compose starts, default 1. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api); `docker compose up --scale api=N` wins for that run |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
@@ -127,8 +130,8 @@ doesn't apply — several loaders distinguish unset from empty.
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 | `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
 | `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
-| `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true`; the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com, an absolute http(s) URL |
+| `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true` (empty included); the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off; a token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
+| `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com. An absolute http(s) URL with no credentials in it, or api refuses boot |
 
 ### Who owns which setting
 

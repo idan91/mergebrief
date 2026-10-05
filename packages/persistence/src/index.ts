@@ -17,8 +17,10 @@ export {
   formatSemver,
   isDevVersion,
   parseSemver,
+  parseServerVersion,
 } from "./version";
 export type { Semver } from "./version";
+export { isHttpUrl } from "./url";
 
 // --- db/: the opaque handle + its lifecycle ---------------------------------
 

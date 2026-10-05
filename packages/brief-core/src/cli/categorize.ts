@@ -493,6 +493,11 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
+  const hugeSpanRatio = parseHugeSpanRatio(process.env["HUGE_SPAN_RATIO"]);
+  if (!hugeSpanRatio.ok) {
+    console.error(`HUGE_SPAN_RATIO: ${hugeSpanRatio.error}`);
+    process.exit(1);
+  }
   // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent → the
   // zero-config default. Doubles as the config validator: a bad file refuses.
   const loaded =
@@ -547,7 +552,7 @@ async function main(): Promise<void> {
     revisionNarrative: parseRevisionNarrativeFlag(
       process.env["REVISION_NARRATIVE_ENABLED"],
     ),
-    hugeSpanRatio: parseHugeSpanRatio(process.env["HUGE_SPAN_RATIO"]),
+    hugeSpanRatio: hugeSpanRatio.value,
   };
 
   // PRs are independent, run them in parallel, sharing one generator so the

@@ -530,11 +530,6 @@
       "count": 5
     }
   },
-  "packages/brief-core/src/generation/huge-span.ts": {
-    "house/comment-density": {
-      "count": 1
-    }
-  },
   "packages/brief-core/src/generation/loc.ts": {
     "house/no-em-dash": {
       "count": 6

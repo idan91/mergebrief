@@ -6,6 +6,7 @@ import {
   formatSemver,
   isDevVersion,
   parseSemver,
+  parseServerVersion,
 } from "../src/version";
 
 describe("parseSemver", () => {
@@ -68,5 +69,31 @@ describe("isDevVersion", () => {
     expect(isDevVersion("v0.0.0")).toBe(true);
     expect(isDevVersion("0.0.1")).toBe(false);
     expect(isDevVersion("1.4.0")).toBe(false);
+  });
+});
+
+describe("parseServerVersion", () => {
+  it("reads unset and empty as the dev sentinel", () => {
+    expect(parseServerVersion(undefined)).toEqual({ ok: true, value: "dev" });
+    expect(parseServerVersion("")).toEqual({ ok: true, value: "dev" });
+  });
+
+  it("takes any printable header token as the version", () => {
+    expect(parseServerVersion("1.4.0")).toEqual({ ok: true, value: "1.4.0" });
+    expect(parseServerVersion("v2.0.0+sha.abc")).toEqual({
+      ok: true,
+      value: "v2.0.0+sha.abc",
+    });
+  });
+
+  it("refuses text a header cannot carry without echoing it", () => {
+    for (const raw of ["leak-marker 1", "leak-marker\n", " ", "leak-markeré"]) {
+      const result = parseServerVersion(raw);
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        continue;
+      }
+      expect(result.error).not.toContain("leak-marker");
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { parseHugeSpanRatio, type RevisionNarrativeConfig } from "brief-core";
 import {
   loadGeneratorConfig,
   type ContextSourcesConfig,
@@ -6,10 +7,11 @@ import {
   type TrackerConfig,
 } from "generators";
 import {
+  isHttpUrl,
   loadConfig as loadPersistenceConfig,
+  parseServerVersion,
   type LoadConfigOptions as PersistenceLoadOptions,
 } from "persistence";
-import { z } from "zod";
 import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +45,10 @@ export interface WorkerConfig {
   readonly trackers: readonly TrackerConfig[];
   /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
   readonly serverVersion: string;
+  /** `REVISION_NARRATIVE_ENABLED`; on when unset. */
+  readonly revisionNarrative: RevisionNarrativeConfig;
+  /** `HUGE_SPAN_RATIO`; brief-core's default when unset. */
+  readonly hugeSpanRatio: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,9 +75,19 @@ const DEFAULT_CONCURRENCY = 1;
 /** Zero slots would drain nothing, so the knob's floor is one. */
 const MIN_CONCURRENCY = 1;
 
-const publicBaseUrlSchema = z
-  .string({ required_error: "required (the Entry comment's deep-link base)" })
-  .url("must be a valid URL");
+const DEFAULT_REVISION_NARRATIVE = true;
+
+const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
+const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
+
+/** The worker's own knobs, parsed beside the loaders other packages own. */
+interface WorkerKnobs {
+  readonly concurrency: number;
+  readonly publicBaseUrl: string;
+  readonly serverVersion: string;
+  readonly revisionNarrative: RevisionNarrativeConfig;
+  readonly hugeSpanRatio: number;
+}
 
 /**
  * Read the slot count. Unset and empty both mean the default: compose passes an
@@ -88,6 +104,88 @@ function parseConcurrency(raw: string | undefined): Result<number, string> {
   }
 
   return { ok: true, value: slots };
+}
+
+function parsePublicBaseUrl(raw: string | undefined): Result<string, string> {
+  if (raw === undefined || raw === "") {
+    return {
+      ok: false,
+      error: "required (the Entry comment's deep-link base)",
+    };
+  }
+  const httpUrl = isHttpUrl(raw);
+  if (!httpUrl) {
+    return {
+      ok: false,
+      error: "must be an absolute http(s) URL without credentials",
+    };
+  }
+  return { ok: true, value: raw };
+}
+
+/** Unset and empty both take the default; any other token outside the two
+ * sets refuses boot rather than reading as on. */
+function parseFlag(
+  raw: string | undefined,
+  defaultValue: boolean,
+): Result<boolean, string> {
+  const token = raw?.trim().toLowerCase() ?? "";
+  if (token === "") {
+    return { ok: true, value: defaultValue };
+  }
+  const isTrueToken = TRUE_TOKENS.has(token);
+  if (isTrueToken) {
+    return { ok: true, value: true };
+  }
+  const isFalseToken = FALSE_TOKENS.has(token);
+  if (isFalseToken) {
+    return { ok: true, value: false };
+  }
+  return { ok: false, error: "must be true or false" };
+}
+
+function parseWorkerKnobs(
+  env: Readonly<Record<string, string | undefined>>,
+): Result<WorkerKnobs, readonly string[]> {
+  const concurrency = parseConcurrency(env["WORKER_CONCURRENCY"]);
+  const publicBaseUrl = parsePublicBaseUrl(env["PUBLIC_BASE_URL"]);
+  const serverVersion = parseServerVersion(env["SERVER_VERSION"]);
+  const narrative = parseFlag(
+    env["REVISION_NARRATIVE_ENABLED"],
+    DEFAULT_REVISION_NARRATIVE,
+  );
+  const hugeSpanRatio = parseHugeSpanRatio(env["HUGE_SPAN_RATIO"]);
+
+  const allParsed =
+    concurrency.ok &&
+    publicBaseUrl.ok &&
+    serverVersion.ok &&
+    narrative.ok &&
+    hugeSpanRatio.ok;
+  if (allParsed) {
+    return {
+      ok: true,
+      value: {
+        concurrency: concurrency.value,
+        publicBaseUrl: publicBaseUrl.value,
+        serverVersion: serverVersion.value,
+        revisionNarrative: { enabled: narrative.value },
+        hugeSpanRatio: hugeSpanRatio.value,
+      },
+    };
+  }
+
+  const keyed = [
+    ["WORKER_CONCURRENCY", concurrency],
+    ["PUBLIC_BASE_URL", publicBaseUrl],
+    ["SERVER_VERSION", serverVersion],
+    ["REVISION_NARRATIVE_ENABLED", narrative],
+    ["HUGE_SPAN_RATIO", hugeSpanRatio],
+  ] as const;
+  const issues = keyed.flatMap(([key, parsed]) =>
+    parsed.ok ? [] : [`${key}: ${parsed.error}`],
+  );
+  return { ok: false, error: issues };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,28 +223,14 @@ export function loadConfig(
     issues.push(...generatorConfig.error.issues);
   }
 
-  const concurrency = parseConcurrency(env["WORKER_CONCURRENCY"]);
-  if (!concurrency.ok) {
-    issues.push(`WORKER_CONCURRENCY: ${concurrency.error}`);
+  const knobs = parseWorkerKnobs(env);
+  if (!knobs.ok) {
+    issues.push(...knobs.error);
   }
 
-  const baseUrlParsed = publicBaseUrlSchema.safeParse(env["PUBLIC_BASE_URL"]);
-  if (!baseUrlParsed.success) {
-    // Only the reason is echoed, never the value; as on every field here.
-    issues.push(
-      ...baseUrlParsed.error.issues.map(
-        (issue) => `PUBLIC_BASE_URL: ${issue.message}`,
-      ),
-    );
-  }
-
-  if (
-    issues.length > 0 ||
-    !persistence.ok ||
-    !generatorConfig.ok ||
-    !concurrency.ok ||
-    !baseUrlParsed.success
-  ) {
+  const refused =
+    issues.length > 0 || !persistence.ok || !generatorConfig.ok || !knobs.ok;
+  if (refused) {
     return {
       ok: false,
       error: {
@@ -162,14 +246,16 @@ export function loadConfig(
     value: {
       databaseUrl: persistence.value.databaseUrl,
       autoMigrate: persistence.value.autoMigrate,
-      concurrency: concurrency.value,
+      concurrency: knobs.value.concurrency,
       auditRetentionDays: persistence.value.auditRetentionDays,
       generator: generatorConfig.value.generator,
-      publicBaseUrl: baseUrlParsed.data,
+      publicBaseUrl: knobs.value.publicBaseUrl,
       spend: generatorConfig.value.spend,
       contextSources: generatorConfig.value.contextSources,
       trackers: generatorConfig.value.trackers,
-      serverVersion: env["SERVER_VERSION"] || "dev",
+      serverVersion: knobs.value.serverVersion,
+      revisionNarrative: knobs.value.revisionNarrative,
+      hugeSpanRatio: knobs.value.hugeSpanRatio,
     },
   };
 }

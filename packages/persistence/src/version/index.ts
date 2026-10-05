@@ -2,7 +2,7 @@
 // check and the instance version row both compare with it; the CLI carries
 // its own copy because its bundle takes no workspace runtime dependency.
 import type { Result } from "types";
-import type { Semver } from "./types";
+import type { Semver, ServerVersionResult } from "./types";
 
 export type { Semver } from "./types";
 
@@ -68,4 +68,24 @@ export function isDevVersion(value: string): boolean {
   const { major, minor, patch } = parsed.value;
   const isZero = major === 0 && minor === 0 && patch === 0;
   return isZero;
+}
+
+/** `SERVER_VERSION` rides the `MergeBrief-Version` response header, which
+ * refuses whitespace and non-ASCII. */
+const HEADER_TOKEN_PATTERN = /^[\x21-\x7E]+$/;
+const NOT_HEADER_TOKEN = "must be printable ASCII without spaces";
+
+/** Unset and empty both mean a dev build: compose passes an unset variable
+ * through as an empty string. */
+export function parseServerVersion(
+  raw: string | undefined,
+): ServerVersionResult {
+  if (raw === undefined || raw === "") {
+    return { ok: true, value: DEV_SENTINEL };
+  }
+  const isHeaderToken = HEADER_TOKEN_PATTERN.test(raw);
+  if (!isHeaderToken) {
+    return { ok: false, error: NOT_HEADER_TOKEN };
+  }
+  return { ok: true, value: raw };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadConfig } from "./config";
+import { loadConfig, loadServerVersion } from "./config";
 
 describe("loadConfig PUBLIC_BASE_URL", () => {
   it("accepts an absolute http or https URL", () => {
@@ -51,6 +51,11 @@ describe("loadConfig update check knobs", () => {
     expect(result).toMatchObject({ ok: true, value: { updateCheck: false } });
   });
 
+  it("reads an empty MERGEBRIEF_UPDATE_CHECK as the default", () => {
+    const result = loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "" });
+    expect(result).toMatchObject({ ok: true, value: { updateCheck: true } });
+  });
+
   it("refuses an update check token it does not know", () => {
     expect(loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "maybe" }).ok).toBe(
       false,
@@ -78,5 +83,44 @@ describe("loadConfig SERVER_VERSION", () => {
     expect(loadConfig({ ...BASE, SERVER_VERSION: "1.4.0" }).ok).toBe(true);
     expect(loadConfig({ ...BASE, SERVER_VERSION: "1.4.0\n" }).ok).toBe(false);
     expect(loadConfig({ ...BASE, SERVER_VERSION: "1 .4.0" }).ok).toBe(false);
+  });
+
+  it("reads unset and empty as dev", () => {
+    expect(loadConfig(BASE)).toMatchObject({
+      ok: true,
+      value: { serverVersion: "dev" },
+    });
+    expect(loadConfig({ ...BASE, SERVER_VERSION: "" })).toMatchObject({
+      ok: true,
+      value: { serverVersion: "dev" },
+    });
+  });
+
+  it("loadServerVersion reads empty as dev and refuses a bad token", () => {
+    expect(loadServerVersion({ SERVER_VERSION: "" })).toEqual({
+      ok: true,
+      value: "dev",
+    });
+    expect(loadServerVersion({ SERVER_VERSION: "1 .4.0" }).ok).toBe(false);
+  });
+});
+
+describe("loadConfig refusals never echo the value", () => {
+  const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
+  const MARKER = "leak-marker";
+
+  it.each([
+    ["SERVER_VERSION", { ...BASE, SERVER_VERSION: `${MARKER} 1.4.0` }],
+    ["PUBLIC_BASE_URL", { PUBLIC_BASE_URL: `ftp://${MARKER}.test` }],
+    ["MERGEBRIEF_UPDATE_CHECK", { ...BASE, MERGEBRIEF_UPDATE_CHECK: MARKER }],
+  ])("names %s without its value", (key, env) => {
+    const result = loadConfig(env);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain(key);
+    expect(text).not.toContain(MARKER);
   });
 });
