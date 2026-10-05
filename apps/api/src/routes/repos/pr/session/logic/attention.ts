@@ -6,19 +6,21 @@
 //
 // ONE derivation over both sides of materialization: a session's own rows and
 // the in-memory verdicts differ only in whether the subject has a row id yet.
+import type { DraftAnchor } from "persistence";
 import {
-  AnchorStatuses,
   DispositionCarryStatuses,
   DispositionEvidenceStatuses,
-  DraftCommentStatuses,
-  type DispositionDecision,
-  type AnchorStatus,
   type DispositionCarryStatus,
+  type DispositionDecision,
   type DispositionEvidenceStatus,
-  type DraftAnchor,
+} from "types/dispositions";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentStatuses,
+  type AnchorStatus,
   type DraftCommentStatus,
-} from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+} from "types/comments";
 import {
   AttentionItemKinds,
   AttentionSubjectTypes,

@@ -19,7 +19,6 @@ import {
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type AppDatabase,
   type BriefRowId,
   type PullRequestLifecycle,
@@ -28,6 +27,7 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import {
   E2E_OTHER_LOGIN,
   E2E_VIEWER_LOGIN,

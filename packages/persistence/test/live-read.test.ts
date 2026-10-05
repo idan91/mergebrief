@@ -12,12 +12,12 @@ import {
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
-  type Result,
 } from "../src/types";
+import type { Result } from "types/utils";
+import { PrStates } from "types/pull-requests";
 import { brandWith, freshDatabase } from "./helpers";
 
 const OWNER_A: ReviewerId = brandWith(isReviewerId, 501n);

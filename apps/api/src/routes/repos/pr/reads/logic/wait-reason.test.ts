@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WaitReasons, type WaitReason } from "contract";
-import {
-  GenerationStatuses,
-  type GenerateJobTiming,
-  type GenerationStatus,
-} from "persistence";
+import type { GenerateJobTiming } from "persistence";
+import { GenerationStatuses, type GenerationStatus } from "types/generations";
 import { deriveWaitReason } from "./wait-reason";
 
 const STARTS_LATER: GenerateJobTiming = { startsLater: true, locked: false };

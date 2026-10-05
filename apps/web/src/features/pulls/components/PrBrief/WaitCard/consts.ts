@@ -1,5 +1,6 @@
-import { WaitReasons, type GenerationPhase, type WaitReason } from "contract";
+import { WaitReasons, type WaitReason } from "contract";
 import type { TranslationKey } from "i18n";
+import type { GenerationPhase } from "types/generations";
 
 export const WAIT_REASON_KEYS: Record<WaitReason, TranslationKey> = {
   [WaitReasons.DEBOUNCING]: "pulls.wait.debouncing",

@@ -9,7 +9,6 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   createTokenAuth,
   WriteClassifications,
   type AppDatabase,
@@ -18,6 +17,7 @@ import {
   type TenantContext,
   type WriteClassification,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";

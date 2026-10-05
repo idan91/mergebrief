@@ -1,4 +1,4 @@
-import { PrStates } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { describe, expect, it } from "vitest";
 import { buildStaticLifecycle } from "../src/cli/lifecycle";
 import { writeIngestReport } from "../src/cli/report";
@@ -46,7 +46,7 @@ describe("buildStaticLifecycle", () => {
 });
 
 describe("writeIngestReport", () => {
-  it("names every unmapped brief — the failure the tool exists to catch", () => {
+  it("names every unmapped brief, the failure the tool exists to catch", () => {
     const lines: string[] = [];
     writeIngestReport(
       { ...EMPTY_SUMMARY, briefs: 2, unmapped: ["old.brief.json"] },

@@ -18,14 +18,16 @@ import {
   AuditOutcomes,
   AuditRequestIdSchema,
   isInstallationId,
-  PullRequestSources,
   WriteClassifications,
   type AppDatabase,
   type InstallationId,
-  type PullRequestSource,
   type AuditChannel,
   type AuditOutcome,
 } from "persistence";
+import {
+  PullRequestSources,
+  type PullRequestSource,
+} from "types/pull-requests";
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
 import {

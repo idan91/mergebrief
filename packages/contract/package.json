@@ -12,7 +12,6 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "persistence": "workspace:*",
     "types": "workspace:*"
   },
   "devDependencies": {

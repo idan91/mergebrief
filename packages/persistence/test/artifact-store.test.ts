@@ -13,10 +13,10 @@ import {
 import {
   isInstallationId,
   isRepoId,
-  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";
+import { PrStates } from "types/pull-requests";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);

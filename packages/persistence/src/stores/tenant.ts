@@ -24,16 +24,14 @@ import {
 import { resolveScope } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
-import {
-  type GrantRowId,
-  PrStates,
-  type PrState,
-  type PullRequestRowId,
-  type Result,
-  type ReviewerId,
-  type RepoId,
-  type ValueOf,
+import type {
+  GrantRowId,
+  PullRequestRowId,
+  ReviewerId,
+  RepoId,
 } from "../types";
+import type { Result, ValueOf } from "types/utils";
+import { PrStates, type PrState } from "types/pull-requests";
 
 // The context boundary lives in `./scope`; re-exported here so the package
 // surface (`index.ts`) and existing imports stay stable.

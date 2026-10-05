@@ -3,19 +3,21 @@
 // route never writes the checkpoint, the webhook is its only writer.
 import { randomBytes } from "node:crypto";
 import {
-  AnchorStatuses,
   createArtifactStore,
-  DraftCommentSides,
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrStates,
   type AppDatabase,
   type BriefRowId,
   type KeyProvider,
-  type AnchorStatus,
 } from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+import { PrStates } from "types/pull-requests";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentSides,
+  type AnchorStatus,
+} from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";

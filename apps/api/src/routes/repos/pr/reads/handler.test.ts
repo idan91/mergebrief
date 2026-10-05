@@ -18,11 +18,11 @@ import {
   isRepoId,
   isReviewerId,
   parseTenantContext,
-  PrStates,
   createTenantRepository,
   WriteClassifications,
   type RepoId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Result } from "types/utils";
 import {

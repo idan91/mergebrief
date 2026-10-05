@@ -1,4 +1,5 @@
-import { PrStates, type PullRequestLifecycle } from "persistence";
+import type { PullRequestLifecycle } from "persistence";
+import { PrStates } from "types/pull-requests";
 
 /** The slice of a GitHub read the lifecycle comes from. */
 export interface LifecycleFacts {

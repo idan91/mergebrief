@@ -61,11 +61,7 @@ export {
   type Page,
   type ReachableInstallationView,
 } from "./inbox";
-export {
-  WaitReasons,
-  type GenerationPhase,
-  type WaitReason,
-} from "./generation";
+export { WaitReasons, type WaitReason } from "./generation";
 export {
   ProductActionIds,
   ProductQueryIds,

@@ -5,7 +5,6 @@
 import type { PullRequestInfo } from "github";
 import {
   createIngestRoutines,
-  PrStates,
   type AppDatabase,
   type GrantRowId,
   type PullRequestLifecycle,
@@ -13,6 +12,7 @@ import {
   type RepoId,
   type ScopeContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import type { Logger } from "logging";
 import type { Mutable } from "types/utils";
 

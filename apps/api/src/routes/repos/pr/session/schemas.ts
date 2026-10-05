@@ -3,14 +3,18 @@
 // an out-of-range id from reaching the store.
 import {
   ChangeGroupCategories,
-  DispositionEvidenceKinds,
-  DraftCommentSides,
   ReviewOutcomes,
   type ChangeGroupCategory,
+} from "types/reviews";
+import {
+  DispositionEvidenceKinds,
   type DispositionEvidence,
+} from "types/dispositions";
+import {
+  CommentAnchorKinds,
+  DraftCommentSides,
   type DraftCommentSide,
-} from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+} from "types/comments";
 import { z } from "zod";
 import {
   MAX_BODY_LENGTH,

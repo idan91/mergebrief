@@ -3,7 +3,7 @@
 // migrations upfront, empty DB) cannot express. Applies 0000 to 0038 raw,
 // seeds one row per world in both tables, applies 0039, and reads them back.
 import { describe, expect, it } from "vitest";
-import { PullRequestSources } from "../src/types";
+import { PullRequestSources } from "types/pull-requests";
 import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
 
 describe("migration 0039 source values", () => {

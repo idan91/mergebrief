@@ -2,13 +2,13 @@
 // shared write seam, and map refusals onto the wire as throws. Composition
 // stays in `index.ts`.
 import type { Context } from "hono";
-import {
-  DispositionDecisions,
-  DraftCommentStatuses,
-  type DispositionAnchor,
-  type ReviewDraftCommentRow,
-  type SessionWriter,
+import type {
+  DispositionAnchor,
+  ReviewDraftCommentRow,
+  SessionWriter,
 } from "persistence";
+import { DispositionDecisions } from "types/dispositions";
+import { DraftCommentStatuses } from "types/comments";
 import { ApiErrorCodes } from "contract";
 import {
   BadRequest,

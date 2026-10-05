@@ -14,13 +14,13 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";

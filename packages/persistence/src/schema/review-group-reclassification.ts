@@ -1,8 +1,9 @@
-// `review_group_reclassification` — the reviewer's override of a Change
+// `review_group_reclassification`: the reviewer's override of a Change
 // group's category. Overrides only: the Brief supplies every default, so an
 // absent row means "as generated", never "unknown".
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { ChangeGroupCategory, ReviewSessionId } from "../types";
+import type { ReviewSessionId } from "../types";
+import type { ChangeGroupCategory } from "types/reviews";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 

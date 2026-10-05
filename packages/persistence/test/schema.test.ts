@@ -30,14 +30,14 @@ import type {
 import {
   AuditOutcomes,
   AuditActorTypes,
-  DispositionDecisions,
   GenerationKinds,
-  GenerationStatuses,
-  PrStates,
   isInstallationId,
   isRepoId,
   isReviewerId,
 } from "../src/types";
+import { DispositionDecisions } from "types/dispositions";
+import { GenerationStatuses } from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { expectCheckViolation, freshPglite } from "./helpers";
 
 /**

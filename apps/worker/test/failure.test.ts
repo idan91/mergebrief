@@ -1,6 +1,6 @@
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
-import { GenerationFailureCodes } from "persistence";
+import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
 import {
   classifyFailure,
@@ -74,7 +74,7 @@ describe("classifyFailure", () => {
     });
   });
 
-  it("recovers rate-limit and timeout from a transient GeneratorError's cause", () => {
+  it("recovers rate-limit and timeout from a transient GeneratorError cause", () => {
     expect(
       classifyFailure(
         new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, "429", {

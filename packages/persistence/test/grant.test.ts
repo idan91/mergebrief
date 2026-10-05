@@ -1,16 +1,10 @@
-// Grant boundary tests. Exercises `createGrantAuth` against real migrations on
-// PGlite: create, the serialized `refreshGrant` CAS in all
-// four branches — (a) refresh applies the patch, (b) compare-and-swap
-// short-circuit when the seen token ciphertext no longer matches (callback
-// NOT called; this is how a race loser behaves after the winner rotates),
-// (c) caller rejection leaves the row untouched, (d) absent id → NOT_FOUND —
-// and the last-referent lifecycle (`deleteIfOrphaned` + the referent-delete
-// paths in session/tenant/purge suites).
-//
-// A true concurrent-interleaving race (two transactions blocked on the same
-// FOR UPDATE lock) is NOT expressible on single-connection PGlite — the CAS
-// branch (b) pins the loser's observable behavior; the live interleaving is
-// exercised against real Postgres.
+// Grant boundary tests: `createGrantAuth` against real migrations on PGlite.
+// Covers create, every branch of the serialized `refreshGrant` CAS, and the
+// last-referent lifecycle (`deleteIfOrphaned`; the referent-delete paths live
+// in the session, tenant and purge suites). A true concurrent race on one
+// FOR UPDATE lock is NOT expressible on single-connection PGlite: the
+// already-rotated case pins the loser's observable behavior, and the live
+// interleaving is exercised against real Postgres.
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -27,9 +21,9 @@ import {
   isInstallationId,
   isReviewerId,
   type InstallationId,
-  type Result,
   type ReviewerId,
 } from "../src/types";
+import type { Result } from "types/utils";
 import { brandWith, freshDatabase } from "./helpers";
 
 const INSTALLATION: InstallationId = brandWith(isInstallationId, 4242n);
@@ -66,7 +60,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     expect(grant.refreshExpiresAt).toEqual(FUTURE);
   });
 
-  it("(a) applies the patch and returns the updated row when stale", async () => {
+  it("applies the patch and returns the updated row when stale", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     const patch: GrantRefreshPatch = {
@@ -98,7 +92,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     expect(rows[0]?.refreshExpiresAt).toEqual(ROTATED_EXPIRY);
   });
 
-  it("(b) short-circuits when the pair was already rotated under the lock (no callback)", async () => {
+  it("skips the callback when the pair was already rotated under the lock", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
 
@@ -109,12 +103,12 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    // Returned as-is, untouched — the stored (fresh) pair stands.
+    // Returned as-is, untouched: the stored (fresh) pair stands.
     expect(result.value.ghTokenCiphertext).toBe("v1.enc-access");
     expect(result.value.refreshExpiresAt).toEqual(FUTURE);
   });
 
-  it("(c) leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
+  it("leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     const refresh = vi.fn().mockResolvedValue({
@@ -134,7 +128,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     expect(rows[0]?.ghTokenCiphertext).toBe("v1.enc-access");
   });
 
-  it("(d) returns NOT_FOUND for an absent grant id", async () => {
+  it("returns NOT_FOUND for an absent grant id", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     await auth.deleteIfOrphaned(grant.id);
@@ -149,13 +143,13 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
   });
 });
 
-describe("grant lifecycle — deleteIfOrphaned", () => {
+describe("grant lifecycle: deleteIfOrphaned", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
   });
 
-  it("deletes an unreferenced grant (login compensation path)", async () => {
+  it("deletes an unreferenced grant on the login compensation path", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(1);

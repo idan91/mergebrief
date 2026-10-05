@@ -1,5 +1,6 @@
 import type { PullRequestRef } from "github";
-import { PrStates, type PullRequestRow } from "persistence";
+import type { PullRequestRow } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { parseOwnerAndName } from "../../repos/utils";
 
 /** A row is due when it is not merged and its last read is missing or older than the window. */

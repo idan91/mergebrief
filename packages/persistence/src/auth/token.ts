@@ -12,14 +12,13 @@ import { githubGrant } from "../schema/github-grant";
 import {
   AuditOutcomes,
   AuditActorTypes,
-  PullRequestSources,
   type ApiTokenRowId,
   type GrantRowId,
-  type Result,
   type ReviewerId,
-  type ValueOf,
   type WriteClassification,
 } from "../types";
+import type { Result, ValueOf } from "types/utils";
+import { PullRequestSources } from "types/pull-requests";
 import type { GithubGrantRow } from "./grant";
 
 // The issuance row this store writes INSIDE the mint transaction, a mint that

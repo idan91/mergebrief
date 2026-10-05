@@ -9,10 +9,10 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type OwnerContext,
   type ReviewerId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ingestBriefDirectory, type RepoResolution } from "../src/ingest";

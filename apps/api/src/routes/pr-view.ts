@@ -6,16 +6,14 @@
 // EXISTS, status is display-only). `baseSha` prefers the brief row and falls
 // back to the base SHA persisted at ingest.
 import type { WaitReason } from "contract";
+import type { BriefSpanRow, GenerationRow, PullRequestRow } from "persistence";
 import type {
-  BriefSpanRow,
   GenerationFailureCode,
   GenerationFailureParams,
   GenerationPhase,
-  GenerationRow,
   GenerationStatus,
-  PrState,
-  PullRequestRow,
-} from "persistence";
+} from "types/generations";
+import type { PrState } from "types/pull-requests";
 import type { Mutable } from "types/utils";
 
 /** The poll-relevant slice of a `generation` projection row. */

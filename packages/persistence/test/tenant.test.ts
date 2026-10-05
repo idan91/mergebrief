@@ -22,11 +22,11 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type InstallationId,
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { PrStates } from "types/pull-requests";
 import { internal } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { brandWith, freshDatabase } from "./helpers";

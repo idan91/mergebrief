@@ -28,15 +28,13 @@ import type { ScopeContext } from "./scope-context";
 import {
   AuditActorTypes,
   AuditOutcomes,
-  PrStates,
-  PullRequestSources,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
-  type Result,
   type ReviewerId,
-  type ValueOf,
 } from "../types";
+import type { Result, ValueOf } from "types/utils";
+import { PrStates, PullRequestSources } from "types/pull-requests";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

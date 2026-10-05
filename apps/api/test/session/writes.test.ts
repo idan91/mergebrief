@@ -1,14 +1,10 @@
 // Any session write may materialize carried state atomically before applying its action.
 // Pre-materialization draft ids must resolve to copies; frozen sessions refuse all writes.
 // Repeated read marks are idempotent and every write inherits the router scope gate.
-import {
-  ChangeGroupCategories,
-  DraftCommentSides,
-  createTenantRepository,
-  WriteClassifications,
-} from "persistence";
+import { createTenantRepository, WriteClassifications } from "persistence";
+import { ChangeGroupCategories } from "types/reviews";
 import type { KeyProvider } from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";

@@ -1,11 +1,12 @@
 // Failure classification for the generate task: a thrown error becomes the
-// typed `GenerationFailure` the projection stores. Order is contractual —
+// typed `GenerationFailure` the projection stores. Order is contractual:
 // an explicit throw-site stamp wins, then the generator's own taxonomy,
 // then transport probes, then `unknown{detail}`. A probe never overrides a
 // stamp.
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
-import { GenerationFailureCodes, type GenerationFailure } from "persistence";
+import type { GenerationFailure } from "persistence";
+import { GenerationFailureCodes } from "types/generations";
 
 interface JobErrorOptions {
   readonly cause?: unknown;
@@ -15,7 +16,7 @@ interface JobErrorOptions {
 /**
  * A failure that retrying cannot fix (missing PR, unrenderable diff,
  * deterministic generation failure). Marked `failed` on the projection but
- * NOT rethrown to graphile — a retry would only burn spend.
+ * NOT rethrown to graphile: a retry would only burn spend.
  */
 export class PermanentJobError extends Error {
   readonly failure?: GenerationFailure;
@@ -75,7 +76,7 @@ export function classifyFailure(error: unknown): GenerationFailure {
   if (stamped && error.failure !== undefined) {
     return error.failure;
   }
-  // The generator boundary wraps its original throw as `cause` — classify
+  // The generator boundary wraps its original throw as `cause`; classify
   // the real failure, not the wrapper's message.
   const unwrapped = stamped && error.cause !== undefined ? error.cause : error;
 
@@ -85,7 +86,7 @@ export function classifyFailure(error: unknown): GenerationFailure {
         return { code: GenerationFailureCodes.PROVIDER_AUTH };
       case GeneratorErrorKinds.PROVIDER_TRANSIENT:
         // Adapters fold 408/429/5xx into one kind but keep the SDK error as
-        // cause — recover the rate-limit/timeout distinction from it.
+        // cause, so recover the rate-limit/timeout distinction from it.
         return transientFailure(unwrapped.cause);
       case GeneratorErrorKinds.TIMEOUT:
         return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };

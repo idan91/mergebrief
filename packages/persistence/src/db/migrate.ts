@@ -16,7 +16,7 @@ import type { Logger } from "logging";
 import { Pool } from "pg";
 import { Runtimes } from "types/runtime";
 import { z } from "zod";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 import { recordInstanceVersion } from "./instance-version";
 
 /**

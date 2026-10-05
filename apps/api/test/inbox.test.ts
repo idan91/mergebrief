@@ -11,13 +11,13 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type AppDatabase,
   type KeyProvider,
   type PullRequestUpsertInput,
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

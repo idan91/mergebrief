@@ -1,21 +1,13 @@
-// GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`.
-// AES-256-GCM (authenticated encryption) behind a key-provider interface.
-//
-// ENCRYPTION MODEL: DIRECT encryption with a provider-resolved key, NOT a
-// per-row envelope DEK. Reviewer tokens are short-lived and deleted on
-// expiry/logout, so rotation rides on natural token churn.
-//
-// KEY ROTATION WITHOUT A MIGRATION: every row stores the `key_ref` that sealed
-// it and passes it back into `decryptToken`, so publishing a new key is a
-// config change only, old rows keep decrypting under their own `key_ref`.
-//
-// KEY PROVIDER SEAM: `resolveKey(keyRef)` is the swap point; it returns a
-// `MaybePromise` so an async (KMS) provider drops in without call-site change.
-//
-// SECURITY: every expected failure is a `Result`, never a throw, and NO error
-// message ever contains plaintext or key material.
+// GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`:
+// AES-256-GCM with a provider-resolved key, NOT a per-row envelope DEK.
+// Every row stores the `key_ref` that sealed it and passes it back into
+// `decryptToken`, so a new key is a config change only and old rows keep
+// decrypting under their own `key_ref`. `resolveKey` returns a `MaybePromise`
+// so an async (KMS) provider drops in without a call-site change.
+// Every expected failure is a `Result`, never a throw, and NO error message
+// ever contains plaintext or key material.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import type { MaybePromise, Result, ValueOf } from "../types";
+import type { MaybePromise, Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
 // Constants, AES-256-GCM parameters. All lengths are in bytes.

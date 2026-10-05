@@ -3,7 +3,7 @@
 // migrations upfront, empty DB) cannot express. Applies 0000 to 0035 raw,
 // seeds a `queued` generation row, applies 0036, and reads it back.
 import { describe, expect, it } from "vitest";
-import { GenerationStatuses } from "../src/types";
+import { GenerationStatuses } from "types/generations";
 import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
 
 describe("migration 0036 generation pending", () => {

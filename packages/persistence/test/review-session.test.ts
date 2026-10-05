@@ -5,7 +5,12 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { Categories } from "brief-core";
 import { drizzle } from "drizzle-orm/pglite";
-import { CommentAnchorKinds } from "types/comments";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import {
@@ -21,22 +26,20 @@ import type {
 } from "../src/index";
 import * as schema from "../src/schema/index";
 import {
-  AnchorStatuses,
-  ChangeGroupCategories,
-  DispositionCarryStatuses,
-  DispositionEvidenceKinds,
-  DispositionEvidenceStatuses,
-  DraftCommentSides,
-  DraftCommentStatuses,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  ReviewOutcomes,
   type BriefRowId,
   type InstallationId,
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
+import {
+  DispositionCarryStatuses,
+  DispositionEvidenceKinds,
+  DispositionEvidenceStatuses,
+} from "types/dispositions";
 
 import { brandWith, freshPglite } from "./helpers";
 

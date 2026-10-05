@@ -1,27 +1,11 @@
-// The `ArtifactStore` interface: the typed write/read surface for the six
-// immutable artifact families — `brief`, `delta`, `diff_snapshot`,
-// `revision_narrative`, `comparison_marks`, `hunk_span`. Like `createTenantRepository` it is bound to one
-// scope `ctx` (installation tenant OR url-box owner — see `./scope`) and is
-// the ONLY way this package writes those tables. It unwraps the opaque
-// `AppDatabase` with the in-package `internal()` (never re-exported), so
-// consumers still cannot reach a raw query handle.
-//
-// Every write:
-//   (a) is content-addressed — `ON CONFLICT (natural_key) DO UPDATE` makes a
-//       re-write of the same span rewrite the one row in place; the natural
-//       UNIQUE key IS the content key, and it leads with `installation_id`
-//       (NULLS NOT DISTINCT, so owner-world rows conflict too);
-//   (b) stamps the scope's world mark AND resolves the parent
-//       `pull_request` within the scope in the SAME transaction — a parent in
-//       another scope yields a Result error, never a DB write;
-//   (c) for `revision_narrative` additionally resolves the named `brief` row by
-//       (ctx, same PR, id) in-transaction — the anchoring rule;
-//   (d) for `comparison_marks` and `hunk_span` Zod-validates the
-//       coordinates-only body and REJECTS any `baselineLabel` /
-//       `baselineIndex` / per-line content key.
-// Origin columns (`provider`/`model`/`effort`) are written for
-// `brief`/`delta`/`revision_narrative` only — `diff_snapshot`,
-// `comparison_marks` and `hunk_span` are mechanical, not LLM output.
+// The `ArtifactStore`: the typed write/read surface for the six immutable
+// artifact families, bound to one scope `ctx` like `createTenantRepository`
+// and the ONLY way this package writes those tables. Every write is
+// content-addressed on its natural UNIQUE key (leading with `installation_id`,
+// NULLS NOT DISTINCT) and resolves the parent `pull_request` within the scope
+// in the SAME transaction, so a parent in another scope is a Result error,
+// never a DB write. `revision_narrative` also resolves its `brief` in the same
+// transaction; marks and hunk-span bodies are Zod-held to coordinates only.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -34,15 +18,11 @@ import { pullRequest } from "../schema/pull-request";
 import { revisionNarrative } from "../schema/revision-narrative";
 import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
-import {
-  type BriefRowId,
-  type PullRequestRowId,
-  type Result,
-  type ValueOf,
-} from "../types";
+import type { BriefRowId, PullRequestRowId } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
-// Errors — expected failures. Programmer errors still `throw`.
+// Errors: expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
 export const ArtifactErrorCodes = {
@@ -68,11 +48,11 @@ function fail(
 }
 
 // ---------------------------------------------------------------------------
-// comparison_marks body — coordinates-only, strict.
+// comparison_marks body: coordinates-only, strict.
 // ---------------------------------------------------------------------------
 
 /**
- * A contiguous inclusive line run — mirrors the CLI's `LineRange`: 1-based,
+ * A contiguous inclusive line run: mirrors the CLI's `LineRange`: 1-based,
  * inclusive, `start <= end`. Enforced so malformed marks (zero/negative
  * lines, inverted ranges) are rejected at the write boundary instead of
  * pushing cleanup into every reader.
@@ -88,7 +68,7 @@ const lineRangeSchema = z
     path: ["end"],
   });
 
-/** Per-file marks — coordinates only, never line content. */
+/** Per-file marks: coordinates only, never line content. */
 const marksFileSchema = z
   .object({
     file: z.string(),
@@ -100,7 +80,7 @@ const marksFileSchema = z
 /**
  * The persisted `comparison_marks` body: exactly `{baselineSha, headSha,
  * files[]}`. `.strict()` at every level REJECTS the CLI's read-time context
- * (`baselineLabel`, `baselineIndex`) and any per-line content key — the marks
+ * (`baselineLabel`, `baselineIndex`) and any per-line content key; the marks
  * content is a pure function of the SHA pair, and the
  * checkpoint-equals-prevHead re-review case would otherwise demand two rows the
  * span-only unique key forbids.
@@ -115,12 +95,12 @@ export const ComparisonMarksBodySchema = z
 export type ComparisonMarksBody = z.infer<typeof ComparisonMarksBodySchema>;
 
 // ---------------------------------------------------------------------------
-// hunk_span body — the paired `@@` coordinates, one entry per file.
+// hunk_span body: the paired `@@` coordinates, one entry per file.
 // ---------------------------------------------------------------------------
 
 /**
  * One `@@ -old,+new @@` header, both sides as (start, line count). Zero is
- * legal on either side — a created file reads `@@ -0,0 +1,n @@`.
+ * legal on either side: a created file reads `@@ -0,0 +1,n @@`.
  */
 const hunkSchema = z
   .object({
@@ -143,7 +123,7 @@ export type HunkSpans = z.infer<typeof HunkSpansSchema>;
 
 /**
  * A JSON `string[]` id column as stored (`carried_chunk_ids`,
- * `used_group_ids`) — rows predating a column are NULL, and garbage fails
+ * `used_group_ids`); rows predating a column are NULL, and garbage fails
  * the parse rather than passing through.
  */
 export const StoredIdsSchema = z
@@ -163,18 +143,18 @@ export const StoredIdsSchema = z
 
 export type BriefRow = typeof brief.$inferSelect;
 
-/** Lean brief listing row — span/index metadata only, never the body. */
+/** Lean brief listing row: span/index metadata only, never the body. */
 export interface BriefSpanRow {
   readonly id: BriefRowId;
   readonly baseSha: string;
   readonly headSha: string;
   readonly headIndex: number;
-  /** Row creation timestamp — the revision's briefed-at moment. */
+  /** Row creation timestamp: the revision's briefed-at moment. */
   readonly createdAt: Date;
 }
 
 /**
- * Lean comparison-span listing row — the natural-key SHA pair only, never the
+ * Lean comparison-span listing row: the natural-key SHA pair only, never the
  * body (marks / delta). Feeds the PR-meta per-revision availability join: one
  * listing per kind, existence derived in memory.
  */
@@ -184,7 +164,7 @@ export interface ComparisonSpanRow {
 }
 
 /**
- * Lean narrative-span listing row — the prevHead/head pair only, never the
+ * Lean narrative-span listing row: the prevHead/head pair only, never the
  * body.
  */
 export interface NarrativeSpanRow {
@@ -206,7 +186,7 @@ export interface Origin {
 
 export interface BriefWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
-  /** PR-base SHA — the whole-PR span's lower bound. */
+  /** PR-base SHA: the whole-PR span's lower bound. */
   readonly baseSha: string;
   readonly headSha: string;
   /** Per-distinct-head display index. */
@@ -214,25 +194,25 @@ export interface BriefWriteInput extends Origin {
   readonly commitCount: number;
   readonly body: string;
   /**
-   * Repo-config origin + policy snapshot JSON — the worker serializes it; this
+   * Repo-config origin + policy snapshot JSON. The worker serializes it; this
    * layer stores it opaquely like `body`. Omit for generations that never ran
    * the repo-config phase.
    */
   readonly repoConfig?: string;
   /**
-   * Anchor origin — 'anchored' | 'fresh-restart' | 'none', DB-enforced. Omit
+   * Anchor origin: 'anchored' | 'fresh-restart' | 'none', DB-enforced. Omit
    * only for writers predating the stamp; the worker always stamps.
    */
   readonly anchorState?: string;
   /** Fresh-restart reason ('model-swap'); only with anchorState 'fresh-restart'. */
   readonly anchorReason?: string;
   /**
-   * The chunk ids carried from the previous Brief — stored as JSON. Empty for
+   * The chunk ids carried from the previous Brief, stored as JSON. Empty for
    * a fresh restart; omit only for writers predating the stamp.
    */
   readonly carriedChunkIds?: readonly string[];
   /**
-   * Every group id the PR's Brief chain has used, this Brief included —
+   * Every group id the PR's Brief chain has used, this Brief included,
    * stored as JSON. Omit only for writers predating the stamp.
    */
   readonly usedGroupIds?: readonly string[];
@@ -240,7 +220,7 @@ export interface BriefWriteInput extends Origin {
 
 export interface DeltaWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
-  /** Checkpoint baseline — a prior head at last submit. */
+  /** Checkpoint baseline: a prior head at last submit. */
   readonly baselineSha: string;
   readonly headSha: string;
   readonly body: string;
@@ -257,7 +237,7 @@ export interface RevisionNarrativeWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
   /** The anchoring `brief` row; verified in-tenant + same-PR. */
   readonly briefId: BriefRowId;
-  /** Prior briefed head — the third SHA role. */
+  /** Prior briefed head: the third SHA role. */
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly body: string;
@@ -269,7 +249,7 @@ export interface HunkSpanWriteInput {
   readonly baselineSha: string;
   readonly headSha: string;
   /**
-   * The `@@` coordinates — validated with `HunkSpansSchema`. Typed `unknown`
+   * The `@@` coordinates: validated with `HunkSpansSchema`. Typed `unknown`
    * because this is the boundary that rejects anything content-bearing.
    */
   readonly spans: unknown;
@@ -278,7 +258,7 @@ export interface HunkSpanWriteInput {
 export interface ComparisonMarksWriteInput {
   readonly pullRequestId: PullRequestRowId;
   /**
-   * The marks payload — validated with `ComparisonMarksBodySchema`. Typed
+   * The marks payload: validated with `ComparisonMarksBodySchema`. Typed
    * `unknown` because this is the boundary that rejects the CLI's extra keys;
    * the natural-key SHAs are taken from the validated body, not passed apart.
    */
@@ -297,7 +277,7 @@ export interface BriefStore {
     headSha: string,
   ): Promise<BriefRow | undefined>;
   /**
-   * All briefs on a PR, ordered by `headIndex` ascending — the worker's
+   * All briefs on a PR, ordered by `headIndex` ascending: the worker's
    * DB-mode stand-in for the CLI manifest: next index = max + 1, previous
    * briefed head = the highest-index row whose head differs. Deliberately a
    * LEAN projection (key/index columns only, never `body`): the caller wants
@@ -313,7 +293,7 @@ export interface BriefStore {
     pullRequestIds: readonly PullRequestRowId[],
   ): Promise<ReadonlyMap<PullRequestRowId, BriefSpanRow>>;
   /**
-   * Lean read of ONE span's repo-config snapshot — the brief-context
+   * Lean read of ONE span's repo-config snapshot: the brief-context
    * endpoint's backing query. Never loads `body` (multi-hundred-KB).
    * `undefined` = no brief row for the span; `null` = the row exists but
    * recorded no snapshot.
@@ -332,14 +312,14 @@ export interface DeltaStore {
     baselineSha: string,
     headSha: string,
   ): Promise<DeltaRow | undefined>;
-  /** Lean availability probe — never loads the body. */
+  /** Lean availability probe: never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All delta spans on a PR — the SHA pair only, never the body. One query
+   * All delta spans on a PR: the SHA pair only, never the body. One query
    * backs the per-revision lastReview join; existence is derived in memory,
    * never one probe per revision.
    */
@@ -367,14 +347,14 @@ export interface RevisionNarrativeStore {
     prevHeadSha: string,
     headSha: string,
   ): Promise<RevisionNarrativeRow | undefined>;
-  /** Lean availability probe — never loads the body. */
+  /** Lean availability probe: never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     prevHeadSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All narrative spans on a PR — the prevHead/head pair only, never the
+   * All narrative spans on a PR: the prevHead/head pair only, never the
    * body. One query backs the per-revision previousBrief narrative join.
    */
   listForPullRequest(
@@ -391,14 +371,14 @@ export interface ComparisonMarksStore {
     baselineSha: string,
     headSha: string,
   ): Promise<ComparisonMarksRow | undefined>;
-  /** Lean availability probe — never loads the body. */
+  /** Lean availability probe: never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All marks spans on a PR — the SHA pair only, never the body. One query
+   * All marks spans on a PR: the SHA pair only, never the body. One query
    * backs BOTH per-revision joins (previousBrief marks, lastReview marks);
    * existence is derived in memory, never one probe per revision.
    */
@@ -410,15 +390,13 @@ export interface ComparisonMarksStore {
 export interface HunkSpanStore {
   write(input: HunkSpanWriteInput): Promise<Result<HunkSpanRow, ArtifactError>>;
   /**
-   * Every hop recorded on a PR. Full rows: the coordinates ARE the point of
-   * the read, and they are small. Ordered by row id for determinism, which is
-   * insertion order and NOT chain order — a re-generated span keeps its
-   * original id. A caller assembling a chain links `baseline_sha → head_sha`;
-   * ordinal position is never the link. Rows can also FORK on a shared
-   * baseline — a head whose generation failed still left its hop — so a chain
-   * follows consecutive brief heads, never every row that matches a baseline.
-   * A pair with no row enters the chain as `undefined`, never skipped:
-   * skipping it passes anchors through onto post-push line numbers.
+   * Every hop recorded on a PR, ordered by row id: insertion order, NOT chain
+   * order, since a re-generated span keeps its original id. A caller links a
+   * chain `baseline_sha → head_sha`, never by position. Rows can FORK on a
+   * shared baseline (a head whose generation failed still left its hop), so a
+   * chain follows consecutive brief heads, never every row matching a
+   * baseline. A pair with no row enters the chain as `undefined`, never
+   * skipped: skipping it passes anchors through onto post-push line numbers.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<HunkSpanRow[]>;
 }
@@ -445,7 +423,7 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 
 /**
  * Build a tenant-scoped `ArtifactStore` over the opaque `AppDatabase`.
- * Constructed alongside `createTenantRepository`; same containment rules — `ctx` is the one
+ * Constructed alongside `createTenantRepository`; same containment rules: `ctx` is the one
  * place an `installation_id` enters.
  */
 export function createArtifactStore(

@@ -1,9 +1,6 @@
 import { WaitReasons, type WaitReason } from "contract";
-import {
-  GenerationStatuses,
-  type GenerateJobTiming,
-  type GenerationStatus,
-} from "persistence";
+import type { GenerateJobTiming } from "persistence";
+import { GenerationStatuses, type GenerationStatus } from "types/generations";
 
 type DerivedWaitReason = WaitReason | undefined;
 

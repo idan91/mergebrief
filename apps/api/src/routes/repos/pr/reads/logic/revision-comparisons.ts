@@ -8,15 +8,14 @@ import {
 } from "contract";
 import {
   GenerationKinds,
-  GenerationStatuses,
   type BriefSpanRow,
   type ComparisonSpanRow,
   type GenerationProjection,
   type GenerationRow,
   type NarrativeSpanRow,
   type PullRequestRow,
-  type GenerationStatus,
 } from "persistence";
+import { GenerationStatuses, type GenerationStatus } from "types/generations";
 
 // Span-existence joins: a `Set` of packed keys turns per-revision availability
 // into an in-memory lookup (space separator. SHAs are hex, never contain it).

@@ -7,10 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./comments": "./src/comments.ts",
+    "./dispositions": "./src/dispositions.ts",
     "./drafts": "./src/drafts.ts",
+    "./generations": "./src/generations.ts",
     "./http": "./src/http.ts",
     "./inbox": "./src/inbox.ts",
     "./jobs": "./src/jobs.ts",
+    "./pull-requests": "./src/pull-requests.ts",
+    "./reviews": "./src/reviews.ts",
     "./runtime": "./src/runtime.ts",
     "./trackers": "./src/trackers.ts",
     "./utils": "./src/utils.ts"

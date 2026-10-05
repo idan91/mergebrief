@@ -13,7 +13,7 @@ import {
   type CryptoError,
   type KeyProvider,
 } from "../src/auth/crypto";
-import type { Result } from "../src/types";
+import type { Result } from "types/utils";
 
 const KEY_REF = "SESSION_KEY_V1";
 const OTHER_KEY_REF = "SESSION_KEY_V2";
@@ -50,7 +50,7 @@ function decryptError(result: Result<string, CryptoError>): CryptoError {
   return result.error;
 }
 
-describe("crypto — key provider (createEnvKeyProvider)", () => {
+describe("crypto: createEnvKeyProvider", () => {
   it("resolves a valid base64 32-byte key", async () => {
     const result = await providerWith({ [KEY_REF]: freshKeyB64() }).resolveKey(
       KEY_REF,
@@ -84,7 +84,7 @@ describe("crypto — key provider (createEnvKeyProvider)", () => {
     expect(result.error.code).toBe(KeyErrorCodes.MALFORMED);
   });
 
-  it("short (non-32-byte) key → wrongLength error", async () => {
+  it("rejects a key that is not 32 bytes with wrongLength", async () => {
     const short = randomBytes(16).toString("base64");
     const result = await providerWith({ [KEY_REF]: short }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
@@ -101,7 +101,7 @@ describe("crypto — key provider (createEnvKeyProvider)", () => {
   });
 });
 
-describe("crypto — encrypt/decrypt round-trip", () => {
+describe("crypto: encrypt/decrypt round-trip", () => {
   it("decrypts what it encrypted", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const sealed = await seal(provider, KEY_REF, TOKEN);
@@ -122,7 +122,7 @@ describe("crypto — encrypt/decrypt round-trip", () => {
     }
   });
 
-  it("two encryptions of the same plaintext differ (random IV)", async () => {
+  it("gives two encryptions of the same plaintext different random IVs", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const a = await seal(provider, KEY_REF, TOKEN);
     const b = await seal(provider, KEY_REF, TOKEN);
@@ -130,7 +130,7 @@ describe("crypto — encrypt/decrypt round-trip", () => {
   });
 });
 
-describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
+describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
   it("tampered ciphertext fails authentication", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const sealed = await seal(provider, KEY_REF, TOKEN);

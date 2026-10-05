@@ -11,7 +11,7 @@ import {
   type ConfigError,
   type PersistenceConfig,
 } from "../src/db/config";
-import type { Result } from "../src/types";
+import type { Result } from "types/utils";
 
 const VALID_URL = "postgres://user:pass@localhost:5432/app";
 
@@ -31,8 +31,8 @@ function err(result: Result<PersistenceConfig, ConfigError>): ConfigError {
   return result.error;
 }
 
-describe("config — loadConfig", () => {
-  it("applies self-host defaults (both flags ON) when only DATABASE_URL is set", () => {
+describe("config: loadConfig", () => {
+  it("turns both flags ON by default when only DATABASE_URL is set", () => {
     const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
     expect(config.databaseUrl).toBe(VALID_URL);
     expect(config.persistBaselineSnapshot).toBe(true);
@@ -113,7 +113,7 @@ describe("config — loadConfig", () => {
     }
   });
 
-  it("does not echo the DATABASE_URL value (secret) in error output", () => {
+  it("does not echo the secret DATABASE_URL value in error output", () => {
     const secretish = "http://user:supersecret@host/db";
     const error = err(loadConfig({ DATABASE_URL: secretish }));
     const joined = [error.message, ...error.issues].join(" ");
@@ -153,7 +153,7 @@ describe("config — loadConfig", () => {
     ).toBe(true);
   });
 
-  it("both flags can be independently overridden OFF (hosted-strict posture)", () => {
+  it("lets each flag be overridden OFF independently for a strict host", () => {
     const config = ok(
       loadConfig({
         DATABASE_URL: VALID_URL,
@@ -172,13 +172,13 @@ describe("config — loadConfig", () => {
   });
 });
 
-// DATABASE_URL_FILE — the `_FILE` secret-file convention for exactly this
+// DATABASE_URL_FILE: the `_FILE` secret-file convention for exactly this
 // one variable. File wins over the plain variable (with a
 // warning through the injected sink); content is trimmed; an unreadable
 // file is a clear boot error.
 const fileEnv = (path: string) => ({ DATABASE_URL_FILE: path });
 
-describe("config — DATABASE_URL_FILE", () => {
+describe("config: DATABASE_URL_FILE", () => {
   it("resolves the DSN from the file when only DATABASE_URL_FILE is set", () => {
     const config = ok(
       loadConfig(fileEnv("/run/secrets/db-url"), {
@@ -206,7 +206,7 @@ describe("config — DATABASE_URL_FILE", () => {
     expect(config.databaseUrl).toBe(VALID_URL);
   });
 
-  it("prefers the file over DATABASE_URL and warns, naming the shadowed variable", () => {
+  it("prefers the file and warns, naming the shadowed DATABASE_URL", () => {
     const warnings: string[] = [];
     const config = ok(
       loadConfig(
@@ -226,7 +226,7 @@ describe("config — DATABASE_URL_FILE", () => {
     expect(warnings[0]).toContain("DATABASE_URL");
   });
 
-  it("does not warn (and does not crash) when both are set but no sink is injected", () => {
+  it("neither warns nor crashes when both are set and no sink is injected", () => {
     const config = ok(
       loadConfig(
         {
@@ -239,7 +239,7 @@ describe("config — DATABASE_URL_FILE", () => {
     expect(config.databaseUrl).toBe(VALID_URL);
   });
 
-  it("does not warn when DATABASE_URL is empty-string (compose interpolation of an unset var)", () => {
+  it("does not warn when compose leaves DATABASE_URL an empty string", () => {
     const warnings: string[] = [];
     const config = ok(
       loadConfig(
@@ -283,7 +283,7 @@ describe("config — DATABASE_URL_FILE", () => {
     ).toBe(true);
   });
 
-  it("validates the file content like the plain variable (bad scheme rejected)", () => {
+  it("rejects a bad scheme in the file content like the plain variable", () => {
     const result = loadConfig(fileEnv("/run/secrets/db-url"), {
       readFile: () => "mysql://localhost/app",
     });
@@ -297,7 +297,7 @@ describe("config — DATABASE_URL_FILE", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("does not echo the file content (secret) in error output", () => {
+  it("does not echo the secret file content in error output", () => {
     const error = err(
       loadConfig(fileEnv("/run/secrets/db-url"), {
         readFile: () => "http://user:filesecret@host/db",
@@ -316,9 +316,9 @@ describe("config — DATABASE_URL_FILE", () => {
   });
 });
 
-// MERGEBRIEF_AUTO_MIGRATE — default TRUE (apply at boot); false
+// MERGEBRIEF_AUTO_MIGRATE: default TRUE (apply at boot); false
 // switches both services to the check-only ledger comparison.
-describe("config — MERGEBRIEF_AUTO_MIGRATE", () => {
+describe("config: MERGEBRIEF_AUTO_MIGRATE", () => {
   it("defaults to auto-migrate ON", () => {
     const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
     expect(config.autoMigrate).toBe(true);
@@ -342,10 +342,10 @@ describe("config — MERGEBRIEF_AUTO_MIGRATE", () => {
 });
 
 // TLS explicit-or-refuse. A non-loopback host with no `sslmode`
-// DSN parameter refuses boot — the operator must choose; loopback and
+// DSN parameter refuses boot: the operator must choose; loopback and
 // unix-socket DSNs are exempt. Any EXPLICIT sslmode (including `disable`)
 // passes the gate.
-describe("config — TLS explicit-or-refuse gate", () => {
+describe("config: TLS explicit-or-refuse gate", () => {
   const REMOTE = "postgres://user:pass@db.example.com:5432/app";
 
   it.each([
@@ -365,18 +365,18 @@ describe("config — TLS explicit-or-refuse gate", () => {
     expect(error.issues.some((i) => i.startsWith("DATABASE_URL"))).toBe(true);
   });
 
-  it("refuses an EMPTY sslmode (pg's ssl check is truthiness — `sslmode=` is plaintext)", () => {
+  it("refuses an EMPTY sslmode, which pg's truthiness check runs plaintext", () => {
     expect(loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=` }).ok).toBe(false);
   });
 
-  it("refuses a malformed 127.x literal (out-of-range octet goes to DNS, not loopback)", () => {
+  it("treats a 127.x literal with an out-of-range octet as non-loopback", () => {
     expect(
       loadConfig({ DATABASE_URL: "postgres://user:pass@127.0.0.999:5432/app" })
         .ok,
     ).toBe(false);
   });
 
-  it("refuses boot naming the path when a referenced sslrootcert file is unreadable", () => {
+  it("refuses boot naming the path of an unreadable sslrootcert file", () => {
     const error = err(
       loadConfig({
         DATABASE_URL: `${REMOTE}?sslmode=verify-full&sslrootcert=/nonexistent-brief131-ca.pem`,
@@ -421,10 +421,10 @@ describe("config — TLS explicit-or-refuse gate", () => {
     expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
   });
 
-  it("accepts the bundled compose's derived in-network DSN (regression: a compose service hostname is non-loopback and needs its explicit disable)", () => {
-    // Shape-pinned to docker-compose.yml's DATABASE_URL derivation — the gate
-    // refusing this exact form broke the default `docker compose up` (the
-    // picker degraded to "PR list unavailable"; worker crash-looped).
+  it("accepts the bundled compose's derived in-network DSN", () => {
+    // Shape-pinned to docker-compose.yml's DATABASE_URL derivation: a compose
+    // service hostname is non-loopback and needs its explicit disable, and
+    // refusing this exact form broke the default `docker compose up`.
     expect(
       loadConfig({
         DATABASE_URL:

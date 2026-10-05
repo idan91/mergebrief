@@ -1,11 +1,10 @@
 import type { Context } from "hono";
 import {
-  AnchorStatuses,
-  DraftCommentStatuses,
   ReviewSessionErrorCodes,
   createTenantRepository,
   type ScopeContext,
 } from "persistence";
+import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
 import { ApiErrorCodes } from "contract";
 import type { InlineReviewCommentResult } from "github";
 import {

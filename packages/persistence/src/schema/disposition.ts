@@ -1,6 +1,6 @@
-// `disposition` — an anchored reviewer decision on a risk-surface flag, owned
+// `disposition`: an anchored reviewer decision on a risk-surface flag, owned
 // by the Review Session it was made in. Anchored by content coordinates
-// (file/attribute/region), never a brief-local id — those dangle on
+// (file/attribute/region), never a brief-local id, since those dangle on
 // regeneration. Current shape covers only region-anchored flags (region NOT
 // NULL). No `decided_at_sha`, `pull_request_id` or `reviewer_id`: the session
 // carries all three, and the erasure cascade reaches `pull_request` through it.
@@ -12,13 +12,13 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import type { ReviewSessionId } from "../types";
 import type {
   DispositionCarryStatus,
   DispositionDecision,
   DispositionEvidenceKind,
   DispositionEvidenceStatus,
-  ReviewSessionId,
-} from "../types";
+} from "types/dispositions";
 import { tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 
@@ -32,7 +32,7 @@ export const disposition = pgTable(
       .references(() => reviewSession.id, { onDelete: "cascade" }),
     /** Canonical within an artifact; not rename-stable. */
     filePath: text("file_path").notNull(),
-    /** The risk-surface attribute token — the Flag's identity. */
+    /** The risk-surface attribute token: the Flag's identity. */
     attribute: text("attribute").notNull(),
     regionStart: integer("region_start").notNull(),
     regionEnd: integer("region_end").notNull(),

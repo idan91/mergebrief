@@ -5,11 +5,8 @@ import {
   type Brief,
   type FetchedPr,
 } from "brief-core";
-import {
-  GenerationKinds,
-  GenerationPhases,
-  type BriefWriteInput,
-} from "persistence";
+import { GenerationKinds, type BriefWriteInput } from "persistence";
+import { GenerationPhases } from "types/generations";
 import type { Mutable } from "types/utils";
 import { entryCommentGeneratingBody } from "../../entry-comment";
 import { PermanentJobError } from "../../failure";

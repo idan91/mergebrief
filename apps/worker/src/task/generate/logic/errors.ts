@@ -2,12 +2,12 @@ import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GitHubApiErrorCodes } from "github";
 import type { LogFields, Logger } from "logging";
+import type { GenerationKind } from "persistence";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
-  type GenerationKind,
   type GenerationStatus,
-} from "persistence";
+} from "types/generations";
 import type { Result } from "types/utils";
 import { PermanentJobError, TransientJobError } from "../../failure";
 import type { GitHubApiError } from "../../github-port";

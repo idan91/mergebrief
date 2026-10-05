@@ -6,10 +6,10 @@ import {
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrStates,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";

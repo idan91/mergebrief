@@ -8,16 +8,18 @@
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
+import type {
+  AuditActorType,
+  AuditChannel,
+  AuditClassification,
+  AuditOutcome,
+  InstallationId,
+} from "../types";
+import type { ValueOf } from "types/utils";
 import {
   PullRequestSources,
   type PullRequestSource,
-  type AuditActorType,
-  type AuditChannel,
-  type AuditClassification,
-  type AuditOutcome,
-  type InstallationId,
-  type ValueOf,
-} from "../types";
+} from "types/pull-requests";
 
 export type AuditLogRow = typeof auditLog.$inferSelect;
 

@@ -14,16 +14,18 @@ import {
 } from "../src/index";
 import {
   GenerationKinds,
-  GenerationPhases,
-  GenerationStatuses,
   isInstallationId,
   isRepoId,
-  PrStates,
   type InstallationId,
-  type GenerationStatus,
   type PullRequestRowId,
   type RepoId,
 } from "../src/types";
+import {
+  GenerationPhases,
+  GenerationStatuses,
+  type GenerationStatus,
+} from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { brandWith, freshPglite, makeBriefTarget } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);

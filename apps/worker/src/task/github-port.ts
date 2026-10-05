@@ -33,13 +33,13 @@ import type { CompareFiles } from "brief-core";
 import {
   createGrantAuth,
   decryptToken,
-  GenerationFailureCodes,
   type AppDatabase,
   type GrantRowId,
   type InstallationId,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
+import { GenerationFailureCodes } from "types/generations";
 import type { Result } from "types/utils";
 import { PermanentJobError } from "./failure";
 

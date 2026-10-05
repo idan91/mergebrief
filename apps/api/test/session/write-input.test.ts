@@ -2,7 +2,8 @@
 // rejected payload is a 400; this pins the edges that decide it, the int8
 // ceiling a row id must stay under, the line ordering an anchor must hold,
 // and the closed category vocabulary.
-import { ChangeGroupCategories, DraftCommentSides } from "persistence";
+import { ChangeGroupCategories } from "types/reviews";
+import { DraftCommentSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import {
   anchorSchema,

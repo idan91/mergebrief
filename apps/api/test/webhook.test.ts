@@ -8,9 +8,9 @@ import {
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
-  PrStates,
   type RepoId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";

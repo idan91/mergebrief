@@ -1,6 +1,6 @@
 // The scope CONTEXT boundary: the shapes the web (authz middleware) and the
 // worker (job payload) validate untrusted input into, and the Zod schemas
-// that do the validating. Exactly one world per context — an input naming
+// that do the validating. Exactly one world per context: an input naming
 // both, or neither, is rejected here rather than deeper in.
 //
 // The query side of scoping lives in `scope.ts`: this module answers "is this
@@ -10,16 +10,16 @@ import {
   isInstallationId,
   isReviewerId,
   type InstallationId,
-  type Result,
   type ReviewerId,
 } from "../types";
+import type { Result } from "types/utils";
 
 /** Bound App-installation tenant identity. */
 export interface TenantContext {
   readonly installationId: InstallationId;
 }
 
-/** Bound url-box owner identity — the viewer's GitHub numeric user id. */
+/** Bound url-box owner identity: the viewer's GitHub numeric user id. */
 export interface OwnerContext {
   readonly ownerUserId: ReviewerId;
 }
@@ -103,7 +103,7 @@ export const TenantContextSchema = z.preprocess(
 
 /**
  * Validates untrusted input into EXACTLY ONE world: an input naming both
- * scopes (or neither) is rejected — a caller must never leave the world
+ * scopes (or neither) is rejected; a caller must never leave the world
  * ambiguous.
  */
 export const ScopeContextSchema = z.preprocess(

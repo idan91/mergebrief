@@ -6,15 +6,17 @@
 // `target_type` and `operation` are open vocabularies: `operation` is a
 // Product Operation descriptor id, owned by the api package.
 import { bigint, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import type {
+  AuditActorType,
+  AuditChannel,
+  AuditClassification,
+  AuditOutcome,
+  InstallationId,
+} from "../types";
 import {
   PullRequestSources,
   type PullRequestSource,
-  type AuditActorType,
-  type AuditChannel,
-  type AuditClassification,
-  type AuditOutcome,
-  type InstallationId,
-} from "../types";
+} from "types/pull-requests";
 
 export const auditLog = pgTable("audit_log", {
   id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity().primaryKey(),

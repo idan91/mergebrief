@@ -13,16 +13,15 @@ import {
   parseScopeContext,
   resolveUrlBoxOwner,
   safeParseScopeContext,
-  PullRequestSources,
   RepositoryErrorCodes,
   type OwnerContext,
   type TenantContext,
 } from "../src/index";
+import { PrStates, PullRequestSources } from "types/pull-requests";
 import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type InstallationId,
   type RepoId,
   type ReviewerId,

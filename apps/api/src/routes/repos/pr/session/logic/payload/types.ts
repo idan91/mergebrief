@@ -1,11 +1,8 @@
 // The API-side shapes behind the session payload: the row slice a draft is
 // built from, and the lists a payload carries before materialization is
 // accounted for. The wire shapes themselves live in `contract`.
-import type {
-  AnchorStatus,
-  DraftAnchor,
-  DraftCommentStatus,
-} from "persistence";
+import type { DraftAnchor } from "persistence";
+import type { AnchorStatus, DraftCommentStatus } from "types/comments";
 import type { SessionPayload } from "contract";
 
 /** The row fields a draft payload is shaped from, either side of materialization. */

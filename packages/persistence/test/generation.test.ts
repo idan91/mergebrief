@@ -8,16 +8,18 @@ import {
   createGenerationProjection,
   GenerationErrorCodes,
   createIngestRoutines,
-  GenerationFailureCodes,
   type TenantContext,
 } from "../src/index";
 import {
-  GenerationKinds,
+  GenerationFailureCodes,
   GenerationPhases,
   GenerationStatuses,
+} from "types/generations";
+import { PrStates } from "types/pull-requests";
+import {
+  GenerationKinds,
   isInstallationId,
   isRepoId,
-  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";

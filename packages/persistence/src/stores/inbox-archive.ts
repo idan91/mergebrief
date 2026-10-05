@@ -8,7 +8,8 @@ import { inboxArchive } from "../schema/inbox-archive";
 import { pullRequest } from "../schema/pull-request";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
-import type { PullRequestRowId, Result, ReviewerId, ValueOf } from "../types";
+import type { PullRequestRowId, ReviewerId } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 export const InboxArchiveErrorCodes = {
   /** The pull request is not in ctx's scope. */

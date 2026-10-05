@@ -14,11 +14,11 @@ import {
   createTenantRepository,
   isRepoId,
   isReviewerId,
-  PrStates,
   type PullRequestRow,
   type RepoId,
   type ReviewerId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {

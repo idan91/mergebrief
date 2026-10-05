@@ -1,4 +1,4 @@
-import type { ValueOf } from "persistence";
+import type { ValueOf } from "types/utils";
 import type { RepoId, ScopeContext } from "persistence";
 import type { CreateReviewError } from "github";
 import type { Logger } from "logging";

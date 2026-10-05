@@ -5,12 +5,12 @@ import type {
   GenerationFailureCode,
   GenerationFailureParams,
   GenerationStatus,
+  InboxReviewState,
   PrState,
   PullRequestSource,
-} from "persistence";
-import type { InboxReviewState } from "types/inbox";
-import type { ValueOf } from "types/utils";
-import type { GenerationPhase } from "./generation";
+  ValueOf,
+} from "types";
+import type { GenerationPhase } from "types/generations";
 import type { ViewerView } from "./viewer";
 
 /** The query keys a client sends; the values are the maps in `types/inbox`. */

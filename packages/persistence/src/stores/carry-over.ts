@@ -7,24 +7,25 @@
 // orphaned work is never deleted, only unplaced. Nothing here may ever settle
 // or mark-read on a guess.
 import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
-import { CommentAnchorKinds } from "types/comments";
 import {
   AnchorStatuses,
-  DispositionCarryStatuses,
+  CommentAnchorKinds,
   DraftCommentSides,
-  DispositionEvidenceKinds,
-  DispositionEvidenceStatuses,
   DraftCommentStatuses,
   type AnchorStatus,
-  type ChangeGroupCategory,
+  type DraftCommentStatus,
+} from "types/comments";
+import type { DraftAnchor, LineDraftAnchor } from "../types";
+import type { ChangeGroupCategory } from "types/reviews";
+import {
+  DispositionCarryStatuses,
+  DispositionEvidenceKinds,
+  DispositionEvidenceStatuses,
   type DispositionCarryStatus,
   type DispositionDecision,
   type DispositionEvidence,
   type DispositionEvidenceStatus,
-  type DraftAnchor,
-  type DraftCommentStatus,
-  type LineDraftAnchor,
-} from "../types";
+} from "types/dispositions";
 import { HunkSpansSchema } from "./artifact-store";
 
 /**

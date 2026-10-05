@@ -1,9 +1,6 @@
 import type { Logger } from "logging";
-import {
-  PrStates,
-  type PullRequestRow,
-  type TenantRepository,
-} from "persistence";
+import type { PullRequestRow, TenantRepository } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { describe, expect, it, vi } from "vitest";
 import { recordResolvedStack, shapeRecordedStack } from "./last-stack";
 

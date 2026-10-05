@@ -2,16 +2,16 @@
 // hand-rolled (modeled data inside a 200, so it never rides the wire-error
 // contract): these are what catch a code added on one side alone.
 import { describe, expect, it } from "vitest";
-import { GenerationFailureCodes as PersistenceGenerationFailureCodes } from "persistence";
+import { GenerationFailureCodes as SharedGenerationFailureCodes } from "types/generations";
 
 import { appI18n } from "../../i18n/I18nProvider";
 import { failureLine } from "./components/PrBrief/FailedCard/utils";
 import { GenerationFailureCodes } from "./types";
 
 describe("generation-failure vocabulary", () => {
-  it("mirrors persistence exactly, both directions", () => {
+  it("mirrors the types package vocabulary exactly, both directions", () => {
     expect(Object.values(GenerationFailureCodes).toSorted()).toEqual(
-      Object.values(PersistenceGenerationFailureCodes).toSorted(),
+      Object.values(SharedGenerationFailureCodes).toSorted(),
     );
   });
 

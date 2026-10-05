@@ -13,14 +13,12 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { PullRequestRowId, RepoId, ReviewerId } from "../types";
 import {
   PullRequestSources,
-  type PullRequestSource,
   type PrState,
-  type PullRequestRowId,
-  type RepoId,
-  type ReviewerId,
-} from "../types";
+  type PullRequestSource,
+} from "types/pull-requests";
 import { tenantColumns } from "./columns";
 
 export const pullRequest = pgTable(

@@ -14,7 +14,6 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   createTokenAuth,
   WriteClassifications,
   type AppDatabase,
@@ -22,6 +21,7 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";

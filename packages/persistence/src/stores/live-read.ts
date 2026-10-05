@@ -14,7 +14,9 @@ import {
   type PullRequestUpdateSet,
   type RepositoryError,
 } from "./tenant";
-import { PrStates, type PullRequestRowId, type Result } from "../types";
+import type { PullRequestRowId } from "../types";
+import type { Result } from "types/utils";
+import { PrStates } from "types/pull-requests";
 
 /** What a paste or a live read stamps: when GitHub answered and which head it reported. */
 export interface LiveReadStamp {

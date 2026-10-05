@@ -3,22 +3,24 @@
 // pattern as mark-ready.test.ts).
 import { randomBytes } from "node:crypto";
 import {
-  AnchorStatuses,
   createArtifactStore,
-  DraftCommentSides,
-  DraftCommentStatuses,
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrStates,
   type AppDatabase,
   type BriefRowId,
   type KeyProvider,
+} from "persistence";
+import { PrStates } from "types/pull-requests";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentSides,
+  DraftCommentStatuses,
   type AnchorStatus,
   type DraftCommentSide,
   type DraftCommentStatus,
-} from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+} from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";

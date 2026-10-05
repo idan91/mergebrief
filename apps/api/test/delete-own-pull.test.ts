@@ -12,7 +12,6 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
@@ -20,6 +19,7 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";

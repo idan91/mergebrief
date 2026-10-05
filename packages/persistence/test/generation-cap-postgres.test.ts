@@ -7,7 +7,8 @@ import {
   createGenerationProjection,
   createTenantRepository,
 } from "../src/index";
-import { isRepoId, PrStates, type RepoId } from "../src/types";
+import { isRepoId, type RepoId } from "../src/types";
+import { PrStates } from "types/pull-requests";
 import {
   brandWith,
   connectMigrated,

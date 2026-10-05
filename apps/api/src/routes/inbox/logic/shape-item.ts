@@ -4,13 +4,8 @@
 // slice as the PR meta reports it.
 import { PrStackSchema } from "brief-core";
 import type { InboxItem, InboxStackView } from "contract";
-import {
-  PrStates,
-  PullRequestSources,
-  type GenerationRow,
-  type InboxRow,
-  type RepoId,
-} from "persistence";
+import type { GenerationRow, InboxRow, RepoId } from "persistence";
+import { PrStates, PullRequestSources } from "types/pull-requests";
 import { buildGenerationSummary } from "../../pr-view";
 
 /** A linear chain has a position; a fork has none worth a number. */

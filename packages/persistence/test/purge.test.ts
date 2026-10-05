@@ -32,23 +32,22 @@ import { PurgeErrorCodes, createPurgeRoutines } from "../src/stores/purge";
 import type { TenantContext } from "../src/stores/tenant";
 import {
   AuditOutcomes,
-  DispositionDecisions,
-  ChangeGroupCategories,
-  DraftCommentSides,
   GenerationKinds,
-  GenerationStatuses,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   WriteClassifications,
   type GrantRowId,
   type InstallationId,
-  type PrState,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { ChangeGroupCategories } from "types/reviews";
+import { DispositionDecisions } from "types/dispositions";
+import { DraftCommentSides } from "types/comments";
+import { GenerationStatuses } from "types/generations";
+import { PrStates, type PrState } from "types/pull-requests";
 import { brandWith, freshPglite } from "./helpers";
 
 /** Seed one grant row so secret-bearing referents can link it. */

@@ -1,10 +1,10 @@
 import { ReviewCommentSides, ReviewSubjectTypes } from "github";
+import type { ReviewDraftCommentRow } from "persistence";
 import {
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
-  type ReviewDraftCommentRow,
-} from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+} from "types/comments";
 import { describe, expect, it } from "vitest";
 import { readDraftAnchor, shapeInlineCommentWrite } from "./draft-anchor";
 

@@ -370,9 +370,6 @@ importers:
 
   packages/contract:
     dependencies:
-      persistence:
-        specifier: workspace:*
-        version: link:../persistence
       types:
         specifier: workspace:*
         version: link:../types
@@ -655,6 +652,9 @@ importers:
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
       zod:
         specifier: ^3.25.0
         version: 3.25.76

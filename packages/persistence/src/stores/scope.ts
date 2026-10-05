@@ -10,12 +10,11 @@ import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { pullRequest } from "../schema/pull-request";
 import { isOwnerContext, type ScopeContext } from "./scope-context";
+import type { InstallationId, ReviewerId } from "../types";
 import {
   PullRequestSources,
   type PullRequestSource,
-  type InstallationId,
-  type ReviewerId,
-} from "../types";
+} from "types/pull-requests";
 
 export interface RowScope {
   readonly ctx: ScopeContext;

@@ -14,14 +14,13 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import type { GenerationKind, PullRequestRowId } from "../types";
 import type {
   GenerationFailureCode,
   GenerationFailureParams,
-  GenerationKind,
   GenerationPhase,
   GenerationStatus,
-  PullRequestRowId,
-} from "../types";
+} from "types/generations";
 import { tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 

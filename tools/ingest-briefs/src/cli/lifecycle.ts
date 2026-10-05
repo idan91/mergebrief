@@ -1,4 +1,5 @@
-import { PrStates, type PullRequestLifecycle } from "persistence";
+import type { PullRequestLifecycle } from "persistence";
+import { PrStates } from "types/pull-requests";
 
 /** The `--state` lifecycle, used when no `gh` resolution is asked for. */
 export function buildStaticLifecycle(

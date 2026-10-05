@@ -8,16 +8,15 @@ import {
   AuditMetadataKeys,
   createTenantRepository,
   isOwnerContext,
-  PullRequestSources,
   createGenerationProjection,
   GenerationKinds,
-  GenerationStatuses,
-  PrStates,
   type GenerationProjection,
   type GenerationRow,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
+import { GenerationStatuses } from "types/generations";
+import { PrStates, PullRequestSources } from "types/pull-requests";
 import { entryCommentBody } from "../entry-comment";
 import { splitRepoSlug, type PullRequestInfo } from "../github-port";
 import { PermanentJobError } from "../failure";

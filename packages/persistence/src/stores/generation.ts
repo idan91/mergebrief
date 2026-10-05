@@ -27,13 +27,11 @@ import type { ScopeContext } from "./scope-context";
 import { sanitizeErrorDetail } from "logging";
 import {
   GenerationKinds,
-  GenerationStatuses,
   type GenerationFailure,
-  type GenerationPhase,
   type PullRequestRowId,
-  type Result,
-  type ValueOf,
 } from "../types";
+import type { Result, ValueOf } from "types/utils";
+import { GenerationStatuses, type GenerationPhase } from "types/generations";
 
 export type GenerationRow = typeof generation.$inferSelect;
 

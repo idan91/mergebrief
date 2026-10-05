@@ -4,10 +4,6 @@
 // carry-over the read reports and a write writes is the same work.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  DispositionDecisions,
-  DraftCommentSides,
-  ChangeGroupCategories,
-  PrStates,
   createArtifactStore,
   encryptToken,
   createTenantRepository,
@@ -19,7 +15,10 @@ import {
   type TenantContext,
   type WriteClassification,
 } from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+import { ChangeGroupCategories } from "types/reviews";
+import { DispositionDecisions } from "types/dispositions";
+import { PrStates } from "types/pull-requests";
+import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
 import { vi } from "vitest";
 import {
   INSTALLATION_ID,

@@ -1,8 +1,9 @@
 // The `gh` half of the CLI: a repo slug becomes a numeric repo id and a PR
-// lifecycle. `gh` runs as the operator's own auth and only ever reads —
+// lifecycle. `gh` runs as the operator's own auth and only ever reads;
 // nothing here stores a token.
 import { execFileSync } from "node:child_process";
-import { isRepoId, PrStates, type PullRequestLifecycle } from "persistence";
+import { isRepoId, type PullRequestLifecycle } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { z } from "zod";
 import type { CliArgs } from "../args";
 import type { RepoResolution, ResolveRepo } from "../ingest";

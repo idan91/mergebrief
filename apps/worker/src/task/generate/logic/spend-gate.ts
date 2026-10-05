@@ -1,9 +1,6 @@
 import type { LogFields } from "logging";
-import {
-  type StartRunInput,
-  GenerationPhases,
-  GenerationStatuses,
-} from "persistence";
+import type { StartRunInput } from "persistence";
+import { GenerationPhases, GenerationStatuses } from "types/generations";
 import type { Mutable } from "types/utils";
 import { entryCommentCappedBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";

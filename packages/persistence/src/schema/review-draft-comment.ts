@@ -3,14 +3,15 @@
 // payload and what `remapRanges` consumes at carry-over. `anchor_status` is
 // NULL while the anchor still holds exactly.
 import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
-import { CommentAnchorKinds, type CommentAnchorKind } from "types/comments";
 import {
+  CommentAnchorKinds,
   DraftCommentStatuses,
   type AnchorStatus,
+  type CommentAnchorKind,
   type DraftCommentSide,
   type DraftCommentStatus,
-  type ReviewSessionId,
-} from "../types";
+} from "types/comments";
+import type { ReviewSessionId } from "../types";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 

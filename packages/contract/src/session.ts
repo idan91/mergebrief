@@ -6,6 +6,7 @@
 import type {
   AnchorStatus,
   ChangeGroupCategory,
+  CommentAnchorKind,
   DispositionCarryStatus,
   DispositionDecision,
   DispositionEvidence,
@@ -13,8 +14,7 @@ import type {
   DraftCommentSide,
   DraftCommentStatus,
   ReviewOutcome,
-} from "persistence";
-import type { CommentAnchorKind } from "types/comments";
+} from "types";
 import type { AttentionItem } from "./attention";
 
 /**

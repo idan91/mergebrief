@@ -7,11 +7,8 @@ import {
   type LineReviewThreadInput,
   type ReviewCommentSide,
 } from "github";
-import {
-  DraftCommentSides,
-  type ReviewDraftCommentRow,
-  type DraftCommentSide,
-} from "persistence";
+import type { ReviewDraftCommentRow } from "persistence";
+import { DraftCommentSides, type DraftCommentSide } from "types/comments";
 import { CommentAnchorKinds, type Mutable } from "types";
 
 /** The stored side vocabulary as GitHub names it. */

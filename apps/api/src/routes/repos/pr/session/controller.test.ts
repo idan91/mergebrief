@@ -6,10 +6,10 @@ import {
   isRepoId,
   isReviewerId,
   parseTenantContext,
-  PrStates,
   type RepoId,
   type TenantContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestUserOctokit } from "../../../../../test/fixtures";

@@ -1,14 +1,16 @@
 // The Attention List's ladder: what earns an item and what carries silently.
 // The integration suite covers the payload; this pins the three kinds.
 import {
-  AnchorStatuses,
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceStatuses,
+} from "types/dispositions";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
-} from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+} from "types/comments";
 import { describe, expect, it } from "vitest";
 import {
   deriveAttentionItems,

@@ -7,12 +7,12 @@ import {
   createInboxStore,
   createTenantRepository,
   encryptToken,
-  PrStates,
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,

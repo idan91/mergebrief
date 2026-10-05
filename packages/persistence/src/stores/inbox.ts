@@ -37,14 +37,8 @@ import { pullRequest } from "../schema/pull-request";
 import { reviewSession } from "../schema/review-session";
 import { reviewSubmittedReview } from "../schema/review-submitted-review";
 import type { PullRequestRow } from "./tenant";
-import {
-  PrStates,
-  PullRequestSources,
-  type BriefRowId,
-  type InstallationId,
-  type RepoId,
-  type ReviewerId,
-} from "../types";
+import type { BriefRowId, InstallationId, RepoId, ReviewerId } from "../types";
+import { PrStates, PullRequestSources } from "types/pull-requests";
 
 /** The Repository filter's vocabulary stops here; the URL may carry no more values anyway. */
 export const MAX_INBOX_REPOSITORIES = 100;

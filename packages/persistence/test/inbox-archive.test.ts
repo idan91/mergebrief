@@ -18,12 +18,12 @@ import {
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { PrStates } from "types/pull-requests";
 import { brandWith, freshDatabase } from "./helpers";
 
 const ACME: InstallationId = brandWith(isInstallationId, 10n);

@@ -456,11 +456,6 @@
       "count": 7
     }
   },
-  "apps/worker/src/task/failure.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/worker/src/task/payload.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -477,11 +472,6 @@
     },
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "apps/worker/test/failure.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "apps/worker/test/payload.test.ts": {
@@ -928,41 +918,12 @@
       "count": 1
     }
   },
-  "packages/persistence/src/auth/crypto.ts": {
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "packages/persistence/src/db/config.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
-  "packages/persistence/src/db/dsn.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/persistence/src/db/handle.ts": {
     "house/comment-density": {
       "count": 1
     },
     "house/no-em-dash": {
       "count": 4
-    }
-  },
-  "packages/persistence/src/db/tls.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "packages/persistence/src/pglite-snapshot.ts": {
@@ -993,11 +954,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/schema/disposition.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/persistence/src/schema/github-grant.ts": {
     "house/comment-density": {
       "count": 1
@@ -1012,11 +968,6 @@
   "packages/persistence/src/schema/hunk-span.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/persistence/src/schema/review-group-reclassification.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "packages/persistence/src/schema/review-read-mark.ts": {
@@ -1034,19 +985,6 @@
       "count": 3
     }
   },
-  "packages/persistence/src/stores/artifact-store.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 37
-    }
-  },
-  "packages/persistence/src/stores/scope-context.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/persistence/src/stores/url-box.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1060,36 +998,9 @@
       "count": 3
     }
   },
-  "packages/persistence/test/config.test.ts": {
-    "house/no-em-dash": {
-      "count": 9
-    },
-    "house/test-title": {
-      "count": 19
-    }
-  },
-  "packages/persistence/test/crypto.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "packages/persistence/test/global-setup.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/test/grant.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 6
     }
   },
   "packages/persistence/test/pglite-snapshot.test.ts": {
@@ -1366,11 +1277,6 @@
       "count": 2
     }
   },
-  "tools/ingest-briefs/src/cli/repo-resolver.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "tools/ingest-briefs/src/cli/report.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1404,11 +1310,6 @@
   "tools/ingest-briefs/src/ingest/types.ts": {
     "house/no-em-dash": {
       "count": 5
-    }
-  },
-  "tools/ingest-briefs/test/cli.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "vitest.shared.ts": {

@@ -7,14 +7,11 @@ import {
   createTenantRepository,
   createGenerationProjection,
   createIngestRoutines,
-  GenerationFailureCodes,
   GenerationKinds,
-  GenerationStatuses,
   createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrStates,
   type AppDatabase,
   type KeyProvider,
   type TenantContext,
@@ -22,6 +19,8 @@ import {
   type PullRequestUpsertInput,
   type PullRequestRowId,
 } from "persistence";
+import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";

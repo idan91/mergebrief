@@ -35,7 +35,6 @@ import {
 } from "github";
 import type { Logger } from "logging";
 import {
-  PrStates,
   UncoveredWorks,
   createTenantRepository,
   createIngestRoutines,
@@ -48,6 +47,7 @@ import {
   type TenantContext,
   type TriggerGenerationInput,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { ApiErrorCodes } from "contract";
 import {
   BadRequest,

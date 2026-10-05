@@ -1,14 +1,11 @@
-// DATABASE_URL_FILE resolution. The `_FILE` convention for exactly this one
-// variable: compose `secrets:` mounts land as files, and a connection string
-// in a file never shows up in `docker inspect` or a leaked env dump.
-// Deliberately NOT a generic `*_FILE` mechanism.
-//
-// Precedence: the file wins over a plain `DATABASE_URL`, with a warning
-// through the injected sink naming the shadowed variable — silent precedence
-// would leave an operator debugging the wrong value. The read is injectable so
-// tests stay hermetic; the default is the real filesystem.
+// DATABASE_URL_FILE resolution, for exactly this one variable and NOT a
+// generic `*_FILE` mechanism: compose `secrets:` mounts land as files, and a
+// connection string in a file never shows up in `docker inspect`. The file
+// wins over a plain `DATABASE_URL` with a warning naming the shadowed
+// variable, since silent precedence leaves an operator debugging the wrong
+// value.
 import { readFileSync } from "node:fs";
-import type { Result } from "../types";
+import type { Result } from "types/utils";
 
 export interface ResolveDsnOptions {
   /** File reader (throws on unreadable). Default: `fs.readFileSync` utf-8. */
@@ -20,9 +17,9 @@ export interface ResolveDsnOptions {
 
 /**
  * Resolve the effective `DATABASE_URL` value from the env pair. Returns the
- * file content (trimmed — secret files routinely carry a trailing newline)
+ * file content (trimmed: secret files routinely carry a trailing newline)
  * when `DATABASE_URL_FILE` is set, else the plain variable (which may be
- * `undefined` — the caller's schema owns the required-ness error). An
+ * `undefined`; the caller's schema owns the required-ness error). An
  * unreadable file is an expected boot failure: the issue names the PATH (an
  * operator pointer, not a credential) but never any file content.
  */
@@ -41,7 +38,7 @@ export function resolveDatabaseUrl(
   try {
     content = readFile(filePath);
   } catch (cause) {
-    // The reader's message embeds the path, never the content — safe to echo.
+    // The reader's message embeds the path, never the content, so it is safe to echo.
     const reason = cause instanceof Error ? cause.message : String(cause);
     return {
       ok: false,
@@ -50,7 +47,7 @@ export function resolveDatabaseUrl(
   }
 
   // Empty-string DATABASE_URL (e.g. compose interpolation of an unset var)
-  // carries no value to shadow — warn only when a real value is ignored.
+  // carries no value to shadow: warn only when a real value is ignored.
   const shadowed = env["DATABASE_URL"];
   if (shadowed !== undefined && shadowed.length > 0) {
     options.onWarning?.(

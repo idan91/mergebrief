@@ -13,13 +13,13 @@ import {
 } from "../src/index";
 import {
   GenerationKinds,
-  GenerationStatuses,
   isInstallationId,
   isRepoId,
-  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";
+import { GenerationStatuses } from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);

@@ -1,9 +1,6 @@
 import type { Context } from "hono";
-import {
-  AnchorStatuses,
-  DraftCommentStatuses,
-  createTenantRepository,
-} from "persistence";
+import { createTenantRepository } from "persistence";
+import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
 import { ApiErrorCodes } from "contract";
 import {
   BadRequest,

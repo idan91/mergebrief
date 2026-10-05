@@ -3,13 +3,12 @@
 // session's own rows, or the carry-over verdicts held in memory. The two
 // differ only in whether a subject has a row id yet, so one payload type
 // covers both and `materialized` is what tells them apart.
-import {
-  ReviewOutcomes,
-  type CarriedWork,
-  type DispositionEvidence,
-  type DispositionEvidenceKind,
-  type ReviewSessionSnapshot,
-} from "persistence";
+import type { CarriedWork, ReviewSessionSnapshot } from "persistence";
+import type {
+  DispositionEvidence,
+  DispositionEvidenceKind,
+} from "types/dispositions";
+import { ReviewOutcomes } from "types/reviews";
 import { CommentAnchorKinds, type Mutable } from "types";
 import type {
   DraftCommentPayload,

@@ -6,20 +6,20 @@ import {
   createTenantRepository,
   createGenerationProjection,
   GenerationKinds,
-  GenerationStatuses,
   createIngestRoutines,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
   parseScopeContext,
   parseTenantContext,
-  PrStates,
   type GenerationTarget,
   type PullRequestRow,
   type RepoId,
   type ReviewerId,
   type TenantContext,
 } from "persistence";
+import { GenerationStatuses } from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";

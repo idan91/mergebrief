@@ -27,15 +27,14 @@ import type { ScopeContext } from "./scope-context";
 import type { GenerateJobPayload, Mutable } from "types";
 import {
   GenerationKinds,
-  GenerationStatuses,
-  PrStates,
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
-  type Result,
   type UncoveredWork,
-  type ValueOf,
 } from "../types";
+import type { Result, ValueOf } from "types/utils";
+import { GenerationStatuses } from "types/generations";
+import { PrStates } from "types/pull-requests";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 

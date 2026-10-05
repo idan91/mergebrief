@@ -4,20 +4,23 @@
 // projection decides: the revision distance, the id a carried subject
 // carries, and the default outcome a session with no row reports.
 import {
-  AnchorStatuses,
-  ChangeGroupCategories,
-  DispositionCarryStatuses,
-  DispositionDecisions,
-  DispositionEvidenceStatuses,
-  DraftCommentSides,
-  DraftCommentStatuses,
   isReviewSessionId,
-  ReviewOutcomes,
   type CarriedWork,
   type ReviewSessionId,
   type ReviewSessionView,
 } from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
+import {
+  DispositionCarryStatuses,
+  DispositionDecisions,
+  DispositionEvidenceStatuses,
+} from "types/dispositions";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import { describe, expect, it } from "vitest";
 import { buildSessionPayload } from "../../src/routes/repos/pr/session/payload";
 

@@ -20,22 +20,23 @@ import type {
 } from "../src/index";
 import * as schema from "../src/schema/index";
 import {
-  ChangeGroupCategories,
-  DispositionDecisions,
-  DraftCommentSides,
-  DraftCommentStatuses,
-  ReviewOutcomes,
   isInstallationId,
   isRepoId,
   isReviewerId,
   type BriefRowId,
-  type DraftCommentSide,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
   type ReviewSessionId,
 } from "../src/types";
+import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
+import { DispositionDecisions } from "types/dispositions";
+import {
+  DraftCommentSides,
+  DraftCommentStatuses,
+  type DraftCommentSide,
+} from "types/comments";
 import { brandWith, freshPglite } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);

@@ -7,7 +7,6 @@ import {
   decryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrStates,
   createSessionAuth,
   createTokenAuth,
   WriteClassifications,
@@ -15,6 +14,7 @@ import {
   type KeyProvider,
   type BriefWriteInput,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

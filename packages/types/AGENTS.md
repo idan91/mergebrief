@@ -1,6 +1,6 @@
 # packages/types — agent notes
 
-Shared type helpers, the two cross-package shapes no single domain owns, and `as const` maps for closed vocabularies two packages both need as values.
+Shared type helpers, the two cross-package shapes no single domain owns, the payload shapes that ride a wire vocabulary, and `as const` maps for closed vocabularies two packages both need as values, or whose `ValueOf` type is needed by a package that must not depend on the map's owner.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 

@@ -4,7 +4,14 @@
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
 import { AnchorStates } from "brief-core";
 import type { Hop } from "brief-core/remap";
-import { CommentAnchorKinds, type CommentAnchorKind } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DraftCommentStatuses,
+  type AnchorStatus,
+  type CommentAnchorKind,
+  type DraftCommentSide,
+  type DraftCommentStatus,
+} from "types/comments";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";
@@ -29,24 +36,20 @@ import {
 } from "./carry-over";
 import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
-import {
-  DraftCommentStatuses,
-  type AnchorStatus,
-  type BriefRowId,
-  type ChangeGroupCategory,
-  type DispositionDecision,
-  type DispositionEvidence,
-  type DraftAnchor,
-  type DraftCommentSide,
-  type DraftCommentStatus,
-  type LineDraftAnchor,
-  type PullRequestRowId,
-  type ReviewOutcome,
-  type ReviewSessionId,
-  type ReviewerId,
-  type Result,
-  type ValueOf,
+import type {
+  BriefRowId,
+  DraftAnchor,
+  LineDraftAnchor,
+  PullRequestRowId,
+  ReviewSessionId,
+  ReviewerId,
 } from "../types";
+import type { ChangeGroupCategory, ReviewOutcome } from "types/reviews";
+import type {
+  DispositionDecision,
+  DispositionEvidence,
+} from "types/dispositions";
+import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
 // Errors, expected failures. Programmer errors still `throw`. Owned here

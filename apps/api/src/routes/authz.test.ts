@@ -12,11 +12,11 @@ import {
   isRepoId,
   isReviewerId,
   createTenantRepository,
-  PrStates,
   WriteClassifications,
   type InstallationId,
   type RepoId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Mutable, Result } from "types/utils";
 import {

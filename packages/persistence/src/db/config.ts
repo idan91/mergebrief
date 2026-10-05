@@ -1,30 +1,13 @@
-// Persistence env config, Zod-parsed from an INJECTED env map. This module
-// NEVER reads `process.env` implicitly at import time: `loadConfig(env)` takes
-// the env explicitly so tests are hermetic and the read happens where the
-// caller decides (startup wiring), not as an import side effect.
-//
-//   DATABASE_URL             required; a postgres(ql):// connection URL.
-//   DATABASE_URL_FILE        optional; path to a file holding the URL. Wins
-//                            over DATABASE_URL with a warning via the
-//                            injected sink; see `dsn.ts`.
-//   PERSIST_BASELINE_SNAPSHOT bool, default TRUE.
-//   STORE_DISPLAY_NAMES       bool, default TRUE.
-//   AUDIT_RETENTION_DAYS      int days, UNSET = keep forever (the default).
-//                            Refused below a 30-day floor: audit must outlive
-//                            a review session.
-//   AUDIT_PRIVATE_WRITES      bool, default TRUE. External writes and denials
-//                            are recorded regardless — not switchable.
-//   AUDIT_CALLER_IP           bool, default FALSE. The socket address is the
-//                            highest-privacy-cost field and the credential
-//                            already identifies the caller.
-//   MERGEBRIEF_AUTO_MIGRATE   bool, default TRUE — apply migrations at boot;
-//                             false = check-only, for a runtime role without
-//                             DDL; see db/migrate.ts.
-//
-// The minimization defaults encode the SELF-HOST posture: the adopter controls
-// its own code and names. A stricter deployment flips them via env.
+// Persistence env config, Zod-parsed from an INJECTED env map; this module
+// NEVER reads `process.env`. `DATABASE_URL_FILE` wins over `DATABASE_URL`
+// with a warning (see `dsn.ts`). An unset AUDIT_RETENTION_DAYS keeps audit
+// forever, and a value below the 30-day floor is refused: audit must outlive
+// a review session. External writes and denials are audited regardless of
+// AUDIT_PRIVATE_WRITES. MERGEBRIEF_AUTO_MIGRATE=false is check-only, for a
+// runtime role without DDL (see db/migrate.ts). The minimization defaults
+// encode the SELF-HOST posture; a stricter deployment flips them via env.
 import { z } from "zod";
-import type { Result, ValueOf } from "../types";
+import type { Result, ValueOf } from "types/utils";
 import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
 import { checkDsnTls } from "./tls";
 
@@ -39,7 +22,7 @@ export interface PersistenceConfig {
   readonly persistBaselineSnapshot: boolean;
   /** Keep purgeable display-name columns populated. Self-host: ON. */
   readonly storeDisplayNames: boolean;
-  /** Apply migrations at boot (default) vs check-only refusal — the posture
+  /** Apply migrations at boot (default) vs check-only refusal, the posture
    * for a runtime role without DDL. */
   readonly autoMigrate: boolean;
   /** Days of audit history the sweep keeps; `null` = keep forever. */
@@ -51,7 +34,7 @@ export interface PersistenceConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Errors — expected failure (bad/missing env). Never throws.
+// Errors: expected failure (bad/missing env). Never throws.
 // ---------------------------------------------------------------------------
 
 export const ConfigErrorCodes = {
@@ -64,7 +47,7 @@ export interface ConfigError {
   readonly message: string;
   /**
    * Per-field problems as `field: reason`. Deliberately excludes the offending
-   * VALUES — `DATABASE_URL` may carry a password, which must not reach a log.
+   * VALUES: `DATABASE_URL` may carry a password, which must not reach a log.
    */
   readonly issues: readonly string[];
 }
@@ -77,7 +60,7 @@ const TRUE_TOKENS = new Set(["true", "1", "yes", "on"]);
 const FALSE_TOKENS = new Set(["false", "0", "no", "off", ""]);
 
 /**
- * Boolean from an env string. `z.coerce.boolean()` is unusable here — it treats
+ * Boolean from an env string. `z.coerce.boolean()` is unusable here: it treats
  * any non-empty string (including "false") as `true`. This maps an explicit
  * token set; an absent var takes `defaultValue`; anything else fails validation.
  */
@@ -161,11 +144,11 @@ export type LoadConfigOptions = ResolveDsnOptions;
 
 /**
  * Parse persistence config from an injected env map into a `PersistenceConfig`,
- * or a `ConfigError` listing the invalid fields (values omitted — a connection
- * string is a secret). Unknown env keys are ignored. Never reads `process.env`
- * itself — the caller passes it. `DATABASE_URL_FILE` resolution (and its
- * shadow warning) happens here so every consumer of this loader — web and
- * worker both — gets the `_FILE` convention without its own wiring.
+ * or a `ConfigError` listing the invalid fields, values omitted because a
+ * connection string is a secret. Unknown env keys are ignored. Never reads
+ * `process.env` itself; the caller passes it. `DATABASE_URL_FILE` resolution
+ * and its shadow warning happen here so every consumer of this loader, web
+ * and worker both, gets the `_FILE` convention without its own wiring.
  */
 export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,
@@ -199,7 +182,7 @@ export function loadConfig(
     };
   }
   // TLS explicit-or-refuse: runs on the RESOLVED DSN (env or file), after
-  // scheme validation — see `tls.ts` for the rule and its loopback exemption.
+  // scheme validation; see `tls.ts` for the rule and its loopback exemption.
   const tls = checkDsnTls(parsed.data.DATABASE_URL);
   if (!tls.ok) {
     return {

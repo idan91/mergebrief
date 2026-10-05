@@ -95,14 +95,10 @@ module.exports = {
     {
       name: "contract-imports-no-runtime",
       comment:
-        "The wire contract rides in the browser bundle through apps/web's isomorphic fetch boundary: it pulls in no runtime code. A type-only import is erased and stays legal.",
+        "The wire contract rides in the browser bundle through apps/web's isomorphic fetch boundary: its source reaches only contract and the zero-dependency types package, type-only imports included.",
       severity: "error",
       from: { path: "^packages/contract/src/" },
-      to: {
-        path: ".*",
-        pathNot: "^packages/(contract|types)/",
-        dependencyTypesNot: ["type-only"],
-      },
+      to: { path: ".*", pathNot: "^packages/(contract|types)/" },
     },
     {
       name: "no-app-imports-another-app",

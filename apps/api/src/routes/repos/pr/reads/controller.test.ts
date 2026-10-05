@@ -4,9 +4,9 @@ import {
   isInstallationId,
   isRepoId,
   parseTenantContext,
-  PrStates,
   type RepoId,
 } from "persistence";
+import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";

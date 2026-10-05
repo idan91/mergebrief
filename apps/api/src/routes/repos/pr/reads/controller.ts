@@ -12,14 +12,14 @@ import {
   type OpenPullRequest,
 } from "github";
 import { resolvePrStack, type PrStackSelf } from "brief-core";
-import {
-  GenerationStatuses,
-  type GenerationProjection,
-  type GenerationRow,
-  type PullRequestRow,
-  type RepoId,
-  type ReviewerId,
+import type {
+  GenerationProjection,
+  GenerationRow,
+  PullRequestRow,
+  RepoId,
+  ReviewerId,
 } from "persistence";
+import { GenerationStatuses } from "types/generations";
 import type { DraftPolicy, Result } from "types";
 import type { Logger } from "logging";
 import { NotFound } from "../../../../shared-errors/api-error";

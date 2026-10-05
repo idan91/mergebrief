@@ -20,7 +20,8 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
-import type { GrantRowId, Result, ValueOf } from "../types";
+import type { GrantRowId } from "../types";
+import type { Result, ValueOf } from "types/utils";
 
 export type GithubGrantRow = typeof githubGrant.$inferSelect;
 

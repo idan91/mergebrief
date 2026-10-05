@@ -15,13 +15,13 @@ import type {
   TenantRepository,
 } from "../src/index";
 import {
-  DraftCommentSides,
   isReviewerId,
-  PrStates,
   type BriefRowId,
   type PullRequestRowId,
   type ReviewerId,
 } from "../src/types";
+import { DraftCommentSides } from "types/comments";
+import { PrStates } from "types/pull-requests";
 import {
   brandWith,
   connectMigrated,

@@ -1,5 +1,4 @@
-import { DraftCommentSides } from "persistence";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { anchorSchema, createDraftSchema } from "./schemas";
 

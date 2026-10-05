@@ -14,13 +14,8 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import type {
-  BriefRowId,
-  ReviewOutcome,
-  ReviewSessionId,
-  ReviewerId,
-} from "../types";
-import { ReviewOutcomes } from "../types";
+import type { BriefRowId, ReviewSessionId, ReviewerId } from "../types";
+import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { brief } from "./brief";
 import { tenantColumns } from "./columns";
 

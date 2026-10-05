@@ -11,26 +11,27 @@ import { createIngestRoutines } from "../src/stores/ingest";
 import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import {
   createTenantRepository,
   parseTenantContext,
 } from "../src/stores/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
-  GenerationFailureCodes,
   GenerationKinds,
-  GenerationPhases,
-  GenerationStatuses,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
-  PrStates,
   UncoveredWorks,
   type PullRequestRowId,
-  type Result,
   type UncoveredWork,
 } from "../src/types";
+import {
+  GenerationFailureCodes,
+  GenerationPhases,
+  GenerationStatuses,
+} from "types/generations";
+import { PrStates } from "types/pull-requests";
 import { brandWith } from "./helpers";
 
 const CTX = parseTenantContext({ installationId: 100n });

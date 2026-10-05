@@ -2,11 +2,9 @@
 // sides of materialization, projects the Attention List off the rows it
 // returns, and creates nothing (the invariant the suite exists for). Every
 // case asserts the `review_session` row count across the call.
-import {
-  AnchorStatuses,
-  createTenantRepository,
-  ReviewOutcomes,
-} from "persistence";
+import { createTenantRepository } from "persistence";
+import { AnchorStatuses } from "types/comments";
+import { ReviewOutcomes } from "types/reviews";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
