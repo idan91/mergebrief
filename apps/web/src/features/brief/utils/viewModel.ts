@@ -28,8 +28,6 @@ import {
   type UnattributedFile,
 } from "../types";
 
-export { GroupViewKinds } from "./remainder";
-
 interface GroupViewBase {
   kind: GroupViewKind;
   id: string;

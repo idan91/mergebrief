@@ -25,12 +25,6 @@ import {
   type ScopeExitOptions,
 } from "../BriefScreen";
 
-export type {
-  BriefComparisonPlan,
-  OwnDraftPlan,
-  ScopeExitOptions,
-} from "../BriefScreen";
-
 // Optional props are the DB route's: the local file path wires none of them.
 export interface BriefViewProps {
   livePrState?: LivePrState | undefined;

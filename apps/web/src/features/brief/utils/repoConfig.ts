@@ -255,8 +255,6 @@ export function parseBriefContext(
   return { ok: true, value: { files, collisions, policy } };
 }
 
-export { matchesGlob };
-
 function ruleAppliesTo(rule: DeEmphasisRule, file: string): boolean {
   if (rule.paths === undefined || rule.paths.length === 0) return true;
   return rule.paths.some((pattern) => matchesGlob(pattern, file));

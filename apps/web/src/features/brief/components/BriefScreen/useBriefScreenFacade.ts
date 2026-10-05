@@ -63,8 +63,6 @@ import {
 export const OWN_DRAFT_STALE_COMPOSER_REASON_KEY: TranslationKey =
   "brief.screen.staleRevisionReason";
 
-export type BriefScreenFacadeParams = BriefScreenProps;
-
 export function useBriefScreenFacade({
   artifacts,
   brief,
@@ -88,7 +86,7 @@ export function useBriefScreenFacade({
   revisionPending,
   staleHead,
   submitReview,
-}: BriefScreenFacadeParams) {
+}: BriefScreenProps) {
   const { t } = useTranslation();
 
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);

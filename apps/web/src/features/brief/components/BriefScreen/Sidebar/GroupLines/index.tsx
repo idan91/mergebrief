@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Callout } from "@web/components/Callout";
-import { getCategoryLabel, GroupViewKinds } from "../../../../utils/viewModel";
+import { GroupViewKinds } from "../../../../utils/remainder";
+import { getCategoryLabel } from "../../../../utils/viewModel";
 import type { GroupView } from "../../../../utils/viewModel";
 import { resolveGroupName } from "../../../../utils/resolveGroupName";
 import type { JumpFromSidebar } from "../types";

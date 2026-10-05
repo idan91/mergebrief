@@ -3,8 +3,6 @@
 // committed fixture brief as the viewer's URL row. The seed writes these
 // rows, the GitHub stub answers for these installations, and the spec asserts
 // on these titles.
-import { FIXTURE_PR_TITLE } from "./ids";
-
 export const E2E_VIEWER_LOGIN = "e2e-viewer";
 /** Every seeded row that is not the viewer's belongs to this login. */
 export const E2E_OTHER_LOGIN = "mira-k";
@@ -142,9 +140,6 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     updatedMinutesAgo: 680,
   },
 ];
-
-/** The committed fixture brief, as the viewer's own URL row: new, open, read live. */
-export const INBOX_URL_ROW_TITLE = FIXTURE_PR_TITLE;
 
 /** A second URL row whose brief GitHub has moved past: the live read reports a newer head. */
 export const INBOX_BEHIND_ROW = {

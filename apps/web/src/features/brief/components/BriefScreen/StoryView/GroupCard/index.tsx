@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import { GroupViewKinds } from "../../../../utils/viewModel";
+import { GroupViewKinds } from "../../../../utils/remainder";
 import { AttributedGroupCard } from "./AttributedGroupCard";
 import { RemainderGroupCard } from "./RemainderGroupCard";
 import type { GroupCardProps } from "./types";

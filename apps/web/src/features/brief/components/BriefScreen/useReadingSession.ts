@@ -34,11 +34,8 @@ import {
 const receiptArtifactI18n = createI18n();
 import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
-import {
-  GroupViewKinds,
-  type BriefViewModel,
-  type GroupView,
-} from "../../utils/viewModel";
+import { GroupViewKinds } from "../../utils/remainder";
+import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { ReadingPositionStore } from "./readingPosition";

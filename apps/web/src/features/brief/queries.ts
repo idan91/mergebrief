@@ -142,8 +142,6 @@ const fileRangeSchema: z.ZodType<FileRangeView> = z
   })
   .refine((range) => range.lines.length === range.to - range.from + 1);
 
-export type FileRange = FileRangeView;
-
 export interface FileRangeParams {
   repoId: string;
   prNumber: number;
@@ -155,7 +153,7 @@ export interface FileRangeParams {
 }
 
 export type FileRangeResult =
-  | { readonly kind: "ready"; readonly range: FileRange }
+  | { readonly kind: "ready"; readonly range: FileRangeView }
   /** `file-too-large`: past the expander's budget; the edge stays folded. */
   | { readonly kind: "too-large" }
   /** `file-not-text`: binary or non-utf8, there is nothing to show as lines. */

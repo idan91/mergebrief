@@ -18,10 +18,10 @@ import type { ProgressTotals } from "../../../utils/progress";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import { isDbBriefId } from "../../../utils/briefIdentity";
-import {
-  GroupViewKinds,
-  type BriefViewModel,
-  type UnattributedRemainderGroupView,
+import { GroupViewKinds } from "../../../utils/remainder";
+import type {
+  BriefViewModel,
+  UnattributedRemainderGroupView,
 } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { PRODUCT_NAME } from "@web/components/Header/consts";

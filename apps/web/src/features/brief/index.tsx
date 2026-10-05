@@ -12,17 +12,15 @@ import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
 import { buildRevisionTimelineView } from "./utils/revision-timeline";
 import { buildBriefTimeline } from "./utils/timeline";
-import { BriefView, type ScopeExitOptions } from "./components/BriefView";
+import type { ScopeExitOptions } from "./components/BriefScreen/types";
+import { BriefView } from "./components/BriefView";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
 // Internal brief files import their targets directly, never this index.
-export {
-  BriefView,
-  type BriefComparisonPlan,
-  type BriefViewProps,
-  type ScopeExitOptions,
-} from "./components/BriefView";
+export { BriefView, type BriefViewProps } from "./components/BriefView";
+export type { BriefComparisonPlan } from "./components/BriefScreen/useComparisonOverlay";
+export type { ScopeExitOptions } from "./components/BriefScreen/types";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 export { LocalBriefsSection } from "./components/LocalBriefsSection";
 export { BriefError } from "./components/BriefError";

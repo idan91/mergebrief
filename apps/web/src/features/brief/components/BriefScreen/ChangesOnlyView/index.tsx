@@ -8,7 +8,8 @@ import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { getCategoryLabel, GroupViewKinds } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/remainder";
+import { getCategoryLabel } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import {

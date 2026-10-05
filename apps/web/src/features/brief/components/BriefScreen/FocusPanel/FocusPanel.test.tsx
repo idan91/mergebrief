@@ -18,7 +18,8 @@ import {
 } from "@web/features/review/session";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { Categories } from "../../../types";
-import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/remainder";
+import { buildBriefViewModel } from "../../../utils/viewModel";
 import {
   ViewportBands,
   type ViewportBand,

@@ -1,9 +1,9 @@
 import { SidebarLayouts, type SidebarLayout } from "../../utils";
+import { SPLIT_MIN_WIDTH_PX } from "../useSplitWidth";
 import {
   STORY_CARD_CEILING_PX,
   STORY_CARD_FLOOR_PX,
   STORY_CARD_TRACK_PROPERTY,
-  STORY_DIFF_FLOOR_PX,
   STORY_DIFF_HEADROOM_PX,
 } from "./consts";
 import {
@@ -44,7 +44,7 @@ export function stepTrack(
 
 /** Mirrors the clamp ceiling in styles/base.scss; the gap is measured. */
 export function deriveCardCeiling(columnWidth: number, gap: number): number {
-  const diffReserve = STORY_DIFF_FLOOR_PX + STORY_DIFF_HEADROOM_PX + gap;
+  const diffReserve = SPLIT_MIN_WIDTH_PX + STORY_DIFF_HEADROOM_PX + gap;
   const ceiling = Math.min(STORY_CARD_CEILING_PX, columnWidth - diffReserve);
   return Math.max(STORY_CARD_FLOOR_PX, ceiling);
 }

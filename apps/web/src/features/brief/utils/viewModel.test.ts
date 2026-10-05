@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { appI18n } from "../../../i18n/I18nProvider";
 import { Categories, type Brief } from "../types";
+import { GroupViewKinds } from "./remainder";
 import { parseBrief } from "./validation";
 import {
   buildAttributeRail,
   buildBriefViewModel,
   getCategoryLabel,
-  GroupViewKinds,
   isAttributedGroupView,
   riskChipView,
   type AttributedGroupView,

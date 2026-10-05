@@ -1,9 +1,6 @@
-import { SPLIT_MIN_WIDTH_PX } from "../useSplitWidth";
-
-// The four sizes track styles/_layout.scss.
+// The three sizes track styles/_layout.scss.
 export const STORY_CARD_FLOOR_PX = 360;
 export const STORY_CARD_CEILING_PX = 750;
-export const STORY_DIFF_FLOOR_PX = SPLIT_MIN_WIDTH_PX;
 export const STORY_DIFF_HEADROOM_PX = 2;
 
 export const STORY_CARD_KEYBOARD_STEP_PX = 16;

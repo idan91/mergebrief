@@ -4,11 +4,8 @@
 // not Open. The URL row is read live before the list answers.
 import { expect, test } from "@playwright/test";
 
-import {
-  INBOX_BEHIND_ROW,
-  INBOX_ROWS,
-  INBOX_URL_ROW_TITLE,
-} from "../fixtures/inbox";
+import { FIXTURE_PR_TITLE } from "../fixtures/ids";
+import { INBOX_BEHIND_ROW, INBOX_ROWS } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
 import { waitForFirstLoad } from "../support/page";
 
@@ -42,7 +39,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   const order = await rows.getByTestId("inbox-row-title").allInnerTexts();
   // The URL row was read live a moment ago, so it is the most recently updated.
   expect(order.slice(0, 4)).toEqual([
-    INBOX_URL_ROW_TITLE,
+    FIXTURE_PR_TITLE,
     fresh?.title,
     changed?.title.replaceAll("`", ""),
     inProgress?.title,

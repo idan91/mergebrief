@@ -14,8 +14,6 @@ import type {
   SubmitReviewResult,
 } from "@web/features/review/utils";
 
-export type { SubmitReviewResult } from "@web/features/review/utils";
-
 type SubmitFailureKind = Exclude<SubmitReviewResult["kind"], "submitted">;
 
 // The web proxy answers 504 when its upstream budget runs out; the API keeps

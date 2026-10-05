@@ -4,10 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { Categories } from "../../../../../types";
-import {
-  buildBriefViewModel,
-  GroupViewKinds,
-} from "../../../../../utils/viewModel";
+import { GroupViewKinds } from "../../../../../utils/remainder";
+import { buildBriefViewModel } from "../../../../../utils/viewModel";
 import { ThisPr } from ".";
 
 const model = buildBriefViewModel(briefFixture);

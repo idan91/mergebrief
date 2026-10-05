@@ -11,7 +11,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel, GroupViewKinds } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/remainder";
+import { buildBriefViewModel } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,

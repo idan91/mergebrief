@@ -3,6 +3,7 @@
 // which is imported here at dev time only. The path matcher is no longer
 // mirrored; the screen calls its owner.
 import { describe, expect, it } from "vitest";
+import { matchesGlob } from "brief-core/path-matching";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -18,7 +19,6 @@ import {
   FLOOR_ATTRIBUTES,
   floorFirst,
   IMPLICATION_MAX_CHARS,
-  matchesGlob,
   NAME_MAX_CHARS,
   NAME_PATTERN,
   OUTCOMES,

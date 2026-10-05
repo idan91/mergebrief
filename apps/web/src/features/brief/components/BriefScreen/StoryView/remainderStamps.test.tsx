@@ -12,7 +12,8 @@ import {
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildLineOwnersByFile } from "../../../utils/lineOwner";
-import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/remainder";
+import { buildBriefViewModel } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
