@@ -240,6 +240,33 @@ describe("comments + outcome", () => {
     expect(statuses).toEqual(["submitted", "draft"]);
   });
 
+  it("markCommentsSubmitted flips an unplaced draft the submit posted", () => {
+    const store = freshStore();
+    store.setState({
+      unplacedDrafts: [
+        {
+          id: "gone",
+          filePath: "src/gone.ts",
+          kind: CommentAnchorKinds.FILE,
+          body: "left the brief",
+          status: ReviewCommentStatuses.DRAFT,
+        },
+        {
+          id: "kept",
+          filePath: "src/kept.ts",
+          kind: CommentAnchorKinds.FILE,
+          body: "added after the click",
+          status: ReviewCommentStatuses.DRAFT,
+        },
+      ],
+    });
+
+    store.getState().actions.markCommentsSubmitted(["gone"]);
+
+    const statuses = store.getState().unplacedDrafts.map((d) => d.status);
+    expect(statuses).toEqual(["submitted", "draft"]);
+  });
+
   it("keys a file comment id on kind, path, and suffix", () => {
     const store = freshStore();
     void store.getState().actions.saveComment({

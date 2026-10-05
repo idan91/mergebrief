@@ -63,8 +63,8 @@ function lineOfRow(
 
 /**
  * Place one thread against the Brief's chunks (reading order, first match
- * wins). Multi-line threads place by their END line, mirroring
- * `mapAnchorToWire` which anchors on `endLine`. A FILE thread with the path
+ * wins). Multi-line threads place by their END line, the line GitHub
+ * anchors a range on. A FILE thread with the path
  * in the Brief sits on the file header, never an invented line.
  */
 export function placeThread(

@@ -831,7 +831,6 @@
       "receiptRiskFlagTotal": "Risk flags",
       "receiptPostedTag": "posted",
       "receiptShowRaw": "Show raw receipt (as posted to GitHub)",
-      "tooManyComments": "A review can carry at most {{max}} comments. Trim {{excess}} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.",
       "tooLargeWithReviewComment": "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts.",
       "tooLargeComments": "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.",
       "pathTooLong": "A comment is anchored to a file whose path is too long to submit. Delete that draft to continue.",

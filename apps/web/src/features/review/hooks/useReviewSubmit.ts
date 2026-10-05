@@ -5,12 +5,18 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 
-import { listDraftComments, type ReviewComment } from "../utils/comments";
+import {
+  countDraftComments,
+  listDraftComments,
+  type ReviewComment,
+} from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
 import type { ReviewOutcome } from "../utils/state";
+import type { SessionDraftComment } from "../session/serverState";
 import {
   buildReviewBody,
   buildSignatureLine,
+  listUnplacedDrafts,
   submitBlockedReason,
   type SubmitReviewAction,
   type SubmitReviewResult,
@@ -25,6 +31,8 @@ export interface UseReviewSubmitInput {
   briefId: string;
   outcome: ReviewOutcome;
   comments: ReviewComment[];
+  /** Held drafts this Brief has no chunk for; the route posts them too. */
+  unplacedDrafts: readonly SessionDraftComment[];
   receipt: Receipt;
   /** A getter, not the string: the owning screen must not re-render per keystroke. */
   getReviewComment: () => string;
@@ -90,6 +98,7 @@ export function useReviewSubmit(
     briefId,
     outcome,
     comments,
+    unplacedDrafts,
     receipt,
     getReviewComment,
     consumeReviewComment,
@@ -118,11 +127,23 @@ export function useReviewSubmit(
     setNote(null);
   }
 
+  const signatureLine = useMemo(() => {
+    const postedCount =
+      countDraftComments(comments) + listUnplacedDrafts(unplacedDrafts).length;
+    return buildSignatureLine(receipt, postedCount);
+  }, [comments, receipt, unplacedDrafts]);
+
   const blockedReasonWith = useCallback(
     (reviewComment: string) =>
       blockedExternally ??
-      submitBlockedReason(t, outcome, comments, reviewComment),
-    [blockedExternally, comments, outcome, t],
+      submitBlockedReason(t, {
+        outcome,
+        comments,
+        unplacedDrafts,
+        reviewComment,
+        reviewBody: buildReviewBody(reviewComment, signatureLine),
+      }),
+    [blockedExternally, comments, outcome, signatureLine, t, unplacedDrafts],
   );
 
   const submit = useCallback(() => {
@@ -130,12 +151,20 @@ export function useReviewSubmit(
       return;
     }
     // Guard against the CURRENT draft, read at click time, the modal's
-    // rendered blocked state may lag the keystroke.
-    if (
-      blockedExternally !== undefined ||
-      submitBlockedReason(t, outcome, comments, getReviewComment()) !==
-        undefined
-    ) {
+    // rendered blocked state may lag the keystroke. The guard measures the
+    // exact body the action sends.
+    const reviewCommentAtClick = getReviewComment();
+    const reviewBody = buildReviewBody(reviewCommentAtClick, signatureLine);
+    const blockedReason = submitBlockedReason(t, {
+      outcome,
+      comments,
+      unplacedDrafts,
+      reviewComment: reviewCommentAtClick,
+      reviewBody,
+    });
+    const blocked =
+      blockedExternally !== undefined || blockedReason !== undefined;
+    if (blocked) {
       return;
     }
     inFlight.current = true;
@@ -144,8 +173,8 @@ export function useReviewSubmit(
     setNote(null);
     // Captured at click time: exactly this set ships, exactly this set flips.
     const drafts = listDraftComments(comments);
-    const draftIds = drafts.map((comment) => comment.id);
-    const reviewCommentAtClick = getReviewComment();
+    const unplacedAtClick = listUnplacedDrafts(unplacedDrafts);
+    const draftIds = [...drafts, ...unplacedAtClick].map((draft) => draft.id);
     const briefCurrent = () => currentBriefIdRef.current === briefId;
     const fail = (copy: string) => {
       // Announce regardless; render inline only on the originating brief.
@@ -185,13 +214,7 @@ export function useReviewSubmit(
         // render as "nothing was posted".
         let result: Awaited<ReturnType<typeof action>>;
         try {
-          result = await action({
-            outcome,
-            body: buildReviewBody(
-              reviewCommentAtClick,
-              buildSignatureLine(receipt, drafts.length),
-            ),
-          });
+          result = await action({ outcome, body: reviewBody });
         } catch {
           fail(COPY.failed);
           return;
@@ -260,9 +283,10 @@ export function useReviewSubmit(
     invalidateConversation,
     markSubmitted,
     outcome,
-    receipt,
     recordSubmittedReview,
     resetOutcome,
+    signatureLine,
+    unplacedDrafts,
     COPY,
     t,
   ]);

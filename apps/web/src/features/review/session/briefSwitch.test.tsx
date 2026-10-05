@@ -3,7 +3,7 @@
 // (the subtree key is gone), so swapping `briefId`+`model` must re-derive the
 // store from the NEW model and the NEW brief's session. Chunk/flag ids collide
 // across briefs by construction (positional c1..cN), so a missed reset
-// silently reads as the wrong brief's session — every pin here uses colliding
+// silently reads as the wrong brief's session; every pin here uses colliding
 // ids on purpose.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -11,8 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { ReviewSessionProvider, useReviewSession } from ".";
-import type { ReviewSessionPayload } from "./serverState";
+import { CommentAnchorKinds } from "types/comments";
+import { ReviewCommentStatuses } from "../utils/comments";
+import { ReviewSessionProvider, useReviewSession, useUnplacedDrafts } from ".";
+import type { ReviewSessionPayload, SessionDraftComment } from "./serverState";
 
 afterEach(cleanup);
 
@@ -29,6 +31,18 @@ function sessionWithReadMark(chunkId: string): ReviewSessionPayload {
     dispositions: [],
     submittedReviewIds: [],
   };
+}
+
+const GONE_DRAFT: SessionDraftComment = {
+  id: "4001",
+  filePath: "src/gone.ts",
+  kind: CommentAnchorKinds.FILE,
+  body: "left the brief",
+  status: ReviewCommentStatuses.DRAFT,
+};
+
+function sessionWithUnplacedDraft(): ReviewSessionPayload {
+  return { ...sessionWithReadMark("c1"), draftComments: [GONE_DRAFT] };
 }
 
 function makeBrief(sha: string, file: string): Brief {
@@ -54,7 +68,7 @@ function makeBrief(sha: string, file: string): Brief {
         uncertainBetween: [],
       },
     ],
-    // Same chunk id in both briefs — the id-collision hazard under test.
+    // Same chunk id in both briefs: the id-collision hazard under test.
     chunks: [
       {
         id: "c1",
@@ -106,6 +120,7 @@ function renderSession(initial?: ReviewSessionPayload) {
       reviewedChunks: useReviewSession((state) => state.reviewedChunks),
       reviewComments: useReviewSession((state) => state.reviewComments),
       dispositions: useReviewSession((state) => state.dispositions),
+      unplacedDrafts: useUnplacedDrafts(),
       actions: useReviewSession((state) => state.actions),
     }),
     { wrapper: Wrapper },
@@ -140,7 +155,7 @@ describe("in-place brief switch", () => {
     expect(result.current.reviewedChunks.has("c1")).toBe(true);
 
     switchTo("brief-b");
-    // Same chunk id exists in B — the reset must still clear it: it was A's.
+    // Same chunk id exists in B; the reset must still clear it, it was A's.
     expect(result.current.reviewedChunks.has("c1")).toBe(false);
     expect(result.current.reviewComments).toEqual([]);
     // Dispositions re-derived from B's model, not carried from A.
@@ -153,7 +168,7 @@ describe("in-place brief switch", () => {
     const { result, switchTo } = renderSession(sessionWithReadMark("c1"));
     expect(result.current.reviewedChunks.has("c1")).toBe(true);
 
-    // B's own session is empty — A's mark must not survive the switch.
+    // B's own session is empty, so A's mark must not survive the switch.
     switchTo("brief-b");
     expect(result.current.reviewedChunks.has("c1")).toBe(false);
 
@@ -170,6 +185,21 @@ describe("in-place brief switch", () => {
     expect(result.current.reviewedChunks.has("c1")).toBe(false);
     rerenderWith(sessionWithReadMark("c1"));
     expect(result.current.reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("replaces the unplaced drafts with each server read", () => {
+    const { result, rerenderWith } = renderSession(sessionWithUnplacedDraft());
+    expect(result.current.unplacedDrafts).toEqual([GONE_DRAFT]);
+    rerenderWith(sessionWithReadMark("c1"));
+    expect(result.current.unplacedDrafts).toEqual([]);
+  });
+
+  it("leaves out an unplaced draft this tab deleted", () => {
+    const { result } = renderSession(sessionWithUnplacedDraft());
+    act(() => {
+      result.current.actions.deleteMissingDraft(GONE_DRAFT.id);
+    });
+    expect(result.current.unplacedDrafts).toEqual([]);
   });
 
   it("writes nothing to sessionStorage", () => {

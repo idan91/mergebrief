@@ -155,6 +155,52 @@ describe("sessionInitialState", () => {
     );
   });
 
+  it("keeps a draft whose file left the Brief as unplaced", () => {
+    const chunk = firstChunk;
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
+    const goneFile: SessionDraftComment = {
+      id: "71",
+      filePath: "src/deleted-since.ts",
+      kind: CommentAnchorKinds.FILE,
+      body: "gone file",
+      status: ReviewCommentStatuses.DRAFT,
+    };
+    const goneLine: SessionDraftComment = {
+      id: "72",
+      filePath: "src/deleted-since.ts",
+      kind: CommentAnchorKinds.LINE,
+      side: CommentSides.OLD,
+      startLine: 4,
+      endLine: 6,
+      body: "gone line",
+      status: ReviewCommentStatuses.DRAFT,
+    };
+    const state = sessionInitialState(
+      model,
+      payload({
+        draftComments: [
+          goneFile,
+          {
+            id: "73",
+            filePath: chunk.file,
+            kind: CommentAnchorKinds.FILE,
+            body: "placed",
+            status: ReviewCommentStatuses.DRAFT,
+          },
+          goneLine,
+        ],
+      }),
+    );
+    expect(state.reviewComments.map((comment) => comment.id)).toEqual(["73"]);
+    expect(state.unplacedDrafts).toEqual([goneFile, goneLine]);
+  });
+
+  it("holds no unplaced drafts when there is no session", () => {
+    expect(sessionInitialState(model, undefined).unplacedDrafts).toEqual([]);
+  });
+
   it("lands a leftover-line draft on the remainder chunk", () => {
     const brief = structuredClone(briefFixture);
     const chunk = brief.chunks[0];

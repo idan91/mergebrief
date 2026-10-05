@@ -12,7 +12,13 @@ import {
   type ReviewComment,
 } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
-import type { SubmitReviewResult } from "../utils/submit";
+import type { SessionDraftComment } from "../session/serverState";
+import {
+  MAX_BODY_LENGTH,
+  buildSignatureLine,
+  foldDraftsIntoBody,
+  type SubmitReviewResult,
+} from "../utils/submit";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
 import { CommentAnchorKinds } from "types/comments";
 
@@ -48,6 +54,10 @@ function draft(id: string): ReviewComment {
   };
 }
 
+function makeDraftWithBody(body: string): ReviewComment {
+  return { ...draft("a"), body };
+}
+
 function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   const markSubmitted = vi.fn();
   const recordSubmittedReview = vi.fn();
@@ -62,6 +72,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     briefId: "db:1:7:base:head",
     outcome: "approve",
     comments: [draft("a")],
+    unplacedDrafts: [],
     receipt: RECEIPT,
     getReviewComment: () => "",
     consumeReviewComment,
@@ -405,6 +416,112 @@ describe("useReviewSubmit", () => {
         body: expect.stringMatching(/^typed after render\n\n---\n\n/),
       }),
     );
+  });
+
+  it("counts the signature line toward the fold", () => {
+    const signature = buildSignatureLine(RECEIPT, 1);
+    const emptyFold = foldDraftsIntoBody(
+      "",
+      [makeDraftWithBody("")],
+      [],
+    ).length;
+    const unsignedFill = MAX_BODY_LENGTH - emptyFold;
+    const signedFill = unsignedFill - signature.length - "\n\n".length;
+
+    const unsigned = setup({
+      comments: [makeDraftWithBody("x".repeat(unsignedFill))],
+    });
+    const signed = setup({
+      comments: [makeDraftWithBody("x".repeat(signedFill))],
+    });
+
+    expect(unsigned.rendered.result.current.blockedReasonWith("")).toMatch(
+      /too large/i,
+    );
+    expect(
+      signed.rendered.result.current.blockedReasonWith(""),
+    ).toBeUndefined();
+  });
+
+  it("blocks when only the unplaced draft tips the fold", () => {
+    const signature = buildSignatureLine(RECEIPT, 1);
+    const emptyFold = foldDraftsIntoBody(
+      signature,
+      [makeDraftWithBody("")],
+      [],
+    ).length;
+    const filling = makeDraftWithBody("x".repeat(MAX_BODY_LENGTH - emptyFold));
+    const unplaced: SessionDraftComment = {
+      id: "gone",
+      filePath: "src/gone.ts",
+      kind: CommentAnchorKinds.FILE,
+      body: "left the brief",
+      status: ReviewCommentStatuses.DRAFT,
+    };
+
+    const placedOnly = setup({ comments: [filling] });
+    const withUnplaced = setup({
+      comments: [filling],
+      unplacedDrafts: [unplaced],
+    });
+
+    expect(
+      placedOnly.rendered.result.current.blockedReasonWith(""),
+    ).toBeUndefined();
+    expect(withUnplaced.rendered.result.current.blockedReasonWith("")).toMatch(
+      /too large/i,
+    );
+    act(() => withUnplaced.rendered.result.current.submit());
+    expect(withUnplaced.action).not.toHaveBeenCalled();
+  });
+
+  it("counts unplaced drafts in the signature line", async () => {
+    const unplaced: SessionDraftComment = {
+      id: "gone",
+      filePath: "src/gone.ts",
+      kind: CommentAnchorKinds.FILE,
+      body: "left the brief",
+      status: ReviewCommentStatuses.DRAFT,
+    };
+    const { rendered, action } = setup({ unplacedDrafts: [unplaced] });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 9,
+      commentsFolded: 0,
+      commentsTotal: 2,
+    });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(action).toHaveBeenCalledWith({
+      outcome: "approve",
+      body: buildSignatureLine(RECEIPT, 2),
+    });
+  });
+
+  it("flips the unplaced drafts with the placed ones on success", async () => {
+    const unplaced: SessionDraftComment = {
+      id: "gone",
+      filePath: "src/gone.ts",
+      kind: CommentAnchorKinds.FILE,
+      body: "left the brief",
+      status: ReviewCommentStatuses.DRAFT,
+    };
+    const { rendered, action, markSubmitted } = setup({
+      unplacedDrafts: [unplaced],
+    });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 9,
+      commentsFolded: 0,
+      commentsTotal: 2,
+    });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(markSubmitted).toHaveBeenCalledWith(["a", "gone"]);
   });
 
   it("evaluates blockedReasonWith per caller draft", () => {

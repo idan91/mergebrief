@@ -10,16 +10,19 @@ import {
   ReviewCommentStatuses,
 } from "./comments";
 import type { Receipt } from "./receipt";
-import { ThreadSides } from "@web/features/conversation/types";
+import type { SessionDraftComment } from "../session/serverState";
 import {
+  MAX_BODY_LENGTH,
   buildReviewBody,
   buildSignatureLine,
   buildSubmitPayload,
-  mapAnchorToWire,
+  foldDraftsIntoBody,
   submitBlockedReason,
+  type SubmitBlockInput,
 } from "./submit";
 
 const t = createI18n().t;
+const SIGNATURE = "Reviewed with MergeBrief, fixture signature";
 
 function anchor(overrides: Partial<LineCommentAnchor> = {}): LineCommentAnchor {
   return {
@@ -49,66 +52,41 @@ function comment(
   };
 }
 
-describe("mapAnchorToWire", () => {
-  it("maps a single-line new-side anchor to RIGHT with no startLine", () => {
-    const wire = mapAnchorToWire(
-      anchor({ side: CommentSides.NEW, startLine: 12, endLine: 12 }),
-    );
-    expect(wire).toEqual({
-      path: "src/a.ts",
-      line: 12,
-      side: ThreadSides.RIGHT,
-      selectedText: "const x = 1;",
-    });
+function getBlockedReason(
+  input: Partial<SubmitBlockInput>,
+): string | undefined {
+  const reviewComment = input.reviewComment ?? "";
+  return submitBlockedReason(t, {
+    outcome: input.outcome ?? "approve",
+    comments: input.comments ?? [],
+    unplacedDrafts: input.unplacedDrafts ?? [],
+    reviewComment,
+    reviewBody: input.reviewBody ?? buildReviewBody(reviewComment, SIGNATURE),
   });
+}
 
-  it("maps a crossing anchor with its own start side, even on equal lines", () => {
-    const wire = mapAnchorToWire(
-      anchor({
-        side: CommentSides.NEW,
-        startSide: CommentSides.OLD,
-        startLine: 10,
-        endLine: 10,
-      }),
-    );
-    expect(wire).toEqual({
-      path: "src/a.ts",
-      line: 10,
-      side: ThreadSides.RIGHT,
-      startLine: 10,
-      startSide: ThreadSides.LEFT,
-      selectedText: "const x = 1;",
-    });
-  });
+function makeUnplacedDraft(
+  overrides: Partial<SessionDraftComment> = {},
+): SessionDraftComment {
+  return {
+    id: "unplaced",
+    filePath: "src/gone.ts",
+    kind: CommentAnchorKinds.FILE,
+    body: "left the brief",
+    status: ReviewCommentStatuses.DRAFT,
+    ...overrides,
+  } as SessionDraftComment;
+}
 
-  it("maps an old-side anchor to LEFT", () => {
-    const wire = mapAnchorToWire(
-      anchor({ side: CommentSides.OLD, startLine: 5, endLine: 5 }),
-    );
-    expect(wire.side).toBe(ThreadSides.LEFT);
-    expect(wire.line).toBe(5);
-  });
-
-  it("maps a multi-line anchor to line=end + startLine/startSide", () => {
-    const wire = mapAnchorToWire(
-      anchor({ side: CommentSides.NEW, startLine: 10, endLine: 14 }),
-    );
-    expect(wire).toEqual({
-      path: "src/a.ts",
-      line: 14,
-      side: ThreadSides.RIGHT,
-      startLine: 10,
-      startSide: ThreadSides.RIGHT,
-      selectedText: "const x = 1;",
-    });
-  });
-
-  it("maps a file anchor to path only, with no line", () => {
-    expect(mapAnchorToWire(createFileCommentAnchor("src/a.ts"))).toEqual({
-      path: "src/a.ts",
-    });
-  });
-});
+/** One draft whose body pads the fold under `reviewBody` to `foldLength`. */
+function makeDraftFillingFold(
+  reviewBody: string,
+  foldLength: number,
+): ReviewComment {
+  const empty = comment("filling", {}, "");
+  const emptyLength = foldDraftsIntoBody(reviewBody, [empty], []).length;
+  return comment("filling", {}, "x".repeat(foldLength - emptyLength));
+}
 
 describe("buildSubmitPayload", () => {
   it("carries the outcome and body, never the drafts the session holds", () => {
@@ -127,15 +105,6 @@ describe("buildSubmitPayload", () => {
     expect(buildSubmitPayload({ outcome: "comment" })).toEqual({
       outcome: "comment",
     });
-  });
-});
-
-describe("mapAnchorToWire route-cap alignment", () => {
-  it("trims an oversized selectedText to the route's quote budget", () => {
-    // The route caps selectedText at 4000 chars. An over-long selection
-    // must not 400 an otherwise valid comment.
-    const wire = mapAnchorToWire(anchor({ selectedText: "x".repeat(9_000) }));
-    expect(wire.selectedText?.length).toBe(4_000);
   });
 });
 
@@ -171,13 +140,15 @@ describe("buildSignatureLine", () => {
 
 describe("submitBlockedReason", () => {
   it("blocks a neutral comment submit with nothing to say", () => {
-    expect(submitBlockedReason(t, "comment", [])).toMatch(
+    expect(getBlockedReason({ outcome: "comment" })).toMatch(
       /at least one comment/i,
     );
   });
 
   it("allows a neutral comment submit with a draft comment", () => {
-    expect(submitBlockedReason(t, "comment", [comment("a")])).toBeUndefined();
+    expect(
+      getBlockedReason({ outcome: "comment", comments: [comment("a")] }),
+    ).toBeUndefined();
   });
 
   it("blocks a comment submit whose drafts were already submitted", () => {
@@ -185,73 +156,230 @@ describe("submitBlockedReason", () => {
       ...comment("a"),
       status: ReviewCommentStatuses.SUBMITTED,
     };
-    expect(submitBlockedReason(t, "comment", [submitted])).toMatch(
-      /at least one comment/i,
-    );
+    expect(
+      getBlockedReason({ outcome: "comment", comments: [submitted] }),
+    ).toMatch(/at least one comment/i);
   });
 
   it("allows approve and request-changes without comments", () => {
-    expect(submitBlockedReason(t, "approve", [])).toBeUndefined();
-    expect(submitBlockedReason(t, "request-changes", [])).toBeUndefined();
+    expect(getBlockedReason({ outcome: "approve" })).toBeUndefined();
+    expect(getBlockedReason({ outcome: "request-changes" })).toBeUndefined();
   });
 
-  it("blocks a submit past the route's 64-comment cap with reachable copy", () => {
+  it("allows any number of drafts the fold can carry", () => {
     const drafts = Array.from({ length: 65 }, (_, index) =>
-      comment(`c${index}`),
+      comment(`c${String(index)}`),
     );
-    expect(submitBlockedReason(t, "approve", drafts)).toMatch(/64/);
-    expect(
-      submitBlockedReason(t, "approve", drafts.slice(0, 64)),
-    ).toBeUndefined();
+    expect(getBlockedReason({ comments: drafts })).toBeUndefined();
   });
 
   it("blocks a draft anchored to a path past the route's length cap", () => {
     const longPath = `src/${"a".repeat(1_100)}.ts`;
-    const drafts = [comment("a", { file: longPath })];
-    expect(submitBlockedReason(t, "approve", drafts)).toMatch(
-      /path.*too long/i,
-    );
     expect(
-      submitBlockedReason(t, "approve", [comment("b", { file: "src/ok.ts" })]),
+      getBlockedReason({ comments: [comment("a", { file: longPath })] }),
+    ).toMatch(/path.*too long/i);
+    expect(
+      getBlockedReason({ comments: [comment("b", { file: "src/ok.ts" })] }),
     ).toBeUndefined();
   });
 
-  it("blocks a submit whose fold would exceed the route body budget", () => {
-    // Two comments within every per-field cap, but together past the fold
-    // budget the route pre-validates. The route would 400 this same payload
-    // on every retry, so it must block HERE with recoverable copy.
-    const drafts = [
-      comment("a", {}, "x".repeat(40_000)),
-      comment("b", {}, "y".repeat(40_000)),
-    ];
-    expect(submitBlockedReason(t, "approve", drafts)).toMatch(
+  it("allows a fold of exactly the route's body cap", () => {
+    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    expect(foldDraftsIntoBody(SIGNATURE, drafts, [])).toHaveLength(
+      MAX_BODY_LENGTH,
+    );
+    expect(getBlockedReason({ comments: drafts })).toBeUndefined();
+  });
+
+  it("blocks a fold one character past the body cap", () => {
+    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH + 1)];
+    expect(getBlockedReason({ comments: drafts })).toMatch(
       /too large|shorten/i,
     );
+  });
+
+  it("counts an unplaced draft toward the fold", () => {
+    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    expect(getBlockedReason({ comments: drafts })).toBeUndefined();
     expect(
-      submitBlockedReason(t, "approve", [comment("a", {}, "x".repeat(1_000))]),
+      getBlockedReason({
+        comments: drafts,
+        unplacedDrafts: [makeUnplacedDraft()],
+      }),
+    ).toMatch(/too large|shorten/i);
+  });
+
+  it("leaves an unplaced draft out once it is submitted", () => {
+    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const posted = makeUnplacedDraft({
+      status: ReviewCommentStatuses.SUBMITTED,
+    });
+    expect(
+      getBlockedReason({ comments: drafts, unplacedDrafts: [posted] }),
     ).toBeUndefined();
+  });
+
+  it("lets an unplaced draft alone give a neutral submit content", () => {
+    expect(
+      getBlockedReason({
+        outcome: "comment",
+        unplacedDrafts: [makeUnplacedDraft()],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("ignores the quoted selection when sizing the fold", () => {
+    const filling = makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH);
+    const quoting: ReviewComment = {
+      ...filling,
+      anchor: anchor({ selectedText: "q".repeat(10_000) }),
+    };
+    expect(foldDraftsIntoBody(SIGNATURE, [quoting], [])).toBe(
+      foldDraftsIntoBody(SIGNATURE, [filling], []),
+    );
+    expect(getBlockedReason({ comments: [quoting] })).toBeUndefined();
   });
 
   it("allows a neutral comment submit with only a review comment", () => {
     expect(
-      submitBlockedReason(t, "comment", [], "Looks fine overall."),
+      getBlockedReason({
+        outcome: "comment",
+        reviewComment: "Looks fine overall.",
+      }),
     ).toBeUndefined();
-    expect(submitBlockedReason(t, "comment", [], "   ")).toMatch(
-      /at least one comment/i,
+    expect(
+      getBlockedReason({ outcome: "comment", reviewComment: "   " }),
+    ).toMatch(/at least one comment/i);
+  });
+
+  it("names the review comment in the copy when it tips the fold", () => {
+    const reviewComment = "r".repeat(30_000);
+    const reviewBody = buildReviewBody(reviewComment, SIGNATURE);
+    const drafts = [comment("a", {}, "x".repeat(40_000))];
+    expect(
+      getBlockedReason({ comments: drafts, reviewComment, reviewBody }),
+    ).toMatch(/review comment/i);
+    expect(
+      getBlockedReason({
+        comments: drafts,
+        reviewComment: "short note",
+        reviewBody: buildReviewBody("short note", SIGNATURE),
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("foldDraftsIntoBody", () => {
+  it("returns the review body untouched when there are no drafts", () => {
+    expect(foldDraftsIntoBody("overall verdict", [], [])).toBe(
+      "overall verdict",
     );
   });
 
-  it("counts the review comment toward the fold budget in the copy", () => {
-    // One inline draft near the budget: an oversize review comment must tip
-    // the same pre-validation the route runs, with copy that points at the
-    // review comment as a thing to shorten.
-    const drafts = [comment("a", {}, "x".repeat(40_000))];
-    expect(
-      submitBlockedReason(t, "approve", drafts, "r".repeat(30_000)),
-    ).toMatch(/review comment/i);
-    expect(
-      submitBlockedReason(t, "approve", drafts, "short note"),
-    ).toBeUndefined();
+  it("folds the fixture the api fold test pins to the same length", () => {
+    // The api fold test holds a literal copy of this fixture and length:
+    // apps/api/src/routes/repos/pr/review/logic/submit-comments.test.ts.
+    // Change both or neither.
+    const drafts: ReviewComment[] = [
+      {
+        ...comment("file", {}, "on the file 🧪"),
+        anchor: createFileCommentAnchor("src/app.ts"),
+      },
+      comment(
+        "line",
+        { file: "src/a.ts", startLine: 12, endLine: 12 },
+        "anchored note",
+      ),
+      comment(
+        "range",
+        {
+          file: "src/b.ts",
+          side: CommentSides.OLD,
+          startLine: 25,
+          endLine: 30,
+        },
+        "range note",
+      ),
+      comment(
+        "crossing",
+        {
+          file: "src/c.ts",
+          side: CommentSides.NEW,
+          startSide: CommentSides.OLD,
+          startLine: 10,
+          endLine: 10,
+        },
+        "crossing note 𝔸",
+      ),
+    ];
+
+    const folded = foldDraftsIntoBody(
+      "Looks right 🚀\n\n---\n\nsignature line",
+      drafts,
+      [],
+    );
+
+    expect(folded).toHaveLength(305);
+  });
+
+  it("folds unplaced and placed drafts to the route's length", () => {
+    // The api fold test holds a literal copy of this fixture and length.
+    // Change both or neither.
+    const placed: ReviewComment[] = [
+      {
+        ...comment("file", {}, "on the file 🧪"),
+        anchor: createFileCommentAnchor("src/app.ts"),
+      },
+      comment(
+        "line",
+        { file: "src/a.ts", startLine: 12, endLine: 12 },
+        "anchored note",
+      ),
+    ];
+    const unplaced: SessionDraftComment[] = [
+      makeUnplacedDraft({ id: "gone-file", body: "gone file 🧹" }),
+      {
+        id: "gone-range",
+        filePath: "src/gone.ts",
+        kind: CommentAnchorKinds.LINE,
+        side: CommentSides.OLD,
+        startLine: 4,
+        endLine: 6,
+        body: "gone range",
+        status: ReviewCommentStatuses.DRAFT,
+      },
+      {
+        id: "gone-crossing",
+        filePath: "src/gone.ts",
+        kind: CommentAnchorKinds.LINE,
+        side: CommentSides.NEW,
+        startSide: CommentSides.OLD,
+        startLine: 8,
+        endLine: 9,
+        body: "gone crossing",
+        status: ReviewCommentStatuses.DRAFT,
+      },
+    ];
+
+    const folded = foldDraftsIntoBody(
+      "Looks right 🚀\n\n---\n\nsignature line",
+      placed,
+      unplaced,
+    );
+
+    expect(folded).toHaveLength(337);
+    expect(folded).toContain("**`src/gone.ts:LEFT 8-RIGHT 9`**");
+  });
+
+  it("spells out both sides of a crossing range", () => {
+    const crossing = comment("a", {
+      side: CommentSides.NEW,
+      startSide: CommentSides.OLD,
+      startLine: 10,
+      endLine: 10,
+    });
+    const folded = foldDraftsIntoBody(SIGNATURE, [crossing], []);
+    expect(folded).toContain("**`src/a.ts:LEFT 10-RIGHT 10`**");
   });
 });
 

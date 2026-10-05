@@ -8,6 +8,7 @@ import {
   useDraftCommentCount,
   useReviewSession,
   useSyncReviewFlowPosture,
+  useUnplacedDrafts,
 } from "@web/features/review/session";
 import { useReviewSubmit } from "@web/features/review/hooks";
 import {
@@ -472,11 +473,13 @@ export function useBriefScreenFacade({
     ensureChunkOpen: session.openChunk,
   });
 
+  const unplacedDrafts = useUnplacedDrafts();
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
     outcome: reviewOutcome,
     comments: reviewComments,
+    unplacedDrafts,
     receipt,
     getReviewComment,
     consumeReviewComment: flowActions.consumeReviewComment,

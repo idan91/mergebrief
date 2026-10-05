@@ -1,44 +1,25 @@
-// Pure mapping from the session's review state to the submit route's wire
-// contract. The FE owns the anchor→GitHub translation (the server validates
-// shape only): side old→LEFT / new→RIGHT, multi-line ranges as
-// start_line..line, commitId = the Brief's viewed head.
+// The submit route's request body, the review body the hook sends, and the
+// client-side refusal that mirrors the route's deterministic 400s. The fold
+// below rebuilds the exact string the route measures, so it must track
+// `foldCommentsIntoBody` in apps/api's review route character for character.
 import type { TFunction } from "i18next";
+import { CommentAnchorKinds } from "types/comments";
 import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 
+import type {
+  SessionDraftComment,
+  UnplacedDrafts,
+} from "../session/serverState";
 import {
   CommentSides,
-  isFileCommentAnchor,
+  ReviewCommentStatuses,
+  isLineCommentAnchor,
   listDraftComments,
-  type CommentAnchor,
   type CommentSide,
-  type FileCommentAnchor,
-  type LineCommentAnchor,
   type ReviewComment,
 } from "./comments";
 import type { Receipt } from "./receipt";
 import type { ReviewOutcome } from "./state";
-
-/** GitHub's diff-side wire values. */
-export type WireSide = ThreadSide;
-
-export interface WireLineComment {
-  path: string;
-  /** The anchor line, the END line of a multi-line range. */
-  line: number;
-  side: WireSide;
-  /** First line of a multi-line range; absent for single-line. */
-  startLine?: number;
-  startSide?: WireSide;
-  /** The anchored source text, quoted by the server's degradation fold. */
-  selectedText: string;
-  body?: string;
-}
-
-export interface WireFileComment {
-  path: string;
-}
-
-export type WireComment = WireLineComment | WireFileComment;
 
 /**
  * The submit route's body. It carries NO comments: the session already holds
@@ -61,47 +42,9 @@ const SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
   [CommentSides.NEW]: ThreadSides.RIGHT,
 };
 
-/**
- * Mirrors of the submit route's caps, keep in lockstep. Anything the route
- * would 400 deterministically must block client-side with recoverable copy:
- * the UI resubmits the same draft set, so a route 400 is unrecoverable there.
- */
-const MAX_SELECTED_TEXT_LENGTH = 4_000;
-const MAX_COMMENTS_PER_SUBMIT = 64;
+/** The route's cap on the folded review body, in UTF-16 code units. */
+export const MAX_BODY_LENGTH = 65_536;
 const MAX_PATH_LENGTH = 1_024;
-/**
- * The route's fold budget (65536) minus a safety margin covering the
- * signature-line body, the fold preamble/separators, and estimate drift.
- */
-const FOLD_BUDGET = 63_000;
-
-/** Map one anchor to GitHub's path/line/side (+ start for multi-line). */
-export function mapAnchorToWire(anchor: LineCommentAnchor): WireLineComment;
-export function mapAnchorToWire(anchor: FileCommentAnchor): WireFileComment;
-export function mapAnchorToWire(anchor: CommentAnchor): WireComment;
-export function mapAnchorToWire(anchor: CommentAnchor): WireComment {
-  if (isFileCommentAnchor(anchor)) {
-    return { path: anchor.file };
-  }
-  const side = SIDE_TO_WIRE[anchor.side];
-  const crossing =
-    anchor.startSide !== undefined && anchor.startSide !== anchor.side;
-  // A crossing range is multi-line even when the two sides' numbers agree.
-  const multiLine = crossing || anchor.startLine !== anchor.endLine;
-  const wire: WireLineComment = {
-    path: anchor.file,
-    line: anchor.endLine,
-    side,
-    selectedText: anchor.selectedText.slice(0, MAX_SELECTED_TEXT_LENGTH),
-  };
-  if (multiLine) {
-    wire.startLine = anchor.startLine;
-    wire.startSide = crossing
-      ? SIDE_TO_WIRE[anchor.startSide ?? anchor.side]
-      : side;
-  }
-  return wire;
-}
 
 /**
  * The submit route's body. The drafts are NOT in it: the session holds them
@@ -208,55 +151,135 @@ export function buildReviewBody(
     : `${trimmed}${REVIEW_BODY_SEPARATOR}${signatureLine}`;
 }
 
-/** What the review comment adds to the route's fold budget. */
-function reviewCommentFoldCost(reviewComment: string): number {
-  const trimmed = reviewComment.trim();
-  return trimmed === "" ? 0 : trimmed.length + REVIEW_BODY_SEPARATOR.length;
+interface FoldedRange {
+  side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
+  startLine: number;
+  endLine: number;
 }
 
+/** One folded block's inputs, the shape both draft sources map onto. */
+interface FoldedDraft {
+  path: string;
+  /** Absent on a file comment. */
+  range?: FoldedRange;
+  body: string;
+}
+
+/** The unplaced drafts the route still posts: the ones not yet submitted. */
+export function listUnplacedDrafts(
+  drafts: readonly SessionDraftComment[],
+): UnplacedDrafts {
+  return drafts.filter((draft) => draft.status === ReviewCommentStatuses.DRAFT);
+}
+
+function shapeFoldedDraft(draft: ReviewComment): FoldedDraft {
+  const { anchor } = draft;
+  const folded: FoldedDraft = { path: anchor.file, body: draft.body };
+  const lineAnchored = isLineCommentAnchor(anchor);
+  if (lineAnchored) {
+    folded.range = anchor;
+  }
+  return folded;
+}
+
+function shapeUnplacedFoldedDraft(draft: SessionDraftComment): FoldedDraft {
+  const folded: FoldedDraft = { path: draft.filePath, body: draft.body };
+  if (draft.kind === CommentAnchorKinds.LINE) {
+    folded.range = draft;
+  }
+  return folded;
+}
+
+function shapeFoldedRange(range: FoldedRange): string {
+  const multiLine =
+    range.startSide !== undefined || range.startLine < range.endLine;
+  if (!multiLine) {
+    return String(range.endLine);
+  }
+  const side = SIDE_TO_WIRE[range.side];
+  const startSide = SIDE_TO_WIRE[range.startSide ?? range.side];
+  if (startSide !== side) {
+    return `${startSide} ${String(range.startLine)}-${side} ${String(range.endLine)}`;
+  }
+  return `${String(range.startLine)}-${String(range.endLine)}`;
+}
+
+function shapeFoldedBlock(draft: FoldedDraft): string {
+  const location =
+    draft.range === undefined
+      ? draft.path
+      : `${draft.path}:${shapeFoldedRange(draft.range)}`;
+  return [`**\`${location}\`**`, "", draft.body].join("\n");
+}
+
+/** The folded review body, measured against `MAX_BODY_LENGTH`. */
+export type FoldedReviewBody = string;
+
 /**
- * Conservative upper bound on the route's degradation fold: per comment, the
- * `file:range` marker plus the "> "-quoted selection plus the body and
- * separators. Slightly over-counts (never under) so a passing estimate can
- * never 400 at the route's exact-fold refine.
+ * The review body the route builds when GitHub rejects every anchor, the
+ * worst case it measures against `MAX_BODY_LENGTH` before posting anything.
+ * The route folds every held draft, placed or not; the length does not
+ * depend on their order. The preamble is the route's GitHub-facing text,
+ * measured here, never shown.
  */
-function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
-  return drafts.reduce((total, comment) => {
-    const wire = mapAnchorToWire(comment.anchor);
-    const selectedText = "selectedText" in wire ? wire.selectedText : undefined;
-    const quoted =
-      selectedText === undefined
-        ? 0
-        : selectedText.length + 2 * (selectedText.split("\n").length + 1);
-    // 48 covers the marker's decorations plus a two-side range with both
-    // sides spelled out (`LEFT n-RIGHT n`), which outgrows the bare numbers.
-    const commentCost =
-      wire.path.length + 48 + quoted + comment.body.length + 8;
-    return total + commentCost;
-  }, 0);
+export function foldDraftsIntoBody(
+  reviewBody: string,
+  drafts: readonly ReviewComment[],
+  unplacedDrafts: readonly SessionDraftComment[],
+): FoldedReviewBody {
+  const folded = [
+    ...drafts.map(shapeFoldedDraft),
+    ...unplacedDrafts.map(shapeUnplacedFoldedDraft),
+  ];
+  if (folded.length === 0) {
+    return reviewBody;
+  }
+  const count = String(folded.length);
+  const preamble = `${count} of ${count} comments could not be anchored to the diff and were folded into this review body (nothing was dropped):`;
+  const sections: string[] = [];
+  const hasReviewBody = reviewBody.trim() !== "";
+  if (hasReviewBody) {
+    sections.push(reviewBody);
+  }
+  sections.push("---", preamble, ...folded.map(shapeFoldedBlock));
+  return sections.join("\n\n");
+}
+
+export interface SubmitBlockInput {
+  outcome: ReviewOutcome;
+  comments: readonly ReviewComment[];
+  /** Held drafts this Brief has no chunk for; the route posts them too. */
+  unplacedDrafts: readonly SessionDraftComment[];
+  /** The reviewer's own words, before the signature line is added. */
+  reviewComment: string;
+  /** What the route receives as `body`: `buildReviewBody` of the two. */
+  reviewBody: string;
 }
 
 /**
- * GitHub rejects a content-free COMMENT; verdicts supply their own content.
- * Mirror deterministic route caps here with recoverable reasons because retry
- * would otherwise resubmit the same invalid drafts.
+ * Why Submit is refused, or `undefined` when it may proceed. The fold and
+ * path checks mirror deterministic route 400s with recoverable copy, because
+ * a retry resubmits the same drafts. GitHub rejects a content-free COMMENT;
+ * verdicts supply their own content.
  */
 export function submitBlockedReason(
   t: TFunction,
-  outcome: ReviewOutcome,
-  comments: ReviewComment[],
-  reviewComment = "",
+  input: SubmitBlockInput,
 ): string | undefined {
-  const drafts = listDraftComments(comments);
-  if (drafts.length > MAX_COMMENTS_PER_SUBMIT) {
-    return t("review.submit.tooManyComments", {
-      max: MAX_COMMENTS_PER_SUBMIT,
-      excess: drafts.length - MAX_COMMENTS_PER_SUBMIT,
-    });
-  }
-  const commentCost = reviewCommentFoldCost(reviewComment);
-  if (foldedLengthEstimate(drafts) + commentCost > FOLD_BUDGET) {
-    return commentCost > 0
+  const drafts = listDraftComments(input.comments);
+  const unplacedDrafts = listUnplacedDrafts(input.unplacedDrafts);
+  const hasReviewComment = input.reviewComment.trim() !== "";
+  const heldDraftCount = drafts.length + unplacedDrafts.length;
+
+  const foldLength = foldDraftsIntoBody(
+    input.reviewBody,
+    drafts,
+    unplacedDrafts,
+  ).length;
+  if (foldLength > MAX_BODY_LENGTH) {
+    return hasReviewComment
       ? t("review.submit.tooLargeWithReviewComment")
       : t("review.submit.tooLargeComments");
   }
@@ -266,10 +289,12 @@ export function submitBlockedReason(
   if (overlongPath !== undefined) {
     return t("review.submit.pathTooLong");
   }
-  if (outcome !== "comment") {
+
+  if (input.outcome !== "comment") {
     return undefined;
   }
-  if (drafts.length === 0 && reviewComment.trim() === "") {
+  const contentFree = heldDraftCount === 0 && !hasReviewComment;
+  if (contentFree) {
     return t("review.submit.commentNeedsContent");
   }
   return undefined;

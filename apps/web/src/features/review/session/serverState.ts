@@ -1,5 +1,6 @@
 // Resolve durable wire anchors into brief-local ids against this view model.
-// Drop anchors with no rendered chunk; the attention list explains the missing placement.
+// A draft with no rendered chunk is kept apart as unplaced: the submit route
+// still posts it, so the submit guard measures it.
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk, Category } from "../../brief/types";
 import { CommentAnchorKinds, type Result } from "types";
@@ -55,6 +56,9 @@ export interface SessionFileDraftComment extends SessionDraftCommentBase {
 export type SessionDraftComment =
   | SessionLineDraftComment
   | SessionFileDraftComment;
+
+/** Held drafts this Brief has no chunk for; the submit route posts them. */
+export type UnplacedDrafts = SessionDraftComment[];
 
 export interface SessionDisposition {
   filePath: string;
@@ -211,16 +215,24 @@ function rowsForDraft(
   };
 }
 
-function toReviewComments(
+interface ResolvedDrafts {
+  reviewComments: ReviewComment[];
+  unplacedDrafts: SessionDraftComment[];
+}
+
+function resolveDraftComments(
   payload: ReviewSessionPayload,
   chunks: BriefChunk[],
-): ReviewComment[] {
-  const comments: ReviewComment[] = [];
+): ResolvedDrafts {
+  const resolved: ResolvedDrafts = { reviewComments: [], unplacedDrafts: [] };
   for (const draft of payload.draftComments) {
     if (draft.kind === CommentAnchorKinds.FILE) {
       const inBrief = chunks.some((chunk) => chunk.file === draft.filePath);
-      if (!inBrief) continue;
-      comments.push({
+      if (!inBrief) {
+        resolved.unplacedDrafts.push(draft);
+        continue;
+      }
+      resolved.reviewComments.push({
         id: draft.id,
         anchor: createFileCommentAnchor(draft.filePath),
         body: draft.body,
@@ -230,7 +242,10 @@ function toReviewComments(
       continue;
     }
     const chunk = chunkForDraft(chunks, draft);
-    if (chunk === undefined) continue;
+    if (chunk === undefined) {
+      resolved.unplacedDrafts.push(draft);
+      continue;
+    }
 
     const { rowIds, selectedText } = rowsForDraft(chunk, draft);
     const anchor: LineCommentAnchor = {
@@ -246,7 +261,7 @@ function toReviewComments(
     if (draft.startSide !== undefined) {
       anchor.startSide = draft.startSide;
     }
-    comments.push({
+    resolved.reviewComments.push({
       id: draft.id,
       anchor,
       body: draft.body,
@@ -254,7 +269,7 @@ function toReviewComments(
       collapsed: false,
     });
   }
-  return comments;
+  return resolved;
 }
 
 /** The store's evidence shape from the row's two columns. */
@@ -332,6 +347,10 @@ export function sessionInitialState(
   if (payload === undefined) return base;
   const chunks = collectChunks(model);
   const chunkIds = new Set(chunks.map((chunk) => chunk.id));
+  const { reviewComments, unplacedDrafts } = resolveDraftComments(
+    payload,
+    chunks,
+  );
   const dominants = { ...base.dominants };
   const reclassifiedGroups = new Set<string>();
   for (const entry of payload.reclassifications) {
@@ -344,7 +363,8 @@ export function sessionInitialState(
     dominants,
     reclassifiedGroups,
     reviewedChunks: new Set(payload.readMarks.filter((id) => chunkIds.has(id))),
-    reviewComments: toReviewComments(payload, chunks),
+    reviewComments,
+    unplacedDrafts,
     reviewOutcome: payload.reviewOutcome,
     submittedReviewIds: payload.submittedReviewIds
       .map((id) => Number(id))

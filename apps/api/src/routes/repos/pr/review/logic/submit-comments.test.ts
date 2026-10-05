@@ -160,4 +160,85 @@ describe("foldCommentsIntoBody", () => {
     expect(folded?.startsWith("---")).toBe(true);
     expect(folded).toContain("**`src/a.ts:12`**");
   });
+
+  it("folds the fixture the web submit mirror pins to the same length", () => {
+    // The web submit check holds a literal copy of this fixture and length:
+    // apps/web/src/features/review/utils/submit.test.ts. Change both or neither.
+    const drafts = [
+      makeFileDraft({ body: "on the file 🧪" }),
+      makeLineDraft(),
+      makeLineDraft({
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/b.ts",
+          side: DraftCommentSides.OLD,
+          startLine: 25,
+          endLine: 30,
+        },
+        body: "range note",
+      }),
+      makeLineDraft({
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/c.ts",
+          side: DraftCommentSides.NEW,
+          startSide: DraftCommentSides.OLD,
+          startLine: 10,
+          endLine: 10,
+        },
+        body: "crossing note 𝔸",
+      }),
+    ].map(shapeSubmitComment);
+
+    const folded = foldCommentsIntoBody(
+      "Looks right 🚀\n\n---\n\nsignature line",
+      drafts,
+      drafts.length,
+    );
+
+    expect(folded?.length).toBe(305);
+  });
+
+  it("folds the fixture the web pins with its unplaced drafts", () => {
+    // The web submit check holds a literal copy of this fixture and length,
+    // split into drafts it renders and drafts it holds unplaced:
+    // apps/web/src/features/review/utils/submit.test.ts. Change both or neither.
+    const drafts = [
+      makeFileDraft({ body: "on the file 🧪" }),
+      makeLineDraft(),
+      makeFileDraft({
+        anchor: { kind: CommentAnchorKinds.FILE, file: "src/gone.ts" },
+        body: "gone file 🧹",
+      }),
+      makeLineDraft({
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/gone.ts",
+          side: DraftCommentSides.OLD,
+          startLine: 4,
+          endLine: 6,
+        },
+        body: "gone range",
+      }),
+      makeLineDraft({
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/gone.ts",
+          side: DraftCommentSides.NEW,
+          startSide: DraftCommentSides.OLD,
+          startLine: 8,
+          endLine: 9,
+        },
+        body: "gone crossing",
+      }),
+    ].map(shapeSubmitComment);
+
+    const folded = foldCommentsIntoBody(
+      "Looks right 🚀\n\n---\n\nsignature line",
+      drafts,
+      drafts.length,
+    );
+
+    expect(folded?.length).toBe(337);
+  });
 });

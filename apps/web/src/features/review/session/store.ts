@@ -12,6 +12,7 @@ import {
 } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition, Disposition } from "./disposition";
+import type { SessionDraftComment } from "./serverState";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
 
@@ -28,6 +29,12 @@ export interface ReviewSessionState {
   reclassifiedGroups: Set<string>;
   reviewedChunks: Set<string>;
   reviewComments: ReviewComment[];
+  /**
+   * The server's drafts this Brief has no chunk for. Every server read
+   * replaces it, and the only local write is the status flip after a
+   * submit. The submit route posts them, so the submit guard measures them.
+   */
+  unplacedDrafts: SessionDraftComment[];
   reviewOutcome: ReviewOutcome;
   /**
    * @description Review ids returned by this session's successful submits,
@@ -165,6 +172,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
     reclassifiedGroups: new Set(),
     reviewedChunks: new Set(),
     reviewComments: [],
+    unplacedDrafts: [],
     reviewOutcome: "comment",
     submittedReviewIds: [],
   };
@@ -491,6 +499,12 @@ export function createReviewSessionStore(
                 ? { ...comment, status: ReviewCommentStatuses.SUBMITTED }
                 : comment,
             ),
+            unplacedDrafts: state.unplacedDrafts.map((draft) => {
+              const submitted = flipped.has(draft.id);
+              return submitted
+                ? { ...draft, status: ReviewCommentStatuses.SUBMITTED }
+                : draft;
+            }),
           }));
         },
         recordSubmittedReview(reviewId) {

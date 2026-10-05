@@ -382,17 +382,7 @@
       "count": 2
     }
   },
-  "apps/web/src/features/review/session/briefSwitch.test.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/review/session/disposition.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/review/session/snapshot.ts": {
     "house/no-em-dash": {
       "count": 1
     }

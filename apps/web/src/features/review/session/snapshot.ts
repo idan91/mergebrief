@@ -5,7 +5,7 @@ import type { Disposition } from "./disposition";
 import type { ReviewSessionState } from "./store";
 
 /**
- * The frozen, serializable projection of the session — Sets flattened to
+ * The frozen, serializable projection of the session, Sets flattened to
  * arrays. The Receipt builder's input, and nothing else: the session itself
  * lives on the server, never in browser storage.
  */
@@ -22,7 +22,7 @@ export interface SessionSnapshot {
 
 export function serializeSnapshot(
   briefId: string,
-  state: ReviewSessionState,
+  state: Omit<ReviewSessionState, "unplacedDrafts">,
 ): SessionSnapshot {
   return {
     briefId,

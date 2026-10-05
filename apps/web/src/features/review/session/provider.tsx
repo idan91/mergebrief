@@ -21,7 +21,11 @@ import {
   type ReviewSessionStore,
   type ReviewSessionStoreValue,
 } from "./store";
-import { sessionInitialState, type ReviewSessionPayload } from "./serverState";
+import {
+  sessionInitialState,
+  type ReviewSessionPayload,
+  type UnplacedDrafts,
+} from "./serverState";
 import {
   createSessionWriteGateway,
   type SessionWriteGateway,
@@ -173,6 +177,20 @@ export function useFileReviewComments(filePath: string): ReviewComment[] {
         (comment) =>
           isFileCommentAnchor(comment.anchor) &&
           comment.anchor.file === filePath,
+      ),
+    ),
+  );
+}
+
+/**
+ * The server's unplaced drafts, less those this tab deleted from the
+ * attention list since the last read: the set the submit route still holds.
+ */
+export function useUnplacedDrafts(): UnplacedDrafts {
+  return useReviewSession(
+    useShallow((state) =>
+      state.unplacedDrafts.filter(
+        (draft) => !state.deletedMissingDrafts.has(draft.id),
       ),
     ),
   );
