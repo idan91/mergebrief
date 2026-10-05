@@ -6,12 +6,18 @@ import {
   type Brief,
   type RevisionNarrativeSkipped,
 } from "brief-core";
+import {
+  checkRevisionNarrativeForWrite,
+  type StoredRevisionNarrative,
+} from "brief-core/artifact";
 import type { Logger } from "logging";
+import { GenerationKinds } from "persistence";
 import { PermanentJobError } from "../../failure";
 import type { PullRequestSource } from "../../github-port";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { RevisionArtifactInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
+import { warnOnFailedCheck } from "./artifact-check";
 import { isPermanentGitHubError } from "./errors";
 
 /**
@@ -80,16 +86,19 @@ export async function writeRevisionArtifacts(
   });
 
   const writeNarrative = async (
-    body: string,
+    narrative: StoredRevisionNarrative,
     origin: Brief["generation"],
   ): Promise<void> => {
+    const narrativeCheck = checkRevisionNarrativeForWrite(narrative);
+    warnOnFailedCheck(narrativeCheck, GenerationKinds.REVISION_NARRATIVE, log);
+
     const written = await store.revisionNarratives.write({
       pullRequestId,
       briefId: briefRef.id,
       prevHeadSha,
       headSha,
       ...getGenerationOrigin(origin),
-      body,
+      body: JSON.stringify(narrative),
     });
     if (!written.ok) {
       throw new PermanentJobError(written.error.message);
@@ -98,7 +107,7 @@ export async function writeRevisionArtifacts(
 
   const narrativeGate = inputs.revisionNarrative ?? { enabled: true };
   if (!narrativeGate.enabled) {
-    const disabledStub = JSON.stringify(skipStub("disabled by config"));
+    const disabledStub = skipStub("disabled by config");
     await writeNarrative(disabledStub, generatedBrief.generation);
     return;
   }
@@ -108,7 +117,7 @@ export async function writeRevisionArtifacts(
     inputs.hugeSpanRatio,
   );
   if (revSpanHuge) {
-    const hugeSpanStub = JSON.stringify(skipStub("span too large"));
+    const hugeSpanStub = skipStub("span too large");
     await writeNarrative(hugeSpanStub, generatedBrief.generation);
     log.info("generate: revision span too large; wrote skip stub");
     return;
@@ -138,7 +147,7 @@ export async function writeRevisionArtifacts(
       (message) => log.info(message),
       inputs.effort,
     );
-    await writeNarrative(JSON.stringify(narrative), narrative.generation);
+    await writeNarrative(narrative, narrative.generation);
   } catch (error) {
     if (inputs.watch.signal.aborted) {
       // A mid-stream abort is a supersession, not a narrative failure.

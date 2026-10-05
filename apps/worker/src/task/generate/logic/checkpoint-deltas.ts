@@ -5,11 +5,13 @@ import {
   isHugeSpan,
   type DeltaInput,
 } from "brief-core";
+import { checkDeltaBriefForWrite } from "brief-core/artifact";
 import { GenerationKinds } from "persistence";
 import { PermanentJobError } from "../../failure";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { CheckpointDeltasInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
+import { warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
 import { resolveDeltaSpanDiff } from "./revision-artifacts";
 
@@ -127,6 +129,8 @@ export async function generateCheckpointDeltas(
       log,
       GenerationKinds.DELTA,
     );
+    const deltaCheck = checkDeltaBriefForWrite(delta);
+    warnOnFailedCheck(deltaCheck, GenerationKinds.DELTA, log);
     // oxlint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({
       pullRequestId,

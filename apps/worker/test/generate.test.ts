@@ -2474,6 +2474,14 @@ function twoGroupBriefOutput(
   };
 }
 
+const CUSTOM_RISK = "touches-billing";
+const BUILT_IN_RISK = "dense-logic";
+const CUSTOM_RISK_POLICY = `version: 1
+attributes:
+  ${CUSTOM_RISK}:
+    criteria: modifies invoicing code
+`;
+
 describe("generate task, anchored generation", () => {
   const SPAN = `${HEAD_1}...${HEAD_2}`;
 
@@ -2492,20 +2500,26 @@ describe("generate task, anchored generation", () => {
     rev2FailWith?: unknown;
     /** Fail the second revision's compare-files fetch. */
     rev2CompareFilesError?: GitHubApiError;
+    rev1Output?: unknown;
+    /** A repo policy the first revision sees and the second no longer does. */
+    rev1OnlyPolicy?: string;
   }) {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    generator.outputs["brief"] = twoGroupBriefOutput(
-      "gA",
-      "alpha",
-      "gB",
-      "beta",
-    );
+    generator.outputs["brief"] =
+      options.rev1Output ?? twoGroupBriefOutput("gA", "alpha", "gB", "beta");
     const github = stubGitHub(HEAD_1);
     github.files = [
       { path: "a.ts", additions: 4, deletions: 0 },
       { path: "b.ts", additions: 2, deletions: 0 },
     ];
+    if (options.rev1OnlyPolicy !== undefined) {
+      github.repoFiles.set(
+        RepoConfigPaths.POLICY,
+        buildRepoFile(options.rev1OnlyPolicy, "sha-p"),
+      );
+    }
+    const { logger, lines } = captureLogger();
     github.compareDiffs.set(SPAN, DIFF_TOUCHING_B);
     github.compareFiles.set(
       SPAN,
@@ -2520,6 +2534,7 @@ describe("generate task, anchored generation", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github,
+      log: logger,
     };
 
     if (options.fullRegeneration !== undefined) {
@@ -2528,6 +2543,7 @@ describe("generate task, anchored generation", () => {
 
     const task = createGenerateTask(taskDeps);
     await task(first.payload);
+    github.repoFiles.delete(RepoConfigPaths.POLICY);
 
     const revisedInfo: Mutable<PullRequestInfo> = {
       ...github.info,
@@ -2561,7 +2577,7 @@ describe("generate task, anchored generation", () => {
     } else {
       await task(second.payload);
     }
-    return { pr: second.pr, generator, github };
+    return { pr: second.pr, generator, github, lines };
   }
 
   it("carries frozen groups verbatim and stamps anchored origin", async () => {
@@ -2588,6 +2604,59 @@ describe("generate task, anchored generation", () => {
     );
     const carried = body.chunks?.find((c) => c.file === "a.ts");
     expect(carried?.changeGroupId).toBe("gA");
+  });
+
+  it("passes the write check on a carried chunk whose attribute is gone", async () => {
+    const rev1Output = twoGroupBriefOutput("gA", "alpha", "gB", "beta") as {
+      chunks: { file: string }[];
+    };
+    const firingChunks = rev1Output.chunks.map((chunk) =>
+      chunk.file === "a.ts" ? { ...chunk, riskSurface: [CUSTOM_RISK] } : chunk,
+    );
+    const { pr, lines } = await runTwoRevisions({
+      rev1Output: { ...rev1Output, chunks: firingChunks },
+      rev1OnlyPolicy: CUSTOM_RISK_POLICY,
+    });
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("anchored");
+    expect(JSON.parse(row?.carriedChunkIds ?? "[]")).toEqual(["gAc"]);
+    const body = JSON.parse(row?.body ?? "{}") as {
+      chunks: { id: string; riskSurface: string[] }[];
+    };
+    const carried = body.chunks.find((chunk) => chunk.id === "gAc");
+    expect(carried?.riskSurface).toEqual([CUSTOM_RISK]);
+    expect(lines().some((line) => line["evt"] === "artifact.check.fail")).toBe(
+      false,
+    );
+  });
+
+  it("passes the write check on a carried chunk with a built-in risk", async () => {
+    const rev1Output = twoGroupBriefOutput("gA", "alpha", "gB", "beta") as {
+      chunks: { file: string }[];
+    };
+    const firingChunks = rev1Output.chunks.map((chunk) =>
+      chunk.file === "a.ts"
+        ? { ...chunk, riskSurface: [BUILT_IN_RISK] }
+        : chunk,
+    );
+    const { pr, lines } = await runTwoRevisions({
+      rev1Output: { ...rev1Output, chunks: firingChunks },
+    });
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("anchored");
+    expect(JSON.parse(row?.carriedChunkIds ?? "[]")).toEqual(["gAc"]);
+    const body = JSON.parse(row?.body ?? "{}") as {
+      chunks: { id: string; riskSurface: string[] }[];
+    };
+    const carried = body.chunks.find((chunk) => chunk.id === "gAc");
+    expect(carried?.riskSurface).toEqual([BUILT_IN_RISK]);
+    expect(lines().some((line) => line["evt"] === "artifact.check.fail")).toBe(
+      false,
+    );
   });
 
   it("persists the hop and the carried chunk set alongside the brief", async () => {
@@ -3606,10 +3675,10 @@ describe("generate task, entry-comment draft gate", () => {
   });
 });
 
-function captureLogger() {
+function captureLogger(env: Record<string, string> = {}) {
   const written: string[] = [];
   const logger = createLogger({
-    env: {},
+    env,
     destination: { write: (line: string) => void written.push(line) },
   });
   const lines = (): Array<Record<string, unknown>> =>
@@ -4360,5 +4429,295 @@ describe("generate task, daily generation cap", () => {
         )
       )?.status,
     ).toBe(GenerationStatuses.SUCCEEDED);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stored artifact bodies: recovery through the reader, warn-only write checks.
+// ---------------------------------------------------------------------------
+
+const UNEXPECTED_SHAPE_WARNING =
+  "generate: stored brief body has an unexpected shape — narrative skipped";
+const BODY_MARKER = "body-marker-9f3c";
+
+/** The stub brief with `token` fired on every chunk. */
+function makeBriefOutputFiring(token: string, summary: string): unknown {
+  const base = stubGenerator().outputs["brief"] as { chunks: object[] };
+  const chunks = base.chunks.map((chunk) => ({
+    ...chunk,
+    riskSurface: [token],
+  }));
+  return { ...base, summary, chunks };
+}
+
+/** The stub brief with its one group renamed to `groupId`. */
+function makeBriefOutputGrouped(groupId: string): unknown {
+  const base = stubGenerator().outputs["brief"] as {
+    changeGroups: object[];
+    chunks: object[];
+  };
+  const changeGroups = base.changeGroups.map((group) => ({
+    ...group,
+    id: groupId,
+  }));
+  const chunks = base.chunks.map((chunk) => ({
+    ...chunk,
+    changeGroupId: groupId,
+  }));
+  return { ...base, changeGroups, chunks };
+}
+
+/** Hands `output` to the pipeline for `label` without the schema parse. */
+function stubUnparsedOutput(
+  generator: StubGenerator,
+  label: string,
+  output: unknown,
+): void {
+  const parseOutput = generator.generate.bind(generator);
+  generator.generate = (request) => {
+    if (request.label !== label) {
+      return parseOutput(request);
+    }
+    generator.calls.push(label);
+    return Promise.resolve(output as never);
+  };
+}
+
+describe("generate task, stored artifact bodies", () => {
+  /** Rev 1, an optional SQL rewrite of its stored body, then a second push. */
+  async function runSecondPush(options: {
+    policy?: string;
+    rev1Output?: unknown;
+    rev2Output?: unknown;
+    storedBodySql?: string;
+    /** Rev 1's row predates the used-group-ids column. */
+    clearUsedGroupIds?: boolean;
+  }) {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    if (options.rev1Output !== undefined) {
+      generator.outputs["brief"] = options.rev1Output;
+    }
+    const github = stubGitHub(HEAD_1);
+    if (options.policy !== undefined) {
+      github.repoFiles.set(
+        RepoConfigPaths.POLICY,
+        buildRepoFile(options.policy, "sha-p"),
+      );
+    }
+    const { logger, lines } = captureLogger({ LOG_LEVEL: "debug" });
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      log: logger,
+    });
+    await task(first.payload);
+    if (options.storedBodySql !== undefined) {
+      await harness.raw(
+        `update brief set body = ${options.storedBodySql} where head_sha = '${HEAD_1}'`,
+      );
+    }
+    if (options.clearUsedGroupIds === true) {
+      await harness.raw(
+        `update brief set used_group_ids = null where head_sha = '${HEAD_1}'`,
+      );
+    }
+    if (options.rev2Output !== undefined) {
+      generator.outputs["brief"] = options.rev2Output;
+    }
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
+    const shapeWarnings = lines().filter(
+      (line) => line["msg"] === UNEXPECTED_SHAPE_WARNING,
+    );
+    return { row, lines, shapeWarnings };
+  }
+
+  it("anchors on a stored brief that fires a custom risk attribute", async () => {
+    const { row, lines, shapeWarnings } = await runSecondPush({
+      policy: CUSTOM_RISK_POLICY,
+      rev1Output: makeBriefOutputFiring(CUSTOM_RISK, "stub brief"),
+    });
+
+    expect(row?.anchorState).toBe("anchored");
+    expect(shapeWarnings).toEqual([]);
+    expect(lines().some((line) => line["evt"] === "artifact.check.fail")).toBe(
+      false,
+    );
+  });
+
+  it("restarts unanchored and warns on an empty stored body", async () => {
+    const { row, lines, shapeWarnings } = await runSecondPush({
+      storedBodySql: "'{}'",
+    });
+
+    expect(row?.anchorState).toBe("none");
+    expect(shapeWarnings.map((line) => line["level"])).toEqual(["warn"]);
+    const issues = lines().filter(
+      (line) => line["msg"] === "generate: stored brief body issue",
+    );
+    expect(issues.length).toBeGreaterThan(0);
+    for (const issue of issues) {
+      expect(issue).toMatchObject({ level: "debug", code: "invalid" });
+      expect(issue).toHaveProperty("path");
+      expect(issue).not.toHaveProperty("message");
+    }
+  });
+
+  it("restarts unanchored and warns on a body with no generation", async () => {
+    const { row, shapeWarnings } = await runSecondPush({
+      storedBodySql: "(body::jsonb - 'generation')::text",
+    });
+
+    expect(row?.anchorState).toBe("none");
+    expect(shapeWarnings.map((line) => line["level"])).toEqual(["warn"]);
+  });
+
+  it("keeps the chain's group ids when the stored body cannot anchor", async () => {
+    const { row, shapeWarnings } = await runSecondPush({
+      storedBodySql:
+        "jsonb_set(body::jsonb, '{commitRange}', (body::jsonb -> 'commitRange') - 'commitCount')::text",
+      clearUsedGroupIds: true,
+      rev2Output: makeBriefOutputGrouped("g2"),
+    });
+
+    expect(row?.anchorState).toBe("none");
+    expect(shapeWarnings.map((line) => line["level"])).toEqual(["warn"]);
+    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual(["g1", "g2"]);
+  });
+
+  it("writes the delta and warns once when its write check fails", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      log: logger,
+    });
+    await task(first.payload);
+    const repo = createTenantRepository(harness.handle, ctx);
+    const checkpoint = await repo.checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: HEAD_1,
+      submittedAt: new Date(),
+    });
+    expect(checkpoint.ok).toBe(true);
+    const delta = generator.outputs["delta"] as object;
+    stubUnparsedOutput(generator, "delta", {
+      ...delta,
+      summary: BODY_MARKER,
+      wholePrImpact: 7,
+    });
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.deltas.get(second.pr.id, HEAD_1, HEAD_2);
+    expect(row?.body).toContain(BODY_MARKER);
+    expect(JSON.parse(row?.body ?? "{}")).toMatchObject({ wholePrImpact: 7 });
+    const failures = lines().filter(
+      (line) => line["evt"] === "artifact.check.fail",
+    );
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      level: "warn",
+      kind: GenerationKinds.DELTA,
+      issueCount: 1,
+      firstPath: "wholePrImpact",
+    });
+    expect(JSON.stringify(failures)).not.toContain(BODY_MARKER);
+  });
+
+  it("writes the narrative and warns once when its write check fails", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      log: logger,
+    });
+    await task(first.payload);
+    stubUnparsedOutput(generator, "revision narrative", {
+      overview: BODY_MARKER,
+      chunks: [],
+      inventedKey: true,
+    });
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.revisionNarratives.get(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    expect(row?.body).toContain(BODY_MARKER);
+    expect(JSON.parse(row?.body ?? "{}")).toMatchObject({ inventedKey: true });
+    const failures = lines().filter(
+      (line) => line["evt"] === "artifact.check.fail",
+    );
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      level: "warn",
+      kind: GenerationKinds.REVISION_NARRATIVE,
+      issueCount: 1,
+    });
+    expect(JSON.stringify(failures)).not.toContain(BODY_MARKER);
+    expect(JSON.stringify(failures)).not.toContain("inventedKey");
+  });
+
+  it("writes the brief and warns once when the write check fails", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const output = makeBriefOutputFiring("undeclared-risk", BODY_MARKER);
+    generator.generate = () => Promise.resolve(output as never);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+
+    await task(payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_1);
+    expect(row?.body).toContain(BODY_MARKER);
+    expect(row?.body).toContain("undeclared-risk");
+    const failures = lines().filter(
+      (line) => line["evt"] === "artifact.check.fail",
+    );
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      level: "warn",
+      kind: "brief",
+      issueCount: 1,
+      firstPath: "chunks.0.riskSurface.0",
+    });
+    expect(failures[0]).not.toHaveProperty("message");
+    expect(JSON.stringify(failures)).not.toContain(BODY_MARKER);
+    expect(JSON.stringify(failures)).not.toContain("undeclared-risk");
   });
 });

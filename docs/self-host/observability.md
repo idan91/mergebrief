@@ -47,6 +47,7 @@ changes get a breaking-change entry in
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but the instance stuck at it produces no briefs all day |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
+| `artifact.check.fail` | warn | worker | `kind`, `issueCount`, `firstPath`, job bindings | on **sustained rate**: a generated brief, delta brief or revision narrative failed its stored-shape check and was written anyway; `kind` is `brief`, `delta` or `revision-narrative`, the same values `generation.complete` carries, and no body content rides the line |
 | `update.available` | info; warn when `security` | api | `current`, `latest`, `breaking`, `security`, `releaseNotesUrl` | warn: yes, a vulnerability fix exists. Fires once when `latest` is first newer than the running version, and once at boot if behind |
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | no; the network blocks github.com or the release file is malformed, and `/api/version` carries no fresh `checkedAt` |
 | `db.version.upgrade` | info | api, worker | `from`, `to` | no; the one-row `instance_version` table moved forward at boot |

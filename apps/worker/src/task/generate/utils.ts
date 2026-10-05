@@ -1,4 +1,11 @@
 import type { Brief, PrLocator } from "brief-core";
+import {
+  ArtifactIssueCodes,
+  isCompleteBrief,
+  readStoredBrief,
+  type ArtifactIssue,
+  type StoredBrief,
+} from "brief-core/artifact";
 import type { Anchor } from "generators";
 import type { Logger } from "logging";
 import {
@@ -11,7 +18,13 @@ import { AnchorStates } from "types/generations";
 import { PermanentJobError } from "../failure";
 import { splitRepoSlug } from "../github-port";
 import type { ParsedGeneratePayload } from "../payload";
-import type { AnchorColumns, GenerationOrigin } from "./types";
+import {
+  BriefRecoveryFailures,
+  type AnchorColumns,
+  type CompleteBriefRecovery,
+  type GenerationOrigin,
+  type StoredBodyRecovery,
+} from "./types";
 
 /**
  * Artifact origin data from the engine's `Generation` metadata. `effort` is
@@ -49,6 +62,11 @@ export function getBriefTarget(
   };
 }
 
+const UNEXPECTED_SHAPE_WARNING =
+  "generate: stored brief body has an unexpected shape — narrative skipped";
+const NOT_JSON_WARNING =
+  "generate: stored brief body is not valid JSON — narrative skipped";
+
 /** Inert boundary logger for direct test invocations that pass no `log`. */
 export function createNoopLogger(): Logger {
   const inert: Logger = {
@@ -62,34 +80,14 @@ export function createNoopLogger(): Logger {
 }
 
 /**
- * Structural guard for a stored brief body. The body was schema-validated at
- * generation time and written by us, so this only defends against the row
- * predating a shape change, checked structurally (never a bare cast).
- */
-function isBrief(value: unknown): value is Brief {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate: Record<string, unknown> = { ...value };
-  const hasBriefShape =
-    typeof candidate["summary"] === "string" &&
-    Array.isArray(candidate["changeGroups"]) &&
-    Array.isArray(candidate["chunks"]) &&
-    typeof candidate["pr"] === "object" &&
-    candidate["pr"] !== null &&
-    typeof candidate["generation"] === "object" &&
-    candidate["generation"] !== null;
-  return hasBriefShape;
-}
-
-/**
  * Every group id the PR's chain has used, read off the previous row. NULL
- * (a row predating the column) heals from the recovered body's groups,
- * never the empty set while a previous brief exists.
+ * (a row predating the column) heals from the stored body's groups, never
+ * the empty set while a previous brief reads. The heal needs the groups
+ * only, so a body missing its stamped sections still heals.
  */
 export function resolveChainGroupIds(
   prevRow: { usedGroupIds: string | null } | undefined,
-  previousBody: Brief | undefined,
+  previousBody: StoredBrief | undefined,
 ): readonly string[] {
   if (prevRow !== undefined && prevRow.usedGroupIds !== null) {
     const parsed = StoredIdsSchema.safeParse(prevRow.usedGroupIds);
@@ -98,22 +96,58 @@ export function resolveChainGroupIds(
   return previousBody?.changeGroups.map((group) => group.id) ?? [];
 }
 
-export function recoverBrief(body: string, log: Logger): Brief | undefined {
-  try {
-    const parsed: unknown = JSON.parse(body);
-    if (isBrief(parsed)) {
-      return parsed;
-    }
-    log.warn(
-      "generate: stored brief body has an unexpected shape — narrative skipped",
-    );
-    return undefined;
-  } catch {
-    log.warn(
-      "generate: stored brief body is not valid JSON — narrative skipped",
-    );
-    return undefined;
+/** A broken body can report one issue per element. */
+const MAX_LOGGED_READ_ISSUES = 20;
+
+function logReadIssues(issues: readonly ArtifactIssue[], log: Logger): void {
+  for (const issue of issues.slice(0, MAX_LOGGED_READ_ISSUES)) {
+    log.debug("generate: stored brief body issue", {
+      code: issue.code,
+      path: issue.path,
+    });
   }
+}
+
+/** The reader's value whenever the body reads, stamped sections or not. */
+export function recoverStoredBody(
+  body: string,
+  log: Logger,
+): StoredBodyRecovery {
+  const read = readStoredBrief(body);
+  if (!read.ok) {
+    logReadIssues(read.error, log);
+    const notJson = read.error.some(
+      (issue) => issue.code === ArtifactIssueCodes.NOT_JSON,
+    );
+    log.warn(notJson ? NOT_JSON_WARNING : UNEXPECTED_SHAPE_WARNING);
+    return read;
+  }
+
+  logReadIssues(read.value.issues, log);
+  return { ok: true, value: read.value.brief };
+}
+
+/** The stored body as a full Brief, or a warning when a stamped section is gone. */
+export function recoverCompleteBrief(
+  stored: StoredBrief,
+  log: Logger,
+): CompleteBriefRecovery {
+  const isComplete = isCompleteBrief(stored);
+  if (!isComplete) {
+    log.warn(UNEXPECTED_SHAPE_WARNING);
+    return { ok: false, error: BriefRecoveryFailures.INCOMPLETE };
+  }
+
+  return { ok: true, value: stored };
+}
+
+export function recoverBrief(body: string, log: Logger): CompleteBriefRecovery {
+  const stored = recoverStoredBody(body, log);
+  if (!stored.ok) {
+    return { ok: false, error: BriefRecoveryFailures.UNREADABLE };
+  }
+
+  return recoverCompleteBrief(stored.value, log);
 }
 
 export function getPrLocator(pr: PullRequestRow): PrLocator {

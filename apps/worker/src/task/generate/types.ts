@@ -9,6 +9,7 @@ import type {
   RevisionNarrativeConfig,
   SharedRootDeps,
 } from "brief-core";
+import type { ArtifactIssue, StoredBrief } from "brief-core/artifact";
 import type {
   Anchor,
   Effort,
@@ -28,7 +29,7 @@ import type {
   TenantRepository,
 } from "persistence";
 import type { GitHubApiError, OpenPullRequest, PullRequestFile } from "github";
-import type { Result } from "types/utils";
+import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";
 import type {
@@ -336,6 +337,18 @@ export interface StoredBriefRecoveryInputs {
   readonly baseSha: string;
   readonly log: Logger;
 }
+
+export const BriefRecoveryFailures = {
+  UNREADABLE: "unreadable",
+  INCOMPLETE: "incomplete",
+} as const;
+export type BriefRecoveryFailure = ValueOf<typeof BriefRecoveryFailures>;
+
+/** A failure carries the reader's issues, already logged. */
+export type StoredBodyRecovery = Result<StoredBrief, ArtifactIssue[]>;
+export type CompleteBriefRecovery = Result<Brief, BriefRecoveryFailure>;
+
+export type AllowedRiskNames = readonly string[];
 
 export interface EntryCommentGateInputs {
   readonly prInfo: PullRequestInfo;

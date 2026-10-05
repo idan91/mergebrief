@@ -5,6 +5,7 @@ import {
   type Brief,
   type FetchedPr,
 } from "brief-core";
+import { checkBriefForWrite } from "brief-core/artifact";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
 import { GenerationPhases } from "types/generations";
 import type { Mutable } from "types/utils";
@@ -19,6 +20,7 @@ import type {
 } from "../types";
 import { getAnchorColumns, getGenerationOrigin, recoverBrief } from "../utils";
 import { decideAnchor } from "./anchor-decision";
+import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
 
 /**
@@ -146,6 +148,16 @@ export async function generateBrief(
     briefWrite.repoConfig = buildRepoConfigArtifact(repoConfig, stamped.chunks);
   }
 
+  const customAttributes = repoConfig?.repoContext?.customAttributes ?? [];
+  const customNames = customAttributes.map((attribute) => attribute.name);
+  const allowedNames = collectAllowedRiskNames(
+    customNames,
+    stamped.chunks,
+    carriedChunkIds,
+  );
+  const briefCheck = checkBriefForWrite(stamped, allowedNames);
+  warnOnFailedCheck(briefCheck, GenerationKinds.BRIEF, log);
+
   const written = await store.briefs.write(briefWrite);
   if (!written.ok) {
     throw new PermanentJobError(written.error.message);
@@ -180,8 +192,9 @@ export async function recoverStoredBrief(
     );
     if (storedNarrative === undefined) {
       const fullRow = await store.briefs.get(pullRequestId, baseSha, headSha);
-      generatedBrief =
+      const recovered =
         fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
+      generatedBrief = recovered?.ok ? recovered.value : undefined;
     }
   }
 

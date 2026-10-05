@@ -7,7 +7,11 @@ import {
 import { AnchorStates } from "types/generations";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { AnchorDecision, AnchorDecisionInputs } from "../types";
-import { recoverBrief, resolveChainGroupIds } from "../utils";
+import {
+  recoverCompleteBrief,
+  recoverStoredBody,
+  resolveChainGroupIds,
+} from "../utils";
 import { planAnchoredRun } from "./anchored-run";
 
 /**
@@ -49,15 +53,21 @@ export async function decideAnchor(
           prevBrief.baseSha,
           prevBrief.headSha,
         );
-  const previousBody =
-    prevRow === undefined ? undefined : recoverBrief(prevRow.body, log);
+  const prevRead =
+    prevRow === undefined ? undefined : recoverStoredBody(prevRow.body, log);
+  const prevStored = prevRead?.ok ? prevRead.value : undefined;
+  const previousRead =
+    prevStored === undefined
+      ? undefined
+      : recoverCompleteBrief(prevStored, log);
+  const previousBody = previousRead?.ok ? previousRead.value : undefined;
 
   // The chain reads off the NEWEST prior row, not `prevBrief`, that
   // lookup skips same-head rows, so after a base retarget (same head,
   // new base) it would drop the retargeted row's history for good.
   const chainSource = priorBriefs.at(-1);
   let chainRow = prevRow;
-  let chainBody = previousBody;
+  let chainBody = prevStored;
   if (
     chainSource !== undefined &&
     (chainSource.headSha !== prevBrief?.headSha ||
@@ -68,8 +78,11 @@ export async function decideAnchor(
       chainSource.baseSha,
       chainSource.headSha,
     );
-    chainBody =
-      chainRow === undefined ? undefined : recoverBrief(chainRow.body, log);
+    const chainRead =
+      chainRow === undefined
+        ? undefined
+        : recoverStoredBody(chainRow.body, log);
+    chainBody = chainRead?.ok ? chainRead.value : undefined;
   }
   const chainGroupIds = resolveChainGroupIds(chainRow, chainBody);
 
