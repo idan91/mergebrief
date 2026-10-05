@@ -24,6 +24,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Extensionless relative imports everywhere (`from "./tenant"`, never `from "./tenant.js"`); every package is bundler-resolved end to end. Extensions only for non-TS assets.
 - One import statement per package; no star imports; no aliasing an enum-like map on import; no deep import into another package's internals.
 - Import the owner: never re-declare an existing exported type, schema, regex or fixture inline. Shared test fixtures live in test utils.
+- Re-export only from a barrel: a file named `index.ts` or `index.tsx` may re-export files inside its own folder. A path that climbs out (`../`) or names another package is not a barrel re-export, even from an `index.ts`. Everywhere else, import from the owner. Passing an imported name on in any other form counts too: an exported alias, `export default`, `export =`, `export import`, a namespace member, an `import()` type, or an empty interface that only extends it. A justified exception carries `// oxlint-disable-next-line house/no-re-export -- <why>` and is argued in the PR. `house/no-re-export` holds it at error.
 - Named exports only. Default exports exist only where a framework reads one: vite, tsup and drizzle configs, and the TanStack server entry `apps/web/src/server.ts`. Controllers and handlers are named exports.
 - `zod` is imported as `zod/v4`.
 

@@ -1,12 +1,8 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { RuleTester } from "oxlint/plugins-dev";
 import { describe, it } from "vitest";
 
 import plugin from "../src/index.mjs";
-
-const FIXTURES_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+import { readFixture, readMarkedLines } from "./utils";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -17,18 +13,12 @@ type TesterRule = Parameters<RuleTester["run"]>[1];
 
 interface FixtureCase {
   readonly rule: string;
+  /** The run's label when one rule has more than one fixture pair. */
+  readonly name?: string;
   readonly bad: string;
   readonly good: string;
   readonly lines: readonly number[];
   readonly messageIds?: readonly string[];
-}
-
-function readFixture(
-  rule: string,
-  file: string,
-): { code: string; filename: string } {
-  const filename = join(FIXTURES_DIR, rule, file);
-  return { code: readFileSync(filename, "utf8"), filename };
 }
 
 const CASES: readonly FixtureCase[] = [
@@ -120,12 +110,33 @@ const CASES: readonly FixtureCase[] = [
     lines: [3, 6, 9],
     messageIds: ["comment", "comment", "title"],
   },
+  {
+    rule: "no-re-export",
+    name: "no-re-export outside a barrel",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: readMarkedLines("no-re-export", "bad.ts"),
+  },
+  {
+    rule: "no-re-export",
+    name: "no-re-export of an export assignment",
+    bad: "bad-export-assignment.ts",
+    good: "good-config/vite.config.ts",
+    lines: readMarkedLines("no-re-export", "bad-export-assignment.ts"),
+  },
+  {
+    rule: "no-re-export",
+    name: "no-re-export inside a barrel",
+    bad: "bad-barrel/index.ts",
+    good: "good-barrel/index.ts",
+    lines: readMarkedLines("no-re-export", "bad-barrel/index.ts"),
+  },
 ];
 
-for (const { rule, bad, good, lines, messageIds } of CASES) {
+for (const { rule, name, bad, good, lines, messageIds } of CASES) {
   const definition = plugin.rules[rule];
   if (definition === undefined) throw new Error(`plugin has no rule ${rule}`);
-  tester.run(rule, definition as unknown as TesterRule, {
+  tester.run(name ?? rule, definition as unknown as TesterRule, {
     valid: [readFixture(rule, good)],
     invalid: [
       {

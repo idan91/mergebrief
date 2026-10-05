@@ -84,9 +84,15 @@ function collectFixtureDiagnostics(): ReadonlyMap<
 
 let cached: ReadonlyMap<string, readonly Diagnostic[]> | undefined;
 
-/** The house diagnostics oxlint reports for one fixture, sorted by line. */
+/**
+ * The diagnostics one rule reports for its own fixture, sorted by line. Other
+ * house rules are filtered out: a `bad` fixture deliberately breaks the idiom
+ * its rule guards, which another rule may also report.
+ */
 export function lintFixture(rule: string, file: string): Diagnostic[] {
   cached ??= collectFixtureDiagnostics();
   const found = cached.get(join(rule, file)) ?? [];
-  return found.toSorted((left, right) => left.line - right.line);
+  return found
+    .filter((diagnostic) => diagnostic.rule === rule)
+    .toSorted((left, right) => left.line - right.line);
 }

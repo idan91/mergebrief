@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lintFixture, type Diagnostic } from "./run-oxlint";
+import { readMarkedLines } from "./utils";
 
 function expectLines(
   rule: string,
@@ -9,6 +10,10 @@ function expectLines(
 ): void {
   const expected: Diagnostic[] = lines.map((line) => ({ rule, line }));
   expect(lintFixture(rule, file)).toEqual(expected);
+}
+
+function expectMarkedLines(rule: string, file: string): void {
+  expectLines(rule, file, readMarkedLines(rule, file));
 }
 
 describe("house/no-enum", () => {
@@ -132,6 +137,37 @@ describe("house/types-const-maps", () => {
 
   it("passes an as const map plus type and interface exports", () => {
     expectLines("types-const-maps", "good.ts", []);
+  });
+});
+
+describe("house/no-re-export", () => {
+  it("reports every re-export form in a non-barrel file", () => {
+    expectMarkedLines("no-re-export", "bad.ts");
+  });
+
+  it("reports an export assignment of an imported name", () => {
+    expectMarkedLines("no-re-export", "bad-export-assignment.ts");
+  });
+
+  it("passes own declarations, instantiations and member reads", () => {
+    expectLines("no-re-export", "good.ts", []);
+  });
+
+  it("passes a framework config default-exporting its own value", () => {
+    expectLines("no-re-export", "good-config/vite.config.ts", []);
+  });
+
+  it("reports a barrel re-exporting a package, itself or a climbing path", () => {
+    expectMarkedLines("no-re-export", "bad-barrel/index.ts");
+  });
+
+  it("passes a barrel re-exporting files inside its own folder", () => {
+    expectLines("no-re-export", "good-barrel/index.ts", []);
+    expectLines("no-re-export", "good-barrel-tsx/index.tsx", []);
+  });
+
+  it("honours a line disable naming the house rule", () => {
+    expectLines("no-re-export", "disabled.ts", []);
   });
 });
 

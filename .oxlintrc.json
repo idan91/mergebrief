@@ -79,6 +79,8 @@
     "house/no-process-env": "error",
     // Conditional fields are assigned under an if, never spread.
     "house/no-conditional-spread": "error",
+    // Re-export only from a barrel, and only files inside its own folder.
+    "house/no-re-export": "error",
     // Named exports only; the framework-required default exports are carved
     // out per-path in the overrides.
     "import/no-default-export": "error",

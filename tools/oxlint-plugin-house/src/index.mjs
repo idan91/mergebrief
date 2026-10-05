@@ -11,6 +11,7 @@ import { noHandBuiltPlural } from "./rules/no-hand-built-plural.mjs";
 import { noProcessEnv } from "./rules/no-process-env.mjs";
 import { noRenderFunction } from "./rules/no-render-function.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
+import { noReExport } from "./rules/no-re-export.mjs";
 import { testTitle } from "./rules/test-title.mjs";
 import { typesConstMaps } from "./rules/types-const-maps.mjs";
 
@@ -31,6 +32,7 @@ const plugin = {
     "no-process-env": noProcessEnv,
     "no-hand-built-plural": noHandBuiltPlural,
     "types-const-maps": typesConstMaps,
+    "no-re-export": noReExport,
   },
 };
 

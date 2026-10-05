@@ -11,10 +11,28 @@ export interface RuleNode {
   readonly arguments?: readonly RuleNode[];
   readonly object?: RuleNode;
   readonly property?: RuleNode;
-  readonly init?: RuleNode;
+  readonly id?: RuleNode;
+  readonly init?: RuleNode | null;
   readonly expression?: RuleNode;
   readonly typeAnnotation?: RuleNode;
   readonly typeName?: RuleNode;
+  readonly left?: RuleNode;
+  readonly right?: RuleNode;
+  readonly exprName?: RuleNode;
+  readonly moduleReference?: RuleNode;
+  readonly extends?: readonly RuleNode[];
+  // Absent sub-nodes arrive as `null` from the parser, so a field a rule
+  // tests for presence is typed to carry it.
+  readonly typeArguments?: RuleNode | null;
+  readonly typeParameters?: RuleNode | null;
+  // A statement list on `Program`, a block node on `TSInterfaceDeclaration`.
+  readonly body?: readonly RuleNode[] | RuleNode;
+  readonly source?: RuleNode | null;
+  readonly specifiers?: readonly RuleNode[];
+  readonly local?: RuleNode;
+  readonly declaration?: RuleNode | null;
+  readonly declarations?: readonly RuleNode[];
+  readonly properties?: readonly RuleNode[];
   readonly expressions?: readonly RuleNode[];
   readonly quasis?: readonly {
     readonly value: { readonly cooked: string | null };

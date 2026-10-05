@@ -15,6 +15,7 @@
     "house/no-render-function": "error",
     "house/no-process-env": "error",
     "house/no-hand-built-plural": "error",
-    "house/types-const-maps": "error"
+    "house/types-const-maps": "error",
+    "house/no-re-export": "error"
   }
 }

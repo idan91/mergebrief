@@ -54,7 +54,9 @@ export const typesConstMaps = {
         context.report({ node, messageId: "helper" });
       },
       VariableDeclarator(node) {
-        if (isAsConstMap(node.init)) return;
+        if (isAsConstMap(node.init ?? undefined)) {
+          return;
+        }
         context.report({ node, messageId: "notMap" });
       },
     };
