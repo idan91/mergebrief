@@ -8,7 +8,7 @@ import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
+import { getCategoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import {
@@ -209,7 +209,7 @@ function PreviousBriefChanges({
             <div className={styles["groupHead"]}>
               <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
               <span className={styles["groupCategory"]}>
-                {categoryLabel(group.group.dominantCategory)}
+                {getCategoryLabel(t, group.group.dominantCategory)}
               </span>
             </div>
             <SectionFlags
@@ -525,7 +525,7 @@ function LastReviewChanges({
             <div className={styles["groupHead"]}>
               <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
               <span className={styles["groupCategory"]}>
-                {categoryLabel(group.group.dominantCategory)}
+                {getCategoryLabel(t, group.group.dominantCategory)}
               </span>
             </div>
             <SectionFlags

@@ -145,6 +145,17 @@ const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
   "release-imminent": "brief.risk.releaseImminent",
 };
 
+const CATEGORY_LABEL_KEYS: Record<Category, TranslationKey> = {
+  bugfix: "brief.category.bugfix",
+  "logic-refactor": "brief.category.logicRefactor",
+  "move-with-edits": "brief.category.moveWithEdits",
+  "lib-bump": "brief.category.libBump",
+  "pure-move": "brief.category.pureMove",
+  "new-feature": "brief.category.newFeature",
+  "dependency-update": "brief.category.dependencyUpdate",
+  "schema-change": "brief.category.schemaChange",
+};
+
 const CONCERN_ORDER: Concern[] = [
   Concerns.IMPLEMENTATION,
   Concerns.TEST,
@@ -294,8 +305,13 @@ export function buildBriefViewModel(
   return viewModel;
 }
 
-export function categoryLabel(category: Category): string {
-  return category.replace("-", " ");
+export type CategoryLabel = string;
+
+export function getCategoryLabel(
+  t: TFunction,
+  category: Category,
+): CategoryLabel {
+  return t(CATEGORY_LABEL_KEYS[category]);
 }
 
 /** How many risk chips a chunk header shows before collapsing into "+N". */

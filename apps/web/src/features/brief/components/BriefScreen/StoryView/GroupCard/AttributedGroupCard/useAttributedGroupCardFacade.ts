@@ -7,10 +7,11 @@ import {
 } from "@web/features/review/session";
 import type { Category } from "../../../../../types";
 import { useFlagSurface } from "../../../../../hooks/useFlagSurface";
-import type {
-  AttributedGroupView,
-  BriefViewModel,
-  RiskFlag,
+import {
+  getCategoryLabel,
+  type AttributedGroupView,
+  type BriefViewModel,
+  type RiskFlag,
 } from "../../../../../utils/viewModel";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
@@ -41,8 +42,10 @@ export function useAttributedGroupCardFacade({
   const { announce } = useReviewActions();
 
   function chooseDominant(category: Category) {
+    const categoryLabel = getCategoryLabel(t, category);
+
     actions.reclassifyGroup(group.id, category);
-    announce(t("brief.story.dominantAnnounce", { category }));
+    announce(t("brief.story.dominantAnnounce", { category: categoryLabel }));
   }
 
   return {

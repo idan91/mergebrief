@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { Brief } from "../types";
+import { appI18n } from "../../../i18n/I18nProvider";
+import { Categories, type Brief } from "../types";
 import { parseBrief } from "./validation";
 import {
   buildAttributeRail,
   buildBriefViewModel,
+  getCategoryLabel,
   GroupViewKinds,
   isAttributedGroupView,
   riskChipView,
@@ -85,6 +87,23 @@ function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
 
   return brief;
 }
+
+describe("getCategoryLabel", () => {
+  it("labels move-with-edits without a stray hyphen", () => {
+    expect(getCategoryLabel(appI18n.t, Categories.MOVE_WITH_EDITS)).toBe(
+      "move with edits",
+    );
+  });
+
+  it("labels every Category from the catalog", () => {
+    for (const category of Object.values(Categories)) {
+      const label = getCategoryLabel(appI18n.t, category);
+      const spokenToken = category.replaceAll("-", " ");
+
+      expect(label).toBe(spokenToken);
+    }
+  });
+});
 
 describe("riskChipView", () => {
   it("shows all attributes as chips when there are two or fewer", () => {

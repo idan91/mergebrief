@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Callout } from "@web/components/Callout";
-import { categoryLabel, GroupViewKinds } from "../../../../utils/viewModel";
+import { getCategoryLabel, GroupViewKinds } from "../../../../utils/viewModel";
 import type { GroupView } from "../../../../utils/viewModel";
 import { resolveGroupName } from "../../../../utils/resolveGroupName";
 import type { JumpFromSidebar } from "../types";
@@ -80,7 +80,7 @@ export function GroupLines({
         >
           <Callout.Eyebrow>
             {calloutGroup.kind === GroupViewKinds.ATTRIBUTED
-              ? categoryLabel(calloutGroup.group.dominantCategory)
+              ? getCategoryLabel(t, calloutGroup.group.dominantCategory)
               : t("brief.unattributed.label")}
           </Callout.Eyebrow>
           <Callout.Title clamp={2}>

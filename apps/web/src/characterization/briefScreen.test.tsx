@@ -483,11 +483,11 @@ describe("brief screen characterization", () => {
     const bolded = [...document.querySelectorAll("b")].map(
       (node) => node.textContent,
     );
-    expect(bolded).toContain("bugfix vs logic-refactor");
+    expect(bolded).toContain("bugfix vs logic refactor");
     // Whole sentence, so the separator spacing is pinned too, because losing the
     // space around the slot welds the categories to the preceding colon.
     expect(screen.getByText(/categorizer is split/).textContent).toBe(
-      "The categorizer is split on this group\u2019s intent: bugfix vs logic-refactor. Your call; the receipt records the override.",
+      "The categorizer is split on this group\u2019s intent: bugfix vs logic refactor. Your call; the receipt records the override.",
     );
   });
 
@@ -495,7 +495,7 @@ describe("brief screen characterization", () => {
     await renderWritableScreen();
     expect(screen.queryByText("set by you · recorded on receipt")).toBeNull();
     // The uncertain pick buttons offer the between-categories.
-    fireEvent.click(screen.getByRole("button", { name: "logic-refactor" }));
+    fireEvent.click(screen.getByRole("button", { name: "logic refactor" }));
     await waitFor(() =>
       expect(screen.getByText("set by you · recorded on receipt")).toBeTruthy(),
     );

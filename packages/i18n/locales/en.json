@@ -420,6 +420,16 @@
       "resolved_other": "{{count}} resolved",
       "selectFile": "Select flags on {{file}}"
     },
+    "category": {
+      "bugfix": "bugfix",
+      "logicRefactor": "logic refactor",
+      "moveWithEdits": "move with edits",
+      "libBump": "lib bump",
+      "pureMove": "pure move",
+      "newFeature": "new feature",
+      "dependencyUpdate": "dependency update",
+      "schemaChange": "schema change"
+    },
     "risk": {
       "noTests": "Changed code path has no direct test coverage in the brief; verify behavior manually or ask for coverage.",
       "noTypes": "Changed code lacks useful type coverage; verify runtime safety and narrowing at the boundary.",

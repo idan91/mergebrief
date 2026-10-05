@@ -10,7 +10,10 @@ import { SinceMarker } from "../SinceMarker";
 import styles from "../GroupCard.module.scss";
 import { deriveGroupHeadingId } from "../../../utils";
 import type { GroupCardProps } from "../types";
-import type { AttributedGroupView } from "../../../../../utils/viewModel";
+import {
+  getCategoryLabel,
+  type AttributedGroupView,
+} from "../../../../../utils/viewModel";
 import { RiskSurface } from "./RiskSurface";
 import { useAttributedGroupCardFacade } from "./useAttributedGroupCardFacade";
 
@@ -47,9 +50,12 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
   const headingId = deriveGroupHeadingId(group.id);
   const showReclassify =
     group.group.uncertain && !isReclassified && !flagsReadOnly;
-  const between = group.group.uncertainBetween.join(
-    t("brief.group.uncertainSeparator"),
-  );
+  const uncertainOptions = group.group.uncertainBetween.map((category) => ({
+    category,
+    label: getCategoryLabel(t, category),
+  }));
+  const uncertainLabels = uncertainOptions.map((option) => option.label);
+  const between = uncertainLabels.join(t("brief.group.uncertainSeparator"));
   const sinceMarker =
     sinceBaselineShortSha === undefined ? null : (
       <SinceMarker
@@ -83,13 +89,13 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
                 />
               </span>
               <span className={styles["pick"]}>
-                {group.group.uncertainBetween.map((category) => (
+                {uncertainOptions.map((option) => (
                   <Button
-                    key={category}
+                    key={option.category}
                     size="sm"
-                    onClick={() => chooseDominant(category)}
+                    onClick={() => chooseDominant(option.category)}
                   >
-                    {category}
+                    {option.label}
                   </Button>
                 ))}
               </span>

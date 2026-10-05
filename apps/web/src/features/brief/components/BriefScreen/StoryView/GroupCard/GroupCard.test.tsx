@@ -153,13 +153,14 @@ describe("GroupCard header", () => {
     renderCard(writes);
     const card = screen.getByRole("article");
 
-    fireEvent.click(screen.getByRole("button", { name: "logic-refactor" }));
+    fireEvent.click(screen.getByRole("button", { name: "logic refactor" }));
 
     const dominant = card.querySelector('[data-kind="dominant"]');
     expect(dominant?.textContent).toBe("Dominant: logic refactor");
     expect(card.querySelector('[data-kind="uncertain"]')).toBeNull();
-    expect(screen.queryByRole("button", { name: "logic-refactor" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "logic refactor" })).toBeNull();
     expect(writes.reclassify).toHaveBeenCalledTimes(1);
+    expect(writes.reclassify).toHaveBeenCalledWith("g1", "logic-refactor");
   });
 });
 

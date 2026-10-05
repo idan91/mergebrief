@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Category } from "../../../../types";
 import {
-  categoryLabel,
+  getCategoryLabel,
   type AttributedGroupView,
 } from "../../../../utils/viewModel";
 import styles from "./CategoryFacts.module.scss";
@@ -22,7 +22,7 @@ export function CategoryFacts({
   const { t } = useTranslation();
   const dominantKind = t("brief.group.dominantKind");
   const secondaryKind = t("brief.group.secondaryKind");
-  const dominantLabel = categoryLabel(dominant);
+  const dominantLabel = getCategoryLabel(t, dominant);
   const showUncertain = group.group.uncertain && !isReclassified;
 
   return (
@@ -36,7 +36,7 @@ export function CategoryFacts({
           <span>{dominantLabel}</span>
         </span>
         {group.group.secondaryCategories.map((category) => {
-          const label = categoryLabel(category);
+          const label = getCategoryLabel(t, category);
 
           return (
             <span className={styles["chip"]} key={category}>

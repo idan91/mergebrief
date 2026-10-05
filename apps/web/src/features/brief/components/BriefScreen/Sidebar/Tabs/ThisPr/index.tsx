@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 
-import { categoryLabel, GroupViewKinds } from "../../../../../utils/viewModel";
+import {
+  getCategoryLabel,
+  GroupViewKinds,
+} from "../../../../../utils/viewModel";
 import type { GroupView } from "../../../../../utils/viewModel";
 import { resolveGroupName } from "../../../../../utils/resolveGroupName";
 import type { JumpFromSidebar } from "../../types";
@@ -51,7 +54,7 @@ export function ThisPr({
                   {group.kind === GroupViewKinds.ATTRIBUTED ? (
                     <>
                       <span className={styles["category"]}>
-                        {categoryLabel(group.group.dominantCategory)}
+                        {getCategoryLabel(t, group.group.dominantCategory)}
                       </span>
                       <span className={styles["counts"]}>
                         {t("brief.group.chunkCounts", {

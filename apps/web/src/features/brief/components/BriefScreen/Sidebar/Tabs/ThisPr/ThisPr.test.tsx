@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
+import { Categories } from "../../../../../types";
 import {
   buildBriefViewModel,
   GroupViewKinds,
@@ -32,9 +33,28 @@ describe("ThisPr", () => {
     expect(row.textContent).toContain(
       `${first.coreChunks.length} core · ${first.supportingChunks.length} supporting`,
     );
-    expect(row.textContent).toContain(
-      first.group.dominantCategory.replace("-", " "),
+    expect(row.textContent).toContain("bugfix");
+  });
+
+  it("shows a move-with-edits group as move with edits", () => {
+    const movedGroup = {
+      ...first.group,
+      dominantCategory: Categories.MOVE_WITH_EDITS,
+    };
+    const movedBrief = { ...briefFixture, changeGroups: [movedGroup] };
+    const movedModel = buildBriefViewModel(movedBrief);
+
+    render(
+      <ThisPr
+        activeGroupId={null}
+        groups={movedModel.groups}
+        jumpToGroup={() => {}}
+      />,
     );
+
+    const row = screen.getByRole("button", { name: new RegExp(firstName) });
+    expect(row.textContent).toContain("move with edits");
+    expect(row.textContent).not.toContain("with-edits");
   });
 
   it("marks the current row and the ones carrying conversation", () => {
