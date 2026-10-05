@@ -138,6 +138,23 @@ module.exports = {
       },
     },
     {
+      name: "artifact-module-imports-only-leaves",
+      comment:
+        "The stored-artifact schemas and checks load in a browser: all they reach is zod, the types package, the Brief shape with its generation vocabulary and pr-stack folder, and the artifact folder itself.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/artifact/" },
+      to: {
+        reachable: true,
+        path: ".*",
+        pathNot: [
+          "node_modules/zod/",
+          "^packages/types/",
+          "^packages/generators/src/contract/generation\\.ts$",
+          "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/)",
+        ],
+      },
+    },
+    {
       name: "contract-imports-no-runtime",
       comment:
         "The wire contract rides in the browser bundle through apps/web's isomorphic fetch boundary: its source reaches only contract and the zero-dependency types package, type-only imports included.",

@@ -64,7 +64,12 @@
     },
     "packages/contract": { "entry": ["src/index.ts"] },
     "packages/brief-core": {
-      "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/types.ts",
+        "src/artifact/index.ts",
+        "src/cli/*.ts",
+      ],
     },
     "apps/cli": {
       "entry": [

@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-Three curated subpaths exist beside the entry: `brief-core/types` (`src/types.ts`) and `brief-core/cli-config` (`src/cli/config.ts`) serve the eval harness; `brief-core/remap` (`src/diff/remap.ts`) serves `persistence`'s category mirror.
+Curated subpaths exist beside the entry: `brief-core/types` (`src/types.ts`) and `brief-core/cli-config` (`src/cli/config.ts`) serve the eval harness; `brief-core/remap` (`src/diff/remap.ts`) serves `persistence`'s category mirror. `brief-core/artifact` (`src/artifact/`) holds the stored-body schemas and the write checks for a Brief, a Delta Brief and a Revision narrative; it is not `src/artifacts/`, which names CLI output files.
 
 What the layout can't show:
 
