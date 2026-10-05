@@ -1,16 +1,112 @@
-// Shared PGlite test setup for this package's suites. Boots a fresh in-memory
+// Shared test setup for this package's suites. Boots a fresh in-memory
 // instance from the process's migrated snapshot (`src/pglite-snapshot`) and
-// wraps it as the opaque `AppDatabase` the repository consumes.
+// wraps it as the opaque `AppDatabase` the repository consumes; the
+// real-Postgres suites share the tenant fixture below.
+import { randomInt } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { expect, onTestFinished } from "vitest";
-import { type AppDatabase, fromDrizzle } from "../src/db/handle";
+import { type AppDatabase, fromDrizzle, internal } from "../src/db/handle";
+import {
+  closeDb,
+  createDb,
+  ensureAppSchema,
+  type TenantContext,
+} from "../src/index";
 import { createMigratedPglite } from "../src/pglite-snapshot";
+import { generation } from "../src/schema/generation";
 import * as schema from "../src/schema/index";
-import { GenerationKinds, type PullRequestRowId } from "../src/types";
+import { pullRequest } from "../src/schema/pull-request";
+import {
+  GenerationKinds,
+  isInstallationId,
+  isRepoId,
+  type InstallationId,
+  type PullRequestRowId,
+  type RepoId,
+} from "../src/types";
+
+const TEST_POSTGRES_URL_VARIABLE = "MERGEBRIEF_TEST_POSTGRES_URL";
+/** Far above any real GitHub installation id, so a fixture never meets one. */
+const SMALLEST_FIXTURE_ID = 1_000_000_000_000;
+/** The widest span `randomInt` draws from; the top stays a safe integer. */
+const FIXTURE_ID_SPAN = 2 ** 48 - 1;
+
+export type TestPostgresUrl = string | undefined;
+export type WaitOutcome = "timer";
+
+export interface TenantFixture {
+  readonly tenant: InstallationId;
+  readonly repoId: RepoId;
+  readonly ctx: TenantContext;
+}
+
+/**
+ * The real-Postgres URL for the suites PGlite cannot exercise. Unset locally
+ * means skip; unset under CI throws, so a skip there cannot pass unseen.
+ */
+export function readTestPostgresUrl(
+  env: Readonly<Record<string, string | undefined>>,
+): TestPostgresUrl {
+  const url = env[TEST_POSTGRES_URL_VARIABLE];
+  if (url !== undefined && url !== "") {
+    return url;
+  }
+
+  const ci = env["CI"];
+  if (ci !== undefined && ci !== "") {
+    throw new Error(
+      `${TEST_POSTGRES_URL_VARIABLE} is unset under CI; the real-Postgres suites would skip`,
+    );
+  }
+  return undefined;
+}
+
+/**
+ * A tenant and repo id drawn at random, so suites in parallel workers on one
+ * shared database never upsert, or clean up, each other's rows.
+ */
+export function makeFixture(): TenantFixture {
+  const drawn = randomInt(
+    SMALLEST_FIXTURE_ID,
+    SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
+  );
+  const stamp = BigInt(drawn);
+  const tenant: InstallationId = brandWith(isInstallationId, stamp);
+  return {
+    tenant,
+    repoId: brandWith(isRepoId, stamp),
+    ctx: { installationId: tenant },
+  };
+}
+
+/** Migrate the real database at `url`, then open a pooled handle on it. */
+export async function connectMigrated(url: string): Promise<AppDatabase> {
+  const ensured = await ensureAppSchema(url, { autoMigrate: true });
+  if (!ensured.ok) {
+    throw new Error(ensured.error.message);
+  }
+  return createDb(url);
+}
+
+/** Delete the fixture tenant's own rows, then close the handle. */
+export async function deleteTenantRows(
+  handle: AppDatabase,
+  tenant: InstallationId,
+): Promise<void> {
+  const db = internal(handle);
+  await db.delete(generation).where(eq(generation.installationId, tenant));
+  await db.delete(pullRequest).where(eq(pullRequest.installationId, tenant));
+  await closeDb(handle);
+}
+
+export function waitMs(ms: number): Promise<WaitOutcome> {
+  return new Promise((resolve) => setTimeout(() => resolve("timer"), ms));
+}
 
 /**
  * A migrated, isolated PGlite that closes itself when the test ends.

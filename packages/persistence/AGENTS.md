@@ -51,4 +51,4 @@ What the layout can't show:
 
 ## Verification
 
-`pnpm -C packages/persistence test` runs PGlite against the checked-in migrations. Optional real-Postgres migration smoke: `docker compose up -d postgres`, then `DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review pnpm -C packages/persistence migrate`.
+`pnpm -C packages/persistence test` runs PGlite against the checked-in migrations. The real-Postgres suites read `MERGEBRIEF_TEST_POSTGRES_URL` (`readTestPostgresUrl` in `test/helpers.ts`), never `DATABASE_URL`: unset, they skip locally and fail under `CI`. Run them against a throwaway container, never the development database: `docker run --rm -d -p 55433:5432 -e POSTGRES_PASSWORD=throwaway postgres:17-alpine`, then `MERGEBRIEF_TEST_POSTGRES_URL=postgres://postgres:throwaway@127.0.0.1:55433/postgres pnpm -C packages/persistence test`. Optional real-Postgres migration smoke: `docker compose up -d postgres`, then `DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review pnpm -C packages/persistence migrate`.

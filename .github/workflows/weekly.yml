@@ -24,6 +24,22 @@ jobs:
     permissions:
       contents: read
 
+    # The real-Postgres suites. Throwaway credentials for an ephemeral container.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: mergebrief
+          POSTGRES_PASSWORD: mergebrief
+          POSTGRES_DB: mergebrief_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mergebrief -d mergebrief_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,6 +70,8 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Test
+        env:
+          MERGEBRIEF_TEST_POSTGRES_URL: postgres://mergebrief:mergebrief@127.0.0.1:5432/mergebrief_test
         run: pnpm -r test
 
       # The browser suite is not a `pnpm -r` script, so it needs its own step.

@@ -1,75 +1,35 @@
 // The advisory lock behind `startRun` cannot be proven on PGlite, which runs
 // one connection. This suite runs only against a real Postgres named by
-// DATABASE_URL and is skipped otherwise.
-import { eq } from "drizzle-orm";
+// MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red under CI.
 import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
-import { internal } from "../src/db/handle";
-import { generation } from "../src/schema/generation";
-import { pullRequest } from "../src/schema/pull-request";
 import {
-  closeDb,
-  createDb,
   createGenerationProjection,
   createTenantRepository,
-  ensureAppSchema,
-  type TenantContext,
 } from "../src/index";
+import { isRepoId, PrStates, type RepoId } from "../src/types";
 import {
-  isInstallationId,
-  isRepoId,
-  PrStates,
-  type InstallationId,
-  type RepoId,
-} from "../src/types";
-import { brandWith, makeBriefTarget } from "./helpers";
+  brandWith,
+  connectMigrated,
+  deleteTenantRows,
+  makeBriefTarget,
+  makeFixture,
+  readTestPostgresUrl,
+  waitMs,
+} from "./helpers";
 
-const databaseUrl = process.env["DATABASE_URL"];
+const databaseUrl = readTestPostgresUrl(process.env);
 const WINDOW = {
   from: new Date("2000-01-01T00:00:00.000Z"),
   to: new Date("2100-01-01T00:00:00.000Z"),
 };
 const HOLD_MS = 300;
 
-interface Fixture {
-  readonly tenant: InstallationId;
-  readonly repoId: RepoId;
-  readonly ctx: TenantContext;
-}
-
-function makeFixture(): Fixture {
-  const stamp = BigInt(Date.now());
-  const tenant: InstallationId = brandWith(isInstallationId, stamp);
-  return {
-    tenant,
-    repoId: brandWith(isRepoId, stamp),
-    ctx: { installationId: tenant },
-  };
-}
-
-async function connectMigrated(url: string) {
-  const ensured = await ensureAppSchema(url, { autoMigrate: true });
-  if (!ensured.ok) throw new Error(ensured.error.message);
-  return createDb(url);
-}
-
-async function deleteTenantRows(
-  handle: ReturnType<typeof createDb>,
-  tenant: InstallationId,
-): Promise<void> {
-  const db = internal(handle);
-  await db.delete(generation).where(eq(generation.installationId, tenant));
-  await db.delete(pullRequest).where(eq(pullRequest.installationId, tenant));
-  await closeDb(handle);
-}
-
-function waitMs(ms: number): Promise<"timer"> {
-  return new Promise((resolve) => setTimeout(() => resolve("timer"), ms));
-}
-
 describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
   it("two parallel starts at cap 1 start exactly one", async () => {
-    if (databaseUrl === undefined) throw new Error("unreachable");
+    if (databaseUrl === undefined) {
+      throw new Error("unreachable");
+    }
     const { tenant, repoId, ctx } = makeFixture();
     const handle = await connectMigrated(databaseUrl);
 
@@ -86,7 +46,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       );
       for (const target of targets) {
         const pending = await projection.upsertPending(target);
-        if (!pending.ok) throw new Error(pending.error.message);
+        if (!pending.ok) {
+          throw new Error(pending.error.message);
+        }
       }
 
       const outcomes = await Promise.all(
@@ -113,7 +75,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
   });
 
   it("two parallel starts in different repos at cap 1 start exactly one", async () => {
-    if (databaseUrl === undefined) throw new Error("unreachable");
+    if (databaseUrl === undefined) {
+      throw new Error("unreachable");
+    }
     const { tenant, repoId, ctx } = makeFixture();
     const otherRepoId: RepoId = brandWith(isRepoId, repoId + 1n);
     const handle = await connectMigrated(databaseUrl);
@@ -139,7 +103,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       ];
       for (const target of targets) {
         const pending = await projection.upsertPending(target);
-        if (!pending.ok) throw new Error(pending.error.message);
+        if (!pending.ok) {
+          throw new Error(pending.error.message);
+        }
       }
 
       const outcomes = await Promise.all(
@@ -158,7 +124,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
   });
 
   it("a start waits on the instance advisory lock while another holds it", async () => {
-    if (databaseUrl === undefined) throw new Error("unreachable");
+    if (databaseUrl === undefined) {
+      throw new Error("unreachable");
+    }
     const { tenant, repoId, ctx } = makeFixture();
     const handle = await connectMigrated(databaseUrl);
     const holder = new Pool({ connectionString: databaseUrl, max: 1 });
@@ -174,7 +142,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       const projection = createGenerationProjection(handle, ctx);
       const target = makeBriefTarget(pr.id, "held");
       const pending = await projection.upsertPending(target);
-      if (!pending.ok) throw new Error(pending.error.message);
+      if (!pending.ok) {
+        throw new Error(pending.error.message);
+      }
       await holding.query("begin");
       await holding.query("select pg_advisory_xact_lock(hashtext($1))", [
         "generation-cap",
@@ -186,7 +156,9 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       const released = await start;
 
       expect(whileHeld).toBe("timer");
-      if (!released.ok) throw new Error(released.error.message);
+      if (!released.ok) {
+        throw new Error(released.error.message);
+      }
       expect(released.value.started).toBe(true);
     } finally {
       holding.release();
