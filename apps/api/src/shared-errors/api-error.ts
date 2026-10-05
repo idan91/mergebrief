@@ -146,6 +146,22 @@ export class PayloadTooLarge extends ApiError {
   }
 }
 
+export class TooManyRequests extends ApiError {
+  override readonly status: typeof HttpStatuses.TOO_MANY_REQUESTS;
+  constructor(code: PlainCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>);
+  constructor(
+    code: ParamCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>,
+    params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>],
+  );
+  constructor(
+    code: CodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>,
+    params?: ApiErrorParams[ParamCode],
+  ) {
+    super(code, params);
+    this.status = HttpStatuses.TOO_MANY_REQUESTS;
+  }
+}
+
 export class InternalError extends ApiError {
   override readonly status: typeof HttpStatuses.INTERNAL_SERVER_ERROR;
   constructor(code?: PlainCodeFor<typeof HttpStatuses.INTERNAL_SERVER_ERROR>);

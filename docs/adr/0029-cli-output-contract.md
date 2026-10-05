@@ -1,5 +1,11 @@
 # CLI Output Contract — Passthrough, Additive-Only, Exit-Code Invariant
 
+> **Amended 2026-10-05: rate limiting.** Exit code **7 = RATE_LIMITED** is
+> appended to the table for a 429, which exit 5 would have told a
+> self-correcting loop to resend at once. The one error line ends
+> `(HTTP 429, retry after <n>s)` when `Retry-After` is whole seconds; any
+> other form is ignored. #5 is unchanged.
+
 > **Amended 2026-10-03: skew lines.** #8 gains the `MergeBrief-Version`
 > response header the API stamps on every `/api/*` response past the session
 > layer, which the CLI reads off the first response of a run, and three line
@@ -68,7 +74,9 @@ what is promised, and how the contract evolves without breaking consumers
    self-correcting without stderr parsing) ·
    6 incompatible (`capabilities --require` found a required operation the
    server does not register or this binary maps to no command — stop before
-   driving it).
+   driving it) ·
+   7 rate limited (429; the one stderr line names the `Retry-After` wait in
+   whole seconds when the server sent one; wait, then retry).
 7. **`--json` is an explicit flag** (gh posture). TTY default is human
    rendering, explicitly NON-contractual — it may change any release and
    must never be parsed. No pipe auto-detection: output shape follows the

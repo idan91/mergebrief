@@ -25,11 +25,14 @@ import {
 import type { AuthzEnv } from "../../../authz";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import type { InstallationGitHubPort } from "../../../github-port";
+import { DEFAULT_UPLOAD_QUOTA_LIMITS } from "./consts";
 import { createAttachmentsHandlers } from "./handler";
 import type {
   AttachmentsControllerDeps,
   AttachmentsRouteDeps,
   RenderedSources,
+  UploadQuotaLimits,
+  UploadWindow,
 } from "./types";
 
 vi.mock("github", async (importOriginal) => ({
@@ -122,6 +125,7 @@ interface BuildAppOptions {
   readonly ghTokenCiphertext?: string;
   readonly sourcesCache?: TtlCache<RenderedSources>;
   readonly sourcesInFlight?: AttachmentsControllerDeps["sourcesInFlight"];
+  readonly quotaLimits?: UploadQuotaLimits;
 }
 
 async function buildApp(
@@ -198,6 +202,10 @@ async function buildApp(
     deps,
     options.sourcesCache ?? createTtlCache<RenderedSources>(10),
     options.sourcesInFlight ?? new Map(),
+    {
+      limits: options.quotaLimits ?? DEFAULT_UPLOAD_QUOTA_LIMITS,
+      windows: createTtlCache<UploadWindow>(10),
+    },
   );
   app.get("/:prNumber/attachments/:assetId", handlers.readAttachment);
   app.post("/:prNumber/attachments", handlers.uploadAttachment);
@@ -708,6 +716,51 @@ describe("POST attachments", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 429 past the quota without calling github", async () => {
+    stubRepoResolve();
+    stubCommit({ ok: true, value: { commitSha: "c1" } });
+    const app = await buildApp({
+      quotaLimits: { maxFiles: 1, maxBytes: 1024, windowMs: 60_000 },
+    });
+    expect((await upload(app, PNG)).status).toBe(201);
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(429);
+    expect(((await response.json()) as { code: string }).code).toBe(
+      "attachment-limit-reached",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(commitMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("charges a failed push and never an oversize or mistyped file", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.REQUEST_FAILED,
+        status: 500,
+        message: "fixture",
+      },
+    });
+    const app = await buildApp({
+      quotaLimits: { maxFiles: 1, maxBytes: 1024, windowMs: 60_000 },
+    });
+    const oversized = new Uint8Array(10 * 1024 * 1024 + 1);
+    oversized.set(PNG);
+    expect((await upload(app, oversized)).status).toBe(413);
+    expect((await upload(app, "not a png")).status).toBe(400);
+    expect((await upload(app, PNG)).status).toBe(502);
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(429);
+    expect(commitMock).toHaveBeenCalledTimes(1);
   });
 
   it("answers 400 for a type outside the allowlist", async () => {

@@ -1,4 +1,4 @@
-import type { ValueOf } from "types/utils";
+import type { Result, ValueOf } from "types/utils";
 
 export const MarkdownTextareaModes = {
   WRITE: "write",
@@ -24,3 +24,14 @@ export const AttachDisabledReasons = {
   NO_PERMISSION: "no-permission",
 } as const;
 export type AttachDisabledReason = ValueOf<typeof AttachDisabledReasons>;
+
+/** Why a present retry-after header yielded no wait. */
+export const RetryAfterRejections = {
+  UNRECOGNIZED: "unrecognized",
+  OUT_OF_RANGE: "out-of-range",
+  INVALID_DATE: "invalid-date",
+} as const;
+export type RetryAfterRejection = ValueOf<typeof RetryAfterRejections>;
+
+/** Whole seconds to wait, never negative. */
+export type RetryAfterParse = Result<number, RetryAfterRejection>;

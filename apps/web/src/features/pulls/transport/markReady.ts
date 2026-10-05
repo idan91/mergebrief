@@ -71,6 +71,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",

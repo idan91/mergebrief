@@ -29,6 +29,27 @@ commit is the App's, never the reviewer's. A pasted-URL brief (a repository
 the App is not installed on) has nothing to push with, so its composer
 offers no attach control.
 
+## Upload quota
+
+Read access is enough to attach, and the push is the App's, so each reviewer
+is bounded: 10 files or 30 MB per 10 minutes by default. Past either limit
+the API answers `429 attachment-limit-reached` with a `Retry-After` header,
+makes no GitHub call, and the composer says so; `mergebrief draft attach`
+exits 7 with the wait in its error line. Every attempt that reaches
+GitHub counts, a failed push included. A browser session and an API token of
+the same reviewer share one count.
+
+| Variable | Default | What it bounds |
+| --- | --- | --- |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` | `10` | Files per reviewer per window |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_MB` | `30` | Megabytes per reviewer per window; at least `10`, the size limit of one file |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | `10` | Window length; it starts at the reviewer's first upload |
+
+Each is a positive whole number; unset or empty takes the default, anything
+else refuses boot. The count lives in the api process: a restart clears it,
+and each replica counts on its own
+([operations.md](operations.md#running-more-than-one-api)).
+
 ## Refusing pushes
 
 A repository ruleset or branch protection matching `mergebrief/*` refuses

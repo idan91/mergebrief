@@ -27,6 +27,7 @@ none of them appear in `--help`.
 | 4    | Not found                                             | Re-derive ids from `repos`/`pr`/`groups`                                       |
 | 5    | Server rejected the payload                           | Fix and retry only what you can change; 403s and policy refusals are permanent |
 | 6    | Required operation cannot run on this server+CLI pair | Report the mismatch and stop                                                   |
+| 7    | Rate limited (429)                                    | Wait the `retry after <n>s` stderr names (a few minutes if none), then retry   |
 
 ## The span rule
 

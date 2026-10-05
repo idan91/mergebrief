@@ -1,9 +1,18 @@
 // The API process's own configuration, parsed from an INJECTED env map: the
 // address it listens on and the values `createApp` needs that no other loader
 // owns. Every other config block comes from the package that owns it.
+import { ATTACHMENT_MAX_BYTES } from "contract";
 import { isHttpUrl, parseServerVersion } from "persistence";
 import type { Result, ValueOf } from "types/utils";
 import { z } from "zod/v4";
+import {
+  BYTES_PER_MB,
+  DEFAULT_UPLOAD_QUOTA_FILES,
+  DEFAULT_UPLOAD_QUOTA_MB,
+  DEFAULT_UPLOAD_QUOTA_WINDOW_MINUTES,
+  MS_PER_MINUTE,
+} from "./routes/repos/pr/attachments/consts";
+import type { UploadQuotaLimits } from "./routes/repos/pr/attachments/types";
 import { DEFAULT_UPDATE_CHECK_URL } from "./update-check/consts";
 
 /** Loopback by default: the API is reached through the web tier, not directly. */
@@ -33,6 +42,8 @@ export interface ApiConfig {
   /** `MERGEBRIEF_UPDATE_CHECK`: the hourly fetch of the release manifest. */
   readonly updateCheck: boolean;
   readonly updateCheckUrl: string;
+  /** `MERGEBRIEF_ATTACHMENT_QUOTA_*`: what one reviewer may upload per window. */
+  readonly attachmentQuota: UploadQuotaLimits;
 }
 
 const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
@@ -66,6 +77,36 @@ function parseEnvBool(defaultValue: boolean): z.ZodType<boolean> {
   );
 }
 
+const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
+const POSITIVE_INTEGER_REQUIRED = "must be a positive whole number";
+// A window smaller than one file would refuse that file in every window.
+const MIN_UPLOAD_QUOTA_MB = Math.ceil(ATTACHMENT_MAX_BYTES / BYTES_PER_MB);
+const UPLOAD_QUOTA_MB_TOO_SMALL = `must be at least ${MIN_UPLOAD_QUOTA_MB}, the megabyte limit of one file`;
+
+/** Unset and empty both take the default, as `parseEnvBool` reads them. */
+function parseEnvPositiveInt(defaultValue: number): z.ZodType<number> {
+  return z.preprocess(
+    (value) => {
+      if (value === undefined) {
+        return defaultValue;
+      }
+      if (typeof value !== "string") {
+        return value;
+      }
+      const token = value.trim();
+      if (token === "") {
+        return defaultValue;
+      }
+      const isPositiveInteger = POSITIVE_INTEGER_PATTERN.test(token);
+      if (isPositiveInteger) {
+        return Number(token);
+      }
+      return value;
+    },
+    z.int({ error: POSITIVE_INTEGER_REQUIRED }),
+  );
+}
+
 const PortSchema = z
   .string()
   .refine((value) => /^\d+$/.test(value), "MERGEBRIEF_API_PORT must be a port")
@@ -96,6 +137,18 @@ const ConfigSchema = z.object({
       "MERGEBRIEF_UPDATE_CHECK_URL must be an absolute http(s) URL without credentials",
     )
     .optional(),
+  MERGEBRIEF_ATTACHMENT_QUOTA_FILES: parseEnvPositiveInt(
+    DEFAULT_UPLOAD_QUOTA_FILES,
+  ),
+  MERGEBRIEF_ATTACHMENT_QUOTA_MB: parseEnvPositiveInt(
+    DEFAULT_UPLOAD_QUOTA_MB,
+  ).refine(
+    (megabytes) => megabytes >= MIN_UPLOAD_QUOTA_MB,
+    UPLOAD_QUOTA_MB_TOO_SMALL,
+  ),
+  MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: parseEnvPositiveInt(
+    DEFAULT_UPLOAD_QUOTA_WINDOW_MINUTES,
+  ),
 });
 
 function buildConfigError(issues: readonly string[]): ConfigError {
@@ -150,6 +203,12 @@ export function loadConfig(
       updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
       updateCheckUrl:
         value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,
+      attachmentQuota: {
+        maxFiles: value.MERGEBRIEF_ATTACHMENT_QUOTA_FILES,
+        maxBytes: value.MERGEBRIEF_ATTACHMENT_QUOTA_MB * BYTES_PER_MB,
+        windowMs:
+          value.MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES * MS_PER_MINUTE,
+      },
     },
   };
 }

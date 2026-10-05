@@ -21,6 +21,7 @@ describe("exit-code mapping, the contract table", () => {
     [403, ExitCodes.SERVER_REJECTED],
     [409, ExitCodes.SERVER_REJECTED],
     [422, ExitCodes.SERVER_REJECTED],
+    [429, ExitCodes.RATE_LIMITED],
     [500, ExitCodes.GENERIC],
     [502, ExitCodes.GENERIC],
     [503, ExitCodes.GENERIC],
@@ -37,6 +38,7 @@ describe("exit-code mapping, the contract table", () => {
       NOT_FOUND: 4,
       SERVER_REJECTED: 5,
       INCOMPATIBLE: 6,
+      RATE_LIMITED: 7,
     });
   });
 });
@@ -137,11 +139,12 @@ describe("origin-URL parsing", () => {
   });
 });
 
-function clientWith(response: Response) {
+function clientWith(response: Response, now: () => number = Date.now) {
   return createApiClient({
     fetch: async () => response,
     baseUrl: "https://mb.example",
     token: "mergebrief_x",
+    now,
   });
 }
 
@@ -254,6 +257,89 @@ describe("client proxy/IdP detection", () => {
     ).rejects.toMatchObject({
       code: ExitCodes.AUTH,
       message: "unauthorized (HTTP 401)",
+    });
+  });
+});
+
+function makeLimitResponse(headers: Record<string, string>): Response {
+  return new Response(
+    JSON.stringify({
+      error: "attachment limit reached",
+      code: "attachment-limit-reached",
+    }),
+    {
+      status: 429,
+      headers: { "content-type": "application/json", ...headers },
+    },
+  );
+}
+
+const RETRY_AT = "Wed, 21 Oct 2026 07:28:00 GMT";
+const RETRY_AT_MS = Date.UTC(2026, 9, 21, 7, 28, 0);
+const JUST_UNDER_TWO_MINUTES_MS = 119_500;
+const FIVE_SECONDS_MS = 5_000;
+
+describe("client rate limiting", () => {
+  const attachPath = "/api/repos/1/pulls/2/attachments";
+
+  it("a 429 exits 7 and names the retry-after wait in seconds", async () => {
+    const client = clientWith(makeLimitResponse({ "retry-after": "120" }));
+    await expect(client.request({ path: attachPath })).rejects.toMatchObject({
+      code: ExitCodes.RATE_LIMITED,
+      message:
+        "attachment limit reached, try again later (HTTP 429, retry after 120s)",
+    });
+  });
+
+  it("a 429 without retry-after keeps the plain status line", async () => {
+    const client = clientWith(makeLimitResponse({}));
+    await expect(client.request({ path: attachPath })).rejects.toMatchObject({
+      code: ExitCodes.RATE_LIMITED,
+      message: "attachment limit reached, try again later (HTTP 429)",
+    });
+  });
+
+  it("names the seconds until an HTTP-date retry-after, rounded up", async () => {
+    const client = clientWith(
+      makeLimitResponse({ "retry-after": RETRY_AT }),
+      () => RETRY_AT_MS - JUST_UNDER_TWO_MINUTES_MS,
+    );
+    await expect(client.request({ path: attachPath })).rejects.toMatchObject({
+      code: ExitCodes.RATE_LIMITED,
+      message:
+        "attachment limit reached, try again later (HTTP 429, retry after 120s)",
+    });
+  });
+
+  it("names a wait of 0s for an HTTP-date retry-after in the past", async () => {
+    const client = clientWith(
+      makeLimitResponse({ "retry-after": RETRY_AT }),
+      () => RETRY_AT_MS + FIVE_SECONDS_MS,
+    );
+    await expect(client.request({ path: attachPath })).rejects.toMatchObject({
+      code: ExitCodes.RATE_LIMITED,
+      message:
+        "attachment limit reached, try again later (HTTP 429, retry after 0s)",
+    });
+  });
+
+  it.each([
+    "soon",
+    "1.5",
+    "-3",
+    "12s",
+    "Wed, 21 Oct 2026 07:28:00",
+    "Wed, 21 Oct 2026 07:28:00 PST",
+    "21 Oct 2026 07:28:00 GMT",
+    "Wednesday, 21-Oct-26 07:28:00 GMT",
+  ])("ignores a retry-after of %s", async (retryAfter) => {
+    const client = clientWith(
+      makeLimitResponse({ "retry-after": retryAfter }),
+      () => RETRY_AT_MS,
+    );
+    await expect(client.request({ path: attachPath })).rejects.toMatchObject({
+      code: ExitCodes.RATE_LIMITED,
+      message: "attachment limit reached, try again later (HTTP 429)",
     });
   });
 });

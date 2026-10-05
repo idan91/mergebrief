@@ -53,6 +53,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-draft",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.PENDING_REVIEW_HELD]: "pending-review-held",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "rewritten",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "rewritten",

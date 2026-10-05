@@ -80,6 +80,7 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 | 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
 | 5 | Server rejected the payload (4xx validation) — fix and retry; agent submit loops self-correct on this code |
 | 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair — do not drive it |
+| 7 | Rate limited (429): the error line names the wait as `retry after <n>s` when the server sent one; wait that long, then retry |
 
 ## Commands
 

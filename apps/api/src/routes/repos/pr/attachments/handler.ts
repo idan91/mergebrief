@@ -14,6 +14,7 @@ import {
   BadRequest,
   NotFound,
   PayloadTooLarge,
+  TooManyRequests,
 } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
@@ -28,9 +29,14 @@ import { HttpStatuses, type Result } from "types";
 import { prNumberSchema } from "../../../wire-bounds";
 import { parseOwnerAndName } from "../../utils";
 import { attachmentsController } from "./controller";
-import { ATTACHMENT_RESPONSE_HEADERS, NO_STORE } from "./consts";
+import {
+  ATTACHMENT_RESPONSE_HEADERS,
+  NO_STORE,
+  RETRY_AFTER_HEADER,
+} from "./consts";
 import { readDeclaredMediaType } from "./logic/media-type";
 import { sniffImageMediaType } from "./logic/sniff-image";
+import { reserveUpload } from "./logic/upload-quota";
 import {
   throwReadAttachmentFailure,
   throwUploadAttachmentFailure,
@@ -44,6 +50,7 @@ import type {
   ReadAttachmentFailure,
   ReadAttachmentInput,
   RenderedSources,
+  UploadQuota,
 } from "./types";
 
 const HEAD_METHOD = "HEAD";
@@ -118,6 +125,7 @@ export function createAttachmentsHandlers(
   deps: AttachmentsRouteDeps,
   sourcesCache: TtlCache<RenderedSources>,
   sourcesInFlight: AttachmentsControllerDeps["sourcesInFlight"],
+  uploadQuota: UploadQuota,
 ): AttachmentsHandlers {
   const readAttachment = async (c: Context<AuthzEnv>) => {
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
@@ -196,11 +204,21 @@ export function createAttachmentsHandlers(
     const installationId = requireInstallationScope(c.get("ctx"));
     const { bytes, mediaType } = await readImageBody(c);
 
-    const reviewer = createReviewerGitHubClient(
-      deps,
-      c.get("session"),
-      c.get("logger"),
+    // Reserved before the first GitHub call, on bytes the cap already
+    // passed: a refusal costs no call, and a rejected file is never charged.
+    const session = c.get("session");
+    const reserved = reserveUpload(
+      uploadQuota,
+      String(session.reviewerId),
+      bytes.byteLength,
+      Date.now(),
     );
+    if (!reserved.ok) {
+      c.header(RETRY_AFTER_HEADER, String(reserved.error.retryAfterSeconds));
+      throw new TooManyRequests(ApiErrorCodes.ATTACHMENT_LIMIT_REACHED);
+    }
+
+    const reviewer = createReviewerGitHubClient(deps, session, c.get("logger"));
     const file = mintAttachmentFile(mediaType);
     const uploaded = await attachmentsController.uploadAttachment(
       { reviewer, port: deps.github },

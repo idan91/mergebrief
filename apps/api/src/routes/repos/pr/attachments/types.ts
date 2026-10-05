@@ -24,7 +24,36 @@ import type { RepoResolveFailure } from "../../logic/resolve-repo-owner-and-name
 /** The read side needs the viewer's token; the upload also needs the App's. */
 export interface AttachmentsRouteDeps extends AuthRouteDeps {
   readonly github: InstallationGitHubPort;
+  /** Omitted = the default limits. */
+  readonly attachmentQuota?: UploadQuotaLimits;
 }
+
+/** What one reviewer may upload inside one window. */
+export interface UploadQuotaLimits {
+  readonly maxFiles: number;
+  readonly maxBytes: number;
+  readonly windowMs: number;
+}
+
+/** One reviewer's charged uploads since `startedAt` (epoch ms). */
+export interface UploadWindow {
+  readonly startedAt: number;
+  readonly files: number;
+  readonly bytes: number;
+}
+
+/** The limits and the per-process table, keyed by reviewer id. */
+export interface UploadQuota {
+  readonly limits: UploadQuotaLimits;
+  readonly windows: TtlCache<UploadWindow>;
+}
+
+export interface UploadQuotaRefusal {
+  /** Whole seconds until the reviewer's window ends. */
+  readonly retryAfterSeconds: number;
+}
+
+export type UploadReservation = Result<UploadWindow, UploadQuotaRefusal>;
 
 /** The bytes as GitHub streams them, with the type the proxy serves them under. */
 export interface AttachmentBytes {

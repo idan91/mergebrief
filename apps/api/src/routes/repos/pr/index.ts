@@ -17,6 +17,7 @@ import {
 } from "./conversation";
 import { archivePullRoutes } from "./archive";
 import { attachmentsRoute } from "./attachments";
+import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
 import { markReadyRoute } from "./ready";
@@ -24,7 +25,7 @@ import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
 
 export function prRoutes(
-  deps: ConversationRouteDeps,
+  deps: ConversationRouteDeps & AttachmentsRouteDeps,
   installations: InstallationResolver,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();

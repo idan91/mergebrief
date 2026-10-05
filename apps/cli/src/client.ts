@@ -2,12 +2,24 @@
 // Known wire codes use catalog templates and HTTP status; unknown ones relay server error text.
 // Inject fetch so CLI tests exercise the real Hono app without network calls.
 import { createI18n, en } from "i18n";
-import type { Mutable } from "types/utils";
-import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
+import type { Mutable, Result } from "types/utils";
+import { CliError, ExitCodes, exitCodeForStatus, type ExitCode } from "./exit";
 import { VERSION_HEADER } from "./version";
 
 // One instance for the process, resources are baked in, init is sync.
 const i18n = createI18n();
+
+const RETRY_AFTER_HEADER = "retry-after";
+const WHOLE_SECONDS = /^\d+$/;
+const IMF_FIXDATE =
+  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+const MS_PER_SECOND = 1000;
+const UNRECOGNIZED_RETRY_AFTER = "not delta-seconds or an IMF-fixdate";
+const RETRY_AFTER_OUT_OF_RANGE = "delta-seconds past the safe integer range";
+const INVALID_RETRY_AFTER_DATE = "an IMF-fixdate that is no calendar date";
+
+/** Whole seconds to wait, never negative. */
+type RetryAfterParse = Result<number, string>;
 
 /**
  * This CLI's version, stamped at build time from `package.json` (`0.0.0` in
@@ -39,6 +51,8 @@ export interface ApiClientOptions {
   readonly cliVersion?: string | undefined;
   /** Told once, on the first response that carries `MergeBrief-Version`. */
   readonly onServerVersion?: ((version: string) => void) | undefined;
+  /** Test seam; production takes the clock. */
+  readonly now?: () => number;
 }
 
 /** A raw body sent as-is under its own content type (an image upload). */
@@ -77,7 +91,7 @@ function isKnownErrorCode(value: string): value is keyof typeof en.errors {
  */
 function resolveCatalogErrorLine(
   body: Record<string, unknown>,
-  status: number,
+  statusLabel: string,
 ): string | undefined {
   const code = body["code"];
   const params = body["params"];
@@ -89,24 +103,80 @@ function resolveCatalogErrorLine(
     replace: isRecord(params) ? params : {},
   });
   if (rendered.trim() === "" || rendered.includes("{{")) return undefined;
-  return `${rendered} (HTTP ${status})`;
+  return `${rendered} (${statusLabel})`;
 }
 
-function serverErrorLine(bodyText: string, status: number): string {
+function serverErrorLine(bodyText: string, statusLabel: string): string {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed)) {
-      const catalogLine = resolveCatalogErrorLine(parsed, status);
+      const catalogLine = resolveCatalogErrorLine(parsed, statusLabel);
       if (catalogLine !== undefined) return catalogLine;
       const error = parsed["error"];
       if (typeof error === "string") {
-        return `${error} (HTTP ${status})`;
+        return `${error} (${statusLabel})`;
       }
     }
   } catch {
     // Non-JSON error body, fall through to the generic line.
   }
-  return `request failed (HTTP ${status})`;
+  return `request failed (${statusLabel})`;
+}
+
+/** Seconds until an IMF-fixdate, rounded up; a past date waits 0. */
+function parseRetryAfterDate(header: string, nowMs: number): RetryAfterParse {
+  const isFixdate = IMF_FIXDATE.test(header);
+  if (!isFixdate) {
+    return { ok: false, error: UNRECOGNIZED_RETRY_AFTER };
+  }
+  const retryAtMs = Date.parse(header);
+  const isCalendarDate = !Number.isNaN(retryAtMs);
+  if (!isCalendarDate) {
+    return { ok: false, error: INVALID_RETRY_AFTER_DATE };
+  }
+
+  const waitSeconds = Math.ceil((retryAtMs - nowMs) / MS_PER_SECOND);
+  const clampedSeconds = Math.max(0, waitSeconds);
+  return { ok: true, value: clampedSeconds };
+}
+
+/** Digits-only delta seconds or an IMF-fixdate; anything else is refused. */
+function parseRetryAfterSeconds(
+  header: string,
+  nowMs: number,
+): RetryAfterParse {
+  const isWholeSeconds = WHOLE_SECONDS.test(header);
+  if (!isWholeSeconds) {
+    return parseRetryAfterDate(header, nowMs);
+  }
+
+  const seconds = Number(header);
+  const isSafeSeconds = Number.isSafeInteger(seconds);
+  if (!isSafeSeconds) {
+    return { ok: false, error: RETRY_AFTER_OUT_OF_RANGE };
+  }
+  return { ok: true, value: seconds };
+}
+
+function describeStatus(
+  response: Response,
+  exitCode: ExitCode,
+  nowMs: number,
+): string {
+  const label = `HTTP ${response.status}`;
+  if (exitCode !== ExitCodes.RATE_LIMITED) {
+    return label;
+  }
+
+  const header = response.headers.get(RETRY_AFTER_HEADER);
+  if (header === null) {
+    return label;
+  }
+  const parsed = parseRetryAfterSeconds(header, nowMs);
+  if (!parsed.ok) {
+    return label;
+  }
+  return `${label}, retry after ${parsed.value}s`;
 }
 
 export interface ApiClient {
@@ -118,6 +188,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const base = options.baseUrl.replace(/\/+$/, "");
   const cliVersion = options.cliVersion ?? CLI_VERSION;
   const userAgent = `mergebrief/${cliVersion}`;
+  const now = options.now ?? Date.now;
   let serverVersion: string | undefined;
 
   function noteServerVersion(response: Response): void {
@@ -183,10 +254,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
       const bodyText = await response.text();
       if (!response.ok) {
-        throw new CliError(
-          exitCodeForStatus(response.status),
-          serverErrorLine(bodyText, response.status),
-        );
+        const exitCode = exitCodeForStatus(response.status);
+        const statusLabel = describeStatus(response, exitCode, now());
+        throw new CliError(exitCode, serverErrorLine(bodyText, statusLabel));
       }
       return { status: response.status, bodyText };
     },

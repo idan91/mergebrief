@@ -16,8 +16,10 @@ version (`auth status` → `server.version`).
   `reply <commentId> --pr <n>`, `submit <n>` (`-F` | convenience flags),
   `capabilities` (`--require <ids...>` fail-closed preflight, exit 6
   INCOMPATIBLE).
-- The exit-code contract (0-6, additive-only) and the stream/exit
-  invariant (ADR 0029).
+- The exit-code contract (0-7, additive-only) and the stream/exit
+  invariant (ADR 0029). Exit 7 RATE_LIMITED is a 429; its error line ends
+  `(HTTP 429, retry after <n>s)` when the server sent `Retry-After` in
+  whole seconds.
 - Per-profile config (`~/.config/mergebrief`, 0600) with `owners:` routing,
   `MERGEBRIEF_PROFILE` / `MERGEBRIEF_TOKEN` overrides, per-profile static
   headers; per-profile no-TTL repos cache (`~/.cache/mergebrief`).

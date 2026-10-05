@@ -30,6 +30,7 @@ export const ApiErrorCodes = {
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
   DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
+  ATTACHMENT_LIMIT_REACHED: "attachment-limit-reached",
   PENDING_REVIEW_HELD: "pending-review-held",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
   PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
@@ -92,6 +93,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: HttpStatuses.TOO_MANY_REQUESTS,
   [ApiErrorCodes.PENDING_REVIEW_HELD]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: HttpStatuses.CONFLICT,
@@ -141,6 +143,8 @@ export const ApiErrorEnglishByCode = {
     "this review holds a comment whose anchor no longer points at any code",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]:
     "this review already holds as many unposted comments as it can carry",
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]:
+    "attachment limit reached, try again later",
   [ApiErrorCodes.PENDING_REVIEW_HELD]:
     "an unsubmitted review of yours is open on GitHub for this pull request",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]:

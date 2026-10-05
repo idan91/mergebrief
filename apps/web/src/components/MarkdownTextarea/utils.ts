@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { RetryAfterRejections, type RetryAfterParse } from "./types";
 
 export interface TextEdit {
   text: string;
@@ -373,6 +374,46 @@ export function readUploadedUrl(body: unknown): string | undefined {
     return undefined;
   }
   return typeof body.url === "string" ? body.url : undefined;
+}
+
+const WHOLE_SECONDS = /^\d+$/;
+const IMF_FIXDATE =
+  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+const MS_PER_SECOND = 1000;
+
+/** Seconds until an IMF-fixdate, rounded up; a past date waits 0. */
+function parseRetryAfterDate(value: string, nowMs: number): RetryAfterParse {
+  const isFixdate = IMF_FIXDATE.test(value);
+  if (!isFixdate) {
+    return { ok: false, error: RetryAfterRejections.UNRECOGNIZED };
+  }
+  const retryAtMs = Date.parse(value);
+  const isCalendarDate = !Number.isNaN(retryAtMs);
+  if (!isCalendarDate) {
+    return { ok: false, error: RetryAfterRejections.INVALID_DATE };
+  }
+
+  const waitSeconds = Math.ceil((retryAtMs - nowMs) / MS_PER_SECOND);
+  const clampedSeconds = Math.max(0, waitSeconds);
+  return { ok: true, value: clampedSeconds };
+}
+
+/** Digits-only delta seconds or an IMF-fixdate; anything else is refused. */
+export function parseRetryAfterSeconds(
+  value: string,
+  nowMs: number,
+): RetryAfterParse {
+  const isWholeSeconds = WHOLE_SECONDS.test(value);
+  if (!isWholeSeconds) {
+    return parseRetryAfterDate(value, nowMs);
+  }
+
+  const seconds = Number(value);
+  const isSafeSeconds = Number.isSafeInteger(seconds);
+  if (!isSafeSeconds) {
+    return { ok: false, error: RetryAfterRejections.OUT_OF_RANGE };
+  }
+  return { ok: true, value: seconds };
 }
 
 /** The markdown that shows an attached image. */

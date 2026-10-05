@@ -14,12 +14,17 @@ import {
 import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthzEnv } from "../../../authz";
 import { createTtlCache } from "../../../ttl-cache";
-import { SOURCES_CACHE_MAX_ENTRIES } from "./consts";
+import {
+  DEFAULT_UPLOAD_QUOTA_LIMITS,
+  SOURCES_CACHE_MAX_ENTRIES,
+  UPLOAD_QUOTA_MAX_ENTRIES,
+} from "./consts";
 import { createAttachmentsHandlers } from "./handler";
 import type {
   AttachmentsControllerDeps,
   AttachmentsRouteDeps,
   RenderedSources,
+  UploadWindow,
 } from "./types";
 
 export function attachmentsRoute(
@@ -35,6 +40,10 @@ export function attachmentsRoute(
     deps,
     sourcesCache,
     sourcesInFlight,
+    {
+      limits: deps.attachmentQuota ?? DEFAULT_UPLOAD_QUOTA_LIMITS,
+      windows: createTtlCache<UploadWindow>(UPLOAD_QUOTA_MAX_ENTRIES),
+    },
   );
   app.query(
     {

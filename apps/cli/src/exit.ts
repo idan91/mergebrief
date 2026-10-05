@@ -16,6 +16,8 @@ export const ExitCodes = {
   SERVER_REJECTED: 5,
   /** `capabilities --require` failed; stop before driving the operation. */
   INCOMPATIBLE: 6,
+  /** Rate limited (429); wait the seconds the error line names, then retry. */
+  RATE_LIMITED: 7,
 } as const;
 export type ExitCode = ValueOf<typeof ExitCodes>;
 
@@ -36,10 +38,19 @@ export class CliError extends Error {
 }
 
 export function exitCodeForStatus(status: number): ExitCode {
-  if (status === 401) return ExitCodes.AUTH;
-  if (status === 404) return ExitCodes.NOT_FOUND;
+  if (status === 401) {
+    return ExitCodes.AUTH;
+  }
+  if (status === 404) {
+    return ExitCodes.NOT_FOUND;
+  }
+  if (status === 429) {
+    return ExitCodes.RATE_LIMITED;
+  }
   // Any other 4xx is a server-side payload/validation rejection.
-  if (status >= 400 && status < 500) return ExitCodes.SERVER_REJECTED;
+  if (status >= 400 && status < 500) {
+    return ExitCodes.SERVER_REJECTED;
+  }
   // 5xx and anything else unexpected.
   return ExitCodes.GENERIC;
 }

@@ -93,6 +93,7 @@ async function main(): Promise<void> {
     github: appInstallationPort(createAppClient(boot.github)),
     operatorToken: boot.github.operatorToken,
     githubAppSlug: boot.github.appSlug,
+    attachmentQuota: boot.api.attachmentQuota,
     auth: {
       oauthClientId: boot.github.oauthClientId,
       oauthClientSecret: boot.github.oauthClientSecret,

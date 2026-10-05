@@ -13,6 +13,16 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-04)
+
+- **Added** `429 attachment-limit-reached` on
+  `POST /api/repos/:repoId/pulls/:prNumber/attachments`: each reviewer may
+  upload 10 files or 30 MB per 10 minutes by default (operator-set through
+  `MERGEBRIEF_ATTACHMENT_QUOTA_*`), cookie and Bearer counted together, per
+  api replica. The answer is `no-store` and carries `Retry-After` in whole
+  seconds until the reviewer's window ends. A client that attaches in bulk
+  should stop on it and retry after that delay.
+
 ## dev (2026-09-27)
 
 - **Added** `POST /api/repos/:repoId/pulls/:prNumber/attachments`

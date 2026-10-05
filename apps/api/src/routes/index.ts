@@ -23,6 +23,7 @@ import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
+import type { UploadQuotaLimits } from "./repos/pr/attachments/types";
 import { versionDismissRoutes, versionRoute } from "./version";
 import {
   stampVersionHeader,
@@ -60,6 +61,8 @@ export interface AppDeps {
   readonly operatorToken?: OperatorTokenConfig | undefined;
   /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
   readonly githubAppSlug?: string | undefined;
+  /** Per-reviewer attachment upload limits; omitted = the defaults. */
+  readonly attachmentQuota?: UploadQuotaLimits;
 }
 
 /** Compose the `/api` router over injected deps. */

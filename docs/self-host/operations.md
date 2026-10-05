@@ -543,7 +543,9 @@ else in the compose file changes.
 
 What is per replica: a handful of short caches (a PR's conversation for
 60 seconds, a viewer's reachable installations, GitHub access answers, diff
-and file reads) and the update check's snapshot. Two consequences. A write
+and file reads), the update check's snapshot and the attachment upload
+quota. Three consequences. The quota is counted per replica, so two replicas
+let one reviewer attach up to twice the configured limit per window. A write
 evicts the cache of the replica it landed on only, so a comment or review a
 reviewer just posted can be missing from the next read for up to a minute
 when that read lands on another replica; a load balancer that keeps a

@@ -20,10 +20,12 @@ import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
 import createReposHandlers from "./handler";
 import { prRoutes } from "./pr";
+import type { UploadQuotaLimits } from "./pr/attachments/types";
 
 /** The slice of app deps the repos subtree needs. `AppDeps` satisfies it. */
 export interface ReposRouteDeps extends AuthRouteDeps {
   readonly github: InstallationGitHubPort;
+  readonly attachmentQuota?: UploadQuotaLimits;
 }
 
 /** Mount the repos subtree: the list over the session gate (no `:repoId`,

@@ -20,6 +20,7 @@ import {
   buildImageMarkdown,
   buildUploadPlaceholders,
   insertPlaceholder,
+  parseRetryAfterSeconds,
   readUploadedUrl,
   replacePlaceholder,
   type TextEdit,
@@ -48,8 +49,26 @@ export interface AttachmentUpload {
   readonly attach: (files: Iterable<File>) => void;
 }
 
+interface UploadFailure {
+  readonly cause: unknown;
+  /** Set on any HTTP refusal; only an attachment-limit 429 acts on it. */
+  readonly retryAfterMs?: number;
+}
+
+/** One drop or paste; its files share one limit message. */
+interface UploadBatch {
+  limitReported: boolean;
+}
+
 /** Long enough for the cap on a slow link; a hung upload must not hold the queue. */
 const UPLOAD_TIMEOUT_MS = 120_000;
+
+const RETRY_AFTER_HEADER = "retry-after";
+const MS_PER_SECOND = 1000;
+/** The wait after a 429 whose retry-after is missing or unreadable. */
+const LIMIT_FALLBACK_MS = 60_000;
+/** The longest wait one 429 can impose; the next request after it asks again. */
+const LIMIT_CEILING_MS = 3_600_000;
 
 const UPLOAD_MEDIA_TYPES: ReadonlySet<string> = new Set(
   Object.values(AttachmentMediaTypes),
@@ -59,6 +78,8 @@ const UPLOAD_MEDIA_TYPES: ReadonlySet<string> = new Set(
 const refusedRepoIds = new Set<string>();
 /** Repos the App may not write to; the same off state with its own reason. */
 const unwritableRepoIds = new Set<string>();
+/** Repos the server answered 429 for, with the epoch ms their wait ends. */
+const limitedUntilByRepoId = new Map<string, number>();
 /** Every placeholder an upload still owns, whichever composer started it. */
 const inFlightPlaceholders = new Set<string>();
 /**
@@ -110,6 +131,7 @@ const uploadQueues = new Map<string, Promise<void>>();
 export function resetAttachmentUploadState(): void {
   refusedRepoIds.clear();
   unwritableRepoIds.clear();
+  limitedUntilByRepoId.clear();
   inFlightPlaceholders.clear();
   orphanSettles.clear();
   uploadQueues.clear();
@@ -148,16 +170,64 @@ function failureCopy(t: TFunction, error: unknown): string {
   if (error.code === ApiErrorCodes.REQUEST_TOO_LARGE) {
     return t("shell.attach.tooLarge");
   }
+  if (error.code === ApiErrorCodes.ATTACHMENT_LIMIT_REACHED) {
+    return t("shell.attach.limitReached");
+  }
   if (error.code === ApiErrorCodes.UNAUTHORIZED) {
     return t("shell.attach.unauthorized");
   }
   return t("shell.attach.failed");
 }
 
+function readRetryAfterMs(headers: Headers): number {
+  const header = headers.get(RETRY_AFTER_HEADER);
+  if (header === null) {
+    return LIMIT_FALLBACK_MS;
+  }
+  const parsed = parseRetryAfterSeconds(header, Date.now());
+  if (!parsed.ok) {
+    return LIMIT_FALLBACK_MS;
+  }
+
+  const waitMs = parsed.value * MS_PER_SECOND;
+  const cappedWaitMs = Math.min(waitMs, LIMIT_CEILING_MS);
+  return cappedWaitMs;
+}
+
+function isRepoLimited(repoId: string): boolean {
+  const limitedUntil = limitedUntilByRepoId.get(repoId);
+  if (limitedUntil === undefined) {
+    return false;
+  }
+  const waitRunning = Date.now() < limitedUntil;
+  if (waitRunning) {
+    return true;
+  }
+  limitedUntilByRepoId.delete(repoId);
+  return false;
+}
+
+/** Remembers a refusal that holds for the repo, so later uploads skip the request. */
+function recordRepoRefusal(repoId: string, failure: UploadFailure): void {
+  const { cause } = failure;
+  if (!(cause instanceof ApiError)) {
+    return;
+  }
+  if (cause.code === ApiErrorCodes.ATTACHMENTS_DISABLED) {
+    refusedRepoIds.add(repoId);
+  } else if (cause.code === ApiErrorCodes.GITHUB_PERMISSION) {
+    unwritableRepoIds.add(repoId);
+  } else if (cause.code === ApiErrorCodes.ATTACHMENT_LIMIT_REACHED) {
+    const retryAfterMs = failure.retryAfterMs ?? LIMIT_FALLBACK_MS;
+    const limitedUntil = Date.now() + retryAfterMs;
+    limitedUntilByRepoId.set(repoId, limitedUntil);
+  }
+}
+
 async function uploadImage(
   path: string,
   file: File,
-): Promise<Result<string, unknown>> {
+): Promise<Result<string, UploadFailure>> {
   try {
     const response = await apiFetch(path, {
       method: "POST",
@@ -166,15 +236,18 @@ async function uploadImage(
       signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
     });
     if (!response.ok) {
-      return { ok: false, error: await errorFromResponse(response, path) };
+      const retryAfterMs = readRetryAfterMs(response.headers);
+      const cause = await errorFromResponse(response, path);
+      return { ok: false, error: { cause, retryAfterMs } };
     }
     const url = readUploadedUrl(await response.json());
     if (url === undefined) {
-      return { ok: false, error: new Error("upload receipt carried no url") };
+      const cause = new Error("upload receipt carried no url");
+      return { ok: false, error: { cause } };
     }
     return { ok: true, value: url };
   } catch (error) {
-    return { ok: false, error };
+    return { ok: false, error: { cause: error } };
   }
 }
 
@@ -261,11 +334,12 @@ export function useAttachmentUpload({
     }
     (announceQuietly ?? announce)?.(t("shell.attach.uploading"));
     setInFlight((count) => count + files.length);
+    const batch: UploadBatch = { limitReported: false };
     files.forEach((file, index) => {
       const placeholder = placeholders[index];
       if (placeholder !== undefined) {
         enqueueUpload(repoId, () =>
-          settleUpload(path, file, placeholder, repoId),
+          settleUpload(path, file, placeholder, repoId, batch),
         );
       }
     });
@@ -276,6 +350,7 @@ export function useAttachmentUpload({
     file: File,
     placeholder: string,
     repoId: string,
+    batch: UploadBatch,
   ) => {
     // A batch behind a refused push: the first answer already said so, the
     // rest go quietly, without a request each.
@@ -284,21 +359,30 @@ export function useAttachmentUpload({
       settle(placeholder, "");
       return;
     }
+    const limitedBefore = isRepoLimited(repoId);
+    if (limitedBefore) {
+      setInFlight((count) => count - 1);
+      settle(placeholder, "");
+      if (!batch.limitReported) {
+        batch.limitReported = true;
+        fail(t("shell.attach.limitReached"));
+      }
+      return;
+    }
+
     const result = await uploadImage(path, file);
     setInFlight((count) => count - 1);
     if (result.ok) {
       settle(placeholder, buildImageMarkdown(result.value));
       return;
     }
-    if (result.error instanceof ApiError) {
-      if (result.error.code === ApiErrorCodes.ATTACHMENTS_DISABLED) {
-        refusedRepoIds.add(repoId);
-      } else if (result.error.code === ApiErrorCodes.GITHUB_PERMISSION) {
-        unwritableRepoIds.add(repoId);
-      }
+    recordRepoRefusal(repoId, result.error);
+    const limitedNow = isRepoLimited(repoId);
+    if (limitedNow) {
+      batch.limitReported = true;
     }
     settle(placeholder, "");
-    fail(failureCopy(t, result.error));
+    fail(failureCopy(t, result.error.cause));
   };
 
   return {

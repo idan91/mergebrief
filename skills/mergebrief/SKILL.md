@@ -103,7 +103,8 @@ carrying HTTP 403 is a credential fact, a human-only operation or a token
 below the scope the operation needs ([contract.md](contract.md)); a policy
 refusal, like GitHub rejecting APPROVE on your own PR, is just as
 permanent. Surface either and stop. Exit 2 is your invocation. Fix it, never resend
-as-is. Exit 3 and exit 6 end the run: report and stop. A 409 on a session
+as-is. Exit 3 and exit 6 end the run: report and stop. Exit 7 is a rate
+limit: wait the `retry after <n>s` stderr names, then resend once. A 409 on a session
 write means the PR moved under you. Re-read `mergebrief pr <n>`, then the
 new session, and re-target the new span.
 

@@ -132,6 +132,7 @@ doesn't apply — several loaders distinguish unset from empty.
 | `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
 | `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true` (empty included); the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off; a token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com. An absolute http(s) URL with no credentials in it, or api refuses boot |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` / `MERGEBRIEF_ATTACHMENT_QUOTA_MB` / `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | optional, defaults `10` / `30` / `10` (empty included); what one reviewer may attach per window, per api replica ([attachments.md](./attachments.md#upload-quota)). Positive whole numbers; anything else refuses boot |
 
 ### Who owns which setting
 

@@ -76,6 +76,90 @@ describe("loadConfig update check knobs", () => {
   });
 });
 
+describe("loadConfig attachment quota knobs", () => {
+  const BASE = { PUBLIC_BASE_URL: "http://localhost:3000" };
+  const MB = 1024 * 1024;
+  const MINUTE_MS = 60_000;
+
+  it("defaults to 10 files or 30 MB per 10 minutes", () => {
+    const expected = {
+      maxFiles: 10,
+      maxBytes: 30 * MB,
+      windowMs: 10 * MINUTE_MS,
+    };
+    expect(loadConfig(BASE)).toMatchObject({
+      ok: true,
+      value: { attachmentQuota: expected },
+    });
+    expect(
+      loadConfig({
+        ...BASE,
+        MERGEBRIEF_ATTACHMENT_QUOTA_FILES: "",
+        MERGEBRIEF_ATTACHMENT_QUOTA_MB: " ",
+        MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: "",
+      }),
+    ).toMatchObject({ ok: true, value: { attachmentQuota: expected } });
+  });
+
+  it("takes an override for each of the three limits", () => {
+    const result = loadConfig({
+      ...BASE,
+      MERGEBRIEF_ATTACHMENT_QUOTA_FILES: "3",
+      MERGEBRIEF_ATTACHMENT_QUOTA_MB: "50",
+      MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: "60",
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        attachmentQuota: {
+          maxFiles: 3,
+          maxBytes: 50 * MB,
+          windowMs: 60 * MINUTE_MS,
+        },
+      },
+    });
+  });
+
+  it("refuses a megabyte limit under the size limit of one file", () => {
+    const result = loadConfig({ ...BASE, MERGEBRIEF_ATTACHMENT_QUOTA_MB: "9" });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        issues: [
+          "MERGEBRIEF_ATTACHMENT_QUOTA_MB: must be at least 10, the megabyte limit of one file",
+        ],
+      },
+    });
+  });
+
+  it("takes a megabyte limit equal to the size limit of one file", () => {
+    const result = loadConfig({
+      ...BASE,
+      MERGEBRIEF_ATTACHMENT_QUOTA_MB: "10",
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { attachmentQuota: { maxBytes: 10 * MB } },
+    });
+  });
+
+  const KEYS = [
+    "MERGEBRIEF_ATTACHMENT_QUOTA_FILES",
+    "MERGEBRIEF_ATTACHMENT_QUOTA_MB",
+    "MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES",
+  ];
+  const INVALID = ["0", "-1", "1.5", "ten", "1e3", "99999999999999999999"];
+  const CASES = KEYS.flatMap((key) => INVALID.map((value) => [key, value]));
+
+  it.each(CASES)("refuses %s set to %s, naming the key", (key, value) => {
+    const result = loadConfig({ ...BASE, [key]: value });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { issues: [`${key}: must be a positive whole number`] },
+    });
+  });
+});
+
 describe("loadConfig SERVER_VERSION", () => {
   const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
 
@@ -113,6 +197,18 @@ describe("loadConfig refusals never echo the value", () => {
     ["SERVER_VERSION", { ...BASE, SERVER_VERSION: `${MARKER} 1.4.0` }],
     ["PUBLIC_BASE_URL", { PUBLIC_BASE_URL: `ftp://${MARKER}.test` }],
     ["MERGEBRIEF_UPDATE_CHECK", { ...BASE, MERGEBRIEF_UPDATE_CHECK: MARKER }],
+    [
+      "MERGEBRIEF_ATTACHMENT_QUOTA_FILES",
+      { ...BASE, MERGEBRIEF_ATTACHMENT_QUOTA_FILES: MARKER },
+    ],
+    [
+      "MERGEBRIEF_ATTACHMENT_QUOTA_MB",
+      { ...BASE, MERGEBRIEF_ATTACHMENT_QUOTA_MB: MARKER },
+    ],
+    [
+      "MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES",
+      { ...BASE, MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: MARKER },
+    ],
   ])("names %s without its value", (key, env) => {
     const result = loadConfig(env);
     expect(result.ok).toBe(false);

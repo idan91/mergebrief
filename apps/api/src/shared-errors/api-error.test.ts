@@ -10,6 +10,7 @@ import {
   NotFound,
   PayloadTooLarge,
   ServiceUnavailable,
+  TooManyRequests,
   Unauthorized,
   type CodeFor,
 } from "./api-error";
@@ -43,6 +44,7 @@ describe("ApiError classes", () => {
     new PayloadTooLarge(ApiErrorCodes.FILE_TOO_LARGE),
     new BadRequest(ApiErrorCodes.FILE_NOT_TEXT),
     new BadRequest(ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE),
+    new TooManyRequests(ApiErrorCodes.ATTACHMENT_LIMIT_REACHED),
     new InternalError(),
     new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE),
     new BadGateway(ApiErrorCodes.GENERATION_FAILED),

@@ -271,7 +271,7 @@ A **Comment** anchored to a file with no line range. Same lifecycle as any other
 _Avoid_: whole-file comment, file-scoped, scope (that is Full vs Changes)
 
 **Attachment**:
-An image a reviewer pastes or drops into a **Comment**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held.
+An image a reviewer pastes or drops into a **Comment**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held. Read access to the repository is enough to attach; the push is the App's, so each reviewer is bounded to a set number of files and bytes per window, counted per api replica.
 _Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
 
 **Seed**:

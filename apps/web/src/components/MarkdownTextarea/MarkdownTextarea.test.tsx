@@ -472,6 +472,31 @@ function refusedResponse(code: string, status: number): Response {
   return new Response(JSON.stringify({ error: code, code }), { status });
 }
 
+const LIMIT_CODE = "attachment-limit-reached";
+const LIMIT_COPY =
+  "You have attached as many images as this server allows for now, so the image was not attached. Try again in a few minutes.";
+const RETRY_AFTER_SECONDS = 60;
+const MS_PER_SECOND = 1000;
+
+const LIMIT_CEILING_SECONDS = 3600;
+const HUGE_RETRY_AFTER_SECONDS = 10 * LIMIT_CEILING_SECONDS;
+const LIMIT_FALLBACK_SECONDS = 60;
+
+const DATE_WAIT_SECONDS = 30;
+
+function makeLimitedResponse(
+  retryAfter: number | string = RETRY_AFTER_SECONDS,
+): Response {
+  return new Response(JSON.stringify({ error: LIMIT_CODE, code: LIMIT_CODE }), {
+    status: 429,
+    headers: { "retry-after": String(retryAfter) },
+  });
+}
+
+function makeRetryAtDate(offsetSeconds: number): string {
+  return new Date(Date.now() + offsetSeconds * MS_PER_SECOND).toUTCString();
+}
+
 interface AttachHarnessProps {
   readonly initial?: string;
   readonly installed?: boolean;
@@ -644,6 +669,194 @@ describe("MarkdownTextarea image attachments", () => {
     expect(announce).toHaveBeenLastCalledWith(copy);
     const attach = screen.getByRole("button", { name: "Attach image" });
     expect(attach.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("says the attachment limit was reached when the server answers 429", async () => {
+    const onAttachError = vi.fn();
+    apiFetchMock.mockResolvedValueOnce(refusedResponse(LIMIT_CODE, 429));
+    render(<AttachHarness onAttachError={onAttachError} />);
+    const input = textarea();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    expect(input.value).toBe("");
+    expect(onAttachError).toHaveBeenCalledWith(LIMIT_COPY);
+  });
+
+  describe("inside the retry-after window", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-05T12:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("a batch behind a 429 makes one request and leaves no placeholder", async () => {
+      const onAttachError = vi.fn();
+      apiFetchMock.mockResolvedValueOnce(makeLimitedResponse());
+      render(<AttachHarness onAttachError={onAttachError} />);
+
+      fireEvent.drop(textarea(), {
+        dataTransfer: {
+          files: [
+            makeImageFile("a.png"),
+            makeImageFile("b.png"),
+            makeImageFile("c.png"),
+          ],
+        },
+      });
+      await flush();
+      await flush();
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+      expect(onAttachError).toHaveBeenCalledTimes(1);
+      expect(onAttachError).toHaveBeenLastCalledWith(LIMIT_COPY);
+      expect(textarea().value).toBe("");
+    });
+
+    it("a later drop inside the window makes no request", async () => {
+      const onAttachError = vi.fn();
+      apiFetchMock.mockResolvedValueOnce(makeLimitedResponse());
+      render(<AttachHarness onAttachError={onAttachError} />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      vi.setSystemTime(Date.now() + (RETRY_AFTER_SECONDS / 2) * MS_PER_SECOND);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+      expect(onAttachError).toHaveBeenCalledTimes(2);
+      expect(onAttachError).toHaveBeenLastCalledWith(LIMIT_COPY);
+      expect(textarea().value).toBe("");
+    });
+
+    it("a drop after the window has passed asks the server again", async () => {
+      apiFetchMock.mockResolvedValueOnce(makeLimitedResponse());
+      render(<AttachHarness />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      vi.setSystemTime(Date.now() + RETRY_AFTER_SECONDS * MS_PER_SECOND);
+      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(2);
+      expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+    });
+
+    it("an HTTP-date retry-after limits uploads until that date", async () => {
+      const onAttachError = vi.fn();
+      const retryAt = makeRetryAtDate(DATE_WAIT_SECONDS);
+      apiFetchMock.mockResolvedValueOnce(makeLimitedResponse(retryAt));
+      render(<AttachHarness onAttachError={onAttachError} />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      vi.setSystemTime(Date.now() + (DATE_WAIT_SECONDS - 1) * MS_PER_SECOND);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+      expect(onAttachError).toHaveBeenLastCalledWith(LIMIT_COPY);
+      expect(document.body.textContent).not.toContain(retryAt);
+
+      vi.setSystemTime(Date.now() + MS_PER_SECOND);
+      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(2);
+      expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+    });
+
+    it("an HTTP-date retry-after in the past does not hold the next drop", async () => {
+      apiFetchMock.mockResolvedValueOnce(
+        makeLimitedResponse(makeRetryAtDate(-DATE_WAIT_SECONDS)),
+      );
+      render(<AttachHarness />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(2);
+      expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
+    });
+
+    it("caps a huge retry-after at one hour", async () => {
+      apiFetchMock.mockResolvedValueOnce(
+        makeLimitedResponse(HUGE_RETRY_AFTER_SECONDS),
+      );
+      render(<AttachHarness />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      vi.setSystemTime(Date.now() + LIMIT_CEILING_SECONDS * MS_PER_SECOND);
+      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("waits the fallback minute when a 429 has no retry-after", async () => {
+      apiFetchMock.mockResolvedValueOnce(refusedResponse(LIMIT_CODE, 429));
+      render(<AttachHarness />);
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+      const limitedAt = Date.now();
+
+      vi.setSystemTime(
+        limitedAt + (LIMIT_FALLBACK_SECONDS - 1) * MS_PER_SECOND,
+      );
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(limitedAt + LIMIT_FALLBACK_SECONDS * MS_PER_SECOND);
+      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+      fireEvent.drop(textarea(), {
+        dataTransfer: { files: [makeImageFile()] },
+      });
+      await flush();
+
+      expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("holds Cmd/Ctrl+Enter while an upload is in flight and says so", async () => {

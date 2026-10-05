@@ -38,6 +38,8 @@ const PNG_BYTES = new Uint8Array([
 const FILE_NAME_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/;
 
+const QUOTA = { maxFiles: 2, maxBytes: 1024, windowMs: 60_000 };
+
 function makePort(commit = vi.fn()): {
   port: InstallationGitHubPort;
   commit: ReturnType<typeof vi.fn>;
@@ -75,6 +77,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       github: made.port,
+      attachmentQuota: QUOTA,
     });
     stubGitHub();
     await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
@@ -142,6 +145,37 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
 
     expect(response.status).toBe(201);
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 429 past the quota, cookie and bearer sharing it", async () => {
+    const cookie = await seedSession(harness.handle, kp);
+    const token = await seedApiToken(
+      harness.handle,
+      kp,
+      WriteClassifications.EXTERNAL_WRITE,
+    );
+    const cookieHeaders = {
+      ...SAME_ORIGIN_HEADERS,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    };
+    expect((await upload(cookieHeaders)).status).toBe(201);
+    expect((await upload({ authorization: `Bearer ${token}` })).status).toBe(
+      201,
+    );
+    const githubCalls = vi.mocked(globalThis.fetch).mock.calls.length;
+
+    const refused = await upload(cookieHeaders);
+
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { code: string }).code).toBe(
+      "attachment-limit-reached",
+    );
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    const retryAfterSeconds = Number(refused.headers.get("retry-after"));
+    expect(retryAfterSeconds).toBeGreaterThan(0);
+    expect(retryAfterSeconds).toBeLessThanOrEqual(60);
+    expect(vi.mocked(globalThis.fetch).mock.calls).toHaveLength(githubCalls);
+    expect(commit).toHaveBeenCalledTimes(2);
   });
 
   it("a refused upload names the repository on its audit row", async () => {

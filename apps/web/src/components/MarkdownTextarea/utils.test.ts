@@ -13,8 +13,10 @@ import {
   buildUploadPlaceholders,
   hasUploadPlaceholder,
   insertPlaceholder,
+  parseRetryAfterSeconds,
   replacePlaceholder,
 } from "./utils";
+import { RetryAfterRejections } from "./types";
 import { createI18n } from "i18n";
 
 const t = createI18n().t;
@@ -353,5 +355,59 @@ describe("replacePlaceholder", () => {
 
   it("declines when the writer edited the placeholder away", () => {
     expect(replacePlaceholder("a\nb", "P", "![Image](u)")).toBeNull();
+  });
+});
+
+describe("parseRetryAfterSeconds", () => {
+  const RETRY_AT = "Wed, 21 Oct 2026 07:28:00 GMT";
+  const RETRY_AT_MS = Date.UTC(2026, 9, 21, 7, 28, 0);
+  const JUST_UNDER_TWO_MINUTES_MS = 119_500;
+  const FIVE_SECONDS_MS = 5_000;
+
+  it("reads whole seconds", () => {
+    expect(parseRetryAfterSeconds("120", RETRY_AT_MS)).toEqual({
+      ok: true,
+      value: 120,
+    });
+    expect(parseRetryAfterSeconds("0", RETRY_AT_MS)).toEqual({
+      ok: true,
+      value: 0,
+    });
+  });
+
+  it("reads the seconds until an HTTP-date, rounded up", () => {
+    const nowMs = RETRY_AT_MS - JUST_UNDER_TWO_MINUTES_MS;
+
+    expect(parseRetryAfterSeconds(RETRY_AT, nowMs)).toEqual({
+      ok: true,
+      value: 120,
+    });
+  });
+
+  it("reads an HTTP-date in the past as no wait", () => {
+    const nowMs = RETRY_AT_MS + FIVE_SECONDS_MS;
+
+    expect(parseRetryAfterSeconds(RETRY_AT, nowMs)).toEqual({
+      ok: true,
+      value: 0,
+    });
+  });
+
+  it.each([
+    ["soon", RetryAfterRejections.UNRECOGNIZED],
+    ["1.5", RetryAfterRejections.UNRECOGNIZED],
+    ["-3", RetryAfterRejections.UNRECOGNIZED],
+    ["12s", RetryAfterRejections.UNRECOGNIZED],
+    ["99999999999999999999", RetryAfterRejections.OUT_OF_RANGE],
+    ["Wed, 21 Oct 2026 07:28:00", RetryAfterRejections.UNRECOGNIZED],
+    ["Wed, 21 Oct 2026 07:28:00 PST", RetryAfterRejections.UNRECOGNIZED],
+    ["21 Oct 2026 07:28:00 GMT", RetryAfterRejections.UNRECOGNIZED],
+    ["Wednesday, 21-Oct-26 07:28:00 GMT", RetryAfterRejections.UNRECOGNIZED],
+    ["Wed, 99 Oct 2026 07:28:00 GMT", RetryAfterRejections.INVALID_DATE],
+  ])("refuses a retry-after of %s", (retryAfter, rejection) => {
+    expect(parseRetryAfterSeconds(retryAfter, RETRY_AT_MS)).toEqual({
+      ok: false,
+      error: rejection,
+    });
   });
 });
