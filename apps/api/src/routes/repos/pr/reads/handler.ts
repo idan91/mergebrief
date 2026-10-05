@@ -220,6 +220,7 @@ export default function createHandlers(
         base: query.base,
         head: query.head,
         sessionTokenHash: session.sessionTokenHash,
+        urlBoxOnly: c.get("urlBoxOnly") === true,
       },
     );
     if (!result.ok) {
@@ -325,6 +326,7 @@ export default function createHandlers(
         from: query.from,
         to: query.to,
         sessionTokenHash: session.sessionTokenHash,
+        urlBoxOnly: c.get("urlBoxOnly") === true,
       },
     );
 

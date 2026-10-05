@@ -5,6 +5,7 @@
 // world, so an App-world brief stays governed by the installation alone.
 import { createHash, randomBytes } from "node:crypto";
 import {
+  createArtifactStore,
   createGrantAuth,
   createTenantRepository,
   encryptToken,
@@ -37,6 +38,11 @@ const REPO_ID = 424242;
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
+const BASE_SHA = "b".repeat(40);
+const HEAD_SHA = "a".repeat(40);
+const UNKNOWN_SHA = "c".repeat(40);
+const DIFF_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff`;
+const FILE_RANGE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/file-range`;
 
 const TENANT_CTX = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -87,6 +93,20 @@ function stubGitHub(): RepoCall[] {
           });
         }
         return jsonResponse({ message: "Not Found" }, 404);
+      }
+      const contentsRead = url.includes("/contents/");
+      if (contentsRead) {
+        if (token === FALLBACK_PAT) {
+          return jsonResponse({
+            type: "file",
+            size: 4,
+            sha: "blob-sha",
+            content: Buffer.from("a\nb\n").toString("base64"),
+            encoding: "base64",
+          });
+        }
+        // The contents read maps a 404 to an absent file, never a denial.
+        return jsonResponse({ message: "Forbidden" }, 403);
       }
       if (url.includes("/repositories/")) {
         calls.push({ token });
@@ -145,6 +165,37 @@ async function seedOwnerPullRequest(
     state: PrStates.OPEN,
     title,
   });
+}
+
+/** The reader's paste with the commits a generated Brief records for it. */
+async function seedOwnerBrief(handle: AppDatabase): Promise<void> {
+  const repoId = brandRepoId(BigInt(REPO_ID));
+  const pr = await createTenantRepository(
+    handle,
+    OWNER_CTX,
+  ).pullRequests.upsert({
+    repoId,
+    prNumber: PR_NUMBER,
+    repoSlug: REPO_SLUG,
+    state: PrStates.OPEN,
+    title: "the reader's own paste",
+    baseSha: BASE_SHA,
+    liveRead: { readAt: new Date(), headSha: HEAD_SHA },
+  });
+  const written = await createArtifactStore(handle, OWNER_CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    headIndex: 1,
+    commitCount: 1,
+    provider: "p",
+    model: "m",
+    effort: "e",
+    body: "{}",
+  });
+  if (!written.ok) {
+    throw new Error("brief seed failed");
+  }
 }
 
 async function seedTenantPullRequest(
@@ -406,10 +457,10 @@ describe("the per-repo gate's operator-PAT rung", () => {
   it("fetches the span diff on the same rung that opened the gate", async () => {
     const calls = stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
-    await seedOwnerPullRequest(harness.handle);
+    await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
+      `${DIFF_PATH}?base=${BASE_SHA}&head=${HEAD_SHA}`,
       { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
     );
 
@@ -435,6 +486,83 @@ describe("the per-repo gate's operator-PAT rung", () => {
     );
 
     expect(res.status).toBe(404);
+  });
+
+  // The operator's key reads the whole repository; the reader is owed only
+  // the commits recorded for the pull request they pasted.
+  it("a diff at an unknown head 404s without an operator compare", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerBrief(harness.handle);
+
+    const res = await buildApp(FALLBACK_PAT).request(
+      `${DIFF_PATH}?base=${BASE_SHA}&head=${UNKNOWN_SHA}`,
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
+    );
+
+    expect(res.status).toBe(404);
+    // Gate: reader then PAT. Diff: the reader's own token and nothing after.
+    expect(listSentTokens()).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+      ACCESS_TOKEN,
+    ]);
+  });
+
+  it("a diff at a branch name 404s without an operator compare", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerBrief(harness.handle);
+
+    const res = await buildApp(FALLBACK_PAT).request(
+      `${DIFF_PATH}?base=${BASE_SHA}&head=main`,
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
+    );
+
+    expect(res.status).toBe(404);
+    expect(listSentTokens()).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+      ACCESS_TOKEN,
+    ]);
+  });
+
+  it("reads a file at a known commit on the operator token", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerBrief(harness.handle);
+
+    const res = await buildApp(FALLBACK_PAT).request(
+      `${FILE_RANGE_PATH}?ref=${HEAD_SHA}&path=src/app.ts&from=1&to=2`,
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
+    expect(listSentTokens()).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+    ]);
+  });
+
+  it("reads no file at an unknown commit on the operator token", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerBrief(harness.handle);
+
+    const res = await buildApp(FALLBACK_PAT).request(
+      `${FILE_RANGE_PATH}?ref=${UNKNOWN_SHA}&path=src/app.ts&from=1&to=2`,
+      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
+    );
+
+    expect(res.status).toBe(404);
+    expect(listSentTokens()).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+      ACCESS_TOKEN,
+    ]);
   });
 
   // The write still cannot happen, posting under the operator's token would

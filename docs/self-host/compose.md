@@ -343,7 +343,10 @@ work through this section.
 
 If `MERGEBRIEF_URL_BOX_TOKEN` is set, keep `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS`
 to the reviewers who may read everything that token reads: a listed reviewer
-can generate and open a brief for any pull request it reaches.
+can generate and open a brief for any pull request it reaches. Once a brief is
+open on the token, diff and file reads are limited to the commits MergeBrief
+recorded for that pull request. The file path is not limited: any file at one
+of those commits is readable.
 
 ### 1. Postgres credentials
 

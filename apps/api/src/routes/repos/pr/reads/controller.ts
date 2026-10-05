@@ -17,6 +17,7 @@ import {
   GenerationStatuses,
   type GenerationProjection,
   type GenerationRow,
+  type PullRequestRow,
   type RepoId,
   type ReviewerId,
 } from "persistence";
@@ -52,6 +53,7 @@ import {
   sliceFileRange,
   splitFileLines,
 } from "./logic/file-range";
+import { collectKnownCommits } from "./logic/known-commits";
 import { buildRevisionView } from "./logic/revision-views";
 import {
   recordResolvedStack,
@@ -168,6 +170,47 @@ async function resolveStackSelf(
       open: fetched.value.state === "open",
     },
   };
+}
+
+interface OperatorReach {
+  /** The gate passed this request on the operator token, not the viewer's. */
+  readonly urlBoxOnly: boolean;
+  readonly refs: readonly string[];
+}
+
+/**
+ * Whether a read may take the operator rung. The operator token reads the
+ * whole repository, so under it every ref must be a full SHA recorded for
+ * this pull request; a branch name or short SHA never matches.
+ */
+async function resolveOperatorReach(
+  deps: ReadsControllerDeps,
+  pr: PullRequestRow,
+  reach: OperatorReach,
+): Promise<boolean> {
+  if (!reach.urlBoxOnly) {
+    return true;
+  }
+
+  const [briefs, deltas] = await Promise.all([
+    deps.artifacts.briefs.listForPullRequest(pr.id),
+    deps.artifacts.deltas.listForPullRequest(pr.id),
+  ]);
+  const known = collectKnownCommits(pr, briefs, deltas);
+  const everyRefKnown = reach.refs.every((ref) => known.has(ref));
+  return everyRefKnown;
+}
+
+/** A viewer-token read; the operator rung only when the reach allows it. */
+function runBoundRead<T>(
+  github: ReviewerGitHubClient,
+  operatorReadAllowed: boolean,
+  call: (token: string) => Promise<Result<T, GitHubApiError>>,
+) {
+  if (operatorReadAllowed) {
+    return github.runRead(call, isGitHubDenial);
+  }
+  return github.run(call);
 }
 
 export default {
@@ -401,6 +444,7 @@ export default {
       readonly base: string;
       readonly head: string;
       readonly sessionTokenHash: string;
+      readonly urlBoxOnly: boolean;
     },
   ) {
     const pr = await deps.tenant.pullRequests.getByNumber(
@@ -430,11 +474,19 @@ export default {
       base: input.base,
       head: input.head,
     };
+    const operatorReadAllowed = await resolveOperatorReach(deps, pr, {
+      urlBoxOnly: input.urlBoxOnly,
+      refs: [input.base, input.head],
+    });
     let attempts = 0;
-    const diff = await deps.github.runRead((token) => {
-      attempts += 1;
-      return fetchCompareDiff(createUserOctokit(token), span);
-    }, isGitHubDenial);
+    const diff = await runBoundRead(
+      deps.github,
+      operatorReadAllowed,
+      (token) => {
+        attempts += 1;
+        return fetchCompareDiff(createUserOctokit(token), span);
+      },
+    );
     if (!diff.ok) {
       if ("kind" in diff.error) {
         return {
@@ -541,6 +593,7 @@ export default {
       readonly from: number;
       readonly to: number;
       readonly sessionTokenHash: string;
+      readonly urlBoxOnly: boolean;
     },
   ): Promise<Result<FileRangeView, FileRangeFailure>> {
     const pr = await deps.tenant.pullRequests.getByNumber(
@@ -563,17 +616,25 @@ export default {
       return { ok: true, value: sliceFileRange(cached, input) };
     }
 
+    const operatorReadAllowed = await resolveOperatorReach(deps, pr, {
+      urlBoxOnly: input.urlBoxOnly,
+      refs: [input.ref],
+    });
     let attempts = 0;
-    const fetched = await deps.github.runRead((token) => {
-      attempts += 1;
-      return getRepoFile(createUserOctokit(token), {
-        owner: input.owner,
-        repo: input.repo,
-        path: input.path,
-        ref: input.ref,
-        maxBytes: FILE_BLOB_MAX_BYTES,
-      });
-    }, isGitHubDenial);
+    const fetched = await runBoundRead(
+      deps.github,
+      operatorReadAllowed,
+      (token) => {
+        attempts += 1;
+        return getRepoFile(createUserOctokit(token), {
+          owner: input.owner,
+          repo: input.repo,
+          path: input.path,
+          ref: input.ref,
+          maxBytes: FILE_BLOB_MAX_BYTES,
+        });
+      },
+    );
     if (!fetched.ok) {
       if ("kind" in fetched.error) {
         return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
