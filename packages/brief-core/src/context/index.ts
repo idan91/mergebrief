@@ -1,6 +1,6 @@
 /**
  * Folder barrel for the ContextSource boundary: the query, the snippet, the
- * provider port, the fan-out, and the registry of provider types.
+ * provider port, the fan-out, and the built-in providers.
  */
 export type {
   ContextProvider,
@@ -21,13 +21,7 @@ export {
   type FetchContextSnippetsOptions,
 } from "./fan-out";
 export { toPrimaryTicket } from "./primary";
-export {
-  BUILT_IN_CONTEXT_PROVIDER_TYPES,
-  CONTEXT_REGISTRY,
-  EgressTiers,
-  createBuiltInContextProviders,
-  type EgressTier,
-} from "./registry";
+export { createBuiltInContextProviders } from "./registry";
 export { extractLinks, isPublicUrl, urlContextProvider } from "./providers/url";
 export {
   createGitHubRead,

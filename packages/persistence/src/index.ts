@@ -1,14 +1,13 @@
 // ENTRY POINT: the package's public surface (`package.json` `exports["."]`;
 // the PGlite test harness lives on the separate `persistence/testing` subpath).
 //
-// Containment: this file re-exports the schema metadata, the shared types, the
-// tenant repository factory, and the OPAQUE `AppDatabase` + its lifecycle,
-// but NEVER the raw drizzle handle type (`AppDrizzle`) nor the `internal()`
+// Containment: this file re-exports the shared types, the tenant repository
+// factory, and the OPAQUE `AppDatabase` + its lifecycle, but NEVER a drizzle
+// table, the raw drizzle handle type (`AppDrizzle`) nor the `internal()`
 // unwrap. The only queryable surface a consumer gets is the ctx-bound
 // repository.
 
-// --- root + schema/: shared types + table metadata --------------------------
-export * from "./schema/index";
+// --- root: shared types -----------------------------------------------------
 export * from "./types";
 
 // --- version/: the one semver grammar for a MergeBrief version string ------
