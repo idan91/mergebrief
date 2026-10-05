@@ -282,6 +282,64 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(jobs).toHaveLength(0);
   });
 
+  describe("a re-trigger and the queued job", () => {
+    const NEXT_HEAD_SHA = "b".repeat(40);
+
+    /** Lock every job, as a worker that picked it up would. */
+    async function holdJobs(): Promise<void> {
+      await harness.raw("update graphile_worker.jobs set locked_at = now()");
+    }
+
+    async function readJobs(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select id, key, run_at, locked_at, payload->>'head_sha' as head from graphile_worker.jobs order by id",
+      );
+    }
+
+    it("a new head while the job is held queues its own job", async () => {
+      const first = unwrap(await trigger());
+      await holdJobs();
+
+      unwrap(await trigger({ headSha: NEXT_HEAD_SHA }));
+
+      const jobs = await readJobs();
+      expect(jobs).toHaveLength(2);
+      expect(jobs[0]?.["key"]).toBeNull();
+      expect(jobs[0]?.["locked_at"]).not.toBeNull();
+      expect(jobs[0]?.["head"]).toBe(HEAD_SHA);
+      expect(jobs[1]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
+      expect(jobs[1]?.["locked_at"]).toBeNull();
+      expect(jobs[1]?.["head"]).toBe(NEXT_HEAD_SHA);
+    });
+
+    it("a same-head trigger on a queued job keeps the one job", async () => {
+      unwrap(await trigger());
+      const before = await readJobs();
+
+      unwrap(await trigger());
+
+      expect(await readJobs()).toEqual(before);
+    });
+
+    // A known duplicate run, not a wanted behaviour: the held job has not
+    // marked its row running yet, so the trigger queues the head again.
+    it("a same-head trigger while the job is held queues a second job", async () => {
+      const first = unwrap(await trigger());
+      await holdJobs();
+
+      unwrap(await trigger());
+
+      const jobs = await readJobs();
+      expect(jobs).toHaveLength(2);
+      expect(jobs[0]?.["key"]).toBeNull();
+      expect(jobs[0]?.["locked_at"]).not.toBeNull();
+      expect(jobs[0]?.["head"]).toBe(HEAD_SHA);
+      expect(jobs[1]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
+      expect(jobs[1]?.["locked_at"]).toBeNull();
+      expect(jobs[1]?.["head"]).toBe(HEAD_SHA);
+    });
+  });
+
   it("refreshRunAt does not re-enqueue a running head", async () => {
     const first = unwrap(await trigger({ debounceSeconds: 900 }));
     const firstJobs = await harness.raw(
