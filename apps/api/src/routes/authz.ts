@@ -14,8 +14,7 @@
 //                      denial for the audit choke point; on success resolves
 //                      the installation holding the repo among those the
 //                      viewer reaches (else the owner world) and shapes the
-//                      request context (`ctx`, `repoId`, `repoFullName`,
-//                      `accessToken`).
+//                      request context (`ctx`, `repoId`, `repoFullName`).
 // `createAuthzMiddleware` = the composition of both, the per-repo gate in
 // front of every read under `/api/repos/:repoId/*`.
 //
@@ -55,7 +54,6 @@ import {
 } from "github";
 import {
   isOwnerContext,
-  isRepoId,
   createSessionAuth,
   createTenantRepository,
   createTokenAuth,
@@ -85,6 +83,7 @@ import {
 } from "./auth/session/logic/same-origin";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
+import { parsePrNumberParam, parseRepoIdParam } from "./wire-bounds";
 import {
   BadGateway,
   Forbidden,
@@ -99,9 +98,7 @@ import { HttpStatuses } from "types/http";
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
 // `session` are set once `sessionLayer` passes; `repoId`/`repoFullName` once
-// `repoAuthzLayer` passes; `accessToken` only on the GitHub-verified path (a
-// positive-cache hit skips the decrypt, so the diff route decrypts lazily from
-// `session` when it is absent).
+// `repoAuthzLayer` passes.
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables extends RequestLogVariables {
@@ -137,7 +134,6 @@ export interface AuthzVariables extends RequestLogVariables {
    * keep parsing as `false`, never loosen the default.
    */
   readonly viewerCanPush: boolean;
-  readonly accessToken?: string;
 }
 
 export interface AuthzEnv {
@@ -198,24 +194,6 @@ export function requireInstallationScope(ctx: ScopeContext): InstallationId {
   return ctx.installationId;
 }
 
-/** Brand a `:repoId` path segment; `undefined` when it isn't a positive int. */
-function parseRepoId(raw: string | undefined): RepoId | undefined {
-  if (raw === undefined || !/^\d+$/.test(raw)) {
-    return undefined;
-  }
-  const value = BigInt(raw);
-  return isRepoId(value) ? value : undefined;
-}
-
-/** The `:prNumber` path segment, or undefined off the per-PR subtree. */
-function resolvePrNumberParam(raw: string | undefined): number | undefined {
-  if (raw === undefined || !/^\d+$/.test(raw)) {
-    return undefined;
-  }
-  const value = Number(raw);
-  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
-}
-
 /**
  * The gate's second rung. Answers with the repo ONLY when every condition
  * holds: the denial is a 404/403 (not upstream trouble), an operator PAT is
@@ -236,10 +214,11 @@ async function resolveRepoUnderFallback(
   if (fallbackToken === undefined || !isGitHubDenial(error)) {
     return undefined;
   }
-  const prNumber = resolvePrNumberParam(c.req.param("prNumber"));
-  if (prNumber === undefined) {
+  const parsedPrNumber = parsePrNumberParam(c.req.param("prNumber"));
+  if (!parsedPrNumber.ok) {
     return undefined;
   }
+  const prNumber = parsedPrNumber.value;
   const owned = await createTenantRepository(deps.handle, {
     ownerUserId: reviewerId,
   }).pullRequests.getByNumber(repoId, prNumber);
@@ -427,25 +406,24 @@ export function repoAuthzLayer(
 
     // Parse+brand the repo id. An ill-shaped id is a 404 (never 400, no
     // shape leak either).
-    const repoId = parseRepoId(c.req.param("repoId"));
+    const repoId = parseRepoIdParam(c.req.param("repoId"));
     if (repoId === undefined) {
       stampAccess(c, "404", { reviewerId: session.reviewerId });
       throw new NotFound();
     }
 
     // Positive-cache hit → already authorized within the TTL; skip GitHub
-    // entirely. The diff route decrypts the session token lazily if it needs
-    // it, so no access token is set here. The cached value IS the verified
-    // full name from the check that populated the entry (≤60s old).
+    // entirely. The cached value IS the verified full name from the check
+    // that populated the entry (≤60s old).
     const cacheKey = positiveCacheKey(session.sessionTokenHash, repoId);
     const cached = positiveCache.get(cacheKey);
     // A PAT-carried entry serves ONLY the PR it was granted for; any other
     // PR under the repo re-runs the whole ladder.
-    const cachedEntry =
+    const requestedPr = parsePrNumberParam(c.req.param("prNumber"));
+    const pinnedToAnotherPr =
       cached?.ownerPinnedPr !== undefined &&
-      cached.ownerPinnedPr !== resolvePrNumberParam(c.req.param("prNumber"))
-        ? undefined
-        : cached;
+      (!requestedPr.ok || cached.ownerPinnedPr !== requestedPr.value);
+    const cachedEntry = pinnedToAnotherPr ? undefined : cached;
     if (cachedEntry !== undefined) {
       if (cachedEntry.ownerPinnedPr !== undefined) {
         c.set("urlBoxOnly", true);
@@ -464,10 +442,8 @@ export function repoAuthzLayer(
     // once with the rotated token.
     const client = createReviewerGitHubClient(deps, session, c.get("logger"));
     let attempts = 0;
-    let accessToken = "";
     const repo = await client.run((token) => {
       attempts += 1;
-      accessToken = token;
       return fetchRepositoryById(createUserOctokit(token), repoId);
     });
 
@@ -574,7 +550,6 @@ export function repoAuthzLayer(
     c.set("repoId", repoId);
     c.set("repoFullName", repo.value.fullName);
     c.set("viewerCanPush", repo.value.viewerCanPush);
-    c.set("accessToken", accessToken);
     await next();
     stampAccess(c, "200", { repoId, reviewerId: currentSession.reviewerId });
     return;

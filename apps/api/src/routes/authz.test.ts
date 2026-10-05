@@ -384,3 +384,29 @@ describe("repoAuthzLayer repo world", () => {
     expect(installations.resolveInstallationForRepo).not.toHaveBeenCalled();
   });
 });
+
+describe("repoAuthzLayer path bounds", () => {
+  it("answers 404 for an oversized repo id without asking GitHub", async () => {
+    const app = await buildGateApp();
+    vi.mocked(fetchRepositoryById).mockResolvedValue(
+      stubGrantedRepo("acme/inside"),
+    );
+
+    const res = await app.request("/99999999999999999999/probe");
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(fetchRepositoryById).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for an oversized pull number on the operator rung", async () => {
+    const app = await buildGateApp({ urlBoxFallbackToken: "operator-pat" });
+    vi.mocked(fetchRepositoryById).mockResolvedValue(stubDeniedRepo(404));
+
+    const res = await app.request("/8888/pulls/2147483648/probe");
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(fetchRepositoryById).toHaveBeenCalledTimes(1);
+  });
+});

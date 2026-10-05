@@ -4,6 +4,7 @@
 // client never sends.
 import { InboxQueryBounds } from "contract";
 import { isRepoId, type RepoId } from "persistence";
+import type { Result } from "types/utils";
 import { z } from "zod";
 
 /** Same cap GitHub enforces on comment and review bodies. */
@@ -40,6 +41,20 @@ export function parseRepoIdParam(raw: string | undefined): RepoId | undefined {
     return undefined;
   }
   return value;
+}
+
+const MALFORMED_PR_NUMBER = "malformed-pr-number";
+export type PrNumberParamResult = Result<number, typeof MALFORMED_PR_NUMBER>;
+
+/** A `:prNumber` path segment; a malformed or oversized number is refused. */
+export function parsePrNumberParam(
+  raw: string | undefined,
+): PrNumberParamResult {
+  const parsed = prNumberSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: MALFORMED_PR_NUMBER };
+  }
+  return { ok: true, value: parsed.data };
 }
 
 /** Rows per Inbox page; the client asks for a page number, never a size. */
