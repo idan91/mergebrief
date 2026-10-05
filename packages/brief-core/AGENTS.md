@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-Curated subpaths exist beside the entry: `brief-core/types` (`src/types.ts`) and `brief-core/cli-config` (`src/cli/config.ts`) serve the eval harness; `brief-core/remap` (`src/diff/remap.ts`) serves `persistence`'s category mirror. `brief-core/artifact` (`src/artifact/`) holds the stored-body schemas and the write checks for a Brief, a Delta Brief and a Revision narrative; it is not `src/artifacts/`, which names CLI output files.
+Curated subpaths exist beside the entry: `brief-core/types` (`src/types.ts`) and `brief-core/cli-config` (`src/cli/config.ts`) serve the eval harness; `brief-core/remap` (`src/diff/remap.ts`) serves `persistence`'s category mirror. `brief-core/artifact` (`src/artifact/`) holds the stored-body schemas, the write checks and the tolerant readers for a Brief, a Delta Brief and a Revision narrative; it is not `src/artifacts/`, which names CLI output files. Every reader returns a `Result` and fails on a broken core, whatever the body; the Brief reader alone also drops an invalid optional section, mints a missing group id, normalizes legacy group membership and keeps groups sharing an id (only the write check refuses those), reporting each in `issues`, and the narrative reader strips unknown keys.
 
 What the layout can't show:
 

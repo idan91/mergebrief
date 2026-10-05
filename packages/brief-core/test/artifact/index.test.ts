@@ -8,6 +8,7 @@ import {
 import { BriefSchema } from "../../src/types";
 import {
   makeSkippedRevisionNarrative,
+  makeTwoGroupBrief,
   makeValidBrief,
   makeValidDeltaBrief,
   makeValidRevisionNarrative,
@@ -61,6 +62,26 @@ describe("checkBriefForWrite", () => {
     });
   });
 
+  it.each([
+    ["no custom names", []],
+    ["custom names", [CUSTOM_NAME]],
+  ])("refuses two groups that share an id with %s", (_label, customNames) => {
+    const brief = makeTwoGroupBrief();
+    const [firstGroup, lastGroup] = brief.changeGroups;
+    const body = { ...brief, changeGroups: [firstGroup, lastGroup, lastGroup] };
+
+    expect(checkBriefForWrite(body, customNames)).toEqual({
+      ok: false,
+      error: [
+        {
+          code: ArtifactIssueCodes.INVALID,
+          path: "changeGroups.2.id",
+          message: "Shares its id with an earlier change group",
+        },
+      ],
+    });
+  });
+
   it("refuses a body that is not an object", () => {
     const checked = checkBriefForWrite("not a brief", []);
 
@@ -94,6 +115,23 @@ describe("checkDeltaBriefForWrite", () => {
     const delta = makeValidDeltaBrief();
 
     expect(checkDeltaBriefForWrite(delta)).toEqual({ ok: true, value: delta });
+  });
+
+  it("refuses two changed groups that share an id", () => {
+    const delta = makeValidDeltaBrief();
+    const [group] = delta.changedGroups;
+    const body = { ...delta, changedGroups: [group, group] };
+
+    expect(checkDeltaBriefForWrite(body)).toEqual({
+      ok: false,
+      error: [
+        {
+          code: ArtifactIssueCodes.INVALID,
+          path: "changedGroups.1.id",
+          message: "Shares its id with an earlier change group",
+        },
+      ],
+    });
   });
 
   it("refuses a Delta Brief missing a field with a pathed issue", () => {
