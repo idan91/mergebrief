@@ -28,6 +28,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../test/fixtures";
 import type {
   AllowedRepo,
   InstallationResolver,
@@ -172,6 +173,7 @@ async function buildGateApp(
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
   if (options.operatorToken !== undefined) {

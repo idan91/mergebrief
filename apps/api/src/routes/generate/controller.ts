@@ -3,7 +3,6 @@
 // and the enqueue; the worker does the generation.
 import type { PrLocator } from "brief-core";
 import {
-  createUserOctokit,
   fetchPullRequest,
   GitHubApiErrorCodes,
   type GitHubApiError,
@@ -53,7 +52,7 @@ async function resolveUnderFallback(
     return viewer;
   }
   const fallback = await fetchPullRequest(
-    createUserOctokit(fallbackToken),
+    deps.github.createOctokit(fallbackToken),
     ref,
   );
   if (fallback.ok || fallback.error.code !== GitHubApiErrorCodes.UNAUTHORIZED) {
@@ -77,7 +76,7 @@ export default {
     };
     // The viewer-token read IS the access check.
     const viewer = await deps.github.run(async (token) =>
-      fetchPullRequest(createUserOctokit(token), ref),
+      fetchPullRequest(deps.github.createOctokit(token), ref),
     );
     const resolved = await resolveUnderFallback(deps, ref, viewer);
     if (!resolved.ok) {

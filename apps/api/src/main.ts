@@ -4,7 +4,7 @@
 // rather than serve a half-wired surface.
 import { serve, type ServerType } from "@hono/node-server";
 import { RUNTIME_MARKER_VAR } from "generators";
-import { createAppClient } from "github";
+import { createAppClient, createUserOctokit } from "github";
 import {
   closeDb,
   createDb,
@@ -99,6 +99,7 @@ async function main(): Promise<void> {
       keyProvider,
       sessionKeyRef: SESSION_KEY_REF,
       publicBaseUrl: boot.api.publicBaseUrl,
+      createUserOctokit,
     },
   });
 

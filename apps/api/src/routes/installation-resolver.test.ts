@@ -27,6 +27,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../test/fixtures";
 import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
 import {
   AuthChannels,
@@ -121,6 +122,7 @@ function stubDeps(): AuthRouteDeps {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
 }

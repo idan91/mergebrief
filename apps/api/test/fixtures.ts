@@ -3,7 +3,12 @@
 // tenant scope is keyed by. Session-specific seeding lives in
 // `session/fixtures.ts`, which builds on these.
 import { createHash, randomBytes } from "node:crypto";
-import type { OperatorTokenConfig } from "github";
+import {
+  createUserOctokit,
+  type OperatorTokenConfig,
+  type UserOctokitFactory,
+  type UserOctokitOptions,
+} from "github";
 import {
   createEnvKeyProvider,
   isInstallationId,
@@ -33,6 +38,20 @@ export function createKeyProvider(): KeyProvider {
   });
 }
 
+type TestUserOctokit = ReturnType<UserOctokitFactory>;
+
+/**
+ * The real factory with the throttle off, since no GitHub is on the other
+ * end. Retry stays whatever the caller asked for: a suite that counts calls
+ * on a 500 must see a replay when the code under test allows one.
+ */
+export function createTestUserOctokit(
+  accessToken: string,
+  options: UserOctokitOptions = {},
+): TestUserOctokit {
+  return createUserOctokit(accessToken, { ...options, throttle: false });
+}
+
 export function buildAuthDeps(kp: KeyProvider): AuthDeps {
   return {
     oauthClientId: "Iv1.test-client-id",
@@ -40,6 +59,7 @@ export function buildAuthDeps(kp: KeyProvider): AuthDeps {
     keyProvider: kp,
     sessionKeyRef: KEY_REF,
     publicBaseUrl: "https://app.example.test",
+    createUserOctokit: createTestUserOctokit,
   };
 }
 

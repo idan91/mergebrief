@@ -3,11 +3,9 @@
 import {
   createInlineReviewComment,
   createReviewCommentReply,
-  createUserOctokit,
   setReviewThreadResolution,
 } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
-import { createMutationOctokit } from "../mutation-octokit";
 import type { CommentsControllerDeps } from "./types";
 
 export default {
@@ -18,7 +16,10 @@ export default {
     input: Parameters<typeof createInlineReviewComment>[1],
   ) {
     const posted = await deps.github.run((token) =>
-      createInlineReviewComment(createMutationOctokit(token), input),
+      createInlineReviewComment(
+        deps.github.createMutationOctokit(token),
+        input,
+      ),
     );
     if (!posted.ok) {
       return buildGitHubDeniedResult(posted.error, "mutation");
@@ -32,7 +33,7 @@ export default {
     input: Parameters<typeof createReviewCommentReply>[1],
   ) {
     const created = await deps.github.run((token) =>
-      createReviewCommentReply(createMutationOctokit(token), input),
+      createReviewCommentReply(deps.github.createMutationOctokit(token), input),
     );
     if (!created.ok) {
       return buildGitHubDeniedResult(created.error, "mutation");
@@ -48,7 +49,7 @@ export default {
     input: Parameters<typeof setReviewThreadResolution>[1],
   ) {
     const outcome = await deps.github.run((token) =>
-      setReviewThreadResolution(createUserOctokit(token), input),
+      setReviewThreadResolution(deps.github.createOctokit(token), input),
     );
     if (!outcome.ok) {
       return buildGitHubDeniedResult(outcome.error, "mutation");

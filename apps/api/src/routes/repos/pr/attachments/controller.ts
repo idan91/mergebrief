@@ -3,7 +3,7 @@
 // an asset's bytes then come from a URL GitHub already signed, with no
 // credential. A branch file is read with the viewer's own token only.
 import { ATTACHMENT_BRANCH, buildAttachmentBranchUrl } from "contract";
-import { createUserOctokit, fetchRenderedImageSources } from "github";
+import { fetchRenderedImageSources } from "github";
 import type { Result } from "types/utils";
 import {
   buildGitHubDeniedResult,
@@ -44,7 +44,7 @@ async function fetchSources(
   let attempts = 0;
   const fetched = await deps.github.runRead((token) => {
     attempts += 1;
-    return fetchRenderedImageSources(createUserOctokit(token), {
+    return fetchRenderedImageSources(deps.github.createOctokit(token), {
       owner: input.owner,
       repo: input.repo,
       prNumber: input.prNumber,

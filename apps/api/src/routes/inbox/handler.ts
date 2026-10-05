@@ -1,6 +1,5 @@
 import { ApiErrorCodes, InboxQueryKeys } from "contract";
 import {
-  createUserOctokit,
   listOpenPullRequests,
   type OpenPullRequest,
   type RepositoryRef,
@@ -115,7 +114,7 @@ export default function createHandlers(
       const github = createReviewerGitHubClient(deps, session, log);
       const listOpenPulls = (target: RepositoryRef) =>
         github.runRead(
-          (token) => listOpenPullRequests(createUserOctokit(token), target),
+          (token) => listOpenPullRequests(github.createOctokit(token), target),
           isGitHubDenial,
         );
       const startedAt = Date.now();

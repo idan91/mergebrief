@@ -49,11 +49,6 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/ready/controller.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/repos/pr/scope.ts": {
     "house/comment-run": {
       "count": 1

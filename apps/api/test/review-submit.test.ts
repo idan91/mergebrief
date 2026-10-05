@@ -16,7 +16,6 @@ import {
   type AnchorStatus,
 } from "persistence";
 import { CommentAnchorKinds } from "types/comments";
-import type * as GithubModule from "github";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -39,19 +38,6 @@ import {
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-
-// Nothing in this file reaches GitHub, so octokit's one-mutation-per-second
-// pacing buys no safety and would only stretch every landing case.
-vi.mock("github", async (importOriginal) => {
-  const actual = await importOriginal<typeof GithubModule>();
-  return {
-    ...actual,
-    createUserOctokit: (
-      token: string,
-      options?: GithubModule.UserOctokitOptions,
-    ) => actual.createUserOctokit(token, { ...options, throttle: false }),
-  };
-});
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });

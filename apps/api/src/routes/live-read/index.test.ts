@@ -3,7 +3,6 @@
 // retry before an unreachable mark, and the ceiling.
 import type * as githubModule from "github";
 import {
-  createUserOctokit,
   getLiveReadKey,
   readPullRequestFacts,
   type LiveReadPage,
@@ -22,7 +21,10 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReviewerGitHubClient } from "../auth/reviewer-github-client";
+import type {
+  ReviewerGitHubClient,
+  UserOctokit,
+} from "../auth/reviewer-github-client";
 import type { ViewerPrincipal } from "../auth/session/types";
 import { LIVE_READ_CHUNK_SIZE, LIVE_READ_MAX_CHUNKS } from "./consts";
 import type { Mutable } from "types/utils";
@@ -35,7 +37,6 @@ import type { LiveReadDeps } from "./types";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
-  createUserOctokit: vi.fn(),
   readPullRequestFacts: vi.fn(),
 }));
 
@@ -68,11 +69,15 @@ function stubClient(reviewerId: ReviewerId): ReviewerGitHubClient {
   return {
     run: async (call) => call(VIEWER_TOKEN),
     runRead: async (call) => call(VIEWER_TOKEN),
+    createOctokit: (token) => ({ token }) as unknown as UserOctokit,
+    createMutationOctokit: () => {
+      throw new Error("the live read writes nothing to GitHub");
+    },
     session: () => ({ reviewerId }) as unknown as ViewerPrincipal,
   };
 }
 
-/** The token a mocked octokit was built with, read back inside the read mock. */
+/** The token a stubbed octokit was built with, read back inside the read mock. */
 interface TokenOctokit {
   readonly token: string;
 }
@@ -103,9 +108,6 @@ function stubReads(
   answer: (token: string, ref: PullRequestRef) => PullRequestFacts | null,
 ): ReadCall[] {
   const calls: ReadCall[] = [];
-  vi.mocked(createUserOctokit).mockImplementation(
-    (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-  );
   vi.mocked(readPullRequestFacts).mockImplementation(async (octokit, refs) => {
     const { token } = octokit as unknown as TokenOctokit;
     calls.push({ token, refs });
@@ -124,9 +126,6 @@ function stubWithheldReads(
   ) => PullRequestFacts | null | undefined,
 ): ReadCall[] {
   const calls: ReadCall[] = [];
-  vi.mocked(createUserOctokit).mockImplementation(
-    (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-  );
   vi.mocked(readPullRequestFacts).mockImplementation(async (octokit, refs) => {
     const { token } = octokit as unknown as TokenOctokit;
     calls.push({ token, refs });
@@ -145,7 +144,6 @@ let harness: PgliteHarness;
 beforeEach(async () => {
   harness = await createPgliteHarness();
   vi.mocked(readPullRequestFacts).mockReset();
-  vi.mocked(createUserOctokit).mockReset();
   vi.mocked(log.warn).mockReset();
   resetLiveReadMemory();
 });
@@ -311,9 +309,6 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a throw inside the read serves the stored rows as a failure", async () => {
-    vi.mocked(createUserOctokit).mockImplementation(
-      (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-    );
     vi.mocked(readPullRequestFacts).mockRejectedValue(new Error("boom"));
     await seedRows(1);
 
@@ -324,9 +319,6 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a refused read cools the owner down for the window", async () => {
-    vi.mocked(createUserOctokit).mockImplementation(
-      (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-    );
     vi.mocked(readPullRequestFacts).mockResolvedValue({
       ok: false,
       error: { code: "rate-limited", status: 403, message: "read failed" },
@@ -344,9 +336,6 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("another reader's refusal does not cool the owner down", async () => {
-    vi.mocked(createUserOctokit).mockImplementation(
-      (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-    );
     vi.mocked(readPullRequestFacts).mockResolvedValue({
       ok: false,
       error: { code: "rate-limited", status: 403, message: "read failed" },
@@ -457,9 +446,6 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a GitHub failure leaves the stored rows and warns", async () => {
-    vi.mocked(createUserOctokit).mockImplementation(
-      (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-    );
     vi.mocked(readPullRequestFacts).mockResolvedValue({
       ok: false,
       error: { code: "rate-limited", status: 403, message: "read failed" },
@@ -481,9 +467,6 @@ describe("refreshUrlPullRequests", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    vi.mocked(createUserOctokit).mockImplementation(
-      (token) => ({ token }) as unknown as ReturnType<typeof createUserOctokit>,
-    );
     vi.mocked(readPullRequestFacts).mockImplementation(async (_o, refs) => {
       await gate;
       const page = new Map<string, PullRequestFacts | null>();

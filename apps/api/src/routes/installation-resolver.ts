@@ -7,7 +7,6 @@
 // fail-closed path: a GitHub failure is a 401/502, NEVER a DB-only listing,
 // and a repo in no reachable installation drops to the viewer's own URL rows.
 import {
-  createUserOctokit,
   GitHubApiErrorCodes,
   listInstallationRepositoriesForUser,
   type GitHubApiError,
@@ -183,7 +182,7 @@ export function createInstallationResolver(
       async ({ installationId }) => {
         const repos = await client.run((accessToken) =>
           listInstallationRepositoriesForUser(
-            createUserOctokit(accessToken),
+            client.createOctokit(accessToken),
             installationId,
           ),
         );

@@ -41,11 +41,6 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
-// Not the harness: POST .../comments is on octokit's `triggersNotification`
-// list, so consecutive writes are spaced ~3s by module-global Bottleneck
-// groups. Matches the timeout its two throttle-bound siblings carry.
-vi.setConfig({ testTimeout: 30_000 });
-
 const REPO_ID = 424242;
 const COMMIT_ID = "a".repeat(40);
 const BASE_SHA = "b".repeat(40);

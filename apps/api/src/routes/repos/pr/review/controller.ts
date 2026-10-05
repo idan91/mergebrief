@@ -8,7 +8,6 @@ import {
   addPullRequestReviewThread,
   countPendingReviewComments,
   createPullRequestReview,
-  createUserOctokit,
   deletePendingPullRequestReview,
   findPendingPullRequestReview,
   GitHubApiErrorCodes,
@@ -29,7 +28,6 @@ import {
   isTokenUnreadableFailure,
   type TokenUnreadableFailure,
 } from "../../../../shared-errors/failures";
-import { createMutationOctokit } from "../mutation-octokit";
 import {
   foldCommentsIntoBody,
   type SubmitComment,
@@ -95,7 +93,7 @@ async function clearStalePendingReview(
   >
 > {
   const stale = await deps.github.run((token) =>
-    findPendingPullRequestReview(createUserOctokit(token), target),
+    findPendingPullRequestReview(deps.github.createOctokit(token), target),
   );
   if (!stale.ok) {
     return stale;
@@ -106,7 +104,10 @@ async function clearStalePendingReview(
   }
 
   const counted = await deps.github.run((token) =>
-    countPendingReviewComments(createUserOctokit(token), found.reviewNodeId),
+    countPendingReviewComments(
+      deps.github.createOctokit(token),
+      found.reviewNodeId,
+    ),
   );
   if (!counted.ok) {
     return counted;
@@ -119,7 +120,7 @@ async function clearStalePendingReview(
   }
 
   return deps.github.run((token) =>
-    deletePendingPullRequestReview(createUserOctokit(token), {
+    deletePendingPullRequestReview(deps.github.createOctokit(token), {
       ...target,
       reviewId: found.reviewId,
     }),
@@ -133,7 +134,7 @@ async function openPendingReview(
 ): Promise<PendingReviewResult> {
   const create = () =>
     deps.github.run((token) =>
-      createPullRequestReview(createMutationOctokit(token), target),
+      createPullRequestReview(deps.github.createMutationOctokit(token), target),
     );
 
   const first = await create();
@@ -160,7 +161,7 @@ async function hasSubmitLanded(
   pending: PendingReview,
 ): Promise<boolean> {
   const probe = await deps.github.run((token) =>
-    hasPullRequestReviewPublished(createUserOctokit(token), {
+    hasPullRequestReviewPublished(deps.github.createOctokit(token), {
       ...target,
       reviewId: pending.reviewId,
     }),
@@ -178,7 +179,7 @@ async function discardPendingReview(
   pending: PendingReview,
 ): Promise<void> {
   const deleted = await deps.github.run((token) =>
-    deletePendingPullRequestReview(createUserOctokit(token), {
+    deletePendingPullRequestReview(deps.github.createOctokit(token), {
       ...target,
       reviewId: pending.reviewId,
     }),
@@ -208,7 +209,10 @@ async function submitReview(
   const postThread: PostThread = (thread) =>
     deps.github.run(
       (token) =>
-        addPullRequestReviewThread(createMutationOctokit(token), thread),
+        addPullRequestReviewThread(
+          deps.github.createMutationOctokit(token),
+          thread,
+        ),
       isThreadTokenExpired,
     );
   const threads = await postReviewThreads(
@@ -234,7 +238,10 @@ async function submitReview(
     submission.body = body;
   }
   const submitted = await deps.github.run((token) =>
-    submitPullRequestReview(createMutationOctokit(token), submission),
+    submitPullRequestReview(
+      deps.github.createMutationOctokit(token),
+      submission,
+    ),
   );
   if (!submitted.ok) {
     const landed = await hasSubmitLanded(deps, input.target, pending.value);

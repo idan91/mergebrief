@@ -24,6 +24,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../../../../test/fixtures";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import {
   AuthChannels,
@@ -95,6 +96,7 @@ async function buildClient(ciphertextOverride?: string) {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
   return createReviewerGitHubClient(deps, session, log);

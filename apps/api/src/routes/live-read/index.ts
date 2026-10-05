@@ -3,7 +3,6 @@
 // waits up to a ceiling; past it the stored rows are served and the read
 // finishes in the background. Nothing here queues a generation.
 import {
-  createUserOctokit,
   getLiveReadKey,
   readPullRequestFacts,
   type LiveReadPage,
@@ -231,7 +230,7 @@ async function readChunk(
 ): Promise<LiveReadOutcome> {
   const page = await deps.github.run((token) =>
     readPullRequestFacts(
-      createUserOctokit(token),
+      deps.github.createOctokit(token),
       chunk.map((target) => target.ref),
     ),
   );
@@ -328,7 +327,7 @@ async function retryUnderFallback(
   }
 
   const page = await readPullRequestFacts(
-    createUserOctokit(deps.fallbackToken),
+    deps.github.createOctokit(deps.fallbackToken),
     targets.map((target) => target.ref),
   );
   if (!page.ok) {

@@ -12,6 +12,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createTestUserOctokit } from "../../../../../test/fixtures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import sessionController from "./controller";
 import { resolveSessionTarget } from "./logic/brief-target";
@@ -86,6 +87,7 @@ beforeAll(async () => {
       },
       sessionKeyRef: "UNUSED",
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
   const tenant = createTenantRepository(harness.handle, ctx);

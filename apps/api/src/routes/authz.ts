@@ -47,11 +47,7 @@ import { ApiErrorCodes } from "contract";
 import type { Context, MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
-import {
-  createUserOctokit,
-  fetchRepositoryById,
-  type GitHubApiError,
-} from "github";
+import { fetchRepositoryById, type GitHubApiError } from "github";
 import {
   isOwnerContext,
   createSessionAuth,
@@ -91,7 +87,10 @@ import {
   Unauthorized,
 } from "../shared-errors/api-error";
 import { isGitHubDenial } from "../shared-errors/failures";
-import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
+import {
+  createReviewerGitHubClient,
+  type ReviewerGitHubClient,
+} from "./auth/reviewer-github-client";
 import type { InstallationResolver, RepoWorld } from "./installation-resolver";
 import { HttpStatuses } from "types/http";
 
@@ -206,11 +205,12 @@ async function resolveRepoUnderFallback(
   deps: AuthRouteDeps,
   c: Context<AuthzEnv>,
   repoId: RepoId,
-  reviewerId: ReviewerId,
+  client: ReviewerGitHubClient,
   error: GitHubApiError,
 ): Promise<
   { readonly fullName: string; readonly prNumber: number } | undefined
 > {
+  const reviewerId = client.session().reviewerId;
   const fallbackToken = resolveOperatorTokenFor(deps, reviewerId);
   if (fallbackToken === undefined || !isGitHubDenial(error)) {
     return undefined;
@@ -227,7 +227,7 @@ async function resolveRepoUnderFallback(
     return undefined;
   }
   const repo = await fetchRepositoryById(
-    createUserOctokit(fallbackToken),
+    client.createOctokit(fallbackToken),
     repoId,
   );
   return repo.ok ? { fullName: repo.value.fullName, prNumber } : undefined;
@@ -445,7 +445,7 @@ export function repoAuthzLayer(
     let attempts = 0;
     const repo = await client.run((token) => {
       attempts += 1;
-      return fetchRepositoryById(createUserOctokit(token), repoId);
+      return fetchRepositoryById(client.createOctokit(token), repoId);
     });
 
     if (!repo.ok) {
@@ -473,7 +473,7 @@ export function repoAuthzLayer(
         deps,
         c,
         repoId,
-        client.session().reviewerId,
+        client,
         repo.error,
       );
       if (fallbackRepo !== undefined) {

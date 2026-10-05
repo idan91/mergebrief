@@ -20,6 +20,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../../test/fixtures";
 import { AUTHZ_CACHE_TTL_MS } from "../authz";
 import { createAccessibleInstallationsResolver } from "./accessible-installations";
 import {
@@ -89,6 +90,7 @@ function stubDeps(): AuthRouteDeps {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
 }

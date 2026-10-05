@@ -19,6 +19,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../../test/fixtures";
 import { createReviewerGitHubClient } from "./reviewer-github-client";
 import type * as refreshModule from "./session/logic/refresh";
 import {
@@ -93,6 +94,7 @@ async function setup(token = "gh-token-1"): Promise<Setup> {
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
   return { deps, session };

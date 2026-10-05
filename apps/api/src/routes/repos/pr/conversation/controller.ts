@@ -3,11 +3,7 @@
 // installation token for App rows, the viewer's own token (one per-request
 // refresh budget) for owner-world rows. The handler owns posture and the
 // per-PR cache.
-import {
-  createUserOctokit,
-  fetchPullRequestConversation,
-  type PrConversation,
-} from "github";
+import { fetchPullRequestConversation, type PrConversation } from "github";
 import {
   FailureKinds,
   isGitHubDenial,
@@ -57,7 +53,7 @@ export default {
   ): Promise<ReadConversationResult> {
     const fetched = await deps.github.runRead(
       (token) =>
-        fetchPullRequestConversation(createUserOctokit(token), {
+        fetchPullRequestConversation(deps.github.createOctokit(token), {
           owner: input.owner,
           repo: input.repo,
           prNumber: input.prNumber,

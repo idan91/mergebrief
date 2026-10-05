@@ -34,6 +34,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { createTestUserOctokit } from "../../../../../test/fixtures";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
 import type * as refreshModule from "../../../auth/session/logic/refresh";
 import {
@@ -219,6 +220,7 @@ async function buildApp(
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
   };
   const app = new Hono<AuthzEnv>();

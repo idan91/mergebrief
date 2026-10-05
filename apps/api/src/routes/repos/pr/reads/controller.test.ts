@@ -149,6 +149,12 @@ describe("readsController", () => {
       runRead: () => {
         throw new Error("no GitHub call expected");
       },
+      createOctokit: () => {
+        throw new Error("no GitHub call expected");
+      },
+      createMutationOctokit: () => {
+        throw new Error("no GitHub call expected");
+      },
       session: () => {
         throw new Error("no session expected");
       },

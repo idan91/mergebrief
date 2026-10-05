@@ -20,7 +20,7 @@ import { z } from "zod";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
-import { KEY_REF, brandReviewerId } from "./fixtures";
+import { KEY_REF, brandReviewerId, createTestUserOctokit } from "./fixtures";
 
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
@@ -55,6 +55,7 @@ describe("GET /api/capabilities", () => {
       keyProvider: kp,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://app.example.test",
+      createUserOctokit: createTestUserOctokit,
     };
     app = createApp({
       logger: testLogger(),

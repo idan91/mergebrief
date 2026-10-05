@@ -5,7 +5,6 @@
 // stage runs BEFORE the viewer has re-proven access this request, so 403 and
 // 404 both collapse to the gate's uniform 404 posture.
 import {
-  createUserOctokit,
   fetchRepositoryById,
   GitHubApiErrorCodes,
   type GitHubApiError,
@@ -56,7 +55,7 @@ export async function fetchRepositoryFresh(
   repoId: RepoId,
 ): Promise<Result<FreshRepository, RepoResolveFailure>> {
   const repoInfo = await deps.github.run((token) => {
-    const octokit = createUserOctokit(token);
+    const octokit = deps.github.createOctokit(token);
     return fetchRepositoryById(octokit, repoId);
   });
   if (!repoInfo.ok) {

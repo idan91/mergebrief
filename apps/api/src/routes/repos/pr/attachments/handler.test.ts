@@ -14,6 +14,7 @@ import {
   type AppDatabase,
 } from "persistence";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestUserOctokit } from "../../../../../test/fixtures";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
 import type * as refreshModule from "../../../auth/session/logic/refresh";
 import { refreshSessionToken } from "../../../auth/session/logic/refresh";
@@ -152,6 +153,7 @@ async function buildApp(
       keyProvider,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
+      createUserOctokit: createTestUserOctokit,
     },
     operatorToken:
       options.operatorToken === undefined

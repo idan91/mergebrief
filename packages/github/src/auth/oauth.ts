@@ -341,6 +341,9 @@ export function createUserOctokit(
   return new Octokit(octokitOptions);
 }
 
+/** The seam a host injects, so a test swaps the client without mocking this package. */
+export type UserOctokitFactory = typeof createUserOctokit;
+
 type OctokitOptions = NonNullable<ConstructorParameters<typeof Octokit>[0]>;
 
 /** A stable per-token limiter key that never carries the token itself. */

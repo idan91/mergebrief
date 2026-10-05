@@ -2,7 +2,6 @@
 // behind the gate, terminal and posture-free, so these ops THROW NotFound;
 // stored bodies return verbatim (already JSON, never re-parsed).
 import {
-  createUserOctokit,
   fetchCompareDiff,
   fetchPullRequest,
   getRepoFile,
@@ -28,7 +27,10 @@ import {
   FailureKinds,
   isGitHubDenial,
 } from "../../../../shared-errors/failures";
-import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
+import type {
+  ReviewerGitHubClient,
+  UserOctokit,
+} from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
 import type {
@@ -118,14 +120,12 @@ async function readWaitReason(
 /** One viewer-token read shaped into the stack failure vocabulary. */
 async function readWithViewer<T>(
   github: ReviewerGitHubClient,
-  read: (
-    octokit: ReturnType<typeof createUserOctokit>,
-  ) => Promise<Result<T, GitHubApiError>>,
+  read: (octokit: UserOctokit) => Promise<Result<T, GitHubApiError>>,
 ): Promise<Result<T, StackFailure>> {
   let attempts = 0;
   const result = await github.runRead((token) => {
     attempts += 1;
-    return read(createUserOctokit(token));
+    return read(github.createOctokit(token));
   }, isGitHubDenial);
   if (result.ok) return result;
   if ("kind" in result.error) {
@@ -484,7 +484,7 @@ export default {
       operatorReadAllowed,
       (token) => {
         attempts += 1;
-        return fetchCompareDiff(createUserOctokit(token), span);
+        return fetchCompareDiff(deps.github.createOctokit(token), span);
       },
     );
     if (!diff.ok) {
@@ -626,7 +626,7 @@ export default {
       operatorReadAllowed,
       (token) => {
         attempts += 1;
-        return getRepoFile(createUserOctokit(token), {
+        return getRepoFile(deps.github.createOctokit(token), {
           owner: input.owner,
           repo: input.repo,
           path: input.path,

@@ -46,6 +46,7 @@ export type {
   OAuthError,
   OAuthErrorCode,
   UserInstallation,
+  UserOctokitFactory,
   UserOctokitOptions,
 } from "./auth/oauth";
 

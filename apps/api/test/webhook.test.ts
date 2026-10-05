@@ -15,7 +15,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
-import { INSTALLATION_ID, SECRET } from "./fixtures";
+import { createTestUserOctokit, INSTALLATION_ID, SECRET } from "./fixtures";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
@@ -28,6 +28,7 @@ const DUMMY_AUTH: AuthDeps = {
   }),
   sessionKeyRef: "SESSION_KEY_V1",
   publicBaseUrl: "http://localhost:3000",
+  createUserOctokit: createTestUserOctokit,
 };
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;

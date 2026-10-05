@@ -4,7 +4,7 @@
 // refresh (`refreshSessionToken`) before re-running; the token can expire
 // between calls, and per-call-site refresh logic either misses that or
 // refreshes more than once. Hand-rolled refresh locals are banned.
-import { GitHubApiErrorCodes } from "github";
+import { GitHubApiErrorCodes, type UserOctokitFactory } from "github";
 import {
   FailureKinds,
   isTokenUnreadableFailure,
@@ -25,6 +25,8 @@ import { refreshSessionToken } from "./session/logic/refresh";
  * caller owns the posture (burn the session, 401, …). One shape with the
  * shared failure vocabulary so the two can never drift. */
 export type ReviewerTokenFailure = TokenUnreadableFailure;
+
+export type UserOctokit = ReturnType<UserOctokitFactory>;
 
 export interface ReviewerGitHubClient {
   /**
@@ -48,6 +50,14 @@ export interface ReviewerGitHubClient {
     isDenied: (error: E) => boolean,
     isExpired?: (error: E) => boolean,
   ): Promise<Result<T, E | ReviewerTokenFailure>>;
+  /** The GitHub client for a token `run` or `runRead` handed out. */
+  createOctokit(accessToken: string): UserOctokit;
+  /**
+   * A create rides a client with octokit's retry off: GitHub can apply a POST
+   * and still answer 5xx, so a replay is a second comment, thread or review,
+   * never a repeat of the first.
+   */
+  createMutationOctokit(accessToken: string): UserOctokit;
   /** The possibly-rotated session (refresh CAS seed, cache keys, audit ids). */
   session(): ViewerPrincipal;
 }
@@ -155,6 +165,12 @@ export function createReviewerGitHubClient(
         "url-box fallback token rejected by GitHub — check the operator PAT",
       );
       return own;
+    },
+    createOctokit(token: string): UserOctokit {
+      return deps.auth.createUserOctokit(token);
+    },
+    createMutationOctokit(token: string): UserOctokit {
+      return deps.auth.createUserOctokit(token, { retry: false });
     },
     session(): ViewerPrincipal {
       return currentSession;

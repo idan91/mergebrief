@@ -1,5 +1,9 @@
 import { Hono } from "hono";
-import { GitHubApiErrorCodes, type GitHubApiError } from "github";
+import {
+  GitHubApiErrorCodes,
+  type GitHubApiError,
+  type UserOctokitFactory,
+} from "github";
 import type * as GitHubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -17,6 +21,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Result } from "types/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createTestUserOctokit } from "../../../../../test/fixtures";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
 import {
   AuthChannels,
@@ -129,6 +134,7 @@ function buildApp(
           keyProvider: createEnvKeyProvider({}),
           sessionKeyRef: "SESSION_KEY_V1",
           publicBaseUrl: "https://example.test",
+          createUserOctokit: createTestUserOctokit,
         },
       },
       github,
@@ -212,7 +218,6 @@ describe("readConversation; installation-path 401 stays an upstream error", () =
 // ---------------------------------------------------------------------------
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof GitHubModule>()),
-  createUserOctokit: vi.fn(),
   fetchPullRequestConversation: vi.fn(),
 }));
 
@@ -226,9 +231,8 @@ describe("readConversation with an owner viewer token", () => {
     viewerFetch: ReturnType<typeof vi.fn>;
     tokensSeen: string[];
   }> {
-    const { createUserOctokit, fetchPullRequestConversation, encryptToken } =
+    const { fetchPullRequestConversation, encryptToken } =
       await import("github").then(async (github) => ({
-        createUserOctokit: vi.mocked(github.createUserOctokit),
         fetchPullRequestConversation: vi.mocked(
           github.fetchPullRequestConversation,
         ),
@@ -272,12 +276,11 @@ describe("readConversation with an owner viewer token", () => {
     };
 
     const tokensSeen: string[] = [];
-    createUserOctokit.mockReset();
     fetchPullRequestConversation.mockReset();
-    createUserOctokit.mockImplementation((token: string) => {
+    const createUserOctokit: UserOctokitFactory = (token) => {
       tokensSeen.push(token);
-      return {} as ReturnType<typeof createUserOctokit>;
-    });
+      return {} as ReturnType<UserOctokitFactory>;
+    };
     fetchPullRequestConversation.mockResolvedValue(input.fetchResult);
 
     const installationFetch = vi.fn(async () => {
@@ -305,6 +308,7 @@ describe("readConversation with an owner viewer token", () => {
             keyProvider: kp,
             sessionKeyRef: keyRef,
             publicBaseUrl: "https://example.test",
+            createUserOctokit,
           },
         },
         {

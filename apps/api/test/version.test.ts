@@ -15,7 +15,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { createUpdateCheck, type UpdateCheck } from "../src/update-check";
 import { testLogger } from "./logging";
-import { KEY_REF, SAME_ORIGIN_HEADERS, brandReviewerId } from "./fixtures";
+import {
+  KEY_REF,
+  SAME_ORIGIN_HEADERS,
+  brandReviewerId,
+  createTestUserOctokit,
+} from "./fixtures";
 import { seedApiToken, seedSession } from "./session/fixtures";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
@@ -63,6 +68,7 @@ describe("GET /api/version", () => {
       keyProvider: kp,
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://app.example.test",
+      createUserOctokit: createTestUserOctokit,
     };
     app = createApp({
       logger: testLogger(),
