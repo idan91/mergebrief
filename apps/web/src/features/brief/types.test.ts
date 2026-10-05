@@ -18,7 +18,7 @@ import {
   RevisionNarrativeSkipReasons as BriefCoreRevisionNarrativeSkipReasons,
   type Specificity as BriefCoreSpecificity,
   type RevisionNarrativeSkipReason as BriefCoreRevisionNarrativeSkipReason,
-} from "brief-core";
+} from "brief-core/types";
 import { TicketTrackers as SharedTicketTrackers } from "types/trackers";
 import type { Equals } from "types/utils";
 import {

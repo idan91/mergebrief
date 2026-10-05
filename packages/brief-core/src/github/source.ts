@@ -6,7 +6,9 @@ import {
   fetchPrMetadata,
   resolveFullSha,
 } from "./fetch";
-import type { PrLocator, PrMetadata, ReviewComment } from "./types";
+import type { ReviewComment } from "../types";
+import type { PrLocator } from "./pr-url";
+import type { PrMetadata } from "./types";
 
 /**
  * The PR-read port: everything `buildInputs` needs to assemble a brief's inputs,

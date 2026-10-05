@@ -63,6 +63,27 @@ const appDirs = APPS.map((app) => `apps/${app}`);
 const WEB_FEATURE_PUBLIC_SHAPES =
   "^apps/web/src/features/[^/]+/(index\\.tsx?|[^/]+\\.tsx?|[^/]+/index\\.tsx?)$";
 
+// The files behind the leaf subpaths of brief-core and generators: what a
+// member other than the worker and the tools may name by value.
+const LEAF_SUBPATH_FILES = [
+  "^packages/brief-core/src/(types|path-matching)\\.ts$",
+  "^packages/brief-core/src/(pr-stack|artifact)/",
+  "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
+  "^packages/generators/src/contract/generation\\.ts$",
+  "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",
+];
+
+// Matches the resolved file and the bare name of an import that did not resolve.
+const PROVIDER_SDKS = "(^|node_modules/)(@anthropic-ai/sdk|openai)(/|$)";
+
+// The adapters, the harness, the dev CLI, the generation engine and the
+// provider SDKs: what an api process must never load.
+const GENERATION_GRAPH = [
+  "^packages/generators/src/(adapters|harness)/",
+  "^packages/brief-core/src/(cli|generation)/",
+  PROVIDER_SDKS,
+];
+
 module.exports = {
   forbidden: [
     ...buildPackageEdgeRules(),
@@ -91,6 +112,26 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/brief-core/src/path-matching\\.ts$" },
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "pr-url-imports-nothing",
+      comment:
+        "The PR url parser is the leaf the api loads to read a pasted url: it pulls in no runtime code, the exec plumbing beside it included. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/github/pr-url\\.ts$" },
+      to: { path: ".*", dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "repo-config-imports-generators-only-through-trackers",
+      comment:
+        "repo-config takes the tracker schemas from generators and nothing else of it. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/repo-config/src/" },
+      to: {
+        path: "^packages/generators/",
+        pathNot: "^packages/generators/src/config/trackers\\.ts$",
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "generation-contract-imports-only-zod-and-types",
@@ -153,6 +194,47 @@ module.exports = {
           "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/)",
         ],
       },
+    },
+    {
+      name: "brief-core-entry-only-worker-and-tools",
+      comment:
+        "The brief-core entry loads the whole generation graph, so only the worker and the tools name it; every other member imports a leaf subpath. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: {
+        path: "^(apps|packages|tools)/",
+        pathNot: ["^apps/worker/", "^tools/", "^packages/brief-core/"],
+      },
+      to: {
+        path: "^packages/brief-core/src/index\\.ts$",
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "generation-graph-named-only-through-leaf-subpaths",
+      comment:
+        "Outside the worker and the tools, a value import into brief-core or generators lands on a leaf subpath file, and only generators names a provider SDK. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: {
+        path: "^(apps|packages|tools)/",
+        pathNot: [
+          "^apps/worker/",
+          "^tools/",
+          "^packages/(brief-core|generators)/",
+        ],
+      },
+      to: {
+        path: ["^packages/(brief-core|generators)/src/", PROVIDER_SDKS],
+        pathNot: LEAF_SUBPATH_FILES,
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "leaf-subpaths-load-no-generation-graph",
+      comment:
+        "No leaf subpath file reaches an adapter, the harness, the dev CLI, the generation engine or a provider SDK, type-only imports included. With the rule above, this is what keeps the api process from loading them.",
+      severity: "error",
+      from: { path: LEAF_SUBPATH_FILES },
+      to: { reachable: true, path: GENERATION_GRAPH },
     },
     {
       name: "contract-imports-no-runtime",

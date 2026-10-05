@@ -4,7 +4,7 @@ The Hono HTTP surface for the self-host backend. Its **webhook trust boundary** 
 
 This app owns its own process: `src/main.ts` is the startup wiring (`pnpm start`, the compose `api` service), the one place env is read and a real database is constructed, and it serves the top-level `/healthz` and `/readyz` ahead of the `/api` mount. `apps/web` proxies `/api/*` here and holds no credentials. `src/migrate.ts` is the second entry (`pnpm migrate`, `docker compose run --rm api migrate`): it reads `apps/api/.env` then the repo-root `.env` (never overwriting a shell value), loads only the database and `SERVER_VERSION` through `src/boot/`, then `runMigrate` applies the app schema with auto-migrate forced on and the queue schema, and exits 1 on any config error. Boot's check-only refusal names that command when `MERGEBRIEF_RUNTIME` marks the image, the checkout command otherwise.
 
-Deliberately NOT here: page rendering, and any worker/LLM code.
+Deliberately NOT here: page rendering, and any worker/LLM code. The api imports `brief-core` and `generators` only through their leaf subpaths, never an entry, so the process loads no adapter, dev CLI or provider SDK.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 

@@ -5,11 +5,11 @@ import {
   GitHubTransports,
   listReadableTrackers,
   NotionTransports,
-  resolveEffectiveTrackers,
   resolveTrackerReads,
   type ContextFetch,
   type TrackerRootDeps,
 } from "brief-core";
+import { resolveEffectiveTrackers } from "generators/trackers";
 import { createInstallationIssueApi } from "../../issue-api";
 import type { ParsedGeneratePayload } from "../../payload";
 import { acquireRepoConfig } from "../../repo-config";

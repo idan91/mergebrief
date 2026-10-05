@@ -8,7 +8,7 @@ import {
   TrackerConfigSchema,
   TrackerListSchema,
   type TrackerConfig,
-} from "../context/tracker";
+} from "generators/trackers";
 
 /** The `.mergebrief/settings.yaml` path, relative to the working tree. */
 export const LOCAL_SETTINGS_PATH = join(".mergebrief", "settings.yaml");

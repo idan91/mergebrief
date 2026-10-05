@@ -11,7 +11,7 @@ import {
 import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import { createTtlCache } from "../../../ttl-cache";
 import {
   DIFF_CACHE_MAX_ENTRIES,

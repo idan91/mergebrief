@@ -2,7 +2,8 @@
 // uses the `application/vnd.github.diff` media type, which returns the raw
 // diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
-import type { CompareFile, CompareFiles, RepoIdentity } from "brief-core";
+import type { CompareFile, CompareFiles } from "brief-core";
+import type { OpenPullRequest, RepoIdentity } from "brief-core/pr-stack";
 import type { Mutable } from "types/utils";
 import {
   mapRequestError,
@@ -21,7 +22,6 @@ import {
 import type {
   CommitRef,
   CompareDiffRef,
-  OpenPullRequest,
   PullRequestFile,
   PullRequestInfo,
   PullRequestRef,
@@ -31,7 +31,6 @@ import type {
 export type {
   CommitRef,
   CompareDiffRef,
-  OpenPullRequest,
   PullRequestFile,
   PullRequestInfo,
   PullRequestRef,

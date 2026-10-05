@@ -71,13 +71,3 @@ export {
   type TrackerRootDeps,
   type TrackerTransports,
 } from "./trackers";
-export {
-  MAX_TRACKERS,
-  refineTrackerSettings,
-  resolveEffectiveTrackers,
-  resolveTrackerConfigs,
-  TrackerConfigSchema,
-  TrackerListSchema,
-  type TrackerConfig,
-  type TrackerSettings,
-} from "./tracker";

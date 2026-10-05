@@ -25,7 +25,6 @@ import {
   toPrimaryTicket,
   type ContextProvider,
   type FetchContextSnippetsOptions,
-  type TrackerConfig,
 } from "../context";
 import { listReadableTrackers } from "../context/trackers";
 import {
@@ -33,7 +32,10 @@ import {
   createCliRootDeps,
   resolveCliTrackerReads,
 } from "./context-providers";
-import { resolveEffectiveTrackers } from "../context/tracker";
+import {
+  resolveEffectiveTrackers,
+  type TrackerConfig,
+} from "generators/trackers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/file-diff";
 import { lookupBriefIndex } from "../artifacts/manifest";

@@ -1,4 +1,5 @@
-import type { OpenPullRequest, RepositoryRef } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
+import type { RepositoryRef } from "github";
 import type { Logger } from "logging";
 import {
   isPullRequestRowId,

@@ -10,6 +10,7 @@ import type {
   SharedRootDeps,
 } from "brief-core";
 import type { ArtifactIssue, StoredBrief } from "brief-core/artifact";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import type {
   Anchor,
   Effort,
@@ -28,7 +29,7 @@ import type {
   PullRequestRow,
   TenantRepository,
 } from "persistence";
-import type { GitHubApiError, OpenPullRequest, PullRequestFile } from "github";
+import type { GitHubApiError, PullRequestFile } from "github";
 import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";

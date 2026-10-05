@@ -15,7 +15,8 @@ import { createAccessibleInstallationsResolver } from "./auth/accessible-install
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { inboxRoutes } from "./inbox";
-import type { OpenPullRequest, OperatorTokenConfig } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
+import type { OperatorTokenConfig } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
 import type { InstallationGitHubPort } from "./github-port";

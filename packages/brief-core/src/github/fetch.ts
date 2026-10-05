@@ -4,31 +4,14 @@ import {
   createBuiltInContextProviders,
   fetchContextSnippets,
 } from "../context";
-import { execFileAsync, MAX_BUFFER, SEGMENT } from "./exec";
+import { execFileAsync, MAX_BUFFER } from "./exec";
+import { parsePrUrl, type PrLocator } from "./pr-url";
 import type { ContextProvider } from "../context/types";
 import { createGitHubRead, GitHubTransports } from "../context/trackers/github";
 import { listReadableTrackers, type TrackerReads } from "../context/trackers";
 import type { Result } from "types/utils";
 import { attachPrStack, type OpenPullRequest } from "../pr-stack";
-import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
-
-const PR_URL = new RegExp(
-  String.raw`^https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)(?:[/?#].*)?$`,
-);
-
-export function parsePrUrl(url: string): PrLocator {
-  const match = PR_URL.exec(url.trim());
-  if (!match) {
-    throw new Error(
-      `Not a GitHub PR URL: ${url}\nExpected https://github.com/<owner>/<repo>/pull/<number>`,
-    );
-  }
-  const [, owner, repo, num] = match;
-  if (!owner || !repo || !num || !SEGMENT.test(owner) || !SEGMENT.test(repo)) {
-    throw new Error(`Malformed owner/repo in PR URL: ${url}`);
-  }
-  return { owner, repo, number: Number(num) };
-}
+import type { FetchedPr, Log, PrMetadata } from "./types";
 
 /** Folder-internal (also used by `comments.ts`); not on the barrel. */
 export function repoSlug(loc: PrLocator): string {

@@ -130,7 +130,6 @@ export type {
   PullRequestRef,
   PullRequestInfo,
   PullRequestFile,
-  OpenPullRequest,
   RepositoryRef,
   CompareDiffRef,
   CommitRef,

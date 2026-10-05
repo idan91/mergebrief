@@ -1,9 +1,9 @@
 import { ApiErrorCodes, InboxQueryKeys } from "contract";
 import {
   listOpenPullRequests,
-  type OpenPullRequest,
   type RepositoryRef,
 } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Context } from "hono";
 import type { InboxFilters, RepoId } from "persistence";
 import { HttpStatuses, type Mutable } from "types";

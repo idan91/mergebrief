@@ -55,12 +55,12 @@ import {
 } from "../src/task/generate";
 import type { CompareFile } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import { GitHubApiErrorCodes } from "github";
 import type {
   GitHubApiError,
   GitHubPort,
   IssueInfo,
-  OpenPullRequest,
   PullRequestFile,
   PullRequestSource,
   PullRequestInfo,

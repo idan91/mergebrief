@@ -7,7 +7,7 @@ import {
   type PrStack,
   type PrStackSelf,
   type StoredPrStack,
-} from "brief-core";
+} from "brief-core/pr-stack";
 import type { ForkPrStackView, PrStackView, PullStackView } from "contract";
 import type { PullRequestInfo } from "github";
 import type { Logger } from "logging";

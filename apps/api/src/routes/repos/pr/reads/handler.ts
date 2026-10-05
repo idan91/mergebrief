@@ -7,7 +7,7 @@ import {
   isOwnerContext,
 } from "persistence";
 import type { AppDatabase } from "persistence";
-import { DEFAULT_DRAFT_POLICY } from "../../../../draft-policy";
+import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
 import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
@@ -19,7 +19,7 @@ import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import { refreshUrlPullRequest } from "../../../live-read";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { TtlCache } from "../../../ttl-cache";
 import readsController from "./controller";
 import {

@@ -1,7 +1,7 @@
 // Hono-free. URL validation and posture live in the handler; this op owns
 // the viewer-token resolve (with the PAT backstop), the owner-scoped upsert,
 // and the enqueue; the worker does the generation.
-import type { PrLocator } from "brief-core";
+import type { PrLocator } from "brief-core/pr-url";
 import {
   fetchPullRequest,
   GitHubApiErrorCodes,

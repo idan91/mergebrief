@@ -7,7 +7,6 @@ import {
   parsePrUrl,
   type FetchedPr,
   type PrSource,
-  type ReviewComment,
 } from "../github";
 import {
   categorize,
@@ -34,14 +33,16 @@ import {
   type ContextProvider,
   type FetchContextSnippetsOptions,
   type PrimarySnippet,
-  type TrackerConfig,
 } from "../context";
 import {
   createCliContextProviders,
   createCliRootDeps,
   resolveCliTrackerReads,
 } from "./context-providers";
-import { resolveEffectiveTrackers } from "../context/tracker";
+import {
+  resolveEffectiveTrackers,
+  type TrackerConfig,
+} from "generators/trackers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/file-diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
@@ -62,7 +63,12 @@ import {
   revisionNarrativeName,
 } from "../artifacts/output";
 import { listReadableTrackers, type TrackerReads } from "../context/trackers";
-import type { Brief, CommitRange, RevisionNarrativeSkipped } from "../types";
+import type {
+  Brief,
+  CommitRange,
+  ReviewComment,
+  RevisionNarrativeSkipped,
+} from "../types";
 
 /** Where artifacts land when `--out` is absent: `out` under the invoking cwd. */
 const DEFAULT_OUT_DIR = "out";

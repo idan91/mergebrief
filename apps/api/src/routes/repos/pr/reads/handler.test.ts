@@ -44,7 +44,8 @@ import {
 } from "../../../auth/session/types";
 import { refreshSessionToken } from "../../../auth/session/logic/refresh";
 import type { AuthzEnv } from "../../../authz";
-import type { OpenPullRequest, PullRequestInfo } from "github";
+import type { PullRequestInfo } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import { FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
 import { buildFileBlobCacheKey } from "./logic/keys";

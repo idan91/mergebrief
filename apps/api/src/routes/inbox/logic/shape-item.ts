@@ -2,7 +2,7 @@
 // the row's last stack reduced to a position for a closed row (an open row
 // without a live entry has none, same as the brief header), the generation
 // slice as the PR meta reports it.
-import { PrStackSchema } from "brief-core";
+import { PrStackSchema } from "brief-core/pr-stack";
 import type { InboxItem, InboxStackView } from "contract";
 import type { GenerationRow, InboxRow, RepoId } from "persistence";
 import { PrStates, PullRequestSources } from "types/pull-requests";

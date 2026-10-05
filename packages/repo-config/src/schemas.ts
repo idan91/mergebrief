@@ -1,4 +1,4 @@
-// Zod schemas for the two versioned YAML files. Everything is `.strict()` —
+// Zod schemas for the two versioned YAML files. Everything is `.strict()`:
 // an unknown or mistyped key (an `atributes:` typo) must take the invalid
 // path, never silently no-op. Byte-size caps are enforced OUTSIDE Zod (see
 // validate.ts); these schemas own STRUCTURAL validity only.
@@ -8,7 +8,7 @@ import {
   refineTrackerSettings,
   TrackerConfigSchema,
   TrackerListSchema,
-} from "brief-core";
+} from "generators/trackers";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -42,7 +42,7 @@ export type RepoSettingsV1 = z.infer<typeof settingsV1Schema>;
 // --- policy.yaml (v1) -------------------------------------------------------
 
 /**
- * One custom risk attribute — a flat fact. No tier/severity/weight, and none
+ * One custom risk attribute, a flat fact. No tier/severity/weight, and none
  * can sneak in (`.strict()`). `paths` pre-filters chunks before model
  * evaluation; entries are non-empty glob strings.
  */
@@ -59,7 +59,7 @@ export type CustomAttribute = z.infer<typeof customAttributeSchema>;
 /**
  * Custom attribute NAME schema: lower-kebab charset + length cap. These names
  * later extend a model json_schema enum per generation, so the charset
- * restriction is a SECURITY CONTROL — anything off-charset is rejected
+ * restriction is a SECURITY CONTROL: anything off-charset is rejected
  * (whole-file invalid), never sanitized.
  */
 const attributeNameSchema = z
@@ -71,7 +71,7 @@ const attributeNameSchema = z
 /**
  * A single de-emphasis rule: quiet an attribute's render, optionally scoped to
  * paths. `attribute` existence (built-in non-floor or a surviving custom name)
- * is validated in validate.ts — the schema only owns shape. Floor attributes
+ * is validated in validate.ts; the schema only owns shape. Floor attributes
  * are rejected at the schema level (below) because that is a whole-file
  * invalidation, not a warn-and-drop.
  */
@@ -89,7 +89,7 @@ const FLOOR_ATTRIBUTE_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 /**
  * `policy.yaml` v1. `.strict()`; `version` literal `1`; `attributes` is a
  * name→definition record (≤ 20 entries, names charset-gated); `deEmphasize`
- * may not name a floor attribute — one that does invalidates the whole file
+ * may not name a floor attribute: one that does invalidates the whole file
  * (reject-whole, never a warn-and-drop for floor).
  */
 export const policyV1Schema = z

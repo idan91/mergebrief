@@ -23,13 +23,13 @@ import {
   type AppClient,
   type GitHubApiError,
   type IssueInfo,
-  type OpenPullRequest,
   type OperatorTokenConfig,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
 } from "github";
 import type { CompareFiles } from "brief-core";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import {
   createGrantAuth,
   decryptToken,
@@ -46,7 +46,6 @@ import { PermanentJobError } from "./failure";
 export type {
   GitHubApiError,
   IssueInfo,
-  OpenPullRequest,
   PullRequestFile,
   PullRequestInfo,
   RepoFileResult,

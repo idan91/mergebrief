@@ -6,6 +6,7 @@ import {
   type CommitRange,
   type DeltaBrief,
   type PrRef,
+  type ReviewComment,
   type RevisionNarrative,
 } from "../types";
 import {
@@ -60,12 +61,7 @@ import {
   validateRiskAttributes,
   type PrimaryTicketFacts,
 } from "./validate";
-import type {
-  FetchedPr,
-  PrLocator,
-  PrMetadata,
-  ReviewComment,
-} from "../github";
+import type { FetchedPr, PrLocator, PrMetadata } from "../github";
 import {
   isLinearPrStack,
   type ForkPrStack,

@@ -5,7 +5,6 @@ const execFileAsync = vi.fn();
 vi.mock("../../src/github/exec", () => ({
   execFileAsync: (...args: unknown[]) => execFileAsync(...args),
   MAX_BUFFER: 1024,
-  SEGMENT: /^[A-Za-z0-9._-]+$/,
 }));
 
 const { fetchPrMetadata, OPEN_PR_LIST_LIMIT } =

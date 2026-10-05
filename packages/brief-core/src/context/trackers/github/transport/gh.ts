@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { TicketUnreadReasons } from "../../../../types";
-import { execFileAsync, MAX_BUFFER, SEGMENT } from "../../../../github/exec";
+import { execFileAsync, MAX_BUFFER } from "../../../../github/exec";
+import { isPathSegment } from "../../../../github/pr-url";
 import type { ContextReadFailure } from "../../../types";
 import {
   readFailureForStatus,
@@ -115,11 +116,6 @@ function toIssueRecord(raw: unknown): IssueRecord {
     body: issue.body ?? "",
     isPullRequest: issue.pull_request !== undefined,
   };
-}
-
-/** `.` and `..` pass the segment grammar but would walk the `gh api` path. */
-function isPathSegment(value: string): boolean {
-  return SEGMENT.test(value) && value !== "." && value !== "..";
 }
 
 function isWellFormed(locator: IssueLocator): boolean {

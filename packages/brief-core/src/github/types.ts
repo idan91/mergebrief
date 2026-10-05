@@ -1,14 +1,7 @@
 import type { ContextSnippet, PrimaryTicketOutcome } from "../context/types";
 import type { PrStack, RepoIdentity } from "../pr-stack";
-import { type PrLifecycleState, type ReviewComment } from "../types";
-
-export type { ReviewComment };
-
-export interface PrLocator {
-  owner: string;
-  repo: string;
-  number: number;
-}
+import type { PrLifecycleState } from "../types";
+import type { PrLocator } from "./pr-url";
 
 export interface PrFile {
   path: string;

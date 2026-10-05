@@ -3,7 +3,7 @@ import type { ConfigError, ContextSourcesConfig } from "generators";
 import { createBuiltInContextProviders } from "../context/registry";
 import { resolveTrackerReads, type TrackerReads } from "../context/trackers";
 import type { TrackerRootDeps } from "../context/trackers/types";
-import type { TrackerConfig } from "../context/tracker";
+import type { TrackerConfig } from "generators/trackers";
 import type { ContextProvider, PrimarySnippet } from "../context/types";
 import { GitHubTransports } from "../context/trackers/github";
 import { NotionTransports } from "../context/trackers/notion";

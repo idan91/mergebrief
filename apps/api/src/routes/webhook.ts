@@ -18,7 +18,7 @@
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
 import { HttpStatuses, type Mutable, type DraftPolicy } from "types";
-import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
+import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
 import {
   InstallationActions,
   InstallationRepositoriesActions,

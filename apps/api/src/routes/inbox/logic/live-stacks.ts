@@ -4,9 +4,9 @@
 // answered by the deadline places its rows, the rest fall back to the row
 // (a closed row's record, nothing for an open one), and the late lists
 // still land in the cache for the next load.
-import { resolvePrStack } from "brief-core";
+import { resolvePrStack, type OpenPullRequest } from "brief-core/pr-stack";
 import type { InboxStackView } from "contract";
-import type { GitHubApiError, OpenPullRequest, RepositoryRef } from "github";
+import type { GitHubApiError, RepositoryRef } from "github";
 import type { Logger } from "logging";
 import type { InboxRow, PullRequestRowId, RepoId } from "persistence";
 import type { Result } from "types/utils";

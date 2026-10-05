@@ -55,6 +55,15 @@ describe("parsePrUrl", () => {
   ])("rejects %s", (url) => {
     expect(() => parsePrUrl(url)).toThrow(/PR URL/);
   });
+
+  it.each([
+    "https://github.com/../repo/pull/1",
+    "https://github.com/owner/../pull/1",
+    "https://github.com/./repo/pull/1",
+    "https://github.com/owner/./pull/1",
+  ])("rejects the dot segment in %s", (url) => {
+    expect(() => parsePrUrl(url)).toThrow(/PR URL/);
+  });
 });
 
 describe("metadataFromView maps gh pr view JSON to PrMetadata", () => {

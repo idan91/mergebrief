@@ -14,7 +14,8 @@ import type {
 } from "generators";
 import type * as ContextModule from "../../src/context";
 import type * as GithubModule from "../../src/github";
-import type { PrMetadata, PrSource, ReviewComment } from "../../src/github";
+import type { PrMetadata, PrSource } from "../../src/github";
+import type { ReviewComment } from "../../src/types";
 
 const explode = vi.hoisted(
   () => (name: string) =>

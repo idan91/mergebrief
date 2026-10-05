@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "brief-core": "workspace:*",
+    "generators": "workspace:*",
     "types": "workspace:*",
     "yaml": "^2.9.0",
     "zod": "^3.25.0"

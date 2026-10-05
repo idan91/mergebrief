@@ -9,9 +9,12 @@ import {
   listOpenPullRequests,
   RepoFileKinds,
   type GitHubApiError,
-  type OpenPullRequest,
 } from "github";
-import { resolvePrStack, type PrStackSelf } from "brief-core";
+import {
+  resolvePrStack,
+  type OpenPullRequest,
+  type PrStackSelf,
+} from "brief-core/pr-stack";
 import type {
   GenerationProjection,
   GenerationRow,

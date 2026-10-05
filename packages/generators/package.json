@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./generation": "./src/contract/generation.ts",
-    "./instance-policy": "./src/config/instancePolicy.ts"
+    "./instance-policy": "./src/config/instancePolicy.ts",
+    "./trackers": "./src/config/trackers.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

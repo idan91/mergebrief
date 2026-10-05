@@ -10,7 +10,7 @@ import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import { NotFound } from "../../../../shared-errors/api-error";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildOpenPullsCacheKey } from "../../../open-pulls-cache";

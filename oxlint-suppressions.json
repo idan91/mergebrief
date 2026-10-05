@@ -510,11 +510,6 @@
       "count": 6
     }
   },
-  "packages/brief-core/src/github/exec.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "packages/brief-core/test/artifacts/manifest.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -975,11 +970,6 @@
   "packages/repo-config/src/origin.ts": {
     "house/no-em-dash": {
       "count": 4
-    }
-  },
-  "packages/repo-config/src/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "packages/repo-config/test/helpers.ts": {

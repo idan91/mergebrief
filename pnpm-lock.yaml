@@ -562,6 +562,9 @@ importers:
       brief-core:
         specifier: workspace:*
         version: link:../brief-core
+      generators:
+        specifier: workspace:*
+        version: link:../generators
       types:
         specifier: workspace:*
         version: link:../types

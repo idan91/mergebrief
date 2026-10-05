@@ -1,4 +1,4 @@
-import { parsePrUrl, type PrLocator } from "brief-core";
+import { parsePrUrl, type PrLocator } from "brief-core/pr-url";
 import type { Context } from "hono";
 import { ApiErrorCodes } from "contract";
 import {

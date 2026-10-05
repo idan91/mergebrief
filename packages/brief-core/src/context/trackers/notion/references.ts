@@ -1,6 +1,6 @@
 import { TicketTrackers } from "types/trackers";
 import { ReferenceLocations, type ReferenceLocation } from "../../../types";
-import type { TrackerConfig } from "../../tracker";
+import type { TrackerConfig } from "generators/trackers";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 const NOTION_URL =

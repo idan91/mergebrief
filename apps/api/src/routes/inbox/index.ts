@@ -15,7 +15,7 @@ import type { AccessibleInstallationsResolver } from "../auth/accessible-install
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import type { InstallationResolver } from "../installation-resolver";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { TtlCache } from "../ttl-cache";
 import createInboxHandlers from "./handler";
 

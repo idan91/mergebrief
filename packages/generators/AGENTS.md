@@ -9,7 +9,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 What the layout can't show:
 
 - `Effort` and `Generation` live in `contract/generation.ts`.
-- Two leaf subpaths sit beside the entry: `generators/generation` (`contract/generation.ts`, zod and `types` only) carries the origin vocabulary to the Brief types, and `generators/instance-policy` (`config/instancePolicy.ts`, which owns `RUNTIME_MARKER_VAR`) reads the instance policy without loading an adapter; neither leaf imports the registry.
+- Three leaf subpaths sit beside the entry: `generators/generation` (`contract/generation.ts`, zod and `types` only) carries the origin vocabulary to the Brief types, `generators/instance-policy` (`config/instancePolicy.ts`, which owns `RUNTIME_MARKER_VAR`) reads the instance policy without loading an adapter, and `generators/trackers` (`config/trackers.ts`) carries the tracker schemas to `brief-core`, `repo-config` and the worker; `config/consts.ts` holds the other config constants, so no leaf imports the registry.
 - `createGenerator` construction returns `Result` (`config/registry.ts`); the yaml dep lives only in `config/readRoot.ts`.
 - Every adapter's output passes through `validation/` (`runWithSchemaFloor`: validate → recover → one feedback retry → dump + throw).
 - Harness spawns use no shell, with watchdog timers and a kill ladder (`harness/run.ts`); `test/shims/` fakes the CLI binary, not the spawn.

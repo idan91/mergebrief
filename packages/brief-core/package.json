@@ -8,6 +8,8 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./artifact": "./src/artifact/index.ts",
+    "./pr-stack": "./src/pr-stack/index.ts",
+    "./pr-url": "./src/github/pr-url.ts",
     "./remap": "./src/diff/remap.ts",
     "./cli-config": "./src/cli/config.ts",
     "./path-matching": "./src/path-matching.ts"

@@ -1,7 +1,5 @@
 import type { RepoId } from "persistence";
-import type { OpenPullRequest, RepoIdentity } from "brief-core";
-
-export type { OpenPullRequest };
+import type { RepoIdentity } from "brief-core/pr-stack";
 
 export interface PullRequestRef {
   readonly owner: string;

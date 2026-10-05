@@ -1,6 +1,6 @@
 import { TicketTrackers, type Result, type TicketTracker } from "types";
 import type { ConfigError } from "generators";
-import type { TrackerConfig } from "../tracker";
+import type { TrackerConfig } from "generators/trackers";
 import { githubTracker } from "./github";
 import { notionTracker } from "./notion";
 import type { PrimaryRead, Tracker, TrackerRootDeps } from "./types";

@@ -3,7 +3,7 @@
 // or raw parser messages. Zod received values are untrusted too.
 
 import { parse as parseYaml } from "yaml";
-import { RiskSurfaceAttributes } from "brief-core";
+import { RiskSurfaceAttributes } from "brief-core/types";
 import type { Mutable, Result } from "types/utils";
 import type { z } from "zod/v4";
 import {
