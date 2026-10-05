@@ -3,7 +3,7 @@
 // semantics (the first write creates, a read never does), and prove tenant B can neither
 // read nor write tenant A's session rows.
 import type { PGlite } from "@electric-sql/pglite";
-import { Categories } from "brief-core";
+import { Categories } from "brief-core/types";
 import { drizzle } from "drizzle-orm/pglite";
 import {
   AnchorStatuses,
