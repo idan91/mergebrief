@@ -6,7 +6,7 @@ import {
 } from "../../src/cli/context-providers";
 import { resolveTrackerReads } from "../../src/context/trackers";
 import { ContextProviderTypes } from "../../src/context/types";
-import { TicketTrackers } from "../../src/context/tracker";
+import { TicketTrackers } from "types/trackers";
 
 const NOTION_BLOCK = {
   kind: "notion",
@@ -35,7 +35,7 @@ describe("the CLIs' context root", () => {
     ]);
   });
 
-  it("reads Notion when the repo names it and the config lists it with a token", () => {
+  it("reads Notion when the repo names it and the config gives it a token", () => {
     const reads = resolveTrackerReads(
       [NOTION_BLOCK],
       createCliRootDeps({ NOTION_TOKEN: "ntn_x" }, [{ type: "notion" }]),
@@ -46,7 +46,7 @@ describe("the CLIs' context root", () => {
     ]);
   });
 
-  it("refuses a Notion repo whose config lists no token, naming the var and never a value", () => {
+  it("refuses a tokenless Notion repo, naming the var and never a value", () => {
     const read = resolveTrackerReads(
       [NOTION_BLOCK],
       createCliRootDeps({ NOTION_TOKEN: "ntn_should_not_leak" }, [
@@ -65,7 +65,7 @@ describe("the CLIs' context root", () => {
     expect(createCliRootDeps(env, []).env).toBe(env);
   });
 
-  it("builds no tracker read when --context supplied the ticket, so no credential is required", () => {
+  it("builds no tracker read and needs no credential under --context", () => {
     const supplied = {
       providerId: ContextProviderTypes.NOTION,
       source: "ticket.json",

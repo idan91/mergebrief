@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TicketTrackers } from "../../src/context/tracker";
+import { TicketTrackers } from "types/trackers";
 import {
   TRACKERS,
   getTracker,
@@ -73,7 +73,7 @@ describe("trackers", () => {
     });
   });
 
-  it("a bound slot that cannot build is not a read unless it is the repo's tracker", () => {
+  it("skips a bound slot that cannot build unless it is the repo's tracker", () => {
     const noToken = {
       env: {},
       contextSources: [],

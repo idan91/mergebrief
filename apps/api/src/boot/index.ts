@@ -1,7 +1,7 @@
 // The pieces both entries (`main.ts`, `migrate.ts`) share: build the logger,
 // load every config block or exit. Each entry reads env itself (the
 // composition-root rule); nothing here constructs a database or a server.
-import { loadInstancePolicy } from "generators";
+import { loadInstancePolicy } from "generators/instance-policy";
 import { loadConfig as loadGitHubConfig } from "github";
 import { createLogger, type Logger } from "logging";
 import { loadConfig as loadPersistenceConfig } from "persistence";

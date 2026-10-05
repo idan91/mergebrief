@@ -13,11 +13,8 @@ import {
   type ContextReadFailure,
 } from "../../../../src/context/types";
 import type { TicketReference } from "../../../../src/context/references";
-import {
-  ReferenceLocations,
-  TicketTrackers,
-  TicketUnreadReasons,
-} from "../../../../src/types";
+import { TicketTrackers } from "types/trackers";
+import { ReferenceLocations, TicketUnreadReasons } from "../../../../src/types";
 
 const ISSUE: IssueRecord = {
   title: "Add the thing",
@@ -78,7 +75,7 @@ describe("createGitHubRead", () => {
     );
   });
 
-  it("reads the primary through the reader, addressed by the URL's owner/repo", async () => {
+  it("reads the primary through the reader at the URL's owner/repo", async () => {
     const calls: IssueLocator[] = [];
     const provider = readWith(stubReaderReturning(ISSUE, calls));
 

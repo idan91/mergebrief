@@ -18,6 +18,7 @@ import {
   DEFAULT_CONTEXT_SOURCES,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
+  type Effort,
   type Generator,
 } from "generators";
 import {
@@ -61,12 +62,7 @@ import {
   revisionNarrativeName,
 } from "../artifacts/output";
 import { listReadableTrackers, type TrackerReads } from "../context/trackers";
-import type {
-  Brief,
-  CommitRange,
-  Effort,
-  RevisionNarrativeSkipped,
-} from "../types";
+import type { Brief, CommitRange, RevisionNarrativeSkipped } from "../types";
 
 /** Where artifacts land when `--out` is absent: `out` under the invoking cwd. */
 const DEFAULT_OUT_DIR = "out";

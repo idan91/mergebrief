@@ -2,7 +2,6 @@
 // first writes materialize them. Resolve parent ownership inside the same transaction
 // and return Result errors for cross-tenant parents before any write.
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
-import { AnchorStates } from "brief-core";
 import type { Hop } from "brief-core/remap";
 import {
   CommentAnchorKinds,
@@ -12,6 +11,7 @@ import {
   type DraftCommentSide,
   type DraftCommentStatus,
 } from "types/comments";
+import { AnchorStates } from "types/generations";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";

@@ -4,6 +4,14 @@ import { configError, type ConfigError } from "../contract/errors";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 
 /**
+ * Runtime marker: the compose worker image bakes
+ * `MERGEBRIEF_RUNTIME=compose-worker`, and `createGenerator` refuses harness
+ * providers under it; the image ships no CLI binaries, so the generic
+ * missing-binary probe error would misdiagnose a deliberate boundary.
+ */
+export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
+
+/**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
  * `drafts` block out of
  * `mergebrief.config.yaml`. Deliberately tolerant of everything else in the

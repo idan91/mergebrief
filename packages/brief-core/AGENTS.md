@@ -10,6 +10,7 @@ Three curated subpaths exist beside the entry: `brief-core/types` (`src/types.ts
 
 What the layout can't show:
 
+- `types.ts` takes the origin vocabulary from `generators/generation`, never the `generators` entry, so the Brief shape loads without an adapter. It re-exports none of it: `Effort`, `Generation`, `Anchor` and kin come from `generators/generation`, `AnchorStates` from `types/generations`, `TicketTrackers` from `types/trackers`.
 - `types.ts` (Brief schema + closed vocabulary, mirroring `docs/mvp/labeling-schema.md` and `risk-surface.md`) and `generation/prompt.ts` are generation surface (root AGENTS.md's eval gate).
 - `diff/` and `anchoring/` are mechanical parsing and partition, no model calls.
 - `cli/` entries are invoked from `tools/categorizer`. The two CLIs, `cli/categorize.ts` and `cli/delta.ts`, are this package's composition roots: they read the env, build the tracker root (`createCliRootDeps`, GitHub through `gh`) and the generic sources (`createCliContextProviders`, the URL chaser), and pass values down. `cli/settings.ts` reads the `tracker:` block of the working tree's `.mergebrief/settings.yaml` with the schema `context/tracker.ts` owns (repo-config depends on brief-core, so the CLI cannot go through `validateRepoConfig`).

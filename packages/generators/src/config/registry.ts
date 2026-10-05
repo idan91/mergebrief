@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
-import { Runtimes, type Result, type ValueOf } from "types";
+import type { Result, ValueOf } from "types";
 import {
   ClaudeCodeGenerator,
   CLAUDE_PROBE,
@@ -21,6 +21,8 @@ import { Efforts } from "../contract/generation";
 import { AnthropicGenerator } from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
+import { COMPOSE_WORKER_RUNTIME, ENV_VAR_NAME } from "./consts";
+import { RUNTIME_MARKER_VAR } from "./instancePolicy";
 
 /** Provider vocabulary. */
 export const Providers = {
@@ -41,10 +43,6 @@ export interface CreateGeneratorDeps {
   log?: Logger;
 }
 
-// ConfigError lives in ./errors (shared with the harness startup check);
-// re-exported here so config-focused consumers keep one import site.
-export type { ConfigError } from "../contract/errors";
-
 interface RegistryEntry<O extends z.ZodType> {
   options: O;
   create(
@@ -59,15 +57,6 @@ function defineEntry<O extends z.ZodType>(
 ): RegistryEntry<O> {
   return entry;
 }
-
-/**
- * SHOUT_CASE env-var identifier. Anything else is refused with a FIXED
- * message: a misconfiguration that pastes the key VALUE into `apiKeyEnv`
- * must never see that value echoed into errors or logs, and real tokens
- * (`ntn_…`, `secret_…`) are lowercase, so lowercase names are refused too.
- * Every by-NAME credential field in the instance config shares it.
- */
-export const ENV_VAR_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
 /** Reads `apiKeyEnv` (or the adapter default) from the injected env by NAME. */
 function resolveApiKey(
@@ -424,15 +413,6 @@ void registryCoversUnion;
 export const defaultGeneratorConfig: GeneratorConfig = {
   provider: Providers.ANTHROPIC,
 };
-
-/**
- * Runtime marker: the compose worker image bakes
- * `MERGEBRIEF_RUNTIME=compose-worker`, and `createGenerator` refuses harness
- * providers under it; the image ships no CLI binaries, so the generic
- * missing-binary probe error would misdiagnose a deliberate boundary.
- */
-export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
-export const COMPOSE_WORKER_RUNTIME = Runtimes.COMPOSE_WORKER;
 
 const HARNESS_PROVIDERS: ReadonlySet<Provider> = new Set([
   Providers.CLAUDE_CODE,

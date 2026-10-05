@@ -1,4 +1,4 @@
-import { TicketTrackers } from "../../tracker";
+import { TicketTrackers } from "types/trackers";
 import type { Tracker } from "../types";
 import { createGitHubRead } from "./read";
 import { canonicalizeGitHubUrl, collectGitHubReferences } from "./references";

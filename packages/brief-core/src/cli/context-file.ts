@@ -1,13 +1,9 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod/v4";
-import type { Result } from "types/utils";
+import { TicketTrackers, type Result } from "types";
 import { createI18n } from "i18n";
 import { ContextProviderTypes, type PrimarySnippet } from "../context/types";
-import {
-  ReferenceLocations,
-  TicketTrackers,
-  type PrimaryTicket,
-} from "../types";
+import { ReferenceLocations, type PrimaryTicket } from "../types";
 
 /**
  * The `--context <file>` shape: the primary ticket's text, for any tracker

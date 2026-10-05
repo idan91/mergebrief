@@ -1,10 +1,6 @@
-import type { Result, ValueOf } from "types/utils";
+import type { Result, TicketTracker, ValueOf } from "types";
 import type { Log } from "../github/types";
-import type {
-  ReferenceLocation,
-  TicketTracker,
-  TicketUnreadReason,
-} from "../types";
+import type { ReferenceLocation, TicketUnreadReason } from "../types";
 import type { TicketReference, TicketReferenceRepo } from "./references";
 import type { TrackerConfig } from "./tracker";
 

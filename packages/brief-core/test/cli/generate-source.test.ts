@@ -6,11 +6,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
-import type { GenerateRequest, Generator } from "generators";
+import type {
+  Effort,
+  GenerateRequest,
+  Generation,
+  Generator,
+} from "generators";
 import type * as ContextModule from "../../src/context";
 import type * as GithubModule from "../../src/github";
 import type { PrMetadata, PrSource, ReviewComment } from "../../src/github";
-import type { Effort, Generation } from "../../src/types";
 
 const explode = vi.hoisted(
   () => (name: string) =>
@@ -167,7 +171,7 @@ describe("generateAndWrite with an injected PrSource", () => {
     expect(source.fetchPrMetadata).toHaveBeenCalledTimes(1);
     expect(source.fetchPrDiff).toHaveBeenCalledTimes(1);
     expect(source.fetchReviewComments).toHaveBeenCalledTimes(1);
-    // Full-brief path: no range, first brief — compare machinery untouched.
+    // Full-brief path: no range, first brief; compare machinery untouched.
     expect(source.fetchCompareDiff).not.toHaveBeenCalled();
     expect(source.resolveFullSha).not.toHaveBeenCalled();
 

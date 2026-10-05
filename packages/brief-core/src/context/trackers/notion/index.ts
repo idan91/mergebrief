@@ -1,4 +1,4 @@
-import { TicketTrackers } from "../../tracker";
+import { TicketTrackers } from "types/trackers";
 import type { Tracker } from "../types";
 import { createNotionRead } from "./read";
 import { canonicalizeNotionUrl, collectNotionReferences } from "./references";

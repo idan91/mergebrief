@@ -1,5 +1,5 @@
 // The anchored prompt contract: renderAnchorView (the trimmed previous-brief
-// block) and the anchored system-prompt section — plus categorize() threading
+// block) and the anchored system-prompt section, plus categorize() threading
 // both only when an anchor context is passed.
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
@@ -9,8 +9,14 @@ import {
   renderAnchorView,
   type AnchorViewInput,
 } from "../../src/generation/prompt";
-import type { GenerateRequest, Generator, Logger } from "generators";
-import type { Brief, Effort, Generation } from "../../src/types";
+import type {
+  Effort,
+  GenerateRequest,
+  Generation,
+  Generator,
+  Logger,
+} from "generators";
+import type { Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github";
 
 function chunk(
@@ -103,7 +109,7 @@ const anchorInput: AnchorViewInput = {
 describe("renderAnchorView", () => {
   const view = renderAnchorView(anchorInput);
 
-  it("lists frozen groups as an index — id, title, summary, files, attrs — without code", () => {
+  it("indexes frozen groups by id, title, summary, files, attrs, no code", () => {
     expect(view).toContain("gA");
     expect(view).toContain("alpha");
     expect(view).toContain("src/a.ts");
@@ -124,7 +130,7 @@ describe("renderAnchorView", () => {
     expect(view).toContain("- did the thing");
   });
 
-  it("carries the previous intent verdicts and the previous orderings as id sequences", () => {
+  it("carries the previous intent verdicts and orderings as id sequences", () => {
     expect(view).toContain("please do alpha");
     expect(view).toContain("gA, gB");
   });
@@ -160,11 +166,11 @@ describe("renderAnchorView", () => {
       },
       frozenGroupIds: ["gA"],
     });
-    // Exactly one opening and one closing fence survive — ours.
+    // Exactly one opening and one closing fence survive: ours.
     expect(poisoned.match(/<\/?anchor_brief/g)).toHaveLength(2);
   });
 
-  it("omits the intent and ordering sections when the previous brief lacks them", () => {
+  it("omits the intent and ordering sections the previous brief lacks", () => {
     const bare = renderAnchorView({
       previousBrief: {
         ...previousBrief,
@@ -182,7 +188,7 @@ describe("anchored system prompt", () => {
   const anchored = buildSystemPrompt(undefined, true);
   const fresh = buildSystemPrompt();
 
-  it("appends the anchored section only when asked — the fresh prompt is byte-identical", () => {
+  it("appends the anchored section only when asked, fresh prompt unchanged", () => {
     expect(anchored).not.toBe(fresh);
     expect(anchored.startsWith(fresh)).toBe(true);
   });
@@ -278,8 +284,8 @@ const minimalGen = {
 
 const noopLog: Logger = () => {};
 
-describe("categorize — anchored threading", () => {
-  it("includes the anchor view and the anchored section when an anchor is passed", async () => {
+describe("categorize anchored threading", () => {
+  it("includes the anchor view and anchored section when an anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
     await categorize(
       pr,
@@ -300,7 +306,7 @@ describe("categorize — anchored threading", () => {
   it("keeps frozen-id anchors alive through the in-categorize validators", async () => {
     // The anchored contract TELLS the model to reference frozen ids (whole
     // orderings; intent verdicts over the whole source). The validators must
-    // treat the frozen ids as live anchors — not prune them as unknown.
+    // treat the frozen ids as live anchors, not prune them as unknown.
     const fixture = {
       ...minimalGen,
       readingOrder: [

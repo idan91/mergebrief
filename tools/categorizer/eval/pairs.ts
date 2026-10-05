@@ -2,9 +2,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
-import type { Mutable, Result } from "types/utils";
+import { AnchorStates, type Mutable, type Result } from "types";
 import {
-  AnchorStates,
   categorize,
   parseChangedRanges,
   planAnchoredGeneration,

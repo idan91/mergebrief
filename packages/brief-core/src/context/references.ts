@@ -1,8 +1,5 @@
-import {
-  ReferenceLocations,
-  type ReferenceLocation,
-  type TicketTracker,
-} from "./tracker";
+import type { TicketTracker } from "types/trackers";
+import { ReferenceLocations, type ReferenceLocation } from "../types";
 import { TRACKERS } from "./trackers";
 import type { TicketReference, TicketReferenceInput } from "./trackers/types";
 

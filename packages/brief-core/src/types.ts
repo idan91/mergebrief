@@ -1,23 +1,8 @@
 import { z } from "zod/v4";
-import { AnchorSchema, GenerationSchema } from "generators";
-import { TicketTrackers, type TicketTracker } from "types/trackers";
+import { AnchorSchema, GenerationSchema } from "generators/generation";
+import { TicketTrackers } from "types/trackers";
 import type { ValueOf } from "types/utils";
 import { PrStackSchema } from "./pr-stack";
-
-// Port vocabulary lives in packages/generators; re-exported here so existing
-// import paths keep working.
-export {
-  AnchorSchema,
-  AnchorStates,
-  Efforts,
-  FreshRestartReasons,
-  GenerationSchema,
-  type Anchor,
-  type AnchorState,
-  type Effort,
-  type FreshRestartReason,
-  type Generation,
-} from "generators";
 
 /**
  * Brief schema. Generation surface: schema changes are eval-gated.
@@ -465,8 +450,6 @@ export const IntentItemSchema = z.object({
       "deviations ONLY: true when the PR description acknowledges this reversal (a quiet receipt, not an alarm). MUST be false in every other bucket — the field is dead there",
     ),
 });
-
-export { TicketTrackers, type TicketTracker };
 
 /** Where in the PR the primary ticket's reference was first found. */
 export const ReferenceLocations = {

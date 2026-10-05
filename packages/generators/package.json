@@ -5,7 +5,9 @@
   "type": "module",
   "description": "The Generator port and its adapter family: structured generation behind one contract — interchangeable provider adapters over a shared schema-floor pipeline, plus the origin vocabulary.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./generation": "./src/contract/generation.ts",
+    "./instance-policy": "./src/config/instancePolicy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

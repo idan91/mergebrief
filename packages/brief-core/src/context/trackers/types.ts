@@ -1,10 +1,7 @@
-import type { Result } from "types/utils";
+import type { Result, TicketTracker } from "types";
 import type { ConfigError, ContextSourcesConfig } from "generators";
-import type {
-  ReferenceLocation,
-  TicketTracker,
-  TrackerConfig,
-} from "../tracker";
+import type { TrackerConfig } from "../tracker";
+import type { ReferenceLocation } from "../../types";
 import type {
   ContextProviderDeps,
   ContextReadFailure,

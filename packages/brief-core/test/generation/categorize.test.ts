@@ -5,8 +5,14 @@ import {
   categorizeDelta,
   categorizeRevisionNarrative,
 } from "../../src/generation/categorize";
-import type { GenerateRequest, Generator, Logger } from "generators";
-import type { Brief, Effort, Generation } from "../../src/types";
+import type {
+  Effort,
+  GenerateRequest,
+  Generation,
+  Generator,
+  Logger,
+} from "generators";
+import type { Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { IntentCheckGenerationSchema } from "../../src/types";

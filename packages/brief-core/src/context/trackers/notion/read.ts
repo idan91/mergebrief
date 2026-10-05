@@ -1,8 +1,7 @@
 import { z } from "zod/v4";
-import type { Result } from "types/utils";
+import { TicketTrackers, type Result } from "types";
 import type { Log } from "../../../github/types";
 import { TicketUnreadReasons } from "../../../types";
-import { TicketTrackers } from "../../tracker";
 import { DEFAULT_NOTION_TOKEN_ENV, type ConfigError } from "generators";
 import {
   ContextProviderTypes,

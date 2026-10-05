@@ -533,16 +533,6 @@
       "count": 1
     }
   },
-  "packages/brief-core/test/cli/context-providers.test.ts": {
-    "house/test-title": {
-      "count": 3
-    }
-  },
-  "packages/brief-core/test/cli/generate-source.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/brief-core/test/context/fan-out.test.ts": {
     "house/test-title": {
       "count": 2
@@ -556,16 +546,6 @@
   "packages/brief-core/test/context/references.test.ts": {
     "house/test-title": {
       "count": 2
-    }
-  },
-  "packages/brief-core/test/context/trackers.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/context/trackers/github/read.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "packages/brief-core/test/context/trackers/github/transport.test.ts": {
@@ -619,14 +599,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "packages/brief-core/test/generation/anchor-view.test.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/test-title": {
-      "count": 5
     }
   },
   "packages/brief-core/test/generation/loc.test.ts": {
@@ -749,14 +721,6 @@
   "packages/generators/test/openai-strict.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/generators/test/registry.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 12
     }
   },
   "packages/generators/test/shims/fake-claude.cjs": {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { COMPOSE_WORKER_RUNTIME } from "../src/config/consts";
+import { RUNTIME_MARKER_VAR } from "../src/config/instancePolicy";
 import {
-  COMPOSE_WORKER_RUNTIME,
   createGenerator,
   defaultGeneratorConfig,
   FullRegenerations,
   GeneratorConfigSchema,
   Providers,
-  RUNTIME_MARKER_VAR,
   validateGeneratorConfig,
 } from "../src/config/registry";
 import { Efforts } from "../src/contract/generation";
@@ -14,7 +14,7 @@ import { Efforts } from "../src/contract/generation";
 /**
  * The registry + construction boundary: static compiled-in registry, config
  * discriminated union derived from it, async
- * createGenerator returning Result — startup wiring converts to loud boot
+ * createGenerator returning Result. Startup wiring converts to loud boot
  * failures, the library never throws for expected misconfiguration.
  */
 
@@ -22,7 +22,7 @@ const env = { ANTHROPIC_API_KEY: "sk-test-not-a-real-key" };
 const deps = { env, failureDir: "out" };
 
 describe("createGenerator", () => {
-  it("builds the zero-config default: anthropic + ANTHROPIC_API_KEY + Opus 4.8", async () => {
+  it("builds the zero-config default: anthropic, ANTHROPIC_API_KEY, Opus 4.8", async () => {
     const result = await createGenerator(defaultGeneratorConfig, deps);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -78,7 +78,7 @@ describe("createGenerator", () => {
     expect(text).toContain("environment variable NAME");
   });
 
-  it("refuses a lowercase, dash-free key pasted as apiKeyEnv without echoing it", async () => {
+  it("refuses a lowercase dash-free key in apiKeyEnv without echoing it", async () => {
     const pastedKey = "secret_abcdef0123456789";
     const result = await createGenerator(
       { provider: "anthropic", apiKeyEnv: pastedKey },
@@ -122,7 +122,7 @@ describe("createGenerator", () => {
     expect(result.value.origin("low").model).toBe("claude-sonnet-5");
   });
 
-  it("rejects unknown keys inside a provider block (strict)", async () => {
+  it("rejects unknown keys inside a provider block", async () => {
     const result = await createGenerator(
       { provider: "anthropic", modle: "typo" },
       deps,
@@ -170,7 +170,7 @@ describe("compose-worker runtime marker", () => {
       expect(result.error.issues[0]).toContain(
         "not available in the compose worker",
       );
-      // The message interpolates HARNESS_PROVIDERS — dropping a member from
+      // The message interpolates HARNESS_PROVIDERS; dropping a member from
       // the set would silently downgrade its refusal to "not found on PATH".
       expect(result.error.issues[0]).toContain("cursor");
       expect(result.error.issues[0]).toContain("MERGEBRIEF_CONFIG");
@@ -182,7 +182,7 @@ describe("compose-worker runtime marker", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("does not refuse harness providers without the marker (probe still owns that path)", async () => {
+  it("leaves harness providers to the probe when the marker is unset", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: "definitely-missing-cli" },
       deps,
@@ -228,7 +228,7 @@ describe("effort on the generator block", () => {
     },
   );
 
-  it("rejects an out-of-vocabulary effort with a per-field issue naming effort", () => {
+  it("rejects an unknown effort with a per-field issue naming effort", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
       effort: "max",
@@ -240,7 +240,7 @@ describe("effort on the generator block", () => {
     expect(text).not.toContain("max");
   });
 
-  it("still rejects unknown sibling keys next to a valid effort (strictness preserved)", () => {
+  it("still rejects unknown sibling keys next to a valid effort", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
       effort: "low",
@@ -287,7 +287,7 @@ describe("full-regeneration on the generator block", () => {
     },
   );
 
-  it("rejects an out-of-vocabulary value with a per-field issue naming the key", () => {
+  it("rejects an unknown value with a per-field issue naming the key", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
       "full-regeneration": "sometimes",
@@ -299,7 +299,7 @@ describe("full-regeneration on the generator block", () => {
     expect(text).not.toContain("sometimes");
   });
 
-  it("still rejects unknown sibling keys next to a valid value (strictness preserved)", () => {
+  it("still rejects unknown sibling keys next to a valid value", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
       "full-regeneration": "never",
@@ -311,7 +311,7 @@ describe("full-regeneration on the generator block", () => {
   });
 });
 
-describe("GeneratorConfigSchema (registry-derived)", () => {
+describe("GeneratorConfigSchema derived from the registry", () => {
   it("parses every registry provider's minimal block", () => {
     expect(
       GeneratorConfigSchema.safeParse({ provider: Providers.ANTHROPIC })

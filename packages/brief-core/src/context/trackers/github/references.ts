@@ -1,8 +1,5 @@
-import {
-  ReferenceLocations,
-  TicketTrackers,
-  type ReferenceLocation,
-} from "../../tracker";
+import { TicketTrackers } from "types/trackers";
+import { ReferenceLocations, type ReferenceLocation } from "../../../types";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 /** GitHub caps logins at 39 chars and repo names at 100; the bounds keep backtracking constant per position. */

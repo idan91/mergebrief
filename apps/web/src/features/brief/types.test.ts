@@ -10,7 +10,6 @@ import {
   Categories as BriefCoreCategories,
   PrimaryTicketStatuses as BriefCorePrimaryTicketStatuses,
   ReferenceLocations as BriefCoreReferenceLocations,
-  TicketTrackers as BriefCoreTicketTrackers,
   TicketUnreadReasons as BriefCoreTicketUnreadReasons,
   Concerns as BriefCoreConcerns,
   Roles as BriefCoreRoles,
@@ -20,6 +19,7 @@ import {
   type Specificity as BriefCoreSpecificity,
   type RevisionNarrativeSkipReason as BriefCoreRevisionNarrativeSkipReason,
 } from "brief-core";
+import { TicketTrackers as SharedTicketTrackers } from "types/trackers";
 import type { Equals } from "types/utils";
 import {
   AlignmentReads,
@@ -55,7 +55,7 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
   {
     label: "TicketTrackers",
     mirror: TicketTrackers,
-    source: Object.values(BriefCoreTicketTrackers),
+    source: Object.values(SharedTicketTrackers),
   },
   {
     label: "ReferenceLocations",

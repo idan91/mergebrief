@@ -1,5 +1,5 @@
 import type { Brief, PrLocator } from "brief-core";
-import { AnchorStates, type Anchor } from "generators";
+import type { Anchor } from "generators";
 import type { Logger } from "logging";
 import {
   GenerationKinds,
@@ -7,6 +7,7 @@ import {
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
+import { AnchorStates } from "types/generations";
 import { PermanentJobError } from "../failure";
 import { splitRepoSlug } from "../github-port";
 import type { ParsedGeneratePayload } from "../payload";

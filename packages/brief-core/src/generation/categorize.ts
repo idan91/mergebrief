@@ -5,7 +5,6 @@ import {
   type Brief,
   type CommitRange,
   type DeltaBrief,
-  type Effort,
   type PrRef,
   type RevisionNarrative,
 } from "../types";
@@ -17,7 +16,12 @@ import {
   stripForgedRepoFences,
   type RepoContext,
 } from "./repo-context";
-import { AnthropicGenerator, type Generator, type Logger } from "generators";
+import {
+  AnthropicGenerator,
+  type Effort,
+  type Generator,
+  type Logger,
+} from "generators";
 import type { Mutable } from "types/utils";
 import {
   buildSystemPrompt,

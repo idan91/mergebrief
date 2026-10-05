@@ -9,7 +9,8 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 What the layout can't show:
 
 - `Effort` and `Generation` live in `contract/generation.ts`.
-- `createGenerator` construction returns `Result` (`config/registry.ts`); the yaml dep lives only in `config/loader.ts`.
+- Two leaf subpaths sit beside the entry: `generators/generation` (`contract/generation.ts`, zod and `types` only) carries the origin vocabulary to the Brief types, and `generators/instance-policy` (`config/instancePolicy.ts`, which owns `RUNTIME_MARKER_VAR`) reads the instance policy without loading an adapter; neither leaf imports the registry.
+- `createGenerator` construction returns `Result` (`config/registry.ts`); the yaml dep lives only in `config/readRoot.ts`.
 - Every adapter's output passes through `validation/` (`runWithSchemaFloor`: validate → recover → one feedback retry → dump + throw).
 - Harness spawns use no shell, with watchdog timers and a kill ladder (`harness/run.ts`); `test/shims/` fakes the CLI binary, not the spawn.
 - No composition root lives here: `createGenerator`, `loadConfig` and `harness/run.ts` (`HarnessRunArgs.env`) take `env` explicitly, and the process roots that read `process.env` are the worker's `main.ts`, the brief-core CLIs and `smoke/`.

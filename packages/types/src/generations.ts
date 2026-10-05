@@ -49,3 +49,11 @@ export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
 export interface GenerationFailureParams {
   readonly detail: string;
 }
+
+/** How a generation used the prior brief: anchored to it, restarted fresh, or had none. */
+export const AnchorStates = {
+  ANCHORED: "anchored",
+  FRESH_RESTART: "fresh-restart",
+  NONE: "none",
+} as const;
+export type AnchorState = ValueOf<typeof AnchorStates>;

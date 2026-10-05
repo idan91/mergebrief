@@ -93,6 +93,51 @@ module.exports = {
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
     },
     {
+      name: "generation-contract-imports-only-zod-and-types",
+      comment:
+        "The generation vocabulary is the browser-safe generators subpath: its only runtime imports are zod and the zero-dependency types package. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/generators/src/contract/generation\\.ts$" },
+      to: {
+        path: ".*",
+        pathNot: ["node_modules/zod/", "^packages/types/"],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "instance-policy-imports-no-adapter",
+      comment:
+        "The instance-policy subpath loads no adapter: the only workspace code it reaches is its own three config leaves, the config error shape and the types package. npm imports of those five are not held here.",
+      severity: "error",
+      from: { path: "^packages/generators/src/config/instancePolicy\\.ts$" },
+      to: {
+        reachable: true,
+        path: "^(apps|packages|tools)/",
+        pathNot: [
+          "^packages/generators/src/config/(consts|instancePolicy|readRoot)\\.ts$",
+          "^packages/generators/src/contract/errors\\.ts$",
+          "^packages/types/",
+        ],
+      },
+    },
+    {
+      name: "brief-types-import-only-leaves",
+      comment:
+        "The Brief shape loads in a browser: all it reaches is zod, the types package, the generation vocabulary and its own pr-stack folder.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/types\\.ts$" },
+      to: {
+        reachable: true,
+        path: ".*",
+        pathNot: [
+          "node_modules/zod/",
+          "^packages/types/",
+          "^packages/generators/src/contract/generation\\.ts$",
+          "^packages/brief-core/src/(types\\.ts$|pr-stack/)",
+        ],
+      },
+    },
+    {
       name: "contract-imports-no-runtime",
       comment:
         "The wire contract rides in the browser bundle through apps/web's isomorphic fetch boundary: its source reaches only contract and the zero-dependency types package, type-only imports included.",

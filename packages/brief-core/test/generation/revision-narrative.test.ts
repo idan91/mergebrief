@@ -8,13 +8,13 @@ import {
   categorizeDelta,
   categorizeRevisionNarrative,
 } from "../../src/generation/categorize";
-import type { GenerateRequest, Generator } from "generators";
-import {
-  BriefSchema,
-  type Brief,
-  type Effort,
-  type Generation,
-} from "../../src/types";
+import type {
+  Effort,
+  GenerateRequest,
+  Generation,
+  Generator,
+} from "generators";
+import { BriefSchema, type Brief } from "../../src/types";
 import type * as ContextModule from "../../src/context";
 import type * as GithubModule from "../../src/github";
 import type { PrMetadata } from "../../src/github";

@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import type { ValueOf } from "types/utils";
+import { AnchorStates, type ValueOf } from "types";
 
 /**
  * Effort; the normalized, cross-provider reasoning-effort knob. Each adapter
@@ -29,13 +29,6 @@ export const GenerationSchema = z.object({
 });
 
 export type Generation = z.infer<typeof GenerationSchema>;
-
-export const AnchorStates = {
-  ANCHORED: "anchored",
-  FRESH_RESTART: "fresh-restart",
-  NONE: "none",
-} as const;
-export type AnchorState = ValueOf<typeof AnchorStates>;
 
 /** Why an anchored-capable generation ran fresh instead. */
 export const FreshRestartReasons = {

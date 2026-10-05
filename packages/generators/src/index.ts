@@ -1,5 +1,5 @@
 /**
- * ENTRY POINT: the generators package's ONLY export (`package.json`
+ * ENTRY POINT: the generators package's main export (`package.json`
  * `exports["."]`). Everything importable from `"generators"` is re-exported
  * here, grouped by the folder it lives in. Map + glossary: `AGENTS.md`.
  *
@@ -17,12 +17,10 @@ export {
 } from "./contract/generator";
 export {
   AnchorSchema,
-  AnchorStates,
   Efforts,
   FreshRestartReasons,
   GenerationSchema,
   type Anchor,
-  type AnchorState,
   type Effort,
   type FreshRestartReason,
   type Generation,
@@ -30,22 +28,20 @@ export {
 export {
   GeneratorError,
   GeneratorErrorKinds,
+  type ConfigError,
   type GeneratorErrorKind,
 } from "./contract/errors";
 
 // --- config/: how an instance CHOOSES an adapter ---------------------------
+export { COMPOSE_WORKER_RUNTIME, ENV_VAR_NAME } from "./config/consts";
 export {
-  COMPOSE_WORKER_RUNTIME,
   createGenerator,
-  ENV_VAR_NAME,
   defaultGeneratorConfig,
   FullRegenerations,
   GENERATOR_REGISTRY,
   GeneratorConfigSchema,
   Providers,
-  RUNTIME_MARKER_VAR,
   validateGeneratorConfig,
-  type ConfigError,
   type CreateGeneratorDeps,
   type FullRegeneration,
   type GeneratorConfig,
@@ -59,6 +55,7 @@ export {
 export {
   DEFAULT_DRAFT_POLICY,
   loadInstancePolicy,
+  RUNTIME_MARKER_VAR,
   type LoadedInstancePolicy,
 } from "./config/instancePolicy";
 export {

@@ -74,14 +74,10 @@ export {
 export {
   MAX_TRACKERS,
   refineTrackerSettings,
-  ReferenceLocations,
   resolveEffectiveTrackers,
   resolveTrackerConfigs,
-  TicketTrackers,
   TrackerConfigSchema,
   TrackerListSchema,
-  type ReferenceLocation,
-  type TicketTracker,
   type TrackerConfig,
   type TrackerSettings,
 } from "./tracker";

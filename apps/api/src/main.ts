@@ -3,7 +3,7 @@
 // below stays env-INJECTED. A misconfigured API must fail LOUDLY at boot
 // rather than serve a half-wired surface.
 import { serve, type ServerType } from "@hono/node-server";
-import { RUNTIME_MARKER_VAR } from "generators";
+import { RUNTIME_MARKER_VAR } from "generators/instance-policy";
 import { createAppClient, createUserOctokit } from "github";
 import {
   closeDb,

@@ -1,10 +1,10 @@
 import type { AnchorPlan, AnchorViewInput } from "brief-core";
 import {
-  AnchorStates,
   FreshRestartReasons,
   FullRegenerations,
   type Anchor,
 } from "generators";
+import { AnchorStates } from "types/generations";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { AnchorDecision, AnchorDecisionInputs } from "../types";
 import { recoverBrief, resolveChainGroupIds } from "../utils";

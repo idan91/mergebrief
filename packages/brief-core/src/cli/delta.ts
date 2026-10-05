@@ -14,6 +14,7 @@ import {
   DEFAULT_CONTEXT_SOURCES,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
+  type Effort,
   type Generator,
 } from "generators";
 import { extractConfigFlag, extractContextFlag } from "./config";
@@ -44,7 +45,7 @@ import {
   prStem,
   printDeltaSummary,
 } from "../artifacts/output";
-import type { DeltaBrief, Effort } from "../types";
+import type { DeltaBrief } from "../types";
 
 const OUT_DIR = "out";
 
