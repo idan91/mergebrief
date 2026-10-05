@@ -4,16 +4,12 @@
 // viewer's own url row on its own is the inbox domain's purge, not this.
 import type { InstallationId, PullRequestRowId } from "persistence";
 import type { Result } from "types/utils";
-import { purgeRowIn } from "../../../purge-row";
-import type {
-  DeleteControllerDeps,
-  DeletePullFailure,
-  DeletePullInput,
-} from "./types";
+import { purgeRowIn, type RowPurgeFailure } from "../../../purge-row";
+import type { DeleteControllerDeps, DeletePullInput } from "./types";
 
 type DeletePullResult = Result<
   { readonly pullRequestId: PullRequestRowId },
-  DeletePullFailure
+  RowPurgeFailure
 >;
 
 const NOT_FOUND: DeletePullResult = {

@@ -7,7 +7,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WriteClassifications } from "../../../product-operations/types";
+import { WriteClassifications } from "persistence";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
 import createTokensHandlers from "./handler";

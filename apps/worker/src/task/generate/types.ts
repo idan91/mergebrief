@@ -29,18 +29,11 @@ import type {
   PullRequestRow,
   TenantRepository,
 } from "persistence";
-import type { GitHubApiError, PullRequestFile } from "github";
+import type { GitHubApiError, PullRequestFile, PullRequestInfo } from "github";
 import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";
-import type {
-  GitHubPort,
-  PullRequestInfo,
-  PullRequestSource,
-} from "../github-port";
-
-// Re-exported for the worker's internal modules and `index.ts`.
-export type { Logger };
+import type { GitHubPort, PullRequestSource } from "../github-port";
 
 /** The message-only log shape brief-core and the generators contract take. */
 export type CoreMessageLog = (message: string) => void;

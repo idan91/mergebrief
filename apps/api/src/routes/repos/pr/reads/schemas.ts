@@ -1,13 +1,11 @@
-// Boundary schemas for the read surface. A PR number is a positive int; a
-// SHA is a non-empty token.
+// Boundary schemas for the read surface. A SHA is a non-empty token.
 import { z } from "zod";
-import { MAX_FILE_RANGE_LINES } from "./consts";
+import { MAX_FILE_RANGE_LINES } from "contract";
 import {
   commitShaSchema,
   MAX_INT4,
   MAX_PATH_LENGTH,
 } from "../../../wire-bounds";
-export { prNumberSchema } from "../../../wire-bounds";
 
 export const shaSchema = z.string().min(1);
 

@@ -10,8 +10,10 @@ import type { GitHubApiError, RepositoryRef } from "github";
 import type { Logger } from "logging";
 import type { InboxRow, PullRequestRowId, RepoId } from "persistence";
 import type { Result } from "types/utils";
-import { isGitHubDenial } from "../../../shared-errors/failures";
-import type { ReviewerTokenFailure } from "../../auth/reviewer-github-client";
+import {
+  isGitHubDenial,
+  type TokenUnreadableFailure,
+} from "../../../shared-errors/failures";
 import { runInPool } from "../../batches";
 import { buildOpenPullsCacheKey } from "../../open-pulls-cache";
 import { parseOwnerAndName } from "../../repos/utils";
@@ -22,7 +24,7 @@ import {
   INBOX_STACKS_CONCURRENCY,
 } from "../consts";
 
-export type ReadFailure = GitHubApiError | ReviewerTokenFailure;
+export type ReadFailure = GitHubApiError | TokenUnreadableFailure;
 
 export interface LiveStacksDeps {
   /** One repository's open list under the viewer's token. */

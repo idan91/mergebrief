@@ -4,6 +4,7 @@
 import type * as githubModule from "github";
 import {
   getLiveReadKey,
+  LIVE_READ_PAGE_SIZE,
   readPullRequestFacts,
   type LiveReadPage,
   type PullRequestFacts,
@@ -26,7 +27,7 @@ import type {
   UserOctokit,
 } from "../auth/reviewer-github-client";
 import type { ViewerPrincipal } from "../auth/session/types";
-import { LIVE_READ_CHUNK_SIZE, LIVE_READ_MAX_CHUNKS } from "./consts";
+import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import type { Mutable } from "types/utils";
 import {
   refreshUrlPullRequest,
@@ -239,13 +240,13 @@ describe("refreshUrlPullRequests", () => {
 
   it("reads in chunks of the page size and defers past the chunk cap", async () => {
     const calls = stubReads(() => stubFacts());
-    const cap = LIVE_READ_CHUNK_SIZE * LIVE_READ_MAX_CHUNKS;
+    const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
     await seedRows(cap + 1);
 
     const outcome = await refreshUrlPullRequests(deps(), OWNER);
 
     expect(calls.map((call) => call.refs.length)).toEqual(
-      Array.from({ length: LIVE_READ_MAX_CHUNKS }, () => LIVE_READ_CHUNK_SIZE),
+      Array.from({ length: LIVE_READ_MAX_CHUNKS }, () => LIVE_READ_PAGE_SIZE),
     );
     expect(outcome).toMatchObject({ read: cap, deferred: true });
     expect((await readRow(cap + 1)).githubReadAt).toBeNull();

@@ -10,8 +10,11 @@ import {
 } from "github";
 import { createIngestRoutines, type ReviewerId } from "persistence";
 import type { Result } from "types/utils";
-import { FailureKinds, isGitHubDenial } from "../../shared-errors/failures";
-import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
+import {
+  FailureKinds,
+  isGitHubDenial,
+  type TokenUnreadableFailure,
+} from "../../shared-errors/failures";
 import { deriveLifecycle } from "../live-read/logic/lifecycle";
 import type {
   GenerateControllerDeps,
@@ -42,8 +45,8 @@ interface GenerateBriefInput {
 async function resolveUnderFallback(
   deps: GenerateControllerDeps,
   ref: { owner: string; repo: string; prNumber: number },
-  viewer: Result<PullRequestInfo, GitHubApiError | ReviewerTokenFailure>,
-): Promise<Result<PullRequestInfo, GitHubApiError | ReviewerTokenFailure>> {
+  viewer: Result<PullRequestInfo, GitHubApiError | TokenUnreadableFailure>,
+): Promise<Result<PullRequestInfo, GitHubApiError | TokenUnreadableFailure>> {
   const fallbackToken = deps.fallbackToken;
   if (viewer.ok || fallbackToken === undefined) {
     return viewer;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { computeCatalogFingerprint } from "../../product-operations/manifest";
+import { WriteClassifications } from "persistence";
 import {
   OperationKinds,
-  WriteClassifications,
   type ProductOperationDescriptor,
 } from "../../product-operations/types";
 import capabilitiesController from "./controller";

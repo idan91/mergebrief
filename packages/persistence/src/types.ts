@@ -57,7 +57,7 @@ export function isReviewSessionId(value: bigint): value is ReviewSessionId {
  * `api_token.scope`: the same three rungs the Product Operation catalog
  * classifies every operation by, cumulative left to right. One vocabulary for
  * both is what keeps the scope check a lookup rather than a mapping, so
- * `apps/api` re-exports this map rather than declaring its own. Chosen at
+ * `apps/api` imports this map rather than declaring its own. Chosen at
  * mint, immutable for the token's life.
  */
 export const WriteClassifications = {

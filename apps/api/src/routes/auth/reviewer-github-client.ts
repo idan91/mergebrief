@@ -21,11 +21,6 @@ import type {
 } from "./session/types";
 import { refreshSessionToken } from "./session/logic/refresh";
 
-/** The stored ciphertext could not be decrypted; re-auth territory; the
- * caller owns the posture (burn the session, 401, …). One shape with the
- * shared failure vocabulary so the two can never drift. */
-export type ReviewerTokenFailure = TokenUnreadableFailure;
-
 export type UserOctokit = ReturnType<UserOctokitFactory>;
 
 export interface ReviewerGitHubClient {
@@ -38,7 +33,7 @@ export interface ReviewerGitHubClient {
   run<T, E>(
     call: (accessToken: string) => Promise<Result<T, E>>,
     isExpired?: (error: E) => boolean,
-  ): Promise<Result<T, E | ReviewerTokenFailure>>;
+  ): Promise<Result<T, E | TokenUnreadableFailure>>;
   /**
    * `run` for a READ, with the operator PAT as a second rung when the gate
    * passed this request on that PAT (the client is built with the token only
@@ -49,7 +44,7 @@ export interface ReviewerGitHubClient {
     call: (accessToken: string) => Promise<Result<T, E>>,
     isDenied: (error: E) => boolean,
     isExpired?: (error: E) => boolean,
-  ): Promise<Result<T, E | ReviewerTokenFailure>>;
+  ): Promise<Result<T, E | TokenUnreadableFailure>>;
   /** The GitHub client for a token `run` or `runRead` handed out. */
   createOctokit(accessToken: string): UserOctokit;
   /**
@@ -63,7 +58,7 @@ export interface ReviewerGitHubClient {
 }
 
 /** The client's own failure member, told apart from the call's error type. */
-function isOwnTokenFailure(error: unknown): error is ReviewerTokenFailure {
+function isOwnTokenFailure(error: unknown): error is TokenUnreadableFailure {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -80,7 +75,7 @@ function isUnauthorizedCode(error: unknown): boolean {
   );
 }
 
-const TOKEN_UNREADABLE: Result<never, ReviewerTokenFailure> = {
+const TOKEN_UNREADABLE: Result<never, TokenUnreadableFailure> = {
   ok: false,
   error: { kind: FailureKinds.TOKEN_UNREADABLE },
 };
@@ -98,7 +93,9 @@ export function createReviewerGitHubClient(
   // awaits the winner's rotation instead of surfacing a stale 401.
   let refresh: Promise<Result<RefreshedSession, RefreshError>> | undefined;
 
-  async function resolveToken(): Promise<Result<string, ReviewerTokenFailure>> {
+  async function resolveToken(): Promise<
+    Result<string, TokenUnreadableFailure>
+  > {
     if (accessToken !== undefined) {
       return { ok: true, value: accessToken };
     }
@@ -118,7 +115,7 @@ export function createReviewerGitHubClient(
     async run<T, E>(
       call: (token: string) => Promise<Result<T, E>>,
       isExpired: (error: E) => boolean = isUnauthorizedCode,
-    ): Promise<Result<T, E | ReviewerTokenFailure>> {
+    ): Promise<Result<T, E | TokenUnreadableFailure>> {
       const token = await resolveToken();
       if (!token.ok) {
         return token;
@@ -146,7 +143,7 @@ export function createReviewerGitHubClient(
       call: (token: string) => Promise<Result<T, E>>,
       isDenied: (error: E) => boolean,
       isExpired: (error: E) => boolean = isUnauthorizedCode,
-    ): Promise<Result<T, E | ReviewerTokenFailure>> {
+    ): Promise<Result<T, E | TokenUnreadableFailure>> {
       const own = await this.run(call, isExpired);
       if (own.ok || readFallbackToken === undefined) {
         return own;

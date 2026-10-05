@@ -1,10 +1,5 @@
-import { LIVE_READ_PAGE_SIZE } from "github";
-
 /** A url row read within this window is not read again. */
 export const LIVE_READ_STALE_MS = 5 * 60 * 1000;
-
-/** Pull requests per GraphQL call, GitHub's alias page. */
-export const LIVE_READ_CHUNK_SIZE = LIVE_READ_PAGE_SIZE;
 
 /** Calls per read; rows past the last chunk wait for the next read. */
 export const LIVE_READ_MAX_CHUNKS = 3;

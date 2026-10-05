@@ -22,7 +22,7 @@ import {
   DraftCommentStatuses,
 } from "types/comments";
 import { describe, expect, it } from "vitest";
-import { buildSessionPayload } from "../../src/routes/repos/pr/session/payload";
+import { buildSessionPayload } from "../../src/routes/repos/pr/session/logic/payload";
 
 function sessionId(value: bigint): ReviewSessionId {
   if (!isReviewSessionId(value)) {

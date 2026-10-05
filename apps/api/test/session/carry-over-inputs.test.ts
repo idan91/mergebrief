@@ -5,9 +5,9 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveChunkRegion,
-  readCarryFacts,
+  readCarryOverInputs,
   UnreadableBriefError,
-} from "../../src/routes/repos/pr/session/carry-facts";
+} from "../../src/routes/repos/pr/session/logic/carry-over-inputs";
 
 const BODY = {
   changeGroups: [{ id: "group-a" }, { id: "group-b" }],
@@ -21,9 +21,9 @@ const BODY = {
   ],
 };
 
-describe("readCarryFacts", () => {
+describe("readCarryOverInputs", () => {
   it("reads group ids and one flag per risk-surface attribute", () => {
-    expect(readCarryFacts(JSON.stringify(BODY))).toEqual({
+    expect(readCarryOverInputs(JSON.stringify(BODY))).toEqual({
       groupIds: ["group-a", "group-b"],
       filePaths: ["src/app.ts"],
       flags: [
@@ -44,14 +44,14 @@ describe("readCarryFacts", () => {
   });
 
   it("keeps unknown keys out rather than failing on them", () => {
-    const facts = readCarryFacts(
+    const facts = readCarryOverInputs(
       JSON.stringify({ ...BODY, narrative: "…", version: 3 }),
     );
     expect(facts.groupIds).toEqual(["group-a", "group-b"]);
   });
 
   it("treats a chunk with no ranges as a span, not a parse failure", () => {
-    const facts = readCarryFacts(
+    const facts = readCarryOverInputs(
       JSON.stringify({
         changeGroups: [],
         chunks: [{ file: "src/new.ts", riskSurface: ["auth"] }],
@@ -68,7 +68,7 @@ describe("readCarryFacts", () => {
   });
 
   it("throws on a body that is not JSON at all", () => {
-    expect(() => readCarryFacts("not json")).toThrow(UnreadableBriefError);
+    expect(() => readCarryOverInputs("not json")).toThrow(UnreadableBriefError);
   });
 
   it.each(["changeGroups", "chunks"])(
@@ -76,7 +76,7 @@ describe("readCarryFacts", () => {
     (key) => {
       const partial: Record<string, unknown> = { ...BODY };
       delete partial[key];
-      expect(() => readCarryFacts(JSON.stringify(partial))).toThrow(
+      expect(() => readCarryOverInputs(JSON.stringify(partial))).toThrow(
         UnreadableBriefError,
       );
     },

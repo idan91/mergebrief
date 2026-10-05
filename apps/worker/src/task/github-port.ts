@@ -43,14 +43,6 @@ import { GenerationFailureCodes } from "types/generations";
 import type { Result } from "types/utils";
 import { PermanentJobError } from "./failure";
 
-export type {
-  GitHubApiError,
-  IssueInfo,
-  PullRequestFile,
-  PullRequestInfo,
-  RepoFileResult,
-};
-
 /** The GitHub calls a generate job performs, bound to one (installation, repo, PR). */
 export interface PullRequestSource {
   fetchPullRequest(): Promise<Result<PullRequestInfo, GitHubApiError>>;

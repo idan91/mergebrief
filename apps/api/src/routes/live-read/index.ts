@@ -4,6 +4,7 @@
 // finishes in the background. Nothing here queues a generation.
 import {
   getLiveReadKey,
+  LIVE_READ_PAGE_SIZE,
   readPullRequestFacts,
   type LiveReadPage,
   type PullRequestFacts,
@@ -17,7 +18,6 @@ import {
   type ReviewerId,
 } from "persistence";
 import {
-  LIVE_READ_CHUNK_SIZE,
   LIVE_READ_MAX_CHUNKS,
   LIVE_READ_STALE_MS,
   LIVE_READ_WAIT_MS,
@@ -72,7 +72,7 @@ export async function refreshUrlPullRequests(
   const now = deps.now?.() ?? new Date();
   if (isCoolingDown(deps, now)) return { ...NOTHING_READ, failed: true };
   const store = createLiveReadStore(deps.handle, { ownerUserId });
-  const cap = LIVE_READ_CHUNK_SIZE * LIVE_READ_MAX_CHUNKS;
+  const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
   const due = await store.listDue({
     now,
     staleMs: LIVE_READ_STALE_MS,
@@ -203,7 +203,7 @@ async function readPlan(
     (row) => store.markUnreachable(row.id, now),
   );
   const unreachable = marked.filter((outcome) => outcome.ok).length;
-  const chunks = splitChunks(plan.targets, LIVE_READ_CHUNK_SIZE);
+  const chunks = splitChunks(plan.targets, LIVE_READ_PAGE_SIZE);
   const outcomes = await Promise.all(
     chunks.map((chunk) => readChunk(deps, store, chunk, now)),
   );

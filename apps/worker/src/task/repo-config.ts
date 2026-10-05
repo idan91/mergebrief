@@ -20,7 +20,7 @@ import {
   type RepoSettingsV1,
   type ValidatedRepoPolicy,
 } from "repo-config";
-import type { Logger } from "./generate";
+import type { Logger } from "logging";
 import type { PullRequestSource } from "./github-port";
 
 /** The one slice of a brief chunk the fired-attribute scan needs. */

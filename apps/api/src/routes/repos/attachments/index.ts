@@ -7,7 +7,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WriteClassifications } from "../../../product-operations/types";
+import { WriteClassifications } from "persistence";
 import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
 import type { InstallationResolver } from "../../installation-resolver";
 import { createPurgeAttachmentsHandlers } from "./handler";

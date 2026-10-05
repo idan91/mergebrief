@@ -1,6 +1,7 @@
 // Package entry point, routes are internal wiring, never exported.
 export { createApp } from "./app";
-export type { ApiApp, AppDeps, AuthDeps } from "./app";
+export type { ApiApp } from "./app";
+export type { AppDeps } from "./routes";
 // The audit knobs the composition root reads from persistence config.
 export type { AuditEmitConfig } from "./product-operations/audit";
 // The startup wiring wires `appInstallationPort` over the App-JWT client;
@@ -17,6 +18,7 @@ export {
 } from "./routes/auth/session/logic/principal";
 export { refreshSessionToken } from "./routes/auth/session/logic/refresh";
 export type {
+  AuthDeps,
   AuthRouteDeps,
   RefreshedSession,
   RefreshError,

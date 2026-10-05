@@ -4,8 +4,6 @@
 import { randomBytes } from "node:crypto";
 import { createEnvKeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-
-export type { PgliteHarness };
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
 import { createTestUserOctokit, KEY_REF } from "./fixtures";

@@ -9,7 +9,7 @@
 import { Hono } from "hono";
 import { every } from "hono/combine";
 import type { Env, H, MiddlewareHandler } from "hono/types";
-import type { WriteClassification } from "persistence";
+import { WriteClassifications, type WriteClassification } from "persistence";
 import type { ValueOf } from "types/utils";
 import type { ProductActionId, ProductQueryId } from "contract";
 import type { ProductOperationRegistry } from "./registry";
@@ -17,7 +17,6 @@ import {
   isWriteClassification,
   OperationKinds,
   scopeReaches,
-  WriteClassifications,
   type ActionClassification,
   type ProductActionDescriptor,
   type ProductQueryDescriptor,

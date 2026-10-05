@@ -16,7 +16,7 @@ import {
   deriveAttentionItems,
   type AttentionDisposition,
   type AttentionDraftComment,
-} from "../../src/routes/repos/pr/session/attention";
+} from "../../src/routes/repos/pr/session/logic/attention";
 
 const COMMENT: AttentionDraftComment = {
   id: 41n,

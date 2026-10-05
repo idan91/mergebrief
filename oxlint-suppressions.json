@@ -9,11 +9,6 @@
       "count": 2
     }
   },
-  "apps/api/src/product-operations/types.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/api/src/queue.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -449,11 +444,6 @@
   "apps/web/src/utils/motion.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/worker/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 7
     }
   },
   "apps/worker/src/task/payload.ts": {

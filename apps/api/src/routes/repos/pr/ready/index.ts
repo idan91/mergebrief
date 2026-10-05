@@ -10,7 +10,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WriteClassifications } from "../../../../product-operations/types";
+import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import createReadyHandlers from "./handler";

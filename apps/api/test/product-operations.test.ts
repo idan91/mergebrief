@@ -3,15 +3,12 @@
 // router, declaration and mounting as one statement, endpoints stamped from
 // the mount prefixes at the root commit.
 import type { Env, Hono, MiddlewareHandler } from "hono";
-import type { WriteClassification } from "persistence";
+import { WriteClassifications, type WriteClassification } from "persistence";
 import { describe, expect, it } from "vitest";
 import { createProductOperationRegistry } from "../src/product-operations/registry";
 import { ProductActionIds, ProductQueryIds } from "contract";
 import { productRouter } from "../src/product-operations/product-router";
-import {
-  OperationKinds,
-  WriteClassifications,
-} from "../src/product-operations/types";
+import { OperationKinds } from "../src/product-operations/types";
 
 describe("product operation registry", () => {
   it("enumerates registered descriptors sorted by id", () => {

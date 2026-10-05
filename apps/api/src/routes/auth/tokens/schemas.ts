@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WriteClassifications } from "../../../product-operations/types";
+import { WriteClassifications } from "persistence";
 import { MAX_EXPIRY_DAYS } from "./consts";
 
 /**

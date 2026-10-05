@@ -1,4 +1,6 @@
 import { type Brief, type PrLocator } from "brief-core";
+import type { PullRequestInfo } from "github";
+import type { Logger } from "logging";
 import { scheduleUrlBoxRegeneration } from "../url-box-regeneration";
 import {
   createArtifactStore,
@@ -18,7 +20,7 @@ import {
 import { GenerationStatuses } from "types/generations";
 import { PrStates, PullRequestSources } from "types/pull-requests";
 import { entryCommentBody } from "../entry-comment";
-import { splitRepoSlug, type PullRequestInfo } from "../github-port";
+import { splitRepoSlug } from "../github-port";
 import { PermanentJobError } from "../failure";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "../payload";
 import { generateBrief, recoverStoredBrief } from "./logic/brief-generation";
@@ -53,13 +55,12 @@ import type {
   GenerateTask,
   GenerateTaskDeps,
   GenerateTaskHelpers,
-  Logger,
   PrefetchedSpan,
   RunState,
 } from "./types";
 import { getBriefTarget, getPrLocator, createNoopLogger } from "./utils";
 
-export type { GenerateTaskDeps, Logger } from "./types";
+export type { GenerateTaskDeps } from "./types";
 
 /**
  * Build the generate task. The returned function is graphile's `Task` shape;

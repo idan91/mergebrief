@@ -1,7 +1,11 @@
 import { TicketUnreadReasons } from "brief-core";
-import { GitHubApiErrorCodes, type GitHubApiError } from "github";
+import {
+  GitHubApiErrorCodes,
+  type GitHubApiError,
+  type IssueInfo,
+} from "github";
 import { describe, expect, it } from "vitest";
-import type { IssueInfo, PullRequestSource } from "../src/task/github-port";
+import type { PullRequestSource } from "../src/task/github-port";
 import { createInstallationIssueApi } from "../src/task/issue-api";
 
 const ISSUE: IssueInfo = {

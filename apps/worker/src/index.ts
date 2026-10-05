@@ -1,11 +1,11 @@
-// ENTRY POINT — the whole public surface (`package.json` `exports["."]`).
-// The runnable entry is `src/main.ts` (startup wiring, `pnpm start`) — it is
+// ENTRY POINT: the whole public surface (`package.json` `exports["."]`).
+// The runnable entry is `src/main.ts` (startup wiring, `pnpm start`); it is
 // deliberately NOT exported here; this surface exists for tests and for any
 // future embedding of the worker in another process.
 
-// --- root — boot plumbing ----------------------------------------------------
+// --- root: boot plumbing ----------------------------------------------------
 
-// Worker env config (Zod-parsed; injectable env — never reads process.env).
+// Worker env config (Zod-parsed; injectable env, never reads process.env).
 export { loadConfig, ConfigErrorCodes } from "./config";
 export type { WorkerConfig, ConfigError } from "./config";
 
@@ -14,13 +14,13 @@ export type { WorkerConfig, ConfigError } from "./config";
 export { assertScheduledTasksRegistered, startWorker } from "./runner";
 export type { StartWorkerOptions } from "./runner";
 
-// --- task/ — the `generate` task + its collaborators -------------------------
+// --- task/: the `generate` task + its collaborators -------------------------
 
-// The `generate` task — the drain side of the ingest→queue→worker pipeline.
+// The `generate` task: the drain side of the ingest→queue→worker pipeline.
 export { createGenerateTask } from "./task/generate";
-export type { GenerateTaskDeps, Logger } from "./task/generate";
+export type { GenerateTaskDeps } from "./task/generate";
 
-// The audit-retention sweep — the one scheduled job (graphile cron).
+// The audit-retention sweep: the one scheduled job (graphile cron).
 export {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,

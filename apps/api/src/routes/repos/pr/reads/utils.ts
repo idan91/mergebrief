@@ -4,7 +4,7 @@ import type { Context } from "hono";
 import type { z } from "zod";
 import { BadRequest } from "../../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../../authz";
-import { prNumberSchema } from "./schemas";
+import { prNumberSchema } from "../../../wire-bounds";
 
 export function parseQuery<S extends z.ZodTypeAny>(
   c: Context<AuthzEnv>,

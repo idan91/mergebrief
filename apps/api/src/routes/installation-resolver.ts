@@ -20,14 +20,14 @@ import {
 } from "persistence";
 import { HttpStatuses, type Result } from "types";
 import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
-import {
-  createReviewerGitHubClient,
-  type ReviewerTokenFailure,
-} from "./auth/reviewer-github-client";
+import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { runInBatches } from "./batches";
-import { isGitHubDenial } from "../shared-errors/failures";
+import {
+  isGitHubDenial,
+  type TokenUnreadableFailure,
+} from "../shared-errors/failures";
 import { createTtlCache } from "./ttl-cache";
 
 /**
@@ -109,7 +109,7 @@ export interface InstallationResolver {
 
 interface InstallationWalk {
   readonly installationId: InstallationId;
-  readonly repos: Result<unknown, GitHubApiError | ReviewerTokenFailure>;
+  readonly repos: Result<unknown, GitHubApiError | TokenUnreadableFailure>;
 }
 
 /** GitHub refused this one installation to the viewer; the others still count. */

@@ -56,16 +56,15 @@ import {
 import type { CompareFile } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { OpenPullRequest } from "brief-core/pr-stack";
-import { GitHubApiErrorCodes } from "github";
-import type {
-  GitHubApiError,
-  GitHubPort,
-  IssueInfo,
-  PullRequestFile,
-  PullRequestSource,
-  PullRequestInfo,
-  RepoFileResult,
-} from "../src/task/github-port";
+import {
+  GitHubApiErrorCodes,
+  type GitHubApiError,
+  type IssueInfo,
+  type PullRequestFile,
+  type PullRequestInfo,
+  type RepoFileResult,
+} from "github";
+import type { GitHubPort, PullRequestSource } from "../src/task/github-port";
 
 // ---------------------------------------------------------------------------
 // Fixtures.

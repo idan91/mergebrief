@@ -1,5 +1,6 @@
 import type { Generator } from "generators";
-import type { PullRequestInfo, PullRequestSource } from "../../github-port";
+import type { PullRequestInfo } from "github";
+import type { PullRequestSource } from "../../github-port";
 import type { SupersessionWatch } from "../types";
 
 /** Control-flow signal: the job's head is no longer the PR's head. */

@@ -1,7 +1,5 @@
 import { WriteClassifications, type WriteClassification } from "persistence";
 
-export { WriteClassifications, type WriteClassification };
-
 export const OperationKinds = {
   QUERY: "query",
   ACTION: "action",
@@ -15,7 +13,7 @@ export type ActionClassification =
   | PrivateWriteClassification
   | ExternalWriteClassification;
 
-// Ranks — not map order — are what the check compares; adding a rung means placing it here.
+// Ranks, not map order, are what the check compares; adding a rung means placing it here.
 const ScopeRanks = {
   [WriteClassifications.READ]: 0,
   [WriteClassifications.PRIVATE_WRITE]: 1,
@@ -37,7 +35,7 @@ export function isWriteClassification(
 
 interface OperationDescriptorBase {
   readonly id: string;
-  /** `METHOD /full/composed/path` — stamped by the router from the mount prefixes. */
+  /** `METHOD /full/composed/path`, stamped by the router from the mount prefixes. */
   readonly endpoint: string;
 }
 

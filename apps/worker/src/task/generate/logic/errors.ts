@@ -1,6 +1,6 @@
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
-import { GitHubApiErrorCodes } from "github";
+import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import type { LogFields, Logger } from "logging";
 import type { GenerationKind } from "persistence";
 import {
@@ -10,7 +10,6 @@ import {
 } from "types/generations";
 import type { Result } from "types/utils";
 import { PermanentJobError, TransientJobError } from "../../failure";
-import type { GitHubApiError } from "../../github-port";
 import {
   HTTP_STATUS_NOT_ACCEPTABLE,
   HTTP_STATUS_REQUEST_TIMEOUT,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fileRangeQuerySchema } from "./schemas";
-import { MAX_FILE_RANGE_LINES } from "./consts";
+import { MAX_FILE_RANGE_LINES } from "contract";
 
 const HEAD_SHA = `${"0".repeat(39)}a`;
 
