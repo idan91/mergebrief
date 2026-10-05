@@ -1718,6 +1718,26 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
     expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c1"]);
   });
 
+  it("a refused first write leaves no session row", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    const second = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const repo = createTenantRepository(world.handle, CTX);
+    await openSession(world, second);
+
+    const refused = await repo.reviewSessions.writeToSession(
+      { briefId: first, reviewerId: REVIEWER, brief: artifact([], []) },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    expect(refused.ok).toBe(false);
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_FROZEN,
+    );
+    expect(await countRows(world.client, "review_session")).toBe(1);
+  });
+
   it("leaves another reviewer's newer session out of it", async () => {
     const world = await freshWorld();
     const first = await seedBrief(world, 1);

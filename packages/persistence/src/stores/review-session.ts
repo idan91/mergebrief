@@ -517,6 +517,16 @@ function fail(
   return { ok: false, error: { code, message } };
 }
 
+function throwIfPreviousChanged(
+  expected: PreviousSession | undefined,
+  current: PreviousSession | undefined,
+): void {
+  const changed = current?.id !== expected?.id;
+  if (changed) {
+    throw new Error("previous review_session changed before the first write");
+  }
+}
+
 /**
  * Build the Review Session repository. Not exported from `index.ts` on its
  * own, `createTenantRepository` composes it, so a caller cannot reach it without a ctx.
@@ -1075,11 +1085,15 @@ export function createReviewSessionRepository(
     return rows[0] !== undefined;
   }
 
-  /** The session row inside an open transaction; its existence is settled. */
-  async function sessionInTx(
+  /**
+   * The session row for a key, locked until the transaction ends, or
+   * `undefined`. Every write to a session takes this lock first, so two
+   * writes to one session run one after the other.
+   */
+  async function lockSession(
     tx: Tx,
     key: ReviewSessionKey,
-  ): Promise<ReviewSessionRow> {
+  ): Promise<ReviewSessionRow | undefined> {
     const rows = await tx
       .select()
       .from(reviewSession)
@@ -1090,12 +1104,136 @@ export function createReviewSessionRepository(
           eq(reviewSession.reviewerId, key.reviewerId),
         ),
       )
-      .limit(1);
-    const row = rows[0];
-    if (row === undefined) {
-      throw new Error("review_session vanished inside its own transaction");
+      .limit(1)
+      .for("update");
+    return rows[0];
+  }
+
+  /**
+   * The previous session, its row locked until the transaction ends. A write
+   * to it either committed before this returns or waits for the
+   * materialization and then finds its session frozen. The wait for the lock
+   * can outlast a newer previous session committing, hence the re-read.
+   */
+  async function lockPreviousSession(
+    tx: Tx,
+    facts: BriefFacts,
+    reviewerId: ReviewerId,
+  ): Promise<PreviousSession | undefined> {
+    const found = await previousSession(tx, facts, reviewerId);
+    if (found === undefined) {
+      return undefined;
     }
-    return row;
+
+    await tx
+      .select({ id: reviewSession.id })
+      .from(reviewSession)
+      .where(
+        and(
+          scope.matchesWorld(reviewSession.installationId),
+          eq(reviewSession.id, found.id),
+        ),
+      )
+      .for("update");
+
+    const locked = await previousSession(tx, facts, reviewerId);
+    throwIfPreviousChanged(found, locked);
+    return locked;
+  }
+
+  function failFrozen(
+    facts: BriefFacts,
+    reviewerId: ReviewerId,
+  ): Result<never, ReviewSessionError> {
+    return fail(
+      ReviewSessionErrorCodes.SESSION_FROZEN,
+      `reviewer ${reviewerId} already works on a newer brief of pull_request ${facts.pullRequestId}`,
+    );
+  }
+
+  /**
+   * Create the session and copy the carried work onto it. Lock order is
+   * previous, then own, on every path: a first write holds no own-row lock
+   * until the previous one is taken. The freeze check precedes the insert
+   * because a refusal returned from the transaction callback commits.
+   */
+  async function materializeSession(
+    tx: Tx,
+    query: CarryOverQuery,
+    facts: BriefFacts,
+    artifact: CarryOverInputs | undefined,
+  ): Promise<Result<ReviewSessionRow, ReviewSessionError>> {
+    const previous = await lockPreviousSession(tx, facts, query.reviewerId);
+    const frozen = await hasNewerSession(tx, facts, query.reviewerId);
+    if (frozen) {
+      return failFrozen(facts, query.reviewerId);
+    }
+
+    // DO NOTHING is the creation detector: a second concurrent first-write
+    // gets no row back, skips the copy and locks the committed row instead.
+    // Only the creating writer copies, so carried rows never double.
+    const inserted = await tx
+      .insert(reviewSession)
+      .values({
+        installationId: scope.installationId,
+        briefId: query.briefId,
+        reviewerId: query.reviewerId,
+      })
+      .onConflictDoNothing({
+        target: [
+          reviewSession.installationId,
+          reviewSession.briefId,
+          reviewSession.reviewerId,
+        ],
+      })
+      .returning();
+    const created = inserted[0];
+    if (created === undefined) {
+      const committed = await lockSession(tx, query);
+      if (committed === undefined) {
+        throw new Error("review_session vanished inside its own transaction");
+      }
+      // The wait for that lock can outlast a newer session copying from the
+      // committed row, so the freeze is checked again under the lock.
+      const frozenUnderLock = await hasNewerSession(
+        tx,
+        facts,
+        query.reviewerId,
+      );
+      if (frozenUnderLock) {
+        return failFrozen(facts, query.reviewerId);
+      }
+      return { ok: true, value: committed };
+    }
+
+    // With no previous row there was nothing to lock, so a first write on an
+    // older Brief can commit between the lookup and the insert. Its work would
+    // be left behind for good, the same reason the throw below is deliberate.
+    const latest = await previousSession(tx, facts, query.reviewerId);
+    throwIfPreviousChanged(previous, latest);
+    if (previous === undefined) {
+      return { ok: true, value: created };
+    }
+    if (artifact === undefined) {
+      // The probe lost a race, a concurrent first write on an older Brief
+      // created this session. Failing is deliberate: carry-over cannot be
+      // re-evaluated inside the open transaction, and skipping it writes
+      // without the carried work for good.
+      throw new Error(
+        "previous review_session appeared before the first write",
+      );
+    }
+
+    const carried = await evaluatePending(tx, facts, previous, artifact);
+    await copyCarried(tx, created, carried, previous.id);
+    // Stamped here and never recomputed: the receipt states what came
+    // across, and every marker it could be re-derived from is one the
+    // reviewer's own later work clears.
+    await tx
+      .update(reviewSession)
+      .set({ carriedItemCount: countPendingCarriedItems(carried) })
+      .where(eq(reviewSession.id, created.id));
+    return { ok: true, value: created };
   }
 
   /**
@@ -1235,64 +1373,26 @@ export function createReviewSessionRepository(
             `brief ${query.briefId} not in ${scope.label}`,
           );
         }
-        if (await hasNewerSession(tx, facts, query.reviewerId)) {
-          return fail(
-            ReviewSessionErrorCodes.SESSION_FROZEN,
-            `reviewer ${query.reviewerId} already works on a newer brief of pull_request ${facts.pullRequestId}`,
+        const existing = await lockSession(tx, query);
+        if (existing === undefined) {
+          const materialized = await materializeSession(
+            tx,
+            query,
+            facts,
+            artifact,
           );
-        }
-        // DO NOTHING is the creation detector: a second concurrent first-write
-        // gets no row back, skips the copy and goes straight to its own write.
-        // Only the creating writer copies, so carried rows never double.
-        const inserted = await tx
-          .insert(reviewSession)
-          .values({
-            installationId: scope.installationId,
-            briefId: query.briefId,
-            reviewerId: query.reviewerId,
-          })
-          .onConflictDoNothing({
-            target: [
-              reviewSession.installationId,
-              reviewSession.briefId,
-              reviewSession.reviewerId,
-            ],
-          })
-          .returning();
-        const created = inserted[0];
-        if (created !== undefined) {
-          // Re-read inside the transaction: the payload the read returned is
-          // never trusted, which is what makes a late write to the previous
-          // session safe with no lock and no version token.
-          const previous = await previousSession(tx, facts, query.reviewerId);
-          if (previous !== undefined) {
-            if (artifact === undefined) {
-              // The probe lost a race, a concurrent first write on an older
-              // Brief created this session. Failing is deliberate: carry-over
-              // cannot be re-evaluated inside the open transaction, and
-              // skipping it writes without the carried work for good.
-              throw new Error(
-                "previous review_session appeared before the first write",
-              );
-            }
-            const carried = await evaluatePending(
-              tx,
-              facts,
-              previous,
-              artifact,
-            );
-            await copyCarried(tx, created, carried, previous.id);
-            // Stamped here and never recomputed: the receipt states what came
-            // across, and every marker it could be re-derived from is one the
-            // reviewer's own later work clears.
-            await tx
-              .update(reviewSession)
-              .set({ carriedItemCount: countPendingCarriedItems(carried) })
-              .where(eq(reviewSession.id, created.id));
+          if (!materialized.ok) {
+            return materialized;
           }
+          const writer = sessionWriter(tx, materialized.value);
+          return { ok: true, value: await write(writer) };
         }
-        const session = created ?? (await sessionInTx(tx, query));
-        return { ok: true, value: await write(sessionWriter(tx, session)) };
+        const frozen = await hasNewerSession(tx, facts, query.reviewerId);
+        if (frozen) {
+          return failFrozen(facts, query.reviewerId);
+        }
+
+        return { ok: true, value: await write(sessionWriter(tx, existing)) };
       });
     },
 
