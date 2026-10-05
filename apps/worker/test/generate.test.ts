@@ -2321,6 +2321,36 @@ describe("generate task", () => {
     expect(current?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
+  it("a push after the last head check keeps its pending row", async () => {
+    const first = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    // The ready Entry is the run's second post and follows its last head
+    // check; the stub's head never moves, so the run cannot see this push.
+    let posts = 0;
+    github.onPostEntryComment = async () => {
+      posts += 1;
+      if (posts === 2) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await trigger(HEAD_2);
+      }
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+    });
+
+    await task(first.payload);
+
+    expect(posts).toBe(2);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const finished = await projection.get(target(first.pr, HEAD_1));
+    expect(finished?.status).toBe(GenerationStatuses.SUCCEEDED);
+    const pushed = await projection.get(target(first.pr, HEAD_2));
+    expect(pushed?.status).toBe(GenerationStatuses.PENDING);
+  });
+
   it("rethrows transient failures but retains deterministic ones as failed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

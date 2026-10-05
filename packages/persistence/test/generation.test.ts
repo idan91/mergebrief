@@ -25,7 +25,12 @@ import { createPgliteHarness } from "../src/testing";
 import { drizzle } from "drizzle-orm/pglite";
 import { fromDrizzle } from "../src/db/handle";
 import * as schema from "../src/schema/index";
-import { brandWith, freshDatabase, freshPglite } from "./helpers";
+import {
+  brandWith,
+  freshDatabase,
+  freshPglite,
+  makeBriefTarget,
+} from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -321,7 +326,7 @@ describe("createGenerationProjection status transitions", () => {
     await gen.upsertPending(current);
     await gen.markSucceeded(current);
 
-    const swept = await gen.supersedeStaleBriefs(pr.id, "new-head");
+    const swept = await gen.supersedeStaleBriefs(pr.id, "new-head", new Date());
     expect(swept).toBe(1);
     const staleRow = await gen.get(stale);
     expect(staleRow?.status).toBe(GenerationStatuses.SUPERSEDED);
@@ -364,7 +369,10 @@ describe("createGenerationProjection status transitions", () => {
     await gen.markSucceeded(current);
     // The sweep's updated_at must be strictly newer than the success's.
     await new Promise((resolve) => setTimeout(resolve, 5));
-    expect(await gen.supersedeStaleBriefs(pr.id, "new-head")).toBe(1);
+    const pickedUpAt = new Date();
+    expect(await gen.supersedeStaleBriefs(pr.id, "new-head", pickedUpAt)).toBe(
+      1,
+    );
 
     const latest = (await gen.latestBriefForPullRequests([pr.id])).get(pr.id);
     expect(latest?.headSha).toBe("new-head");
@@ -438,6 +446,104 @@ describe("createGenerationProjection status transitions", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
     expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
+  });
+});
+
+describe("supersedeStaleBriefs against the pickup time", () => {
+  const PICKED_UP_AT = new Date("2026-03-01T12:00:00.000Z");
+  const BEFORE_PICKUP = new Date(PICKED_UP_AT.getTime() - 1_000);
+  const AFTER_PICKUP = new Date(PICKED_UP_AT.getTime() + 1);
+  const HEAD_A = "head-a";
+  const HEAD_B = "head-b";
+
+  async function seedSweepWorld() {
+    const harness = await createPgliteHarness();
+    onTestFinished(() => harness.close());
+    const repo = createTenantRepository(harness.handle, CTX_A);
+    const gen = createGenerationProjection(harness.handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrStates.OPEN,
+    });
+
+    async function stampUpdatedAt(headSha: string, at: Date): Promise<void> {
+      await harness.raw(
+        "update generation set updated_at = $1 where pull_request_id = $2 and head_sha = $3",
+        [at.toISOString(), pr.id, headSha],
+      );
+    }
+
+    return {
+      gen,
+      pr,
+      stampUpdatedAt,
+      headA: makeBriefTarget(pr.id, HEAD_A),
+      headB: makeBriefTarget(pr.id, HEAD_B),
+    };
+  }
+
+  it("the sweep leaves a head triggered after the run was picked up", async () => {
+    const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
+    await gen.upsertPending(headA);
+    await gen.markSucceeded(headA);
+    await gen.upsertPending(headB);
+    await stampUpdatedAt(HEAD_B, AFTER_PICKUP);
+
+    const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
+
+    expect(swept).toBe(0);
+    expect((await gen.get(headB))?.status).toBe(GenerationStatuses.PENDING);
+  });
+
+  it("the sweep takes a re-triggered older head's replaced successor", async () => {
+    const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
+    const first = await gen.upsertPending(headA);
+    await gen.markSuperseded(headA);
+    const successor = await gen.upsertPending(headB);
+    await stampUpdatedAt(HEAD_B, BEFORE_PICKUP);
+    const retriggered = await gen.upsertPending(headA);
+    await gen.markSucceeded(headA);
+    const allQueued = first.ok && successor.ok && retriggered.ok;
+    if (!allQueued) {
+      throw new Error("projection failed");
+    }
+    expect(retriggered.value.id).toBe(first.value.id);
+    expect(successor.value.id).toBeGreaterThan(retriggered.value.id);
+
+    const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
+
+    expect(swept).toBe(1);
+    expect((await gen.get(headB))?.status).toBe(GenerationStatuses.SUPERSEDED);
+  });
+
+  it("the sweep leaves a newer head that is already running", async () => {
+    const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
+    await gen.upsertPending(headA);
+    await gen.markSucceeded(headA);
+    await gen.upsertPending(headB);
+    await gen.markRunning(headB, GenerationPhases.GENERATING);
+    await stampUpdatedAt(HEAD_B, AFTER_PICKUP);
+
+    const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
+
+    expect(swept).toBe(0);
+    const running = await gen.get(headB);
+    expect(running?.status).toBe(GenerationStatuses.RUNNING);
+    expect(running?.phase).toBe(GenerationPhases.GENERATING);
+  });
+
+  it("the sweep takes a row updated exactly at the pickup time", async () => {
+    const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
+    await gen.upsertPending(headA);
+    await gen.markSucceeded(headA);
+    await gen.upsertPending(headB);
+    await stampUpdatedAt(HEAD_B, PICKED_UP_AT);
+
+    const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
+
+    expect(swept).toBe(1);
+    expect((await gen.get(headB))?.status).toBe(GenerationStatuses.SUPERSEDED);
   });
 });
 

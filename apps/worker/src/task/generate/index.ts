@@ -201,6 +201,9 @@ async function runGeneration(
   // it and clears the flag.
   const projected = await projection.get(target);
   run.leaveRow = projected?.status === GenerationStatuses.SUCCEEDED;
+  // Taken before the source opens: a url-box source may read the head while
+  // opening and serve that read as the run's first.
+  const pickedUpAt = new Date();
   // The cap gate needs the source for an Entry comment update, and the brief
   // lookup needs the live base, so a capped job pays one PR read and no more.
   const source =
@@ -563,8 +566,13 @@ async function runGeneration(
     await projection.markSucceeded(target);
     // Sweep projections of heads this one replaced pre-drain: debounce
     // replacement means no worker run ever carried them, so terminal
-    // `superseded` applies the same as to a drained abort.
-    const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
+    // `superseded` applies the same as to a drained abort. A head triggered
+    // after pickup is newer than this run and keeps its row.
+    const swept = await projection.supersedeStaleBriefs(
+      pullRequestId,
+      headSha,
+      pickedUpAt,
+    );
     if (swept > 0) {
       log.info(`generate: swept ${swept} stale pending brief projection(s)`);
     }

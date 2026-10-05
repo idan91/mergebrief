@@ -14,6 +14,7 @@ import {
   inArray,
   isNull,
   lt,
+  lte,
   ne,
   notInArray,
   sql,
@@ -226,18 +227,19 @@ export interface GenerationProjection {
     pullRequestId: PullRequestRowId,
   ): Promise<readonly GenerationRow[]>;
   /**
-   * Terminalize STALE brief projections after a newer head succeeded: any
-   * brief-kind row on the PR whose head differs and is still non-terminal
-   * (`pending`/`running`) becomes `superseded`. Covers the pre-drain replace
-   * case: push B inside the debounce window swaps the job's payload
-   * (`job_key_mode => 'replace'`), so no worker run ever carries head A and
-   * its pending row would otherwise sit non-terminal forever. Same abort
-   * semantics as `markSuperseded` (attempts untouched, phase/errors cleared).
+   * Terminalize STALE brief projections after a head succeeded: any other
+   * head's brief-kind row still `pending`/`running` becomes `superseded`.
+   * Covers the pre-drain replace: push B inside the debounce window swaps
+   * the job's payload, so no run ever carries head A and its pending row
+   * would sit non-terminal forever. Same abort semantics as `markSuperseded`.
+   * Only rows last written at or before `pickedUpAt` are taken: a head
+   * triggered after the run was picked up is one the run may never have seen.
    * Returns the number of rows swept.
    */
   supersedeStaleBriefs(
     pullRequestId: PullRequestRowId,
     currentHeadSha: string,
+    pickedUpAt: Date,
   ): Promise<number>;
   /**
    * The queued `generate` job for one PR in ctx's scope; `undefined` when the
@@ -533,7 +535,7 @@ export function createGenerationProjection(
         .orderBy(asc(generation.id));
     },
 
-    async supersedeStaleBriefs(pullRequestId, currentHeadSha) {
+    async supersedeStaleBriefs(pullRequestId, currentHeadSha, pickedUpAt) {
       const rows = await db
         .update(generation)
         .set({
@@ -556,6 +558,7 @@ export function createGenerationProjection(
               GenerationStatuses.PENDING,
               GenerationStatuses.RUNNING,
             ]),
+            lte(generation.updatedAt, pickedUpAt),
           ),
         )
         .returning({ id: generation.id });
