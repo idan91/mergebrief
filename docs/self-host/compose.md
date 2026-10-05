@@ -112,6 +112,8 @@ doesn't apply — several loaders distinguish unset from empty.
 | `GITHUB_WEBHOOK_SECRET` | api | HMAC for inbound deliveries |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api | reviewer login |
 | `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
+| `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | optional; an operator GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied |
+| `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | api, worker | required when the token is set, or boot is refused; the only reviewers the token is used for, as comma-separated numeric GitHub user ids (the `id` field of `https://api.github.com/users/<login>`) |
 | `SESSION_KEY_V1` | api | `openssl rand -base64 32` |
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
@@ -338,6 +340,10 @@ docker compose exec postgres \
 The compose defaults are tuned for a loopback-only, single-operator machine.
 Before pointing a domain (or leaving a tunnel up long-term) at an instance,
 work through this section.
+
+If `MERGEBRIEF_URL_BOX_TOKEN` is set, keep `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS`
+to the reviewers who may read everything that token reads: a listed reviewer
+can generate and open a brief for any pull request it reaches.
 
 ### 1. Postgres credentials
 

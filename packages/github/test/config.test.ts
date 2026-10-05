@@ -152,6 +152,106 @@ describe("loadConfig", () => {
     );
   });
 
+  describe("the operator token and its reviewer list", () => {
+    const OPERATOR_TOKEN = "github_pat_OPERATOR_FIXTURE";
+    const REVIEWERS_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
+
+    it("parses a token and its list into a set of reviewer ids", () => {
+      const config = ok(
+        loadConfig({
+          ...BASE_ENV,
+          MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "583231, 9919 ,583231",
+        }),
+      );
+
+      expect(config.operatorToken?.token).toBe(OPERATOR_TOKEN);
+      expect([...(config.operatorToken?.reviewerIds ?? [])]).toEqual([
+        583231n,
+        9919n,
+      ]);
+    });
+
+    it("leaves the operator token absent when both keys are empty", () => {
+      const config = ok(
+        loadConfig({
+          ...BASE_ENV,
+          MERGEBRIEF_URL_BOX_TOKEN: "",
+          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "",
+        }),
+      );
+
+      expect(config.operatorToken).toBeUndefined();
+    });
+
+    it("leaves the operator token absent when both keys are unset", () => {
+      const config = ok(loadConfig(BASE_ENV));
+
+      expect(config.operatorToken).toBeUndefined();
+    });
+
+    it("refuses a token with no reviewer list", () => {
+      const error = err(
+        loadConfig({ ...BASE_ENV, MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN }),
+      );
+
+      expect(error.issues).toEqual([
+        `${REVIEWERS_KEY}: required when MERGEBRIEF_URL_BOX_TOKEN is set`,
+      ]);
+    });
+
+    it("refuses a token whose reviewer list is empty", () => {
+      const error = err(
+        loadConfig({
+          ...BASE_ENV,
+          MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "",
+        }),
+      );
+
+      expect(error.issues).toEqual([
+        `${REVIEWERS_KEY}: required when MERGEBRIEF_URL_BOX_TOKEN is set`,
+      ]);
+    });
+
+    it.each([
+      "octocat",
+      "583231,octocat",
+      "583231,",
+      "0",
+      "-5",
+      "1".repeat(20),
+    ])(
+      "refuses a malformed reviewer list without echoing it: %#",
+      (reviewers) => {
+        const error = err(
+          loadConfig({
+            ...BASE_ENV,
+            MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+            MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: reviewers,
+          }),
+        );
+        const joined = [error.message, ...error.issues].join(" ");
+
+        expect(error.issues).toHaveLength(1);
+        expect(error.issues[0]).toMatch(new RegExp(`^${REVIEWERS_KEY}: `));
+        expect(joined).not.toContain(reviewers);
+        expect(joined).not.toContain(OPERATOR_TOKEN);
+      },
+    );
+
+    it("ignores a reviewer list when no token is set", () => {
+      const config = ok(
+        loadConfig({
+          ...BASE_ENV,
+          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "not-an-id",
+        }),
+      );
+
+      expect(config.operatorToken).toBeUndefined();
+    });
+  });
+
   describe("GITHUB_APP_PRIVATE_KEY_PATH", () => {
     let dir: string;
 

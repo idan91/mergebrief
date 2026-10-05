@@ -148,8 +148,8 @@ async function main(): Promise<void> {
   // url-box job, a deployment with no url-box traffic never needs the key.
   const keyProvider = createEnvKeyProvider(env);
   const urlBoxDeps: Mutable<UrlBoxAuthDeps> = { handle, keyProvider };
-  if (config.value.urlBoxToken !== undefined) {
-    urlBoxDeps.fallbackToken = config.value.urlBoxToken;
+  if (githubConfig.value.operatorToken !== undefined) {
+    urlBoxDeps.operatorToken = githubConfig.value.operatorToken;
   }
   const configuredEffort = config.value.generator.effort;
   const configuredFullRegeneration =

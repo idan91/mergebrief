@@ -29,7 +29,6 @@ export interface ApiConfig {
   /** The origin the OAuth callback URL is built from. */
   readonly publicBaseUrl: string;
   readonly serverVersion: string;
-  readonly urlBoxFallbackToken: string | undefined;
   /** `MERGEBRIEF_UPDATE_CHECK`: the hourly fetch of the release manifest. */
   readonly updateCheck: boolean;
   readonly updateCheckUrl: string;
@@ -96,7 +95,6 @@ const ConfigSchema = z.object({
     .min(1, "PUBLIC_BASE_URL is required for reviewer auth")
     .refine(isHttpUrl, "PUBLIC_BASE_URL must be an absolute http(s) URL"),
   SERVER_VERSION: ServerVersionSchema,
-  MERGEBRIEF_URL_BOX_TOKEN: z.string().min(1).optional(),
   MERGEBRIEF_UPDATE_CHECK: parseEnvBool(true),
   MERGEBRIEF_UPDATE_CHECK_URL: z
     .string()
@@ -150,7 +148,6 @@ export function loadConfig(
       port: value.MERGEBRIEF_API_PORT ?? DEFAULT_API_PORT,
       publicBaseUrl: value.PUBLIC_BASE_URL,
       serverVersion: value.SERVER_VERSION ?? DEV_SERVER_VERSION,
-      urlBoxFallbackToken: value.MERGEBRIEF_URL_BOX_TOKEN,
       updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
       updateCheckUrl:
         value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,

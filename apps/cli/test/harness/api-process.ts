@@ -37,7 +37,6 @@ export interface ApiProcessOptions {
   readonly publicBaseUrl: string;
   readonly githubStubOrigin: string;
   readonly serverVersion?: string;
-  readonly urlBoxFallbackToken?: string;
   /** A PEM the App client can parse; the stub means it signs nothing real. */
   readonly githubPrivateKey: string;
 }
@@ -105,9 +104,6 @@ function buildEnv(options: ApiProcessOptions): NodeJS.ProcessEnv {
   };
   if (options.serverVersion !== undefined) {
     env["SERVER_VERSION"] = options.serverVersion;
-  }
-  if (options.urlBoxFallbackToken !== undefined) {
-    env["MERGEBRIEF_URL_BOX_TOKEN"] = options.urlBoxFallbackToken;
   }
   return env;
 }

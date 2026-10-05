@@ -27,7 +27,9 @@ import {
   brandRepoId,
   brandReviewerId,
   buildAuthDeps,
+  buildOperatorToken,
   createKeyProvider,
+  listSentTokens,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
@@ -172,7 +174,10 @@ describe("the per-repo gate's operator-PAT rung", () => {
     await harness.close();
   });
 
-  function buildApp(fallbackToken?: string): ApiApp {
+  function buildApp(
+    fallbackToken?: string,
+    listedReviewerIds: readonly number[] = [REVIEWER_ID],
+  ): ApiApp {
     return createApp({
       logger: testLogger(),
       handle: harness.handle,
@@ -192,7 +197,10 @@ describe("the per-repo gate's operator-PAT rung", () => {
           throw new Error("attachment port must not be called in this suite");
         },
       },
-      urlBoxFallbackToken: fallbackToken,
+      operatorToken:
+        fallbackToken === undefined
+          ? undefined
+          : buildOperatorToken(fallbackToken, listedReviewerIds),
     });
   }
 
@@ -237,6 +245,24 @@ describe("the per-repo gate's operator-PAT rung", () => {
     const res = await read(buildApp(), cookie);
 
     expect(res.status).toBe(404);
+  });
+
+  it("404s a reader who is not on the operator list", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerPullRequest(harness.handle);
+
+    const unlisted = await read(
+      buildApp(FALLBACK_PAT, [REVIEWER_ID + 1]),
+      cookie,
+    );
+    const sentTokens = listSentTokens();
+    const unconfigured = await read(buildApp(), cookie);
+
+    expect(unlisted.status).toBe(404);
+    expect(sentTokens).toEqual([ACCESS_TOKEN]);
+    expect(unlisted.status).toBe(unconfigured.status);
+    expect(await unlisted.json()).toEqual(await unconfigured.json());
   });
 
   it("never widens an App-world brief, no owned url-box row, no second rung", async () => {

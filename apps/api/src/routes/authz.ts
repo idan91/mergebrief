@@ -197,8 +197,9 @@ export function requireInstallationScope(ctx: ScopeContext): InstallationId {
 /**
  * The gate's second rung. Answers with the repo ONLY when every condition
  * holds: the denial is a 404/403 (not upstream trouble), an operator PAT is
- * configured, the request names a PR, that PR exists in the reader's OWN
- * url-box world, and the PAT can read the repo. Otherwise `undefined` and
+ * configured, the reader is on its reviewer list, the request names a PR,
+ * that PR exists in the reader's OWN url-box world, and the PAT can read the
+ * repo. Otherwise `undefined` and
  * the caller collapses to the uniform 404 exactly as before.
  */
 async function resolveRepoUnderFallback(
@@ -210,7 +211,7 @@ async function resolveRepoUnderFallback(
 ): Promise<
   { readonly fullName: string; readonly prNumber: number } | undefined
 > {
-  const fallbackToken = deps.urlBoxFallbackToken;
+  const fallbackToken = resolveOperatorTokenFor(deps, reviewerId);
   if (fallbackToken === undefined || !isGitHubDenial(error)) {
     return undefined;
   }
@@ -593,5 +594,29 @@ export function readFallbackTokenFor(
   c: Context<AuthzEnv>,
   deps: AuthRouteDeps,
 ): string | undefined {
-  return c.get("urlBoxOnly") === true ? deps.urlBoxFallbackToken : undefined;
+  const passedOnOperatorToken = c.get("urlBoxOnly") === true;
+  if (!passedOnOperatorToken) {
+    return undefined;
+  }
+  return resolveOperatorTokenFor(deps, c.get("session").reviewerId);
+}
+
+/** The operator PAT, or `undefined` for a reviewer off its list. */
+export type ListedOperatorToken = string | undefined;
+
+/**
+ * The operator PAT, only for a reviewer the Operator listed. Every door the
+ * token has reads it here, so an unlisted reviewer sees an instance with no
+ * operator PAT at all.
+ */
+export function resolveOperatorTokenFor(
+  deps: AuthRouteDeps,
+  reviewerId: ReviewerId,
+): ListedOperatorToken {
+  const operatorToken = deps.operatorToken;
+  if (operatorToken === undefined) {
+    return undefined;
+  }
+  const listed = operatorToken.reviewerIds.has(reviewerId);
+  return listed ? operatorToken.token : undefined;
 }

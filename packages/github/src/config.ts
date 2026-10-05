@@ -5,11 +5,19 @@
 // GITHUB_APP_PRIVATE_KEY_PATH (a file read to get the PEM) is required.
 import { readFileSync } from "node:fs";
 import { z } from "zod/v4";
+import type { ReviewerId } from "persistence";
+import { isReviewerId } from "./ids";
 import type { Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
 // Public config shape.
 // ---------------------------------------------------------------------------
+
+/** The operator's token and the only reviewers it may be used for. */
+export interface OperatorTokenConfig {
+  readonly token: string;
+  readonly reviewerIds: ReadonlySet<ReviewerId>;
+}
 
 export interface GitHubConfig {
   readonly appId: number;
@@ -21,6 +29,8 @@ export interface GitHubConfig {
   readonly oauthClientSecret: string;
   /** The App's URL name (`github.com/apps/<slug>`); absent, Home offers no Install link. */
   readonly appSlug: string | undefined;
+  /** `MERGEBRIEF_URL_BOX_TOKEN` with its reviewer list; absent, no operator token. */
+  readonly operatorToken?: OperatorTokenConfig | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,6 +59,41 @@ export interface ConfigError {
 /** GitHub lower-cases an App's name and joins its words with hyphens. */
 const APP_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
+const REVIEWER_ID_PATTERN = /^[0-9]{1,19}$/;
+const REVIEWERS_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
+const REVIEWERS_REQUIRED = "required when MERGEBRIEF_URL_BOX_TOKEN is set";
+const REVIEWERS_MALFORMED = "must be comma-separated numeric GitHub user ids";
+
+/** Compose expands an unset `${KEY:-}` to an empty string; that is unset too. */
+function readEmptyAsUnset(value: unknown): unknown {
+  return value === "" ? undefined : value;
+}
+
+/** The reason never carries an entry: the list names people. */
+function parseReviewerIds(
+  list: string | undefined,
+): Result<ReadonlySet<ReviewerId>, string> {
+  if (list === undefined) {
+    return { ok: false, error: REVIEWERS_REQUIRED };
+  }
+
+  const reviewerIds = new Set<ReviewerId>();
+  for (const entry of list.split(",")) {
+    const digits = entry.trim();
+    const allDigits = REVIEWER_ID_PATTERN.test(digits);
+    if (!allDigits) {
+      return { ok: false, error: REVIEWERS_MALFORMED };
+    }
+    const reviewerId = BigInt(digits);
+    const validReviewerId = isReviewerId(reviewerId);
+    if (!validReviewerId) {
+      return { ok: false, error: REVIEWERS_MALFORMED };
+    }
+    reviewerIds.add(reviewerId);
+  }
+  return { ok: true, value: reviewerIds };
+}
+
 const ConfigSchema = z
   .object({
     GITHUB_APP_ID: z
@@ -76,13 +121,20 @@ const ConfigSchema = z
     GITHUB_OAUTH_CLIENT_SECRET: z
       .string({ error: "GITHUB_OAUTH_CLIENT_SECRET is required" })
       .min(1, "GITHUB_OAUTH_CLIENT_SECRET is required"),
-    // Compose expands an unset `${GITHUB_APP_SLUG:-}` to an empty string; that is unset too.
     GITHUB_APP_SLUG: z.preprocess(
-      (value) => (value === "" ? undefined : value),
+      readEmptyAsUnset,
       z
         .string()
         .regex(APP_SLUG_PATTERN, "GITHUB_APP_SLUG must be the App's URL name")
         .optional(),
+    ),
+    MERGEBRIEF_URL_BOX_TOKEN: z.preprocess(
+      readEmptyAsUnset,
+      z.string().optional(),
+    ),
+    MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: z.preprocess(
+      readEmptyAsUnset,
+      z.string().optional(),
     ),
   })
   .superRefine((data, ctx) => {
@@ -95,6 +147,20 @@ const ConfigSchema = z
         message: hasKey
           ? "exactly one of GITHUB_APP_PRIVATE_KEY or GITHUB_APP_PRIVATE_KEY_PATH may be set, not both"
           : "exactly one of GITHUB_APP_PRIVATE_KEY or GITHUB_APP_PRIVATE_KEY_PATH is required",
+      });
+    }
+
+    if (data.MERGEBRIEF_URL_BOX_TOKEN === undefined) {
+      return;
+    }
+    const reviewerIds = parseReviewerIds(
+      data.MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS,
+    );
+    if (!reviewerIds.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [REVIEWERS_KEY],
+        message: reviewerIds.error,
       });
     }
   });
@@ -156,6 +222,27 @@ function resolvePrivateKey(data: ParsedEnv): Result<string, ConfigError> {
   return { ok: true, value: pem };
 }
 
+/** A reviewer list with no token is ignored: there is nothing for it to open. */
+function resolveOperatorToken(
+  data: ParsedEnv,
+): Result<OperatorTokenConfig | undefined, ConfigError> {
+  const token = data.MERGEBRIEF_URL_BOX_TOKEN;
+  if (token === undefined) {
+    return { ok: true, value: undefined };
+  }
+
+  const reviewerIds = parseReviewerIds(data.MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS);
+  if (!reviewerIds.ok) {
+    // Unreachable: superRefine already refused this list.
+    return {
+      ok: false,
+      error: invalidConfigError(`${REVIEWERS_KEY}: ${reviewerIds.error}`),
+    };
+  }
+
+  return { ok: true, value: { token, reviewerIds: reviewerIds.value } };
+}
+
 // ---------------------------------------------------------------------------
 // Loader.
 // ---------------------------------------------------------------------------
@@ -188,6 +275,10 @@ export function loadConfig(
   if (!privateKeyResult.ok) {
     return privateKeyResult;
   }
+  const operatorToken = resolveOperatorToken(parsed.data);
+  if (!operatorToken.ok) {
+    return operatorToken;
+  }
 
   return {
     ok: true,
@@ -198,6 +289,7 @@ export function loadConfig(
       oauthClientId: parsed.data.GITHUB_OAUTH_CLIENT_ID,
       oauthClientSecret: parsed.data.GITHUB_OAUTH_CLIENT_SECRET,
       appSlug: parsed.data.GITHUB_APP_SLUG,
+      operatorToken: operatorToken.value,
     },
   };
 }

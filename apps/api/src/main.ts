@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     },
     serverVersion: boot.api.serverVersion,
     github: appInstallationPort(createAppClient(boot.github)),
-    urlBoxFallbackToken: boot.api.urlBoxFallbackToken,
+    operatorToken: boot.github.operatorToken,
     githubAppSlug: boot.github.appSlug,
     auth: {
       oauthClientId: boot.github.oauthClientId,

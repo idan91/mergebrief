@@ -24,6 +24,7 @@ import {
   type GitHubApiError,
   type IssueInfo,
   type OpenPullRequest,
+  type OperatorTokenConfig,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
@@ -37,6 +38,7 @@ import {
   type GrantRowId,
   type InstallationId,
   type KeyProvider,
+  type ReviewerId,
 } from "persistence";
 import type { Result } from "types/utils";
 import { PermanentJobError } from "./failure";
@@ -112,15 +114,17 @@ export interface GitHubPort {
   /**
    * Open a source for a url-box job: resolve the grant, decrypt the viewer's
    * access token, and probe the PR once. A viewer denial falls back to the
-   * operator PAT when one is configured (a GitHub App user token is
-   * installation-scoped and cannot read a private repo the App is not
-   * installed on, even for the repo's owner). A missing/unreadable grant is a
-   * permanent `github-access` failure: the fix is a fresh paste, not a retry.
+   * operator PAT when one is configured and lists `ownerUserId` (a GitHub App
+   * user token is installation-scoped and cannot read a private repo the App
+   * is not installed on, even for the repo's owner). A missing/unreadable
+   * grant is a permanent `github-access` failure: the fix is a fresh paste,
+   * not a retry.
    */
   openUrlBoxPullRequestSource(
     grantId: GrantRowId,
     repoSlug: string,
     prNumber: number,
+    ownerUserId: ReviewerId,
   ): Promise<PullRequestSource>;
 }
 
@@ -128,8 +132,8 @@ export interface GitHubPort {
 export interface UrlBoxAuthDeps {
   readonly handle: AppDatabase;
   readonly keyProvider: KeyProvider;
-  /** Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`); optional. */
-  readonly fallbackToken?: string;
+  /** Operator PAT backstop and the reviewers it may be used for; optional. */
+  readonly operatorToken?: OperatorTokenConfig;
 }
 
 /** The two halves of a stored `owner/repo` full name. */
@@ -247,6 +251,18 @@ function buildPermanentAccessFailure(message: string): PermanentJobError {
   });
 }
 
+/** The operator PAT, only for a reviewer the Operator listed. */
+function resolveOperatorTokenFor(
+  operatorToken: OperatorTokenConfig | undefined,
+  ownerUserId: ReviewerId,
+): string | undefined {
+  if (operatorToken === undefined) {
+    return undefined;
+  }
+  const listed = operatorToken.reviewerIds.has(ownerUserId);
+  return listed ? operatorToken.token : undefined;
+}
+
 /**
  * The production port: App-JWT client for installation jobs; grant-resolved
  * viewer token (+ PAT backstop) for url-box jobs. `urlBox` absent = url-box
@@ -263,7 +279,12 @@ export function appGitHubPort(
       return bindPullRequestSource(octokit, { ...split, prNumber });
     },
 
-    async openUrlBoxPullRequestSource(grantId, repoSlug, prNumber) {
+    async openUrlBoxPullRequestSource(
+      grantId,
+      repoSlug,
+      prNumber,
+      ownerUserId,
+    ) {
       if (urlBox === undefined) {
         throw buildPermanentAccessFailure(
           "url-box job with no viewer credential path configured",
@@ -291,7 +312,11 @@ export function appGitHubPort(
         createUserOctokit(token.value),
         ref,
       );
-      if (urlBox.fallbackToken === undefined) {
+      const operatorToken = resolveOperatorTokenFor(
+        urlBox.operatorToken,
+        ownerUserId,
+      );
+      if (operatorToken === undefined) {
         return viewerSource;
       }
       // One probe decides the fallback: a GitHub App user token cannot read a
@@ -305,10 +330,7 @@ export function appGitHubPort(
         (probe.error.code === GitHubApiErrorCodes.NOT_FOUND ||
           probe.error.code === GitHubApiErrorCodes.FORBIDDEN)
       ) {
-        return bindPullRequestSource(
-          createUserOctokit(urlBox.fallbackToken),
-          ref,
-        );
+        return bindPullRequestSource(createUserOctokit(operatorToken), ref);
       }
       return serveProbeOnce(viewerSource, probe);
     },

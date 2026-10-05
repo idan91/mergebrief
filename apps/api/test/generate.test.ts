@@ -21,7 +21,9 @@ import {
   KEY_REF,
   SECRET,
   buildAuthDeps,
+  buildOperatorToken,
   createKeyProvider,
+  listSentTokens,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
@@ -267,14 +269,20 @@ describe("POST /api/generate: the url-box door", () => {
     await harness.close();
   });
 
-  function buildApp(fallbackToken?: string): ApiApp {
+  function buildApp(
+    fallbackToken?: string,
+    listedReviewerIds: readonly number[] = [Number(REVIEWER)],
+  ): ApiApp {
     const deps: AppDeps = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       github: unusedConversationPort,
-      urlBoxFallbackToken: fallbackToken,
+      operatorToken:
+        fallbackToken === undefined
+          ? undefined
+          : buildOperatorToken(fallbackToken, listedReviewerIds),
     };
     return createApp(deps);
   }
@@ -562,6 +570,21 @@ describe("POST /api/generate: the url-box door", () => {
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
     expect(res.status).toBe(200);
     expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+  });
+
+  it("answers an unlisted reviewer as if no operator PAT were set", async () => {
+    stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
+    const cookie = await seedSession(harness.handle, kp);
+
+    const unlistedApp = buildApp(FALLBACK_PAT, [Number(OTHER_REVIEWER)]);
+    const unlisted = await post(unlistedApp, cookie, PR_URL);
+    const sentTokens = listSentTokens();
+    const unconfigured = await post(buildApp(), cookie, PR_URL);
+
+    expect(sentTokens).toEqual([ACCESS_TOKEN]);
+    expect(unlisted.status).toBe(unconfigured.status);
+    expect(await unlisted.json()).toEqual(await unconfigured.json());
+    expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 
   // A 401 from the OPERATOR's key is not the reader's expiry: it must not

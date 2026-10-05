@@ -15,7 +15,7 @@ import { createAccessibleInstallationsResolver } from "./auth/accessible-install
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { inboxRoutes } from "./inbox";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest, OperatorTokenConfig } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
 import type { InstallationGitHubPort } from "./github-port";
@@ -54,11 +54,10 @@ export interface AppDeps {
    * caller ip off. */
   readonly audit?: AuditEmitConfig;
   /**
-   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) for the url-box door's
-   * viewer-token resolve, the per-repo gate's second rung, and; in the
-   * worker; the generation reads. Absent disables the fallback.
+   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) and the reviewers it
+   * may be used for. Absent disables the fallback.
    */
-  readonly urlBoxFallbackToken?: string | undefined;
+  readonly operatorToken?: OperatorTokenConfig | undefined;
   /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
   readonly githubAppSlug?: string | undefined;
 }
@@ -91,7 +90,7 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
-  app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));
+  app.route("/generate", generateRoute(deps));
   app.route(
     "/inbox",
     inboxRoutes(deps, installations, resolver, inboxOpenPullsCache),

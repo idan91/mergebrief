@@ -29,7 +29,6 @@ export type FetchLike = (
 
 export interface CliApiHarnessOptions {
   readonly serverVersion?: string;
-  readonly urlBoxFallbackToken?: string;
 }
 
 export interface CliApiHarness {
@@ -90,9 +89,6 @@ export async function startCliApiHarness(
     };
     if (options.serverVersion !== undefined) {
       processOptions.serverVersion = options.serverVersion;
-    }
-    if (options.urlBoxFallbackToken !== undefined) {
-      processOptions.urlBoxFallbackToken = options.urlBoxFallbackToken;
     }
     api = await startApiProcess(processOptions);
   } catch (error) {

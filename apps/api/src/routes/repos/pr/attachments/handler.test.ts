@@ -116,7 +116,7 @@ interface BuildAppOptions {
   readonly urlBoxOnly?: boolean;
   /** The repo sits in no installation: the owner world. */
   readonly ownerWorld?: boolean;
-  readonly urlBoxFallbackToken?: string;
+  readonly operatorToken?: string;
   /** Replaces the sealed token so the handler's own decrypt fails. */
   readonly ghTokenCiphertext?: string;
   readonly sourcesCache?: TtlCache<RenderedSources>;
@@ -153,7 +153,13 @@ async function buildApp(
       sessionKeyRef: KEY_REF,
       publicBaseUrl: "https://example.test",
     },
-    urlBoxFallbackToken: options.urlBoxFallbackToken,
+    operatorToken:
+      options.operatorToken === undefined
+        ? undefined
+        : {
+            token: options.operatorToken,
+            reviewerIds: new Set([session.reviewerId]),
+          },
     github: {
       fetchPullRequestConversation: async () => {
         throw new Error("conversation port must not be called in this suite");
@@ -469,7 +475,7 @@ describe("GET attachments/:assetId", () => {
     stubFetchResponse(makePngResponse());
     const app = await buildApp({
       urlBoxOnly: true,
-      urlBoxFallbackToken: "github_pat_fixture",
+      operatorToken: "github_pat_fixture",
     });
 
     const response = await app.request(`/7/attachments/${ASSET_ID}`);
@@ -480,7 +486,7 @@ describe("GET attachments/:assetId", () => {
 
   it("never borrows the operator pat on an ordinary request", async () => {
     stubSourcesDenied(404);
-    const app = await buildApp({ urlBoxFallbackToken: "github_pat_fixture" });
+    const app = await buildApp({ operatorToken: "github_pat_fixture" });
 
     const response = await app.request(`/7/attachments/${ASSET_ID}`);
 
@@ -622,7 +628,7 @@ describe("GET attachments/:assetId for a branch-hosted file", () => {
     stubFetchResponse(makeRawResponse());
     const app = await buildApp({
       urlBoxOnly: true,
-      urlBoxFallbackToken: "github_pat_fixture",
+      operatorToken: "github_pat_fixture",
     });
 
     const response = await app.request(`/7/attachments/${FILE_NAME}`);

@@ -15,8 +15,10 @@ import {
   encryptToken,
   isGrantRowId,
   isRepoId,
+  isReviewerId,
   type GrantRowId,
   type RepoId,
+  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +36,20 @@ function brandRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) throw new Error("bad repo id");
   return value;
 }
+
+function brandReviewerId(value: bigint): ReviewerId {
+  const validReviewerId = isReviewerId(value);
+  if (!validReviewerId) {
+    throw new Error("bad reviewer id");
+  }
+  return value;
+}
+
+const OWNER = brandReviewerId(555n);
+const OPERATOR_TOKEN = {
+  token: "ghp_operator",
+  reviewerIds: new Set([OWNER]),
+};
 
 const KEY_REF = "SESSION_KEY_TEST";
 const keyProvider = createEnvKeyProvider({
@@ -129,13 +145,14 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,
       keyProvider,
-      fallbackToken: "ghp_operator",
+      operatorToken: OPERATOR_TOKEN,
     });
 
     const source = await port.openUrlBoxPullRequestSource(
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     // The probe result is served once: the task's first read costs nothing.
     const first = await source.fetchPullRequest();
@@ -165,6 +182,7 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     const result = await source.fetchIssue("acme", "tracker", 42);
 
@@ -188,13 +206,14 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,
       keyProvider,
-      fallbackToken: "ghp_operator",
+      operatorToken: OPERATOR_TOKEN,
     });
 
     const source = await port.openUrlBoxPullRequestSource(
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     const result = await source.fetchPullRequest();
     expect(result.ok).toBe(true);
@@ -216,13 +235,14 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,
       keyProvider,
-      fallbackToken: "ghp_operator",
+      operatorToken: OPERATOR_TOKEN,
     });
 
     const source = await port.openUrlBoxPullRequestSource(
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     const result = await source.fetchPullRequest();
     expect(result.ok).toBe(true);
@@ -240,13 +260,14 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,
       keyProvider,
-      fallbackToken: "ghp_operator",
+      operatorToken: OPERATOR_TOKEN,
     });
 
     const source = await port.openUrlBoxPullRequestSource(
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     const result = await source.fetchPullRequest();
     expect(result.ok).toBe(false);
@@ -270,11 +291,41 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
       grantId,
       "acme/widget",
       7,
+      OWNER,
     );
     // No probe happened (nothing to decide); the task's own read surfaces it.
     expect(vi.mocked(fetchPullRequest)).not.toHaveBeenCalled();
     const result = await source.fetchPullRequest();
     expect(result.ok).toBe(false);
+  });
+
+  it("keeps the viewer binding for a reviewer off the list", async () => {
+    const grantId = await seedGrant("ghu_viewer");
+    vi.mocked(fetchPullRequest).mockResolvedValue({
+      ok: false,
+      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
+    });
+    const port = appGitHubPort(unusedApp, {
+      handle: harness.handle,
+      keyProvider,
+      operatorToken: OPERATOR_TOKEN,
+    });
+
+    const source = await port.openUrlBoxPullRequestSource(
+      grantId,
+      "acme/widget",
+      7,
+      brandReviewerId(556n),
+    );
+    // The same branch as no token at all: no probe, the task's read surfaces it.
+    expect(vi.mocked(fetchPullRequest)).not.toHaveBeenCalled();
+    const result = await source.fetchPullRequest();
+
+    expect(result.ok).toBe(false);
+    const mintedTokens = vi
+      .mocked(createUserOctokit)
+      .mock.calls.map(([token]) => token);
+    expect(mintedTokens).toEqual(["ghu_viewer"]);
   });
 
   it("a vanished grant is a permanent github-access failure", async () => {
@@ -283,7 +334,12 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
       keyProvider,
     });
     await expect(
-      port.openUrlBoxPullRequestSource(missingGrantId(), "acme/widget", 7),
+      port.openUrlBoxPullRequestSource(
+        missingGrantId(),
+        "acme/widget",
+        7,
+        OWNER,
+      ),
     ).rejects.toThrow(PermanentJobError);
   });
 
@@ -294,14 +350,19 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
       keyProvider,
     });
     await expect(
-      port.openUrlBoxPullRequestSource(grantId, "acme/widget", 7),
+      port.openUrlBoxPullRequestSource(grantId, "acme/widget", 7, OWNER),
     ).rejects.toThrow(PermanentJobError);
   });
 
   it("refuses url-box jobs when no credential path is wired", async () => {
     const port = appGitHubPort(unusedApp);
     await expect(
-      port.openUrlBoxPullRequestSource(missingGrantId(), "acme/widget", 7),
+      port.openUrlBoxPullRequestSource(
+        missingGrantId(),
+        "acme/widget",
+        7,
+        OWNER,
+      ),
     ).rejects.toThrow(PermanentJobError);
   });
 });

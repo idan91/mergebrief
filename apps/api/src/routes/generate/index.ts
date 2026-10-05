@@ -16,12 +16,9 @@ import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import createGenerateHandlers from "./handler";
 
-export function generateRoute(
-  deps: AuthRouteDeps,
-  fallbackToken: string | undefined,
-): ProductRouter<AuthzEnv> {
+export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createGenerateHandlers(deps, fallbackToken);
+  const handlers = createGenerateHandlers(deps);
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.action(
     {

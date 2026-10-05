@@ -3,6 +3,7 @@
 // tenant scope is keyed by. Session-specific seeding lives in
 // `session/fixtures.ts`, which builds on these.
 import { createHash, randomBytes } from "node:crypto";
+import type { OperatorTokenConfig } from "github";
 import {
   createEnvKeyProvider,
   isInstallationId,
@@ -14,6 +15,7 @@ import {
   type ReviewerId,
 } from "persistence";
 
+import { vi } from "vitest";
 import type { AuthDeps } from "../src/index";
 
 export const SECRET = "test-webhook-secret";
@@ -58,6 +60,28 @@ export function brandReviewerId(value: bigint): ReviewerId {
 export function brandRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) throw new Error("bad repo id");
   return value;
+}
+
+/** An operator token listed for `reviewerIds`, the suites' reviewer by default. */
+export function buildOperatorToken(
+  token: string,
+  reviewerIds: readonly number[] = [REVIEWER_ID],
+): OperatorTokenConfig {
+  const listed = reviewerIds.map((id) => brandReviewerId(BigInt(id)));
+  return { token, reviewerIds: new Set(listed) };
+}
+
+export type SentTokens = string[];
+
+/** The credential each call to the stubbed global `fetch` carried, in order. */
+export function listSentTokens(): SentTokens {
+  return vi.mocked(fetch).mock.calls.map(([input, init]) => {
+    const headers = new Headers(
+      input instanceof Request ? input.headers : init?.headers,
+    );
+    const authorization = headers.get("authorization") ?? "";
+    return authorization.replace(/^(token|Bearer)\s+/i, "");
+  });
 }
 
 /** The request URL, whatever shape `fetch` was handed. */

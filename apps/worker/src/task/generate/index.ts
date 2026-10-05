@@ -214,6 +214,7 @@ async function runGeneration(
           payload.grantId,
           pr.repoSlug,
           pr.prNumber,
+          payload.ctx.ownerUserId,
         );
   const entryCommentManager = createEntryCommentManager(payload, {
     source,

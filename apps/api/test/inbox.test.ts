@@ -31,13 +31,16 @@ import {
   SECRET,
   answerUserInstallations,
   buildAuthDeps,
+  buildOperatorToken,
   createKeyProvider,
   getRequestUrl,
+  listSentTokens,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
+const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
 const REPO_URL = 535353;
@@ -166,6 +169,24 @@ function stubGitHub(
     }),
   );
   return counts;
+}
+
+/** The live read shows the viewer's own token no pull request at all. */
+function hideLiveReadFromViewer(): void {
+  const answer = vi.mocked(fetch).getMockImplementation();
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const headers = new Headers(init?.headers);
+    const fromViewer = headers.get("authorization")?.endsWith(ACCESS_TOKEN);
+    const viewerGraphqlRead =
+      getRequestUrl(input).endsWith("/graphql") && fromViewer === true;
+    if (viewerGraphqlRead) {
+      return jsonResponse({ data: { p0: null } });
+    }
+    if (answer === undefined) {
+      throw new Error("stubGitHub must run first");
+    }
+    return answer(input, init);
+  });
 }
 
 async function seedSession(
@@ -725,6 +746,47 @@ describe("GET /api/inbox", () => {
 
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+  });
+
+  function buildAppWithOperatorToken(reviewerIds: readonly number[]): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      github: unusedConversationPort,
+      operatorToken: buildOperatorToken(OPERATOR_PAT, reviewerIds),
+    });
+  }
+
+  it("retries a listed viewer's live read on the operator token", async () => {
+    stubGitHub();
+    hideLiveReadFromViewer();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
+    app = buildAppWithOperatorToken([Number(REVIEWER)]);
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    expect(listSentTokens()).toContain(OPERATOR_PAT);
+    expect((await readBody(res)).items[0]).toMatchObject({
+      title: "Live title",
+    });
+  });
+
+  it("never sends the operator token for an unlisted viewer", async () => {
+    stubGitHub();
+    hideLiveReadFromViewer();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
+    app = buildAppWithOperatorToken([Number(REVIEWER) + 1]);
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    expect(listSentTokens()).not.toContain(OPERATOR_PAT);
+    expect((await readBody(res)).items[0]).toMatchObject({ title: "PR 7" });
   });
 
   it("reads a stale url row live before listing it", async () => {

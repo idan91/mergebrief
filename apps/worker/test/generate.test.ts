@@ -232,7 +232,12 @@ interface StubGitHub extends GitHubPort {
   /** Every fetchRepoFile path requested, in order. */
   repoFileCalls: string[];
   /** Every openUrlBoxPullRequestSource binding, in order. */
-  urlBoxCalls: { grantId: bigint; repoSlug: string; prNumber: number }[];
+  urlBoxCalls: {
+    grantId: bigint;
+    repoSlug: string;
+    prNumber: number;
+    ownerUserId: bigint;
+  }[];
   /** Issues by `owner/repo#n`; missing = not found (404). */
   issues: Map<string, IssueInfo>;
   /** Open PRs in the repo; empty means no stack. */
@@ -282,8 +287,13 @@ function stubGitHub(headSha: string): StubGitHub {
     async openPullRequestSource() {
       return buildSource();
     },
-    async openUrlBoxPullRequestSource(grantId, repoSlug, prNumber) {
-      stub.urlBoxCalls.push({ grantId, repoSlug, prNumber });
+    async openUrlBoxPullRequestSource(
+      grantId,
+      repoSlug,
+      prNumber,
+      ownerUserId,
+    ) {
+      stub.urlBoxCalls.push({ grantId, repoSlug, prNumber, ownerUserId });
       return buildSource();
     },
   };
@@ -535,7 +545,12 @@ describe("generate task, url-box world", () => {
     // The credential path: the grant reference reached the port, and the
     // installation binding was never asked for.
     expect(github.urlBoxCalls).toEqual([
-      { grantId: 31n, repoSlug: "acme/widget", prNumber: 7 },
+      {
+        grantId: 31n,
+        repoSlug: "acme/widget",
+        prNumber: 7,
+        ownerUserId: 555n,
+      },
     ]);
 
     const brief = await createArtifactStore(

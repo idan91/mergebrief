@@ -34,6 +34,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerUserInstallations,
+  buildOperatorToken,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
@@ -270,7 +271,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       github: unusedConversationPort,
-      urlBoxFallbackToken: fallbackToken,
+      operatorToken:
+        fallbackToken === undefined
+          ? undefined
+          : buildOperatorToken(fallbackToken),
     });
   }
 

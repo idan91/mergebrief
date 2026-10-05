@@ -91,7 +91,7 @@ interface GateAppOptions {
   readonly installationId?: InstallationId | null;
   readonly channel?: ViewerPrincipal["channel"];
   readonly installations?: InstallationResolver;
-  readonly urlBoxFallbackToken?: string;
+  readonly operatorToken?: string;
 }
 
 const INSTALLATION_ID = brand(10n, isInstallationId);
@@ -174,8 +174,11 @@ async function buildGateApp(
       publicBaseUrl: "https://example.test",
     },
   };
-  if (options.urlBoxFallbackToken !== undefined) {
-    deps.urlBoxFallbackToken = options.urlBoxFallbackToken;
+  if (options.operatorToken !== undefined) {
+    deps.operatorToken = {
+      token: options.operatorToken,
+      reviewerIds: new Set([session.reviewerId]),
+    };
   }
   const app = new Hono<AuthzEnv>();
   app.onError(createErrorHandler<AuthzEnv>(log));
@@ -363,7 +366,7 @@ describe("repoAuthzLayer repo world", () => {
     const installations = stubInstallations();
     const app = await buildGateApp({
       installations,
-      urlBoxFallbackToken: "operator-pat",
+      operatorToken: "operator-pat",
     });
     await createTenantRepository(harness.handle, {
       ownerUserId: brand(42n, isReviewerId),
@@ -400,7 +403,7 @@ describe("repoAuthzLayer path bounds", () => {
   });
 
   it("answers 404 for an oversized pull number on the operator rung", async () => {
-    const app = await buildGateApp({ urlBoxFallbackToken: "operator-pat" });
+    const app = await buildGateApp({ operatorToken: "operator-pat" });
     vi.mocked(fetchRepositoryById).mockResolvedValue(stubDeniedRepo(404));
 
     const res = await app.request("/8888/pulls/2147483648/probe");
