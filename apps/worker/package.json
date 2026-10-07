@@ -13,7 +13,6 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.104.1",
     "brief-core": "workspace:*",
     "generators": "workspace:*",
     "github": "workspace:^",

@@ -6,7 +6,6 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
-import { APIConnectionError } from "@anthropic-ai/sdk";
 import { RepoConfigPaths } from "repo-config";
 import {
   BASE,
@@ -15,6 +14,7 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  makeConnectionError,
   makeReviewerId,
   makeTarget,
   makeTask,
@@ -357,7 +357,7 @@ describe("generate task, daily generation cap", () => {
     // instance sits at its cap, so the retry lands in the gate.
     const { pr, payload } = await trigger(HEAD_2);
     const failing = stubGenerator();
-    failing.failNextWith = new APIConnectionError({});
+    failing.failNextWith = makeConnectionError();
     await expect(
       makeTask({ generator: failing, github: stubGitHub(HEAD_2) })(payload),
     ).rejects.toThrow("Connection error");

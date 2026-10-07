@@ -15,7 +15,13 @@ import {
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { z } from "zod/v4";
-import type { Effort, GenerateRequest, Generator } from "generators";
+import {
+  GeneratorError,
+  GeneratorErrorKinds,
+  type Effort,
+  type GenerateRequest,
+  type Generator,
+} from "generators";
 import { createLogger, type Logger } from "logging";
 import type { Result } from "types/utils";
 import type { CompareFile } from "brief-core";
@@ -76,6 +82,15 @@ export interface StubGenerator extends Generator {
   /** Every request's prompt surfaces, for injection assertions. */
   readonly requests: { label: string; system: string; user: string }[];
   failNextWith?: unknown;
+}
+
+/** A statusless connection failure as every API adapter hands it over. */
+export function makeConnectionError(): GeneratorError {
+  return new GeneratorError(
+    GeneratorErrorKinds.PROVIDER_TRANSIENT,
+    "Connection error.",
+    { cause: new Error("socket hang up") },
+  );
 }
 
 /** Dispatches canned, schema-minimal outputs by label. */

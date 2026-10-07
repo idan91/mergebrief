@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createArtifactStore, createGenerationProjection } from "persistence";
 import { GenerationStatuses } from "types/generations";
-import { APIConnectionError } from "@anthropic-ai/sdk";
+import { GeneratorError } from "generators";
 import type { Mutable } from "types/utils";
 import { RepoConfigPaths } from "repo-config";
 import {
@@ -20,6 +20,7 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  makeConnectionError,
   makeTarget,
   makeTask,
   setUpHarness,
@@ -197,7 +198,7 @@ describe("generate task, anchored generation", () => {
     if (options.rev2FailWith !== undefined) {
       generator.failNextWith = options.rev2FailWith;
       // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
-      await expect(task(second.payload)).rejects.toThrow(APIConnectionError);
+      await expect(task(second.payload)).rejects.toThrow(GeneratorError);
     } else {
       await task(second.payload);
     }
@@ -419,7 +420,7 @@ describe("generate task, anchored generation", () => {
 
   it("leaves the hop behind when the model call fails", async () => {
     const { pr } = await runTwoRevisions({
-      rev2FailWith: new APIConnectionError({}),
+      rev2FailWith: makeConnectionError(),
     });
     const store = createArtifactStore(harness.handle, ctx);
     // No brief for the failed head, but the hop is durable: the next session

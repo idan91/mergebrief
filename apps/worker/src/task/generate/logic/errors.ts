@@ -1,4 +1,3 @@
-import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import type { LogFields, Logger } from "logging";
@@ -46,18 +45,14 @@ export function throwOnGitHubFailure<T>(result: Result<T, GitHubApiError>): T {
 }
 
 /**
- * Treat 429/5xx/408 and SDK APIConnectionError as transient. The latter has no status
- * and a plain Error name, so it needs instanceof. Retrying deterministic schema/refusal
- * failures would spend again without a recovery signal.
+ * Adapters wrap their SDK's transport failures, statusless connection errors
+ * included, as `GeneratorError`; provider-transient is the only kind a retry
+ * can help. A non-generator throw is transient on 408/429/5xx. Retrying
+ * deterministic schema/refusal failures would spend again without a signal.
  */
 function isTransientGenerationError(error: unknown): boolean {
-  // Adapters classify their own transport failures: provider-transient is the
-  // only kind a retry can help.
   if (error instanceof GeneratorError) {
     return error.kind === GeneratorErrorKinds.PROVIDER_TRANSIENT;
-  }
-  if (error instanceof APIConnectionError) {
-    return true;
   }
   if (typeof error !== "object" || error === null) {
     return false;
@@ -74,8 +69,8 @@ function isTransientGenerationError(error: unknown): boolean {
 }
 
 /**
- * Emitted when the failure is a provider call gone wrong, a `GeneratorError`,
- * the SDK's connection error, or any error carrying a numeric HTTP status.
+ * Emitted when the failure is a provider call gone wrong, a `GeneratorError`
+ * or any error carrying a numeric HTTP status.
  * Message-only posture: fields carry classification, never the raw error
  * object (cause chains may hold request contents).
  */
@@ -94,9 +89,7 @@ export function emitProviderError(
       ? Reflect.get(error, "status")
       : undefined;
   const isProviderFailure =
-    error instanceof GeneratorError ||
-    error instanceof APIConnectionError ||
-    typeof status === "number";
+    error instanceof GeneratorError || typeof status === "number";
   if (!isProviderFailure) {
     return;
   }

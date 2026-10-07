@@ -22,9 +22,11 @@ import type { Logger } from "logging";
 import type {
   AppDatabase,
   ArtifactStore,
+  AuditEntry,
   BriefRowId,
   BriefSpanRow,
   GenerationProjection,
+  GenerationRow,
   GenerationTarget,
   PullRequestRow,
   TenantRepository,
@@ -34,6 +36,7 @@ import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";
 import type { GitHubPort, PullRequestSource } from "../github-port";
+import type { ParsedGeneratePayload } from "../payload";
 
 /** The message-only log shape brief-core and the generators contract take. */
 export type CoreMessageLog = (message: string) => void;
@@ -226,6 +229,95 @@ export interface EntryCommentManager {
  */
 export interface RunState {
   leaveRow: boolean;
+}
+
+/** The audit row's world: an owner-world row carries no installation. */
+export type AuditScope = Pick<AuditEntry, "installationId" | "source">;
+
+/** What the task hands a run before any read. */
+export interface RunStart {
+  readonly deps: GenerateTaskDeps;
+  readonly payload: ParsedGeneratePayload;
+  readonly target: GenerationTarget;
+  readonly projection: GenerationProjection;
+  readonly run: RunState;
+  readonly log: Logger;
+  /** graphile's job row slice; absent on direct test invocations. */
+  readonly job: GenerateTaskHelpers["job"];
+  readonly shutdownSignal: AbortSignal | undefined;
+}
+
+/** The run once its row passed the guards and its source opened. */
+export interface RunScope extends RunStart {
+  readonly repo: TenantRepository;
+  readonly store: ArtifactStore;
+  readonly auditScope: AuditScope;
+  readonly prRow: PullRequestRow;
+  /** The row's slug after the usable-slug guard narrowed it. */
+  readonly repoSlug: string;
+  /** The generation row as pickup found it, before this run marked it. */
+  readonly projected: GenerationRow | undefined;
+  /** Taken before the source opens; the stale-projection sweep counts from it. */
+  readonly pickedUpAt: Date;
+  readonly source: PullRequestSource;
+  readonly entryCommentManager: EntryCommentManager;
+}
+
+/** Built once, after the first GitHub read; every later step takes it. */
+export interface RunContext extends RunScope {
+  readonly prInfo: PullRequestInfo;
+  readonly priorBriefs: readonly BriefSpanRow[];
+  /** The stored brief for this base and head pair. */
+  readonly existingBrief: BriefSpanRow | undefined;
+  /** The latest brief of an earlier head, the revision span's baseline. */
+  readonly prevBrief: BriefSpanRow | undefined;
+  readonly watch: SupersessionWatch;
+}
+
+export const RunDecisionKinds = {
+  STORED_BRIEF: "stored-brief",
+  FRESH: "fresh",
+  CAPPED: "capped",
+} as const;
+
+/** No stored brief: the run claimed the row and started under the cap. */
+export interface FreshRun {
+  readonly kind: typeof RunDecisionKinds.FRESH;
+}
+
+/** The pair's brief is stored: no brief generation, the row stays as found. */
+export interface StoredBriefRun {
+  readonly kind: typeof RunDecisionKinds.STORED_BRIEF;
+  readonly storedBrief: BriefSpanRow;
+}
+
+/** Refused at the cap; a stored brief still owes its ready Entry. */
+export interface CappedRun {
+  readonly kind: typeof RunDecisionKinds.CAPPED;
+  readonly storedBrief: BriefSpanRow | undefined;
+}
+
+export type GeneratingRun = FreshRun | StoredBriefRun;
+export type RunDecision = GeneratingRun | CappedRun;
+
+/** What every artifact this run writes is built from, read before the brief. */
+export interface RunInputs {
+  readonly files: readonly PullRequestFile[];
+  readonly diff: string;
+  readonly locator: PrLocator;
+  readonly meta: PrMetadata;
+  /** The prevHead...head compare diff Result, fetched before the model call. */
+  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  readonly repoConfig: AcquiredRepoConfig | undefined;
+  readonly loadContext: TicketContextLoader;
+  readonly entryCommentAllowed: boolean;
+  readonly coreMessageLog: CoreMessageLog;
+}
+
+/** The brief the run stands on; a stored body that does not recover has none. */
+export interface ProducedBrief {
+  readonly briefRef: BriefRef;
+  readonly generatedBrief: Brief | undefined;
 }
 
 export interface JobFailureInputs {

@@ -1,4 +1,3 @@
-import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
@@ -7,6 +6,7 @@ import {
   PermanentJobError,
   TransientJobError,
 } from "../src/task/failure";
+import { makeConnectionError } from "./generate/helpers";
 
 describe("classifyFailure", () => {
   it("an explicit stamp wins over every probe", () => {
@@ -96,8 +96,8 @@ describe("classifyFailure", () => {
     ).toEqual({ code: GenerationFailureCodes.PROVIDER_UNAVAILABLE });
   });
 
-  it("maps a connection-level SDK failure to provider-unavailable", () => {
-    expect(classifyFailure(new APIConnectionError({}))).toEqual({
+  it("maps a wrapped connection failure to provider-unavailable", () => {
+    expect(classifyFailure(makeConnectionError())).toEqual({
       code: GenerationFailureCodes.PROVIDER_UNAVAILABLE,
     });
   });

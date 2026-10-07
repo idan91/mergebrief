@@ -3,7 +3,6 @@
 // an explicit throw-site stamp wins, then the generator's own taxonomy,
 // then transport probes, then `unknown{detail}`. A probe never overrides a
 // stamp.
-import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import type { GenerationFailure } from "persistence";
 import { GenerationFailureCodes } from "types/generations";
@@ -107,9 +106,6 @@ export function classifyFailure(error: unknown): GenerationFailure {
           params: { detail: unwrapped.message },
         };
     }
-  }
-  if (unwrapped instanceof APIConnectionError) {
-    return { code: GenerationFailureCodes.PROVIDER_UNAVAILABLE };
   }
   const status =
     typeof unwrapped === "object" && unwrapped !== null

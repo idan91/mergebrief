@@ -7,7 +7,6 @@ import {
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import { createLogger } from "logging";
@@ -23,6 +22,7 @@ import {
   HEAD_2,
   makeRepoId,
   makeReviewerId,
+  makeConnectionError,
   makeTarget,
   makeTask,
   PUBLIC_URL,
@@ -1183,14 +1183,12 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
   });
 
-  it("rethrows SDK connection errors as transient for graphile retry", async () => {
+  it("rethrows provider connection errors as transient for graphile retry", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const task = makeTask({ generator });
 
-    // The SDK's connection error carries NO status and name "Error", only
-    // an instanceof check can catch it.
-    generator.failNextWith = new APIConnectionError({});
+    generator.failNextWith = makeConnectionError();
     await expect(task(payload)).rejects.toThrow("Connection error");
 
     const row = await createGenerationProjection(harness.handle, ctx).get(
