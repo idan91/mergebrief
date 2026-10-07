@@ -581,16 +581,6 @@
       "count": 1
     }
   },
-  "packages/generators/test/shims/fake-codex.cjs": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
-  "packages/generators/test/shims/fake-cursor.cjs": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/github/test/collaborators.test.ts": {
     "house/no-em-dash": {
       "count": 6

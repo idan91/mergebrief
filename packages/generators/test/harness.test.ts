@@ -1,6 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
@@ -14,6 +14,7 @@ import {
 import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
 import { probeHarnessCli } from "../src/harness/probe";
 import { configError } from "../src/contract/errors";
+import { expectEmptyRemovedCwds } from "./helpers";
 
 /**
  * Fake the CLI binary, never spawn. Use injected short timers with separated tiers
@@ -78,6 +79,18 @@ describe("runHarnessProcess", () => {
     expect(result.stdout).toContain('"type":"result"');
     expect(lines.length).toBeGreaterThanOrEqual(2);
     expect(lines[0]).toContain('"init"');
+  });
+
+  it("resolves a relative command path against the parent's cwd", async () => {
+    const result = await runHarnessProcess({
+      command: relative(process.cwd(), FAKE_CLAUDE),
+      argv: [],
+      stdin: "prompt body",
+      timeouts: TEST_TIMEOUTS,
+      env: { ...process.env, SHIM_SCENARIO: "valid" },
+      cwd: dir,
+    });
+    expect(result.exitCode).toBe(0);
   });
 
   it("delivers prompts through stdin without argv size exposure", async () => {
@@ -608,6 +621,27 @@ describe("probeHarnessCli", () => {
       env: { SHIM_SCENARIO: "valid" },
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("runs both probes in one empty temp cwd, removed afterwards", async () => {
+    const logDir = mkdtempSync(join(tmpdir(), "harness-probe-log-"));
+    const cwdLog = join(logDir, "cwd.log");
+    try {
+      const result = await probeHarnessCli({
+        ...probeArgs,
+        env: { SHIM_SCENARIO: "valid", SHIM_CWD_LOG: cwdLog },
+      });
+      expect(result.ok).toBe(true);
+
+      const records = expectEmptyRemovedCwds(cwdLog, "harness-probe-");
+      expect(records.map((record) => record.argv)).toEqual([
+        ["--version"],
+        ["auth", "status"],
+      ]);
+      expect(records[0]?.cwd).toBe(records[1]?.cwd);
+    } finally {
+      rmSync(logDir, { recursive: true, force: true });
+    }
   });
 
   it("fails with a cli-missing issue when the binary is absent", async () => {

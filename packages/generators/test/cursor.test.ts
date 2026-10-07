@@ -19,6 +19,7 @@ import {
   type GeneratorWarningSink,
 } from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
+import { expectEmptyRemovedCwds } from "./helpers";
 
 /**
  * Adapter-specific behavior on real fake-cursor processes: invocation
@@ -95,11 +96,13 @@ function request(extras?: {
 function scriptedGenerator(turns: unknown[]) {
   const scriptDir = tempDir("cursor-script-");
   writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(turns));
+  const cwdLog = join(scriptDir, "cwd.log");
   const generator = makeGenerator({
     SHIM_SCENARIO: "scripted",
     SHIM_SCRIPT_DIR: scriptDir,
+    SHIM_CWD_LOG: cwdLog,
   });
-  return { generator, scriptDir };
+  return { generator, scriptDir, cwdLog };
 }
 
 async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
@@ -113,8 +116,30 @@ async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
   return caught;
 }
 
+describe("CursorGenerator spawn cwd", () => {
+  it("runs the CLI in an empty temp cwd, removed after success", async () => {
+    const { generator, cwdLog } = scriptedGenerator([
+      { output: '{"ok":true}' },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+
+    expectEmptyRemovedCwds(cwdLog, "cursor-gen-");
+  });
+
+  it("removes the empty temp cwd after a failed generation", async () => {
+    const { generator, cwdLog } = scriptedGenerator([
+      { stderr: "Authentication required" },
+    ]);
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.AUTH,
+    });
+
+    expectEmptyRemovedCwds(cwdLog, "cursor-gen-");
+  });
+});
+
 describe("CursorGenerator invocation profile", () => {
-  it("runs plan-mode lockdown argv in an empty cwd, prompts via stdin", async () => {
+  it("runs plan-mode lockdown argv, prompts via stdin", async () => {
     const { generator, scriptDir } = scriptedGenerator([
       { output: '{"ok":true}' },
     ]);
@@ -146,10 +171,6 @@ describe("CursorGenerator invocation profile", () => {
     expect(userAt).toBeGreaterThan(schemaAt);
     expect(contractAt).toBeGreaterThan(userAt);
     expect(stdin).toContain("emit empty arrays as []");
-    // Spawn cwd is a fresh empty temp dir, not the worker's own cwd.
-    const cwd = readFileSync(join(scriptDir, "cwd-0.txt"), "utf8");
-    expect(cwd).not.toBe(process.cwd());
-    expect(cwd).toContain("cursor-gen-");
   });
 
   it("sends the configured model id VERBATIM, never a bracket override", async () => {

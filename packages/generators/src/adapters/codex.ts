@@ -1,5 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
@@ -18,6 +17,10 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import {
+  createHarnessWorkDir,
+  removeHarnessWorkDir,
+} from "../harness/work-dir";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import {
   stripInjectedNulls,
@@ -51,7 +54,9 @@ import type { Effort, Generation } from "../contract/generation";
  *    into GeneratorError messages; classification stays opaque with fixed
  *    text, and the full detail lives in local failure dumps only.
  * 5. Lockdown profile: `--sandbox read-only --skip-git-repo-check
- *    --ephemeral`, generation must neither write nor persist sessions.
+ *    --ephemeral --ignore-user-config --ignore-rules -c features.hooks=false`
+ *    in an empty cwd, generation must neither write, persist sessions, nor
+ *    load the operator's MCP servers, hooks, notify command or rules.
  */
 /* oxlint-enable house/comment-run */
 
@@ -117,8 +122,8 @@ export class CodexGenerator implements Generator {
 
     // The schema travels by file (--output-schema takes a PATH); one temp
     // dir per generate() covers both attempts, removed best-effort below.
-    const workDir = mkdtempSync(join(tmpdir(), "codex-gen-"));
-    const schemaFile = join(workDir, "output-schema.json");
+    const workDir = createHarnessWorkDir("codex-gen-");
+    const schemaFile = join(workDir.root, "output-schema.json");
 
     const floorArgs: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
@@ -141,8 +146,12 @@ export class CodexGenerator implements Generator {
           "read-only",
           "--skip-git-repo-check",
           "--ephemeral",
+          "--ignore-user-config",
+          "--ignore-rules",
           "--output-schema",
           schemaFile,
+          "-c",
+          "features.hooks=false",
           "-c",
           `model_reasoning_effort=${req.effort}`,
         ];
@@ -155,6 +164,7 @@ export class CodexGenerator implements Generator {
           argv,
           stdin: prompt,
           timeouts: this.timeouts,
+          cwd: workDir.cwd,
           log,
         };
         if (req.signal) runArgs.signal = req.signal;
@@ -173,12 +183,7 @@ export class CodexGenerator implements Generator {
       });
       return await runWithSchemaFloor(floorArgs);
     } finally {
-      // Best-effort: a throw here would REPLACE the in-flight rejection.
-      try {
-        rmSync(workDir, { recursive: true, force: true });
-      } catch {
-        log(`note: could not remove temp dir ${workDir}`);
-      }
+      removeHarnessWorkDir(workDir, log);
     }
   }
 }

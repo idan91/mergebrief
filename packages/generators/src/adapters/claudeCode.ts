@@ -1,5 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
@@ -29,6 +28,10 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import {
+  createHarnessWorkDir,
+  removeHarnessWorkDir,
+} from "../harness/work-dir";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
@@ -187,8 +190,8 @@ export class ClaudeCodeGenerator implements Generator {
 
     // The system prompt travels by file (argv would re-expose ARG_MAX);
     // one directory per generate() covers both attempts, cleaned in finally.
-    const workDir = mkdtempSync(join(tmpdir(), "claude-code-gen-"));
-    const systemFile = join(workDir, "system-prompt.txt");
+    const workDir = createHarnessWorkDir("claude-code-gen-");
+    const systemFile = join(workDir.root, "system-prompt.txt");
 
     const floorArgs: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
@@ -212,6 +215,11 @@ export class ClaudeCodeGenerator implements Generator {
             "--output-format",
             "stream-json",
             "--verbose",
+            "--no-session-persistence",
+            "--setting-sources",
+            "",
+            "--strict-mcp-config",
+            "--disable-slash-commands",
             "--tools",
             "",
             "--model",
@@ -223,6 +231,7 @@ export class ClaudeCodeGenerator implements Generator {
           ],
           stdin: prompt,
           timeouts: this.timeouts,
+          cwd: workDir.cwd,
           log,
         };
         if (req.signal) runArgs.signal = req.signal;
@@ -239,14 +248,7 @@ export class ClaudeCodeGenerator implements Generator {
       writeFileSync(systemFile, req.system, { mode: 0o600 });
       return await runWithSchemaFloor(floorArgs);
     } finally {
-      // Best-effort: a throw here would REPLACE the in-flight rejection
-      // (JS finally semantics), an abort or classified failure must never
-      // be clobbered by a temp-dir I/O error.
-      try {
-        rmSync(workDir, { recursive: true, force: true });
-      } catch {
-        log(`note: could not remove temp dir ${workDir}`);
-      }
+      removeHarnessWorkDir(workDir, log);
     }
   }
 

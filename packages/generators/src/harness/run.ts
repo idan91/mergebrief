@@ -3,6 +3,7 @@ import {
   type SpawnOptionsWithStdioTuple,
   type StdioPipe,
 } from "node:child_process";
+import { isAbsolute, join, sep } from "node:path";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 
@@ -132,10 +133,13 @@ export async function runHarnessProcess(
       detached: true,
     };
 
-    if (args.cwd) spawnOptions.cwd = args.cwd;
+    if (args.cwd !== undefined) {
+      spawnOptions.cwd = args.cwd;
+    }
 
     const startedAt = Date.now();
-    const child = spawn(args.command, [...args.argv], spawnOptions);
+    const command = resolveSpawnCommand(args.command);
+    const child = spawn(command, [...args.argv], spawnOptions);
 
     let stdout = "";
     let stderrHead = "";
@@ -386,6 +390,18 @@ export function spawnFailureError(
     `${command}: spawn failed (${code})`,
     { cause: error },
   );
+}
+
+/**
+ * spawn resolves a relative command path against the CHILD's cwd, which is
+ * an empty temp dir; anchor it to the parent's cwd. Bare names stay PATH-resolved.
+ */
+function resolveSpawnCommand(command: string): string {
+  const relativePath = !isAbsolute(command) && command.includes(sep);
+  if (!relativePath) {
+    return command;
+  }
+  return join(process.cwd(), command);
 }
 
 /** The abort rejection: the signal's reason, untouched. */

@@ -342,8 +342,8 @@ Re-run this note if any of these change:
   first such report would break the pattern this note rests on.
 - MergeBrief starts reading repository checkouts. A non-bare `-p` run
   executes hooks from `.claude/settings.json` and connects `.mcp.json`
-  servers found in its working directory; we pass no `cwd` and clone
-  nothing, so this is inert today and becomes live the moment generation
+  servers found in its working directory; generation spawns in an empty
+  temp `cwd` and clones nothing, so this is inert today and becomes live the moment generation
   runs against a checkout.
 - MergeBrief acquires a hosted mode, or any path where one credential serves
   more than its owner.

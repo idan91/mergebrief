@@ -9,6 +9,7 @@ import {
   type HarnessRunResult,
   type HarnessTimeouts,
 } from "./run";
+import { createHarnessWorkDir, removeHarnessWorkDir } from "./work-dir";
 
 // Refuse misconfigured boots: version probes prove the CLI runs and auth preflight proves credentials.
 
@@ -43,8 +44,21 @@ export interface HarnessProbeArgs {
   interpretAuthOutput?: (stdout: string) => Result<string | null, ConfigError>;
 }
 
+/** Both probe steps share the empty cwd generation runs in, so they read the same CLI config. */
 export async function probeHarnessCli(
   args: HarnessProbeArgs,
+): Promise<Result<void, ConfigError>> {
+  const workDir = createHarnessWorkDir("harness-probe-");
+  try {
+    return await runHarnessProbes(args, workDir.cwd);
+  } finally {
+    removeHarnessWorkDir(workDir, args.log);
+  }
+}
+
+async function runHarnessProbes(
+  args: HarnessProbeArgs,
+  cwd: string,
 ): Promise<Result<void, ConfigError>> {
   const timeouts: HarnessTimeouts = {
     hardMs: args.timeoutMs ?? 10_000,
@@ -56,6 +70,7 @@ export async function probeHarnessCli(
     stdin: "",
     timeouts,
     env: args.env,
+    cwd,
   };
 
   let version: HarnessRunResult;

@@ -7,16 +7,27 @@
  * Emits envelope-accurate `codex exec --json` JSONL (see
  * docs/dev/harness-cli-capabilities.md §2): thread/turn/item events, the
  * answer as the LAST `item.completed` `agent_message` whose `item.text` is
- * a JSON STRING (the double-parse quirk). No model id anywhere in JSONL —
+ * a JSON STRING (the double-parse quirk). No model id anywhere in JSONL:
  * the verified origin blind spot.
  */
 const {
   appendFileSync,
   existsSync,
+  readdirSync,
   readFileSync,
   writeFileSync,
 } = require("node:fs");
 const { join } = require("node:path");
+
+// One JSON line per invocation: the spawn cwd and what it held at startup.
+if (process.env.SHIM_CWD_LOG) {
+  const record = {
+    argv: process.argv.slice(2),
+    cwd: process.cwd(),
+    entries: readdirSync(process.cwd()),
+  };
+  appendFileSync(process.env.SHIM_CWD_LOG, `${JSON.stringify(record)}\n`);
+}
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
@@ -96,7 +107,7 @@ if (process.env.SHIM_MARKER_FILE) {
   });
 }
 
-// Scripted mode (adapter contract tests) — mirrors fake-claude: turns.json
+// Scripted mode (adapter contract tests), mirroring fake-claude: turns.json
 // in SHIM_SCRIPT_DIR, counter-selected per invocation, argv/stdin/schema
 // recordings. Turn shapes: {output} (answer as JSON string), {hang:true},
 // {turnFailed:"msg"}, {fatal:"msg"}.
@@ -146,7 +157,7 @@ if (scenario === "scripted") {
       process.exit(1);
     }
     if (script.fatalBeforeAnswerExitZero) {
-      // Drifted-CLI arm: fatal event AND an answer AND exit 0 — the real
+      // Drifted-CLI arm: fatal event AND an answer AND exit 0; the real
       // CLI sets error_seen and exits 1; an adapter must void the answer.
       preamble();
       emit({ type: "turn.failed", error: { message: "half-broken" } });
@@ -154,7 +165,7 @@ if (scenario === "scripted") {
       process.exit(0);
     }
     preamble();
-    // Preliminary narration first — consumers must take the LAST message.
+    // Preliminary narration first: consumers must take the LAST message.
     emit({
       type: "item.completed",
       item: { id: "item_0", type: "agent_message", text: "Working on it." },

@@ -13,10 +13,21 @@
 const {
   appendFileSync,
   existsSync,
+  readdirSync,
   readFileSync,
   writeFileSync,
 } = require("node:fs");
 const { join } = require("node:path");
+
+// One JSON line per invocation: the spawn cwd and what it held at startup.
+if (process.env.SHIM_CWD_LOG) {
+  const record = {
+    argv: process.argv.slice(2),
+    cwd: process.cwd(),
+    entries: readdirSync(process.cwd()),
+  };
+  appendFileSync(process.env.SHIM_CWD_LOG, `${JSON.stringify(record)}\n`);
+}
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';

@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +22,7 @@ import {
   type GeneratorWarning,
 } from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
+import { expectEmptyRemovedCwds } from "./helpers";
 
 /**
  * Adapter-specific behavior on real fake-claude processes: invocation
@@ -82,7 +89,6 @@ function request(
 describe("ClaudeCodeGenerator invocation profile", () => {
   it("uses lockdown argv with stdin prompts and a system file", async () => {
     const scriptDir = tempDir("claude-code-argv-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([{ output: '{"ok":true}' }]),
@@ -104,6 +110,11 @@ describe("ClaudeCodeGenerator invocation profile", () => {
       "--output-format",
       "stream-json",
       "--verbose",
+      "--no-session-persistence",
+      "--setting-sources",
+      "",
+      "--strict-mcp-config",
+      "--disable-slash-commands",
       "--tools",
       "",
       "--model",
@@ -130,6 +141,40 @@ describe("ClaudeCodeGenerator invocation profile", () => {
       model: "claude-opus-4-8",
       effort: null,
     });
+  });
+});
+
+function makeCwdLoggedGenerator(turns: unknown[]) {
+  const scriptDir = tempDir("claude-code-cwd-");
+  writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(turns));
+  const cwdLog = join(scriptDir, "cwd.log");
+  const generator = makeGenerator({
+    SHIM_SCENARIO: "scripted",
+    SHIM_SCRIPT_DIR: scriptDir,
+    SHIM_CWD_LOG: cwdLog,
+  });
+  return { generator, cwdLog };
+}
+
+describe("ClaudeCodeGenerator spawn cwd", () => {
+  it("runs the CLI in an empty temp cwd, removed after success", async () => {
+    const { generator, cwdLog } = makeCwdLoggedGenerator([
+      { output: '{"ok":true}' },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+
+    expectEmptyRemovedCwds(cwdLog, "claude-code-gen-");
+  });
+
+  it("removes the empty temp cwd after a failed generation", async () => {
+    const { generator, cwdLog } = makeCwdLoggedGenerator([
+      { apiRetryCategory: "authentication_failed" },
+    ]);
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.AUTH,
+    });
+
+    expectEmptyRemovedCwds(cwdLog, "claude-code-gen-");
   });
 });
 
@@ -170,7 +215,6 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       tags: z.array(z.enum(["bugfix"])),
     });
     const scriptDir = tempDir("claude-code-salvage-");
-    const { writeFileSync } = await import("node:fs");
     // forceExhausted: the shim emits the CLI-rejected envelope even though
     // the payload is parseable JSON, the real CLI rejects on SCHEMA, and
     // an enum slip is exactly that shape.
@@ -205,7 +249,6 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     // A drifted CLI could put arbitrary text in subtype/category fields,
     // errors must render allowlisted tokens only, never the raw string.
     const scriptDir = tempDir("claude-code-sentinel-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([
@@ -231,7 +274,6 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     // "constructor" resolves on Object.prototype, a plain `in`/index read
     // would return a FUNCTION as the kind and allowlist the name.
     const scriptDir = tempDir("claude-code-proto-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([{ output: "", apiRetryCategory: "constructor" }]),
@@ -254,7 +296,6 @@ describe("ClaudeCodeGenerator envelope classification", () => {
 
   it("keeps a drifted subtype out of the empty-output invalidReason", async () => {
     const scriptDir = tempDir("claude-code-emptysub-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([
@@ -281,7 +322,6 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     // subtype error_max_structured_output_retries with junk text: our floor
     // retries once (fresh process) and the second scripted turn recovers.
     const scriptDir = tempDir("claude-code-floor-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([
@@ -333,7 +373,6 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
 
   it("renders hostile modelUsage keys through the model-id grammar", async () => {
     const scriptDir = tempDir("claude-code-hostile-usage-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([
@@ -375,7 +414,6 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
 
   it("marks absent modelUsage unverifiable with no served models", async () => {
     const scriptDir = tempDir("claude-code-nousage-");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
       JSON.stringify([{ output: '{"ok":true}', noModelUsage: true }]),

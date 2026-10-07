@@ -14,6 +14,7 @@ import { CodexGenerator } from "../src/adapters/codex";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { GenerateRequest } from "../src/contract/generator";
 import { createGenerator, Providers } from "../src/config/registry";
+import { expectEmptyRemovedCwds } from "./helpers";
 
 /**
  * Use real fake-codex processes for argv, tempfile, envelope and origin behavior.
@@ -67,6 +68,38 @@ function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
   return req;
 }
 
+function makeCwdLoggedGenerator(turns: unknown[]) {
+  const scriptDir = tempDir("codex-cwd-");
+  writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(turns));
+  const cwdLog = join(scriptDir, "cwd.log");
+  const generator = makeGenerator({
+    SHIM_SCENARIO: "scripted",
+    SHIM_SCRIPT_DIR: scriptDir,
+    SHIM_CWD_LOG: cwdLog,
+  });
+  return { generator, cwdLog };
+}
+
+describe("CodexGenerator spawn cwd", () => {
+  it("runs the CLI in an empty temp cwd, removed after success", async () => {
+    const { generator, cwdLog } = makeCwdLoggedGenerator([
+      { output: '{"ok":true}' },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+
+    expectEmptyRemovedCwds(cwdLog, "codex-gen-");
+  });
+
+  it("removes the empty temp cwd after a failed generation", async () => {
+    const { generator, cwdLog } = makeCwdLoggedGenerator([{ fatal: "boom" }]);
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OPAQUE,
+    });
+
+    expectEmptyRemovedCwds(cwdLog, "codex-gen-");
+  });
+});
+
 describe("CodexGenerator invocation profile", () => {
   it("passes the lockdown argv, prompt via stdin, schema via tempfile", async () => {
     const scriptDir = tempDir("codex-argv-");
@@ -93,8 +126,12 @@ describe("CodexGenerator invocation profile", () => {
       "read-only",
       "--skip-git-repo-check",
       "--ephemeral",
+      "--ignore-user-config",
+      "--ignore-rules",
       "--output-schema",
       expect.stringContaining("codex-gen-"),
+      "-c",
+      "features.hooks=false",
       "-c",
       "model_reasoning_effort=high",
     ]);

@@ -1,6 +1,3 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
 import {
@@ -35,6 +32,10 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import {
+  createHarnessWorkDir,
+  removeHarnessWorkDir,
+} from "../harness/work-dir";
 import type { Effort, Generation } from "../contract/generation";
 
 // Bare print mode writes files; plan mode with an empty cwd is the lockdown.
@@ -145,7 +146,7 @@ export class CursorGenerator implements Generator {
     // Fresh EMPTY temp cwd per generate(): plan mode still reads the
     // workspace, so a generation must never see repo or ambient files.
     // One dir covers both attempts, removed best-effort below.
-    const workDir = mkdtempSync(join(tmpdir(), "cursor-gen-"));
+    const workDir = createHarnessWorkDir("cursor-gen-");
 
     const floorArgs: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
@@ -187,7 +188,7 @@ export class CursorGenerator implements Generator {
           argv,
           stdin: prompt,
           timeouts: this.timeouts,
-          cwd: workDir,
+          cwd: workDir.cwd,
           log,
         };
         if (req.signal) runArgs.signal = req.signal;
@@ -213,12 +214,7 @@ export class CursorGenerator implements Generator {
     try {
       return await runWithSchemaFloor(floorArgs);
     } finally {
-      // Best-effort: a throw here would REPLACE the in-flight rejection.
-      try {
-        rmSync(workDir, { recursive: true, force: true });
-      } catch {
-        log(`note: could not remove temp dir ${workDir}`);
-      }
+      removeHarnessWorkDir(workDir, log);
     }
   }
 }

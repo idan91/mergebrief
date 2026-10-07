@@ -1,13 +1,15 @@
 # Harness-CLI Generator Adapters (Local-Only)
 
 Agent-harness CLIs become first-class `Generator` providers behind the port
-from ADR 0013: **`claude -p`** and **`codex exec`** in v1 (cursor-agent and
-opencode deferred), implemented as **thin per-CLI adapter classes over one
+from ADR 0013: **`claude -p`** and **`codex exec`** in v1 ~~(cursor-agent and
+opencode deferred)~~, implemented as **thin per-CLI adapter classes over one
 shared harness-execution core** in `packages/generators`. The adapters are
 **local-only in v1** — they run where a human has interactively logged the
 CLI in, never in a deployed worker — and the structured-output floor (ADR
 0013 #3) is enforced by the adapter's own validate→salvage→retry pipeline on
 every CLI, with native schema flags as a bonus layer, never a replacement.
+
+**Amended (2026-10-06, BRIEF-332):** `cursor-agent` shipped as the third harness adapter; opencode stays deferred. All three CLI adapters, and their startup checks, spawn in a fresh empty temp directory removed after the run, so no CLI ever reads the worker's or CLI's own checkout as its workspace. Generation runs also skip the operator's user-level CLI config: claude runs `--setting-sources "" --strict-mcp-config --disable-slash-commands`, codex `--ignore-user-config --ignore-rules -c features.hooks=false`. A live smoke run showed a user-level hook rewriting generated output and a session logger copying the run to a notes vault; cursor-agent has no such switch.
 
 ## Context
 
@@ -139,8 +141,9 @@ your subscription on your machine; the deployed worker uses API keys.
   cost/model accounting on codex — surfaced via origin metadata per ADR 0013 #5.
 - **Revisit triggers:** vendor sanctions unattended subscription use /
   ships a server CLI distribution (deployed-mode ticket); codex JSONL gains
-  a model/reroute event (verification upgrade); cursor/opencode promotion
-  adds one class + entry each behind a conformance smoke gate.
+  a model/reroute event (verification upgrade); ~~cursor/opencode~~ opencode
+  promotion adds one class + entry behind a conformance smoke gate (cursor
+  promoted, amended 2026-10-06).
 - Builds on ADR 0013 (port, floor, origin, BYOK), ADR 0006 #6 (abort
   semantics), ADR 0010 (triage effort lever weakened on claude-code);
   sibling: instance-level config (ADR 0006/0013 amendments, 2026-07-12).

@@ -5,11 +5,27 @@
  *
  * Emits envelope-accurate `--output-format stream-json` NDJSON (see
  * docs/dev/harness-cli-capabilities.md §3) with the CLI's verified quirk:
- * NOTHING reaches the pipe until process exit — events are buffered and
+ * NOTHING reaches the pipe until process exit: events are buffered and
  * flushed in one write at termination.
  */
-const { existsSync, readFileSync, writeFileSync } = require("node:fs");
+const {
+  appendFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
 const { join } = require("node:path");
+
+// One JSON line per invocation: the spawn cwd and what it held at startup.
+if (process.env.SHIM_CWD_LOG) {
+  const record = {
+    argv: process.argv.slice(2),
+    cwd: process.cwd(),
+    entries: readdirSync(process.cwd()),
+  };
+  appendFileSync(process.env.SHIM_CWD_LOG, `${JSON.stringify(record)}\n`);
+}
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
@@ -67,7 +83,7 @@ function drainStdinThen(fn) {
   process.stdin.on("end", () => fn(stdin));
 }
 
-// Boot-probe surface: `--version` and `about --format json` (§3 — `about`
+// Boot-probe surface: `--version` and `about --format json` (§3: `about`
 // exits 0 in BOTH auth states; the verdict lives in its JSON body).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
@@ -115,7 +131,7 @@ function aboutJson() {
 
 // Scripted mode (adapter + contract tests): SHIM_SCRIPT_DIR holds turns.json
 // (array of per-invocation scripts), a counter file selecting the turn, and
-// receives argv-N.json / stdin-N.txt / cwd-N.txt recordings.
+// receives argv-N.json / stdin-N.txt recordings.
 if (scenario === "scripted") {
   const dir = process.env.SHIM_SCRIPT_DIR;
   if (!dir) {
@@ -130,8 +146,6 @@ if (scenario === "scripted") {
   const turns = JSON.parse(readFileSync(join(dir, "turns.json"), "utf8"));
   const script = turns[turn] ?? turns[turns.length - 1];
   writeFileSync(join(dir, `argv-${turn}.json`), JSON.stringify(argv));
-  // The spawn cwd is part of the lockdown contract (fresh empty temp dir).
-  writeFileSync(join(dir, `cwd-${turn}.txt`), process.cwd());
   drainStdinThen((stdin) => {
     writeFileSync(join(dir, `stdin-${turn}.txt`), stdin);
     if (script.hang) {
@@ -230,7 +244,7 @@ switch (scenario) {
     });
     break;
   case "hang":
-    // TRUE pipe-silence: no output, never exits — only wall-clock saves us.
+    // TRUE pipe-silence: no output, never exits; only wall-clock saves us.
     drainStdinThen(() => {
       stayAlive();
     });

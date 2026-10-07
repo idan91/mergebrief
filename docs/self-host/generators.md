@@ -212,8 +212,8 @@ under one instance-wide lock, so N slots cannot start past it together.
 | `anthropic` | API | `apiKeyEnv` (default `ANTHROPIC_API_KEY`) | yes | the default; `claude-sonnet-5` = cost knob |
 | `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` escape hatch for self-hosted compatible servers (preflight downgrades to warnings) |
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
-| `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null` — honest gap) | lockdown: `--tools ""`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
-| `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral`; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
+| `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null` — honest gap) | lockdown: `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
+| `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules -c features.hooks=false`; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
 | `cursor` | **local CLI** | your interactive `cursor-agent login` (or `CURSOR_API_KEY` — bills the same subscription pool) | rides the model-id VARIANT (`gpt-5.2-high` vs `-low`) — the `effort:` knob has no wire effect (the stamp parses the id's suffix; a disagreeing `effort:` logs a note) | lockdown: `--mode plan` from an empty temp dir (bare print mode APPLIES file writes); the stream is pipe-silent until exit, so the wall-clock timeout is the only watchdog; **origin blind spot**: the envelope has no model field and `system/init` echoes the request — the stamp records what you configured |
 
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
@@ -287,20 +287,29 @@ and set-but-empty is refused by design — a separate file is the
 mechanism, or keep `MERGEBRIEF_CONFIG` out of `.env` entirely and set it
 only in your local shell.)
 
-Isolation per CLI (what a generation run may touch): claude-code runs with
-ALL built-in tools disabled and print mode; codex runs read-only sandboxed
-with no session persistence; cursor runs in plan mode (read-only — a bare
-print-mode run would APPLY file writes) from a fresh empty temp directory,
-so it never sees the directory you launched from. Two cursor housekeeping
+Isolation per CLI (what a generation run may touch): every harness CLI,
+startup checks included, runs from a fresh empty directory under
+`~/.cache/mergebrief/harness`, removed after the run, so it never sees the
+directory you launched from. The base sits in your home rather than the
+shared temp dir because claude reads `CLAUDE.md` from every parent of its
+working directory, and on Linux any local user can write to `/tmp`. On top
+of that, claude-code runs with ALL built-in tools disabled, print mode and
+no session persistence; codex runs read-only sandboxed with no session
+persistence; cursor runs in
+plan mode (read-only — a bare print-mode run would APPLY file writes). Two cursor housekeeping
 notes: the CLI keeps its own session state under `~/.cursor` between runs
 (the adapter's temp-cwd isolation does not cover the CLI's home-directory
 state), and on macOS a `CURSOR_API_KEY` provided by env is written by the
-CLI into the keychain (it warns and continues if that fails). One thing print mode does NOT disable: a
-non-bare `claude -p` run executes hooks from `.claude/settings.json` and
-connects `.mcp.json` servers found in its working directory. MergeBrief
-passes no working directory and clones no repositories, so a generation
-inherits only the directory you launched it from — keep that in mind if you
-ever run the categorizer from inside a checkout you don't trust. Both run under hard + inactivity watchdogs
+CLI into the keychain (it warns and continues if that fails). Print mode alone does NOT stop a
+non-bare `claude -p` run from executing hooks and connecting MCP servers.
+The working directory is the empty one, so project-level config never
+loads, and claude also runs with `--setting-sources ""`,
+`--strict-mcp-config` and `--disable-slash-commands`, so your user-level
+settings, hooks, plugins, MCP servers and skills under `~/.claude` stay
+out too. codex runs with `--ignore-user-config --ignore-rules -c
+features.hooks=false`, which keeps the MCP servers, hooks, `notify`
+command and rules in `~/.codex` out while auth still reads `CODEX_HOME`. cursor-agent has no equivalent switch, so
+its user-level config under `~/.cursor` still applies. Every harness CLI runs under hard + inactivity watchdogs
 with a process-group kill ladder — a hung CLI (or its grandchildren) is
 killed, classified, and dumped, never waited on forever.
 
