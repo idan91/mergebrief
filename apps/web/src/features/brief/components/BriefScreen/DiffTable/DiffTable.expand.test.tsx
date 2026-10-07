@@ -28,6 +28,10 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { buildFileRangeQueryKey, type FileRangeResult } from "../../../queries";
 import { useExpandedRows } from "../../../hooks/useExpandedRows";
 import {
+  createExpansionStore,
+  ExpansionProvider,
+} from "../../../hooks/useExpansion";
+import {
   ExpansionSourceProvider,
   type ExpansionSource,
 } from "../../../hooks/useExpansionSource";
@@ -372,27 +376,30 @@ function renderHarness(
       openComposer: openCommentComposer,
     },
   });
+  const expansion = createExpansionStore();
   const source = "source" in options ? options.source : SOURCE;
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ExpansionSourceProvider source={source}>
-        <FileRowsProvider cache={options.fileRows}>
-          <ReviewSessionProvider
-            briefId="test-brief"
-            model={buildBriefViewModel(stubBrief(props.chunk, props.sibling))}
-            session={options.session}
-          >
-            <ReviewFlowProvider store={flowStore}>
-              <ReviewPostureProvider posture={makeReviewPosture()}>
-                <Harness {...props} />
-              </ReviewPostureProvider>
-            </ReviewFlowProvider>
-          </ReviewSessionProvider>
-        </FileRowsProvider>
+        <ExpansionProvider store={expansion}>
+          <FileRowsProvider cache={options.fileRows}>
+            <ReviewSessionProvider
+              briefId="test-brief"
+              model={buildBriefViewModel(stubBrief(props.chunk, props.sibling))}
+              session={options.session}
+            >
+              <ReviewFlowProvider store={flowStore}>
+                <ReviewPostureProvider posture={makeReviewPosture()}>
+                  <Harness {...props} />
+                </ReviewPostureProvider>
+              </ReviewFlowProvider>
+            </ReviewSessionProvider>
+          </FileRowsProvider>
+        </ExpansionProvider>
       </ExpansionSourceProvider>
     </QueryClientProvider>,
   );
-  return { view, queryClient, flowStore, openCommentComposer };
+  return { view, queryClient, flowStore, expansion, openCommentComposer };
 }
 
 function expandedRows(container: HTMLElement): HTMLElement[] {
@@ -570,7 +577,7 @@ describe("DiffTable expansion into a sibling hunk", () => {
       { kind: "del", content: "z", oldLine: 15 },
       ...(short.diff ?? []),
     ];
-    const { view, queryClient, flowStore } = renderHarness(
+    const { view, queryClient, expansion } = renderHarness(
       { chunk: short, view: "unified" },
       { fileRows: { isEmpty: false, getFileRows: () => covered } },
     );
@@ -580,7 +587,7 @@ describe("DiffTable expansion into a sibling hunk", () => {
 
     await waitFor(() => expect(expandedRows(view.container)).toHaveLength(15));
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
-    expect(flowStore.getState().expandedEdges.get("c1:1:up")?.range).toEqual({
+    expect(expansion.getState().expandedEdges.get("c1:1:up")?.range).toEqual({
       start: 1,
       end: 12,
     });
@@ -1238,7 +1245,7 @@ describe("DiffTable expansion click", () => {
   });
 
   it("reads once when the arrow is activated twice before rows land", async () => {
-    const { view, queryClient, flowStore } = renderHarness({
+    const { view, queryClient, expansion } = renderHarness({
       chunk: stubChunk(),
       view: "unified",
     });
@@ -1250,7 +1257,7 @@ describe("DiffTable expansion click", () => {
     fireEvent.click(arrow);
 
     await waitFor(() => expect(expandedRows(view.container)).toHaveLength(20));
-    const edges = [...flowStore.getState().expandedEdges.values()];
+    const edges = [...expansion.getState().expandedEdges.values()];
     expect(edges.map((edge) => edge.range)).toEqual([{ start: 33, end: 52 }]);
     expect(screen.queryByRole("status")).toBeNull();
   });

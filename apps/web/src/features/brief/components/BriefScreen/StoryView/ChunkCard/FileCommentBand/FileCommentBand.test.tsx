@@ -23,6 +23,10 @@ import {
   ReviewSessionProvider,
   type ReviewSessionPayload,
 } from "@web/features/review/session";
+import {
+  createExpansionStore,
+  ExpansionProvider,
+} from "../../../../../hooks/useExpansion";
 import type { ComparisonOverlayState } from "../../../../../comparison/comparisonOverlay";
 import type {
   AddressedReviewComment,
@@ -182,15 +186,17 @@ function renderCard(options: RenderOptions = {}) {
         session={options.session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <ReviewPostureProvider
-            posture={makeReviewPosture({
-              composerDisabledReason: options.composerDisabledReason,
-            })}
-          >
-            <ReadingPositionProvider store={createReadingPositionStore()}>
-              <ChunkCard {...props} />
-            </ReadingPositionProvider>
-          </ReviewPostureProvider>
+          <ExpansionProvider store={createExpansionStore()}>
+            <ReviewPostureProvider
+              posture={makeReviewPosture({
+                composerDisabledReason: options.composerDisabledReason,
+              })}
+            >
+              <ReadingPositionProvider store={createReadingPositionStore()}>
+                <ChunkCard {...props} />
+              </ReadingPositionProvider>
+            </ReviewPostureProvider>
+          </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,
@@ -301,26 +307,28 @@ describe("FileCommentBand", () => {
           model={buildBriefViewModel(splitBrief)}
         >
           <ReviewFlowProvider store={flowStore}>
-            <ReviewPostureProvider posture={makeReviewPosture()}>
-              <ReadingPositionProvider store={createReadingPositionStore()}>
-                <ChunkCard
-                  addressedReviewComments={[]}
-                  chunk={chunk}
-                  comparison={comparison}
-                  markReviewed={vi.fn()}
-                  open
-                  toggleChunk={toggleChunk}
-                />
-                <ChunkCard
-                  addressedReviewComments={[]}
-                  chunk={second}
-                  comparison={comparison}
-                  markReviewed={vi.fn()}
-                  open
-                  toggleChunk={toggleChunk}
-                />
-              </ReadingPositionProvider>
-            </ReviewPostureProvider>
+            <ExpansionProvider store={createExpansionStore()}>
+              <ReviewPostureProvider posture={makeReviewPosture()}>
+                <ReadingPositionProvider store={createReadingPositionStore()}>
+                  <ChunkCard
+                    addressedReviewComments={[]}
+                    chunk={chunk}
+                    comparison={comparison}
+                    markReviewed={vi.fn()}
+                    open
+                    toggleChunk={toggleChunk}
+                  />
+                  <ChunkCard
+                    addressedReviewComments={[]}
+                    chunk={second}
+                    comparison={comparison}
+                    markReviewed={vi.fn()}
+                    open
+                    toggleChunk={toggleChunk}
+                  />
+                </ReadingPositionProvider>
+              </ReviewPostureProvider>
+            </ExpansionProvider>
           </ReviewFlowProvider>
         </ReviewSessionProvider>
       </QueryClientProvider>,

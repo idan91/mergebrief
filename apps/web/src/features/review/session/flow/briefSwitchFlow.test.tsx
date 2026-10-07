@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-// The flow store's in-place brief switch: its ephemeral half (composer
-// anchor, dismiss/evidence targets, submit note, flag selection, toast) is
-// anchored to the old brief's ids and must clear when briefId swaps without
-// a remount.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { ReviewSessionProvider } from "..";
+import { CommentAnchorKinds } from "types/comments";
+import { ReviewSessionProvider, useReviewSession } from "..";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+} from "../../utils/comments";
 import { useCreateReviewFlowStore } from "./provider";
 
 afterEach(() => {
@@ -67,30 +69,90 @@ function Wrapper({ children }: { children?: ReactNode }) {
   );
 }
 
-describe("flow store in-place brief switch", () => {
-  it("clears the ephemeral half when briefId changes", () => {
+const anchor: CommentAnchor = {
+  kind: CommentAnchorKinds.LINE,
+  chunkId: "c1",
+  file: "src/a.ts",
+  side: CommentSides.NEW,
+  startLine: 11,
+  endLine: 11,
+  rowIds: ["row-1"],
+  selectedText: "x();",
+};
+
+function useFlowAndSessionComments() {
+  const flowStore = useCreateReviewFlowStore(currentBriefId);
+  const sessionComments = useReviewSession((state) => state.reviewComments);
+  return { flowStore, sessionComments };
+}
+
+describe("flow store per brief", () => {
+  it("gives a switched brief a fresh flow store with nothing open", () => {
     currentBriefId = "brief-a";
     const { result, rerender } = renderHook(
       () => useCreateReviewFlowStore(currentBriefId),
       { wrapper: Wrapper },
     );
-    const store = result.current;
+    const first = result.current;
     act(() => {
-      store.getState().actions.setReviewComment("carried text");
-      store.getState().actions.toggleConversationThread("src/a.ts#c1", 9001);
-      store.setState({ toast: "old toast", liveMessage: "old line" });
+      first.getState().actions.setReviewComment("carried text");
+      first.getState().actions.toggleConversationThread("src/a.ts#c1", 9001);
+      first.getState().actions.startReanchor("draft-1", undefined);
+      first.setState({ toast: "old toast", liveMessage: "old line" });
     });
-    expect(store.getState().reviewComment).toBe("carried text");
 
     currentBriefId = "brief-b";
     rerender();
-    expect(store.getState().reviewComment).toBe("");
-    expect(store.getState().toast).toBe("");
-    expect(store.getState().liveMessage).toBe("");
-    expect(store.getState().composerAnchor).toBeNull();
-    expect(store.getState().dismissTarget).toBeNull();
-    expect(store.getState().evidenceTarget).toBeNull();
-    expect(store.getState().selectedRiskFlags.size).toBe(0);
-    expect(store.getState().expandedConversations.size).toBe(0);
+
+    const next = result.current.getState();
+    expect(result.current).not.toBe(first);
+    expect(next.reviewComment).toBe("");
+    expect(next.toast).toBe("");
+    expect(next.liveMessage).toBe("");
+    expect(next.composerAnchor).toBeNull();
+    expect(next.reanchorDraftId).toBeNull();
+    expect(next.dismissTarget).toBeNull();
+    expect(next.evidenceTarget).toBeNull();
+    expect(next.selectedRiskFlags.size).toBe(0);
+    expect(next.expandedConversations.size).toBe(0);
+  });
+
+  it("keeps the flow store across a same-brief render", () => {
+    currentBriefId = "brief-a";
+    const { result, rerender } = renderHook(
+      () => useCreateReviewFlowStore(currentBriefId),
+      { wrapper: Wrapper },
+    );
+    const first = result.current;
+    act(() => {
+      first.getState().actions.setReviewComment("kept text");
+    });
+
+    rerender();
+
+    expect(result.current).toBe(first);
+    expect(result.current.getState().reviewComment).toBe("kept text");
+  });
+
+  it("saves a comment into the switched brief's session", async () => {
+    currentBriefId = "brief-a";
+    const { result, rerender } = renderHook(useFlowAndSessionComments, {
+      wrapper: Wrapper,
+    });
+
+    currentBriefId = "brief-b";
+    rerender();
+    await act(async () => {
+      await result.current.flowStore
+        .getState()
+        .actions.saveComment(anchor, "on the new brief");
+    });
+
+    expect(
+      result.current.sessionComments.map((comment) => comment.body),
+    ).toEqual(["on the new brief"]);
+    expect(result.current.sessionComments[0]?.status).toBe(
+      ReviewCommentStatuses.DRAFT,
+    );
   });
 });

@@ -9,6 +9,10 @@ import {
   ReviewFlowProvider,
   ReviewSessionProvider,
 } from "@web/features/review/session";
+import {
+  createExpansionStore,
+  ExpansionProvider,
+} from "../../../hooks/useExpansion";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildLineOwnersByFile } from "../../../utils/lineOwner";
@@ -75,22 +79,26 @@ function renderStory(focusMode: boolean) {
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider briefId="test-brief" model={model}>
         <ReviewFlowProvider store={flowStore}>
-          <ReviewPostureProvider posture={makeReviewPosture()}>
-            <ReadingPositionProvider store={positionStore}>
-              <StoryView
-                brief={brief}
-                comparison={comparison}
-                focusMode={focusMode}
-                jumpToChunk={() => undefined}
-                lineOwnersByFile={lineOwnersByFile}
-                markReviewed={() => undefined}
-                model={model}
-                openChunks={new Set(remainder.chunks.map((chunk) => chunk.id))}
-                addressedReviewComments={[]}
-                toggleChunk={() => undefined}
-              />
-            </ReadingPositionProvider>
-          </ReviewPostureProvider>
+          <ExpansionProvider store={createExpansionStore()}>
+            <ReviewPostureProvider posture={makeReviewPosture()}>
+              <ReadingPositionProvider store={positionStore}>
+                <StoryView
+                  brief={brief}
+                  comparison={comparison}
+                  focusMode={focusMode}
+                  jumpToChunk={() => undefined}
+                  lineOwnersByFile={lineOwnersByFile}
+                  markReviewed={() => undefined}
+                  model={model}
+                  openChunks={
+                    new Set(remainder.chunks.map((chunk) => chunk.id))
+                  }
+                  addressedReviewComments={[]}
+                  toggleChunk={() => undefined}
+                />
+              </ReadingPositionProvider>
+            </ReviewPostureProvider>
+          </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,

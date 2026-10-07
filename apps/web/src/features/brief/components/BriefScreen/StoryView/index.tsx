@@ -33,6 +33,7 @@ import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
+import { useExpansion } from "../../../hooks/useExpansion";
 import { useFileRows } from "../../../hooks/useFileRows";
 import { type FileLineOwners, type LineTarget } from "../../../utils/lineOwner";
 import { useChunkWindows } from "../chunkWindows";
@@ -308,7 +309,7 @@ function WindowedChunkList({
   );
 
   const { openChunks } = view;
-  const expandedEdges = useReviewFlow((state) => state.expandedEdges);
+  const expandedEdges = useExpansion((state) => state.expandedEdges);
   const fileRowsCache = useFileRows();
   // Counted once per group: the virtualizer asks for every unmeasured card
   // on each measurement pass. Expanded rows charge the same row height.

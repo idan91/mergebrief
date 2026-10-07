@@ -11,6 +11,7 @@ import {
 
 import type { LineLinkTarget, LineSelection } from "@web/features/review/utils";
 import type { ReviewFlowActions } from "@web/features/review/session";
+import type { ExpansionActions } from "../../hooks/useExpansion";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import { buildFileRangeQueryOptions, isFileRangeReadable } from "../../queries";
 import {
@@ -44,7 +45,7 @@ export interface UseLineLinkLandingInput {
   exitChangesScope: ((options?: ScopeExitOptions) => void) | undefined;
   jumpToChunkFromConversation: JumpToChunkFromConversation;
   selectLines: ReviewFlowActions["selectLines"];
-  expandEdge: ReviewFlowActions["expandEdge"];
+  expandEdge: ExpansionActions["expandEdge"];
   announce: (message: string) => void;
   /** The selection itself is on the page, so it is announced without a toast. */
   announceQuietly: (message: string) => void;

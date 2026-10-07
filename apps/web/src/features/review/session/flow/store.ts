@@ -2,8 +2,6 @@ import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
-import { unionExpanded } from "@web/features/brief/utils";
-import type { EdgeExpansion, LineRange } from "@web/features/brief/types";
 import {
   isLineCommentAnchor,
   ReviewCommentStatuses,
@@ -56,15 +54,6 @@ export interface ReviewFlowState {
    * Store-owned, not card state: a virtualized card unmounts offscreen and
    * its disclosure state must survive the round trip. */
   expandedConversations: ReadonlyMap<string, ReadonlySet<number>>;
-  /**
-   * Head-file lines each hunk edge has expanded, keyed
-   * `chunkId:rowIndex:direction`. Ranges, not rows: the splice is pure and
-   * memoized per chunk, so holding one range per edge keeps a re-render cheap
-   * without duplicating the diff in the store.
-   */
-  expandedEdges: ReadonlyMap<string, EdgeExpansion>;
-  /** Line counts the file-range reads have reported, by path. */
-  fileEnds: ReadonlyMap<string, number>;
   /** The free-text review-comment draft: survives the submit modal closing,
    * deliberately not a reload. */
   reviewComment: string;
@@ -109,16 +98,6 @@ export interface ReviewFlowActions {
   toggleComment: (commentId: string) => void;
   /** @description Flip one inline thread's disclosure under its chunk key. */
   toggleConversationThread: (chunkKey: string, threadId: number) => void;
-  /**
-   * @description Widen one hunk edge's expanded window by the lines a click
-   * just read. Ranges union, so a repeat of the same read changes nothing.
-   */
-  expandEdge: (
-    edgeKey: string,
-    range: LineRange,
-    totalLines?: number,
-    path?: string,
-  ) => void;
   /** @description Replaces the selection whole; a pick never spans chunks. */
   selectLines: (selection: LineSelection) => void;
   clearLineSelection: () => void;
@@ -179,14 +158,6 @@ function resolveHost(
   return isLineCommentAnchor(anchor) ? anchor.chunkId : null;
 }
 
-/** What one hunk edge has expanded so far; absent until its first click. */
-export function readExpansion(
-  state: ReviewFlowState,
-  edgeKey: string,
-): EdgeExpansion | undefined {
-  return state.expandedEdges.get(edgeKey);
-}
-
 function initialReviewFlowState(): ReviewFlowState {
   return {
     composerAnchor: null,
@@ -197,8 +168,6 @@ function initialReviewFlowState(): ReviewFlowState {
     evidenceTarget: null,
     lineSelection: null,
     expandedConversations: new Map(),
-    expandedEdges: new Map(),
-    fileEnds: new Map(),
     reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
@@ -358,28 +327,6 @@ export function createReviewFlowStore(
               ),
             );
             return { expandedConversations: next };
-          });
-        },
-        expandEdge(edgeKey, range, totalLines, path) {
-          set((state) => {
-            const fileEnds =
-              totalLines === undefined || path === undefined
-                ? state.fileEnds
-                : new Map(state.fileEnds).set(path, totalLines);
-            const next = new Map(state.expandedEdges);
-            const current = state.expandedEdges.get(edgeKey);
-            const ranges = current?.ranges ?? [];
-            const seen = ranges.some(
-              (read) => read.start === range.start && read.end === range.end,
-            );
-            const widened: EdgeExpansion = {
-              range: unionExpanded(current?.range, range),
-              ranges: seen ? ranges : [...ranges, range],
-            };
-            const fileEnd = totalLines ?? current?.totalLines;
-            if (fileEnd !== undefined) widened.totalLines = fileEnd;
-            next.set(edgeKey, widened);
-            return { expandedEdges: next, fileEnds };
           });
         },
         selectLines(selection) {

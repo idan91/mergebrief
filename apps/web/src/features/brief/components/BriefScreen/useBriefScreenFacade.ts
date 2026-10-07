@@ -21,6 +21,7 @@ import {
   ViewportBands,
 } from "@web/hooks/useViewportBoundary";
 import { DiffViews } from "@web/components/DiffRows/types";
+import { useCreateExpansionStore } from "../../hooks/useExpansion";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
@@ -125,6 +126,7 @@ export function useBriefScreenFacade({
 
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
   const readingPosition = useCreateReadingPositionStore(briefId);
+  const expansion = useCreateExpansionStore(briefId);
   const session = useReadingSession({
     brief,
     briefId,
@@ -417,7 +419,7 @@ export function useBriefScreenFacade({
     exitChangesScope,
     jumpToChunkFromConversation,
     selectLines: flowActions.selectLines,
-    expandEdge: flowActions.expandEdge,
+    expandEdge: expansion.getState().actions.expandEdge,
     announce,
     announceQuietly: flowActions.announceQuietly,
     navigateLink,
@@ -697,6 +699,7 @@ export function useBriefScreenFacade({
     flowStore,
     posture,
     readingPosition,
+    expansion,
     openSubmit,
     draftCommentCount,
     closeSubmit,

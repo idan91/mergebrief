@@ -13,41 +13,25 @@ import {
 const ReviewFlowContext = createContext<ReviewFlowStore | null>(null);
 
 /**
- * Creates the screen's ReviewFlow store (once per mount, never a module
- * singleton). Returned to the HOST component: the screen both provides the
- * store (via `ReviewFlowProvider`) and subscribes to it directly with
- * `useStore(store, selector)`, since it sits above its own provider.
+ * Creates the screen's ReviewFlow store, once per Brief and never a module
+ * singleton. A switch without remount gets a FRESH store rather than a
+ * render-phase reset: the old store's state is anchored to the old Brief's
+ * ids, and its comment actions delegate to the old Brief's session store.
+ * Returned to the HOST component, which both provides the store and
+ * subscribes to it directly, since it sits above its own provider.
  */
 export function useCreateReviewFlowStore(briefId: string): ReviewFlowStore {
   const sessionActions = useReviewSessionActions();
-  const storeRef = useRef<ReviewFlowStore | null>(null);
-  storeRef.current ??= createReviewFlowStore(sessionActions, (key) =>
-    appI18n.t(key),
+  const storeRef = useRef<{ briefId: string; store: ReviewFlowStore } | null>(
+    null,
   );
-  const store = storeRef.current;
-  // Brief switch without remount: the ephemeral half (open composer, dismiss
-  // and evidence targets, submit note, flag selection, toast) is anchored to
-  // the OLD brief's ids and must not leak into the new one. Render-phase and
-  // guarded.
-  const mountedBriefId = useRef(briefId);
-  if (mountedBriefId.current !== briefId) {
-    mountedBriefId.current = briefId;
-    store.setState({
-      composerAnchor: null,
-      composerHost: null,
-      dismissTarget: null,
-      evidenceTarget: null,
-      lineSelection: null,
-      expandedConversations: new Map(),
-      expandedEdges: new Map(),
-      fileEnds: new Map(),
-      reviewComment: "",
-      selectedRiskFlags: new Set(),
-      toast: "",
-      liveMessage: "",
-    });
+  if (storeRef.current === null || storeRef.current.briefId !== briefId) {
+    storeRef.current = {
+      briefId,
+      store: createReviewFlowStore(sessionActions, (key) => appI18n.t(key)),
+    };
   }
-  return store;
+  return storeRef.current.store;
 }
 
 export interface ReviewFlowProviderProps {

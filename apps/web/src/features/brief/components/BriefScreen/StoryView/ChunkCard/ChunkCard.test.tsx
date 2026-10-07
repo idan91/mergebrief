@@ -17,6 +17,10 @@ import {
   ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
+import {
+  createExpansionStore,
+  ExpansionProvider,
+} from "../../../../hooks/useExpansion";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import type { Brief, BriefChunk } from "../../../../types";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
@@ -110,11 +114,13 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
         model={buildBriefViewModel(brief)}
       >
         <ReviewFlowProvider store={flowStore}>
-          <ReviewPostureProvider posture={makeReviewPosture()}>
-            <ReadingPositionProvider store={positionStore}>
-              <ChunkCard {...props} />
-            </ReadingPositionProvider>
-          </ReviewPostureProvider>
+          <ExpansionProvider store={createExpansionStore()}>
+            <ReviewPostureProvider posture={makeReviewPosture()}>
+              <ReadingPositionProvider store={positionStore}>
+                <ChunkCard {...props} />
+              </ReadingPositionProvider>
+            </ReviewPostureProvider>
+          </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,

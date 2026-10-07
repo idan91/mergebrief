@@ -10,7 +10,6 @@ import {
 import { CommentAnchorKinds } from "types/comments";
 import {
   createReviewFlowStore,
-  readExpansion,
   type ReviewFlowSessionActions,
   type ReviewFlowStore,
 } from "./store";
@@ -51,70 +50,6 @@ describe("ReviewFlow store", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  describe("hunk edge expansion", () => {
-    it("records the lines an edge just read", () => {
-      store.getState().actions.expandEdge("chunk-a:3:down", {
-        start: 2,
-        end: 21,
-      });
-
-      expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
-        range: { start: 2, end: 21 },
-        ranges: [{ start: 2, end: 21 }],
-      });
-    });
-
-    it("widens an edge that has already expanded once", () => {
-      const actions = store.getState().actions;
-      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
-      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 }, 60);
-
-      expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
-        range: { start: 2, end: 41 },
-        ranges: [
-          { start: 2, end: 21 },
-          { start: 22, end: 41 },
-        ],
-        totalLines: 60,
-      });
-    });
-
-    it("records the file end by path when the read names it", () => {
-      const actions = store.getState().actions;
-      actions.expandEdge(
-        "chunk-a:3:down",
-        { start: 2, end: 21 },
-        60,
-        "src/a.ts",
-      );
-      actions.expandEdge(
-        "chunk-b:9:up",
-        { start: 30, end: 49 },
-        undefined,
-        "src/a.ts",
-      );
-
-      expect(store.getState().fileEnds.get("src/a.ts")).toBe(60);
-    });
-
-    it("keeps the file end once a read has reported it", () => {
-      const actions = store.getState().actions;
-      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 }, 60);
-      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 });
-
-      expect(
-        readExpansion(store.getState(), "chunk-a:3:down")?.totalLines,
-      ).toBe(60);
-    });
-
-    it("keeps each edge of each chunk apart", () => {
-      const actions = store.getState().actions;
-      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
-
-      expect(readExpansion(store.getState(), "chunk-a:3:up")).toBeUndefined();
-    });
   });
 
   describe("composer", () => {

@@ -1,17 +1,13 @@
 // @vitest-environment jsdom
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { appI18n } from "../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
-import {
-  createReviewFlowStore,
-  ReviewFlowProvider,
-} from "@web/features/review/session";
 import { buildFileRangeQueryKey } from "../queries";
 import { useExpandedRows } from "./useExpandedRows";
+import { createExpansionStore, ExpansionProvider } from "./useExpansion";
 import {
   ExpansionSourceProvider,
   type ExpansionSource,
@@ -29,30 +25,19 @@ const rows: DiffLine[] = [
 
 function setup(source: ExpansionSource | undefined, fileRows?: FileRowsCache) {
   const queryClient = new QueryClient();
-  const flowStore = createReviewFlowStore(
-    {
-      saveComment: vi.fn(),
-      updateComment: vi.fn(),
-      deleteComment: vi.fn(),
-      toggleComment: vi.fn(),
-      reanchorComment: vi.fn(),
-    },
-    appI18n.t,
-  );
+  const expansion = createExpansionStore();
   function wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
         <ExpansionSourceProvider source={source}>
           <FileRowsProvider cache={fileRows}>
-            <ReviewFlowProvider store={flowStore}>
-              {children}
-            </ReviewFlowProvider>
+            <ExpansionProvider store={expansion}>{children}</ExpansionProvider>
           </FileRowsProvider>
         </ExpansionSourceProvider>
       </QueryClientProvider>
     );
   }
-  return { queryClient, flowStore, wrapper };
+  return { queryClient, expansion, wrapper };
 }
 
 describe("useExpandedRows", () => {
@@ -70,7 +55,7 @@ describe("useExpandedRows", () => {
   });
 
   it("splices a stored edge from the cached range and names the state", () => {
-    const { queryClient, flowStore, wrapper } = setup(SOURCE);
+    const { queryClient, expansion, wrapper } = setup(SOURCE);
     queryClient.setQueryData(
       buildFileRangeQueryKey({ ...SOURCE, path: "src/a.ts", from: 25, to: 29 }),
       {
@@ -90,7 +75,7 @@ describe("useExpandedRows", () => {
       { wrapper },
     );
     act(() => {
-      flowStore
+      expansion
         .getState()
         .actions.expandEdge("c1:1:up", { start: 25, end: 29 });
     });
@@ -131,13 +116,13 @@ describe("useExpandedRows", () => {
       isEmpty: false,
       getFileRows: () => fileRows,
     };
-    const { queryClient, flowStore, wrapper } = setup(SOURCE, cache);
+    const { queryClient, expansion, wrapper } = setup(SOURCE, cache);
     const { result } = renderHook(
       () => useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows }),
       { wrapper },
     );
     act(() => {
-      flowStore
+      expansion
         .getState()
         .actions.expandEdge("c1:1:up", { start: 25, end: 27 });
     });

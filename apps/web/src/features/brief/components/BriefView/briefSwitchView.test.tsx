@@ -5,12 +5,22 @@
 // mark surviving into the next brief is exactly the class of bug the old
 // remount masked. Ids collide across briefs on purpose (positional c1..cN).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { EXPANDED_ROW_SELECTOR } from "@web/components/DiffRows/consts";
+import { emptySessionPayload } from "@web/features/review/session";
+import { makeSessionReadDriver } from "@web/features/review/utils";
 import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { BriefSearchParams } from "../../comparison/compareState";
+import { buildFileRangeQueryKey, type FileRangeResult } from "../../queries";
 import { BriefView } from ".";
 import type { Brief, LocalBriefSummary } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
@@ -93,6 +103,81 @@ describe("in-place brief switch through the screen", () => {
     expect(modal()?.closest("[data-state]")).toMatchObject({
       dataset: { state: "closed" },
     });
+  });
+});
+
+const REPO_ID = "repo-1";
+const EXPANDED_PATH = "src/leak.ts";
+
+function seedLeakFileTop(queryClient: QueryClient, ref: string): void {
+  const from = 1;
+  const to = 8;
+  const lines = Array.from({ length: to }, (_, index) => `L${index + from}`);
+  const params = {
+    repoId: REPO_ID,
+    prNumber: briefFixture.pr.number,
+    ref,
+    path: EXPANDED_PATH,
+    from,
+    to,
+  };
+  const ready: FileRangeResult = {
+    kind: "ready",
+    range: { path: EXPANDED_PATH, ref, from, to, lines, totalLines: 40 },
+  };
+  queryClient.setQueryData(buildFileRangeQueryKey(params), ready);
+}
+
+/** A full-length head: the range read refuses a short sha. */
+const briefA: Brief = {
+  ...briefFixture,
+  pr: { ...briefFixture.pr, sha: "a".repeat(40) },
+};
+
+function countExpandedRows(): number {
+  return document.querySelectorAll(EXPANDED_ROW_SELECTOR).length;
+}
+
+describe("hunk edge expansion through the screen", () => {
+  it("keeps expansion across a session refetch, drops it on a switch", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    seedLeakFileTop(queryClient, briefA.pr.sha);
+    seedLeakFileTop(queryClient, briefB.pr.sha);
+    const reads = makeSessionReadDriver();
+    const buildView = (id: string, value: Brief) => (
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <BriefView
+            artifacts={[]}
+            brief={value}
+            briefId={id}
+            repoId={REPO_ID}
+            searchParams={{}}
+            session={emptySessionPayload()}
+            sessionReads={reads.source}
+          />
+        </QueryClientProvider>
+      </I18nProvider>
+    );
+    const stage = await renderStageInRouter(buildView("brief-a", briefA), [
+      "/briefs/$briefId/summary-preview",
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show all 8 hidden lines above" }),
+    );
+    await waitFor(() => expect(countExpandedRows()).toBe(8));
+
+    act(() => {
+      reads.startRead();
+      reads.landRead(emptySessionPayload());
+    });
+    expect(countExpandedRows()).toBe(8);
+
+    stage.update(buildView("brief-b", briefB));
+    expect(countExpandedRows()).toBe(0);
   });
 });
 

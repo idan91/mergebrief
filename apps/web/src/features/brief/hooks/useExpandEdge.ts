@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import { useReviewActions } from "@web/features/review/session";
 import type { ExpandableEdge, ExpanderStep, LineRange } from "../types";
 import { resolveExpanderStep } from "../utils/expansionState";
 import type { FileRangeResult } from "../queries";
 import { isExpansionCovered } from "../utils/expansion-rows";
 import { useFileRangeReader } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
+import { useExpansionActions } from "./useExpansion";
 import { useFileRows } from "./useFileRows";
 
 /** Why an edge cannot expand; the file-range read's refusals, curated. */
@@ -36,7 +36,7 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
   const source = useExpansionSource();
   const fileRows = useFileRows()?.getFileRows(path);
   const readRange = useFileRangeReader(source, path);
-  const { expandEdge } = useReviewActions();
+  const { expandEdge } = useExpansionActions();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ExpandFailure | undefined>(undefined);
   const step = resolveExpanderStep(edge);
