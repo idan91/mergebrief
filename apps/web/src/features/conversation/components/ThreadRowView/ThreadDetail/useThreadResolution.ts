@@ -1,18 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
 // Thread-resolution facade: ThreadDetail wires the transport in, this hook
-// owns pending/error/copy for both entry points — the standalone
+// owns pending/error/copy for both entry points: the standalone
 // Resolve/Unresolve action and the Reply & resolve combo's second leg.
-//
-// Async-mutation rules as they apply here:
-// - the DIRECTION is captured at initiation, so a refetch landing mid-flight
-//   (which flips `isResolved`) can never redirect the request in progress;
-// - the GitHub write is the commit point — a throw AROUND it gets INDETERMINATE
-//   copy, never "nothing happened";
-// - result copy also goes through the page live region, so it outlives the
-//   request even if this detail collapsed while it was in flight;
-// - no optimistic update: every settled outcome refetches and the row
-//   re-renders from server truth.
+// Result copy also goes through the page live region, so it outlives the
+// request even if this detail collapsed while it was in flight. No optimistic
+// update: every settled outcome refetches and the row re-renders from server
+// truth.
 import { useCallback, useRef, useState } from "react";
 
 import { useReviewActions } from "@web/features/review/session";
@@ -25,14 +19,14 @@ export const RESOLVE_KEYS = {
   unauthorized: "conversation.resolve.unauthorized",
   notFound: "conversation.resolve.notFound",
   // The route only returns 403 at the MUTATION stage, after the viewer proved
-  // repo access — so this is a real capability gap (raced revocation,
+  // repo access, so this is a real capability gap (raced revocation,
   // read-only collaborator), not an existence miss.
   githubPermission: "conversation.resolve.githubPermission",
   invalid: "conversation.resolve.invalid",
   "no-write-access": "pulls.briefError.no-repo-write-access",
   upstream: "conversation.resolve.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub. Both
-  // directions are idempotent, so retrying is safe — but the copy must not
+  // directions are idempotent, so retrying is safe, but the copy must not
   // claim the thread is unchanged.
   failed: "conversation.resolve.failed",
 } as const satisfies Record<string, TranslationKey>;
@@ -51,7 +45,7 @@ const FAILURE_KEYS: Record<
 
 /**
  * One flip attempt's outcome. `indeterminate` is NOT a flavour of failure: the
- * request threw AROUND the write, so GitHub may well have applied it — the
+ * request threw AROUND the write, so GitHub may well have applied it. The
  * standalone path already says so in its copy, and the combo needs the same
  * distinction to avoid asserting a failure that did not happen.
  */
@@ -59,7 +53,7 @@ export type ResolveAttempt = "resolved" | "failed" | "indeterminate";
 
 export interface UseThreadResolutionInput {
   threadId: number;
-  /** The thread's CURRENT server state — the standalone action's direction. */
+  /** The thread's CURRENT server state; sets the standalone action's direction. */
   isResolved: boolean;
   /** The route's transport + capability; `undefined` = local path. */
   resolution: ThreadResolutionWiring | undefined;
@@ -75,7 +69,7 @@ export interface UseThreadResolutionValue {
   /** Flip to the direction opposite the thread's current state. */
   toggle: () => void;
   /**
-   * The combo's second leg. Reports the attempt's outcome — including
+   * The combo's second leg. Reports the attempt's outcome, including
    * `indeterminate`, which the composer must render as such (a thrown resolve
    * after a landed reply may still have resolved the thread). Deliberately
    * silent: it sets no error and announces nothing, so the composer can own the
@@ -99,16 +93,20 @@ export function useThreadResolution(
   const run = useCallback(
     async (target: boolean, surfaceCopy: boolean): Promise<ResolveAttempt> => {
       // A flip already in flight: nothing was attempted here, and the one that
-      // IS running owns the outcome — reported as a plain failure, never as
+      // IS running owns the outcome. Reported as a plain failure, never as
       // indeterminate (this call reached no write at all).
-      if (resolution === undefined || inFlight.current) return "failed";
+      if (resolution === undefined || inFlight.current) {
+        return "failed";
+      }
       inFlight.current = true;
       setPending(true);
       // Cleared on both paths: a stale standalone error next to a fresh
       // combo run would misreport the current state of the thread.
       setError(null);
       const fail = (copy: string) => {
-        if (!surfaceCopy) return;
+        if (!surfaceCopy) {
+          return;
+        }
         setError(copy);
         announce(copy);
       };
@@ -118,7 +116,7 @@ export function useThreadResolution(
           result = await resolution.setResolved(threadId, target);
         } catch (thrown) {
           console.error("thread resolution failed", thrown);
-          // The write may have landed — refetch so the row shows where it
+          // The write may have landed: refetch so the row shows where it
           // actually ended up, and say so in the (indeterminate) copy.
           resolution.refetchConversation();
           fail(t(RESOLVE_KEYS.failed));

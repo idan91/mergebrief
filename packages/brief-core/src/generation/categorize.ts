@@ -110,12 +110,24 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
     description: meta.body,
   };
 
-  if (meta.state !== undefined) ref.state = meta.state;
-  if (meta.draft !== undefined) ref.draft = meta.draft;
-  if (meta.merged !== undefined) ref.merged = meta.merged;
-  if (meta.headRef !== undefined) ref.headRef = meta.headRef;
-  if (meta.baseRef !== undefined) ref.baseRef = meta.baseRef;
-  if (meta.stack !== undefined) ref.stack = meta.stack;
+  if (meta.state !== undefined) {
+    ref.state = meta.state;
+  }
+  if (meta.draft !== undefined) {
+    ref.draft = meta.draft;
+  }
+  if (meta.merged !== undefined) {
+    ref.merged = meta.merged;
+  }
+  if (meta.headRef !== undefined) {
+    ref.headRef = meta.headRef;
+  }
+  if (meta.baseRef !== undefined) {
+    ref.baseRef = meta.baseRef;
+  }
+  if (meta.stack !== undefined) {
+    ref.stack = meta.stack;
+  }
 
   return ref;
 }
@@ -126,7 +138,9 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
  * applies: the two views must stay byte-identical.
  */
 function renderLinked(links: readonly ContextSnippet[]): string {
-  if (links.length === 0) return "(none)";
+  if (links.length === 0) {
+    return "(none)";
+  }
   return links
     .map((l) => {
       const url = attributeSafe(l.source);
@@ -139,9 +153,12 @@ function renderLinked(links: readonly ContextSnippet[]): string {
 function derivePrimaryTicketFacts(
   outcome: PrimaryTicketOutcome | undefined,
 ): PrimaryTicketFacts | undefined {
-  if (outcome === undefined) return undefined;
-  if (outcome.status === "read")
+  if (outcome === undefined) {
+    return undefined;
+  }
+  if (outcome.status === "read") {
     return { url: outcome.snippet.source, read: true };
+  }
   return { url: outcome.reference.url, read: false };
 }
 
@@ -170,7 +187,9 @@ function renderPrimaryTicket(
   primary: PrimarySnippet | undefined,
   text = primary === undefined ? "" : buildPrimaryTicketText(primary),
 ): string {
-  if (primary === undefined) return "";
+  if (primary === undefined) {
+    return "";
+  }
   const url = attributeSafe(primary.source);
   const key = attributeSafe(primary.key);
   const tracker = attributeSafe(primary.tracker);
@@ -190,7 +209,9 @@ function acceptRepoContext(
   log: Logger,
   warnings: WarningCollector,
 ): { context: RepoContext | undefined; blocks: string } {
-  if (repoContext === undefined) return { context: undefined, blocks: "" };
+  if (repoContext === undefined) {
+    return { context: undefined, blocks: "" };
+  }
 
   const gated = sanitizeCustomAttributes(repoContext.customAttributes);
   warnings.reportIssues("repo attrs", gated.issues);
@@ -228,7 +249,9 @@ function acceptRepoContext(
 
   const context: Mutable<RepoContext> = { customAttributes: applicable };
 
-  if (instructions !== undefined) context.instructions = instructions;
+  if (instructions !== undefined) {
+    context.instructions = instructions;
+  }
 
   const inPlay = instructions !== undefined || applicable.length > 0;
   return {
@@ -250,7 +273,9 @@ function renderBranchesLine(meta: PrMetadata): string | undefined {
     parts.push(`head=\`${meta.headRef}\``);
   }
 
-  if (parts.length === 0) return undefined;
+  if (parts.length === 0) {
+    return undefined;
+  }
   return `Branches: ${parts.join(" ")}`;
 }
 
@@ -268,7 +293,9 @@ function renderLinearStackLine(stack: LinearPrStack): string {
   }
 
   const position = `${String(stack.index)} of ${String(stack.members.length)}`;
-  if (neighbours.length === 0) return `Stack: ${position}`;
+  if (neighbours.length === 0) {
+    return `Stack: ${position}`;
+  }
   return `Stack: ${position} (${neighbours.join("; ")})`;
 }
 
@@ -287,8 +314,12 @@ function renderForkStackLine(stack: ForkPrStack): string {
 }
 
 function renderStackLine(stack: PrStack | undefined): string | undefined {
-  if (stack === undefined) return undefined;
-  if (isLinearPrStack(stack)) return renderLinearStackLine(stack);
+  if (stack === undefined) {
+    return undefined;
+  }
+  if (isLinearPrStack(stack)) {
+    return renderLinearStackLine(stack);
+  }
   return renderForkStackLine(stack);
 }
 
@@ -296,12 +327,18 @@ function renderBranchFacts(meta: PrMetadata): string {
   const lines: string[] = [];
 
   const branches = renderBranchesLine(meta);
-  if (branches !== undefined) lines.push(branches);
+  if (branches !== undefined) {
+    lines.push(branches);
+  }
 
   const stack = renderStackLine(meta.stack);
-  if (stack !== undefined) lines.push(stack);
+  if (stack !== undefined) {
+    lines.push(stack);
+  }
 
-  if (lines.length === 0) return "";
+  if (lines.length === 0) {
+    return "";
+  }
   return `\n${lines.join("\n")}`;
 }
 
@@ -516,7 +553,9 @@ export interface DeltaInput {
  * inside the tag (not attributes) to avoid attribute-breakout from odd paths.
  */
 function renderComments(comments: ReviewComment[]): string {
-  if (comments.length === 0) return "(none)";
+  if (comments.length === 0) {
+    return "(none)";
+  }
   return comments
     .map((c) => {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
@@ -531,11 +570,15 @@ function commentLocation(comment: ReviewComment): string {
   if (comment.startLine !== null && comment.line !== null) {
     return `:${comment.startLine}-${comment.line}`;
   }
-  if (comment.line !== null) return `:${comment.line}`;
+  if (comment.line !== null) {
+    return `:${comment.line}`;
+  }
   if (comment.originalStartLine !== null && comment.originalLine !== null) {
     return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   }
-  if (comment.originalLine !== null) return `:original ${comment.originalLine}`;
+  if (comment.originalLine !== null) {
+    return `:original ${comment.originalLine}`;
+  }
   return "";
 }
 
@@ -685,7 +728,9 @@ function renderBriefContext(brief: Brief): string {
  * anchored/unstamped briefs.
  */
 function renderAnchorDiscontinuity(brief: Brief): string {
-  if (brief.anchor?.state !== "fresh-restart") return "";
+  if (brief.anchor?.state !== "fresh-restart") {
+    return "";
+  }
   const why =
     brief.anchor.reason === "model-swap" ? "model change" : brief.anchor.reason;
   return `\nNote: this revision's Brief was regenerated fresh (${why}) — its change-groups and ids were NOT carried from the previous revision's Brief, so boundaries may differ without the code having changed accordingly. Describe what changed in the code; where groupings shifted only because of the fresh retelling, say so instead of implying a code change.`;

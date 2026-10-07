@@ -64,7 +64,9 @@ describe("createGenerationProjection status transitions", () => {
 
     const pending = await gen.upsertPending(target);
     expect(pending.ok).toBe(true);
-    if (!pending.ok) throw new Error("projection failed");
+    if (!pending.ok) {
+      throw new Error("projection failed");
+    }
     expect(pending.value.status).toBe(GenerationStatuses.PENDING);
     expect(pending.value.attempts).toBe(0);
 
@@ -78,7 +80,9 @@ describe("createGenerationProjection status transitions", () => {
     const done = await gen.finishRun(target, runId, {
       status: GenerationStatuses.SUCCEEDED,
     });
-    if (!done.ok) throw new Error("finishRun failed");
+    if (!done.ok) {
+      throw new Error("finishRun failed");
+    }
     expect(done.value.status).toBe(GenerationStatuses.SUCCEEDED);
     // A terminal row must not advertise the phase it was mid-way through.
     expect(done.value.phase).toBeNull();
@@ -109,7 +113,9 @@ describe("createGenerationProjection status transitions", () => {
     });
     const second = await gen.upsertPending(target);
 
-    if (!first.ok || !second.ok) throw new Error("projection failed");
+    if (!first.ok || !second.ok) {
+      throw new Error("projection failed");
+    }
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.attempts).toBe(1);
     expect(second.value.status).toBe(GenerationStatuses.PENDING);
@@ -136,7 +142,9 @@ describe("createGenerationProjection status transitions", () => {
     const first = await gen.upsertPending(target);
     const second = await gen.upsertPending(target);
 
-    if (!first.ok || !second.ok) throw new Error("queue failed");
+    if (!first.ok || !second.ok) {
+      throw new Error("queue failed");
+    }
     // Without NULLS NOT DISTINCT these would be two rows; here it is one.
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.attempts).toBe(1);
@@ -160,7 +168,9 @@ describe("createGenerationProjection status transitions", () => {
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(GenerationErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
@@ -191,7 +201,9 @@ describe("createGenerationProjection status transitions", () => {
       params: { detail: raw },
     });
 
-    if (!failed.ok) throw new Error("markFailed failed");
+    if (!failed.ok) {
+      throw new Error("markFailed failed");
+    }
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     const stored = failed.value.errorParams?.detail;
     expect(stored).toBe("connect ECONNREFUSED [redacted-url] retrying");
@@ -220,7 +232,9 @@ describe("createGenerationProjection status transitions", () => {
     const failed = await gen.markFailed(target, {
       code: GenerationFailureCodes.PROVIDER_RATE_LIMIT,
     });
-    if (!failed.ok) throw new Error("markFailed failed");
+    if (!failed.ok) {
+      throw new Error("markFailed failed");
+    }
     expect(failed.value.errorCode).toBe(
       GenerationFailureCodes.PROVIDER_RATE_LIMIT,
     );
@@ -247,7 +261,9 @@ describe("createGenerationProjection status transitions", () => {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "\nreal message on line two" },
     });
-    if (!failed.ok) throw new Error("markFailed failed");
+    if (!failed.ok) {
+      throw new Error("markFailed failed");
+    }
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     expect(failed.value.errorParams).toBeNull();
   });
@@ -310,11 +326,15 @@ describe("createGenerationProjection status transitions", () => {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
-    if (!second.ok) throw new Error("second projection failed");
+    if (!second.ok) {
+      throw new Error("second projection failed");
+    }
     const attemptsBefore = second.value.attempts;
 
     const superseded = await gen.markSuperseded(target);
-    if (!superseded.ok) throw new Error("markSuperseded failed");
+    if (!superseded.ok) {
+      throw new Error("markSuperseded failed");
+    }
     expect(superseded.value.status).toBe(GenerationStatuses.SUPERSEDED);
     // An abort is NOT a failure: attempts untouched, error cleared, and the
     // mid-run phase must not survive into the terminal row.
@@ -436,7 +456,9 @@ describe("createGenerationProjection status transitions", () => {
       baselineSha: "head-a",
     };
     const first = await gen.upsertPending(briefA);
-    if (!first.ok) throw new Error("queue failed");
+    if (!first.ok) {
+      throw new Error("queue failed");
+    }
     await gen.upsertPending(briefB);
     await gen.upsertPending(delta);
     // Re-queue of head-a: same row, created_at must stay the first enqueue.
@@ -472,7 +494,9 @@ describe("createGenerationProjection status transitions", () => {
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected notFound");
+    if (result.ok) {
+      throw new Error("expected notFound");
+    }
     expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
   });
 });
@@ -594,7 +618,9 @@ describe("repo-config origin on the generation row", () => {
       headSha: "h1",
       debounceSeconds: 0,
     });
-    if (!first.ok) throw new Error(first.error.message);
+    if (!first.ok) {
+      throw new Error(first.error.message);
+    }
     const projection = createGenerationProjection(handle, ctx);
     const target = {
       pullRequestId: first.value.pullRequest.id,
@@ -626,7 +652,9 @@ describe("repo-config origin on the generation row", () => {
       headSha: "h1",
       debounceSeconds: 0,
     });
-    if (!second.ok) throw new Error(second.error.message);
+    if (!second.ok) {
+      throw new Error(second.error.message);
+    }
     expect((await projection.get(target))?.repoConfig).toBeNull();
   });
 });
@@ -643,7 +671,9 @@ describe("getGenerateJobTiming", () => {
       headSha: "h1",
       debounceSeconds,
     });
-    if (!triggered.ok) throw new Error(triggered.error.message);
+    if (!triggered.ok) {
+      throw new Error(triggered.error.message);
+    }
     return { harness, pullRequestId: triggered.value.pullRequest.id };
   }
 

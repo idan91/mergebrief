@@ -236,7 +236,9 @@ export const GENERATOR_REGISTRY = {
         deps.env,
         options.apiKeyEnv ?? DEFAULT_ANTHROPIC_KEY_ENV,
       );
-      if (!key.ok) return key;
+      if (!key.ok) {
+        return key;
+      }
       return {
         ok: true,
         value: new AnthropicGenerator(
@@ -263,9 +265,13 @@ export const GENERATOR_REGISTRY = {
         interpretVersionOutput: buildClaudeVersionWarning,
         interpretAuthOutput: interpretClaudeAuthStatus,
       };
-      if (deps.log) probeArgs.log = deps.log;
+      if (deps.log) {
+        probeArgs.log = deps.log;
+      }
       const probe = await probeHarnessCli(probeArgs);
-      if (!probe.ok) return probe;
+      if (!probe.ok) {
+        return probe;
+      }
       return {
         ok: true,
         value: new ClaudeCodeGenerator({
@@ -293,7 +299,9 @@ export const GENERATOR_REGISTRY = {
         authFailureHint: CODEX_PROBE.authFailureHint,
         env: deps.env,
       });
-      if (!probe.ok) return probe;
+      if (!probe.ok) {
+        return probe;
+      }
       return {
         ok: true,
         value: new CodexGenerator({
@@ -322,9 +330,13 @@ export const GENERATOR_REGISTRY = {
         interpretVersionOutput: buildCursorVersionWarning,
         interpretAuthOutput: interpretCursorAbout,
       };
-      if (deps.log) probeArgs.log = deps.log;
+      if (deps.log) {
+        probeArgs.log = deps.log;
+      }
       const probe = await probeHarnessCli(probeArgs);
-      if (!probe.ok) return probe;
+      if (!probe.ok) {
+        return probe;
+      }
       return {
         ok: true,
         value: new CursorGenerator({
@@ -344,7 +356,9 @@ export const GENERATOR_REGISTRY = {
         deps.env,
         options.apiKeyEnv ?? DEFAULT_OPENAI_KEY_ENV,
       );
-      if (!key.ok) return key;
+      if (!key.ok) {
+        return key;
+      }
       return createOpenAiCore({
         apiKey: key.value,
         model: options.model,
@@ -362,7 +376,9 @@ export const GENERATOR_REGISTRY = {
         deps.env,
         options.apiKeyEnv ?? DEFAULT_OPENROUTER_KEY_ENV,
       );
-      if (!key.ok) return key;
+      if (!key.ok) {
+        return key;
+      }
       return createOpenRouterCore({
         apiKey: key.value,
         model: options.model,

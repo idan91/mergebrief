@@ -108,7 +108,9 @@ function plan(
     postReply: vi.fn(),
   };
 
-  if (resolution !== undefined) conversationPlan.resolution = resolution;
+  if (resolution !== undefined) {
+    conversationPlan.resolution = resolution;
+  }
 
   return conversationPlan;
 }
@@ -328,7 +330,9 @@ describe("useConversationWiring, thread landing holds the row", () => {
   }
 
   afterEach(() => {
-    for (const card of document.body.querySelectorAll("section")) card.remove();
+    for (const card of document.body.querySelectorAll("section")) {
+      card.remove();
+    }
     document.documentElement.style.removeProperty("--sticky-stack-h");
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
@@ -382,7 +386,9 @@ describe("useConversationWiring, thread landing holds the row", () => {
       configurable: true,
       get: () => {
         reads += 1;
-        if (reads <= 6) return 0;
+        if (reads <= 6) {
+          return 0;
+        }
         return Math.min(reads, 11) * 10;
       },
     });
@@ -431,7 +437,9 @@ describe("useConversationWiring, thread landing holds the row", () => {
 
 describe("useConversationWiring, line landing", () => {
   afterEach(() => {
-    for (const card of document.body.querySelectorAll("section")) card.remove();
+    for (const card of document.body.querySelectorAll("section")) {
+      card.remove();
+    }
   });
 
   it("lands on the owner card's row for the line and moves focus there", async () => {

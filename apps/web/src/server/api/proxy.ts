@@ -87,7 +87,9 @@ function resolveUpstreamBudget(
 function forwardedRequestHeaders(source: Headers): Headers {
   const headers = new Headers();
   for (const [name, value] of source) {
-    if (REQUEST_HEADERS_DROPPED.has(name.toLowerCase())) continue;
+    if (REQUEST_HEADERS_DROPPED.has(name.toLowerCase())) {
+      continue;
+    }
     headers.append(name, value);
   }
   // Explicit, because fetch adds one otherwise: an encoded hop would arrive
@@ -106,8 +108,12 @@ function forwardedResponseHeaders(source: Headers): Headers {
   const headers = new Headers();
   for (const [name, value] of source) {
     const lower = name.toLowerCase();
-    if (lower === "set-cookie") continue;
-    if (RESPONSE_HEADERS_DROPPED.has(lower)) continue;
+    if (lower === "set-cookie") {
+      continue;
+    }
+    if (RESPONSE_HEADERS_DROPPED.has(lower)) {
+      continue;
+    }
     headers.append(name, value);
   }
   for (const cookie of source.getSetCookie()) {

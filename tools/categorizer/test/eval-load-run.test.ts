@@ -15,7 +15,9 @@ describe("the shipped case set", () => {
   it("loads every eval/cases entry: valid fixtures + well-formed checklists", async () => {
     const loaded = await loadCases(join(here, "..", "eval", "cases"));
     expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
+    if (!loaded.ok) {
+      return;
+    }
     expect(loaded.value.map((c) => c.id)).toEqual([
       "button-under-split",
       "copybutton-new-export",
@@ -43,7 +45,9 @@ describe("loadCases", () => {
   it("loads a case dir: validated fixture + imported properties", async () => {
     const loaded = await loadCases(FIXTURES);
     expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
+    if (!loaded.ok) {
+      return;
+    }
     expect(loaded.value).toHaveLength(1);
     const evalCase = loaded.value[0];
     expect(evalCase?.id).toBe("eval-case-sample");
@@ -66,7 +70,9 @@ describe("runCase", () => {
     let call = 0;
     const generate = vi.fn(async () => {
       call += 1;
-      if (call === 2) throw new Error("provider hiccup");
+      if (call === 2) {
+        throw new Error("provider hiccup");
+      }
       return makeBrief();
     });
     const result = await runCase(generate, 3);

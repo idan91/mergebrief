@@ -42,7 +42,7 @@ describe("runWithSchemaFloor", () => {
   it("still validates a transport-parsed candidate against the schema", async () => {
     // An adapter claiming native enforcement can't smuggle invalid data past
     // the floor: the bad candidate falls through to the raw
-    // path, which here succeeds — proving the floor, not the transport,
+    // path, which here succeeds, proving the floor, not the transport,
     // decided.
     const value = await runWithSchemaFloor({
       schema: Schema,
@@ -50,7 +50,7 @@ describe("runWithSchemaFloor", () => {
       failureDir: dir,
       attempt: async () => ({
         raw: JSON.stringify({ title: "from raw" }),
-        // Invalid candidate — `parsed` is `unknown` by design (untrusted).
+        // Invalid candidate; `parsed` is `unknown` by design (untrusted).
         parsed: { title: 42 },
       }),
     });
@@ -71,7 +71,7 @@ describe("runWithSchemaFloor", () => {
       attempt: async () => {
         calls++;
         return {
-          // Envelope raw — JSON.parse(raw) would NOT yield the payload.
+          // Envelope raw: JSON.parse(raw) would NOT yield the payload.
           raw: "<envelope>not the payload</envelope>",
           parsed: { title: "t", tags: ["a", "zzz"] },
         };
@@ -148,7 +148,9 @@ describe("runWithSchemaFloor", () => {
         label: "floor",
         failureDir: dir,
         attempt: async (feedback) => {
-          if (feedback) feedbackError = feedback.error;
+          if (feedback) {
+            feedbackError = feedback.error;
+          }
           return {
             raw: "some output",
             invalidReason:
@@ -199,7 +201,9 @@ describe("runWithSchemaFloor", () => {
       failureDir: dir,
       attempt: async (feedback) => {
         seen.push(feedback?.raw);
-        if (!feedback) return { raw: JSON.stringify({ title: 1 }) };
+        if (!feedback) {
+          return { raw: JSON.stringify({ title: 1 }) };
+        }
         expect(feedback.error).toContain("Failed to parse structured output");
         return { raw: JSON.stringify({ title: "fixed" }) };
       },

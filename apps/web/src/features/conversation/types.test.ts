@@ -107,7 +107,9 @@ describe("parseConversation", () => {
   it("accepts a realistic wire body and preserves optional fields", () => {
     const parsed = parseConversation(wireConversation());
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     const conversation = parsed.value;
     expect(conversation.threads).toHaveLength(2);
     expect(conversation.threads[0]?.line).toBe(12);
@@ -124,7 +126,9 @@ describe("parseConversation", () => {
 
   it("passes an author's https avatarUrl through and drops a non-https one", () => {
     const body = wireConversation();
-    if (typeof body !== "object" || body === null) throw new Error("fixture");
+    if (typeof body !== "object" || body === null) {
+      throw new Error("fixture");
+    }
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
     const comments = threads[0]?.["comments"] as Array<Record<string, unknown>>;
@@ -146,7 +150,9 @@ describe("parseConversation", () => {
     };
     const parsed = parseConversation(body);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     const [root, reply] = parsed.value.threads[0]?.comments ?? [];
     expect(root?.author.avatarUrl).toBe("https://avatars.example/alice.png");
     // Entry survives, the field doesn't; img-src defense.
@@ -156,7 +162,9 @@ describe("parseConversation", () => {
 
   it("rejects a body missing a thread's root id", () => {
     const body = wireConversation();
-    if (typeof body !== "object" || body === null) throw new Error("fixture");
+    if (typeof body !== "object" || body === null) {
+      throw new Error("fixture");
+    }
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
     delete threads[0]?.["rootCommentId"];
@@ -168,7 +176,9 @@ describe("parseConversation", () => {
     const body = wireConversation();
     const reviews = (body as { reviews: Array<Record<string, unknown>> })
       .reviews;
-    if (reviews[0]) reviews[0]["state"] = "PENDING";
+    if (reviews[0]) {
+      reviews[0]["state"] = "PENDING";
+    }
     const parsed = parseConversation(body);
     expect(parsed.ok).toBe(false);
   });
@@ -177,7 +187,9 @@ describe("parseConversation", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
-    if (threads[0]) delete threads[0]["line"];
+    if (threads[0]) {
+      delete threads[0]["line"];
+    }
     expect(parseConversation(body).ok).toBe(false);
   });
 
@@ -185,7 +197,9 @@ describe("parseConversation", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
-    if (threads[0]) threads[0]["subjectType"] = "FILE";
+    if (threads[0]) {
+      threads[0]["subjectType"] = "FILE";
+    }
     expect(parseConversation(body).ok).toBe(false);
   });
 
@@ -193,7 +207,9 @@ describe("parseConversation", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
-    if (threads[0]) threads[0]["rootCommentId"] = 999_999;
+    if (threads[0]) {
+      threads[0]["rootCommentId"] = 999_999;
+    }
     expect(parseConversation(body).ok).toBe(false);
   });
 

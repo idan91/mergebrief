@@ -58,7 +58,9 @@ export function CommentComposer({
   // reviewer clicks Cancel or Save.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") cancel();
+      if (event.key === "Escape") {
+        cancel();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

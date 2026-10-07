@@ -11,7 +11,9 @@ import { buildGenerationSummary } from "../../pr-view";
 /** A linear chain has a position; a fork has none worth a number. */
 export function shapeStack(snapshot: unknown): InboxStackView | null {
   const parsed = PrStackSchema.safeParse(snapshot);
-  if (!parsed.success || !("members" in parsed.data)) return null;
+  if (!parsed.success || !("members" in parsed.data)) {
+    return null;
+  }
   return { index: parsed.data.index, size: parsed.data.members.length };
 }
 

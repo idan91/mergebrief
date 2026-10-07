@@ -29,7 +29,9 @@ const VIEW = {
 };
 
 function ghArgs(call: unknown): string[] {
-  if (!Array.isArray(call)) return [];
+  if (!Array.isArray(call)) {
+    return [];
+  }
   const args = call[1];
   return Array.isArray(args) ? args.map(String) : [];
 }

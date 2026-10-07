@@ -185,7 +185,9 @@ export function useReviewSubmit(
     const briefCurrent = () => currentBriefIdRef.current === briefId;
     const fail = (copy: string) => {
       // Announce regardless; render inline only on the originating brief.
-      if (briefCurrent()) setError(copy);
+      if (briefCurrent()) {
+        setError(copy);
+      }
       announce(copy);
     };
     const settleSubmitted = (result: SubmittedReview) => {

@@ -62,7 +62,9 @@ test("split rows pair every side and hold the row grid", async ({ page }) => {
 });
 
 function isRowHeight(height: number): boolean {
-  if (Math.abs(height - FULL_WIDTH_ROW_PX) <= LINE_TOLERANCE_PX) return true;
+  if (Math.abs(height - FULL_WIDTH_ROW_PX) <= LINE_TOLERANCE_PX) {
+    return true;
+  }
 
   const lines = Math.round(height / ROW_LINE_PX);
   return (

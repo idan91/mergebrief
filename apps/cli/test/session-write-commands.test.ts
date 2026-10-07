@@ -52,7 +52,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 const CTX: TenantContext = {
@@ -131,8 +133,9 @@ describe("session write commands over the real api app", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -175,12 +178,16 @@ describe("session write commands over the real api app", () => {
         chunks: [{ id: "chunk-1", file: "src/app.ts" }],
       }),
     });
-    if (!brief.ok) throw new Error("brief seed failed");
+    if (!brief.ok) {
+      throw new Error("brief seed failed");
+    }
     const session = await repo.reviewSessions.setOutcome(
       { briefId: brief.value.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
-    if (!session.ok) throw new Error("session seed failed");
+    if (!session.ok) {
+      throw new Error("session seed failed");
+    }
   }
 
   interface Run {
@@ -201,7 +208,9 @@ describe("session write commands over the real api app", () => {
       stdout: (t) => out.push(t),
       stderr: (l) => err.push(l),
       readStdin: async () => {
-        if (stdin === undefined) throw new Error("stdin not expected");
+        if (stdin === undefined) {
+          throw new Error("stdin not expected");
+        }
         return stdin;
       },
       readFile: (path) => readFileSync(path, "utf8"),

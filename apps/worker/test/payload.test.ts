@@ -1,6 +1,6 @@
 // The payload boundary: both worlds parse into branded inputs; malformed
 // payloads drop. A payload carrying BOTH worlds' keys resolves as the
-// installation branch (union order) — pinned below so the precedence is a
+// installation branch (union order), pinned below so the precedence is a
 // choice, not an accident.
 import { describe, expect, it } from "vitest";
 import { parseGeneratePayload } from "../src/task/payload";
@@ -13,7 +13,9 @@ describe("parseGeneratePayload", () => {
       head_sha: "a".repeat(40),
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("expected success");
+    if (!parsed.ok) {
+      throw new Error("expected success");
+    }
     expect(parsed.value.ctx).toEqual({ installationId: 42n });
     expect(parsed.value.grantId).toBeUndefined();
     expect(parsed.value.pullRequestId).toBe(7n);
@@ -27,7 +29,9 @@ describe("parseGeneratePayload", () => {
       head_sha: "a".repeat(40),
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("expected success");
+    if (!parsed.ok) {
+      throw new Error("expected success");
+    }
     expect(parsed.value.ctx).toEqual({ ownerUserId: 555n });
     expect(parsed.value.grantId).toBe(31n);
   });
@@ -41,7 +45,9 @@ describe("parseGeneratePayload", () => {
       head_sha: "a".repeat(40),
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("expected success");
+    if (!parsed.ok) {
+      throw new Error("expected success");
+    }
     expect(parsed.value.ctx).toEqual({ installationId: 42n });
     expect(parsed.value.grantId).toBeUndefined();
   });

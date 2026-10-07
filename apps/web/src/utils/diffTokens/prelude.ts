@@ -35,17 +35,25 @@ export function derivePrelude(
   text: string,
   grammar: GrammarName,
 ): DerivedPrelude {
-  if (startsInsideBlockComment(text, grammar)) return Preludes.BLOCK_COMMENT;
-  if (opensMidTag(text, grammar)) return Preludes.OPEN_TAG;
+  if (startsInsideBlockComment(text, grammar)) {
+    return Preludes.BLOCK_COMMENT;
+  }
+  if (opensMidTag(text, grammar)) {
+    return Preludes.OPEN_TAG;
+  }
 
   return undefined;
 }
 
 function startsInsideBlockComment(text: string, grammar: GrammarName): boolean {
-  if (!BLOCK_COMMENT_GRAMMARS.has(grammar)) return false;
+  if (!BLOCK_COMMENT_GRAMMARS.has(grammar)) {
+    return false;
+  }
 
   const close = text.search(CLOSER_AT_LINE_END);
-  if (close === NOT_FOUND) return false;
+  if (close === NOT_FOUND) {
+    return false;
+  }
 
   const open = text.indexOf("/*");
 
@@ -53,10 +61,14 @@ function startsInsideBlockComment(text: string, grammar: GrammarName): boolean {
 }
 
 function opensMidTag(text: string, grammar: GrammarName): boolean {
-  if (!JSX_GRAMMARS.has(grammar)) return false;
+  if (!JSX_GRAMMARS.has(grammar)) {
+    return false;
+  }
 
   const first = findFirstContentLine(text);
-  if (first === undefined) return false;
+  if (first === undefined) {
+    return false;
+  }
 
   return ATTRIBUTE_LINE.test(first) || TAG_CLOSE_LINE.test(first);
 }

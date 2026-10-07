@@ -1,5 +1,5 @@
 // The `--group` hunk-level filter: join a change-group's brief chunk ranges
-// against unified-diff hunk headers and keep WHOLE hunks only — never
+// against unified-diff hunk headers and keep WHOLE hunks only, never
 // trimmed, so the output is itself a valid diff (`git apply --check` clean).
 // `addedRanges` join the hunk's NEW side, `removedRanges` its OLD side. Chunk
 // files absent from the diff are reported so the command can fail loud rather
@@ -19,7 +19,7 @@ export interface ChunkSpan {
 }
 
 interface Hunk {
-  /** Every line of the hunk, header included — emitted verbatim when kept. */
+  /** Every line of the hunk, header included; emitted verbatim when kept. */
   readonly lines: string[];
   readonly oldStart: number;
   readonly oldCount: number;
@@ -38,9 +38,13 @@ interface FileSection {
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
 function parsePath(line: string, prefix: string): string | undefined {
-  if (!line.startsWith(prefix)) return undefined;
+  if (!line.startsWith(prefix)) {
+    return undefined;
+  }
   const raw = line.slice(prefix.length).trimEnd();
-  if (raw === "/dev/null") return undefined;
+  if (raw === "/dev/null") {
+    return undefined;
+  }
   // Strip the a/ | b/ prefix git puts on both sides.
   return raw.replace(/^[ab]\//, "");
 }
@@ -115,7 +119,9 @@ function rangesIntersect(
   count: number,
   ranges: ReadonlyArray<{ readonly start: number; readonly end: number }>,
 ): boolean {
-  if (count <= 0) return false; // an empty side never matches
+  if (count <= 0) {
+    return false;
+  } // an empty side never matches
   const end = start + count - 1;
   return ranges.some((range) => range.start <= end && start <= range.end);
 }
@@ -123,7 +129,7 @@ function rangesIntersect(
 export interface FilteredDiff {
   /** A VALID unified diff: whole kept hunks + their file headers. */
   readonly diff: string;
-  /** Chunk files that never appeared in the diff — the fail-loud signal. */
+  /** Chunk files that never appeared in the diff: the fail-loud signal. */
   readonly missingFiles: string[];
 }
 

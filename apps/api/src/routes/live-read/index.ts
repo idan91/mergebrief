@@ -70,7 +70,9 @@ export async function refreshUrlPullRequests(
   ownerUserId: ReviewerId,
 ): Promise<LiveReadOutcome> {
   const now = deps.now?.() ?? new Date();
-  if (isCoolingDown(deps, now)) return { ...NOTHING_READ, failed: true };
+  if (isCoolingDown(deps, now)) {
+    return { ...NOTHING_READ, failed: true };
+  }
   const store = createLiveReadStore(deps.handle, { ownerUserId });
   const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
   const due = await store.listDue({
@@ -104,7 +106,9 @@ export async function refreshUrlPullRequest(
   repoFullName: string,
 ): Promise<LiveReadOutcome> {
   const now = deps.now?.() ?? new Date();
-  if (isCoolingDown(deps, now)) return { ...NOTHING_READ, failed: true };
+  if (isCoolingDown(deps, now)) {
+    return { ...NOTHING_READ, failed: true };
+  }
   const row = await createTenantRepository(deps.handle, {
     ownerUserId,
   }).pullRequests.getByNumber(repoId, prNumber);
@@ -112,7 +116,9 @@ export async function refreshUrlPullRequest(
     return NOTHING_READ;
   }
   const verified = parseOwnerAndName(repoFullName);
-  if (verified === undefined) return NOTHING_READ;
+  if (verified === undefined) {
+    return NOTHING_READ;
+  }
 
   const store = createLiveReadStore(deps.handle, { ownerUserId });
   const plan = {
@@ -153,7 +159,9 @@ async function readWithinCeiling(
   key: string,
 ): Promise<LiveReadOutcome> {
   const rowCount = plan.targets.length + plan.unaddressable.length;
-  if (rowCount === 0) return { ...NOTHING_READ, deferred };
+  if (rowCount === 0) {
+    return { ...NOTHING_READ, deferred };
+  }
 
   const flightKey = `${readerKey(deps)}:${key}`;
   let work = inFlight.get(flightKey);
@@ -180,7 +188,9 @@ async function readWithinCeiling(
   });
   const first = await Promise.race([work, ceiling]);
   clearTimeout(timer);
-  if (first !== undefined) return first;
+  if (first !== undefined) {
+    return first;
+  }
 
   deps.log.warn("live read past its ceiling, serving stored rows", {
     rows: rowCount,
@@ -364,6 +374,8 @@ function shapeFacts(facts: PullRequestFacts, now: Date): LiveReadFacts {
     githubUpdatedAt: facts.updatedAt,
     lifecycle: deriveLifecycle(facts, now),
   };
-  if (facts.authorLogin !== null) shaped.authorLogin = facts.authorLogin;
+  if (facts.authorLogin !== null) {
+    shaped.authorLogin = facts.authorLogin;
+  }
   return shaped;
 }

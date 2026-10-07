@@ -78,7 +78,9 @@ function request(
     label: "probe",
   };
 
-  if (log) req.log = log;
+  if (log) {
+    req.log = log;
+  }
   if (warnings) {
     req.onWarning = (warning) => warnings.push(warning);
   }
@@ -126,7 +128,9 @@ describe("ClaudeCodeGenerator invocation profile", () => {
     ]);
     // The user prompt travels by stdin only; the system prompt reached the
     // CLI through the temp file (captured by the shim before cleanup).
-    if (!Array.isArray(argv)) throw new Error("expected recorded argv array");
+    if (!Array.isArray(argv)) {
+      throw new Error("expected recorded argv array");
+    }
     expect(argv.join(" ")).not.toContain("produce ok");
     const stdin = readFileSync(join(scriptDir, "stdin-0.txt"), "utf8");
     expect(stdin).toBe("produce ok");
@@ -265,7 +269,9 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.message).not.toContain("SENTINEL");
     expect(caught.message).toContain("an unrecognized error");
   });
@@ -288,7 +294,9 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     expect(caught.message).not.toContain("after constructor");
     expect(caught.message).toContain("an unrecognized error category");
@@ -312,7 +320,9 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     // The schema floor surfaces invalidReason in its message chain, the
     // drifted subtype must have been rendered through the allowlist.
     expect(caught.message).not.toContain("SENTINEL");
@@ -467,7 +477,9 @@ describe("claude-code registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.origin("low")).toMatchObject({
       provider: "claude-code",
     });
@@ -479,7 +491,9 @@ describe("claude-code registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "auth-error" }),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not authenticated");
   });
 
@@ -489,7 +503,9 @@ describe("claude-code registry entry", () => {
       makeDeps({}),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not found on PATH");
   });
 
@@ -499,7 +515,9 @@ describe("claude-code registry entry", () => {
       makeDeps({}),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
@@ -541,7 +559,9 @@ describe("claude-code registry entry", () => {
       }),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("apiKeyHelper");
     expect(text).toContain("refusing to start");
@@ -623,7 +643,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       }),
     );
     expect(verdict.ok).toBe(false);
-    if (verdict.ok) return;
+    if (verdict.ok) {
+      return;
+    }
     const text = verdict.error.issues.join("; ");
     expect(text).toContain("apiKeyHelper");
     expect(text).toContain("refusing to start");
@@ -639,7 +661,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       }),
     );
     expect(verdict.ok).toBe(false);
-    if (verdict.ok) return;
+    if (verdict.ok) {
+      return;
+    }
     expect(verdict.error.issues.join("; ")).toContain("ANTHROPIC_API_KEY");
   });
 
@@ -649,7 +673,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       JSON.stringify({ authMethod: "claude.ai", apiKeySource: hostile }),
     );
     expect(bySource.ok).toBe(false);
-    if (bySource.ok) return;
+    if (bySource.ok) {
+      return;
+    }
     expect(bySource.error.issues.join("; ")).not.toContain("secretlooking");
     expect(bySource.error.issues.join("; ")).toContain("unrecognized source");
 
@@ -657,7 +683,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       JSON.stringify({ authMethod: hostile }),
     );
     expect(byMethod.ok).toBe(false);
-    if (byMethod.ok) return;
+    if (byMethod.ok) {
+      return;
+    }
     expect(byMethod.error.issues.join("; ")).not.toContain("secretlooking");
     expect(byMethod.error.issues.join("; ")).toContain(
       "unrecognized auth method",
@@ -669,7 +697,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       "Logged in as user@example.com\n",
     );
     expect(verdict.ok).toBe(true);
-    if (!verdict.ok) return;
+    if (!verdict.ok) {
+      return;
+    }
     expect(verdict.value).toContain("unverifiable");
   });
 
@@ -681,7 +711,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
         JSON.stringify({ authMethod: drifted, apiKeySource: "apiKeyHelper" }),
       );
       expect(verdict.ok).toBe(false);
-      if (verdict.ok) return;
+      if (verdict.ok) {
+        return;
+      }
       expect(verdict.error.issues.join("; ")).toContain("apiKeyHelper");
     }
   });
@@ -691,7 +723,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       JSON.stringify({ loggedIn: true, authMethod: null }),
     );
     expect(verdict.ok).toBe(true);
-    if (!verdict.ok) return;
+    if (!verdict.ok) {
+      return;
+    }
     expect(verdict.value).toContain("unverifiable");
   });
 
@@ -700,7 +734,9 @@ describe("interpretClaudeAuthStatus billing-route assertion", () => {
       JSON.stringify({ loggedIn: true }),
     );
     expect(verdict.ok).toBe(true);
-    if (!verdict.ok) return;
+    if (!verdict.ok) {
+      return;
+    }
     expect(verdict.value).toContain("unverifiable");
   });
 });

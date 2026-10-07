@@ -79,7 +79,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Function declarations over arrow consts at top level.
 - Names use the domain's own nouns; no invented shorthand. Generic type parameters get descriptive names, not bare `T`, when more than one is in play.
 - Blocks nest at most three deep inside a function; extract a function or return early past that. `max-depth` holds this at error.
-- Every `if`, `else`, `for` and `while` body takes braces, one-liners included.
+- Every `if`, `else`, `for` and `while` body takes braces, one-liners included. `curly` holds it at error.
 - A function reads in one screen; about 60 lines is the signal to split, not a cap. A component whose logic sits above a wall of JSX splits into sub-components; a hook longer than one screen splits into sub-hooks or pure functions.
 - Blank lines separate a function's logical steps (parse, guard, act, respond). A function with none is a wall; one with a blank line between every statement is noise. Group by step, not by line.
 - No expression nests more than two calls; a compound boolean or computed return value gets a named const first. A condition earns that const when it carries arithmetic, combines a call with another clause, or carries operands from more than one source (`const recentlyFetched = Date.now() - cached.fetchedAt < MIN_AGE_MS`). A lone predicate call (`isFileGitHubAnchor(anchor)`, `ids.has(id)`) is already a name and stays inline, and so do a single comparison and a two-clause guard on one value.

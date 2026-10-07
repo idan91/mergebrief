@@ -1,10 +1,9 @@
 // React render work under scroll:
-//   storm-*    — full-page traversal (windowed card mounts included)
-//   spy-tick-* — boundary wiggles in a warmed region: pure reading-position
-//                ticks, no windowing mounts
+//   storm-*: full-page traversal, windowed card mounts included
+//   spy-tick-*: boundary wiggles in a warmed region, reading-position ticks only
 // A DevTools-hook shim counts, per commit, the component fibers that
 // actually rendered (fresh actualStartTime) and sums the inclusive render
-// duration of each re-render island. Dev-build React only — the hook relies
+// duration of each re-render island. Dev-build React only: the hook relies
 // on the dev renderer's profiling fields; numbers compare run-to-run, not
 // to production.
 import { expect, test } from "@playwright/test";
@@ -27,11 +26,11 @@ declare global {
 }
 
 /**
- * Private React Fiber work tags for user components — FunctionComponent (0),
+ * Private React Fiber work tags for user components: FunctionComponent (0),
  * ClassComponent (1), ForwardRef (11), MemoComponent (14),
  * SimpleMemoComponent (15). Private contract, like the profiling fields the
  * hook reads: a React upgrade can silently renumber them, so every tracked
- * run ASSERTS it counted rendered components — drift fails loudly instead of
+ * run ASSERTS it counted rendered components, so drift fails loudly instead of
  * reporting zeros that read as an improvement.
  */
 const COMPONENT_TAGS = new Set([0, 1, 11, 14, 15]);
@@ -79,7 +78,9 @@ test.beforeEach(async ({ page }) => {
               const fresh =
                 typeof node.actualStartTime === "number" &&
                 node.actualStartTime > lastCommitTime;
-              if (fresh && tags.has(node.tag)) rendered += 1;
+              if (fresh && tags.has(node.tag)) {
+                rendered += 1;
+              }
               if (fresh && !insideIsland) {
                 islandMs += node.actualDuration ?? 0;
                 walk(node.child, true);
@@ -116,7 +117,9 @@ test("render work during a scroll storm", async ({ page }) => {
       setTimeout(resolve, 300);
     });
     const tracked = window.__COMMIT_STATS__;
-    if (!tracked) throw new Error("commit hook not installed");
+    if (!tracked) {
+      throw new Error("commit hook not installed");
+    }
     tracked.commits = 0;
     tracked.renderedComponents = [];
     tracked.renderMs = [];
@@ -129,8 +132,11 @@ test("render work during a scroll storm", async ({ page }) => {
         const ceiling =
           document.documentElement.scrollHeight - window.innerHeight;
         window.scrollTo({ top: progress * ceiling, behavior: "instant" });
-        if (progress >= 1) resolve();
-        else requestAnimationFrame(tick);
+        if (progress >= 1) {
+          resolve();
+        } else {
+          requestAnimationFrame(tick);
+        }
       };
       requestAnimationFrame(tick);
     });
@@ -185,13 +191,17 @@ test("render work per pure scroll-spy tick", async ({ page }) => {
     const boundary = cards
       .map((card) => card.getBoundingClientRect().top + window.scrollY)
       .find((top) => top - window.scrollY > 600);
-    if (boundary === undefined) throw new Error("no card boundary in view");
+    if (boundary === undefined) {
+      throw new Error("no card boundary in view");
+    }
     const readingLineOffset = 150;
     const low = boundary - readingLineOffset - 80;
     const high = boundary - readingLineOffset + 80;
 
     const tracked = window.__COMMIT_STATS__;
-    if (!tracked) throw new Error("commit hook not installed");
+    if (!tracked) {
+      throw new Error("commit hook not installed");
+    }
     tracked.commits = 0;
     tracked.renderedComponents = [];
     tracked.renderMs = [];

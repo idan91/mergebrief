@@ -59,7 +59,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({
       reviewId: 512n,
       reviewNodeId: "PRR_kwDOABCD",
@@ -79,7 +81,9 @@ describe("createPullRequestReview", () => {
     await createPullRequestReview(mockOctokit(createReview), INPUT);
 
     const sent = createReview.mock.calls[0]?.[0];
-    if (sent === undefined) throw new Error("expected a createReview call");
+    if (sent === undefined) {
+      throw new Error("expected a createReview call");
+    }
     expect("event" in sent).toBe(false);
     expect("body" in sent).toBe(false);
     expect("comments" in sent).toBe(false);
@@ -95,7 +99,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -107,7 +113,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -131,7 +139,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(422);
     expect(result.error.validation).toBe(
       ReviewValidationClasses.UNKNOWN_COMMIT,
@@ -155,7 +165,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.validation).toBe(
       ReviewValidationClasses.UNKNOWN_COMMIT,
     );
@@ -175,7 +187,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.validation).toBe(
       ReviewValidationClasses.PENDING_REVIEW_EXISTS,
     );
@@ -197,7 +211,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.validation).toBe(
       ReviewValidationClasses.PENDING_REVIEW_EXISTS,
     );
@@ -213,7 +229,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.validation).toBe(ReviewValidationClasses.UNKNOWN);
   });
 
@@ -225,7 +243,9 @@ describe("createPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);

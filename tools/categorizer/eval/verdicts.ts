@@ -34,8 +34,12 @@ export type Verdict = ValueOf<typeof Verdicts>;
 export const MIN_VERDICT_RUNS = 5;
 
 export function classifyBaseline(score: PropertyScore): BaselineClass {
-  if (score.passes === score.runs) return BaselineClasses.STABLE_PASS;
-  if (score.passes === 0) return BaselineClasses.STABLE_FAIL;
+  if (score.passes === score.runs) {
+    return BaselineClasses.STABLE_PASS;
+  }
+  if (score.passes === 0) {
+    return BaselineClasses.STABLE_FAIL;
+  }
   return BaselineClasses.FLAKY;
 }
 
@@ -49,8 +53,12 @@ export function verdictFor(
   switch (classifyBaseline(baseline)) {
     case BaselineClasses.STABLE_PASS: {
       const failures = branch.runs - branch.passes;
-      if (failures >= 2) return Verdicts.REGRESSION;
-      if (failures === 1) return Verdicts.WARN;
+      if (failures >= 2) {
+        return Verdicts.REGRESSION;
+      }
+      if (failures === 1) {
+        return Verdicts.WARN;
+      }
       return Verdicts.UNCHANGED;
     }
     case BaselineClasses.FLAKY:

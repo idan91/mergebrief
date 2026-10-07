@@ -134,12 +134,18 @@ function sanitizeZodError(error: z.ZodError): string {
   const parts = error.issues.slice(0, 8).map((issue) => {
     const path = issue.path
       .map((segment, index) => {
-        if (typeof segment === "number") return String(segment);
-        if (typeof segment !== "string") return "<key>";
+        if (typeof segment === "number") {
+          return String(segment);
+        }
+        if (typeof segment !== "string") {
+          return "<key>";
+        }
         // The child of `attributes` is an author-supplied record key (a custom
         // attribute name), untrusted YAML, never echoed, even if it happens to
         // spell a structural word like `criteria`.
-        if (index > 0 && issue.path[index - 1] === "attributes") return "<key>";
+        if (index > 0 && issue.path[index - 1] === "attributes") {
+          return "<key>";
+        }
         return SAFE_PATH_SEGMENTS.has(segment) ? segment : "<key>";
       })
       .join(".");
@@ -163,7 +169,9 @@ function shapeAppliedFields(
 ): OutcomeFields {
   const fields: Mutable<OutcomeFields> = { bytesUsed, bytesBudget };
 
-  if (warning !== null) fields.warning = warning;
+  if (warning !== null) {
+    fields.warning = warning;
+  }
 
   return fields;
 }
@@ -184,10 +192,18 @@ function makeOutcome(
     bytesBudget?: number;
     warning?: string;
   } = { path, blobSha, outcome };
-  if (fields.detail !== undefined) result.detail = fields.detail;
-  if (fields.bytesUsed !== undefined) result.bytesUsed = fields.bytesUsed;
-  if (fields.bytesBudget !== undefined) result.bytesBudget = fields.bytesBudget;
-  if (fields.warning !== undefined) result.warning = fields.warning;
+  if (fields.detail !== undefined) {
+    result.detail = fields.detail;
+  }
+  if (fields.bytesUsed !== undefined) {
+    result.bytesUsed = fields.bytesUsed;
+  }
+  if (fields.bytesBudget !== undefined) {
+    result.bytesBudget = fields.bytesBudget;
+  }
+  if (fields.warning !== undefined) {
+    result.warning = fields.warning;
+  }
   return result;
 }
 
@@ -379,7 +395,9 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
 
   const bytesWarning = nearingCapWarning(bytes, budget);
   const warningParts: string[] = [];
-  if (bytesWarning !== null) warningParts.push(bytesWarning);
+  if (bytesWarning !== null) {
+    warningParts.push(bytesWarning);
+  }
   if (droppedDeEmphasis > 0) {
     warningParts.push(
       `${droppedDeEmphasis} de-emphasis rule(s) dropped — attribute not recognized`,
@@ -424,9 +442,14 @@ export function validateRepoConfig(
     collisions: policy.collisions,
     outcomes: [instructions.outcome, settings.outcome, policy.outcome],
   };
-  if (instructions.value !== undefined)
+  if (instructions.value !== undefined) {
     result.instructions = instructions.value;
-  if (settings.value !== undefined) result.settings = settings.value;
-  if (policy.value !== undefined) result.policy = policy.value;
+  }
+  if (settings.value !== undefined) {
+    result.settings = settings.value;
+  }
+  if (policy.value !== undefined) {
+    result.policy = policy.value;
+  }
   return result;
 }

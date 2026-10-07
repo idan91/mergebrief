@@ -204,13 +204,17 @@ describe("createTenantRepository entry comment rotation", () => {
 
     const first = await a.pullRequests.setEntryComment(pr.id, 9001n);
     expect(first.ok).toBe(true);
-    if (!first.ok) throw new Error("expected success");
+    if (!first.ok) {
+      throw new Error("expected success");
+    }
     expect(first.value.entryCommentId).toBe(9001n);
 
     // Rotation: a repost replaces the stored id in place.
     const second = await a.pullRequests.setEntryComment(pr.id, 9002n);
     expect(second.ok).toBe(true);
-    if (!second.ok) throw new Error("expected success");
+    if (!second.ok) {
+      throw new Error("expected success");
+    }
     expect(second.value.entryCommentId).toBe(9002n);
     expect((await a.pullRequests.getById(pr.id))?.entryCommentId).toBe(9002n);
   });
@@ -226,14 +230,18 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
 
     const flipped = await a.pullRequests.setDraft(pr.id, false);
     expect(flipped.ok).toBe(true);
-    if (!flipped.ok) throw new Error("expected success");
+    if (!flipped.ok) {
+      throw new Error("expected success");
+    }
     expect(flipped.value.draft).toBe(false);
     expect((await a.pullRequests.getById(pr.id))?.draft).toBe(false);
 
     // Idempotent: a second flip (e.g. a double-POST) is a clean no-op write.
     const again = await a.pullRequests.setDraft(pr.id, false);
     expect(again.ok).toBe(true);
-    if (!again.ok) throw new Error("expected success");
+    if (!again.ok) {
+      throw new Error("expected success");
+    }
     expect(again.value.draft).toBe(false);
   });
 
@@ -246,7 +254,9 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
     const result = await a.pullRequests.setDraft(bPr.id, false);
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected a rejection");
+    if (result.ok) {
+      throw new Error("expected a rejection");
+    }
     expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
     // B's draft PR is untouched.
     expect((await b.pullRequests.getByNumber(REPO, 7))?.draft).toBe(true);
@@ -276,7 +286,9 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
       readAt: STACK_AT,
     });
     expect(first.ok).toBe(true);
-    if (!first.ok) throw new Error("expected success");
+    if (!first.ok) {
+      throw new Error("expected success");
+    }
     expect(first.value.stack).toEqual(FIRST_STACK);
     expect(first.value.stackReadAt).toEqual(STACK_AT);
 
@@ -303,7 +315,9 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected a rejection");
+    if (result.ok) {
+      throw new Error("expected a rejection");
+    }
     expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
     expect((await b.pullRequests.getById(bPr.id))?.stack).toBeNull();
   });
@@ -358,7 +372,9 @@ describe("createTenantRepository idempotent upserts", () => {
       state: PrStates.OPEN,
     });
     expect(viaSetState.ok).toBe(true);
-    if (!viaSetState.ok) throw new Error("expected success");
+    if (!viaSetState.ok) {
+      throw new Error("expected success");
+    }
     expect(viaSetState.value.closedAt).toBeNull();
     expect(viaSetState.value.purgeAfter).toBeNull();
   });
@@ -410,7 +426,9 @@ describe("createTenantRepository idempotent upserts", () => {
       submittedAt: new Date("2026-07-07T11:00:00Z"),
     });
     expect(stale.ok).toBe(true);
-    if (!stale.ok) throw new Error("expected success");
+    if (!stale.ok) {
+      throw new Error("expected success");
+    }
     // Newest-submission-wins: the returned row is the CURRENT (newer) state.
     expect(stale.value.lastSubmittedSha).toBe("b".repeat(40));
     expect(stale.value.submittedAt).toEqual(new Date("2026-07-07T12:00:00Z"));
@@ -438,7 +456,9 @@ describe("createTenantRepository idempotent upserts", () => {
       submittedAt: at,
     });
     expect(first.ok && redelivery.ok).toBe(true);
-    if (!first.ok || !redelivery.ok) throw new Error("expected success");
+    if (!first.ok || !redelivery.ok) {
+      throw new Error("expected success");
+    }
     expect(redelivery.value.id).toBe(first.value.id);
     expect(redelivery.value.lastSubmittedSha).toBe("a".repeat(40));
   });

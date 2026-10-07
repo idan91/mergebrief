@@ -167,7 +167,9 @@ export function describeGeneratorContract(
       const files = dumps(dir);
       expect(files).toHaveLength(1);
       const first = files[0];
-      if (!first) throw new Error("expected a dump file");
+      if (!first) {
+        throw new Error("expected a dump file");
+      }
       const dumped: unknown = JSON.parse(
         readFileSync(join(dir, first), "utf8"),
       );
@@ -250,7 +252,9 @@ export function describeGeneratorContract(
       const files = dumps(dir);
       expect(files).toHaveLength(1);
       const first = files[0];
-      if (!first) throw new Error("expected a dump file");
+      if (!first) {
+        throw new Error("expected a dump file");
+      }
       const dumped: unknown = JSON.parse(
         readFileSync(join(dir, first), "utf8"),
       );

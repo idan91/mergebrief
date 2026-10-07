@@ -125,8 +125,12 @@ function safeStringify(value: unknown): string {
 }
 
 function deriveEffectiveRaw(raw: string, parsed: unknown): string {
-  if (raw !== "") return raw;
-  if (parsed !== undefined) return safeStringify(parsed);
+  if (raw !== "") {
+    return raw;
+  }
+  if (parsed !== undefined) {
+    return safeStringify(parsed);
+  }
   return "";
 }
 
@@ -139,7 +143,9 @@ function tryParseStructuredText<S extends z.ZodType>(
   schema: S,
   raw: string,
 ): RawParse<S> {
-  if (raw === "") return { ok: false };
+  if (raw === "") {
+    return { ok: false };
+  }
   try {
     return { ok: true, value: parseStructuredText(schema, raw) };
   } catch {
@@ -166,12 +172,16 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
       // Candidate first, the floor is the enforcement mechanism, so a
       // transport-parsed value is validated like any other.
       const checked = args.schema.safeParse(outcome.parsed);
-      if (checked.success) return checked.data;
+      if (checked.success) {
+        return checked.data;
+      }
       // Fall back to raw when it validates independently; otherwise keep
       // the CANDIDATE's validation errors (raw may be an envelope whose
       // JSON.parse failure would drown the real issues).
       const rawParse = tryParseStructuredText(args.schema, raw);
-      if (rawParse.ok) return rawParse.value;
+      if (rawParse.ok) {
+        return rawParse.value;
+      }
       parseError = validationError(checked.error);
     } else {
       try {

@@ -48,7 +48,9 @@ export function useDiffViewPreference({
     (next: DiffView) => {
       setStored(next);
       writeDiffView(next);
-      if (search === undefined) return;
+      if (search === undefined) {
+        return;
+      }
       setDismissed(true);
       clearDiffParam?.();
     },

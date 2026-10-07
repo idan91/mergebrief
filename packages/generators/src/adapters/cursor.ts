@@ -63,7 +63,9 @@ const BAKED_EFFORT_SHAPE = /-(low|medium|high|xhigh)(?:-fast)?$/;
 
 function parseBakedEffort(model: string): Effort | null {
   const match = BAKED_EFFORT_SHAPE.exec(model);
-  if (match === null) return null;
+  if (match === null) {
+    return null;
+  }
   const suffix = match[1];
   if (suffix === "low" || suffix === "medium" || suffix === "high") {
     return suffix;
@@ -191,7 +193,9 @@ export class CursorGenerator implements Generator {
           cwd: workDir.cwd,
           log,
         };
-        if (req.signal) runArgs.signal = req.signal;
+        if (req.signal) {
+          runArgs.signal = req.signal;
+        }
         const run = await runHarnessProcess(runArgs);
         const interpretArgs: InterpretCursorRunArgs = {
           command: this.command,
@@ -199,14 +203,18 @@ export class CursorGenerator implements Generator {
           run,
           log,
         };
-        if (req.onUsage) interpretArgs.onUsage = req.onUsage;
+        if (req.onUsage) {
+          interpretArgs.onUsage = req.onUsage;
+        }
         if (req.onWarning) {
           interpretArgs.onWarning = req.onWarning;
         }
         return interpretCursorRun(interpretArgs);
       },
     };
-    if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.salvageFields) {
+      floorArgs.salvageFields = req.salvageFields;
+    }
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
@@ -269,7 +277,9 @@ function renderApiKeySource(source: string): string {
  * whose generation is sound. Rendered text is fixed; the mode never rides along.
  */
 function describePermissionModeDrift(mode: string | null): string | null {
-  if (mode === "plan") return null;
+  if (mode === "plan") {
+    return null;
+  }
   const reported =
     mode === null ? "no permission mode" : "an unrecognized mode";
   return `warning: requested --mode plan but system/init reported ${reported} — the write lockdown is unverified`;
@@ -299,7 +309,9 @@ type CursorEvent =
   | { kind: "result"; envelope: CursorResultEnvelope };
 
 function readUsage(value: unknown): TokenUsage | null {
-  if (typeof value !== "object" || value === null) return null;
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
   const inputTokens = Reflect.get(value, "inputTokens");
   const outputTokens = Reflect.get(value, "outputTokens");
   const cacheReadTokens = Reflect.get(value, "cacheReadTokens");
@@ -314,17 +326,23 @@ function readUsage(value: unknown): TokenUsage | null {
 }
 
 function parseCursorLine(line: string): CursorEvent | null {
-  if (line.trim() === "") return null;
+  if (line.trim() === "") {
+    return null;
+  }
   let value: unknown;
   try {
     value = JSON.parse(line);
   } catch {
     return null; // Non-JSON noise on stdout is not ours to interpret.
   }
-  if (typeof value !== "object" || value === null) return null;
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
   const type = Reflect.get(value, "type");
   if (type === "system") {
-    if (Reflect.get(value, "subtype") !== "init") return null;
+    if (Reflect.get(value, "subtype") !== "init") {
+      return null;
+    }
     const apiKeySource = Reflect.get(value, "apiKeySource");
     const permissionMode = Reflect.get(value, "permissionMode");
     return {
@@ -370,7 +388,9 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   let envelope: CursorResultEnvelope | null = null;
   for (const line of run.stdout.split("\n")) {
     const event = parseCursorLine(line);
-    if (event === null) continue;
+    if (event === null) {
+      continue;
+    }
     if (event.kind === "init") {
       // Billing-route observability: "env" means CURSOR_API_KEY outranked
       // the stored login (same subscription pool either way).
@@ -393,7 +413,9 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   }
 
   // Tokens were billed even when the run failed after the envelope.
-  if (envelope?.usage) args.onUsage?.(envelope.usage);
+  if (envelope?.usage) {
+    args.onUsage?.(envelope.usage);
+  }
 
   if (envelope === null || run.exitCode !== 0) {
     // Head AND tail: the failure prefix lives at the head, and a long
@@ -404,7 +426,9 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
       label,
       `${run.stderrHead}\n${run.stderrTail}`,
     );
-    if (classified) throw classified;
+    if (classified) {
+      throw classified;
+    }
     const outcome =
       envelope === null
         ? "without a result envelope"
@@ -439,7 +463,9 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   // it and falls back to the raw text; extraction is never the mechanism.
   const attempt: FloorAttempt = { raw: envelope.result };
   const candidate = extractJsonCandidate(envelope.result);
-  if (candidate !== undefined) attempt.parsed = candidate;
+  if (candidate !== undefined) {
+    attempt.parsed = candidate;
+  }
   return attempt;
 }
 
@@ -485,15 +511,20 @@ function findBalancedEnd(text: string, start: number): number {
     if (escaped) {
       escaped = false;
     } else if (inString) {
-      if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
+      if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
     } else if (ch === '"') {
       inString = true;
     } else if (ch === "{") {
       depth++;
     } else if (ch === "}") {
       depth--;
-      if (depth === 0) return i;
+      if (depth === 0) {
+        return i;
+      }
     }
   }
   return -1;
@@ -544,7 +575,9 @@ interface DateVersion {
 
 function parseCursorVersion(text: string): DateVersion | null {
   const match = DATE_VERSION_SHAPE.exec(text);
-  if (match === null) return null;
+  if (match === null) {
+    return null;
+  }
   const [date, year, month, day] = match;
   return { date, parts: [Number(year), Number(month), Number(day)] };
 }
@@ -560,11 +593,15 @@ export function buildCursorVersionWarning(stdout: string): string | null {
     return `warning: could not read a version from the cursor-agent --version output — the headless-contract floor ${CURSOR_VERSION_FLOOR} is unverifiable`;
   }
   const floor = parseCursorVersion(CURSOR_VERSION_FLOOR);
-  if (floor === null) return null; // unreachable: the floor constant parses
+  if (floor === null) {
+    return null;
+  } // unreachable: the floor constant parses
   for (let i = 0; i < 3; i++) {
     const a = seen.parts[i] ?? 0;
     const b = floor.parts[i] ?? 0;
-    if (a > b) return null;
+    if (a > b) {
+      return null;
+    }
     if (a < b) {
       return `warning: cursor-agent ${seen.date} is older than ${CURSOR_VERSION_FLOOR}, the oldest version this adapter's headless contract was verified against — envelope and flag behavior may differ; update the CLI (\`cursor-agent update\`)`;
     }
@@ -604,7 +641,9 @@ export function interpretCursorAbout(
     return { ok: true, value: ABOUT_UNVERIFIABLE_WARNING };
   }
   const about = aboutShape.safeParse(parsed);
-  if (!about.success) return { ok: true, value: ABOUT_UNVERIFIABLE_WARNING };
+  if (!about.success) {
+    return { ok: true, value: ABOUT_UNVERIFIABLE_WARNING };
+  }
   const { userEmail, subscriptionTier } = about.data;
 
   if (hasEvidence(userEmail) || hasEvidence(subscriptionTier)) {

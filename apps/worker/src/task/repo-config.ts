@@ -200,7 +200,9 @@ function validateAndShape(
         };
   const context: Mutable<RepoContext> = { customAttributes };
 
-  if (instructions !== undefined) context.instructions = instructions;
+  if (instructions !== undefined) {
+    context.instructions = instructions;
+  }
 
   const inPlay = instructions !== undefined || customAttributes.length > 0;
   const repoContext = inPlay ? context : undefined;
@@ -238,8 +240,12 @@ function shapeCustomAttribute(
     criteria: def.criteria,
   };
 
-  if (def.implication !== undefined) attribute.implication = def.implication;
-  if (def.paths !== undefined) attribute.paths = def.paths;
+  if (def.implication !== undefined) {
+    attribute.implication = def.implication;
+  }
+  if (def.paths !== undefined) {
+    attribute.paths = def.paths;
+  }
 
   return attribute;
 }
@@ -251,8 +257,12 @@ function shapeFiredCustomAttribute(
 ): FiredCustomAttribute {
   const attribute: FiredCustomAttribute = { name, criteria: def.criteria };
 
-  if (def.implication !== undefined) attribute.implication = def.implication;
-  if (def.paths !== undefined) attribute.paths = [...def.paths];
+  if (def.implication !== undefined) {
+    attribute.implication = def.implication;
+  }
+  if (def.paths !== undefined) {
+    attribute.paths = [...def.paths];
+  }
 
   return attribute;
 }

@@ -57,7 +57,9 @@ describe("buildTokensQueryOptions queryFn", () => {
       (error: unknown) => error,
     );
     expect(failure).toBeInstanceOf(ApiError);
-    if (!(failure instanceof ApiError)) throw new Error("unreachable");
+    if (!(failure instanceof ApiError)) {
+      throw new Error("unreachable");
+    }
     expect(failure.code).toBe(ApiErrorCodes.MALFORMED);
   });
 });
@@ -78,7 +80,9 @@ describe("mintToken transport", () => {
     );
     vi.unstubAllGlobals();
     expect(failure).toBeInstanceOf(ApiError);
-    if (!(failure instanceof ApiError)) throw new Error("unreachable");
+    if (!(failure instanceof ApiError)) {
+      throw new Error("unreachable");
+    }
     expect(failure.code).toBe(ApiErrorCodes.MALFORMED);
   });
 });

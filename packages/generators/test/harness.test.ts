@@ -53,8 +53,12 @@ function run(
     env: { SHIM_SCENARIO: scenario, ...extra.env },
   };
 
-  if (extra.signal) runArgs.signal = extra.signal;
-  if (extra.onStdoutLine) runArgs.onStdoutLine = extra.onStdoutLine;
+  if (extra.signal) {
+    runArgs.signal = extra.signal;
+  }
+  if (extra.onStdoutLine) {
+    runArgs.onStdoutLine = extra.onStdoutLine;
+  }
 
   return runHarnessProcess(runArgs);
 }
@@ -650,7 +654,9 @@ describe("probeHarnessCli", () => {
       command: "/nonexistent/claude-binary",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not found");
   });
 
@@ -668,7 +674,9 @@ describe("probeHarnessCli", () => {
       env: { SHIM_SCENARIO: "auth-error" },
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain(
       "log the CLI in interactively first",
     );
@@ -681,7 +689,9 @@ describe("probeHarnessCli", () => {
       authArgv: ["-e", 'process.kill(process.pid, "SIGTERM")'],
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("terminated by signal");
     expect(text).not.toContain("not authenticated");
@@ -694,7 +704,9 @@ describe("probeHarnessCli", () => {
       timeoutMs: 400,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("timed out");
     expect(text).not.toContain("not authenticated");
@@ -746,7 +758,9 @@ describe("probeHarnessCli", () => {
       interpretAuthOutput: () => configError(["billing route is an API key"]),
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues).toEqual(["billing route is an API key"]);
   });
 
@@ -772,7 +786,9 @@ describe("probeHarnessCli", () => {
         configError(["route uses Bearer abc.def.ghi credentials"]),
     });
     expect(refused.ok).toBe(false);
-    if (refused.ok) return;
+    if (refused.ok) {
+      return;
+    }
     const text = refused.error.issues.join("; ");
     expect(text).not.toContain("abc.def.ghi");
     expect(text).toContain("route uses");
@@ -824,13 +840,23 @@ describe("shim self-checks", () => {
     const agentTexts: string[] = [];
     for (const line of lines) {
       const event: unknown = JSON.parse(line);
-      if (typeof event !== "object" || event === null) continue;
-      if (Reflect.get(event, "type") !== "item.completed") continue;
+      if (typeof event !== "object" || event === null) {
+        continue;
+      }
+      if (Reflect.get(event, "type") !== "item.completed") {
+        continue;
+      }
       const item: unknown = Reflect.get(event, "item");
-      if (typeof item !== "object" || item === null) continue;
-      if (Reflect.get(item, "type") !== "agent_message") continue;
+      if (typeof item !== "object" || item === null) {
+        continue;
+      }
+      if (Reflect.get(item, "type") !== "agent_message") {
+        continue;
+      }
       const text: unknown = Reflect.get(item, "text");
-      if (typeof text === "string") agentTexts.push(text);
+      if (typeof text === "string") {
+        agentTexts.push(text);
+      }
     }
     // Preliminary narration first, the answer LAST, consumers must pick the
     // last agent_message.

@@ -94,7 +94,9 @@ export function SegmentedControl<T extends string>({
                 onChange={() => {
                   // Arrow keys can still select an unavailable option;
                   // refusing here reverts it on the next render.
-                  if (!unavailable) onChange(option.value);
+                  if (!unavailable) {
+                    onChange(option.value);
+                  }
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Escape" && unavailable) {

@@ -12,7 +12,7 @@ export interface LegacyDeltaRedirect {
  * redirects to that Brief with `view=changes&compare=last-review`.
  *
  * `null` when `briefId` isn't a Delta, its head Brief isn't local, or the head
- * Brief's `lastReview` availability doesn't bind THIS delta — falling through
+ * Brief's `lastReview` availability doesn't bind THIS delta. Falling through
  * to direct render beats redirecting to a page whose normalization would
  * silently swap the baseline away from the delta.
  */
@@ -23,7 +23,9 @@ export function resolveLegacyDeltaRedirect(
   const delta = artifacts.find(
     (artifact) => artifact.id === briefId && artifact.artifactKind === "delta",
   );
-  if (!delta) return null;
+  if (!delta) {
+    return null;
+  }
 
   const headBrief = artifacts.find(
     (artifact) =>
@@ -32,7 +34,9 @@ export function resolveLegacyDeltaRedirect(
       artifact.number === delta.number &&
       artifact.sha === delta.headSha,
   );
-  if (headBrief?.comparisons?.lastReview?.deltaId !== delta.id) return null;
+  if (headBrief?.comparisons?.lastReview?.deltaId !== delta.id) {
+    return null;
+  }
 
   return {
     briefId: headBrief.id,

@@ -97,8 +97,12 @@ export function emitProviderError(
   const provider = deps.generator.origin(deps.effort ?? "medium").provider;
   const fields: LogFields = { evt: "provider.error", provider };
 
-  if (typeof status === "number") fields["status"] = status;
-  if (error instanceof GeneratorError) fields["kind"] = error.kind;
+  if (typeof status === "number") {
+    fields["status"] = status;
+  }
+  if (error instanceof GeneratorError) {
+    fields["kind"] = error.kind;
+  }
 
   log.error(error instanceof Error ? error.message : String(error), fields);
 }

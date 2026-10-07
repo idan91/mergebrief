@@ -69,7 +69,9 @@ function CalloutRoot({
   const { refs, floatingStyles, context } = useFloating({
     open: true,
     onOpenChange: (open) => {
-      if (!open) onClose();
+      if (!open) {
+        onClose();
+      }
     },
     placement,
     elements: { reference: anchor },

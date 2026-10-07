@@ -34,9 +34,13 @@ const EXPECTED_404_URLS = [/\/api\/repos\/\d+\/collaborators$/];
 export function collectPageFaults(page: Page): PageFault[] {
   const faults: PageFault[] = [];
   page.on("console", (message) => {
-    if (message.type() !== "error") return;
+    if (message.type() !== "error") {
+      return;
+    }
     const text = message.text();
-    if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) return;
+    if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) {
+      return;
+    }
     const sourceUrl = message.location().url;
     if (
       /Failed to load resource/.test(text) &&

@@ -26,7 +26,9 @@ function countBlockContentLines(value) {
   let count = 0;
   for (const raw of value.split("\n")) {
     const line = raw.trim().replace(/^\*+/, "").trim();
-    if (line.length > 0) count += 1;
+    if (line.length > 0) {
+      count += 1;
+    }
   }
   return count;
 }

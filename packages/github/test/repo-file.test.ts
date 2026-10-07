@@ -61,7 +61,9 @@ describe("getRepoFile", () => {
       maxBytes: 4096,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({
       kind: RepoFileKinds.FILE,
       content: text,
@@ -117,7 +119,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ kind: RepoFileKinds.ABSENT });
   });
 
@@ -140,7 +144,9 @@ describe("getRepoFile", () => {
       maxBytes: 4096,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({
       kind: RepoFileKinds.TOO_LARGE,
       blobSha: "bigblob",
@@ -158,7 +164,9 @@ describe("getRepoFile", () => {
       maxBytes: 64,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.kind).toBe(RepoFileKinds.FILE);
   });
 
@@ -172,9 +180,12 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    if (result.value.kind !== RepoFileKinds.FILE)
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    if (result.value.kind !== RepoFileKinds.FILE) {
       throw new Error("expected file");
+    }
     expect(result.value.content).toBe(text);
   });
 
@@ -189,7 +200,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -205,7 +218,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
@@ -220,7 +235,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
@@ -237,7 +254,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
@@ -258,7 +277,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_TEXT);
   });
 
@@ -281,7 +302,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_TEXT);
   });
 
@@ -298,7 +321,9 @@ describe("getRepoFile", () => {
       maxBytes: 64,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({
       kind: RepoFileKinds.TOO_LARGE,
       blobSha: "abc123def456",
@@ -323,7 +348,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -336,7 +363,9 @@ describe("getRepoFile", () => {
       maxBytes: 1024,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);

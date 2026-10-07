@@ -45,7 +45,9 @@ describe("createInlineReviewComment", () => {
       },
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.commentId).toBe(999n);
     expect(result.value.reviewId).toBe(555n);
     // commit_id is the PINNED head SHA; anchor maps to path/line/side +
@@ -83,7 +85,9 @@ describe("createInlineReviewComment", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.commentId).toBe(999n);
     expect(result.value.reviewId).toBeUndefined();
   });
@@ -97,7 +101,9 @@ describe("createInlineReviewComment", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -110,7 +116,9 @@ describe("createInlineReviewComment", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.commentId).toBe(5n);
     expect(result.value.reviewId).toBeUndefined();
   });
@@ -122,7 +130,9 @@ describe("createInlineReviewComment", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.staleAnchor).toBe(true);
     // Sanitized: the message is derived from the static context + status only,
     // never the upstream body (the RequestError message here is "status 422").
@@ -138,7 +148,9 @@ describe("createInlineReviewComment", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.staleAnchor).toBeUndefined();
   });

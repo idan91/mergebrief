@@ -73,19 +73,25 @@ export function tokenizeStandaloneRows(
   const text: string[] = [];
 
   for (const [index, row] of rows.entries()) {
-    if (!isCodeDiffRow(row)) continue;
+    if (!isCodeDiffRow(row)) {
+      continue;
+    }
 
     rowIndexes.push(index);
     text.push(row.content);
   }
 
   const byRow: RowTokenMap = new Map();
-  if (text.length === 0) return byRow;
+  if (text.length === 0) {
+    return byRow;
+  }
 
   const lines = tokenizeSide(highlighter, text.join("\n"), grammar);
   for (const [line, rowIndex] of rowIndexes.entries()) {
     const tokens = lines[line];
-    if (tokens !== undefined) byRow.set(rowIndex, tokens);
+    if (tokens !== undefined) {
+      byRow.set(rowIndex, tokens);
+    }
   }
 
   return byRow;
@@ -115,7 +121,9 @@ export function tokenizeSide(
     lang: grammar,
     theme: MERGEBRIEF_THEME_NAME,
   };
-  if (prelude !== undefined) options.grammarContextCode = prelude;
+  if (prelude !== undefined) {
+    options.grammarContextCode = prelude;
+  }
 
   return highlighter.codeToTokensBase(text, options).map(shapeTokenLine);
 }

@@ -54,7 +54,9 @@ describe("the CLIs' context root", () => {
       ]),
     );
     expect(read.ok).toBe(false);
-    if (read.ok) return;
+    if (read.ok) {
+      return;
+    }
     const text = read.error.issues.join("; ");
     expect(text).toContain("MY_NOTION");
     expect(text).not.toContain("ntn_");

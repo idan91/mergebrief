@@ -64,7 +64,9 @@ export function loadGeneratorConfig(
   // workspace-root-anchored so the same env value names the same file in
   // every process.
   const resolved = resolveEnvConfigPath(path, process.cwd());
-  if (!resolved.ok) return resolved;
+  if (!resolved.ok) {
+    return resolved;
+  }
   return loadGeneratorConfigFile(resolved.value);
 }
 
@@ -73,7 +75,9 @@ export function loadGeneratorConfigFile(
   path: string,
 ): Result<LoadedGeneratorConfig, ConfigError> {
   const read = readConfigRoot(path);
-  if (!read.ok) return read;
+  if (!read.ok) {
+    return read;
+  }
   const root = read.value;
 
   if (root === null) {
@@ -99,11 +103,14 @@ export function loadGeneratorConfigFile(
       key === "contextSources" ||
       key === "trackers" ||
       key.startsWith("x-")
-    )
+    ) {
       continue;
+    }
     issues.push(`config file: unrecognized root key ${renderKey(key)}`);
   }
-  if (issues.length > 0) return configError(issues);
+  if (issues.length > 0) {
+    return configError(issues);
+  }
 
   // The drafts block is ENFORCED by the api process, but bad values refuse
   // boot here too; a worker-only deployment must not carry a
@@ -111,7 +118,9 @@ export function loadGeneratorConfigFile(
   const drafts = root["drafts"];
   if (drafts !== undefined) {
     const validated = validateDraftsBlock(drafts);
-    if (!validated.ok) return validated;
+    if (!validated.ok) {
+      return validated;
+    }
   }
 
   // The spend block is enforced by the WORKER's generation gate; it is
@@ -121,7 +130,9 @@ export function loadGeneratorConfigFile(
   let spend = DEFAULT_SPEND_POLICY;
   if (spendBlock !== undefined) {
     const validated = validateSpendBlock(spendBlock);
-    if (!validated.ok) return validated;
+    if (!validated.ok) {
+      return validated;
+    }
     spend = validated.value;
   }
 
@@ -131,7 +142,9 @@ export function loadGeneratorConfigFile(
   let contextSources = DEFAULT_CONTEXT_SOURCES;
   if (sourcesBlock !== undefined) {
     const validated = validateContextSourcesBlock(sourcesBlock);
-    if (!validated.ok) return validated;
+    if (!validated.ok) {
+      return validated;
+    }
     contextSources = validated.value;
   }
 

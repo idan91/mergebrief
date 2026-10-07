@@ -173,7 +173,9 @@ export function useBriefScreenFacade({
   useEffect(() => {
     const hidden = sidebarWasVisible.current && !regions.sidebar;
     sidebarWasVisible.current = regions.sidebar;
-    if (!hidden || document.activeElement !== document.body) return;
+    if (!hidden || document.activeElement !== document.body) {
+      return;
+    }
 
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [regions.sidebar]);
@@ -186,13 +188,19 @@ export function useBriefScreenFacade({
   const focusPanelShown = focusMode && !inChangesScope;
 
   const changesEverShownRef = useRef(false);
-  if (inChangesScope) changesEverShownRef.current = true;
+  if (inChangesScope) {
+    changesEverShownRef.current = true;
+  }
   const storyEverShownRef = useRef(false);
-  if (!inChangesScope) storyEverShownRef.current = true;
+  if (!inChangesScope) {
+    storyEverShownRef.current = true;
+  }
 
   const jumpToGroupHeading = session.jumpToGroupHeading;
   useEffect(() => {
-    if (pendingScopeJump === null || inChangesScope) return;
+    if (pendingScopeJump === null || inChangesScope) {
+      return;
+    }
     if (pendingScopeJump.heading) {
       jumpToGroupHeading(pendingScopeJump.groupId);
     } else {
@@ -210,7 +218,9 @@ export function useBriefScreenFacade({
       jumpToGroup(groupId);
       return;
     }
-    if (exitChangesScope === undefined) return;
+    if (exitChangesScope === undefined) {
+      return;
+    }
     setPendingScopeJump({ groupId, heading });
     exitChangesScope();
   };
@@ -326,7 +336,9 @@ export function useBriefScreenFacade({
   );
 
   useEffect(() => {
-    if (!toast) return;
+    if (!toast) {
+      return;
+    }
     const timer = window.setTimeout(() => flowActions.clearToast(), 4200);
     return () => window.clearTimeout(timer);
   }, [flowActions, toast]);
@@ -334,7 +346,9 @@ export function useBriefScreenFacade({
   const writeError = useReviewSession((state) => state.writeError);
   const clearWriteError = actions.clearWriteError;
   useEffect(() => {
-    if (writeError === null) return;
+    if (writeError === null) {
+      return;
+    }
     announce(t(writeError));
     clearWriteError();
   }, [announce, clearWriteError, t, writeError]);
@@ -384,7 +398,9 @@ export function useBriefScreenFacade({
   // lands once the pane renders. A thread target owns its own arrival.
   const { jumpToChunkFromConversation } = conversationWiring;
   useEffect(() => {
-    if (pendingDeepLink === null || inChangesScope) return;
+    if (pendingDeepLink === null || inChangesScope) {
+      return;
+    }
     jumpToChunkFromConversation(pendingDeepLink, undefined, "instant");
     setPendingDeepLink(null);
   }, [inChangesScope, jumpToChunkFromConversation, pendingDeepLink]);
@@ -394,7 +410,9 @@ export function useBriefScreenFacade({
         jumpToChunkFromConversation(chunkId, undefined, "instant");
         return true;
       }
-      if (exitChangesScope === undefined) return false;
+      if (exitChangesScope === undefined) {
+        return false;
+      }
       setPendingDeepLink(chunkId);
       exitChangesScope({ replace: true });
       return true;
@@ -650,7 +668,9 @@ export function useBriefScreenFacade({
   };
 
   const jumpToSubmitItem = (item: Pick<UnresolvedItem, "targetId">) => {
-    if (item.targetId === "") return;
+    if (item.targetId === "") {
+      return;
+    }
     setSubmitOpen(false);
     session.openChunk(item.targetId);
     jumpToChunk(item.targetId);

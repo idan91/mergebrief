@@ -217,10 +217,14 @@ describe("markCapped", () => {
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "capped-head");
     const pending = await projection.upsertPending(target);
-    if (!pending.ok) throw new Error(pending.error.message);
+    if (!pending.ok) {
+      throw new Error(pending.error.message);
+    }
 
     const capped = await projection.markCapped(target);
-    if (!capped.ok) throw new Error(capped.error.message);
+    if (!capped.ok) {
+      throw new Error(capped.error.message);
+    }
     expect(capped.value.status).toBe(GenerationStatuses.CAPPED);
     expect(capped.value.attempts).toBe(pending.value.attempts);
     expect(capped.value.phase).toBeNull();
@@ -249,7 +253,9 @@ describe("claimRun under the cap", () => {
       ...WINDOW,
     });
 
-    if (!started.ok) throw new Error(started.error.message);
+    if (!started.ok) {
+      throw new Error(started.error.message);
+    }
     if (started.value.kind !== ClaimOutcomes.CLAIMED) {
       throw new Error(`expected a claim, got ${started.value.kind}`);
     }
@@ -278,7 +284,9 @@ describe("claimRun under the cap", () => {
       ...WINDOW,
     });
 
-    if (!refused.ok) throw new Error(refused.error.message);
+    if (!refused.ok) {
+      throw new Error(refused.error.message);
+    }
     expect(refused.value).toEqual({
       kind: ClaimOutcomes.CAPPED,
       startedRuns: 1,
@@ -299,7 +307,9 @@ describe("claimRun under the cap", () => {
       ...WINDOW,
     });
 
-    if (!started.ok) throw new Error(started.error.message);
+    if (!started.ok) {
+      throw new Error(started.error.message);
+    }
     expect(started.value.kind).toBe(ClaimOutcomes.CLAIMED);
     const row = await projection.get(target);
     expect(row?.status).toBe(GenerationStatuses.RUNNING);
@@ -323,7 +333,9 @@ describe("claimRun under the cap", () => {
 
     const refused = await projection.claimRun({ target, cap: 1, ...WINDOW });
 
-    if (!refused.ok) throw new Error(refused.error.message);
+    if (!refused.ok) {
+      throw new Error(refused.error.message);
+    }
     expect(refused.value).toEqual({
       kind: ClaimOutcomes.CAPPED,
       startedRuns: 1,

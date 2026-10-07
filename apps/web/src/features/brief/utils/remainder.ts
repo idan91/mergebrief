@@ -29,7 +29,9 @@ export function getRemainderChunkId(
 ): string {
   const hex = hashFilePath(file);
   const natural = `u-${hex}`;
-  if (!usedIds.has(natural)) return natural;
+  if (!usedIds.has(natural)) {
+    return natural;
+  }
 
   let index = 1;
   let candidate = `${natural}-${String(index)}`;
@@ -48,10 +50,14 @@ export function hydrateRemainderGroup(
   files: UnattributedFile[] | undefined,
   usedIds: ReadonlySet<string>,
 ): RemainderHydration | undefined {
-  if (files === undefined) return undefined;
+  if (files === undefined) {
+    return undefined;
+  }
 
   const leftover = files.filter((file) => countLeftoverLines(file) > 0);
-  if (leftover.length === 0) return undefined;
+  if (leftover.length === 0) {
+    return undefined;
+  }
 
   const taken = new Set(usedIds);
   const chunks: BriefChunk[] = [];

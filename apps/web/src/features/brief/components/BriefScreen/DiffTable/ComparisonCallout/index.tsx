@@ -111,6 +111,8 @@ function resolveCalloutGroup(
   t: TFunction,
   callout: ComparisonCalloutContent,
 ): string | undefined {
-  if (callout.remainder) return t("brief.unattributed.remainderTitle");
+  if (callout.remainder) {
+    return t("brief.unattributed.remainderTitle");
+  }
   return callout.groupTitle;
 }

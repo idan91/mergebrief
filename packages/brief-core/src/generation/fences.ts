@@ -20,7 +20,9 @@ export const REPO_FENCE_TAGS = [
 
 /** Length of the `<` or `</` plus tag that starts `candidate`, else 0. */
 function matchTagPrefix(candidate: string, tags: readonly string[]): number {
-  if (!candidate.startsWith("<")) return 0;
+  if (!candidate.startsWith("<")) {
+    return 0;
+  }
   const closing = candidate.startsWith("</");
   const lead = closing ? 2 : 1;
   const rest = candidate.slice(lead).toLowerCase();
@@ -65,7 +67,9 @@ export function stripFenceTags(text: string, tags: readonly string[]): string {
 function findOpenWithin(out: readonly string[], window: number): number {
   const floor = Math.max(0, out.length - window);
   for (let j = out.length - 1; j >= floor; j -= 1) {
-    if (out[j] === "<") return j;
+    if (out[j] === "<") {
+      return j;
+    }
   }
   return -1;
 }
@@ -87,7 +91,9 @@ function skipJoinedTags(
   while (lastOpen !== -1) {
     const tail = out.slice(lastOpen).join("");
     const skip = matchTagPrefix(tail + text.slice(i, i + window), tags);
-    if (skip === 0) return i;
+    if (skip === 0) {
+      return i;
+    }
 
     out.length = lastOpen;
     if (skip < tail.length) {

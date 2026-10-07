@@ -200,7 +200,9 @@ describe("claimRun", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected not-found");
+    if (result.ok) {
+      throw new Error("expected not-found");
+    }
     expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
   });
 });
@@ -401,7 +403,9 @@ describe("fenced transitions", () => {
 
     for (const result of [advanced, renewed, finished, recorded]) {
       expect(result.ok).toBe(false);
-      if (result.ok) throw new Error("expected claim-lost");
+      if (result.ok) {
+        throw new Error("expected claim-lost");
+      }
       expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
     }
     expect(await world.gen.get(world.target)).toEqual(before);
@@ -518,7 +522,9 @@ describe("fenced transitions", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected not-found");
+    if (result.ok) {
+      throw new Error("expected not-found");
+    }
     expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
   });
 });
@@ -534,7 +540,9 @@ describe("unclaimed transitions", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected claim-lost");
+    if (result.ok) {
+      throw new Error("expected claim-lost");
+    }
     expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
     expect((await world.gen.get(world.target))?.runId).toBe(runId);
   });

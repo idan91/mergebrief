@@ -49,8 +49,12 @@ function shapeFilters(query: InboxQuery): InboxFilters {
     author: query.author,
     archived: query.archived,
   };
-  if (query.repo !== undefined) filters.repoIds = query.repo;
-  if (query.review !== undefined) filters.reviewStates = query.review;
+  if (query.repo !== undefined) {
+    filters.repoIds = query.repo;
+  }
+  if (query.review !== undefined) {
+    filters.reviewStates = query.review;
+  }
   if (query.installation !== undefined) {
     filters.installationIds = query.installation;
   }

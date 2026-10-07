@@ -58,9 +58,15 @@ export const DEFAULT_TRACKERS: readonly TrackerConfig[] = [];
 export function resolveTrackerConfigs(
   settings: TrackerSettings | undefined,
 ): TrackerConfig[] {
-  if (settings === undefined) return [];
-  if (settings.trackers !== undefined) return [...settings.trackers];
-  if (settings.tracker !== undefined) return [settings.tracker];
+  if (settings === undefined) {
+    return [];
+  }
+  if (settings.trackers !== undefined) {
+    return [...settings.trackers];
+  }
+  if (settings.tracker !== undefined) {
+    return [settings.tracker];
+  }
   return [];
 }
 
@@ -131,7 +137,9 @@ export function validateTrackersBlock(
   block: unknown,
 ): Result<TrackerConfig[], ConfigError> {
   const parsed = trackersBlockSchema.safeParse({ trackers: block });
-  if (parsed.success) return { ok: true, value: parsed.data.trackers };
+  if (parsed.success) {
+    return { ok: true, value: parsed.data.trackers };
+  }
 
   return configError(
     parsed.error.issues.map(

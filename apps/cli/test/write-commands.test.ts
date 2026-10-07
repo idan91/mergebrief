@@ -47,7 +47,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 const CTX: TenantContext = {
@@ -174,8 +176,9 @@ describe("write commands over the real api app", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -206,7 +209,9 @@ describe("write commands over the real api app", () => {
       state: PrStates.OPEN,
     });
     const pr = await repo.pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
-    if (pr === undefined) throw new Error("seedPr: pr missing");
+    if (pr === undefined) {
+      throw new Error("seedPr: pr missing");
+    }
     const brief = await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE,
@@ -218,12 +223,16 @@ describe("write commands over the real api app", () => {
       effort: "high",
       body: "{}",
     });
-    if (!brief.ok) throw new Error("seedPr: brief write failed");
+    if (!brief.ok) {
+      throw new Error("seedPr: brief write failed");
+    }
     const written = await repo.reviewSessions.setOutcome(
       { briefId: brief.value.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
-    if (!written.ok) throw new Error("seedPr: session seed failed");
+    if (!written.ok) {
+      throw new Error("seedPr: session seed failed");
+    }
   }
 
   interface Run {
@@ -244,7 +253,9 @@ describe("write commands over the real api app", () => {
       stdout: (t) => out.push(t),
       stderr: (l) => err.push(l),
       readStdin: async () => {
-        if (stdin === undefined) throw new Error("stdin not expected");
+        if (stdin === undefined) {
+          throw new Error("stdin not expected");
+        }
         return stdin;
       },
       readFile: (path) => readFileSync(path, "utf8"),

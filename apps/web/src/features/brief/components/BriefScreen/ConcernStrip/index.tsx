@@ -24,7 +24,9 @@ export function ConcernStrip({ rollup, remainder }: ConcernStripProps) {
   const concernCount = shares.filter(
     (share) => share.kind === SplitSegmentKinds.CONCERN,
   ).length;
-  if (concernCount < 2) return null;
+  if (concernCount < 2) {
+    return null;
+  }
   return (
     <div
       aria-label={t("brief.concernStrip.ariaLabel")}

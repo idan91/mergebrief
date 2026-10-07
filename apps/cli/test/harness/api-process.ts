@@ -74,7 +74,9 @@ function inheritedEnv(): NodeJS.ProcessEnv {
   const inherited: NodeJS.ProcessEnv = {};
   for (const name of INHERITED_ENV) {
     const value = process.env[name];
-    if (value !== undefined) inherited[name] = value;
+    if (value !== undefined) {
+      inherited[name] = value;
+    }
   }
   return inherited;
 }
@@ -142,7 +144,9 @@ async function waitForReady(
       throw new Error(`api exited with ${String(how)}:\n${log.join("")}`);
     }
     polls += 1;
-    if (await isReady(origin)) return;
+    if (await isReady(origin)) {
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   // Elapsed far past the budget is the only reading that means this process
@@ -168,7 +172,9 @@ export async function startApiProcess(
   });
   // Recorded before the first await: a worker killed during startup still
   // leaves the pid where globalTeardown can find it.
-  if (child.pid !== undefined) recordApiPid(child.pid);
+  if (child.pid !== undefined) {
+    recordApiPid(child.pid);
+  }
   const collect = (chunk: Buffer): void => {
     log.push(chunk.toString("utf8"));
   };
@@ -202,7 +208,9 @@ export async function startApiProcess(
         // then arrives after the timeout already answered.
         let settled = false;
         const settle = (): void => {
-          if (settled) return;
+          if (settled) {
+            return;
+          }
           settled = true;
           resolve();
         };

@@ -1104,7 +1104,9 @@ describe("categorize with repo context, golden case", () => {
 
     // Request shape: data fenced in the user message, contract in the system prompt.
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.user).toContain(
       '<repo_instructions path=".mergebrief/instructions.md" sha="feedc0de">',
     );
@@ -1137,7 +1139,9 @@ describe("categorize with repo context, golden case", () => {
     const generator = new CapturingGenerator(repoBriefFixture([], []));
     await generateFreshBrief(pr, 1, commitRange, generator);
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.user).not.toContain("repo_instructions");
     expect(request.user).not.toContain("repo_custom_attributes");
     expect(request.system).not.toContain("Repo instructions");
@@ -1173,7 +1177,9 @@ describe("categorize with repo context, adversarial case", () => {
       repoContext,
     );
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
 
     // Exactly one opening and one closing repo_instructions tag, ours.
     expect(request.user.match(/<repo_instructions/gi)).toHaveLength(1);
@@ -1206,7 +1212,9 @@ describe("categorize with repo context, adversarial case", () => {
 
     // A token outside builtins ∪ injected names cannot parse at all.
     const schema = generator.lastRequest?.schema;
-    if (schema === undefined) throw new Error("no request captured");
+    if (schema === undefined) {
+      throw new Error("no request captured");
+    }
     const badToken = repoBriefFixture(["invented-attribute"]);
     expect(schema.safeParse(badToken).success).toBe(false);
   });
@@ -1248,7 +1256,9 @@ describe("categorize with repo context, adversarial case", () => {
       oversized,
     );
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.user).not.toContain("repo_instructions");
     expect(brief.generationWarnings?.join("\n")).toContain(
       "over the 16384-byte budget",
@@ -1264,7 +1274,9 @@ describe("categorize repo-context acceptance", () => {
       customAttributes: [billingAttribute],
     });
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.user).not.toContain("repo_custom_attributes");
     expect(request.system).not.toContain("Repo-defined risk attributes");
     // The name never reaches the schema enum either.
@@ -1300,7 +1312,9 @@ describe("categorize repo-context acceptance", () => {
       customAttributes: [],
     });
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     // Exactly ONE opening fence, the real one, carrying the real sha.
     expect(request.user.match(/<repo_instructions/gi)).toHaveLength(1);
     expect(request.user).toContain('sha="real"');
@@ -1315,7 +1329,9 @@ describe("categorize repo-context acceptance", () => {
     const generator = new CapturingGenerator(repoBriefFixture([], []));
     await generateFreshBrief(forged, 1, commitRange, generator);
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.user).toContain(
       "<repo_instructions>text</repo_instructions>",
     );
@@ -1332,7 +1348,9 @@ describe("categorize repo-context acceptance", () => {
       customAttributes: [],
     });
     const request = generator.lastRequest;
-    if (request === undefined) throw new Error("no request captured");
+    if (request === undefined) {
+      throw new Error("no request captured");
+    }
     expect(request.system).not.toContain(
       "## Repo instructions (semi-trusted, bounded)",
     );

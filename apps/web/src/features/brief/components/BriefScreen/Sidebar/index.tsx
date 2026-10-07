@@ -99,7 +99,9 @@ export function Sidebar({
   useEffect(() => {
     const collapsed = wasExpanded.current && !expanded;
     wasExpanded.current = expanded;
-    if (!collapsed || !holdsFocus.current) return;
+    if (!collapsed || !holdsFocus.current) {
+      return;
+    }
 
     const active = document.activeElement;
     if (active === null || active === document.body || !active.isConnected) {
@@ -120,14 +122,20 @@ export function Sidebar({
 
   // A pointer click keeps focus put; keyboard and AT activation land on the heading.
   const selectTab = (value: string) => {
-    if (isSidebarTab(value)) state.selectTab(value);
+    if (isSidebarTab(value)) {
+      state.selectTab(value);
+    }
   };
 
   const jumpFromSidebar: JumpFromSidebar = (groupId, event) => {
-    if (narrow) state.collapse();
+    if (narrow) {
+      state.collapse();
+    }
     if (event.detail !== 0) {
       jumpToGroup(groupId);
-      if (narrow) chevronRef.current?.focus();
+      if (narrow) {
+        chevronRef.current?.focus();
+      }
       return;
     }
     jumpToGroupHeading(groupId);
@@ -171,7 +179,9 @@ export function Sidebar({
   }, [pending, narrow, takeRevisionRefocus]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Escape" || !expanded) return;
+    if (event.key !== "Escape" || !expanded) {
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();

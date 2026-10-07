@@ -13,7 +13,9 @@ export function mentionCandidatesFromThread(
 ): readonly MentionCandidate[] {
   const byLogin = new Map<string, MentionCandidate>();
   for (const comment of thread.comments) {
-    if (comment.author.isBot || byLogin.has(comment.author.login)) continue;
+    if (comment.author.isBot || byLogin.has(comment.author.login)) {
+      continue;
+    }
     const candidate: Mutable<MentionCandidate> = {
       login: comment.author.login,
     };
@@ -43,13 +45,19 @@ export function mergeMentionCandidates(
   const seen = new Set(participants.map((participant) => participant.login));
   const enriched = participants.map((participant) => {
     const rich = byLogin.get(participant.login);
-    if (rich === undefined) return participant;
+    if (rich === undefined) {
+      return participant;
+    }
     const name = participant.name ?? rich.name;
     const avatarUrl = participant.avatarUrl ?? rich.avatarUrl;
     const merged: Mutable<MentionCandidate> = { login: participant.login };
 
-    if (name !== undefined) merged.name = name;
-    if (avatarUrl !== undefined) merged.avatarUrl = avatarUrl;
+    if (name !== undefined) {
+      merged.name = name;
+    }
+    if (avatarUrl !== undefined) {
+      merged.avatarUrl = avatarUrl;
+    }
 
     return merged;
   });

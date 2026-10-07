@@ -19,7 +19,9 @@ export interface TokenSettingsProps {
 }
 
 function formatWhen(iso: string | null, locale: string, never: string): string {
-  if (iso === null) return never;
+  if (iso === null) {
+    return never;
+  }
   return formatDate(iso, locale, {
     year: "numeric",
     month: "short",
@@ -47,7 +49,9 @@ const SCOPE_ORDER = [
 ] as const;
 
 function toScopeChoice(value: string): ScopeChoice | undefined {
-  if (value === SCOPE_UNCHOSEN) return SCOPE_UNCHOSEN;
+  if (value === SCOPE_UNCHOSEN) {
+    return SCOPE_UNCHOSEN;
+  }
   return SCOPE_ORDER.find((scope) => scope === value);
 }
 
@@ -56,7 +60,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
   const state = useTokenSettings(enabled);
   const locale = renderedLocale(i18n.resolvedLanguage);
 
-  if (!enabled) return null;
+  if (!enabled) {
+    return null;
+  }
 
   return (
     <section
@@ -96,7 +102,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             aria-describedby="token-scope-hint"
             onChange={(event) => {
               const choice = toScopeChoice(event.target.value);
-              if (choice !== undefined) state.setScope(choice);
+              if (choice !== undefined) {
+                state.setScope(choice);
+              }
             }}
             required
             value={state.scope}
@@ -120,7 +128,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
               const choice = Object.values(ExpiryChoices).find(
                 (c) => c === value,
               );
-              if (choice !== undefined) state.setExpiry(choice);
+              if (choice !== undefined) {
+                state.setExpiry(choice);
+              }
             }}
             value={state.expiry}
           >

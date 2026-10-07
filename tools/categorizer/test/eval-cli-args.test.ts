@@ -5,7 +5,9 @@ describe("parseEvalArgs", () => {
   it("defaults: 5 runs, no case filter, no rebaseline, no config", () => {
     const parsed = parseEvalArgs([]);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.runs).toBe(5);
     expect(parsed.value.caseId).toBeUndefined();
     expect(parsed.value.rebaseline).toBe(false);
@@ -25,7 +27,9 @@ describe("parseEvalArgs", () => {
       "p.json",
     ]);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value).toMatchObject({
       configPath: "cfg.yaml",
       caseId: "button-under-split",
@@ -38,10 +42,12 @@ describe("parseEvalArgs", () => {
   it("parses --no-baseline and refuses it alongside --rebaseline", () => {
     const parsed = parseEvalArgs(["--no-baseline"]);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.noBaseline).toBe(true);
     expect(parsed.value.rebaseline).toBe(false);
-    // Characterize or write a baseline — never both in one run.
+    // Characterize or write a baseline, never both in one run.
     expect(parseEvalArgs(["--no-baseline", "--rebaseline"]).ok).toBe(false);
   });
 

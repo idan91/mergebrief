@@ -132,7 +132,9 @@ export async function loadCases(
     const dir = join(casesDir, id);
     // oxlint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
     const loaded = await loadOne(id, dir);
-    if (!loaded.ok) return loaded;
+    if (!loaded.ok) {
+      return loaded;
+    }
     cases.push(loaded.value);
   }
   return { ok: true, value: cases };
@@ -192,7 +194,9 @@ async function loadOne(
     commitRange: parsed.data.commitRange,
   };
 
-  if (repoContext !== undefined) fixture.repoContext = repoContext;
+  if (repoContext !== undefined) {
+    fixture.repoContext = repoContext;
+  }
 
   return { ok: true, value: { id, dir, fixture, properties } };
 }
@@ -244,13 +248,17 @@ type FixtureCustomAttribute = FixtureRepoContext["customAttributes"][number];
 export function toRepoContext(
   raw: z.infer<typeof FixtureSchema>["repoContext"],
 ): RepoContext | undefined {
-  if (raw === undefined) return undefined;
+  if (raw === undefined) {
+    return undefined;
+  }
 
   const context: Mutable<RepoContext> = {
     customAttributes: raw.customAttributes.map(shapeCustomAttribute),
   };
 
-  if (raw.instructions !== undefined) context.instructions = raw.instructions;
+  if (raw.instructions !== undefined) {
+    context.instructions = raw.instructions;
+  }
 
   return context;
 }
@@ -263,8 +271,12 @@ function shapeCustomAttribute(
     criteria: attr.criteria,
   };
 
-  if (attr.implication !== undefined) attribute.implication = attr.implication;
-  if (attr.paths !== undefined) attribute.paths = attr.paths;
+  if (attr.implication !== undefined) {
+    attribute.implication = attr.implication;
+  }
+  if (attr.paths !== undefined) {
+    attribute.paths = attr.paths;
+  }
 
   return attribute;
 }

@@ -80,7 +80,9 @@ export function useReadingPosition<T>(
   selector: (state: ReadingPositionStoreValue) => T,
 ): T {
   const store = useContext(ReadingPositionContext);
-  if (!store) throw new Error("ReadingPositionProvider is missing");
+  if (!store) {
+    throw new Error("ReadingPositionProvider is missing");
+  }
   return useStore(store, selector);
 }
 

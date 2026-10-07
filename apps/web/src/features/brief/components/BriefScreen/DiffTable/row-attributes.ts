@@ -177,9 +177,13 @@ export function buildRowAttributesFor(
       rowViews,
       ownerChunkById,
     );
-    if (owner === undefined) return null;
+    if (owner === undefined) {
+      return null;
+    }
     const anchor = buildLineAnchor(owner.id, chunk.file, rows, indexes, side);
-    if (anchor === null) return null;
+    if (anchor === null) {
+      return null;
+    }
 
     return { ...anchor, rowIds: collectOwnerRowIds(owner, rows, indexes) };
   }
@@ -220,15 +224,21 @@ export function buildRowAttributesFor(
   function finishSelection(rowIndex: number, side?: SplitSide): void {
     // Read-only revision: composer entry is inert (the affordance itself is
     // aria-disabled with the reason, which guards the activation path).
-    if (composerDisabledReason !== undefined) return;
+    if (composerDisabledReason !== undefined) {
+      return;
+    }
     // Expanded context is not in the diff, so no comment can anchor to it.
-    if (rowViews[rowIndex]?.isCommentable !== true) return;
+    if (rowViews[rowIndex]?.isCommentable !== true) {
+      return;
+    }
     const startIndex = drag.dragStart ?? rowIndex;
     const startSide = drag.dragStart === null ? side : drag.dragSide;
     drag.clearDrag();
 
     const anchor = resolveAnchor(startIndex, startSide, rowIndex, side);
-    if (anchor) openComposer(anchor, chunk.id);
+    if (anchor) {
+      openComposer(anchor, chunk.id);
+    }
   }
 
   /** The side a gesture on `side` shares with the selection; none in unified. */
@@ -323,7 +333,9 @@ export function buildRowAttributesFor(
     drag.clearDrag();
 
     const selection = buildSelection(startIndex, startSide, rowIndex, side);
-    if (selection !== null) selectLines(selection);
+    if (selection !== null) {
+      selectLines(selection);
+    }
   }
 
   /** Shift: the range runs from the selection's first row to this one. */
@@ -335,12 +347,18 @@ export function buildRowAttributesFor(
     }
     const startSide = resolveSelectionSide(side) ?? side;
     const selection = buildSelection(first, startSide, rowIndex, side);
-    if (selection !== null) selectLines(selection);
+    if (selection !== null) {
+      selectLines(selection);
+    }
   }
 
   function isLineSelected(index: number, side: SplitSide | undefined): boolean {
-    if (composerOpen || !selectionIndexes.has(index)) return false;
-    if (side === undefined || selectionPlacement === undefined) return true;
+    if (composerOpen || !selectionIndexes.has(index)) {
+      return false;
+    }
+    if (side === undefined || selectionPlacement === undefined) {
+      return true;
+    }
 
     return selectionPlacement === side;
   }
@@ -350,8 +368,12 @@ export function buildRowAttributesFor(
     index: number,
     side: SplitSide | undefined,
   ): boolean {
-    if (isLineSelected(index, side)) return true;
-    if (side === undefined) return view?.isSelected === true;
+    if (isLineSelected(index, side)) {
+      return true;
+    }
+    if (side === undefined) {
+      return view?.isSelected === true;
+    }
     const dragged =
       dragIndexes.has(index) &&
       (dragSelection.placement === undefined ||
@@ -571,11 +593,17 @@ export function buildRowAttributesFor(
           return;
         }
         if (!isInside(event.target, COMMENT_ANCHOR_SELECTOR)) {
-          if (selectionIndexes.size > 0) clearLineSelection();
-          if (side !== undefined) drag.markSelectingSide(side);
+          if (selectionIndexes.size > 0) {
+            clearLineSelection();
+          }
+          if (side !== undefined) {
+            drag.markSelectingSide(side);
+          }
           return;
         }
-        if (!commentable) return;
+        if (!commentable) {
+          return;
+        }
         // Anchoring intent: drop any stale text selection, preventDefault
         // keeps it alive otherwise, and it would trip the mouseup
         // suppression guard.
@@ -583,11 +611,15 @@ export function buildRowAttributesFor(
         event.preventDefault();
         // Inside the live selection the click is a comment on all of it;
         // the mouseup resolves it, no drag begins.
-        if (isLineSelected(index, side)) return;
+        if (isLineSelected(index, side)) {
+          return;
+        }
         drag.beginDrag(index, side, DragModes.COMMENT);
       },
       onMouseEnter: () => {
-        if (drag.dragStart !== null) drag.moveDrag(index, side);
+        if (drag.dragStart !== null) {
+          drag.moveDrag(index, side);
+        }
       },
       onMouseUp: (event) => {
         // An anchor-initiated drag is unambiguous intent (the mousedown
@@ -608,7 +640,9 @@ export function buildRowAttributesFor(
         // Plain mouseup: composer entry is sign-only, the code text is
         // reserved for selection, so a double-click word-select never pops
         // the composer. Keyboard entry stays row-level (Enter).
-        if (!isInside(event.target, COMMENT_ANCHOR_SELECTOR)) return;
+        if (!isInside(event.target, COMMENT_ANCHOR_SELECTOR)) {
+          return;
+        }
         // A text-selection drag released over the gutter: if either endpoint
         // of a non-collapsed selection touches this table, the reviewer was
         // selecting text.
@@ -628,7 +662,9 @@ export function buildRowAttributesFor(
     } else if (outsideDiff) {
       // The reason renders once the table holds spliced rows; a row that
       // arrived in the diff itself carries the state alone.
-      if (hasExpandedRows) attributes.describedById = expandedReasonId;
+      if (hasExpandedRows) {
+        attributes.describedById = expandedReasonId;
+      }
       attributes.disabled = true;
     }
     if (reanchorArmed && commentable) {

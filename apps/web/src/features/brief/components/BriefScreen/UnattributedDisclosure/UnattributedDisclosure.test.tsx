@@ -121,7 +121,9 @@ describe("UnattributedDisclosure", () => {
     renderDisclosure();
     const trigger = screen.getByTestId("unattributed-disclosure");
     const wrap = trigger.parentElement;
-    if (wrap === null) throw new Error("expected wrap");
+    if (wrap === null) {
+      throw new Error("expected wrap");
+    }
     fireEvent.pointerEnter(wrap, { pointerType: "mouse" });
     expect(trigger.dataset["state"]).toBe("open");
     fireEvent.keyDown(document, { key: "Escape" });

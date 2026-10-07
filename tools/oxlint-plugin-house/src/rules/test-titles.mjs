@@ -24,7 +24,9 @@ function namesTestCallee(node) {
  * @returns {boolean}
  */
 function isTestCallee(callee) {
-  if (namesTestCallee(callee)) return true;
+  if (namesTestCallee(callee)) {
+    return true;
+  }
   if (callee.type === "MemberExpression" && callee.object !== undefined) {
     const propertyName = callee.property?.name ?? "";
     const knownForm = MODIFIERS.has(propertyName) || propertyName === "each";
@@ -46,18 +48,25 @@ function isTestCallee(callee) {
  * @returns {{ title: string, node: import("../types").RuleNode } | undefined}
  */
 export function readTestTitle(node) {
-  if (node.type !== "CallExpression" || node.callee === undefined)
+  if (node.type !== "CallExpression" || node.callee === undefined) {
     return undefined;
-  if (!isTestCallee(node.callee)) return undefined;
+  }
+  if (!isTestCallee(node.callee)) {
+    return undefined;
+  }
   const first = node.arguments?.[0];
-  if (first === undefined) return undefined;
+  if (first === undefined) {
+    return undefined;
+  }
 
   if (first.type === "Literal" && typeof first.value === "string") {
     return { title: first.value, node: first };
   }
   if (first.type === "TemplateLiteral" && first.expressions?.length === 0) {
     const cooked = first.quasis?.[0]?.value.cooked;
-    if (typeof cooked === "string") return { title: cooked, node: first };
+    if (typeof cooked === "string") {
+      return { title: cooked, node: first };
+    }
   }
   return undefined;
 }

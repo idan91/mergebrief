@@ -105,7 +105,9 @@ describe("GitHubTransports.GH", () => {
       new AbortController().signal,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.isPullRequest).toBe(true);
   });
 
@@ -148,7 +150,9 @@ describe("GitHubTransports.GH", () => {
       new AbortController().signal,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.reason).toBe(reason);
   });
 
@@ -235,12 +239,14 @@ describe("GitHubTransports.INSTALLATION", () => {
     });
     const result = await transport.readIssue(LOCATOR, signal);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.reason).toBe(TicketUnreadReasons.NOT_FOUND);
     expect(calls).toEqual([]);
   });
 
-  it("lists both implementations under create()", () => {
+  it("lists both implementations under create", () => {
     expect(GitHubTransports.GH.create).toBe(createGhTransport);
     expect(GitHubTransports.INSTALLATION.create).toBe(
       createInstallationTransport,

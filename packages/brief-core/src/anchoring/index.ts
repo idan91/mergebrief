@@ -83,7 +83,9 @@ function buildHop(
   // A path the raw diff touched but the compare list omits is a disagreement
   // between two views of the same push, not evidence that it is untouched.
   for (const file of patches.keys()) {
-    if (!byPath.has(file)) byPath.set(file, []);
+    if (!byPath.has(file)) {
+      byPath.set(file, []);
+    }
   }
   for (const file of compareFiles.files) {
     if (file.previousFilename !== undefined) {
@@ -222,7 +224,9 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     previousGroupIds: reserveIds(previousBrief, chainGroupIds),
   };
 
-  if (compareFiles.complete) plan.hunkSpans = buildHop(compareFiles, patches);
+  if (compareFiles.complete) {
+    plan.hunkSpans = buildHop(compareFiles, patches);
+  }
 
   return plan;
 }
@@ -251,10 +255,14 @@ function dominantFrozenParent(
   let bestCount = 0;
   for (const carry of frozen) {
     const owned = frozenChunkFiles.get(carry.group.id);
-    if (owned === undefined) continue;
+    if (owned === undefined) {
+      continue;
+    }
     let count = 0;
     for (const file of new Set(files)) {
-      if (owned.has(file)) count++;
+      if (owned.has(file)) {
+        count++;
+      }
     }
     if (count > bestCount) {
       bestCount = count;
@@ -384,7 +392,9 @@ export function stitchBrief(args: StitchArgs): StitchResult {
   const claimedIds = new Set<string>();
   for (const group of generated.changeGroups) {
     const frozenFiles = frozenFilesById.get(group.id);
-    if (frozenFiles === undefined) continue;
+    if (frozenFiles === undefined) {
+      continue;
+    }
     const emitted = generatedFilesById.get(group.id) ?? new Set<string>();
     const overlaps = [...emitted].some((file) => frozenFiles.has(file));
     // Evidence is judged against the UNION of frozen files: no frozen file
@@ -429,12 +439,16 @@ export function stitchBrief(args: StitchArgs): StitchResult {
   const allFilesByGroup = new Map<string, string[]>();
   for (const chunk of generated.chunks) {
     const all = allFilesByGroup.get(chunk.changeGroupId) ?? [];
-    if (!all.includes(chunk.file)) all.push(chunk.file);
+    if (!all.includes(chunk.file)) {
+      all.push(chunk.file);
+    }
     allFilesByGroup.set(chunk.changeGroupId, all);
   }
   for (const chunk of keptChunks) {
     const kept = keptFilesByGroup.get(chunk.changeGroupId) ?? [];
-    if (!kept.includes(chunk.file)) kept.push(chunk.file);
+    if (!kept.includes(chunk.file)) {
+      kept.push(chunk.file);
+    }
     keptFilesByGroup.set(chunk.changeGroupId, kept);
   }
   const keptGroups = generated.changeGroups.filter((group) =>
@@ -481,7 +495,9 @@ export function stitchBrief(args: StitchArgs): StitchResult {
       continue;
     }
     const id = descended.get(group.id);
-    if (id !== undefined) referenceMap.set(group.id, id);
+    if (id !== undefined) {
+      referenceMap.set(group.id, id);
+    }
   }
   for (const group of droppedGroups) {
     const parent = dominantFrozenParent(
@@ -489,7 +505,9 @@ export function stitchBrief(args: StitchArgs): StitchResult {
       activeFrozen,
       frozenChunkFiles,
     );
-    if (parent !== undefined) referenceMap.set(group.id, parent);
+    if (parent !== undefined) {
+      referenceMap.set(group.id, parent);
+    }
   }
 
   // ---- rebuild groups + chunks --------------------------------------------
@@ -530,7 +548,9 @@ export function stitchBrief(args: StitchArgs): StitchResult {
 
   const carriedGroupIds = carriedIds;
   const regeneratedGroupIds = keptGroups.flatMap((group) => {
-    if (claimedIds.has(group.id)) return [group.id];
+    if (claimedIds.has(group.id)) {
+      return [group.id];
+    }
     const id = descended.get(group.id);
     return id === undefined ? [] : [id];
   });

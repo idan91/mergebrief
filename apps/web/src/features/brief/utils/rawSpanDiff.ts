@@ -81,8 +81,11 @@ export function buildRawSpanDiffChunks(
     let added = 0;
     let deleted = 0;
     for (const row of rows) {
-      if (row.kind === "add") added += 1;
-      else if (row.kind === "del") deleted += 1;
+      if (row.kind === "add") {
+        added += 1;
+      } else if (row.kind === "del") {
+        deleted += 1;
+      }
     }
     chunks.push({
       id: `${GuestHostPrefixes.RAW}${file}`,

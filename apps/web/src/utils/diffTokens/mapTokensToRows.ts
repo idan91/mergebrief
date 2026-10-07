@@ -21,14 +21,19 @@ export function mapTokensToRows(
   for (const sideIndex of rankOldSideFirst(sides)) {
     const side = sides[sideIndex];
     const lines = tokensBySide[sideIndex];
-    if (side === undefined) continue;
-    if (lines === undefined) continue;
+    if (side === undefined) {
+      continue;
+    }
+    if (lines === undefined) {
+      continue;
+    }
 
     side.rowIndexes.forEach((rowIndex, lineIndex) => {
       const line = lines[lineIndex];
       const text = side.text[lineIndex];
-      if (line !== undefined && spellsText(line, text))
+      if (line !== undefined && spellsText(line, text)) {
         byRow.set(rowIndex, line);
+      }
     });
   }
 
@@ -49,10 +54,14 @@ function rankSide(sides: readonly HunkSide[], index: number): number {
 }
 
 function spellsText(line: RowTokenLine, text: string | undefined): boolean {
-  if (text === undefined) return false;
+  if (text === undefined) {
+    return false;
+  }
 
   let joined = "";
-  for (const token of line) joined += token.text;
+  for (const token of line) {
+    joined += token.text;
+  }
 
   return joined === text;
 }

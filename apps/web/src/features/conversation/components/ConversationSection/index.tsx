@@ -164,12 +164,18 @@ export function ConversationSection({
   );
 
   useEffect(() => {
-    if (reconciliation === undefined) return;
+    if (reconciliation === undefined) {
+      return;
+    }
     const ids = reconciliation.resurrectedDraftIds.filter(
       (id) => !flippedRef.current.has(id),
     );
-    if (ids.length === 0) return;
-    for (const id of ids) flippedRef.current.add(id);
+    if (ids.length === 0) {
+      return;
+    }
+    for (const id of ids) {
+      flippedRef.current.add(id);
+    }
     // These drafts ARE on GitHub.
     markCommentsSubmitted(ids);
   }, [markCommentsSubmitted, reconciliation]);
@@ -193,13 +199,19 @@ export function ConversationSection({
   // A `?thread=` landing target is EXEMPT: filter keys persist in the URL, so
   // a filtered-out target would make the jump silently do nothing.
   const filtered = useMemo(() => {
-    if (conversation === undefined) return undefined;
+    if (conversation === undefined) {
+      return undefined;
+    }
     const next = applyConversationFilter(conversation, filter);
-    if (focusThreadId === undefined) return next;
+    if (focusThreadId === undefined) {
+      return next;
+    }
     const alreadyIn = next.threads.some(
       (thread) => thread.rootCommentId === focusThreadId,
     );
-    if (alreadyIn) return next;
+    if (alreadyIn) {
+      return next;
+    }
     const target = conversation.threads.find(
       (thread) => thread.rootCommentId === focusThreadId,
     );
@@ -241,7 +253,9 @@ export function ConversationSection({
     if (focusThreadId === undefined || !open || conversation === undefined) {
       return;
     }
-    if (landedThreadRef.current === focusThreadId) return;
+    if (landedThreadRef.current === focusThreadId) {
+      return;
+    }
     // Reveal the target everywhere it could be hidden: expand its detail,
     // lift its group's show-more cap, and open a containing bot group, a
     // row behind any of these never renders, so it could never be landed on.
@@ -254,7 +268,9 @@ export function ConversationSection({
             : row.threads.some(
                 (nested) => nested.thread.rootCommentId === focusThreadId,
               );
-        if (!holdsTarget) continue;
+        if (!holdsTarget) {
+          continue;
+        }
         setShownAllGroups((current) => new Set(current).add(group.id));
         if (row.kind === "bot-group") {
           setExpandedGroups((current) =>
@@ -285,7 +301,9 @@ export function ConversationSection({
         return;
       }
       frames -= 1;
-      if (frames > 0) window.requestAnimationFrame(land);
+      if (frames > 0) {
+        window.requestAnimationFrame(land);
+      }
     };
     window.requestAnimationFrame(land);
   }, [conversation, digest, focusThreadId, open]);
@@ -299,7 +317,9 @@ export function ConversationSection({
     mentionPool,
   };
 
-  if (readOnlyReason !== undefined) composer.readOnlyReason = readOnlyReason;
+  if (readOnlyReason !== undefined) {
+    composer.readOnlyReason = readOnlyReason;
+  }
   if (plan.revisionJump !== undefined) {
     composer.revisionJump = plan.revisionJump;
   }

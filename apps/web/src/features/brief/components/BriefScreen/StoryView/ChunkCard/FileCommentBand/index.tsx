@@ -44,7 +44,9 @@ export function FileCommentBand({
     composerOpen,
     inboundRows,
   });
-  if (!band.visible) return null;
+  if (!band.visible) {
+    return null;
+  }
 
   const bandState = band.showBody ? "open" : "collapsed";
   const handleToggleConversation = (threadId: number) =>
@@ -52,7 +54,9 @@ export function FileCommentBand({
 
   const handleSave = (anchor: CommentAnchor, body: string) => {
     void band.saveComment(anchor, body).then((saved) => {
-      if (saved) onCancelComposer();
+      if (saved) {
+        onCancelComposer();
+      }
       return saved;
     });
   };

@@ -75,7 +75,9 @@ describe("buildInboxQueryOptions", () => {
     const state = await readInbox({ sort: InboxSorts.GENERATED, page: 2 });
 
     expect(state.kind).toBe(InboxStates.READY);
-    if (state.kind !== InboxStates.READY) return;
+    if (state.kind !== InboxStates.READY) {
+      return;
+    }
     expect(state.page.items[0]?.stack).toEqual({ index: 2, size: 4 });
     expect(state.page.counts.new).toBe(1);
     expect(fetchMock.mock.calls[0]?.[0]).toMatch(
@@ -126,7 +128,9 @@ describe("buildInboxQueryOptions", () => {
     answerWith(503, { code: "internal-error" });
     const options = buildInboxQueryOptions({});
     const staleTime = options.staleTime;
-    if (typeof staleTime !== "function") throw new Error("staleTime is fixed");
+    if (typeof staleTime !== "function") {
+      throw new Error("staleTime is fixed");
+    }
     const query = { state: { data: await readInbox() } };
 
     expect(staleTime(query as never)).toBe(0);

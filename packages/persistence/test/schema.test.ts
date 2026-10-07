@@ -242,7 +242,9 @@ async function seedFullGraph(
     })
     .returning({ id: githubGrant.id });
   const grant = grants[0];
-  if (grant === undefined) throw new Error("grant insert returned no row");
+  if (grant === undefined) {
+    throw new Error("grant insert returned no row");
+  }
   await db.insert(authSession).values({
     sessionTokenHash: "sha256:deadbeef",
     reviewerId: REVIEWER,

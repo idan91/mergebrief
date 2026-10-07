@@ -87,9 +87,13 @@ function normalizePageId(id: string): string {
 /** Split `PREFIX-N` into its board prefix and number. */
 function splitKey(key: string): { prefix: string; number: number } | undefined {
   const separator = key.lastIndexOf("-");
-  if (separator <= 0) return undefined;
+  if (separator <= 0) {
+    return undefined;
+  }
   const number = Number(key.slice(separator + 1));
-  if (!Number.isInteger(number) || number < 0) return undefined;
+  if (!Number.isInteger(number) || number < 0) {
+    return undefined;
+  }
   return { prefix: key.slice(0, separator), number };
 }
 
@@ -102,23 +106,31 @@ function collectPropertyValues(page: NotionPage): Map<string, PropertyValue> {
   const values = new Map<string, PropertyValue>();
   for (const [name, raw] of Object.entries(page.properties)) {
     const parsed = propertyValueSchema.safeParse(raw);
-    if (parsed.success) values.set(name.toLowerCase(), parsed.data);
+    if (parsed.success) {
+      values.set(name.toLowerCase(), parsed.data);
+    }
   }
   return values;
 }
 
 function findTitle(values: Map<string, PropertyValue>): string {
   for (const value of values.values()) {
-    if (value.type === "title") return joinPlainText(value.title).trim();
+    if (value.type === "title") {
+      return joinPlainText(value.title).trim();
+    }
   }
   return "";
 }
 
 function findKey(values: Map<string, PropertyValue>): string {
   for (const value of values.values()) {
-    if (value.type !== "unique_id") continue;
+    if (value.type !== "unique_id") {
+      continue;
+    }
     const { prefix, number } = value.unique_id;
-    if (prefix === null) return String(number);
+    if (prefix === null) {
+      return String(number);
+    }
     return `${prefix}-${number}`;
   }
   return "";
@@ -126,24 +138,33 @@ function findKey(values: Map<string, PropertyValue>): string {
 
 function findKeyPrefix(values: Map<string, PropertyValue>): string | null {
   for (const value of values.values()) {
-    if (value.type === "unique_id") return value.unique_id.prefix;
+    if (value.type === "unique_id") {
+      return value.unique_id.prefix;
+    }
   }
   return null;
 }
 
 function readChoice(value: PropertyValue | undefined): string {
-  if (value?.type === "status") return value.status?.name ?? "";
-  if (value?.type === "select") return value.select?.name ?? "";
+  if (value?.type === "status") {
+    return value.status?.name ?? "";
+  }
+  if (value?.type === "select") {
+    return value.select?.name ?? "";
+  }
   return "";
 }
 
 function collectAssignees(values: Map<string, PropertyValue>): string[] {
   const names: string[] = [];
   for (const value of values.values()) {
-    if (value.type !== "people") continue;
+    if (value.type !== "people") {
+      continue;
+    }
     for (const person of value.people) {
-      if (person.name !== undefined && person.name !== "")
+      if (person.name !== undefined && person.name !== "") {
         names.push(person.name);
+      }
     }
   }
   return names;
@@ -174,7 +195,9 @@ const LEAF_CONTAINER_TYPES = new Set(["child_page", "child_database"]);
 
 function renderBlockLine(type: string, payload: unknown): string {
   const parsed = blockPayloadSchema.safeParse(payload);
-  if (!parsed.success) return "";
+  if (!parsed.success) {
+    return "";
+  }
   const { rich_text: richText, cells, title, checked } = parsed.data;
 
   if (cells !== undefined) {
@@ -182,7 +205,9 @@ function renderBlockLine(type: string, payload: unknown): string {
   }
   if (richText !== undefined) {
     const text = joinPlainText(richText);
-    if (type === "to_do") return `${checked === true ? "[x] " : "[ ] "}${text}`;
+    if (type === "to_do") {
+      return `${checked === true ? "[x] " : "[ ] "}${text}`;
+    }
     return `${LINE_PREFIXES[type] ?? ""}${text}`;
   }
   return title ?? "";
@@ -235,22 +260,32 @@ async function collectBlockLines(
       blockId,
       cursor,
     );
-    if (!page.ok) return page;
+    if (!page.ok) {
+      return page;
+    }
     collector.pagesRead += 1;
 
     for (const block of page.value.blocks) {
-      if (collector.full) return { ok: true, value: undefined };
+      if (collector.full) {
+        return { ok: true, value: undefined };
+      }
       const line = renderBlockLine(block.type, block.payload);
-      if (line !== "") collector.add(`${"  ".repeat(depth)}${line}`);
+      if (line !== "") {
+        collector.add(`${"  ".repeat(depth)}${line}`);
+      }
 
-      if (!shouldDescend(block, depth)) continue;
+      if (!shouldDescend(block, depth)) {
+        continue;
+      }
       const nested = await collectBlockLines(
         client,
         block.id,
         depth + 1,
         collector,
       );
-      if (!nested.ok) return nested;
+      if (!nested.ok) {
+        return nested;
+      }
     }
 
     cursor = page.value.nextCursor;
@@ -267,7 +302,9 @@ async function readPageBody(
   const walked = await collectBlockLines(client, pageId, 0, collector);
   // Only the page's own first children call decides readability; a failure
   // deeper in the walk ends it and what was read is returned.
-  if (!walked.ok && collector.pagesRead === 0) return walked;
+  if (!walked.ok && collector.pagesRead === 0) {
+    return walked;
+  }
   if (!walked.ok) {
     log(
       `notion: block walk ended early (${walked.error.reason}), keeping what was read`,
@@ -283,7 +320,9 @@ function findPrefixProperty(
 ): string | undefined {
   for (const [propertyName, raw] of Object.entries(source.properties)) {
     const property = uniqueIdPropertySchema.safeParse(raw);
-    if (!property.success) continue;
+    if (!property.success) {
+      continue;
+    }
     if (matchesPrefix(property.data.unique_id.prefix, prefix)) {
       return propertyName;
     }
@@ -325,18 +364,25 @@ async function findKeyProperty(
     }
     return { ok: true, value: { dataSourceId: boardId, propertyName } };
   }
-  if (direct.error.reason !== TicketUnreadReasons.NOT_FOUND) return direct;
+  if (direct.error.reason !== TicketUnreadReasons.NOT_FOUND) {
+    return direct;
+  }
 
   const database = await client.transport.getDatabase(client.session, boardId);
-  if (!database.ok) return database;
+  if (!database.ok) {
+    return database;
+  }
 
   const matches: KeyProperty[] = [];
   for (const dataSourceId of database.value.dataSourceIds) {
     const source = await readDataSource(client, dataSourceId);
-    if (!source.ok) return source;
+    if (!source.ok) {
+      return source;
+    }
     const propertyName = findPrefixProperty(source.value, prefix);
-    if (propertyName !== undefined)
+    if (propertyName !== undefined) {
       matches.push({ dataSourceId, propertyName });
+    }
   }
   if (matches.length > 1) {
     return failRead(
@@ -364,14 +410,18 @@ async function findPageByKey(
     return failRead(TicketUnreadReasons.NOT_FOUND, "the key is not PREFIX-N");
   }
   const property = await findKeyProperty(client, databaseId, split.prefix);
-  if (!property.ok) return property;
+  if (!property.ok) {
+    return property;
+  }
 
   const found = await client.transport.queryByUniqueId(
     client.session,
     property.value.dataSourceId,
     { propertyName: property.value.propertyName, number: split.number },
   );
-  if (!found.ok) return found;
+  if (!found.ok) {
+    return found;
+  }
   const page = found.value;
   if (page === undefined) {
     return failRead(
@@ -401,8 +451,9 @@ async function findPage(
   client: NotionClient,
   reference: TicketReference,
 ): Promise<ReadResult<NotionPage>> {
-  if (reference.pageId !== undefined)
+  if (reference.pageId !== undefined) {
     return findPageById(client, reference.pageId);
+  }
   if (reference.key !== "" && reference.databaseId !== undefined) {
     return findPageByKey(client, reference.databaseId, reference.key);
   }
@@ -422,7 +473,9 @@ async function readNotionPrimary(
   const abort = (): void => controller.abort();
   const timer = setTimeout(abort, transport.timeoutMs);
   deps.signal.addEventListener("abort", abort, { once: true });
-  if (deps.signal.aborted) abort();
+  if (deps.signal.aborted) {
+    abort();
+  }
   const client: NotionClient = {
     transport,
     session: { token, signal: controller.signal },
@@ -430,9 +483,13 @@ async function readNotionPrimary(
 
   try {
     const page = await findPage(client, reference);
-    if (!page.ok) return page;
+    if (!page.ok) {
+      return page;
+    }
     const body = await readPageBody(client, page.value.id, deps.log);
-    if (!body.ok) return body;
+    if (!body.ok) {
+      return body;
+    }
 
     const values = collectPropertyValues(page.value);
     const key = findKey(values);
@@ -485,7 +542,9 @@ export function createNotionRead(
     entry.tokenEnv ?? DEFAULT_NOTION_TOKEN_ENV,
     "notion",
   );
-  if (!token.ok) return token;
+  if (!token.ok) {
+    return token;
+  }
 
   return {
     ok: true,

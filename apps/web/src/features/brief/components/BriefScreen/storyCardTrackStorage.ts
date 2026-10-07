@@ -7,11 +7,15 @@ export const STORY_CARD_TRACK_STORAGE_KEY = "mergebrief.storyCardTrack";
 const storyCardTrackSchema = z.number().int().positive();
 
 export function readStoryCardTrack(): number | undefined {
-  if (typeof window === "undefined") return undefined;
+  if (typeof window === "undefined") {
+    return undefined;
+  }
 
   try {
     const raw = window.localStorage.getItem(STORY_CARD_TRACK_STORAGE_KEY);
-    if (raw === null) return undefined;
+    if (raw === null) {
+      return undefined;
+    }
 
     const parsed = storyCardTrackSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : undefined;
@@ -21,7 +25,9 @@ export function readStoryCardTrack(): number | undefined {
 }
 
 export function writeStoryCardTrack(px: number): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     window.localStorage.setItem(
@@ -34,7 +40,9 @@ export function writeStoryCardTrack(px: number): void {
 }
 
 export function clearStoryCardTrack(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     window.localStorage.removeItem(STORY_CARD_TRACK_STORAGE_KEY);

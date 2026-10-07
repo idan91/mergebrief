@@ -133,7 +133,9 @@ function installShutdown(
 ): void {
   let closing = false;
   const shutdown = (signal: string): void => {
-    if (closing) return;
+    if (closing) {
+      return;
+    }
     closing = true;
     logger.info("api shutting down", { signal });
     updateCheck.stop();

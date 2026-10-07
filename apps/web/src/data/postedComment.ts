@@ -15,15 +15,23 @@ function isSafeId(value: unknown): value is number {
 
 /** The posted result, or `undefined` when the body breaks the contract. */
 export function parsePostedComment(value: unknown): PostedComment | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  if (!("commentId" in value) || !isSafeId(value.commentId)) return undefined;
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  if (!("commentId" in value) || !isSafeId(value.commentId)) {
+    return undefined;
+  }
 
   const posted: Mutable<PostedComment> = {
     kind: "posted",
     commentId: value.commentId,
   };
-  if (!("reviewId" in value) || value.reviewId === undefined) return posted;
-  if (!isSafeId(value.reviewId)) return undefined;
+  if (!("reviewId" in value) || value.reviewId === undefined) {
+    return posted;
+  }
+  if (!isSafeId(value.reviewId)) {
+    return undefined;
+  }
 
   posted.reviewId = value.reviewId;
   return posted;

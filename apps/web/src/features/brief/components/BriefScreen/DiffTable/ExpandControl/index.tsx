@@ -175,7 +175,9 @@ function ExpandArrow({
 }: ExpandArrowProps) {
   const { t } = useTranslation();
   const direction = edge.gap.edge.direction;
-  if (control.step === undefined) return null;
+  if (control.step === undefined) {
+    return null;
+  }
   const label = resolveArrowLabel(t, edge, control.step);
   const rotation =
     direction === ExpansionDirections.UP
@@ -215,7 +217,9 @@ async function startExpansion(
   onAbandoned: ((edgeKey: string) => void) | undefined,
 ): Promise<void> {
   const step = control.step;
-  if (step === undefined) return;
+  if (step === undefined) {
+    return;
+  }
   const row = event.currentTarget.closest("tr");
   onExpanded({
     edgeKey: edge.edgeKey,
@@ -224,7 +228,9 @@ async function startExpansion(
     row,
   });
   const landed = await control.expand();
-  if (!landed) onAbandoned?.(edge.edgeKey);
+  if (!landed) {
+    onAbandoned?.(edge.edgeKey);
+  }
 }
 
 interface HiddenThreadsChipProps {
@@ -289,7 +295,9 @@ function resolveArrowLabel(
   step: ExpanderStep | undefined,
 ): string {
   const isUp = edge.gap.edge.direction === ExpansionDirections.UP;
-  if (step === undefined) return "";
+  if (step === undefined) {
+    return "";
+  }
   const span = step.range.to - step.range.from + 1;
   if (step.takesAll) {
     return t(isUp ? "brief.diff.expandAllUp" : "brief.diff.expandAllDown", {
@@ -307,7 +315,9 @@ function countHiddenThreads(
   reachable: readonly LineRange[],
   lines: readonly number[] | undefined,
 ): number {
-  if (lines === undefined || lines.length === 0) return 0;
+  if (lines === undefined || lines.length === 0) {
+    return 0;
+  }
 
   return lines.filter((line) => isInside(line, reachable)).length;
 }
@@ -323,7 +333,9 @@ function nearestEdge(
   lines: readonly number[],
 ): ExpandableEdge | undefined {
   const inside = lines.filter((line) => isInside(line, reachable));
-  if (inside.length === 0) return undefined;
+  if (inside.length === 0) {
+    return undefined;
+  }
   const nearestLine = Math.min(...inside);
   const farthestLine = Math.max(...inside);
   const down = edges.find(

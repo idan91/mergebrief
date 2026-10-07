@@ -856,10 +856,14 @@ describe("Header own-draft state", () => {
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
 
     // …and so does the pointer leaving after an Escape while hovering.
-    if (wrap) fireEvent.mouseEnter(wrap);
+    if (wrap) {
+      fireEvent.mouseEnter(wrap);
+    }
     fireEvent.keyDown(document, { key: "Escape" });
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-    if (wrap) fireEvent.mouseLeave(wrap);
+    if (wrap) {
+      fireEvent.mouseLeave(wrap);
+    }
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
   });
 
@@ -869,23 +873,31 @@ describe("Header own-draft state", () => {
     const wrap = info.parentElement;
 
     // Both channels active, then Escape.
-    if (wrap) fireEvent.mouseEnter(wrap);
+    if (wrap) {
+      fireEvent.mouseEnter(wrap);
+    }
     fireEvent.focus(info);
     fireEvent.keyDown(info, { key: "Escape" });
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
 
     // Pointer drifts away while focus remains: must STAY dismissed.
-    if (wrap) fireEvent.mouseLeave(wrap);
+    if (wrap) {
+      fireEvent.mouseLeave(wrap);
+    }
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
 
     // The inverse: re-hover, then blur while the pointer stays - still
     // dismissed (focus left, hover holds).
-    if (wrap) fireEvent.mouseEnter(wrap);
+    if (wrap) {
+      fireEvent.mouseEnter(wrap);
+    }
     fireEvent.blur(info);
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
 
     // Only when BOTH channels go idle does the tooltip re-arm.
-    if (wrap) fireEvent.mouseLeave(wrap);
+    if (wrap) {
+      fireEvent.mouseLeave(wrap);
+    }
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
   });
 
@@ -898,7 +910,9 @@ describe("Header own-draft state", () => {
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
     // Pointer hover only - focus never moves off <body>.
-    if (wrap) fireEvent.mouseEnter(wrap);
+    if (wrap) {
+      fireEvent.mouseEnter(wrap);
+    }
     fireEvent.keyDown(document.body, { key: "Escape" });
     // Dismissed, key claimed: it must NOT fall through to the page's
     // window-level shortcut listener (which would exit focus mode).

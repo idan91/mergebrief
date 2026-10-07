@@ -13,7 +13,9 @@ function brandRepoId(value: bigint): RepoId {
 describe("reposController.listRepos", () => {
   it("stringifies ids and sorts by fullName ascending", () => {
     const installationId = 10n;
-    if (!isInstallationId(installationId)) throw new Error("unbrandable id");
+    if (!isInstallationId(installationId)) {
+      throw new Error("unbrandable id");
+    }
     const allowed = new Map<RepoId, AllowedRepo>([
       [
         brandRepoId(2n),

@@ -23,8 +23,12 @@ function deriveExpandableState(
   clipped: boolean,
   expanded: boolean,
 ): ExpandableState {
-  if (!clipped) return "fits";
-  if (expanded) return "expanded";
+  if (!clipped) {
+    return "fits";
+  }
+  if (expanded) {
+    return "expanded";
+  }
   return "collapsed";
 }
 
@@ -68,10 +72,14 @@ export function ExpandableContent({
   useEffect(() => {
     const root = rootRef.current;
     const content = contentRef.current;
-    if (root === null || content === null) return;
+    if (root === null || content === null) {
+      return;
+    }
 
     function measure(): void {
-      if (root === null || content === null) return;
+      if (root === null || content === null) {
+        return;
+      }
       const rootFontSize = Number.parseFloat(
         getComputedStyle(document.documentElement).fontSize,
       );
@@ -87,7 +95,9 @@ export function ExpandableContent({
       const height = content.scrollHeight;
       // Unrendered content (a host mounting this inside a `hidden` panel)
       // measures zero; reading that as `fits` would flash it uncapped on open.
-      if (height === 0) return;
+      if (height === 0) {
+        return;
+      }
       setContentHeightPx(height);
       setClipped(exceedsCap(height, capPx));
     }
@@ -127,7 +137,9 @@ export function ExpandableContent({
         className={styles["body"]}
         id={bodyId}
         onFocus={() => {
-          if (clipped) setExpanded(true);
+          if (clipped) {
+            setExpanded(true);
+          }
         }}
       >
         <div className={styles["content"]} ref={contentRef}>

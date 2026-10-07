@@ -62,7 +62,9 @@ export function DigestGroupView({
           <LinkButton
             className={styles["groupJump"]}
             onClick={() => {
-              if (group.chunkId !== undefined) jumpToChunk(group.chunkId);
+              if (group.chunkId !== undefined) {
+                jumpToChunk(group.chunkId);
+              }
             }}
           >
             {group.label}

@@ -44,7 +44,9 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
   // The note from a failed read stays up through the retry it invites and
   // clears only on a result: a click never blanks it into a silent wait.
   async function expand(): Promise<boolean> {
-    if (step === undefined || busy) return false;
+    if (step === undefined || busy) {
+      return false;
+    }
     // The diff already holds every line of this range: nothing to read.
     if (fileRows !== undefined && isExpansionCovered(fileRows, step.range)) {
       const range: LineRange = {
@@ -61,7 +63,9 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
         start: step.range.from,
         end: step.range.to,
       });
-      if (result === undefined) return false;
+      if (result === undefined) {
+        return false;
+      }
       if (result.kind !== "ready") {
         setFailure(result.kind);
         return false;

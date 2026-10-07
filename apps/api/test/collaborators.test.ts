@@ -82,7 +82,9 @@ function stubPort(
         log.calls.push({ installationId, input });
         const result = results[Math.min(call, results.length - 1)];
         call += 1;
-        if (result === undefined) throw new Error("port stub exhausted");
+        if (result === undefined) {
+          throw new Error("port stub exhausted");
+        }
         return result;
       },
       commitAttachment: async () => {
@@ -163,8 +165,9 @@ async function seedSession(
     KEY_REF,
     "ghr_REFRESH_TOKEN_PLAINTEXT",
   );
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -172,7 +175,9 @@ async function seedSession(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   const reviewerId = BigInt(reviewer.id);
-  if (!isReviewerId(reviewerId)) throw new Error("bad reviewer id");
+  if (!isReviewerId(reviewerId)) {
+    throw new Error("bad reviewer id");
+  }
   await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: hashSha256Hex(cookie),
     reviewerId,

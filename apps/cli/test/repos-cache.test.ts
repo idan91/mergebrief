@@ -36,7 +36,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
@@ -101,8 +103,9 @@ describe("mergebrief repos command + cache", () => {
     const hash = createHash("sha256").update(plaintext).digest("hex");
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -162,7 +165,9 @@ describe("mergebrief repos command + cache", () => {
     // separate 60s allowed-set cache, that boundary is the api suite's concern).
     let apiRepoHits = 0;
     const countingFetch: CliDeps["fetch"] = async (input, init) => {
-      if (input.endsWith("/api/repos")) apiRepoHits += 1;
+      if (input.endsWith("/api/repos")) {
+        apiRepoHits += 1;
+      }
       return appFetch(input, init);
     };
 

@@ -48,8 +48,9 @@ function verdictOf(base: Tree, head?: Tree, mutate?: (root: string) => void) {
   try {
     mutate?.(checkout.root);
     const result = checkBaselines(checkout.root, "main");
-    if (!result.ok)
+    if (!result.ok) {
       throw new Error(`unexpected gate error: ${result.error.message}`);
+    }
     return result.value.verdict;
   } finally {
     checkout.dispose();

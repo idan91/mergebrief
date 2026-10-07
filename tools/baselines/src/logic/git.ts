@@ -16,7 +16,9 @@ interface GitRun {
 /** One git invocation. Reads names and blobs only; never a working-tree file. */
 function runGit(cwd: string, args: readonly string[]): GitRun {
   const run = spawnSync("git", [...args], { cwd, encoding: "utf8" });
-  if (run.error) throw run.error;
+  if (run.error) {
+    throw run.error;
+  }
   return { status: run.status ?? -1, stdout: run.stdout };
 }
 
@@ -126,7 +128,9 @@ export function readChangeRecords(
   while (index < tokens.length) {
     const status = tokens[index];
     index += 1;
-    if (status === undefined || status.length === 0) continue;
+    if (status === undefined || status.length === 0) {
+      continue;
+    }
     const kind = KIND_BY_STATUS[status.charAt(0)];
     if (kind === undefined) {
       return unreadableTree(
@@ -184,10 +188,14 @@ export function listChangedFiles(
     );
   }
   const tracked = readChangeRecords(run.stdout.split("\0"));
-  if (!tracked.ok) return tracked;
+  if (!tracked.ok) {
+    return tracked;
+  }
 
   const untracked = listUntrackedFiles(cwd);
-  if (!untracked.ok) return untracked;
+  if (!untracked.ok) {
+    return untracked;
+  }
   return { ok: true, value: [...tracked.value, ...untracked.value] };
 }
 

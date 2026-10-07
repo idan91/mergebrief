@@ -28,7 +28,9 @@ function brand<T extends bigint>(
   value: bigint,
   guard: (v: bigint) => v is T,
 ): T {
-  if (!guard(value)) throw new Error("unbrandable fixture value");
+  if (!guard(value)) {
+    throw new Error("unbrandable fixture value");
+  }
   return value;
 }
 

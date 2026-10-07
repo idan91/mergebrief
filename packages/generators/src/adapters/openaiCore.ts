@@ -117,7 +117,9 @@ const KNOWN_FINISH_REASONS = new Set([
 ]);
 
 function renderFinishReason(reason: string | null): string {
-  if (reason === null) return "none";
+  if (reason === null) {
+    return "none";
+  }
   return KNOWN_FINISH_REASONS.has(reason) ? reason : "(unrecognized)";
 }
 
@@ -248,7 +250,9 @@ export class OpenAiCompatibleCore implements Generator {
       },
     };
 
-    if (req.salvageFields) floor.salvageFields = req.salvageFields;
+    if (req.salvageFields) {
+      floor.salvageFields = req.salvageFields;
+    }
     if (req.onWarning) {
       floor.onWarning = req.onWarning;
     }
@@ -282,8 +286,12 @@ export class OpenAiCompatibleCore implements Generator {
       stream: true,
     };
 
-    if (this.effortSupported !== false) body.reasoning_effort = req.effort;
-    if (req.onUsage) body.stream_options = { include_usage: true };
+    if (this.effortSupported !== false) {
+      body.reasoning_effort = req.effort;
+    }
+    if (req.onUsage) {
+      body.stream_options = { include_usage: true };
+    }
 
     try {
       return await this.consume(req, body, log);
@@ -351,17 +359,25 @@ export class OpenAiCompatibleCore implements Generator {
       // still fire for callers that gave no per-request logger.
       const streamOptions: StreamChatOptions = {};
 
-      if (req.signal) streamOptions.signal = req.signal;
-      if (req.log) streamOptions.log = req.log;
+      if (req.signal) {
+        streamOptions.signal = req.signal;
+      }
+      if (req.log) {
+        streamOptions.log = req.log;
+      }
       if (req.onWarning) {
         streamOptions.onWarning = req.onWarning;
       }
 
       const stream = await this.transport.streamChat(body, streamOptions);
       for await (const chunk of stream) {
-        if (chunk.usage) usage = chunk.usage;
+        if (chunk.usage) {
+          usage = chunk.usage;
+        }
         const choice = chunk.choices?.[0];
-        if (!choice) continue;
+        if (!choice) {
+          continue;
+        }
         if (typeof choice.delta?.content === "string") {
           collected += choice.delta.content;
         }
@@ -408,7 +424,9 @@ export class OpenAiCompatibleCore implements Generator {
       };
 
       // Absent ≠ 0: only a numeric report enters the field.
-      if (typeof reasoning === "number") report.reasoningTokens = reasoning;
+      if (typeof reasoning === "number") {
+        report.reasoningTokens = reasoning;
+      }
 
       req.onUsage?.(report);
     }
@@ -426,10 +444,16 @@ export class OpenAiCompatibleCore implements Generator {
  * degrade to an honest null effort instead of permanent config failure.
  */
 function isEffortKnobRejection(error: unknown, marker: string): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  if (Reflect.get(error, "status") !== 400) return false;
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  if (Reflect.get(error, "status") !== 400) {
+    return false;
+  }
   const message = Reflect.get(error, "message");
-  if (typeof message === "string" && message.includes(marker)) return true;
+  if (typeof message === "string" && message.includes(marker)) {
+    return true;
+  }
   const extracted = extractedProviderRaw(error);
   return extracted !== null && extracted.raw.includes(marker);
 }
@@ -441,7 +465,9 @@ function isEffortKnobRejection(error: unknown, marker: string): boolean {
  * unrecognized rejections return UNCHANGED.
  */
 export function classifyOpenAiError(error: unknown): unknown {
-  if (error instanceof APIUserAbortError) return error;
+  if (error instanceof APIUserAbortError) {
+    return error;
+  }
   if (error instanceof APIConnectionError) {
     return new GeneratorError(
       GeneratorErrorKinds.PROVIDER_TRANSIENT,
@@ -462,8 +488,12 @@ export function classifyOpenAiError(error: unknown): unknown {
       { cause: sanitizedStatuslessCause(error) },
     );
   }
-  if (typeof error !== "object" || error === null) return error;
-  if (Reflect.get(error, "name") === "APIUserAbortError") return error;
+  if (typeof error !== "object" || error === null) {
+    return error;
+  }
+  if (Reflect.get(error, "name") === "APIUserAbortError") {
+    return error;
+  }
   const status = Reflect.get(error, "status");
   if (typeof status !== "number") {
     if (error instanceof OpenAIError) {
@@ -506,13 +536,21 @@ export function classifyOpenAiError(error: unknown): unknown {
 function extractedProviderRaw(
   error: unknown,
 ): { raw: string; providerName: string | null } | null {
-  if (typeof error !== "object" || error === null) return null;
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
   const body = Reflect.get(error, "error");
-  if (typeof body !== "object" || body === null) return null;
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
   const metadata = Reflect.get(body, "metadata");
-  if (typeof metadata !== "object" || metadata === null) return null;
+  if (typeof metadata !== "object" || metadata === null) {
+    return null;
+  }
   const raw = Reflect.get(metadata, "raw");
-  if (typeof raw !== "string" || raw === "") return null;
+  if (typeof raw !== "string" || raw === "") {
+    return null;
+  }
   const provider = Reflect.get(metadata, "provider_name");
   return {
     raw,
@@ -524,7 +562,9 @@ function extractedProviderRaw(
 /** `, <provider>: <raw>` suffix for classified messages, or "". */
 function providerErrorDetail(error: unknown): string {
   const extracted = extractedProviderRaw(error);
-  if (extracted === null) return "";
+  if (extracted === null) {
+    return "";
+  }
   return ` — ${extracted.providerName ?? "upstream provider"}: ${extracted.raw}`;
 }
 

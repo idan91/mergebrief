@@ -74,7 +74,9 @@ export async function applySpendGate(
       evt: "generation.start",
       waitMs: measureQueueWait(job, claim.value.createdAt),
     };
-    if (job !== undefined) startFields["attempt"] = job.attempts;
+    if (job !== undefined) {
+      startFields["attempt"] = job.attempts;
+    }
     log.info("generate: run started", startFields);
   }
   return claim.value;
@@ -94,13 +96,17 @@ export async function refuseAtCap(
   const { deps, projection, repoSlug, log } = inputs;
 
   const cap = deps.spend?.maxGenerationsPerDay ?? null;
-  if (cap === null) return false;
+  if (cap === null) {
+    return false;
+  }
   const day = utcDayBounds(new Date());
   const started = await projection.countStartedRuns({
     from: day.from,
     to: day.to,
   });
-  if (started < cap) return false;
+  if (started < cap) {
+    return false;
+  }
 
   log.warn("generate: daily generation cap reached, stored-brief run refused", {
     evt: "spend.cap.trip",

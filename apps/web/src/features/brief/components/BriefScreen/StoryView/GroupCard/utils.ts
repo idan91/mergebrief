@@ -32,7 +32,9 @@ export function selectGroupReviewComments(
     }
   }
   return state.reviewComments.filter((comment) => {
-    if (linked.has(comment.id)) return true;
+    if (linked.has(comment.id)) {
+      return true;
+    }
     if (isLineCommentAnchor(comment.anchor)) {
       return groupChunkIds.has(comment.anchor.chunkId);
     }

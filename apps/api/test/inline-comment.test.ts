@@ -123,8 +123,12 @@ const COMMENT_LIST_PATH = /\/pulls\/\d+\/comments(\?|$)/;
 const REVIEW_LIST_PATH = /\/pulls\/\d+\/reviews(\?|$)/;
 
 function readMethod(input: string | URL | Request, init?: RequestInit): string {
-  if (init?.method !== undefined) return init.method.toUpperCase();
-  if (input instanceof Request) return input.method.toUpperCase();
+  if (init?.method !== undefined) {
+    return init.method.toUpperCase();
+  }
+  if (input instanceof Request) {
+    return input.method.toUpperCase();
+  }
   return "GET";
 }
 
@@ -180,8 +184,9 @@ function stubGitHub(cfg: StubConfig): StubCounts {
           (input instanceof Request ? await input.text() : undefined);
         if (typeof raw === "string") {
           const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null)
+          if (typeof parsed === "object" && parsed !== null) {
             counts.commentBodies.push({ ...parsed });
+          }
         }
         return cfg.comments
           ? cfg.comments(i)
@@ -205,8 +210,9 @@ async function seedSession(
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -249,7 +255,9 @@ async function seedDraft(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedDraft: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedDraft: pr missing");
+  }
   const brief = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
@@ -261,7 +269,9 @@ async function seedDraft(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) throw new Error("seedDraft: brief write failed");
+  if (!brief.ok) {
+    throw new Error("seedDraft: brief write failed");
+  }
   const line = {
     kind: CommentAnchorKinds.LINE,
     file: "src/index.ts",
@@ -301,7 +311,9 @@ async function writeDraft(
     { briefId, reviewerId: REVIEWER },
     { anchor, body },
   );
-  if (!written.ok) throw new Error("draft seed failed");
+  if (!written.ok) {
+    throw new Error("draft seed failed");
+  }
   return written.value.id;
 }
 
@@ -314,7 +326,9 @@ async function seedFileDraft(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedFileDraft: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedFileDraft: pr missing");
+  }
   const brief = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
@@ -326,7 +340,9 @@ async function seedFileDraft(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) throw new Error("seedFileDraft: brief write failed");
+  if (!brief.ok) {
+    throw new Error("seedFileDraft: brief write failed");
+  }
   const draftId = await writeDraft(
     handle,
     brief.value.id,
@@ -355,7 +371,9 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("freeze: pr missing");
+  if (pr === undefined) {
+    throw new Error("freeze: pr missing");
+  }
   const newer = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
@@ -367,12 +385,16 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     effort: "high",
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
-  if (!newer.ok) throw new Error("freeze: brief write failed");
+  if (!newer.ok) {
+    throw new Error("freeze: brief write failed");
+  }
   const opened = await repo.reviewSessions.setOutcome(
     { briefId: newer.value.id, reviewerId: REVIEWER },
     ReviewOutcomes.COMMENT,
   );
-  if (!opened.ok) throw new Error("freeze: newer session failed");
+  if (!opened.ok) {
+    throw new Error("freeze: newer session failed");
+  }
 }
 
 async function commentAuditCount(harness: PgliteHarness): Promise<number> {
@@ -380,7 +402,9 @@ async function commentAuditCount(harness: PgliteHarness): Promise<number> {
     "select count(*)::int as n from audit_log where target_type = 'review_comment'",
   );
   const n = rows[0]?.["n"];
-  if (typeof n !== "number") throw new Error("unexpected count result");
+  if (typeof n !== "number") {
+    throw new Error("unexpected count result");
+  }
   return n;
 }
 
@@ -406,8 +430,9 @@ async function post(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined)
+  if (cookie !== undefined) {
     headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
+  }
 
   return await app.request(path, {
     method: "POST",
@@ -588,7 +613,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       body: "post now",
       subject_type: "file",
     });
-    if (body === undefined) throw new Error("expected a posted comment");
+    if (body === undefined) {
+      throw new Error("expected a posted comment");
+    }
     expect("line" in body).toBe(false);
     expect("side" in body).toBe(false);
     expect("start_line" in body).toBe(false);
@@ -964,7 +991,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         { briefId, reviewerId: REVIEWER },
         { draftIds: [draftId], now },
       );
-      if (!claimed.ok) throw new Error("claim seed failed");
+      if (!claimed.ok) {
+        throw new Error("claim seed failed");
+      }
       return now;
     }
 
@@ -992,7 +1021,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         { briefId, reviewerId: REVIEWER },
         { draftIds, now: new Date(Date.now() - IN_DOUBT_AGE_MS) },
       );
-      if (!claimed.ok) throw new Error("claim seed failed");
+      if (!claimed.ok) {
+        throw new Error("claim seed failed");
+      }
     }
 
     /** A review the viewer submitted just now, as GitHub lists it. */

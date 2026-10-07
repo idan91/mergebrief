@@ -48,7 +48,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 
@@ -171,8 +173,9 @@ async function seedApiToken(
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -197,7 +200,9 @@ async function seedApiToken(
       minted.id,
       new Date(),
     );
-    if (!revoked.ok) throw new Error("seed revoke failed");
+    if (!revoked.ok) {
+      throw new Error("seed revoke failed");
+    }
   }
   return plaintext;
 }
@@ -531,8 +536,9 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const cookie = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -555,8 +561,9 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       "content-type": "application/json",
     };
 
-    if (cookie !== undefined)
+    if (cookie !== undefined) {
       headers["Cookie"] = `__Host-mergebrief_session=${cookie}`;
+    }
 
     return app.request("/api/auth/tokens", {
       method: "POST",
@@ -614,7 +621,9 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
     // Default expiry ≈ 90 days out.
     const expiresAt = body.apiToken.expiresAt;
-    if (expiresAt === null) throw new Error("expected a default expiry");
+    if (expiresAt === null) {
+      throw new Error("expected a default expiry");
+    }
     const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
     expect(days).toBeGreaterThan(89);
     expect(days).toBeLessThan(91);

@@ -152,7 +152,9 @@ describe("listReviewCommentsSince", () => {
 
     const listed = await listReviewCommentsSince(octokit, INPUT);
 
-    if (!listed.ok) throw new Error("listing failed");
+    if (!listed.ok) {
+      throw new Error("listing failed");
+    }
     const [moved, outdated] = listed.value.comments;
     expect(moved).toMatchObject({
       line: 15,
@@ -175,7 +177,9 @@ describe("listReviewCommentsSince", () => {
 
     const listed = await listReviewCommentsSince(octokit, INPUT);
 
-    if (!listed.ok) throw new Error("listing failed");
+    if (!listed.ok) {
+      throw new Error("listing failed");
+    }
     expect(listed.value.comments.map((row) => row.commentId)).toEqual([4n]);
   });
 
@@ -188,7 +192,9 @@ describe("listReviewCommentsSince", () => {
 
     const listed = await listReviewCommentsSince(octokit, INPUT);
 
-    if (!listed.ok) throw new Error("listing failed");
+    if (!listed.ok) {
+      throw new Error("listing failed");
+    }
     expect(listed.value.complete).toBe(false);
     expect(listed.value.comments).toHaveLength(10);
   });
@@ -199,7 +205,9 @@ describe("listReviewCommentsSince", () => {
     const listed = await listReviewCommentsSince(octokit, INPUT);
 
     expect(listed.ok).toBe(false);
-    if (listed.ok) throw new Error("unreachable");
+    if (listed.ok) {
+      throw new Error("unreachable");
+    }
     expect(listed.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(listed.error.status).toBe(502);
     expect(JSON.stringify(listed.error)).not.toContain(LEAKED_TOKEN);

@@ -14,6 +14,8 @@ export function getSpanLabel(
   revisions: number,
 ): string {
   const ends = { from: getShortSha(from), to: getShortSha(to) };
-  if (from === to || revisions <= 1) return t("brief.carryOver.span", ends);
+  if (from === to || revisions <= 1) {
+    return t("brief.carryOver.span", ends);
+  }
   return t("brief.carryOver.spanRevisions", { ...ends, count: revisions });
 }

@@ -75,17 +75,23 @@ export function hashSha256Hex(value: string): string {
 }
 
 export function brandInstallationId(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
+  if (!isInstallationId(value)) {
+    throw new Error("bad installation id");
+  }
   return value;
 }
 
 export function brandReviewerId(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
+  if (!isReviewerId(value)) {
+    throw new Error("bad reviewer id");
+  }
   return value;
 }
 
 export function brandRepoId(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
+  if (!isRepoId(value)) {
+    throw new Error("bad repo id");
+  }
   return value;
 }
 
@@ -113,8 +119,12 @@ export function listSentTokens(): SentTokens {
 
 /** The request URL, whatever shape `fetch` was handed. */
 export function getRequestUrl(input: string | URL | Request): string {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 

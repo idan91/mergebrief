@@ -125,7 +125,9 @@ interface SelectionSnapshot {
 
 function snapshotSelection(): SelectionSnapshot | null {
   const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) return null;
+  if (!selection || selection.isCollapsed) {
+    return null;
+  }
   return {
     anchorNode: selection.anchorNode,
     anchorOffset: selection.anchorOffset,
@@ -275,7 +277,9 @@ export const ChunkCard = memo(function ChunkCard({
           data-testid="chunk-toggle"
           onMouseDown={(event) => {
             selectionAtMouseDown.current = snapshotSelection();
-            if (event.detail <= 1) togglesThisPair.current = 0;
+            if (event.detail <= 1) {
+              togglesThisPair.current = 0;
+            }
           }}
           onClick={(event) => {
             // Selecting the file path (selectable inside this button) must
@@ -305,7 +309,9 @@ export const ChunkCard = memo(function ChunkCard({
             // second was suppressed) toggles again so the pair nets to
             // zero. Pairs that netted zero (both suppressed) or two (no
             // selection change, already net zero) are left alone.
-            if (togglesThisPair.current === 1) toggleChunk(chunk.id);
+            if (togglesThisPair.current === 1) {
+              toggleChunk(chunk.id);
+            }
           }}
         >
           <span aria-hidden="true" className={styles["twist"]}>

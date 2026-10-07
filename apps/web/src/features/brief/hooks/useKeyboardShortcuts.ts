@@ -75,12 +75,16 @@ function resolveGroupJump(
   state: ShortcutState,
 ): ShortcutAction | null {
   const { chunkIds, groupBoundaries, activeChunkId } = state;
-  if (groupBoundaries.length === 0) return null;
+  if (groupBoundaries.length === 0) {
+    return null;
+  }
 
   const activeIndex = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
   let currentGroup = -1;
   for (const [groupIndex, boundary] of groupBoundaries.entries()) {
-    if (activeIndex >= boundary) currentGroup = groupIndex;
+    if (activeIndex >= boundary) {
+      currentGroup = groupIndex;
+    }
   }
 
   const nextGroup =
@@ -90,7 +94,9 @@ function resolveGroupJump(
 
   const targetIndex = groupBoundaries[nextGroup];
   const next = targetIndex === undefined ? undefined : chunkIds[targetIndex];
-  if (!next || next === activeChunkId) return null;
+  if (!next || next === activeChunkId) {
+    return null;
+  }
 
   return { type: "jump", chunkId: next };
 }
@@ -109,9 +115,15 @@ export function resolveShortcut(
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 
   if (key === "Escape") {
-    if (state.disabled) return null;
-    if (state.reanchorArmed) return { type: "cancelReanchor" };
-    if (state.lineSelected) return { type: "clearLineSelection" };
+    if (state.disabled) {
+      return null;
+    }
+    if (state.reanchorArmed) {
+      return { type: "cancelReanchor" };
+    }
+    if (state.lineSelected) {
+      return { type: "clearLineSelection" };
+    }
     if (!state.focusModeActive) {
       return null;
     }
@@ -119,29 +131,45 @@ export function resolveShortcut(
       ? { type: "closeFocusPanel" }
       : { type: "toggleFocus" };
   }
-  if (state.disabled) return null;
-  if (event.metaKey || event.ctrlKey || event.altKey) return null;
-  if (event.isTyping) return null;
-  if (state.sheetOpen && key !== "s") return null;
+  if (state.disabled) {
+    return null;
+  }
+  if (event.metaKey || event.ctrlKey || event.altKey) {
+    return null;
+  }
+  if (event.isTyping) {
+    return null;
+  }
+  if (state.sheetOpen && key !== "s") {
+    return null;
+  }
 
   if (key === "j" || key === "k") {
-    if (event.shiftKey) return resolveGroupJump(key, state);
+    if (event.shiftKey) {
+      return resolveGroupJump(key, state);
+    }
 
     const { chunkIds, activeChunkId } = state;
-    if (chunkIds.length === 0) return null;
+    if (chunkIds.length === 0) {
+      return null;
+    }
 
     const index = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
     const next =
       key === "j"
         ? chunkIds[Math.min(index + 1, chunkIds.length - 1)]
         : chunkIds[Math.max(index - 1, 0)];
-    if (!next || next === activeChunkId) return null;
+    if (!next || next === activeChunkId) {
+      return null;
+    }
 
     return { type: "jump", chunkId: next };
   }
 
   const flat = FLAT_ACTIONS[key];
-  if (flat) return flat;
+  if (flat) {
+    return flat;
+  }
 
   if (key === "s" && !event.shiftKey) {
     return state.focusModeActive
@@ -213,7 +241,9 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isInsideMenuOrDialog(event.target)) return;
+      if (isInsideMenuOrDialog(event.target)) {
+        return;
+      }
       const current = latest.current;
       const action = resolveShortcut(
         {

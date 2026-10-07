@@ -14,14 +14,22 @@ function readString(value: object, key: string): string | undefined {
 }
 
 function toRecord(entry: unknown): BoundaryRecord | undefined {
-  if (typeof entry !== "object" || entry === null) return undefined;
+  if (typeof entry !== "object" || entry === null) {
+    return undefined;
+  }
   const from = readString(entry, "from");
   const to = readString(entry, "to");
   const rule: unknown = Reflect.get(entry, "rule");
-  if (from === undefined || to === undefined) return undefined;
-  if (typeof rule !== "object" || rule === null) return undefined;
+  if (from === undefined || to === undefined) {
+    return undefined;
+  }
+  if (typeof rule !== "object" || rule === null) {
+    return undefined;
+  }
   const name = readString(rule, "name");
-  if (name === undefined) return undefined;
+  if (name === undefined) {
+    return undefined;
+  }
   return { from, to, rule: name };
 }
 
@@ -114,7 +122,9 @@ export function compareBoundaryRecords(
   const known = new Set(base.map(keyOf));
   for (const record of head) {
     const key = keyOf(record);
-    if (known.has(key)) continue;
+    if (known.has(key)) {
+      continue;
+    }
     findings.push({
       kind: FindingKinds.NEW_BOUNDARY_RECORD,
       subject: key,

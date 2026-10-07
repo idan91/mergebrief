@@ -6,7 +6,11 @@ import type { PrimaryTicket } from "../../../../types";
  * reference), so the link never renders nameless.
  */
 export function deriveTicketLinkText(ticket: PrimaryTicket): string {
-  if (ticket.key !== "") return ticket.key;
-  if (ticket.title !== "") return ticket.title;
+  if (ticket.key !== "") {
+    return ticket.key;
+  }
+  if (ticket.title !== "") {
+    return ticket.title;
+  }
   return ticket.url;
 }

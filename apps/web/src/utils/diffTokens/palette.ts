@@ -34,7 +34,9 @@ const CLASS_IDS_BY_HEX: ReadonlyMap<string, number> = new Map(
 );
 
 export function resolveClassId(hex: string | undefined): number {
-  if (hex === undefined) return TEXT_CLASS_ID;
+  if (hex === undefined) {
+    return TEXT_CLASS_ID;
+  }
 
   return CLASS_IDS_BY_HEX.get(hex.toLowerCase()) ?? TEXT_CLASS_ID;
 }

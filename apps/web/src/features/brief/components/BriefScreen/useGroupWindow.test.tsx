@@ -57,7 +57,9 @@ function renderHarness(overrides: Partial<GroupWindowOptions> = {}) {
     />,
   );
   const current = () => {
-    if (!latest) throw new Error("hook did not render");
+    if (!latest) {
+      throw new Error("hook did not render");
+    }
     return latest;
   };
   return { view, current };
@@ -119,7 +121,9 @@ describe("useGroupWindow", () => {
     const wrapper = screen.getByTestId("wrapper");
 
     const card = view.container.querySelector('[data-index="0"]');
-    if (!(card instanceof HTMLElement)) throw new Error("card not rendered");
+    if (!(card instanceof HTMLElement)) {
+      throw new Error("card not rendered");
+    }
     Object.defineProperty(card, "offsetHeight", { value: 999 });
     act(() => {
       current().measureElement(card);
@@ -156,7 +160,7 @@ describe("useGroupWindow", () => {
     expect(current().scrollToKey("missing#c0")).toBe(false);
   });
 
-  it("latches items and refuses scrolls while a [hidden] ancestor hides the pane", async () => {
+  it("latches items and refuses scrolls while a hidden ancestor hides it", async () => {
     const { current } = renderHarness();
     const before = current().items;
     const wrapper = screen.getByTestId("wrapper");

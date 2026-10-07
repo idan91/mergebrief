@@ -17,7 +17,9 @@ function moveAmongSiblings(event: KeyboardEvent<HTMLButtonElement>): void {
   );
   const index = tabs.indexOf(event.currentTarget);
   const next = tabs[resolveNextIndex(event.key, index, tabs.length)];
-  if (!next) return;
+  if (!next) {
+    return;
+  }
 
   event.preventDefault();
   next.focus();

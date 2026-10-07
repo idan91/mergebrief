@@ -44,7 +44,9 @@ export function stubSuppressions(
   const shaped: Record<string, Record<string, { count: number }>> = {};
   for (const [path, rules] of Object.entries(entries)) {
     const counts: Record<string, { count: number }> = {};
-    for (const [rule, count] of Object.entries(rules)) counts[rule] = { count };
+    for (const [rule, count] of Object.entries(rules)) {
+      counts[rule] = { count };
+    }
     shaped[path] = counts;
   }
   return `${JSON.stringify(shaped, null, 2)}\n`;
@@ -85,7 +87,9 @@ export function makeCheckout(base: Tree, head?: Tree): Checkout {
   writeTree(root, base);
   runGit(root, ["add", "-A"]);
   runGit(root, ["commit", "-m", "base"]);
-  if (head !== undefined) writeTree(root, head);
+  if (head !== undefined) {
+    writeTree(root, head);
+  }
   return {
     root,
     dispose: () => rmSync(root, { recursive: true, force: true }),

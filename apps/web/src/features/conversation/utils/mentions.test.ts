@@ -43,7 +43,9 @@ describe("mentionCandidatesFromThread", () => {
   it("carries the author's payload avatar into the candidate", () => {
     const withAvatar = thread([{ login: "alice" }]);
     const comment = withAvatar.comments[0];
-    if (comment === undefined) throw new Error("fixture");
+    if (comment === undefined) {
+      throw new Error("fixture");
+    }
     const enriched: ConversationThread = {
       ...withAvatar,
       comments: [
@@ -63,7 +65,7 @@ describe("mentionCandidatesFromThread", () => {
 });
 
 describe("mergeMentionCandidates", () => {
-  it("keeps participants first (enriched by login match), then remaining collaborators", () => {
+  it("lists enriched participants first, then remaining collaborators", () => {
     const merged = mergeMentionCandidates(
       [{ login: "zed" }, { login: "alice" }],
       [
@@ -73,7 +75,7 @@ describe("mergeMentionCandidates", () => {
       ],
     );
     expect(merged).toEqual([
-      // Participant order preserved — order is the autocomplete ranking.
+      // Participant order preserved: order is the autocomplete ranking.
       { login: "zed", avatarUrl: "https://a/zed" },
       { login: "alice", name: "Alice Example", avatarUrl: "https://a/alice" },
       // Non-participant collaborators follow, deduped by login.
@@ -93,7 +95,7 @@ describe("mergeMentionCandidates", () => {
     ]);
   });
 
-  it("passes an empty roster through untouched (participants-only fallback)", () => {
+  it("falls back to participants only when the roster is empty", () => {
     expect(mergeMentionCandidates([{ login: "alice" }], [])).toEqual([
       { login: "alice" },
     ]);

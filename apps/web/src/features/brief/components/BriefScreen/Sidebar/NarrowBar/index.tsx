@@ -43,7 +43,9 @@ export function NarrowBar({
 
   const step = (direction: 1 | -1) => {
     const target = resolveStepTarget(groups, activeGroupId, direction);
-    if (target !== undefined) jumpToGroup(target);
+    if (target !== undefined) {
+      jumpToGroup(target);
+    }
   };
 
   return (

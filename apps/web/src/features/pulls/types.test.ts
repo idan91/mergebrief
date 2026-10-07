@@ -72,7 +72,9 @@ describe("parsePrSummary", () => {
       },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.generation?.errorCode).toBe("provider-rate-limit");
     expect(parsed.value.generation?.errorDetail).toBe("429 from the provider");
   });
@@ -89,7 +91,9 @@ describe("parsePrSummary", () => {
         updatedAt: "2026-07-06T12:00:00.000Z",
       },
     });
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.generation?.errorCode).toBeNull();
     expect(parsed.value.generation?.errorDetail).toBe("cap reached");
   });
@@ -110,7 +114,9 @@ describe("parsePrSummary", () => {
       ...ROW,
       generation: { ...base, errorParams: { detail: 5 } },
     });
-    if (!loose.ok) throw new Error("unreachable");
+    if (!loose.ok) {
+      throw new Error("unreachable");
+    }
     expect(loose.value.generation?.errorDetail).toBeNull();
   });
 
@@ -120,7 +126,9 @@ describe("parsePrSummary", () => {
       generation: { ...PENDING_GENERATION, waitReason: "waiting-for-slot" },
     });
 
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.generation?.waitReason).toBe(
       WaitReasons.WAITING_FOR_SLOT,
     );
@@ -129,7 +137,9 @@ describe("parsePrSummary", () => {
   it("leaves the wait reason absent when the wire carries none", () => {
     const parsed = parsePrSummary({ ...ROW, generation: PENDING_GENERATION });
 
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.generation).not.toHaveProperty("waitReason");
   });
 
@@ -139,14 +149,18 @@ describe("parsePrSummary", () => {
       generation: { ...PENDING_GENERATION, waitReason: "rate-limited" },
     });
 
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.generation).not.toHaveProperty("waitReason");
   });
 
   it("accepts a full row", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.prNumber).toBe(7);
     expect(parsed.value.generation?.status).toBe("succeeded");
   });
@@ -158,7 +172,9 @@ describe("parsePrSummary", () => {
       viewerIsAuthor: true,
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.draft).toBe(true);
     expect(parsed.value.viewerIsAuthor).toBe(true);
 
@@ -189,18 +205,24 @@ describe("parsePrSummary", () => {
   it("parses viewerCanResolve and FAILS CLOSED when it is absent", () => {
     const capable = parsePrSummary({ ...ROW, viewerCanResolve: true });
     expect(capable.ok).toBe(true);
-    if (!capable.ok) throw new Error("unreachable");
+    if (!capable.ok) {
+      throw new Error("unreachable");
+    }
     expect(capable.value.viewerCanResolve).toBe(true);
 
     const denied = parsePrSummary({ ...ROW, viewerCanResolve: false });
-    if (!denied.ok) throw new Error("unreachable");
+    if (!denied.ok) {
+      throw new Error("unreachable");
+    }
     expect(denied.value.viewerCanResolve).toBe(false);
 
     // Absent = a server predating the field: no capability, so no affordance.
     // Unlike draft/viewerIsAuthor this is NOT a contract violation, the row
     // parses, it just carries no permission.
     const older = parsePrSummary(ROW);
-    if (!older.ok) throw new Error("unreachable");
+    if (!older.ok) {
+      throw new Error("unreachable");
+    }
     expect(older.value.viewerCanResolve).toBe(false);
 
     // Present but not a boolean IS malformed, coercing a truthy string into a
@@ -249,7 +271,9 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
   it("accepts an absent draftPolicy on list rows", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.draftPolicy).toBeUndefined();
   });
 
@@ -259,7 +283,9 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.draftPolicy).toEqual({
       generate: false,
       debounceSeconds: 900,
@@ -272,7 +298,9 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
       draftPolicy: { generate: true, debounceSeconds: null },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.draftPolicy).toEqual({
       generate: true,
       debounceSeconds: null,
@@ -297,7 +325,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
     expect(parsePrSummary(ROW).ok).toBe(true);
     const empty = parsePrSummary({ ...ROW, comparisons: {} });
     expect(empty.ok).toBe(true);
-    if (!empty.ok) throw new Error("unreachable");
+    if (!empty.ok) {
+      throw new Error("unreachable");
+    }
     expect(empty.value.comparisons?.previousBrief).toBeUndefined();
   });
 
@@ -313,7 +343,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
       },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.comparisons?.previousBrief).toEqual({
       baselineSha: "head-0",
       baselineIndex: 1,
@@ -342,7 +374,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
       },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.comparisons?.lastReview).toEqual({
       kind: "available",
       deltaAvailable: true,
@@ -357,7 +391,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
       },
     });
     expect(noIndex.ok).toBe(true);
-    if (!noIndex.ok) throw new Error("unreachable");
+    if (!noIndex.ok) {
+      throw new Error("unreachable");
+    }
     expect(noIndex.value.comparisons?.lastReview).toEqual({
       kind: "available",
       deltaAvailable: false,
@@ -372,7 +408,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
         comparisons: { lastReview: { unavailable: reason } },
       });
       expect(parsed.ok).toBe(true);
-      if (!parsed.ok) throw new Error("unreachable");
+      if (!parsed.ok) {
+        throw new Error("unreachable");
+      }
       expect(parsed.value.comparisons?.lastReview).toEqual({
         kind: "unavailable",
         reason,
@@ -411,7 +449,9 @@ describe("parsePrSummary revisions on PR-meta", () => {
   it("accepts an absent revisions key on a row with no brief", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.revisions).toBeUndefined();
   });
 
@@ -426,7 +466,9 @@ describe("parsePrSummary revisions on PR-meta", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.revisions).toEqual([
       {
         headSha: "head-0",
@@ -463,7 +505,9 @@ describe("parsePrSummary revisions on PR-meta", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     const revision = parsed.value.revisions?.[0];
     expect(revision?.comparisons.previousBrief?.baselineSha).toBe("head-0");
     expect(revision?.comparisons.lastReview).toEqual({
@@ -478,14 +522,18 @@ describe("parsePrSummary revisions on PR-meta", () => {
       revisions: [{ ...REVISION, generatedAt: "2026-07-06T11:58:00.000Z" }],
     });
     expect(withCutoff.ok).toBe(true);
-    if (!withCutoff.ok) throw new Error("unreachable");
+    if (!withCutoff.ok) {
+      throw new Error("unreachable");
+    }
     expect(withCutoff.value.revisions?.[0]?.generatedAt).toBe(
       "2026-07-06T11:58:00.000Z",
     );
 
     const absent = parsePrSummary({ ...ROW, revisions: [REVISION] });
     expect(absent.ok).toBe(true);
-    if (!absent.ok) throw new Error("unreachable");
+    if (!absent.ok) {
+      throw new Error("unreachable");
+    }
     expect(absent.value.revisions?.[0]?.generatedAt).toBeUndefined();
 
     expect(

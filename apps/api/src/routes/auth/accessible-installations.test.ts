@@ -51,7 +51,9 @@ function brand<T extends bigint>(
   value: bigint,
   guard: (v: bigint) => v is T,
 ): T {
-  if (!guard(value)) throw new Error("unbrandable fixture value");
+  if (!guard(value)) {
+    throw new Error("unbrandable fixture value");
+  }
   return value;
 }
 
@@ -65,7 +67,9 @@ afterAll(async () => {
 
 async function stubPrincipal(): Promise<ViewerPrincipal> {
   const sealed = await encryptToken(keyProvider, KEY_REF, "ghu_TOKEN");
-  if (!sealed.ok) throw new Error("fixture seal failed");
+  if (!sealed.ok) {
+    throw new Error("fixture seal failed");
+  }
   return {
     id: 1n,
     sessionTokenHash: `hash-installations-${randomBytes(4).toString("hex")}`,

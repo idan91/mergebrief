@@ -63,7 +63,9 @@ describe("exchangeWebFlowCode", () => {
 
     const result = await exchangeWebFlowCode(app, { code: CODE, state: STATE });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.accessToken).toBe(ACCESS_TOKEN);
     expect(result.value.refreshToken).toBe(REFRESH_TOKEN);
     expect(result.value.accessTokenExpiresAt).toEqual(new Date(ACCESS_EXPIRES));
@@ -81,7 +83,9 @@ describe("exchangeWebFlowCode", () => {
 
     const result = await exchangeWebFlowCode(app, { code: CODE, state: STATE });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(OAuthErrorCodes.EXPIRATION_NOT_ENABLED);
   });
 
@@ -91,7 +95,9 @@ describe("exchangeWebFlowCode", () => {
 
     const result = await exchangeWebFlowCode(app, { code: CODE, state: STATE });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(OAuthErrorCodes.EXCHANGE_FAILED);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(CODE);
@@ -115,7 +121,9 @@ describe("refreshUserToken", () => {
 
     const result = await refreshUserToken(app, { refreshToken: REFRESH_TOKEN });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.accessToken).toBe("ghu_ROTATED_ACCESS");
     expect(result.value.refreshToken).toBe("ghr_ROTATED_REFRESH");
     expect(result.value.refreshTokenExpiresAt).toEqual(
@@ -130,7 +138,9 @@ describe("refreshUserToken", () => {
 
     const result = await refreshUserToken(app, { refreshToken: REFRESH_TOKEN });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(OAuthErrorCodes.REFRESH_FAILED);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(REFRESH_TOKEN);
@@ -151,8 +161,12 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function getRequestUrl(input: string | URL | Request): string {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 
@@ -179,7 +193,9 @@ describe("listUserInstallations", () => {
 
     const result = await listUserInstallations("ghu_ACCESS");
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual([
       { installationId: 1000n, accountLogin: "acme" },
       { installationId: 2000n, accountLogin: "octocat" },
@@ -214,7 +230,9 @@ describe("listUserInstallations", () => {
 
     const result = await listUserInstallations("ghu_ACCESS");
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toHaveLength(31);
     expect(result.value[30]).toEqual({
       installationId: 1030n,
@@ -239,7 +257,9 @@ describe("listUserInstallations", () => {
 
     const result = await listUserInstallations("ghu_ACCESS");
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.map((entry) => entry.accountLogin)).toEqual([
       "acme",
       "big-corp",
@@ -254,7 +274,9 @@ describe("listUserInstallations", () => {
     );
     const result = await listUserInstallations("ghu_EXPIRED");
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
   });
 });

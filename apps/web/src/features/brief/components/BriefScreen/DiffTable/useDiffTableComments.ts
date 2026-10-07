@@ -87,7 +87,9 @@ export function useDiffTableComments({
   const composerSaving = useReviewFlow((state) => state.composerSaving);
   const activeCommentAnchor = useReviewFlow((state) => {
     const anchor = state.composerAnchor;
-    if (anchor === null || !isLineCommentAnchor(anchor)) return null;
+    if (anchor === null || !isLineCommentAnchor(anchor)) {
+      return null;
+    }
     return state.composerHost === chunk.id ? anchor : null;
   });
   // Chunk-scoped: a selection elsewhere never re-renders this table. A

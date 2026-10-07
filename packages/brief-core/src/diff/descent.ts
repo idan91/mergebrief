@@ -2,7 +2,7 @@
  * Id-descent matcher: after an anchored generation, the pipeline rewrites the
  * model's temporary group ids by file-overlap descent so DB ids stay canonical
  * revision to revision. A group inherits the id of the previous group it shares
- * the most files with — merge → dominant parent's id; split → the dominant
+ * the most files with: merge → dominant parent's id; split → the dominant
  * child keeps it, the others mint; unmatched → mint. Frozen groups keep their
  * ids and enter only as `reservedIds`. Deterministic and order-stable: ties
  * resolve to the FIRST candidate in input order, and minted ids come from a
@@ -22,7 +22,7 @@ export interface AssignGroupIdsArgs {
   readonly previous: readonly DescentGroup[];
   /**
    * Ids that must never be minted (or inherited): the frozen groups' carried
-   * ids, plus any retired ids the caller wants kept dead — pass every id the
+   * ids, plus any retired ids the caller wants kept dead. Pass every id the
    * PR's brief chain has ever used where available, so a group id retired at
    * an earlier revision is never resurrected for an unrelated group.
    */
@@ -32,7 +32,9 @@ export interface AssignGroupIdsArgs {
 function overlapCount(a: readonly string[], b: ReadonlySet<string>): number {
   let count = 0;
   for (const file of new Set(a)) {
-    if (b.has(file)) count++;
+    if (b.has(file)) {
+      count++;
+    }
   }
   return count;
 }
@@ -45,7 +47,7 @@ export function assignGroupIds(args: AssignGroupIdsArgs): Map<string, string> {
     files: new Set(group.files),
   }));
 
-  // Pass 1 — dominant parent per generated group (merge rule): the previous
+  // Pass 1, dominant parent per generated group (merge rule): the previous
   // group sharing the most files; ties → first previous in input order.
   const wantedParent = new Map<string, string>();
   for (const group of generated) {
@@ -58,10 +60,12 @@ export function assignGroupIds(args: AssignGroupIdsArgs): Map<string, string> {
         bestId = parent.id;
       }
     }
-    if (bestId !== undefined) wantedParent.set(group.id, bestId);
+    if (bestId !== undefined) {
+      wantedParent.set(group.id, bestId);
+    }
   }
 
-  // Pass 2 — dominant child per parent (split rule): among generated groups
+  // Pass 2, dominant child per parent (split rule): among generated groups
   // wanting the same parent, the one sharing the most files keeps the id;
   // ties → first generated in input order.
   const parentWinner = new Map<string, string>();
@@ -69,20 +73,26 @@ export function assignGroupIds(args: AssignGroupIdsArgs): Map<string, string> {
     let winner: string | undefined;
     let bestCount = 0;
     for (const group of generated) {
-      if (wantedParent.get(group.id) !== parent.id) continue;
+      if (wantedParent.get(group.id) !== parent.id) {
+        continue;
+      }
       const count = overlapCount(group.files, parent.files);
       if (count > bestCount) {
         bestCount = count;
         winner = group.id;
       }
     }
-    if (winner !== undefined) parentWinner.set(parent.id, winner);
+    if (winner !== undefined) {
+      parentWinner.set(parent.id, winner);
+    }
   }
 
-  // Pass 3 — assign: winners inherit; everyone else mints from a counter
+  // Pass 3, assign: winners inherit; everyone else mints from a counter
   // that skips every id in play (reserved, previous, already assigned).
   const taken = new Set<string>(reservedIds);
-  for (const parent of previous) taken.add(parent.id);
+  for (const parent of previous) {
+    taken.add(parent.id);
+  }
   const assigned = new Map<string, string>();
   let mintCounter = 1;
   const mint = (): string => {

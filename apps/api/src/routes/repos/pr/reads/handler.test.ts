@@ -183,7 +183,9 @@ function getTenantPullRequests() {
 
 async function readRow(prNumber: number) {
   const row = await getTenantPullRequests().getByNumber(repoId, prNumber);
-  if (row === undefined) throw new Error("fixture row missing");
+  if (row === undefined) {
+    throw new Error("fixture row missing");
+  }
   return row;
 }
 afterAll(async () => {
@@ -248,8 +250,12 @@ async function buildApp(
 }
 
 function deriveDeniedCode(status: number): githubModule.GitHubApiErrorCode {
-  if (status === 401) return GitHubApiErrorCodes.UNAUTHORIZED;
-  if (status === 404) return GitHubApiErrorCodes.NOT_FOUND;
+  if (status === 401) {
+    return GitHubApiErrorCodes.UNAUTHORIZED;
+  }
+  if (status === 404) {
+    return GitHubApiErrorCodes.NOT_FOUND;
+  }
   return GitHubApiErrorCodes.REQUEST_FAILED;
 }
 

@@ -39,7 +39,9 @@ export function RevisionJumpButton({
       onFocus={(e) => onRailEnter(run, e.currentTarget)}
       onBlur={(e) => onRailLeave(e.currentTarget)}
       onKeyDown={(e) => {
-        if (e.key === "Escape") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          e.currentTarget.blur();
+        }
       }}
     />
   );

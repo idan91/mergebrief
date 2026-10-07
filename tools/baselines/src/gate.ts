@@ -47,11 +47,17 @@ function readWorkingFile(root: string, path: string): string | undefined {
 /** The lint command as the working tree spells it, for the escape-hatch check. */
 function readLintScript(root: string): string {
   const text = readWorkingFile(root, ROOT_MANIFEST_PATH);
-  if (text === undefined) return "";
+  if (text === undefined) {
+    return "";
+  }
   const parsed: unknown = JSON.parse(text);
-  if (typeof parsed !== "object" || parsed === null) return "";
+  if (typeof parsed !== "object" || parsed === null) {
+    return "";
+  }
   const scripts: unknown = Reflect.get(parsed, "scripts");
-  if (typeof scripts !== "object" || scripts === null) return "";
+  if (typeof scripts !== "object" || scripts === null) {
+    return "";
+  }
   const lint: unknown = Reflect.get(scripts, "lint");
   return typeof lint === "string" ? lint : "";
 }
@@ -61,7 +67,9 @@ function listBaselinedRules(
 ): ReadonlySet<string> {
   const rules = new Set<string>();
   for (const counts of baseline.values()) {
-    for (const rule of counts.keys()) rules.add(rule);
+    for (const rule of counts.keys()) {
+      rules.add(rule);
+    }
   }
   return rules;
 }
@@ -80,14 +88,18 @@ function loadBaselines(
   let suppressions = EMPTY_SUPPRESSIONS;
   if (suppressionsText !== undefined) {
     const parsed = parseSuppressions(suppressionsSource, suppressionsText);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
     suppressions = parsed.value;
   }
   if (recordsText === undefined) {
     return { ok: true, value: { suppressions, records: undefined } };
   }
   const records = parseBoundaryRecords(recordsSource, recordsText);
-  if (!records.ok) return records;
+  if (!records.ok) {
+    return records;
+  }
   return { ok: true, value: { suppressions, records: records.value } };
 }
 
@@ -101,11 +113,15 @@ export function checkBaselines(
   baseRef: string,
 ): Result<GateReport, GateError> {
   const resolvedRoot = resolveRepoRoot(cwd);
-  if (!resolvedRoot.ok) return resolvedRoot;
+  if (!resolvedRoot.ok) {
+    return resolvedRoot;
+  }
   const root = resolvedRoot.value;
 
   const base = resolveBaseCommit(root, baseRef);
-  if (!base.ok) return base;
+  if (!base.ok) {
+    return base;
+  }
   const baseCommit = base.value;
 
   const head = loadBaselines(
@@ -114,7 +130,9 @@ export function checkBaselines(
     BOUNDARY_RECORDS_PATH,
     readWorkingFile(root, BOUNDARY_RECORDS_PATH),
   );
-  if (!head.ok) return head;
+  if (!head.ok) {
+    return head;
+  }
 
   const recorded = loadBaselines(
     `${baseCommit}:${SUPPRESSIONS_PATH}`,
@@ -122,14 +140,18 @@ export function checkBaselines(
     `${baseCommit}:${BOUNDARY_RECORDS_PATH}`,
     readFileAtCommit(root, baseCommit, BOUNDARY_RECORDS_PATH),
   );
-  if (!recorded.ok) return recorded;
+  if (!recorded.ok) {
+    return recorded;
+  }
 
   const configured = listConfiguredRules(
     readWorkingFile(root, LINT_CONFIG_PATH) ?? "",
     listBaselinedRules(recorded.value.suppressions),
   );
   const changed = listChangedFiles(root, baseCommit);
-  if (!changed.ok) return changed;
+  if (!changed.ok) {
+    return changed;
+  }
 
   const suppressions = compareSuppressions(
     recorded.value.suppressions,

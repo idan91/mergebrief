@@ -25,7 +25,9 @@ describe("createGenerator", () => {
   it("builds the zero-config default: anthropic, ANTHROPIC_API_KEY, Opus 4.8", async () => {
     const result = await createGenerator(defaultGeneratorConfig, deps);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.origin("medium")).toEqual({
       provider: "anthropic",
       model: "claude-opus-4-8",
@@ -36,7 +38,9 @@ describe("createGenerator", () => {
   it("rejects an unknown provider naming the valid tokens", async () => {
     const result = await createGenerator({ provider: "gpt-basement" }, deps);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("gpt-basement");
     expect(text).toContain("anthropic");
@@ -48,7 +52,9 @@ describe("createGenerator", () => {
       { env: {}, failureDir: "out" },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = `${result.error.message} ${result.error.issues.join("; ")}`;
     expect(text).toContain("ANTHROPIC_API_KEY");
     expect(text).not.toContain("sk-");
@@ -71,7 +77,9 @@ describe("createGenerator", () => {
       deps,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = `${result.error.message} ${result.error.issues.join("; ")}`;
     expect(text).not.toContain(pastedKey);
     expect(text).not.toContain("sk-");
@@ -85,7 +93,9 @@ describe("createGenerator", () => {
       deps,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = `${result.error.message} ${result.error.issues.join("; ")}`;
     expect(text).not.toContain(pastedKey);
     expect(text).toContain("environment variable NAME");
@@ -95,7 +105,9 @@ describe("createGenerator", () => {
     const pastedSecret = "sk-ant-api03-not-a-provider";
     const result = await createGenerator({ provider: pastedSecret }, deps);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).not.toContain(pastedSecret);
     expect(text).toContain("(redacted)");
@@ -108,7 +120,9 @@ describe("createGenerator", () => {
       { env, failureDir: "out" },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("MY_KEY");
   });
 
@@ -118,7 +132,9 @@ describe("createGenerator", () => {
       deps,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.origin("low").model).toBe("claude-sonnet-5");
   });
 
@@ -128,7 +144,9 @@ describe("createGenerator", () => {
       deps,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("modle");
   });
 
@@ -139,7 +157,9 @@ describe("createGenerator", () => {
       deps,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).not.toContain(pastedKey);
     expect(text).toContain("(redacted)");
@@ -166,7 +186,9 @@ describe("compose-worker runtime marker", () => {
     ]) {
       const result = await createGenerator({ provider }, composeDeps);
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error.issues[0]).toContain(
         "not available in the compose worker",
       );
@@ -188,7 +210,9 @@ describe("compose-worker runtime marker", () => {
       deps,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     // The refusal message is the marker's; a missing binary reports itself.
     expect(result.error.issues[0]).not.toContain(
       "not available in the compose worker",
@@ -212,7 +236,9 @@ describe("effort on the generator block", () => {
       for (const effort of Efforts) {
         const parsed = GeneratorConfigSchema.safeParse({ ...block, effort });
         expect(parsed.success).toBe(true);
-        if (!parsed.success) continue;
+        if (!parsed.success) {
+          continue;
+        }
         expect(parsed.data.effort).toBe(effort);
       }
     },
@@ -223,7 +249,9 @@ describe("effort on the generator block", () => {
     (block) => {
       const parsed = GeneratorConfigSchema.safeParse(block);
       expect(parsed.success).toBe(true);
-      if (!parsed.success) return;
+      if (!parsed.success) {
+        return;
+      }
       expect(parsed.data.effort).toBeUndefined();
     },
   );
@@ -234,7 +262,9 @@ describe("effort on the generator block", () => {
       effort: "max",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("effort");
     expect(text).not.toContain("max");
@@ -247,7 +277,9 @@ describe("effort on the generator block", () => {
       efort: "high",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("efort");
   });
 });
@@ -271,7 +303,9 @@ describe("full-regeneration on the generator block", () => {
           "full-regeneration": value,
         });
         expect(parsed.success).toBe(true);
-        if (!parsed.success) continue;
+        if (!parsed.success) {
+          continue;
+        }
         expect(parsed.data["full-regeneration"]).toBe(value);
       }
     },
@@ -282,7 +316,9 @@ describe("full-regeneration on the generator block", () => {
     (block) => {
       const parsed = GeneratorConfigSchema.safeParse(block);
       expect(parsed.success).toBe(true);
-      if (!parsed.success) return;
+      if (!parsed.success) {
+        return;
+      }
       expect(parsed.data["full-regeneration"]).toBeUndefined();
     },
   );
@@ -293,7 +329,9 @@ describe("full-regeneration on the generator block", () => {
       "full-regeneration": "sometimes",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("full-regeneration");
     expect(text).not.toContain("sometimes");
@@ -306,7 +344,9 @@ describe("full-regeneration on the generator block", () => {
       "full-regen": "always",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("full-regen");
   });
 });

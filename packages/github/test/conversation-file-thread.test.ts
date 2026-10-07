@@ -34,7 +34,9 @@ describe("fetchPullRequestConversation, file-level threads", () => {
       INPUT,
     );
 
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     const thread = result.value.threads[0];
     expect(thread?.subjectType).toBe("FILE");
     expect(thread?.line).toBeUndefined();
@@ -56,7 +58,9 @@ describe("fetchPullRequestConversation, file-level threads", () => {
       INPUT,
     );
 
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads[0]?.line).toBe(1);
   });
 });

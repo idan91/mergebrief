@@ -87,7 +87,9 @@ async function receiveMessage(data: unknown): Promise<void> {
   }
 
   const reply = await shapeTokenizeReply(parsed.data);
-  if (reply === undefined) return;
+  if (reply === undefined) {
+    return;
+  }
 
   // A worker scope's postMessage takes no target origin; the rule reads window's.
   // oxlint-disable-next-line unicorn/require-post-message-target-origin
@@ -117,14 +119,18 @@ async function runTokenize(
   request: TokenizeRequest,
 ): Promise<WorkerReply | undefined> {
   await drainMessageQueue();
-  if (readCancelled(request.requestId)) return undefined;
+  if (readCancelled(request.requestId)) {
+    return undefined;
+  }
 
   const highlighter = await loadHighlighterForGrammar(request.grammar);
   if (highlighter === undefined) {
     return shapeFailure(request, TokenFailureReasons.GRAMMAR_LOAD);
   }
 
-  if (readCancelled(request.requestId)) return undefined;
+  if (readCancelled(request.requestId)) {
+    return undefined;
+  }
 
   try {
     const startedAt = performance.now();
@@ -162,7 +168,9 @@ function shapeFailure(
 
 async function warmGrammars(request: WarmRequest): Promise<void> {
   const highlighter = await loadHighlighter().catch(() => undefined);
-  if (highlighter === undefined) return;
+  if (highlighter === undefined) {
+    return;
+  }
 
   await Promise.allSettled(
     request.grammars.map((grammar) => loadGrammar(highlighter, grammar)),
@@ -191,7 +199,9 @@ function readCancelled(requestId: number): boolean {
 // landed after its own reply had already gone out.
 function pruneCancelledBelow(floor: number): void {
   for (const cancelled of cancelledRequests) {
-    if (cancelled < floor) cancelledRequests.delete(cancelled);
+    if (cancelled < floor) {
+      cancelledRequests.delete(cancelled);
+    }
   }
 }
 
@@ -199,7 +209,9 @@ function readPruneFloor(requestId: number): number {
   let lowest: number | undefined;
 
   for (const inFlight of inFlightRequests) {
-    if (lowest === undefined || inFlight < lowest) lowest = inFlight;
+    if (lowest === undefined || inFlight < lowest) {
+      lowest = inFlight;
+    }
   }
 
   return lowest ?? requestId + 1;
@@ -229,7 +241,9 @@ function loadHighlighter(): Promise<HighlighterCore> {
 // forever.
 function replyToUnreadable(data: unknown): void {
   const parsed = unreadableRequestSchema.safeParse(data);
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    return;
+  }
 
   const reply: WorkerReply = {
     kind: TokenMessageKinds.FAILED,
@@ -249,7 +263,9 @@ function loadGrammar(
   grammar: GrammarName,
 ): Promise<void> {
   const inFlight = grammarLoads.get(grammar);
-  if (inFlight !== undefined) return inFlight;
+  if (inFlight !== undefined) {
+    return inFlight;
+  }
 
   const started = GRAMMAR_LOADERS[grammar]()
     .then(async (module) => {

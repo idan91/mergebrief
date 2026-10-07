@@ -62,9 +62,13 @@ interface Tap {
 
 function renderCard(writes: SessionWrites, flagsReadOnly = false) {
   const group = model.groups[0];
-  if (group === undefined) throw new Error("fixture has no groups");
+  if (group === undefined) {
+    throw new Error("fixture has no groups");
+  }
   const firstFlag = (model.flagsByGroup.get(group.id) ?? [])[0];
-  if (firstFlag === undefined) throw new Error("fixture group has no flags");
+  if (firstFlag === undefined) {
+    throw new Error("fixture group has no flags");
+  }
   const flagId: string = firstFlag.id;
   const tap: Tap = { actions: null, dispositionKind: () => undefined };
   function StoreTap() {
@@ -171,17 +175,23 @@ describe("GroupCard reopen a dismissed risk", () => {
     const writes = writesSpy();
     const { flagId, flowStore, tap } = renderCard(writes);
     const group = model.groups[0];
-    if (group === undefined) throw new Error("fixture has no groups");
+    if (group === undefined) {
+      throw new Error("fixture has no groups");
+    }
     const file = model.flagsById.get(flagId)?.file;
     const sameFileFlags = (model.flagsByGroup.get(group.id) ?? []).filter(
       (flag) => flag.file === file,
     );
-    for (const flag of sameFileFlags) dismiss(tap, flag.id);
+    for (const flag of sameFileFlags) {
+      dismiss(tap, flag.id);
+    }
     expect(tap.dispositionKind(flagId)).toBe("dismissed");
 
     fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
     const flag = model.flagsById.get(flagId);
-    if (flag === undefined) throw new Error("missing flag");
+    if (flag === undefined) {
+      throw new Error("missing flag");
+    }
     fireEvent.click(
       screen.getByRole("button", {
         name: `Reopen the ${flag.attr} risk on ${flag.file}`,

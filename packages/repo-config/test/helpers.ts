@@ -23,7 +23,7 @@ export function instructionsFile(content: string): RepoConfigFileInput {
   return file(RepoConfigPaths.INSTRUCTIONS, content);
 }
 
-/** Serialize a value to YAML — exercises the real parse path in validate. */
+/** Serialize a value to YAML; exercises the real parse path in validate. */
 export function yaml(value: unknown): string {
   return stringify(value);
 }
@@ -38,7 +38,8 @@ export function padYamlToBytes(base: string, target: number): string {
   const prefix = "# ";
   const current = Buffer.byteLength(withNewline + prefix, "utf8");
   const needed = target - current;
-  if (needed < 0)
+  if (needed < 0) {
     throw new Error(`base (${current} bytes) already exceeds target ${target}`);
+  }
   return withNewline + prefix + "x".repeat(needed);
 }

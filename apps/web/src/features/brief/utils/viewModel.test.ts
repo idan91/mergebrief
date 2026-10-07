@@ -83,7 +83,9 @@ function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
     concernView: [{ concern: "implementation", added: 10, deleted: 1 }],
   };
 
-  if (readingOrder !== undefined) brief.readingOrder = readingOrder;
+  if (readingOrder !== undefined) {
+    brief.readingOrder = readingOrder;
+  }
 
   return brief;
 }
@@ -187,7 +189,9 @@ describe("buildBriefViewModel", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
     const group = requireAttributed(model.groups[0]);
@@ -239,7 +243,9 @@ describe("buildBriefViewModel", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -263,7 +269,9 @@ describe("buildBriefViewModel", () => {
   it("falls back to source order when the Brief has no readingOrder", () => {
     const parsed = parseBrief(twoGroupBrief());
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -282,7 +290,9 @@ describe("buildBriefViewModel", () => {
       ]),
     );
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -318,7 +328,9 @@ describe("buildBriefViewModel", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -341,7 +353,9 @@ describe("buildBriefViewModel", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -379,7 +393,9 @@ describe("buildBriefViewModel, repo-config display weight", () => {
     chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
     chunks[1]?.riskSurface.push("touches-auth", "widens-error-handling");
     const parsed = parseBrief(base);
-    if (!parsed.ok) throw new Error(parsed.error);
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
     return parsed.value;
   }
 
@@ -449,7 +465,9 @@ describe("buildAttributeRail, jump-rail", () => {
     chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
     chunks[1]?.riskSurface.push("touches-auth", "touches-billing");
     const parsed = parseBrief(base);
-    if (!parsed.ok) throw new Error(parsed.error);
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
     return parsed.value;
   }
 
@@ -479,7 +497,9 @@ describe("buildAttributeRail, jump-rail", () => {
     const chunks: { riskSurface: string[] }[] = base.chunks;
     chunks[0]?.riskSurface.push("hot-path");
     const parsed = parseBrief(base);
-    if (!parsed.ok) throw new Error(parsed.error);
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
     const rail = buildAttributeRail(buildBriefViewModel(parsed.value));
     expect(rail.floorFired).toBe(false);
     expect(rail.entries).toHaveLength(1);
@@ -507,7 +527,9 @@ describe("buildBriefViewModel, unattributed", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
 
@@ -550,7 +572,9 @@ describe("buildBriefViewModel, unattributed", () => {
   it("exposes zero totals for an empty array and stays absent pre-feature", () => {
     const withEmpty = parseBrief({ ...twoGroupBrief(), unattributed: [] });
     expect(withEmpty.ok).toBe(true);
-    if (!withEmpty.ok) return;
+    if (!withEmpty.ok) {
+      return;
+    }
     const emptyModel = buildBriefViewModel(withEmpty.value);
     expect(emptyModel.unattributed).toEqual({
       files: [],
@@ -561,7 +585,9 @@ describe("buildBriefViewModel, unattributed", () => {
 
     const absent = parseBrief(twoGroupBrief());
     expect(absent.ok).toBe(true);
-    if (!absent.ok) return;
+    if (!absent.ok) {
+      return;
+    }
     expect(buildBriefViewModel(absent.value).unattributed).toBeUndefined();
   });
 });
@@ -579,11 +605,15 @@ describe("buildBriefViewModel, remainder group", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const brief = parsed.value;
     const leftover = brief.unattributed?.[0];
-    if (leftover === undefined) throw new Error("expected leftover file");
+    if (leftover === undefined) {
+      throw new Error("expected leftover file");
+    }
     leftover.diff = [{ kind: "add", content: "leftover()", newLine: 1 }];
 
     const model = buildBriefViewModel(brief);
@@ -615,7 +645,9 @@ describe("buildBriefViewModel, remainder group", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
 
     const model = buildBriefViewModel(parsed.value);
     expect(model.groups.map((group) => group.id)).toEqual([
@@ -640,7 +672,9 @@ describe("buildBriefViewModel, remainder group", () => {
   it("does not add a remainder when the field is absent", () => {
     const parsed = parseBrief(twoGroupBrief());
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(buildBriefViewModel(parsed.value).groups).toHaveLength(2);
   });
 });
@@ -659,7 +693,9 @@ describe("buildBriefViewModel, exact totals under overlaps", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     const model = buildBriefViewModel(parsed.value);
     expect(model.totalAdded).toBe(10);
     expect(model.totalDeleted).toBe(3);
@@ -677,7 +713,9 @@ describe("buildBriefViewModel, exact totals under overlaps", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     const model = buildBriefViewModel(parsed.value);
     const chunkAdded = parsed.value.chunks.reduce(
       (sum, chunk) => sum + chunk.loc.added,

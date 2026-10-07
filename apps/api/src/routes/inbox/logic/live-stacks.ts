@@ -75,7 +75,9 @@ function resolveRepoName(
   group: RepoGroup,
 ): string | undefined {
   const known = input.repoNames.get(group.repoId);
-  if (known !== undefined) return known.fullName;
+  if (known !== undefined) {
+    return known.fullName;
+  }
   const urlRow = group.rows.find(
     (row) =>
       row.pullRequest.installationId === null &&
@@ -140,11 +142,15 @@ async function readOpenList(
   });
   const now = Date.now();
   const cached = deps.openPullsCache.get(cacheKey, now);
-  if (cached !== undefined) return { open: cached };
+  if (cached !== undefined) {
+    return { open: cached };
+  }
 
   const name = resolveRepoName(input, group);
   const target = name === undefined ? undefined : parseOwnerAndName(name);
-  if (target === undefined) return NO_LIST;
+  if (target === undefined) {
+    return NO_LIST;
+  }
   const listed = await deps.listOpenPulls(target);
   if (!listed.ok) {
     return recordRefusal(deps, cacheKey, group.repoId, listed.error);
@@ -167,7 +173,9 @@ function shapeLiveStack(
   open: readonly OpenPullRequest[],
 ): InboxStackView | null {
   const stack = resolvePrStack(self, open);
-  if (stack === undefined || !("members" in stack)) return null;
+  if (stack === undefined || !("members" in stack)) {
+    return null;
+  }
   return { index: stack.index, size: stack.members.length };
 }
 
@@ -178,7 +186,9 @@ function placeRows(
 ): void {
   for (const row of group.rows) {
     const self = open.find((item) => item.number === row.pullRequest.prNumber);
-    if (self === undefined) continue;
+    if (self === undefined) {
+      continue;
+    }
     stacks.set(row.pullRequest.id, shapeLiveStack(self, open));
   }
 }
@@ -214,14 +224,20 @@ export async function readLiveStacks(
   let halted = false;
 
   const placing = runInPool(groups, INBOX_STACKS_CONCURRENCY, async (group) => {
-    if (halted) return;
+    if (halted) {
+      return;
+    }
     try {
       const outcome = await readOpenList(deps, input, group);
       if ("refused" in outcome) {
-        if (outcome.tokenDead) halted = true;
+        if (outcome.tokenDead) {
+          halted = true;
+        }
         return;
       }
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       placeRows(stacks, group, outcome.open);
     } catch (error) {
       deps.log.warn("open list read threw, no live stacks for the repo", {

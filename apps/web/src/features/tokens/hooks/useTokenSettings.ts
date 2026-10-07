@@ -85,18 +85,26 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
 
   const trimmedName = name.trim();
   const blockedReason = (): string | null => {
-    if (trimmedName.length === 0) return t("tokens.nameRequired");
+    if (trimmedName.length === 0) {
+      return t("tokens.nameRequired");
+    }
     if (trimmedName.length > TOKEN_NAME_MAX) {
       return t("tokens.nameTooLong", { max: TOKEN_NAME_MAX });
     }
-    if (scope === SCOPE_UNCHOSEN) return t("tokens.scopeRequired");
+    if (scope === SCOPE_UNCHOSEN) {
+      return t("tokens.scopeRequired");
+    }
     return null;
   };
   const mintBlockedReason = blockedReason();
 
   const submitMint = (): void => {
-    if (mintBlockedReason !== null || minting.isPending) return;
-    if (scope === SCOPE_UNCHOSEN) return;
+    if (mintBlockedReason !== null || minting.isPending) {
+      return;
+    }
+    if (scope === SCOPE_UNCHOSEN) {
+      return;
+    }
     minting.mutate({
       name: trimmedName,
       scope,
@@ -131,7 +139,9 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     revokePendingId,
     revokeError: revoking.isError ? t("tokens.revokeFailed") : null,
     revoke: (tokenId) => {
-      if (revoking.isPending) return;
+      if (revoking.isPending) {
+        return;
+      }
       setRevokePendingId(tokenId);
       revoking.mutate(tokenId);
     },

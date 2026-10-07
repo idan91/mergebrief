@@ -17,11 +17,15 @@ const sidebarPreferenceSchema = z.object({
 });
 
 export function readSidebarPreference(): SidebarPreference {
-  if (typeof window === "undefined") return DEFAULT_SIDEBAR_PREFERENCE;
+  if (typeof window === "undefined") {
+    return DEFAULT_SIDEBAR_PREFERENCE;
+  }
 
   try {
     const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (raw === null) return DEFAULT_SIDEBAR_PREFERENCE;
+    if (raw === null) {
+      return DEFAULT_SIDEBAR_PREFERENCE;
+    }
 
     const parsed = sidebarPreferenceSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : DEFAULT_SIDEBAR_PREFERENCE;
@@ -31,7 +35,9 @@ export function readSidebarPreference(): SidebarPreference {
 }
 
 export function writeSidebarPreference(preference: SidebarPreference): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     window.localStorage.setItem(

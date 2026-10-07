@@ -48,7 +48,9 @@ export type BriefRouteState =
   | { readonly kind: "capped"; readonly cappedAt: string };
 
 function metaSpan(meta: PrSummary): Span | undefined {
-  if (meta.baseSha === null || meta.headSha === null) return undefined;
+  if (meta.baseSha === null || meta.headSha === null) {
+    return undefined;
+  }
   return { base: meta.baseSha, head: meta.headSha };
 }
 
@@ -190,10 +192,16 @@ export function selectBriefRouteState(
  * carry no draft-keyed affordances, so no poll cost across every open draft.
  */
 export function shouldPollMeta(meta: PrSummary): boolean {
-  if (isOwnDraft(meta)) return true;
+  if (isOwnDraft(meta)) {
+    return true;
+  }
   const status = meta.generation?.status;
-  if (status === "pending" || status === "running") return true;
-  if (status === "superseded" && !meta.briefAvailable) return true;
+  if (status === "pending" || status === "running") {
+    return true;
+  }
+  if (status === "superseded" && !meta.briefAvailable) {
+    return true;
+  }
   // A pending lastReview comparison is also in-flight work (its delta may
   // finish after the brief generation is terminal): keep polling so the
   // disabled Compare control flips without a manual refresh.

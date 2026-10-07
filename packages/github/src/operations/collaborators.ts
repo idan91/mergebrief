@@ -130,7 +130,9 @@ export async function listRepoCollaborators(
         avatarUrl: node.avatarUrl,
       };
 
-      if (node.name !== null) collaborator.name = node.name;
+      if (node.name !== null) {
+        collaborator.name = node.name;
+      }
 
       collaborators.push(collaborator);
     }

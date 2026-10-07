@@ -144,7 +144,9 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
   }
   for (const row of input.dispositions) {
     const kind = classifyDisposition(row);
-    if (kind === undefined) continue;
+    if (kind === undefined) {
+      continue;
+    }
     items.push(
       // No id, on either side of materialization: every operation that
       // clears a disposition addresses it by its anchor, which is the

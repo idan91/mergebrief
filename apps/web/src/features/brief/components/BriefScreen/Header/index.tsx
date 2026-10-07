@@ -127,15 +127,21 @@ export function Header({
 
   useEffect(() => {
     const el = headerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     let lastHeight = "";
     let settle = 0;
     const apply = () => {
       const next = `${el.offsetHeight}px`;
-      if (next === lastHeight) return;
+      if (next === lastHeight) {
+        return;
+      }
       lastHeight = next;
       document.documentElement.style.setProperty("--top-bar-h", next);
-      if (collapsedRef.current) return;
+      if (collapsedRef.current) {
+        return;
+      }
       window.clearTimeout(settle);
       settle = window.setTimeout(() => {
         setRestHeight(readStickyStackHeight());
@@ -152,11 +158,15 @@ export function Header({
 
   useEffect(() => {
     const sentinel = document.querySelector(`[${CONTENT_START_ATTR}]`);
-    if (!sentinel || restHeight === 0) return;
+    if (!sentinel || restHeight === 0) {
+      return;
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries.at(-1);
-        if (!entry) return;
+        if (!entry) {
+          return;
+        }
         const line = entry.rootBounds?.top ?? restHeight;
         const next = entry.boundingClientRect.top <= line;
         collapsedRef.current = next;
@@ -397,9 +407,13 @@ function SelfReviewChip() {
   const [tooltipDismissed, setTooltipDismissed] = useState(false);
   const tooltipVisible = (hovered || focused) && !tooltipDismissed;
   useEffect(() => {
-    if (!tooltipVisible) return;
+    if (!tooltipVisible) {
+      return;
+    }
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape") {
+        return;
+      }
       event.stopPropagation();
       setTooltipDismissed(true);
     };
@@ -411,7 +425,9 @@ function SelfReviewChip() {
   // dismissed tooltip back while the OTHER channel still holds it visible,
   // Escape must stick for as long as either channel is active.
   useEffect(() => {
-    if (!hovered && !focused) setTooltipDismissed(false);
+    if (!hovered && !focused) {
+      setTooltipDismissed(false);
+    }
   }, [focused, hovered]);
   return (
     <span className={styles["selfReviewChip"]} data-self-review-chip="">
@@ -450,7 +466,9 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  if (hideSummaryPreview || isDbBriefId(briefId)) return null;
+  if (hideSummaryPreview || isDbBriefId(briefId)) {
+    return null;
+  }
 
   const openSummaryPreview = () => {
     void navigate({
@@ -486,7 +504,9 @@ interface ProgressBarStyle extends CSSProperties {
 }
 
 function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
+  if (typeof value !== "string") {
+    return false;
+  }
   try {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:";
@@ -506,14 +526,18 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
-  if (!anyPresent) return null;
+  if (!anyPresent) {
+    return null;
+  }
   const anyError =
     repoConfig.files.some(
       (file) =>
         REPO_CONFIG_ERROR_OUTCOMES.has(file.outcome) ||
         file.warning !== undefined,
     ) || repoConfig.collisions.length > 0;
-  if (!anyError) return null;
+  if (!anyError) {
+    return null;
+  }
   const appliedSha = repoConfig.files.find(
     (file) => file.outcome === "applied" && file.blobSha !== null,
   )?.blobSha;

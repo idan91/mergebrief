@@ -121,7 +121,9 @@ export function renderRepoInstructions(
 export function renderCustomAttributes(
   attributes: readonly CustomRiskAttributeInput[],
 ): string | undefined {
-  if (attributes.length === 0) return undefined;
+  if (attributes.length === 0) {
+    return undefined;
+  }
   const entries = attributes
     .map((attr) => {
       const lines = [
@@ -212,7 +214,8 @@ export function inAttributeScope(
   attribute: Pick<CustomRiskAttributeInput, "paths">,
   filePath: string,
 ): boolean {
-  if (attribute.paths === undefined || attribute.paths.length === 0)
+  if (attribute.paths === undefined || attribute.paths.length === 0) {
     return true;
+  }
   return attribute.paths.some((pattern) => matchesGlob(pattern, filePath));
 }

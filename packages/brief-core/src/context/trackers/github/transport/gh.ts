@@ -46,7 +46,9 @@ function readExecFailure(error: unknown): ExecFailure {
     code: number | string | undefined;
     stderr: string;
   } = { name: "", code: undefined, stderr: "" };
-  if (typeof error !== "object" || error === null) return failure;
+  if (typeof error !== "object" || error === null) {
+    return failure;
+  }
   if ("name" in error && typeof error.name === "string") {
     failure.name = error.name;
   }
@@ -92,7 +94,9 @@ function toGhReadFailure(
     };
   }
   const status = HTTP_STATUS_IN_STDERR.exec(failure.stderr)?.[1];
-  if (status !== undefined) return readFailureForStatus(Number(status));
+  if (status !== undefined) {
+    return readFailureForStatus(Number(status));
+  }
   return {
     reason: TicketUnreadReasons.TIMEOUT,
     detail: `gh exited ${String(failure.code ?? "unknown")}`,
@@ -105,7 +109,9 @@ function toIssueRecord(raw: unknown): IssueRecord {
   const labels: string[] = [];
   for (const label of issue.labels ?? []) {
     const name = typeof label === "string" ? label : (label.name ?? "");
-    if (name !== "") labels.push(name);
+    if (name !== "") {
+      labels.push(name);
+    }
   }
   return {
     title: issue.title,

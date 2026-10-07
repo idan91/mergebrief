@@ -218,7 +218,9 @@ function seedRange(
     to,
   });
   const lines: string[] = [];
-  for (let line = from; line <= to; line += 1) lines.push(`L${line}`);
+  for (let line = from; line <= to; line += 1) {
+    lines.push(`L${line}`);
+  }
   const ready: FileRangeResult = {
     kind: "ready",
     range: { path: "src/a.ts", ref: HEAD, from, to, lines, totalLines },
@@ -701,7 +703,9 @@ describe("DiffTable sibling spans", () => {
     const row = expandedRows(container).find(
       (candidate) => numberCells(candidate)[1] === line,
     );
-    if (row === undefined) throw new Error(`no expanded row on ${line}`);
+    if (row === undefined) {
+      throw new Error(`no expanded row on ${line}`);
+    }
     return row;
   }
 

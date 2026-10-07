@@ -227,7 +227,9 @@ describe("own-draft Brief view", () => {
     // denominator; counting flags would cap this below 100% forever.
     for (const viewed of screen.getAllByText("Viewed")) {
       const input = viewed.closest("label")?.querySelector("input");
-      if (input) fireEvent.click(input);
+      if (input) {
+        fireEvent.click(input);
+      }
     }
     // Progress rides a scaleX factor: 100% ≙ --progress-scale: 1.
     const bar = document.querySelector('header div[style*="--progress-scale"]');

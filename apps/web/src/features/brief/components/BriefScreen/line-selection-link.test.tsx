@@ -73,7 +73,9 @@ function findNumberCell(line: string): HTMLElement {
   const cell = document.querySelector(
     `td[data-select-anchor][data-line-new="${line}"]`,
   );
-  if (!(cell instanceof HTMLElement)) throw new Error("expected a number cell");
+  if (!(cell instanceof HTMLElement)) {
+    throw new Error("expected a number cell");
+  }
   return cell;
 }
 
@@ -83,7 +85,9 @@ describe("line selection link", () => {
     await renderScreen(navigateLink);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
-    if (row === null) throw new Error("expected a row");
+    if (row === null) {
+      throw new Error("expected a row");
+    }
 
     fireEvent.mouseDown(cell);
     fireEvent.mouseUp(row);
@@ -120,7 +124,9 @@ describe("line selection link", () => {
     await renderScreen(navigateLink);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
-    if (row === null) throw new Error("expected a row");
+    if (row === null) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(cell);
     fireEvent.mouseUp(row);
     await waitFor(() =>
@@ -130,7 +136,9 @@ describe("line selection link", () => {
     const [glyph] = screen.getAllByRole("button", {
       name: /copy link to this chunk/i,
     });
-    if (glyph === undefined) throw new Error("expected a chunk glyph");
+    if (glyph === undefined) {
+      throw new Error("expected a chunk glyph");
+    }
     fireEvent.click(glyph);
 
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
@@ -161,7 +169,9 @@ describe("line selection link", () => {
     await renderScreen(navigateLink);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
-    if (row === null) throw new Error("expected a row");
+    if (row === null) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(cell);
     fireEvent.mouseUp(row);
     await waitFor(() =>
@@ -183,7 +193,9 @@ describe("line selection link", () => {
     await renderScreen(navigateLink);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
-    if (row === null) throw new Error("expected a row");
+    if (row === null) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(cell);
     fireEvent.mouseUp(row);
     await waitFor(() =>
@@ -196,7 +208,9 @@ describe("line selection link", () => {
     );
     const again = await waitFor(() => findNumberCell("10"));
     const againRow = again.closest("tr");
-    if (againRow === null) throw new Error("expected a row");
+    if (againRow === null) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(again);
     fireEvent.mouseUp(againRow);
 

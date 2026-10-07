@@ -79,7 +79,9 @@ export function useRiskFlagModalsFacade(
   }, [flowActions]);
 
   const confirmDismiss = useCallback(() => {
-    if (!dismissTarget) return;
+    if (!dismissTarget) {
+      return;
+    }
     const reason = dismissInput.reason.trim();
     if (reason.length < 12 && !dismissInput.warned) {
       setDismissInput((current) => ({ ...current, warned: true }));
@@ -103,7 +105,9 @@ export function useRiskFlagModalsFacade(
       commentId: string | undefined,
       note: string | undefined,
     ) => {
-      if (!evidenceTarget) return;
+      if (!evidenceTarget) {
+        return;
+      }
       const evidenceByFlagId = new Map<string, RiskEvidence>();
       for (const flagId of evidenceTarget.flagIds) {
         const flag = flagsById.get(flagId);
@@ -115,7 +119,9 @@ export function useRiskFlagModalsFacade(
         }
       }
       flowActions.setEvidenceTarget(null);
-      if (evidenceByFlagId.size === 0) return;
+      if (evidenceByFlagId.size === 0) {
+        return;
+      }
       sessionActions.addressFlags(evidenceByFlagId);
       const addressedIds = [...evidenceByFlagId.keys()];
       flowActions.clearRiskSelection(addressedIds);

@@ -615,8 +615,12 @@ describe("DB brief route", () => {
 });
 
 function readRequestUrl(input: RequestInfo | URL): string {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 
@@ -757,7 +761,9 @@ describe("DB brief route, explicit-span deep link while generating", () => {
         );
       },
       (url) => {
-        if (!url.includes("/brief")) return new Response("{}", { status: 200 });
+        if (!url.includes("/brief")) {
+          return new Response("{}", { status: 200 });
+        }
         // Still generating on the deep-link load; the artifact lands later.
         return briefReady
           ? new Response(JSON.stringify(briefFixture), { status: 200 })
@@ -854,11 +860,15 @@ describe("DB brief route, rev param", () => {
       const found = document.querySelector(
         'td[data-select-anchor][data-line-new="10"]',
       );
-      if (!(found instanceof HTMLElement)) throw new Error("no number cell");
+      if (!(found instanceof HTMLElement)) {
+        throw new Error("no number cell");
+      }
       return found;
     });
     const row = cell.closest("tr");
-    if (row === null) throw new Error("expected a row");
+    if (row === null) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(cell);
     fireEvent.mouseUp(row);
 

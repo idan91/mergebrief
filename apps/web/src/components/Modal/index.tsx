@@ -48,7 +48,9 @@ export function Modal({
   // the close DROPPED (on <body>) or left inside the closed box comes back;
   // a browser expels the latter to <body> only later, past this microtask.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     triggerRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -82,9 +84,13 @@ export function Modal({
   // never re-runs the focus effect (which would re-capture a stale trigger
   // mid-dialog and "return" focus while the modal is still open).
   useEffect(() => {
-    if (!open || !close) return;
+    if (!open || !close) {
+      return;
+    }
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") {
+        close();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

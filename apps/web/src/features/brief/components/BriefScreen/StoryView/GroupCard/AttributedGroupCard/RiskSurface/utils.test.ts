@@ -71,14 +71,18 @@ describe("pickPathJumpChunkId", () => {
       { d1: ADDRESSED },
       ["src/a.ts"],
     )[0];
-    if (row === undefined) throw new Error("expected a file row");
+    if (row === undefined) {
+      throw new Error("expected a file row");
+    }
     expect(pickPathJumpChunkId(row)).toBe("fresh");
     const resolvedOnly = groupFlagsByFile(
       [flag("d1", "src/a.ts", "old", "no-tests")],
       { d1: ADDRESSED },
       ["src/a.ts"],
     )[0];
-    if (resolvedOnly === undefined) throw new Error("expected a file row");
+    if (resolvedOnly === undefined) {
+      throw new Error("expected a file row");
+    }
     expect(pickPathJumpChunkId(resolvedOnly)).toBe("old");
   });
 });

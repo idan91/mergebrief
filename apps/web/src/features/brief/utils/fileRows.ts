@@ -20,9 +20,13 @@ export function createFileRowsCache(
     isEmpty: patches.size === 0,
     getFileRows(path) {
       const known = parsed.get(path);
-      if (known !== undefined) return known;
+      if (known !== undefined) {
+        return known;
+      }
       const patch = patches.get(path);
-      if (patch === undefined) return undefined;
+      if (patch === undefined) {
+        return undefined;
+      }
 
       const rows = parseUnifiedDiffPatch(patch);
       parsed.set(path, rows);

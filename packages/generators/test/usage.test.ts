@@ -110,7 +110,9 @@ function usageStubClient(
       stream(_body: Parameters<Anthropic["messages"]["stream"]>[0]) {
         const turn = turns[calls];
         calls += 1;
-        if (!turn) throw new Error("usage stub: no scripted turn left");
+        if (!turn) {
+          throw new Error("usage stub: no scripted turn left");
+        }
         let listener: ((event: Anthropic.MessageStreamEvent) => void) | null =
           null;
         return {
@@ -312,7 +314,9 @@ async function openAiGenerator(
       return respond(bodies.length);
     },
   });
-  if (!result.ok) throw new Error(result.error.issues.join("; "));
+  if (!result.ok) {
+    throw new Error(result.error.issues.join("; "));
+  }
   return result.value;
 }
 
@@ -329,7 +333,9 @@ describe("openai-core usage reporting", () => {
     });
     expect(bodies).toHaveLength(1);
     const body = bodies[0];
-    if (!isRecord(body)) throw new Error("expected an object body");
+    if (!isRecord(body)) {
+      throw new Error("expected an object body");
+    }
     expect(body["stream_options"]).toBeUndefined();
   });
 
@@ -352,7 +358,9 @@ describe("openai-core usage reporting", () => {
       onUsage: (usage) => seen.push(usage),
     });
     const body = bodies[0];
-    if (!isRecord(body)) throw new Error("expected an object body");
+    if (!isRecord(body)) {
+      throw new Error("expected an object body");
+    }
     expect(body["stream_options"]).toEqual({ include_usage: true });
     expect(seen).toEqual([
       { inputTokens: 800, outputTokens: 120, cacheReadTokens: 600 },
@@ -464,7 +472,9 @@ describe("openai-core usage reporting", () => {
     });
     expect(bodies).toHaveLength(2);
     const retry = bodies[1];
-    if (!isRecord(retry)) throw new Error("expected an object body");
+    if (!isRecord(retry)) {
+      throw new Error("expected an object body");
+    }
     expect(retry["reasoning_effort"]).toBeUndefined();
     expect(retry["stream_options"]).toEqual({ include_usage: true });
     // The 400'd first request streamed nothing → exactly one report.
@@ -505,7 +515,9 @@ describe("openrouter usage passthrough", () => {
         }
         if (typeof init?.body === "string") {
           const parsed: unknown = JSON.parse(init.body);
-          if (isRecord(parsed)) bodies.push(parsed);
+          if (isRecord(parsed)) {
+            bodies.push(parsed);
+          }
         }
         return sse(
           '{"ok":true}',
@@ -514,7 +526,9 @@ describe("openrouter usage passthrough", () => {
         );
       },
     });
-    if (!result.ok) throw new Error(result.error.issues.join("; "));
+    if (!result.ok) {
+      throw new Error(result.error.issues.join("; "));
+    }
     await result.value.generate({
       schema: Schema,
       system: "s",

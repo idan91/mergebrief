@@ -114,7 +114,9 @@ interface InstallationWalk {
 
 /** GitHub refused this one installation to the viewer; the others still count. */
 function isDeniedWalk(walk: InstallationWalk): boolean {
-  if (walk.repos.ok || "kind" in walk.repos.error) return false;
+  if (walk.repos.ok || "kind" in walk.repos.error) {
+    return false;
+  }
   return isGitHubDenial(walk.repos.error);
 }
 

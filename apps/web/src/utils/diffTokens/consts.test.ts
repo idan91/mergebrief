@@ -25,7 +25,9 @@ function resolveGrammarModule(grammar: GrammarName): string {
 }
 
 function collectClosure(entry: string, seen = new Set<string>()): Set<string> {
-  if (seen.has(entry)) return seen;
+  if (seen.has(entry)) {
+    return seen;
+  }
   seen.add(entry);
 
   const source = readFileSync(entry, "utf8");

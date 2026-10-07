@@ -145,7 +145,9 @@ describe("the audit choke point", () => {
       },
     };
 
-    if (audit !== undefined) deps.audit = audit;
+    if (audit !== undefined) {
+      deps.audit = audit;
+    }
 
     return createApp(deps);
   }

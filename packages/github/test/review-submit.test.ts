@@ -86,7 +86,9 @@ describe("submitPullRequestReview", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
@@ -117,7 +119,9 @@ describe("submitPullRequestReview", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(502);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
@@ -158,7 +162,9 @@ describe("submitPullRequestReview", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

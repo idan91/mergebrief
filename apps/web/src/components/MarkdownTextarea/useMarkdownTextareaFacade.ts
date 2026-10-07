@@ -173,7 +173,9 @@ export function useMarkdownTextareaFacade({
   function applyMaybeTextEdit(
     edit: (text: string, start: number, end: number) => TextEdit | null,
   ): boolean {
-    if (readOnly) return false;
+    if (readOnly) {
+      return false;
+    }
     // The ref, not the render-time value: two edits inside one event (a
     // multi-file drop) must each start from the text the last one wrote.
     const current = valueRef.current;
@@ -181,7 +183,9 @@ export function useMarkdownTextareaFacade({
     const start = textarea?.selectionStart ?? current.length;
     const end = textarea?.selectionEnd ?? current.length;
     const next = edit(current, start, end);
-    if (next === null) return false;
+    if (next === null) {
+      return false;
+    }
     valueRef.current = next.text;
     onChange(next.text);
     window.setTimeout(() => {
@@ -370,14 +374,18 @@ export function useMarkdownTextareaFacade({
       // A keydown that commits/cancels an IME candidate must never be
       // treated as an editor command (Enter would splice the list marker
       // into a half-composed candidate).
-      if (event.nativeEvent.isComposing) return;
+      if (event.nativeEvent.isComposing) {
+        return;
+      }
       const meta = event.metaKey || event.ctrlKey;
       if (event.key === "Enter") {
         // Cmd/Ctrl+Enter bubbles to the root submit handler; Shift+Enter is
         // the escape hatch (always a plain newline, via the browser
         // default); bare Enter continues a list item.
         if (!meta && !event.shiftKey) {
-          if (applyMaybeTextEdit(continueListOnEnter)) event.preventDefault();
+          if (applyMaybeTextEdit(continueListOnEnter)) {
+            event.preventDefault();
+          }
         }
         return;
       }
@@ -394,7 +402,9 @@ export function useMarkdownTextareaFacade({
         }
         return;
       }
-      if (!meta) return;
+      if (!meta) {
+        return;
+      }
       const key = event.key.toLowerCase();
       if (key === "b") {
         event.preventDefault();

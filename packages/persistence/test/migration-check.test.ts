@@ -65,7 +65,9 @@ describe("migration check checkAppSchemaWith", () => {
     );
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.code).toBe(SchemaCheckErrorCodes.PENDING_MIGRATIONS);
     expect(result.error.pendingCount).toBe(2);
     expect(result.error.message).toContain("2");
@@ -93,7 +95,9 @@ describe("migration check checkAppSchemaWith", () => {
     const client = await virginPglite();
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.pendingCount).toBe(journalEntryCount());
   });
 
@@ -111,7 +115,9 @@ describe("migration check checkAppSchemaWith", () => {
     const client = await virginPglite();
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.message).not.toContain("postgres://");
   });
 });
@@ -178,7 +184,9 @@ describe("migration check ensureAppSchema dispatch", () => {
     );
     expect(applied).toBe(0);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error).toEqual(REFUSAL);
   });
 

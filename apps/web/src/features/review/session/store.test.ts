@@ -16,7 +16,9 @@ import { CommentAnchorKinds } from "types/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
-if (!firstFlag) throw new Error("Expected brief fixture to include risk flags");
+if (!firstFlag) {
+  throw new Error("Expected brief fixture to include risk flags");
+}
 const flagId = firstFlag.id;
 
 function freshStore() {
@@ -197,7 +199,9 @@ describe("comments + outcome", () => {
     };
     void store.getState().actions.saveComment(comment);
     const id = store.getState().reviewComments[0]?.id;
-    if (id === undefined) throw new Error("expected a saved comment");
+    if (id === undefined) {
+      throw new Error("expected a saved comment");
+    }
     store.getState().actions.markCommentsSubmitted([id]);
 
     // GitHub is the system of record now: a local edit would silently diverge
@@ -227,7 +231,9 @@ describe("comments + outcome", () => {
     };
     void store.getState().actions.saveComment(comment);
     const submittedId = store.getState().reviewComments[0]?.id;
-    if (submittedId === undefined) throw new Error("expected a saved comment");
+    if (submittedId === undefined) {
+      throw new Error("expected a saved comment");
+    }
 
     // A draft added AFTER the submit was captured (mid-flight edit) must NOT
     // flip, it was never posted.

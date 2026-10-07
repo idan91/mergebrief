@@ -254,8 +254,12 @@ type InstallationAccount = z.infer<typeof installationAccountSchema>;
 
 /** Display name for the installation's target; the numeric id is the fallback. */
 function deriveAccountLogin(account: InstallationAccount, id: number): string {
-  if (account === null) return String(id);
-  if ("login" in account) return account.login;
+  if (account === null) {
+    return String(id);
+  }
+  if ("login" in account) {
+    return account.login;
+  }
   return account.slug;
 }
 

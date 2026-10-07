@@ -26,7 +26,9 @@ describe("parseTokensView", () => {
   it("parses the /api/auth/tokens list body", () => {
     const parsed = parseTokensView({ tokens: [WIRE_TOKEN] });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.tokens[0]).toEqual(WIRE_TOKEN);
   });
 
@@ -57,7 +59,9 @@ describe("parseMintedToken", () => {
       apiToken: WIRE_TOKEN,
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.token).toBe("mergebrief_abc123");
     expect(parsed.value.apiToken.name).toBe("ci-token");
   });

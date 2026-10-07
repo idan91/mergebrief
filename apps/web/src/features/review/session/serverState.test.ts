@@ -88,7 +88,9 @@ describe("sessionInitialState", () => {
 
   it("lands a draft on the chunk its coordinates fall in, rows rebuilt", () => {
     const chunk = firstChunk;
-    if (chunk === undefined) throw new Error("fixture has no chunk");
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
     const line = chunk.addedRanges[0]?.start ?? 1;
     const state = sessionInitialState(
       model,
@@ -127,7 +129,9 @@ describe("sessionInitialState", () => {
 
   it("lands a file draft on every path in the Brief, never a line", () => {
     const chunk = firstChunk;
-    if (chunk === undefined) throw new Error("fixture has no chunk");
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
     const state = sessionInitialState(
       model,
       payload({
@@ -204,7 +208,9 @@ describe("sessionInitialState", () => {
   it("lands a leftover-line draft on the remainder chunk", () => {
     const brief = structuredClone(briefFixture);
     const chunk = brief.chunks[0];
-    if (chunk === undefined) throw new Error("fixture has no chunk");
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
     chunk.addedRanges = [
       { start: 1, end: 2 },
       { start: 100, end: 101 },
@@ -220,7 +226,9 @@ describe("sessionInitialState", () => {
     const remainder = remainderModel.groups.find(
       (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
     )?.chunks[0];
-    if (remainder === undefined) throw new Error("expected a remainder chunk");
+    if (remainder === undefined) {
+      throw new Error("expected a remainder chunk");
+    }
 
     const state = sessionInitialState(
       remainderModel,
@@ -292,7 +300,9 @@ describe("sessionInitialState", () => {
   it("spans a two-side draft from its old start row to its new end row", () => {
     const cross = structuredClone(briefFixture);
     const chunk = cross.chunks[0];
-    if (chunk === undefined) throw new Error("fixture has no chunk");
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
     chunk.addedRanges = [{ start: 10, end: 12 }];
     chunk.removedRanges = [{ start: 10, end: 11 }];
     chunk.diff = [
@@ -339,7 +349,9 @@ describe("sessionInitialState", () => {
   it("spans new\u2192old across hunks, skipping the header row", () => {
     const cross = structuredClone(briefFixture);
     const chunk = cross.chunks[0];
-    if (chunk === undefined) throw new Error("fixture has no chunk");
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
     chunk.addedRanges = [{ start: 10, end: 10 }];
     chunk.removedRanges = [{ start: 20, end: 20 }];
     chunk.diff = [

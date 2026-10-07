@@ -39,7 +39,9 @@ describe("createInlineReviewComment file arm", () => {
       subject_type: "file",
     });
     const sent = createReviewComment.mock.calls[0]?.[0];
-    if (sent === undefined) throw new Error("expected a sent comment");
+    if (sent === undefined) {
+      throw new Error("expected a sent comment");
+    }
     expect("line" in sent).toBe(false);
     expect("side" in sent).toBe(false);
     expect("start_line" in sent).toBe(false);

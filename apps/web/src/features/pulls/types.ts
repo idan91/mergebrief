@@ -248,9 +248,12 @@ function isWaitReason(value: unknown): value is WaitReason {
 function parseGenerationSummary(
   value: unknown,
 ): Result<GenerationSummary | null> {
-  if (value === null) return { ok: true, value: null };
-  if (!isRecord(value))
+  if (value === null) {
+    return { ok: true, value: null };
+  }
+  if (!isRecord(value)) {
     return { ok: false, error: "generation must be an object or null" };
+  }
   if (!isGenerationStatus(value["status"])) {
     return { ok: false, error: "generation.status is not a known status" };
   }
@@ -296,7 +299,9 @@ function parseGenerationSummary(
 function parsePreviousBrief(
   value: unknown,
 ): Result<PreviousBriefComparison | undefined> {
-  if (value === undefined) return { ok: true, value: undefined };
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
   if (!isRecord(value)) {
     return { ok: false, error: "comparisons.previousBrief must be an object" };
   }
@@ -336,7 +341,9 @@ function isLastReviewUnavailableReason(
 function parseLastReview(
   value: unknown,
 ): Result<LastReviewComparison | undefined> {
-  if (value === undefined) return { ok: true, value: undefined };
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
   if (!isRecord(value)) {
     return { ok: false, error: "comparisons.lastReview must be an object" };
   }
@@ -372,7 +379,9 @@ function parseLastReview(
     baselineSha: value["baselineSha"],
   };
 
-  if (baselineIndex !== undefined) available.baselineIndex = baselineIndex;
+  if (baselineIndex !== undefined) {
+    available.baselineIndex = baselineIndex;
+  }
 
   return { ok: true, value: available };
 }
@@ -381,7 +390,9 @@ function parseLastReview(
 function parseDraftPolicy(
   value: unknown,
 ): Result<DraftPolicySummary | undefined> {
-  if (value === undefined) return { ok: true, value: undefined };
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
   if (!isRecord(value)) {
     return { ok: false, error: "draftPolicy must be an object" };
   }
@@ -399,26 +410,36 @@ function parseDraftPolicy(
 }
 
 function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
-  if (value === undefined) return { ok: true, value: undefined };
-  if (!isRecord(value))
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
+  if (!isRecord(value)) {
     return { ok: false, error: "comparisons must be an object" };
+  }
   const previousBrief = parsePreviousBrief(value["previousBrief"]);
-  if (!previousBrief.ok) return previousBrief;
+  if (!previousBrief.ok) {
+    return previousBrief;
+  }
   const lastReview = parseLastReview(value["lastReview"]);
-  if (!lastReview.ok) return lastReview;
+  if (!lastReview.ok) {
+    return lastReview;
+  }
   const comparisons: Mutable<PrComparisons> = {};
 
   if (previousBrief.value !== undefined) {
     comparisons.previousBrief = previousBrief.value;
   }
-  if (lastReview.value !== undefined) comparisons.lastReview = lastReview.value;
+  if (lastReview.value !== undefined) {
+    comparisons.lastReview = lastReview.value;
+  }
 
   return { ok: true, value: comparisons };
 }
 
 function parseRevision(value: unknown): Result<RevisionSummary> {
-  if (!isRecord(value))
+  if (!isRecord(value)) {
     return { ok: false, error: "revision must be an object" };
+  }
   if (typeof value["headSha"] !== "string") {
     return { ok: false, error: "revision.headSha must be a string" };
   }
@@ -439,7 +460,9 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
   // (empty object when neither baseline has marks), reuse its guard so the
   // two can never drift.
   const comparisons = parseComparisons(value["comparisons"]);
-  if (!comparisons.ok) return comparisons;
+  if (!comparisons.ok) {
+    return comparisons;
+  }
   const revision: Mutable<RevisionSummary> = {
     headSha: value["headSha"],
     baseSha: value["baseSha"],
@@ -448,7 +471,9 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
     comparisons: comparisons.value ?? {},
   };
 
-  if (generatedAt !== undefined) revision.generatedAt = generatedAt;
+  if (generatedAt !== undefined) {
+    revision.generatedAt = generatedAt;
+  }
 
   return { ok: true, value: revision };
 }
@@ -456,22 +481,27 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
 function parseRevisions(
   value: unknown,
 ): Result<readonly RevisionSummary[] | undefined> {
-  if (value === undefined) return { ok: true, value: undefined };
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
   if (!Array.isArray(value)) {
     return { ok: false, error: "revisions must be an array" };
   }
   const revisions: RevisionSummary[] = [];
   for (const item of value) {
     const parsed = parseRevision(item);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
     revisions.push(parsed.value);
   }
   return { ok: true, value: revisions };
 }
 
 export function parsePrSummary(value: unknown): Result<PrSummary> {
-  if (!isRecord(value))
+  if (!isRecord(value)) {
     return { ok: false, error: "PR summary must be an object" };
+  }
   if (!isRepoIdString(value["repoId"])) {
     return { ok: false, error: "repoId must be a numeric string" };
   }
@@ -518,7 +548,9 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     return { ok: false, error: "appInstalled must be a boolean when present" };
   }
   const generation = parseGenerationSummary(value["generation"]);
-  if (!generation.ok) return generation;
+  if (!generation.ok) {
+    return generation;
+  }
   if (typeof value["updatedAt"] !== "string") {
     return { ok: false, error: "updatedAt must be a string" };
   }
@@ -527,11 +559,17 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     return { ok: false, error: "behind must be a boolean when present" };
   }
   const comparisons = parseComparisons(value["comparisons"]);
-  if (!comparisons.ok) return comparisons;
+  if (!comparisons.ok) {
+    return comparisons;
+  }
   const revisions = parseRevisions(value["revisions"]);
-  if (!revisions.ok) return revisions;
+  if (!revisions.ok) {
+    return revisions;
+  }
   const draftPolicy = parseDraftPolicy(value["draftPolicy"]);
-  if (!draftPolicy.ok) return draftPolicy;
+  if (!draftPolicy.ok) {
+    return draftPolicy;
+  }
   const summary: Mutable<PrSummary> = {
     repoId: value["repoId"],
     repoSlug: value["repoSlug"],
@@ -550,9 +588,15 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     behind: behind ?? false,
   };
 
-  if (comparisons.value !== undefined) summary.comparisons = comparisons.value;
-  if (revisions.value !== undefined) summary.revisions = revisions.value;
-  if (draftPolicy.value !== undefined) summary.draftPolicy = draftPolicy.value;
+  if (comparisons.value !== undefined) {
+    summary.comparisons = comparisons.value;
+  }
+  if (revisions.value !== undefined) {
+    summary.revisions = revisions.value;
+  }
+  if (draftPolicy.value !== undefined) {
+    summary.draftPolicy = draftPolicy.value;
+  }
 
   return { ok: true, value: summary };
 }
@@ -580,7 +624,9 @@ function parseStackMembers(value: unknown): Result<PrStackMember[]> {
   const members: PrStackMember[] = [];
   for (const item of value) {
     const parsed = parseStackMember(item);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
     members.push(parsed.value);
   }
   return { ok: true, value: members };
@@ -590,7 +636,9 @@ function parseLinearStack(
   value: Record<string, unknown>,
 ): Result<LinearPrStack> {
   const members = parseStackMembers(value["members"]);
-  if (!members.ok) return members;
+  if (!members.ok) {
+    return members;
+  }
   if (typeof value["index"] !== "number") {
     return { ok: false, error: "stack.index must be a number" };
   }
@@ -599,12 +647,16 @@ function parseLinearStack(
 
 function parseForkStack(value: Record<string, unknown>): Result<ForkPrStack> {
   const children = parseStackMembers(value["children"]);
-  if (!children.ok) return children;
+  if (!children.ok) {
+    return children;
+  }
   const fork: ForkPrStack = { children: children.value };
 
   if (value["parent"] !== undefined) {
     const parent = parseStackMember(value["parent"]);
-    if (!parent.ok) return parent;
+    if (!parent.ok) {
+      return parent;
+    }
     fork.parent = parent.value;
   }
 
@@ -636,7 +688,9 @@ function isDateString(value: unknown): value is string {
 }
 
 function parseStackField(stack: unknown): Result<PrStack | null> {
-  if (stack === null) return { ok: true, value: null };
+  if (stack === null) {
+    return { ok: true, value: null };
+  }
   if (!isRecord(stack)) {
     return { ok: false, error: "stack must be an object or null" };
   }

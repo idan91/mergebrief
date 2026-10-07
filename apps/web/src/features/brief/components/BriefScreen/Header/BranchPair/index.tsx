@@ -20,7 +20,9 @@ export function BranchPair({ baseRef, headRef }: BranchPairProps) {
   const { t } = useTranslation();
   const base = presentRef(baseRef);
   const head = presentRef(headRef);
-  if (base === undefined && head === undefined) return null;
+  if (base === undefined && head === undefined) {
+    return null;
+  }
 
   const hasPair = base !== undefined && head !== undefined;
   const copyBase = t("brief.header.copyBaseBranch");

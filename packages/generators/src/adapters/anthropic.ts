@@ -144,7 +144,9 @@ export class AnthropicGenerator implements Generator {
       },
     };
 
-    if (req.salvageFields) floor.salvageFields = req.salvageFields;
+    if (req.salvageFields) {
+      floor.salvageFields = req.salvageFields;
+    }
     if (req.onWarning) {
       floor.onWarning = req.onWarning;
     }
@@ -287,10 +289,16 @@ function classifySdkError(error: unknown): unknown {
       { cause: error },
     );
   }
-  if (typeof error !== "object" || error === null) return error;
-  if (Reflect.get(error, "name") === "APIUserAbortError") return error;
+  if (typeof error !== "object" || error === null) {
+    return error;
+  }
+  if (Reflect.get(error, "name") === "APIUserAbortError") {
+    return error;
+  }
   const status = Reflect.get(error, "status");
-  if (typeof status !== "number") return wrapStatuslessSdkError(error);
+  if (typeof status !== "number") {
+    return wrapStatuslessSdkError(error);
+  }
   // SDK Error messages are provider-authored status descriptions (never
   // credential-bearing); a non-Error value gets a fixed message instead
   // of echoing arbitrary object contents.

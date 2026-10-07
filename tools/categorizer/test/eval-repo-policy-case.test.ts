@@ -35,9 +35,13 @@ function briefWith(chunks: readonly Chunk[]): Brief {
 
 async function properties() {
   const loaded = await loadCases(CASES_DIR, CASE_ID);
-  if (!loaded.ok) throw new Error(loaded.error);
+  if (!loaded.ok) {
+    throw new Error(loaded.error);
+  }
   const found = loaded.value[0];
-  if (found === undefined) throw new Error(`${CASE_ID} did not load`);
+  if (found === undefined) {
+    throw new Error(`${CASE_ID} did not load`);
+  }
   return found;
 }
 

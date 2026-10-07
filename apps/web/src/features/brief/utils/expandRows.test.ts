@@ -49,8 +49,9 @@ function makeDel(oldLine: number): DiffLine {
 
 function makeLines(from: number, to: number): string[] {
   const lines: string[] = [];
-  for (let line = from; line <= to; line += 1)
+  for (let line = from; line <= to; line += 1) {
     lines.push(`file ${String(line)}`);
+  }
   return lines;
 }
 

@@ -59,7 +59,9 @@ function thread(overrides: ThreadOverrides): ConversationThread {
     ...overrides,
   };
   for (const key of Object.keys(merged)) {
-    if (merged[key] === undefined) delete merged[key];
+    if (merged[key] === undefined) {
+      delete merged[key];
+    }
   }
   return merged as unknown as ConversationThread;
 }

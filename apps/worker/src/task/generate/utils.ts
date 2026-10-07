@@ -97,7 +97,9 @@ export function resolveChainGroupIds(
 ): readonly string[] {
   if (prevRow !== undefined && prevRow.usedGroupIds !== null) {
     const parsed = StoredIdsSchema.safeParse(prevRow.usedGroupIds);
-    if (parsed.success) return parsed.data;
+    if (parsed.success) {
+      return parsed.data;
+    }
   }
   return previousBody?.changeGroups.map((group) => group.id) ?? [];
 }

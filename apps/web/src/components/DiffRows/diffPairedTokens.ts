@@ -41,18 +41,30 @@ export function diffPairedTokens(
   left: TokenSide,
   right: TokenSide,
 ): PairedEmphasis {
-  if (left.text.length > INTRA_LINE_CHARACTER_CAP) return NO_EMPHASIS;
-  if (right.text.length > INTRA_LINE_CHARACTER_CAP) return NO_EMPHASIS;
+  if (left.text.length > INTRA_LINE_CHARACTER_CAP) {
+    return NO_EMPHASIS;
+  }
+  if (right.text.length > INTRA_LINE_CHARACTER_CAP) {
+    return NO_EMPHASIS;
+  }
   // A side the worker left plain compares by characters on both sides.
   const plain = left.tokens === undefined || right.tokens === undefined;
   const leftTokens = plain ? [left.text] : readTokens(left);
   const rightTokens = plain ? [right.text] : readTokens(right);
-  if (leftTokens.length > INTRA_LINE_TOKEN_CAP) return NO_EMPHASIS;
-  if (rightTokens.length > INTRA_LINE_TOKEN_CAP) return NO_EMPHASIS;
+  if (leftTokens.length > INTRA_LINE_TOKEN_CAP) {
+    return NO_EMPHASIS;
+  }
+  if (rightTokens.length > INTRA_LINE_TOKEN_CAP) {
+    return NO_EMPHASIS;
+  }
 
   const { emphasis, changed } = compareTokenRuns(leftTokens, rightTokens);
-  if (isMostOfLine(changed.left, left.text)) return NO_EMPHASIS;
-  if (isMostOfLine(changed.right, right.text)) return NO_EMPHASIS;
+  if (isMostOfLine(changed.left, left.text)) {
+    return NO_EMPHASIS;
+  }
+  if (isMostOfLine(changed.right, right.text)) {
+    return NO_EMPHASIS;
+  }
 
   return emphasis;
 }
@@ -67,21 +79,31 @@ export function computeIntraLineEmphasis(
   tokensByRow: RowTokenMap | undefined,
 ): EmphasisByRow {
   const emphasis = new Map<number, readonly CharRange[]>();
-  if (tokensByRow === undefined) return emphasis;
+  if (tokensByRow === undefined) {
+    return emphasis;
+  }
 
   for (const pair of pairs) {
     const { left, right } = pair;
-    if (left === undefined || right === undefined || left === right) continue;
+    if (left === undefined || right === undefined || left === right) {
+      continue;
+    }
     const leftTokens = tokensByRow.get(left.index);
     const rightTokens = tokensByRow.get(right.index);
-    if (leftTokens === undefined && rightTokens === undefined) continue;
+    if (leftTokens === undefined && rightTokens === undefined) {
+      continue;
+    }
 
     const result = diffPairedTokens(
       { text: left.line.content, tokens: leftTokens },
       { text: right.line.content, tokens: rightTokens },
     );
-    if (result.left.length > 0) emphasis.set(left.index, result.left);
-    if (result.right.length > 0) emphasis.set(right.index, result.right);
+    if (result.left.length > 0) {
+      emphasis.set(left.index, result.left);
+    }
+    if (result.right.length > 0) {
+      emphasis.set(right.index, result.right);
+    }
   }
 
   return emphasis;
@@ -99,7 +121,9 @@ function compareTokenRuns(
   const suffix = countCommonSuffix(left, right, prefix);
   const leftMiddle = left.slice(prefix, left.length - suffix);
   const rightMiddle = right.slice(prefix, right.length - suffix);
-  if (leftMiddle.length === 0 && rightMiddle.length === 0) return NO_COMPARISON;
+  if (leftMiddle.length === 0 && rightMiddle.length === 0) {
+    return NO_COMPARISON;
+  }
 
   const leftStart = measure(left.slice(0, prefix));
   const rightStart = measure(right.slice(0, prefix));
@@ -115,7 +139,9 @@ function compareTokenRuns(
   }
 
   const shared = findSharedTokens(leftMiddle, rightMiddle);
-  if (shared === undefined) return NO_COMPARISON;
+  if (shared === undefined) {
+    return NO_COMPARISON;
+  }
 
   return {
     emphasis: {
@@ -143,7 +169,9 @@ function measureUnshared(
 ): number {
   let units = 0;
   tokens.forEach((token, position) => {
-    if (!shared.has(position)) units += token.length;
+    if (!shared.has(position)) {
+      units += token.length;
+    }
   });
 
   return units;
@@ -195,7 +223,9 @@ function measureUnits(
   to: number,
 ): number {
   let units = 0;
-  for (let at = from; at < to; at += 1) units += points[at]?.length ?? 0;
+  for (let at = from; at < to; at += 1) {
+    units += points[at]?.length ?? 0;
+  }
   return units;
 }
 
@@ -213,7 +243,9 @@ function findSharedTokens(
   left: readonly string[],
   right: readonly string[],
 ): SharedTokens | undefined {
-  if (left.length * right.length > LCS_CELL_CAP) return undefined;
+  if (left.length * right.length > LCS_CELL_CAP) {
+    return undefined;
+  }
   const shared: SharedTokens = { left: new Set(), right: new Set() };
 
   const width = right.length + 1;
@@ -241,8 +273,11 @@ function findSharedTokens(
     }
     const down = table[(row + 1) * width + column] ?? 0;
     const across = table[row * width + column + 1] ?? 0;
-    if (down >= across) row += 1;
-    else column += 1;
+    if (down >= across) {
+      row += 1;
+    } else {
+      column += 1;
+    }
   }
 
   return shared;
@@ -264,8 +299,11 @@ function collectChangedRanges(
     if (!shared.has(position) && token.length > 0) {
       const touches =
         open !== undefined && (open.to === offset || bridge === offset);
-      if (touches && open !== undefined) open.to = end;
-      else ranges.push({ from: offset, to: end });
+      if (touches && open !== undefined) {
+        open.to = end;
+      } else {
+        ranges.push({ from: offset, to: end });
+      }
       bridge = undefined;
     } else if (open?.to === offset && isBridgeToken(token)) {
       bridge = end;
@@ -290,7 +328,9 @@ function isBridgeToken(token: string): boolean {
 }
 
 function isMostOfLine(changed: number, text: string): boolean {
-  if (changed === 0 || text.length === 0) return false;
+  if (changed === 0 || text.length === 0) {
+    return false;
+  }
 
   return changed / text.length > INTRA_LINE_EMPHASIS_SHARE;
 }
@@ -301,7 +341,9 @@ function countCommonPrefix(
 ): number {
   const limit = Math.min(left.length, right.length);
   let count = 0;
-  while (count < limit && left[count] === right[count]) count += 1;
+  while (count < limit && left[count] === right[count]) {
+    count += 1;
+  }
 
   return count;
 }

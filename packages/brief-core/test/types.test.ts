@@ -90,10 +90,12 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(withNotes).success).toBe(true);
   });
 
-  it("accepts a chunk without riskNotes (field optional; old artifacts parse)", () => {
+  it("accepts a chunk without riskNotes, so old artifacts parse", () => {
     const parsed = BriefSchema.safeParse(structuredClone(validBrief));
     expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      return;
+    }
     expect(parsed.data.chunks[0].riskNotes).toBeUndefined();
   });
 
@@ -118,7 +120,7 @@ describe("BriefSchema", () => {
     };
     expect(BriefSchema.safeParse(restart).success).toBe(true);
 
-    // Pre-feature briefs have no anchor — the read path must keep parsing.
+    // Pre-feature briefs have no anchor; the read path must keep parsing.
     expect(BriefSchema.safeParse(structuredClone(validBrief)).success).toBe(
       true,
     );
@@ -152,7 +154,7 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(withoutOrder).success).toBe(true);
   });
 
-  it("rejects a malformed readingOrder step (missing why)", () => {
+  it("rejects a readingOrder step missing why", () => {
     const bad = {
       ...structuredClone(validBrief),
       readingOrder: [{ groupId: "g1" }],
@@ -160,7 +162,7 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("rejects a readingOrder step with an unexpected field shape (why not a string)", () => {
+  it("rejects a readingOrder step whose why is not a string", () => {
     const bad = {
       ...structuredClone(validBrief),
       readingOrder: [{ groupId: "g1", why: 123 }],
@@ -275,7 +277,7 @@ describe("RevisionNarrativeSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects an invented top-level field (e.g. the excluded Delta-only wholePrImpact)", () => {
+  it("rejects an invented field such as the Delta-only wholePrImpact", () => {
     const bad = {
       ...structuredClone(validRevisionNarrative),
       wholePrImpact: "sneaked in",
@@ -309,7 +311,9 @@ describe("ReviewCommentSchema", () => {
     });
 
     expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      return;
+    }
     expect(parsed.data.startLine).toBe(10);
     expect(parsed.data.originalStartLine).toBe(8);
   });
@@ -404,7 +408,7 @@ const validIntentCheck = {
 
 /**
  * The GENERATION shape of the same check: one tagged `items` array. Five bucket
- * arrays cannot compile into the grammar at any field count —
+ * arrays cannot compile into the grammar at any field count;
  * `fanOutIntentCheck` converts this to the stored shape above.
  */
 const validGenerationIntentCheck = {
@@ -454,7 +458,7 @@ describe("IntentCheckSchema", () => {
     }
   });
 
-  it("requires the alarm buckets (no optionals — strict structured output)", () => {
+  it("requires the alarm buckets; strict structured output has no optionals", () => {
     const { deviations: _d, ...noDeviations } =
       structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noDeviations).success).toBe(false);
@@ -463,7 +467,7 @@ describe("IntentCheckSchema", () => {
     expect(IntentCheckSchema.safeParse(noClaimed).success).toBe(false);
   });
 
-  it("requires acknowledged on every bucket's items (one shared shape — grammar budget)", () => {
+  it("requires acknowledged on every bucket's items, one shared shape", () => {
     const bad = structuredClone(validIntentCheck);
     const target: Partial<(typeof bad.accomplished)[number]> =
       bad.accomplished[0];
@@ -476,7 +480,7 @@ describe("IntentCheckSchema", () => {
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("rejects a stated ask missing its quote (no optionals — strict structured output)", () => {
+  it("rejects a stated ask missing its quote; strict output has no optionals", () => {
     const bad = structuredClone(validIntentCheck);
     const target: Partial<(typeof bad.statedButMissing)[number]> =
       bad.statedButMissing[0];
@@ -484,7 +488,7 @@ describe("IntentCheckSchema", () => {
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("requires groupIds on BOTH stated-side buckets (one shared shape — grammar budget)", () => {
+  it("requires groupIds on BOTH stated-side buckets, one shared shape", () => {
     const noAccomplishedIds = structuredClone(validIntentCheck);
     const accomplished: Partial<
       (typeof noAccomplishedIds.accomplished)[number]
@@ -499,14 +503,16 @@ describe("IntentCheckSchema", () => {
     expect(IntentCheckSchema.safeParse(noMissingIds).success).toBe(false);
   });
 
-  it("defaults ticketTitles to [] on a legacy stored check (pre-title artifacts)", () => {
-    // validIntentCheck deliberately carries no ticketTitles — it doubles as
+  it("defaults ticketTitles to [] on a legacy stored check", () => {
+    // validIntentCheck deliberately carries no ticketTitles; it doubles as
     // the legacy-artifact fixture.
     const legacy = IntentCheckSchema.safeParse(
       structuredClone(validIntentCheck),
     );
     expect(legacy.success).toBe(true);
-    if (!legacy.success) return;
+    if (!legacy.success) {
+      return;
+    }
     expect(legacy.data.ticketTitles).toEqual([]);
   });
 
@@ -516,15 +522,17 @@ describe("IntentCheckSchema", () => {
       ticketTitles: ["Widget endpoint returns the list"],
     });
     expect(titled.success).toBe(true);
-    if (!titled.success) return;
+    if (!titled.success) {
+      return;
+    }
     expect(titled.data.ticketTitles).toEqual([
       "Widget endpoint returns the list",
     ]);
   });
 
-  it("all five buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
+  it("all five buckets share ONE item shape for the grammar budget", () => {
     // A doneButUnstated item parses with the same fields as a stated ask; the
-    // ticket-side fields must be "" there — enforced by the validator, not the
+    // ticket-side fields must be "" there, enforced by the validator, not the
     // schema, since one shared shape is all the grammar budget allows.
     const parsed = IntentCheckSchema.safeParse({
       ...structuredClone(validIntentCheck),
@@ -539,21 +547,23 @@ describe("IntentCheckSchema", () => {
       ],
     });
     expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      return;
+    }
     expect(
       Object.keys(parsed.data.doneButUnstated[0] ?? {}).toSorted(),
     ).toEqual(["acknowledged", "groupIds", "intent", "quote", "sourceUrl"]);
   });
 });
 
-describe("IntentCheckGenerationSchema (grammar budget)", () => {
+describe("IntentCheckGenerationSchema: grammar budget", () => {
   it("accepts the tagged one-array wire shape", () => {
     expect(
       IntentCheckGenerationSchema.safeParse(validGenerationIntentCheck).success,
     ).toBe(true);
   });
 
-  it("REQUIRES ticketTitles on the wire — strict structured output has no optional fields", () => {
+  it("REQUIRES ticketTitles on the wire, which has no optional fields", () => {
     const bad: Record<string, unknown> = structuredClone(
       validGenerationIntentCheck,
     );
@@ -561,21 +571,23 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
     expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("rejects an item with no bucket tag (the fan-out has nowhere to dispatch it)", () => {
+  it("rejects an item with no bucket tag, which the fan-out cannot dispatch", () => {
     const bad = structuredClone(validGenerationIntentCheck);
     const target: Partial<(typeof bad.items)[number]> = bad.items[0];
     delete target.bucket;
     expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("rejects an out-of-vocabulary bucket tag (closed set)", () => {
+  it("rejects an out-of-vocabulary bucket tag from the closed set", () => {
     const bad = structuredClone(validGenerationIntentCheck);
     const target = bad.items[0];
-    if (target) target.bucket = "invented";
+    if (target) {
+      target.bucket = "invented";
+    }
     expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("carries the five registered bucket names, matching the stored array names", () => {
+  it("carries the five registered bucket names, matching the stored arrays", () => {
     expect([...IntentBuckets]).toEqual([
       "accomplished",
       "statedButMissing",
@@ -597,7 +609,7 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
     expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());
   });
 
-  it("keeps the generation shape leaner than five arrays (the whole point)", () => {
+  it("keeps the generation shape leaner than five arrays", () => {
     // One `$ref` site instead of five. The grammar inlines per site, so this
     // is the property that makes the intent check compile at all.
     const arrayFields = Object.entries(
@@ -611,7 +623,7 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
   });
 });
 
-describe("intentCheck on the brief schemas (back-compat split)", () => {
+describe("intentCheck on the brief schemas: the back-compat split", () => {
   it("BriefGenerationSchema REQUIRES intentCheck", () => {
     const { intentCheck: _dropped, ...withoutIntent } = briefGen([
       "mutates-state",
@@ -625,7 +637,7 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
     ).toBe(true);
   });
 
-  it("BriefSchema (read path) treats intentCheck as optional — pre-feature briefs parse", () => {
+  it("BriefSchema read path treats intentCheck as optional for old briefs", () => {
     expect(BriefSchema.safeParse(validBrief).success).toBe(true);
     const withIntent = {
       ...structuredClone(validBrief),
@@ -633,7 +645,9 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
     };
     const parsed = BriefSchema.safeParse(withIntent);
     expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      return;
+    }
     expect(parsed.data.intentCheck?.specificity).toBe("precise");
   });
 
@@ -643,9 +657,11 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
       intentCheck: validIntentCheck,
     });
     expect(delta.success).toBe(true);
-    if (!delta.success) return;
+    if (!delta.success) {
+      return;
+    }
     expect("intentCheck" in delta.data).toBe(false);
-    // RevisionNarrativeSchema is .strict() — an invented intentCheck hard-fails.
+    // RevisionNarrativeSchema is .strict(); an invented intentCheck hard-fails.
     const narrative = RevisionNarrativeSchema.safeParse({
       ...structuredClone(validRevisionNarrative),
       intentCheck: validIntentCheck,
@@ -653,13 +669,13 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
     expect(narrative.success).toBe(false);
   });
 
-  it("emits the specificity enum in the enum-preserving json_schema wire form", () => {
+  it("emits the specificity enum in the enum-preserving json_schema", () => {
     const wire = JSON.stringify(
       enumPreservingJsonSchema(BriefGenerationSchema),
     );
     expect(wire).toContain('"precise"');
     expect(wire).toContain('"broad"');
-    // "none" is a common word — assert the full enum array to be safe.
+    // "none" is a common word; assert the full enum array to be safe.
     expect(wire.replace(/\s/g, "")).toContain(
       '"enum":["precise","broad","none"]',
     );
@@ -675,7 +691,7 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
       `"enum":[${IntentBuckets.map((b) => `"${b}"`).join(",")}]`,
     );
     expect(wire).toContain('"items"');
-    // The five stored bucket arrays must NOT appear as generation properties —
+    // The five stored bucket arrays must NOT appear as generation properties;
     // five array `$ref` sites is exactly what blows the grammar budget.
     for (const bucket of IntentBuckets) {
       expect(wire).not.toContain(`"${bucket}":{"type":"array"`);
@@ -683,7 +699,7 @@ describe("intentCheck on the brief schemas (back-compat split)", () => {
   });
 });
 
-describe("briefGenerationSchemaWith (per-generation vocabulary)", () => {
+describe("briefGenerationSchemaWith: per-generation vocabulary", () => {
   it("returns the exact static schema when no custom names exist", () => {
     expect(briefGenerationSchemaWith([])).toBe(BriefGenerationSchema);
   });
@@ -696,16 +712,16 @@ describe("briefGenerationSchemaWith (per-generation vocabulary)", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects a token that is neither built-in nor injected (closed vocabulary holds)", () => {
+  it("rejects a token that is neither built-in nor injected", () => {
     const schema = briefGenerationSchemaWith(["touches-billing"]);
     expect(schema.safeParse(briefGen(["not-a-thing"])).success).toBe(false);
-    // The static schema rejects the custom name too — the extension is per-generation.
+    // The static schema rejects the custom name too; the extension is per-generation.
     expect(
       BriefGenerationSchema.safeParse(briefGen(["touches-billing"])).success,
     ).toBe(false);
   });
 
-  it("carries injected names into the enum-preserving json_schema (server-side enforcement)", () => {
+  it("carries injected names into the enum-preserving json_schema", () => {
     const wire = JSON.stringify(
       enumPreservingJsonSchema(briefGenerationSchemaWith(["touches-billing"])),
     );

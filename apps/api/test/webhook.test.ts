@@ -113,10 +113,15 @@ function pullRequestPayload(input: {
         : { login: input.authorLogin ?? "author-octocat" },
   };
 
-  if (input.merged !== undefined) pullRequest["merged"] = input.merged;
-  if (input.updatedAt !== undefined)
+  if (input.merged !== undefined) {
+    pullRequest["merged"] = input.merged;
+  }
+  if (input.updatedAt !== undefined) {
     pullRequest["updated_at"] = input.updatedAt;
-  if (input.closedAt !== undefined) pullRequest["closed_at"] = input.closedAt;
+  }
+  if (input.closedAt !== undefined) {
+    pullRequest["closed_at"] = input.closedAt;
+  }
 
   const payload: Record<string, unknown> = {
     action: input.action,
@@ -125,7 +130,9 @@ function pullRequestPayload(input: {
     repository: { id: input.repoId ?? REPO_ID, full_name: "acme/widgets" },
     pull_request: pullRequest,
   };
-  if (input.changes !== undefined) payload["changes"] = input.changes;
+  if (input.changes !== undefined) {
+    payload["changes"] = input.changes;
+  }
 
   return payload;
 }
@@ -747,7 +754,9 @@ describe("POST /api/webhooks/github", () => {
       );
       expect(rows).toHaveLength(1);
       const row = rows[0];
-      if (row === undefined) throw new Error("unreachable");
+      if (row === undefined) {
+        throw new Error("unreachable");
+      }
       return row;
     }
 
@@ -1022,7 +1031,9 @@ describe("POST /api/webhooks/github", () => {
       );
       const prs = await harness.raw("select id from pull_request");
       const pullRequestId = BigInt(String(prs[0]?.["id"]));
-      if (!isPullRequestRowId(pullRequestId)) throw new Error("bad pr id");
+      if (!isPullRequestRowId(pullRequestId)) {
+        throw new Error("bad pr id");
+      }
       const ctx = parseTenantContext({ installationId: INSTALLATION_ID });
       const written = await createArtifactStore(
         harness.handle,
@@ -1038,7 +1049,9 @@ describe("POST /api/webhooks/github", () => {
         effort: "low",
         body: "{}",
       });
-      if (!written.ok) throw new Error(written.error.message);
+      if (!written.ok) {
+        throw new Error(written.error.message);
+      }
       await harness.raw("update generation set status = 'succeeded'");
       await harness.raw("delete from graphile_worker.jobs");
     }

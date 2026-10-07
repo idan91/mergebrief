@@ -53,7 +53,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 
@@ -262,7 +264,9 @@ async function seedBrief(
     effort: "e",
     body,
   });
-  if (!written.ok) throw new Error("brief seed failed");
+  if (!written.ok) {
+    throw new Error("brief seed failed");
+  }
 }
 
 async function recordStack(
@@ -277,7 +281,9 @@ async function recordStack(
     handle,
     ctx,
   ).pullRequests.recordStack(pullRequestId, { stack, readAt: new Date() });
-  if (!written.ok) throw new Error(written.error.message);
+  if (!written.ok) {
+    throw new Error(written.error.message);
+  }
 }
 
 const unusedConversationPort = {
@@ -342,7 +348,9 @@ describe("GET /api/inbox", () => {
 
   async function readBody(res: Response): Promise<InboxBody> {
     const body: unknown = await res.json();
-    if (typeof body !== "object" || body === null) throw new Error("no body");
+    if (typeof body !== "object" || body === null) {
+      throw new Error("no body");
+    }
     return body as InboxBody;
   }
 

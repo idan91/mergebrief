@@ -75,7 +75,9 @@ type ZodIssue = z.ZodError["issues"][number];
 function describeIssue(issue: ZodIssue): string {
   const path = issue.path
     .map((segment) => {
-      if (typeof segment === "string") return renderKey(segment);
+      if (typeof segment === "string") {
+        return renderKey(segment);
+      }
       return String(segment);
     })
     .join(".");
@@ -104,7 +106,9 @@ export function validateContextSourcesBlock(
   block: unknown,
 ): Result<ContextSourcesConfig, ConfigError> {
   const parsed = ContextSourcesConfigSchema.safeParse(block);
-  if (parsed.success) return { ok: true, value: parsed.data };
+  if (parsed.success) {
+    return { ok: true, value: parsed.data };
+  }
 
   const issues = parsed.error.issues.map((issue) => {
     if (issue.code !== "invalid_union" || !Array.isArray(block)) {

@@ -91,8 +91,12 @@ export function canTokenizeChunks(): boolean {
 }
 
 export function getDiffTokenWorker(): DiffTokenWorkerHandle {
-  if (typeof Worker === "undefined") return undefined;
-  if (workerFailed) return undefined;
+  if (typeof Worker === "undefined") {
+    return undefined;
+  }
+  if (workerFailed) {
+    return undefined;
+  }
 
   workerHandle ??= startWorker();
 
@@ -116,7 +120,9 @@ export function warmDiffTokenWorker(
   }
 
   const worker = getDiffTokenWorker();
-  if (worker === undefined) return;
+  if (worker === undefined) {
+    return;
+  }
 
   const message: WarmRequest = {
     kind: TokenMessageKinds.WARM,
@@ -146,7 +152,9 @@ export function requestChunkTokens(
 }
 
 function shapeChunkSourceId(request: ChunkTokensRequest): string {
-  if (request.expansionKey === undefined) return request.chunkId;
+  if (request.expansionKey === undefined) {
+    return request.chunkId;
+  }
 
   return `${request.chunkId}@${request.expansionKey}`;
 }
@@ -172,20 +180,30 @@ export function requestSnippetTokens(
 function requestTokens(request: TokenRequest): ChunkTokensHandle {
   const cacheKey = buildCacheKey(request);
   const settled = settledResults.get(cacheKey);
-  if (settled !== undefined) return shapeSettledHandle(settled.result);
+  if (settled !== undefined) {
+    return shapeSettledHandle(settled.result);
+  }
 
   const grammar = resolveGrammar(request.filePath);
-  if (grammar === undefined) return shapeSettledHandle(PLAIN_RESULT);
+  if (grammar === undefined) {
+    return shapeSettledHandle(PLAIN_RESULT);
+  }
 
   const withinCeiling = isChunkTokenizable(request.rows.length);
   const admitted = request.admitted.has(grammar);
-  if (!withinCeiling || !admitted) return shapeSettledHandle(PLAIN_RESULT);
+  if (!withinCeiling || !admitted) {
+    return shapeSettledHandle(PLAIN_RESULT);
+  }
 
   const worker = getDiffTokenWorker();
-  if (worker === undefined) return shapeSettledHandle(PLAIN_RESULT);
+  if (worker === undefined) {
+    return shapeSettledHandle(PLAIN_RESULT);
+  }
 
   const running = recordsBySource.get(cacheKey);
-  if (running !== undefined) return joinRecord(running);
+  if (running !== undefined) {
+    return joinRecord(running);
+  }
 
   return startRecord(worker, request, cacheKey, grammar);
 }
@@ -198,8 +216,12 @@ export function planBriefGrammars(
 
   for (const chunk of chunks) {
     const grammar = resolveGrammar(chunk.file);
-    if (grammar === undefined) continue;
-    if (!isChunkTokenizable(chunk.rowCount)) continue;
+    if (grammar === undefined) {
+      continue;
+    }
+    if (!isChunkTokenizable(chunk.rowCount)) {
+      continue;
+    }
 
     files.push({ grammar, rowCount: chunk.rowCount });
   }
@@ -246,15 +268,23 @@ function evictOtherBriefs(briefKey: string): void {
 
   const staleResults: string[] = [];
   for (const [key, entry] of settledResults) {
-    if (entry.briefKey !== briefKey) staleResults.push(key);
+    if (entry.briefKey !== briefKey) {
+      staleResults.push(key);
+    }
   }
-  for (const key of staleResults) settledResults.delete(key);
+  for (const key of staleResults) {
+    settledResults.delete(key);
+  }
 
   const staleRecords: ChunkRequestRecord[] = [];
   for (const record of recordsBySource.values()) {
-    if (record.briefKey !== briefKey) staleRecords.push(record);
+    if (record.briefKey !== briefKey) {
+      staleRecords.push(record);
+    }
   }
-  for (const record of staleRecords) releaseRecord(record, record.waiters);
+  for (const record of staleRecords) {
+    releaseRecord(record, record.waiters);
+  }
 }
 
 function startRecord(
@@ -301,8 +331,12 @@ function noSettle(): void {}
 
 function releaseRecord(record: ChunkRequestRecord, released = 1): void {
   record.waiters -= released;
-  if (record.waiters > 0) return;
-  if (recordsByRequest.get(record.requestId) !== record) return;
+  if (record.waiters > 0) {
+    return;
+  }
+  if (recordsByRequest.get(record.requestId) !== record) {
+    return;
+  }
 
   forgetRecord(record);
   record.settle(CANCELLED_RESULT);
@@ -351,7 +385,9 @@ function receiveReply(data: unknown): void {
   }
 
   const record = recordsByRequest.get(envelope.data.requestId);
-  if (record === undefined) return;
+  if (record === undefined) {
+    return;
+  }
 
   forgetRecord(record);
   const result = shapeResult(envelope.data, data);
@@ -368,7 +404,9 @@ function receiveReply(data: unknown): void {
 const TOKENIZE_MEASURE = "diff-tokens:tokenize";
 
 function clearTokenizeMeasures(): void {
-  if (typeof performance.clearMeasures !== "function") return;
+  if (typeof performance.clearMeasures !== "function") {
+    return;
+  }
 
   performance.clearMeasures(TOKENIZE_MEASURE);
 }
@@ -376,8 +414,12 @@ function clearTokenizeMeasures(): void {
 // Performance entries are the one channel the perf harness can read a
 // worker-side duration through; a runtime without measure() skips them.
 function recordTokenTiming(reply: ReplyEnvelope): void {
-  if (reply.kind !== TokenMessageKinds.TOKENS) return;
-  if (typeof performance.measure !== "function") return;
+  if (reply.kind !== TokenMessageKinds.TOKENS) {
+    return;
+  }
+  if (typeof performance.measure !== "function") {
+    return;
+  }
 
   performance.measure(TOKENIZE_MEASURE, {
     start: performance.now() - reply.tokenizeMs,
@@ -391,7 +433,9 @@ function recordTokenTiming(reply: ReplyEnvelope): void {
  * it spares the worker a request that would fail the same way.
  */
 function isWorthCaching(result: ChunkTokensResult): boolean {
-  if (result.status !== ChunkTokenStatuses.FAILED) return true;
+  if (result.status !== ChunkTokenStatuses.FAILED) {
+    return true;
+  }
 
   return result.reason !== TokenFailureReasons.GRAMMAR_LOAD;
 }
@@ -443,7 +487,9 @@ function shapeResult(
 // walking every token here would cost the main thread more than the worker
 // saved it.
 function readRowTokenEntries(data: unknown): RowTokenEntry[] | undefined {
-  if (typeof data !== "object" || data === null) return undefined;
+  if (typeof data !== "object" || data === null) {
+    return undefined;
+  }
 
   const entries: unknown = Object.getOwnPropertyDescriptor(
     data,
@@ -454,7 +500,9 @@ function readRowTokenEntries(data: unknown): RowTokenEntry[] | undefined {
 }
 
 function isRowTokenEntries(value: unknown): value is RowTokenEntry[] {
-  if (!Array.isArray(value)) return false;
+  if (!Array.isArray(value)) {
+    return false;
+  }
 
   // Every pair's shape, not the first alone: one bad row otherwise caches as
   // READY and throws at paint. The tokens inside a pair stay untyped, which
@@ -472,8 +520,12 @@ function isRowTokenEntry(value: unknown): value is RowTokenEntry {
 
 function shapeTokenizableRow(row: DiffLine): TokenizableRow {
   const shaped: TokenizableRow = { kind: row.kind, content: row.content };
-  if (row.oldLine !== undefined) shaped.oldLine = row.oldLine;
-  if (row.newLine !== undefined) shaped.newLine = row.newLine;
+  if (row.oldLine !== undefined) {
+    shaped.oldLine = row.oldLine;
+  }
+  if (row.newLine !== undefined) {
+    shaped.newLine = row.newLine;
+  }
 
   return shaped;
 }

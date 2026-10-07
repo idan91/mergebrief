@@ -127,7 +127,9 @@ export async function getRepoFile(
       path: input.path,
     };
 
-    if (input.ref !== undefined) params.ref = input.ref;
+    if (input.ref !== undefined) {
+      params.ref = input.ref;
+    }
 
     const response = await octokit.request(
       "GET /repos/{owner}/{repo}/contents/{path}",

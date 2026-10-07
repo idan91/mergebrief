@@ -45,7 +45,9 @@ export const testTitle = {
     return {
       CallExpression(node) {
         const found = readTestTitle(node);
-        if (found === undefined) return;
+        if (found === undefined) {
+          return;
+        }
         if (found.title.length > maxLength) {
           context.report({
             node: found.node,

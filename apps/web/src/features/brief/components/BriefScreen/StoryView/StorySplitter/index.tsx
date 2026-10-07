@@ -26,7 +26,9 @@ export function StorySplitter({
   const { t } = useTranslation();
   const splitter = useStorySplitterFacade({ sidebar, setTrack, resetTrack });
 
-  if (splitter.stacked) return null;
+  if (splitter.stacked) {
+    return null;
+  }
 
   const valueText = t("brief.story.splitterValueText", {
     width: splitter.cardWidth,

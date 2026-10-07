@@ -52,7 +52,9 @@ export function useInboxSearchState(
       : readLastPage(total, pageSize);
   const pastTheEnd = lastPage !== undefined && choices.page > lastPage;
   useEffect(() => {
-    if (!pastTheEnd || lastPage === undefined) return;
+    if (!pastTheEnd || lastPage === undefined) {
+      return;
+    }
     void navigate({
       to: HOME_PATH,
       replace: true,

@@ -304,9 +304,13 @@ describe("DiffTable revision rail callout", () => {
     const [first, second] = view.container.querySelectorAll(
       'tbody td[data-rev="added"]',
     );
-    if (!first || !second) throw new Error("expected two rail cells");
+    if (!first || !second) {
+      throw new Error("expected two rail cells");
+    }
     const jump = view.container.querySelector("[data-jump-target]");
-    if (!jump) throw new Error("expected the rail jump button");
+    if (!jump) {
+      throw new Error("expected the rail jump button");
+    }
 
     fireEvent.focus(jump);
     fireEvent.mouseEnter(second);
@@ -336,9 +340,13 @@ describe("DiffTable revision rail callout", () => {
       },
     });
     const [first, second] = commentableRows(view.container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     const jump = view.container.querySelector("[data-jump-target]");
-    if (!jump) throw new Error("expected the rail jump button");
+    if (!jump) {
+      throw new Error("expected the rail jump button");
+    }
 
     fireEvent.mouseDown(findNumberCell(second));
     fireEvent.mouseEnter(first);
@@ -371,7 +379,9 @@ describe("DiffTable revision rail callout", () => {
       },
     });
     const jump = view.container.querySelector("[data-jump-target]");
-    if (!jump) throw new Error("expected the rail jump button");
+    if (!jump) {
+      throw new Error("expected the rail jump button");
+    }
 
     fireEvent.keyDown(jump, { key: " " });
     fireEvent.keyDown(jump, { key: "Enter" });
@@ -532,7 +542,9 @@ describe("DiffTable read-only comment affordances", () => {
       { posture: { composerDisabledReason: REASON } },
     );
     const row = view.container.querySelector('tr[aria-disabled="true"]');
-    if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
+    if (!(row instanceof HTMLElement)) {
+      throw new Error("expected a diff row");
+    }
     fireEvent.keyDown(row, { key: "Enter" });
     fireEvent.mouseDown(row);
     fireEvent.mouseUp(row);
@@ -556,7 +568,9 @@ describe("DiffTable read-only comment affordances", () => {
     const { view, openCommentComposer } = renderTable({ chunk: expanded });
     const rows = view.container.querySelectorAll("tbody tr");
     const row = rows[0];
-    if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
+    if (!(row instanceof HTMLElement)) {
+      throw new Error("expected a diff row");
+    }
 
     expect(row.getAttribute("data-commentable")).toBeNull();
     expect(row.getAttribute("aria-describedby")).toBeNull();
@@ -570,7 +584,9 @@ describe("DiffTable read-only comment affordances", () => {
   it("stays writable when no reason is given", () => {
     const { view, openCommentComposer } = renderTable();
     const row = view.container.querySelector("tr[data-commentable]");
-    if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
+    if (!(row instanceof HTMLElement)) {
+      throw new Error("expected a diff row");
+    }
     expect(row.getAttribute("aria-disabled")).toBeNull();
     fireEvent.keyDown(row, { key: "Enter" });
     expect(openCommentComposer).toHaveBeenCalled();
@@ -600,7 +616,9 @@ describe("DiffTable selectable code text", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findSignSpan(first));
     fireEvent.mouseEnter(second);
     // Both rows show the drag highlight while anchoring.
@@ -615,7 +633,9 @@ describe("DiffTable selectable code text", () => {
       openCommentComposer,
     } = renderTable();
     const [first] = commentableRows(container);
-    if (!first) throw new Error("expected a diff row");
+    if (!first) {
+      throw new Error("expected a diff row");
+    }
     fireEvent.mouseDown(findSignSpan(first));
     fireEvent.mouseUp(first);
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
@@ -627,9 +647,13 @@ describe("DiffTable selectable code text", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     const code = first.querySelector("td:last-child");
-    if (!(code instanceof HTMLElement)) throw new Error("expected a code cell");
+    if (!(code instanceof HTMLElement)) {
+      throw new Error("expected a code cell");
+    }
     fireEvent.mouseDown(code);
     fireEvent.mouseEnter(second);
     expect(container.querySelector("tr[data-selected]")).toBeNull();
@@ -678,13 +702,17 @@ describe("DiffTable selectable code text", () => {
 
 function findNumberCell(row: HTMLElement): HTMLElement {
   const cell = row.querySelector("[data-select-anchor]");
-  if (!(cell instanceof HTMLElement)) throw new Error("expected a number cell");
+  if (!(cell instanceof HTMLElement)) {
+    throw new Error("expected a number cell");
+  }
   return cell;
 }
 
 function findSignSpan(row: HTMLElement): HTMLElement {
   const sign = row.querySelector("[data-comment-anchor]");
-  if (!(sign instanceof HTMLElement)) throw new Error("expected a sign");
+  if (!(sign instanceof HTMLElement)) {
+    throw new Error("expected a sign");
+  }
   return sign;
 }
 
@@ -710,7 +738,9 @@ describe("DiffTable line selection", () => {
       ],
     });
     const [, second] = commentableRows(container);
-    if (!second) throw new Error("expected two diff rows");
+    if (!second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(second));
     fireEvent.mouseUp(second);
 
@@ -726,7 +756,9 @@ describe("DiffTable line selection", () => {
     } = renderTable({ chunk: splitChunk() });
     const rows = commentableRows(container);
     const [ctx, del, add] = rows;
-    if (!ctx || !del || !add) throw new Error("expected three diff rows");
+    if (!ctx || !del || !add) {
+      throw new Error("expected three diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(ctx));
     fireEvent.mouseEnter(add);
     fireEvent.mouseUp(add);
@@ -754,7 +786,9 @@ describe("DiffTable line selection", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -775,7 +809,9 @@ describe("DiffTable line selection", () => {
       openCommentComposer,
     } = renderTable();
     const [, second] = commentableRows(container);
-    if (!second) throw new Error("expected two diff rows");
+    if (!second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(second));
     fireEvent.mouseUp(second);
 
@@ -797,7 +833,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -815,7 +853,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     fireEvent.mouseDown(findNumberCell(second), { shiftKey: true });
@@ -832,7 +872,9 @@ describe("DiffTable line selection", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -852,7 +894,9 @@ describe("DiffTable line selection", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     fireEvent.mouseDown(findSignSpan(second));
@@ -870,7 +914,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first] = commentableRows(container);
-    if (!first) throw new Error("expected a diff row");
+    if (!first) {
+      throw new Error("expected a diff row");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     first.focus();
@@ -887,11 +933,15 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     const code = second.querySelector("td:last-child");
-    if (!(code instanceof HTMLElement)) throw new Error("expected a code cell");
+    if (!(code instanceof HTMLElement)) {
+      throw new Error("expected a code cell");
+    }
     fireEvent.mouseDown(code);
 
     expect(flowStore.getState().lineSelection).toBeNull();
@@ -903,7 +953,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.keyDown(first, { key: " " });
     expect(flowStore.getState().lineSelection).toMatchObject({
       startLine: 9,
@@ -922,7 +974,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     const anchor = createCommentAnchor(
@@ -931,7 +985,9 @@ describe("DiffTable line selection", () => {
       chunk().diff ?? [],
       [1],
     );
-    if (anchor === null) throw new Error("expected an anchor");
+    if (anchor === null) {
+      throw new Error("expected an anchor");
+    }
     act(() => flowStore.getState().actions.openComposer(anchor, undefined));
 
     expect(first.hasAttribute("data-selected")).toBe(false);
@@ -969,7 +1025,9 @@ describe("DiffTable line selection", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -977,7 +1035,9 @@ describe("DiffTable line selection", () => {
     const glyph = container.querySelector(
       '[data-testid="line-link-button"] button',
     );
-    if (!(glyph instanceof HTMLElement)) throw new Error("expected the glyph");
+    if (!(glyph instanceof HTMLElement)) {
+      throw new Error("expected the glyph");
+    }
 
     fireEvent.keyDown(glyph, { key: "Enter" });
     fireEvent.keyDown(glyph, { key: " " });
@@ -994,7 +1054,9 @@ describe("DiffTable line selection", () => {
       container.querySelector('[data-testid="line-link-button"]'),
     ).toBeNull();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -1022,7 +1084,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseEnter(second);
     fireEvent.mouseUp(second);
@@ -1050,7 +1114,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    if (!first || !second) throw new Error("expected two diff rows");
+    if (!first || !second) {
+      throw new Error("expected two diff rows");
+    }
     fireEvent.mouseDown(findNumberCell(first));
     fireEvent.mouseUp(first);
     const anchor = createCommentAnchor(
@@ -1059,7 +1125,9 @@ describe("DiffTable line selection", () => {
       chunk().diff ?? [],
       [1],
     );
-    if (anchor === null) throw new Error("expected an anchor");
+    if (anchor === null) {
+      throw new Error("expected an anchor");
+    }
     act(() => flowStore.getState().actions.openComposer(anchor, undefined));
 
     expect(
@@ -1085,7 +1153,9 @@ describe("DiffTable line selection", () => {
       flowStore,
     } = renderTable({}, { posture: { composerDisabledReason: "Read-only." } });
     const row = container.querySelector("tr[data-line-kind='add']");
-    if (!(row instanceof HTMLElement)) throw new Error("expected a row");
+    if (!(row instanceof HTMLElement)) {
+      throw new Error("expected a row");
+    }
     fireEvent.mouseDown(findNumberCell(row));
     fireEvent.mouseUp(row);
 
@@ -1185,7 +1255,9 @@ describe("DiffTable split selection", () => {
       'td[data-side="right"][data-line-number]',
     );
     const last = numbers[numbers.length - 1];
-    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    if (!(last instanceof HTMLElement)) {
+      throw new Error("expected a last cell");
+    }
     fireEvent.mouseDown(first.number);
     fireEvent.mouseUp(first.number);
     fireEvent.mouseDown(last, { shiftKey: true });
@@ -1210,7 +1282,9 @@ describe("DiffTable split selection", () => {
       'td[data-side="right"][data-line-number]',
     );
     const last = numbers[numbers.length - 1];
-    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    if (!(last instanceof HTMLElement)) {
+      throw new Error("expected a last cell");
+    }
     fireEvent.mouseDown(first.number);
     fireEvent.mouseEnter(last);
     fireEvent.mouseUp(last);
@@ -1258,7 +1332,9 @@ describe("DiffTable split selection", () => {
       'td[data-side="right"] [data-comment-anchor]',
     );
     const last = rows[rows.length - 1];
-    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    if (!(last instanceof HTMLElement)) {
+      throw new Error("expected a last cell");
+    }
     fireEvent.mouseDown(first.sign);
     fireEvent.mouseEnter(last);
     expect(
@@ -1349,7 +1425,9 @@ describe("DiffTable split selection", () => {
     );
     const first = numbers[0];
     const last = numbers[numbers.length - 1];
-    if (!first || !last) throw new Error("expected right-side cells");
+    if (!first || !last) {
+      throw new Error("expected right-side cells");
+    }
     fireEvent.mouseDown(first);
     fireEvent.mouseEnter(last);
     expect(container.querySelectorAll("td[data-selected]").length).toBe(0);
@@ -1399,7 +1477,9 @@ describe("DiffTable split selection", () => {
     );
     const first = numbers[1];
     const last = numbers[numbers.length - 1];
-    if (!first || !last) throw new Error("expected number cells");
+    if (!first || !last) {
+      throw new Error("expected number cells");
+    }
     fireEvent.mouseDown(first);
     fireEvent.mouseEnter(last);
     expect(container.querySelectorAll("td[data-selected]").length).toBe(0);

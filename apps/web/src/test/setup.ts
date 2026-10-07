@@ -88,7 +88,9 @@ class MediaQueryListStub extends EventTarget implements MediaQueryList {
 export function setMediaQueryMatches(media: string, matches: boolean): void {
   mediaQueryMatches.set(media, matches);
   for (const list of mediaQueryLists) {
-    if (list.media === media) list.dispatchEvent(new Event("change"));
+    if (list.media === media) {
+      list.dispatchEvent(new Event("change"));
+    }
   }
 }
 

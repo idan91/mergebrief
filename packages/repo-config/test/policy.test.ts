@@ -16,7 +16,7 @@ function validate(content: string) {
 
 const policyOutcome = (content: string) => validate(content).outcomes[2];
 
-describe("policy.yaml — shape and caps", () => {
+describe("policy.yaml shape and caps", () => {
   it("applies a valid policy and exposes surviving attributes", () => {
     const result = validate(
       yaml({
@@ -93,8 +93,9 @@ describe("policy.yaml — shape and caps", () => {
 
   it("accepts the maximum attribute count and rejects one over", () => {
     const attrsAt: Record<string, { criteria: string }> = {};
-    for (let i = 0; i < MAX_CUSTOM_ATTRIBUTES; i += 1)
+    for (let i = 0; i < MAX_CUSTOM_ATTRIBUTES; i += 1) {
       attrsAt[`attr-${i}`] = { criteria: "x" };
+    }
     expect(
       policyOutcome(yaml({ version: 1, attributes: attrsAt }))?.outcome,
     ).toBe(RepoConfigOutcomes.APPLIED);
@@ -125,7 +126,7 @@ describe("policy.yaml — shape and caps", () => {
   });
 });
 
-describe("policy.yaml — attribute name charset (security control)", () => {
+describe("policy.yaml attribute name charset as a security control", () => {
   const cases: Array<[string, string]> = [
     ["uppercase", "TouchesAuth"],
     ["spaces", "has space"],
@@ -156,7 +157,7 @@ describe("policy.yaml — attribute name charset (security control)", () => {
   });
 });
 
-describe("policy.yaml — floor attributes cannot be de-emphasized", () => {
+describe("policy.yaml floor attributes cannot be de-emphasized", () => {
   for (const floor of FLOOR_ATTRIBUTES) {
     it(`invalidates the whole file when de-emphasizing ${floor}`, () => {
       const result = validate(
@@ -172,8 +173,8 @@ describe("policy.yaml — floor attributes cannot be de-emphasized", () => {
   }
 });
 
-describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
-  it("drops a custom name colliding with a built-in attribute, file stays applied", () => {
+describe("policy.yaml collision resolution, where built-in wins with a chip", () => {
+  it("drops a custom name colliding with a built-in, file stays applied", () => {
     const result = validate(
       yaml({
         version: 1,
@@ -196,7 +197,7 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
-  it("drops a custom name colliding with a reserved word (uncertain)", () => {
+  it("drops a custom name colliding with the reserved word uncertain", () => {
     const result = validate(
       yaml({ version: 1, attributes: { uncertain: { criteria: "x" } } }),
     );
@@ -220,7 +221,7 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
   });
 });
 
-describe("policy.yaml — de-emphasis resolution", () => {
+describe("policy.yaml de-emphasis resolution", () => {
   it("keeps a de-emphasis entry targeting a built-in non-floor attribute", () => {
     const result = validate(
       yaml({
@@ -261,7 +262,7 @@ describe("policy.yaml — de-emphasis resolution", () => {
     expect(result.outcomes[2]?.warning).toContain("de-emphasis");
   });
 
-  it("warns and drops a de-emphasis entry targeting a dropped-collision custom name", () => {
+  it("warns and drops a de-emphasis entry naming a dropped collision", () => {
     const result = validate(
       yaml({
         version: 1,

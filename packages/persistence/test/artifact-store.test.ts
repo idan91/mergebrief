@@ -72,8 +72,9 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
     });
 
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok)
+    if (!first.ok || !second.ok) {
       throw new Error("expected both writes to succeed");
+    }
     expect(second.value.id).toBe(first.value.id); // same row
     expect(second.value.body).toBe("v2-longer"); // updated in place
     expect(second.value.byteSize).toBe(Buffer.byteLength("v2-longer", "utf8"));
@@ -108,7 +109,9 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       repoConfig: snapshot,
     });
     expect(withConfig.ok).toBe(true);
-    if (!withConfig.ok) throw new Error("unreachable");
+    if (!withConfig.ok) {
+      throw new Error("unreachable");
+    }
     expect(withConfig.value.repoConfig).toBe(snapshot);
 
     // A rewrite without repoConfig clears it, the column always reflects the
@@ -123,7 +126,9 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       body: "v2",
     });
     expect(without.ok).toBe(true);
-    if (!without.ok) throw new Error("unreachable");
+    if (!without.ok) {
+      throw new Error("unreachable");
+    }
     expect(without.value.repoConfig).toBeNull();
   });
 });
@@ -187,7 +192,9 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       anchorState: "none",
     });
     expect(first.ok).toBe(true);
-    if (!first.ok) throw new Error("unreachable");
+    if (!first.ok) {
+      throw new Error("unreachable");
+    }
     expect(first.value.anchorState).toBe("none");
     expect(first.value.anchorReason).toBeNull();
 
@@ -203,7 +210,9 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       anchorReason: "model-swap",
     });
     expect(second.ok).toBe(true);
-    if (!second.ok) throw new Error("unreachable");
+    if (!second.ok) {
+      throw new Error("unreachable");
+    }
     expect(second.value.anchorState).toBe("fresh-restart");
     expect(second.value.anchorReason).toBe("model-swap");
 
@@ -232,7 +241,9 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       body: "v1",
     });
     expect(written.ok).toBe(true);
-    if (!written.ok) throw new Error("unreachable");
+    if (!written.ok) {
+      throw new Error("unreachable");
+    }
     expect(written.value.anchorState).toBeNull();
     expect(written.value.anchorReason).toBeNull();
   });
@@ -288,7 +299,9 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     };
 
     const legacy = await store.briefs.write({ ...span, body: "v1" });
-    if (!legacy.ok) throw new Error("expected success");
+    if (!legacy.ok) {
+      throw new Error("expected success");
+    }
     expect(legacy.value.carriedChunkIds).toBeNull();
 
     const carried = await store.briefs.write({
@@ -297,7 +310,9 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       anchorState: "anchored",
       carriedChunkIds: ["chunk-a", "chunk-b"],
     });
-    if (!carried.ok) throw new Error("expected success");
+    if (!carried.ok) {
+      throw new Error("expected success");
+    }
     expect(JSON.parse(carried.value.carriedChunkIds ?? "null")).toEqual([
       "chunk-a",
       "chunk-b",
@@ -311,7 +326,9 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       anchorReason: "model-swap",
       carriedChunkIds: [],
     });
-    if (!restarted.ok) throw new Error("expected success");
+    if (!restarted.ok) {
+      throw new Error("expected success");
+    }
     expect(restarted.value.carriedChunkIds).toBe("[]");
 
     // used_group_ids rides the same discipline: omitted → NULL (legacy
@@ -322,7 +339,9 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       body: "v4",
       usedGroupIds: ["g1", "g2"],
     });
-    if (!used.ok) throw new Error("expected success");
+    if (!used.ok) {
+      throw new Error("expected success");
+    }
     expect(JSON.parse(used.value.usedGroupIds ?? "null")).toEqual(["g1", "g2"]);
   });
 });
@@ -354,8 +373,9 @@ describe("createArtifactStore.deltas and diffSnapshots share the discipline", ()
       body: "d2",
     });
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok)
+    if (!first.ok || !second.ok) {
       throw new Error("expected both writes to succeed");
+    }
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.body).toBe("d2");
     expect(second.value.provider).toBe(PROV.provider);
@@ -368,7 +388,9 @@ describe("createArtifactStore.deltas and diffSnapshots share the discipline", ()
       body: "x",
     });
     expect(foreign.ok).toBe(false);
-    if (foreign.ok) throw new Error("expected rejection");
+    if (foreign.ok) {
+      throw new Error("expected rejection");
+    }
     expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
@@ -394,8 +416,9 @@ describe("createArtifactStore.deltas and diffSnapshots share the discipline", ()
       body: "s2",
     });
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok)
+    if (!first.ok || !second.ok) {
       throw new Error("expected both writes to succeed");
+    }
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.body).toBe("s2");
 
@@ -405,7 +428,9 @@ describe("createArtifactStore.deltas and diffSnapshots share the discipline", ()
       body: "x",
     });
     expect(foreign.ok).toBe(false);
-    if (foreign.ok) throw new Error("expected rejection");
+    if (foreign.ok) {
+      throw new Error("expected rejection");
+    }
     expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
 
     const read = await aStore.diffSnapshots.get(pr.id, "chk");
@@ -437,7 +462,9 @@ describe("createArtifactStore rejects a cross-tenant write before the DB", () =>
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
 
     // No row under EITHER tenant.
@@ -469,7 +496,9 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       ...PROV,
       body: "b-brief",
     });
-    if (!bBrief.ok) throw new Error("brief write failed");
+    if (!bBrief.ok) {
+      throw new Error("brief write failed");
+    }
 
     // Tenant A owns its own PR, but points the narrative at B's brief.
     const aPr = await a.pullRequests.upsert({
@@ -487,7 +516,9 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.BRIEF_NOT_ANCHORED);
     expect(
       await aStore.revisionNarratives.get(aPr.id, "prev", "head"),
@@ -512,7 +543,9 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       ...PROV,
       body: "brief",
     });
-    if (!brief.ok) throw new Error("brief write failed");
+    if (!brief.ok) {
+      throw new Error("brief write failed");
+    }
 
     const result = await store.revisionNarratives.write({
       pullRequestId: pr.id,
@@ -523,7 +556,9 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       body: "narrative",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected success");
+    if (!result.ok) {
+      throw new Error("expected success");
+    }
     expect(result.value.briefId).toBe(brief.value.id);
   });
 });
@@ -549,7 +584,9 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     expect(
       await store.comparisonMarks.get(pr.id, "base", "head"),
@@ -582,7 +619,9 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
   });
 
@@ -613,7 +652,9 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
         },
       });
       expect(result.ok).toBe(false);
-      if (result.ok) throw new Error("expected rejection");
+      if (result.ok) {
+        throw new Error("expected rejection");
+      }
       expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     }
   });
@@ -633,7 +674,9 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       marks: validMarks("base", "head"),
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected success");
+    if (!result.ok) {
+      throw new Error("expected success");
+    }
     expect(result.value.baselineSha).toBe("base");
     expect(result.value.headSha).toBe("head");
 
@@ -645,7 +688,9 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       pullRequestId: pr.id,
       marks: validMarks("base", "head"),
     });
-    if (!again.ok) throw new Error("expected success");
+    if (!again.ok) {
+      throw new Error("expected success");
+    }
     expect(again.value.id).toBe(result.value.id);
   });
 });
@@ -673,7 +718,9 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       headSha: "head-2",
       spans: HOP,
     });
-    if (!first.ok) throw new Error("expected success");
+    if (!first.ok) {
+      throw new Error("expected success");
+    }
     expect(JSON.parse(first.value.spans)).toEqual(HOP);
 
     // Same pair rewritten in place; a later pair is a second hop.
@@ -683,7 +730,9 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       headSha: "head-2",
       spans: [],
     });
-    if (!rewritten.ok) throw new Error("expected success");
+    if (!rewritten.ok) {
+      throw new Error("expected success");
+    }
     expect(rewritten.value.id).toBe(first.value.id);
     expect(JSON.parse(rewritten.value.spans)).toEqual([]);
 
@@ -732,7 +781,9 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
@@ -753,7 +804,9 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
     });
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected rejection");
+    if (result.ok) {
+      throw new Error("expected rejection");
+    }
     expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
     expect(
       await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(

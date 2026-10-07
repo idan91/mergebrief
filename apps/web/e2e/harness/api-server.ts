@@ -84,7 +84,9 @@ export async function startApiServer(): Promise<void> {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(`e2e api exited early:\n${log.join("")}`);
     }
-    if (await answersReadyz()) return;
+    if (await answersReadyz()) {
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   child.kill("SIGKILL");

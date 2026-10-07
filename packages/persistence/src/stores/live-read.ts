@@ -132,7 +132,9 @@ export function createLiveReadStore(
         ...buildLifecycleColumns(facts.lifecycle),
         updatedAt: new Date(),
       };
-      if (facts.authorLogin !== undefined) set.authorLogin = facts.authorLogin;
+      if (facts.authorLogin !== undefined) {
+        set.authorLogin = facts.authorLogin;
+      }
       const rows = await db
         .update(pullRequest)
         .set(set)
@@ -141,7 +143,9 @@ export function createLiveReadStore(
         )
         .returning();
       const row = rows[0];
-      if (row === undefined) return refuseNotFound(pullRequestId, scope.label);
+      if (row === undefined) {
+        return refuseNotFound(pullRequestId, scope.label);
+      }
       return { ok: true, value: row };
     },
 
@@ -154,7 +158,9 @@ export function createLiveReadStore(
         )
         .returning();
       const row = rows[0];
-      if (row === undefined) return refuseNotFound(pullRequestId, scope.label);
+      if (row === undefined) {
+        return refuseNotFound(pullRequestId, scope.label);
+      }
       return { ok: true, value: row };
     },
 
@@ -171,7 +177,9 @@ export function createLiveReadStore(
         )
         .returning();
       const row = rows[0];
-      if (row === undefined) return refuseNotFound(pullRequestId, scope.label);
+      if (row === undefined) {
+        return refuseNotFound(pullRequestId, scope.label);
+      }
       return { ok: true, value: row };
     },
   };

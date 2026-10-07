@@ -23,7 +23,9 @@ export interface PagerProps {
 export function Pager({ page, pageSize, total, onPage }: PagerProps) {
   const { t } = useTranslation();
   const last = Math.max(1, Math.ceil(total / pageSize));
-  if (last <= 1) return null;
+  if (last <= 1) {
+    return null;
+  }
 
   const first = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -32,11 +34,15 @@ export function Pager({ page, pageSize, total, onPage }: PagerProps) {
   const atLast = page === last;
 
   function stepBack(): void {
-    if (!atFirst) onPage((current) => Math.max(1, current - 1));
+    if (!atFirst) {
+      onPage((current) => Math.max(1, current - 1));
+    }
   }
 
   function stepForward(): void {
-    if (!atLast) onPage((current) => Math.min(last, current + 1));
+    if (!atLast) {
+      onPage((current) => Math.min(last, current + 1));
+    }
   }
 
   return (

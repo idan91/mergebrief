@@ -21,7 +21,9 @@ function readWrite(index: number, live: InboxSearch): unknown {
     throw new Error("navigate was not called with a search");
   }
   const { search } = call;
-  if (typeof search !== "function") throw new Error("search is not live");
+  if (typeof search !== "function") {
+    throw new Error("search is not live");
+  }
   expect(call).toMatchObject({ to: "/", replace: true });
   return search(live);
 }

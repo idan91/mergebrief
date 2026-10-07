@@ -48,7 +48,9 @@ function runMarks(): Promise<unknown> {
     3,
   );
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 
@@ -84,7 +86,9 @@ describe("buildDbComparisonMarksQueryOptions queryFn", () => {
 function runPrMeta(): Promise<unknown> {
   const options = buildPrMetaQueryOptions("424242", 7);
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 
@@ -150,21 +154,27 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
 function runBrief(): Promise<unknown> {
   const options = buildDbBriefQueryOptions("424242", 7, "base-1", "head-1");
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 
 function runSession(): Promise<unknown> {
   const options = buildSessionQueryOptions("424242", 7, "base-1", "head-1");
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 
 function runDelta(): Promise<unknown> {
   const options = buildDbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 

@@ -55,7 +55,9 @@ describe("findPendingPullRequestReview", () => {
     const result = await findPendingPullRequestReview(octokit, REF);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ reviewId: 2n, reviewNodeId: "PRR_two" });
     const [, params] = paginate.mock.calls[0] ?? [];
     expect(params).toMatchObject({ owner: "o", repo: "r", pull_number: 7 });
@@ -71,7 +73,9 @@ describe("findPendingPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBeUndefined();
   });
 
@@ -87,7 +91,9 @@ describe("findPendingPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -99,7 +105,9 @@ describe("findPendingPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
@@ -148,7 +156,9 @@ describe("hasPullRequestReviewPublished", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(502);
   });
 });
@@ -235,7 +245,9 @@ describe("listReviewsByAuthor", () => {
     const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(502);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
@@ -274,7 +286,9 @@ describe("countPendingReviewComments", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(502);
   });
 });
@@ -318,7 +332,9 @@ describe("deletePendingPullRequestReview", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });

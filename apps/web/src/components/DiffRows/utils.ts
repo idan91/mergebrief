@@ -22,8 +22,12 @@ export function hasPairedSides(rows: readonly DiffLine[]): boolean {
  * splice, dropping focus and any scroll anchor with it.
  */
 export function buildDiffRowKey(row: DiffLine, index: number): string {
-  if (row.kind === DiffLineKinds.HUNK) return `hunk-${row.content}`;
-  if (row.kind === DiffLineKinds.NOTE) return `note-${String(index)}`;
+  if (row.kind === DiffLineKinds.HUNK) {
+    return `hunk-${row.content}`;
+  }
+  if (row.kind === DiffLineKinds.NOTE) {
+    return `note-${String(index)}`;
+  }
   const oldLine = row.oldLine === undefined ? "" : String(row.oldLine);
   const newLine = row.newLine === undefined ? "" : String(row.newLine);
 

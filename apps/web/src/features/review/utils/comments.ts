@@ -121,8 +121,12 @@ export function createCommentAnchor(
   const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
     (left, right) => left - right,
   );
-  if (orderedIndexes.length === 0) return null;
-  if (!isContinuous(orderedIndexes)) return null;
+  if (orderedIndexes.length === 0) {
+    return null;
+  }
+  if (!isContinuous(orderedIndexes)) {
+    return null;
+  }
 
   const selectedRows = orderedIndexes.map((index) => rows[index]);
   if (
@@ -132,20 +136,25 @@ export function createCommentAnchor(
         row.kind === DiffLineKinds.HUNK ||
         row.kind === DiffLineKinds.NOTE,
     )
-  )
+  ) {
     return null;
+  }
 
   // Each endpoint anchors on its own side: a removed row against the old
   // file, anything else against the new. A selection whose endpoints agree
   // is the single-side shape; endpoints on different sides cross.
   const first = selectedRows[0];
   const last = selectedRows.at(-1);
-  if (first === undefined || last === undefined) return null;
+  if (first === undefined || last === undefined) {
+    return null;
+  }
   const startSide = getRowSide(first);
   const side = getRowSide(last);
   const startLine = lineForSide(first, startSide);
   const endLine = lineForSide(last, side);
-  if (typeof startLine !== "number" || typeof endLine !== "number") return null;
+  if (typeof startLine !== "number" || typeof endLine !== "number") {
+    return null;
+  }
 
   const anchor: LineCommentAnchor = {
     kind: CommentAnchorKinds.LINE,
@@ -177,14 +186,20 @@ export function createSideAnchor(
   const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
     (left, right) => left - right,
   );
-  if (orderedIndexes.length === 0) return null;
+  if (orderedIndexes.length === 0) {
+    return null;
+  }
 
   const selectedRows = orderedIndexes.map((index) => rows[index]);
   const sideLines = selectedRows.map((row) => lineForSide(row, side));
-  if (!isConsecutiveRun(sideLines)) return null;
+  if (!isConsecutiveRun(sideLines)) {
+    return null;
+  }
   const startLine = sideLines[0];
   const endLine = sideLines.at(-1);
-  if (typeof startLine !== "number" || typeof endLine !== "number") return null;
+  if (typeof startLine !== "number" || typeof endLine !== "number") {
+    return null;
+  }
 
   return {
     kind: CommentAnchorKinds.LINE,
@@ -213,7 +228,9 @@ export function countAnchorLines(anchor: LineCommentAnchor): number {
 /** Every entry numbered and each one more than the last: no header crossed. */
 function isConsecutiveRun(lines: (number | undefined)[]): lines is number[] {
   return lines.every((line, at) => {
-    if (typeof line !== "number") return false;
+    if (typeof line !== "number") {
+      return false;
+    }
     const previous = lines[at - 1];
     return at === 0 || previous === line - 1;
   });
@@ -240,7 +257,9 @@ export function resolveJumpChunkId(
   comment: ReviewComment,
   chunks: readonly ChunkLocator[],
 ): string {
-  if (isLineCommentAnchor(comment.anchor)) return comment.anchor.chunkId;
+  if (isLineCommentAnchor(comment.anchor)) {
+    return comment.anchor.chunkId;
+  }
   return chunks.find((chunk) => chunk.file === comment.anchor.file)?.id ?? "";
 }
 
@@ -248,7 +267,9 @@ export function buildSuggestionDiffRows(
   anchor: CommentAnchor,
   suggestionText: string,
 ): SuggestionDiffRow[] {
-  if (!isLineCommentAnchor(anchor)) return [];
+  if (!isLineCommentAnchor(anchor)) {
+    return [];
+  }
   return [
     ...splitDiffText(anchor.selectedText).map(
       (content, index) =>
@@ -339,13 +360,17 @@ function lineForSide(
   row: DiffLine | undefined,
   side: CommentSide,
 ): number | undefined {
-  if (!row) return undefined;
+  if (!row) {
+    return undefined;
+  }
   return side === CommentSides.OLD ? row.oldLine : row.newLine;
 }
 
 function isContinuous(indexes: number[]): boolean {
   return indexes.every((index, position) => {
-    if (position === 0) return true;
+    if (position === 0) {
+      return true;
+    }
     const previous = indexes[position - 1];
     return previous !== undefined && index === previous + 1;
   });
@@ -367,6 +392,8 @@ function suggestionLineNumber(
 }
 
 function splitDiffText(text: string): string[] {
-  if (text.length === 0) return [""];
+  if (text.length === 0) {
+    return [""];
+  }
   return text.split("\n");
 }

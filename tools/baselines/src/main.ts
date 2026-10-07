@@ -9,9 +9,13 @@ import { renderVerdict } from "./logic/report";
 function readBaseRef(argv: readonly string[], env: NodeJS.ProcessEnv): string {
   const flag = argv.indexOf("--base");
   const named = flag === -1 ? undefined : argv[flag + 1];
-  if (named !== undefined && named.length > 0) return named;
+  if (named !== undefined && named.length > 0) {
+    return named;
+  }
   const fromEnv = env[BASE_REF_ENV_VAR];
-  if (fromEnv !== undefined && fromEnv.length > 0) return fromEnv;
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return fromEnv;
+  }
   return DEFAULT_BASE_REF;
 }
 

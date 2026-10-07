@@ -53,7 +53,9 @@ function main(): HTMLElement {
   // Two landmarks render (the screen's content region and the summary-preview
   // drawer's), the treatment targets the one with the content id.
   const region = document.getElementById("main-content");
-  if (region === null) throw new Error("main-content not rendered");
+  if (region === null) {
+    throw new Error("main-content not rendered");
+  }
   return region;
 }
 

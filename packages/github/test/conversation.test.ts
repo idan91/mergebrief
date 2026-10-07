@@ -1,7 +1,7 @@
 // Conversation primitive: `fetchPullRequestConversation` returns the
 // pre-threaded conversation in one query. Drives the wire→domain mapping
 // (human thread, reply chain, resolved, outdated, bot author, PR-level comment,
-// pagination page) and the sanitized failure paths — there is no fallback
+// pagination page) and the sanitized failure paths. There is no fallback
 // tier, so a GraphQL failure is the section's error state.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
@@ -32,8 +32,8 @@ function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
 
 const INPUT = { owner: "o", repo: "r", prNumber: 7 } as const;
 
-describe("fetchPullRequestConversation — mapping", () => {
-  it("maps a human line thread to the domain shape (root id, side/line, review join, anchor sha)", async () => {
+describe("fetchPullRequestConversation mapping", () => {
+  it("maps a human line thread with its root id, side, line, review and sha", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -54,10 +54,14 @@ describe("fetchPullRequestConversation — mapping", () => {
     const octokit = mockGraphqlOctokit(graphql);
     const result = await fetchPullRequestConversation(octokit, INPUT);
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads).toHaveLength(1);
     const thread = result.value.threads[0];
-    if (thread === undefined) throw new Error("expected a thread");
+    if (thread === undefined) {
+      throw new Error("expected a thread");
+    }
     expect(thread.rootCommentId).toBe(1001);
     expect(thread.path).toBe("src/a.ts");
     expect(thread.line).toBe(12);
@@ -84,7 +88,7 @@ describe("fetchPullRequestConversation — mapping", () => {
     expect(variables).toMatchObject({ owner: "o", repo: "r", prNumber: 7 });
   });
 
-  it("passes resolved/outdated through and drops the line coordinates of an outdated thread", async () => {
+  it("passes resolved and outdated through, dropping outdated line numbers", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -102,7 +106,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads[0]?.isResolved).toBe(true);
     const outdated = result.value.threads[1];
     expect(outdated?.isOutdated).toBe(true);
@@ -127,14 +133,16 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     const thread = result.value.threads[0];
     expect(thread?.startLine).toBe(25);
     expect(thread?.startSide).toBe("LEFT");
     expect(thread?.side).toBe("LEFT");
   });
 
-  it("flags a bot author via __typename and keeps a file-level thread's subject type", async () => {
+  it("flags a bot author by __typename and keeps a file thread's subject", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -151,7 +159,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     const thread = result.value.threads[0];
     expect(thread?.comments[0]?.author).toEqual({
       login: "coderabbitai",
@@ -173,14 +183,16 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads[0]?.comments[0]?.author).toEqual({
       login: "ghost",
       isBot: false,
     });
   });
 
-  it("maps reviews (verdicts) and PR-level comments, skipping PENDING reviews", async () => {
+  it("maps review verdicts and PR-level comments, skipping PENDING reviews", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         reviews: [
@@ -202,7 +214,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
       500, 502,
     ]);
@@ -213,9 +227,9 @@ describe("fetchPullRequestConversation — mapping", () => {
     expect(result.value.prComments[0]?.author.login).toBe("carol");
   });
 
-  it("skips null connection nodes (deletion/permission races) instead of failing the fetch", async () => {
+  it("skips null connection nodes from deletion races instead of failing", async () => {
     // GitHub's GraphQL schema types every connection's nodes as a list of
-    // NULLABLE elements — a node deleted or hidden mid-query arrives as null.
+    // NULLABLE elements: a node deleted or hidden mid-query arrives as null.
     const base = conversationResponse({
       threads: [gqlThread({ comments: [gqlComment({ databaseId: 1001 })] })],
       reviews: [gqlReview({ databaseId: 500 })],
@@ -254,7 +268,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads).toHaveLength(1);
     expect(
       result.value.threads[0]?.comments.map((comment) => comment.commentId),
@@ -267,7 +283,7 @@ describe("fetchPullRequestConversation — mapping", () => {
     );
   });
 
-  it("parses 64-bit ids from fullDatabaseId (BigInt-as-string wire scalar)", async () => {
+  it("parses 64-bit ids from the BigInt-as-string fullDatabaseId scalar", async () => {
     // fullDatabaseId serializes as a string; modern REST ids already exceed
     // 32-bit Int (the deprecated databaseId).
     const graphql = vi.fn().mockResolvedValue(
@@ -291,14 +307,16 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads[0]?.rootCommentId).toBe(5_000_000_000);
     expect(result.value.threads[0]?.comments[0]?.reviewId).toBe(4_647_663_464);
     expect(result.value.reviews[0]?.reviewId).toBe(4_647_663_464);
     expect(result.value.prComments[0]?.commentId).toBe(6_000_000_000);
   });
 
-  it("skips a thread whose ROOT comment node is null, never promoting a reply to root", async () => {
+  it("skips a thread whose ROOT comment is null, never promoting a reply", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -317,13 +335,15 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
       2001,
     ]);
   });
 
-  it("drops nodes with unparseable or unsafe ids instead of failing the fetch", async () => {
+  it("drops nodes with unparseable or unsafe ids without failing the fetch", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -346,7 +366,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(
       result.value.threads[0]?.comments.map((comment) => comment.commentId),
     ).toEqual([1001]);
@@ -355,7 +377,7 @@ describe("fetchPullRequestConversation — mapping", () => {
     ]);
   });
 
-  it("treats a null nodes LIST on any connection as empty (nullable lists in the schema)", async () => {
+  it("treats a null nodes LIST on any connection as empty", async () => {
     const base = conversationResponse({
       threads: [gqlThread({ comments: [gqlComment({ databaseId: 1001 })] })],
     });
@@ -384,7 +406,9 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
       1001,
     ]);
@@ -416,11 +440,13 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads).toHaveLength(1);
   });
 
-  it("skips a thread whose comments were all deleted (no root identity)", async () => {
+  it("skips a thread whose comments were all deleted, leaving no root", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -434,12 +460,14 @@ describe("fetchPullRequestConversation — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads).toHaveLength(1);
   });
 });
 
-describe("fetchPullRequestConversation — pagination and overflow", () => {
+describe("fetchPullRequestConversation pagination and overflow", () => {
   it("cursor-pages review threads to exhaustion and concatenates pages", async () => {
     const pageOne = conversationResponse({
       threads: [gqlThread({ comments: [gqlComment({ databaseId: 1001 })] })],
@@ -467,7 +495,9 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
       1001, 2001,
     ]);
@@ -485,7 +515,7 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
     expect(String(pageQuery)).not.toContain("reviews(");
   });
 
-  it("stops at the page safety cap and flags hasMoreThreads instead of looping forever", async () => {
+  it("stops at the page safety cap and flags hasMoreThreads", async () => {
     const endlessPage = conversationResponse({
       threadsHasNextPage: true,
       threadsEndCursor: "CURSOR_N",
@@ -496,12 +526,14 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(graphql).toHaveBeenCalledTimes(20);
     expect(result.value.hasMoreThreads).toBe(true);
   });
 
-  it("notes per-thread comment overflow and reviews/PR-comment overflow without paging them", async () => {
+  it("notes thread, review and PR-comment overflow without paging them", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [gqlThread({ commentsHasNextPage: true })],
@@ -514,7 +546,9 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threads[0]?.hasMoreComments).toBe(true);
     expect(result.value.hasMoreReviews).toBe(true);
     expect(result.value.hasMorePrComments).toBe(true);
@@ -522,8 +556,8 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
   });
 });
 
-describe("fetchPullRequestConversation — failure paths", () => {
-  it("maps a GraphQL NOT_FOUND to a sanitized not-found (no fallback tier)", async () => {
+describe("fetchPullRequestConversation failure paths", () => {
+  it("maps a GraphQL NOT_FOUND to a sanitized not-found with no fallback", async () => {
     const graphql = vi
       .fn()
       .mockRejectedValue(
@@ -534,7 +568,9 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
@@ -562,12 +598,14 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
     expect(result.error.status).toBe(401);
   });
 
-  it("maps a null repository/pullRequest (missing or inaccessible resource) to not-found", async () => {
+  it("maps a null repository or pullRequest to not-found", async () => {
     // Both fields are nullable in GitHub's schema: a missing resource can be a
     // null field in a 2xx response.
     for (const data of [
@@ -580,7 +618,9 @@ describe("fetchPullRequestConversation — failure paths", () => {
         INPUT,
       );
       expect(result.ok).toBe(false);
-      if (result.ok) throw new Error("unreachable");
+      if (result.ok) {
+        throw new Error("unreachable");
+      }
       expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
       expect(result.error.message).not.toContain("unexpected");
     }
@@ -593,14 +633,16 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.message).toContain(
       "unexpected GitHub API response shape",
     );
   });
 
-  it("maps a null reviews connection (nullable in the schema) to an empty verdict list", async () => {
+  it("maps a null reviews connection to an empty verdict list", async () => {
     const base = conversationResponse({});
     const withNullReviews = {
       repository: {
@@ -616,13 +658,15 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.reviews).toEqual([]);
     expect(result.value.hasMoreReviews).toBe(false);
     expect(result.value.threads).toHaveLength(1);
   });
 
-  it("drops a review node missing its id and keeps the rest (node-level defect)", async () => {
+  it("drops a review node missing its id and keeps the rest", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         reviews: [
@@ -636,13 +680,15 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
       502,
     ]);
   });
 
-  it("fails a mid-pagination error with a sanitized result (first page not half-returned)", async () => {
+  it("fails a mid-pagination error whole, never returning the first page", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(
@@ -659,7 +705,9 @@ describe("fetchPullRequestConversation — failure paths", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 });
@@ -685,7 +733,9 @@ describe("createReviewCommentReply", () => {
       },
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.commentId).toBe(7001);
     expect(createReply).toHaveBeenCalledWith({
       owner: "o",
@@ -711,11 +761,13 @@ describe("createReviewCommentReply", () => {
       },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
-  it("maps a 404 (root comment gone) to a sanitized not-found", async () => {
+  it("maps a 404 for a deleted root comment to a sanitized not-found", async () => {
     const createReply = vi.fn().mockRejectedValue(
       new RequestError("HTTP 404", 404, {
         request: {
@@ -742,7 +794,9 @@ describe("createReviewCommentReply", () => {
       },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });

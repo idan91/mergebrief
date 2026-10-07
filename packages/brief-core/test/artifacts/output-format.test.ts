@@ -13,7 +13,9 @@ function child(
   key: string,
 ): Record<string, unknown> {
   const value = node[key];
-  if (!isRecord(value)) throw new Error(`expected an object at "${key}"`);
+  if (!isRecord(value)) {
+    throw new Error(`expected an object at "${key}"`);
+  }
   return value;
 }
 
@@ -25,9 +27,13 @@ function nodes(root: unknown): Record<string, unknown>[] {
       n.forEach(visit);
       return;
     }
-    if (!isRecord(n)) return;
+    if (!isRecord(n)) {
+      return;
+    }
     found.push(n);
-    for (const value of Object.values(n)) visit(value);
+    for (const value of Object.values(n)) {
+      visit(value);
+    }
   };
   visit(root);
   return found;
@@ -40,14 +46,14 @@ function allEnums(root: unknown): unknown[][] {
     .filter((e): e is unknown[] => Array.isArray(e));
 }
 
-describe("enumPreservingOutputFormat — schema shape", () => {
+describe("enumPreservingOutputFormat: schema shape", () => {
   const ProbeSchema = z.object({
     category: z.enum(["alpha", "beta", "gamma"]),
     tags: z.array(z.enum(["red", "green", "blue"])),
     notes: z.array(z.object({ attr: z.enum(["x1", "x2"]), note: z.string() })),
   });
 
-  it("preserves enum at all three positions (top-level, array item, object-in-array)", () => {
+  it("preserves enum at top level, in array items and in objects in arrays", () => {
     const { schema } = enumPreservingOutputFormat(ProbeSchema);
     const props = child(schema, "properties");
 
@@ -68,7 +74,7 @@ describe("enumPreservingOutputFormat — schema shape", () => {
     ]);
   });
 
-  it("preserves enum inside $defs when zod reuses a schema (reused: ref)", () => {
+  it("preserves enum inside $defs when zod reuses a schema by ref", () => {
     const shared = z.enum(["one", "two"]);
     const { schema } = enumPreservingOutputFormat(
       z.object({ a: shared, b: shared }),
@@ -89,7 +95,7 @@ describe("enumPreservingOutputFormat — schema shape", () => {
   });
 });
 
-describe("toStrictJsonSchema — keyword handling", () => {
+describe("toStrictJsonSchema: keyword handling", () => {
   it("carries const verbatim", () => {
     const out = toStrictJsonSchema({ type: "string", const: "fixed" });
     expect(out["const"]).toBe("fixed");
@@ -128,7 +134,7 @@ describe("toStrictJsonSchema — keyword handling", () => {
   });
 });
 
-describe("enumPreservingOutputFormat — parse", () => {
+describe("enumPreservingOutputFormat: parse", () => {
   const S = z.object({
     category: z.enum(["alpha", "beta", "gamma"]),
     tags: z.array(z.enum(["red", "green", "blue"])),
@@ -187,8 +193,8 @@ describe("enumPreservingOutputFormat — parse", () => {
   });
 });
 
-describe("enumPreservingOutputFormat — production schema", () => {
-  it("round-trips the real BriefGenerationSchema and keeps the risk-surface enum", () => {
+describe("enumPreservingOutputFormat: production schema", () => {
+  it("round-trips BriefGenerationSchema and keeps the risk-surface enum", () => {
     const { schema } = enumPreservingOutputFormat(BriefGenerationSchema);
     expect(allEnums(schema)).toContainEqual([...RiskSurfaceAttributes]);
   });

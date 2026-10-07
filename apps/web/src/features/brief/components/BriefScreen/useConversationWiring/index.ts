@@ -37,7 +37,9 @@ export function useConversationWiring(
   // including navigation after mount. The user may collapse the same target again.
   const [open, setOpen] = useState(conversationFocusThreadId !== undefined);
   useEffect(() => {
-    if (conversationFocusThreadId !== undefined) setOpen(true);
+    if (conversationFocusThreadId !== undefined) {
+      setOpen(true);
+    }
   }, [conversationFocusThreadId]);
   const toggleOpen = () => setOpen((current) => !current);
   const jumpToConversation = () => {
@@ -75,7 +77,9 @@ export function useConversationWiring(
   const mentionPool = useMentionPool(conversation?.collaborators);
 
   const conversationComposer = useMemo<ThreadComposerWiring | undefined>(() => {
-    if (conversation === undefined) return undefined;
+    if (conversation === undefined) {
+      return undefined;
+    }
 
     const composer: Mutable<ThreadComposerWiring> = {
       post: conversation.postReply,

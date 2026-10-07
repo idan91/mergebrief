@@ -13,7 +13,9 @@ export interface MetricReport {
 
 function median(sorted: number[]): number {
   const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) return sorted[mid] ?? 0;
+  if (sorted.length % 2 === 1) {
+    return sorted[mid] ?? 0;
+  }
   return ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 }
 

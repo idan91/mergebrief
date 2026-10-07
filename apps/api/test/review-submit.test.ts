@@ -220,8 +220,12 @@ const graphqlBodySchema = z.object({
 });
 
 function readMethod(input: string | URL | Request, init?: RequestInit): string {
-  if (init?.method !== undefined) return init.method.toUpperCase();
-  if (input instanceof Request) return input.method.toUpperCase();
+  if (init?.method !== undefined) {
+    return init.method.toUpperCase();
+  }
+  if (input instanceof Request) {
+    return input.method.toUpperCase();
+  }
   return "GET";
 }
 
@@ -231,7 +235,9 @@ async function readRequestBody(
 ): Promise<unknown> {
   const raw =
     init?.body ?? (input instanceof Request ? await input.text() : undefined);
-  if (typeof raw !== "string") return undefined;
+  if (typeof raw !== "string") {
+    return undefined;
+  }
   return JSON.parse(raw);
 }
 
@@ -351,8 +357,9 @@ async function seedSession(
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -392,7 +399,9 @@ async function seedSessionDrafts(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seed: pr missing");
+  if (pr === undefined) {
+    throw new Error("seed: pr missing");
+  }
   const brief = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
@@ -404,7 +413,9 @@ async function seedSessionDrafts(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) throw new Error("seed: brief write failed");
+  if (!brief.ok) {
+    throw new Error("seed: brief write failed");
+  }
   const anchors: DraftAnchor[] = [
     {
       kind: CommentAnchorKinds.LINE,
@@ -423,7 +434,9 @@ async function seedSessionDrafts(
   ];
   for (const [index, body] of bodies.entries()) {
     const anchor = anchors[index % anchors.length];
-    if (anchor === undefined) throw new Error("seed: no anchor");
+    if (anchor === undefined) {
+      throw new Error("seed: no anchor");
+    }
     await writeDraft(handle, brief.value.id, anchor, body);
   }
   return brief.value.id;
@@ -443,7 +456,9 @@ async function writeDraft(
     { briefId, reviewerId: REVIEWER },
     { anchor, body },
   );
-  if (!written.ok) throw new Error("seed: draft failed");
+  if (!written.ok) {
+    throw new Error("seed: draft failed");
+  }
   return written.value.id;
 }
 
@@ -476,9 +491,13 @@ async function readDraftStatuses(harness: PgliteHarness): Promise<string[]> {
 /** The submit mutation's body, which is where a rejected anchor ends up. */
 function readSubmitBody(counts: StubCounts): string {
   const input = counts.submitInputs[0];
-  if (input === undefined) throw new Error("no submit mutation was made");
+  if (input === undefined) {
+    throw new Error("no submit mutation was made");
+  }
   const body = input["body"];
-  if (typeof body !== "string") throw new Error("no body on the submit");
+  if (typeof body !== "string") {
+    throw new Error("no body on the submit");
+  }
   return body;
 }
 
@@ -493,8 +512,9 @@ async function postSubmit(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined)
+  if (cookie !== undefined) {
     headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
+  }
 
   return await app.request(path, {
     method: "POST",
@@ -610,7 +630,9 @@ async function readSubmitAuditCount(harness: PgliteHarness): Promise<number> {
     "select count(*)::int as n from audit_log where operation = 'submit-review' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
-  if (typeof n !== "number") throw new Error("unexpected count result");
+  if (typeof n !== "number") {
+    throw new Error("unexpected count result");
+  }
   return n;
 }
 
@@ -1043,7 +1065,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const key = { briefId, reviewerId: REVIEWER };
     const held = await sessions.listDrafts(key);
     const first = held.ok ? held.value[0] : undefined;
-    if (first === undefined) throw new Error("no draft to publish");
+    if (first === undefined) {
+      throw new Error("no draft to publish");
+    }
     await sessions.recordPublishedDrafts(key, { draftIds: [first.id] });
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1136,7 +1160,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       harness.handle,
       CTX,
     ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
-    if (pr === undefined) throw new Error("pr missing");
+    if (pr === undefined) {
+      throw new Error("pr missing");
+    }
     const newer = await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE_SHA,
@@ -1148,7 +1174,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       effort: "high",
       body: JSON.stringify({ changeGroups: [], chunks: [] }),
     });
-    if (!newer.ok) throw new Error("newer brief write failed");
+    if (!newer.ok) {
+      throw new Error("newer brief write failed");
+    }
     await createTenantRepository(harness.handle, CTX).reviewSessions.setOutcome(
       { briefId: newer.value.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
@@ -1431,7 +1459,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         harness.handle,
         CTX,
       ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
-      if (pr === undefined) throw new Error("seed: pr missing");
+      if (pr === undefined) {
+        throw new Error("seed: pr missing");
+      }
       const written = await createArtifactStore(
         harness.handle,
         CTX,
@@ -1447,7 +1477,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         body: BRIEF_BODY,
         anchorState: "anchored",
       });
-      if (!written.ok) throw new Error("seed: brief write failed");
+      if (!written.ok) {
+        throw new Error("seed: brief write failed");
+      }
       return written.value.id;
     }
 
@@ -1476,12 +1508,16 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           body,
         );
       }
-      if (!linked) return;
+      if (!linked) {
+        return;
+      }
       const pr = await createTenantRepository(
         harness.handle,
         CTX,
       ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
-      if (pr === undefined) throw new Error("seed: pr missing");
+      if (pr === undefined) {
+        throw new Error("seed: pr missing");
+      }
       const hop = await createArtifactStore(
         harness.handle,
         CTX,
@@ -1496,7 +1532,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           },
         ],
       });
-      if (!hop.ok) throw new Error("seed: hop write failed");
+      if (!hop.ok) {
+        throw new Error("seed: hop write failed");
+      }
     }
 
     async function editDraft(cookie: string, draftId: string) {
@@ -1657,7 +1695,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           now: new Date(Date.now() - PUBLISH_CLAIM_LEASE_MS - 60_000),
         },
       );
-      if (!claimed.ok) throw new Error("claim seed failed");
+      if (!claimed.ok) {
+        throw new Error("claim seed failed");
+      }
 
       const res = await postSubmit(app, cookie, makeValidBody());
 

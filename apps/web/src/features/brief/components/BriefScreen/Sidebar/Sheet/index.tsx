@@ -64,7 +64,9 @@ export function Sheet({
   }, []);
 
   const handleSelectTab = (value: string) => {
-    if (isSidebarTab(value)) selectTab(value);
+    if (isSidebarTab(value)) {
+      selectTab(value);
+    }
   };
 
   const full = height === SheetHeights.FULL;

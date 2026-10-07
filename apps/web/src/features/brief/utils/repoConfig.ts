@@ -104,22 +104,32 @@ function optionalStringArray(value: unknown): value is string[] | undefined {
 }
 
 function parseFileOutcome(value: unknown): RepoConfigFileOutcome | undefined {
-  if (!isRecord(value)) return undefined;
+  if (!isRecord(value)) {
+    return undefined;
+  }
   const { path, blobSha, outcome } = value;
-  if (!isString(path)) return undefined;
-  if (blobSha !== null && !isString(blobSha)) return undefined;
+  if (!isString(path)) {
+    return undefined;
+  }
+  if (blobSha !== null && !isString(blobSha)) {
+    return undefined;
+  }
   if (!isString(outcome) || !OUTCOMES.some((known) => known === outcome)) {
     return undefined;
   }
   const detail = value["detail"];
   const warning = value["warning"];
-  if (!optionalString(detail) || !optionalString(warning)) return undefined;
+  if (!optionalString(detail) || !optionalString(warning)) {
+    return undefined;
+  }
   const bytesUsed = value["bytesUsed"];
   const bytesBudget = value["bytesBudget"];
-  if (bytesUsed !== undefined && typeof bytesUsed !== "number")
+  if (bytesUsed !== undefined && typeof bytesUsed !== "number") {
     return undefined;
-  if (bytesBudget !== undefined && typeof bytesBudget !== "number")
+  }
+  if (bytesBudget !== undefined && typeof bytesBudget !== "number") {
     return undefined;
+  }
   const fileOutcome: RepoConfigFileOutcome = {
     path,
     blobSha,
@@ -127,16 +137,26 @@ function parseFileOutcome(value: unknown): RepoConfigFileOutcome | undefined {
     outcome: OUTCOMES.find((known) => known === outcome) ?? "invalid",
   };
 
-  if (detail !== undefined) fileOutcome.detail = detail;
-  if (warning !== undefined) fileOutcome.warning = warning;
-  if (bytesUsed !== undefined) fileOutcome.bytesUsed = bytesUsed;
-  if (bytesBudget !== undefined) fileOutcome.bytesBudget = bytesBudget;
+  if (detail !== undefined) {
+    fileOutcome.detail = detail;
+  }
+  if (warning !== undefined) {
+    fileOutcome.warning = warning;
+  }
+  if (bytesUsed !== undefined) {
+    fileOutcome.bytesUsed = bytesUsed;
+  }
+  if (bytesBudget !== undefined) {
+    fileOutcome.bytesBudget = bytesBudget;
+  }
 
   return fileOutcome;
 }
 
 function parseFired(value: unknown): FiredCustomAttribute | undefined {
-  if (!isRecord(value)) return undefined;
+  if (!isRecord(value)) {
+    return undefined;
+  }
   const { name, criteria } = value;
   const implication = value["implication"];
   const paths = value["paths"];
@@ -150,8 +170,9 @@ function parseFired(value: unknown): FiredCustomAttribute | undefined {
   ) {
     return undefined;
   }
-  if (!optionalString(implication) || !optionalStringArray(paths))
+  if (!optionalString(implication) || !optionalStringArray(paths)) {
     return undefined;
+  }
   if (
     implication !== undefined &&
     (implication.length === 0 || implication.length > IMPLICATION_MAX_CHARS)
@@ -163,20 +184,30 @@ function parseFired(value: unknown): FiredCustomAttribute | undefined {
   }
   const fired: FiredCustomAttribute = { name, criteria };
 
-  if (implication !== undefined) fired.implication = implication;
-  if (paths !== undefined) fired.paths = paths;
+  if (implication !== undefined) {
+    fired.implication = implication;
+  }
+  if (paths !== undefined) {
+    fired.paths = paths;
+  }
 
   return fired;
 }
 
 function parseRule(value: unknown): DeEmphasisRule | undefined {
-  if (!isRecord(value)) return undefined;
+  if (!isRecord(value)) {
+    return undefined;
+  }
   const { attribute } = value;
   const paths = value["paths"];
-  if (!isString(attribute) || !optionalStringArray(paths)) return undefined;
+  if (!isString(attribute) || !optionalStringArray(paths)) {
+    return undefined;
+  }
   const rule: DeEmphasisRule = { attribute };
 
-  if (paths !== undefined) rule.paths = paths;
+  if (paths !== undefined) {
+    rule.paths = paths;
+  }
 
   return rule;
 }
@@ -193,7 +224,9 @@ export function parseBriefContext(
     return { ok: false, error: "Expected a brief-context object" };
   }
   const snapshot = value["repoConfig"];
-  if (snapshot === null) return { ok: true, value: null };
+  if (snapshot === null) {
+    return { ok: true, value: null };
+  }
   if (!isRecord(snapshot)) {
     return { ok: false, error: "Expected repoConfig to be an object or null" };
   }
@@ -256,7 +289,9 @@ export function parseBriefContext(
 }
 
 function ruleAppliesTo(rule: DeEmphasisRule, file: string): boolean {
-  if (rule.paths === undefined || rule.paths.length === 0) return true;
+  if (rule.paths === undefined || rule.paths.length === 0) {
+    return true;
+  }
   return rule.paths.some((pattern) => matchesGlob(pattern, file));
 }
 
@@ -315,7 +350,9 @@ export function attributeDisplayMeta(
     criteria: fired.criteria,
   };
 
-  if (fired.implication !== undefined) meta.implication = fired.implication;
+  if (fired.implication !== undefined) {
+    meta.implication = fired.implication;
+  }
 
   return meta;
 }

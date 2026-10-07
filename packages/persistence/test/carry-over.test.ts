@@ -98,14 +98,19 @@ async function seedBrief(
     carriedChunkIds,
   };
 
-  if (anchorState !== null) briefWrite.anchorState = anchorState;
-  if (anchorState === "fresh-restart") briefWrite.anchorReason = "model-swap";
+  if (anchorState !== null) {
+    briefWrite.anchorState = anchorState;
+  }
+  if (anchorState === "fresh-restart") {
+    briefWrite.anchorReason = "model-swap";
+  }
 
   const written = await createArtifactStore(world.handle, CTX).briefs.write(
     briefWrite,
   );
-  if (!written.ok)
+  if (!written.ok) {
     throw new Error(`brief seed failed: ${written.error.message}`);
+  }
   return written.value.id;
 }
 
@@ -122,7 +127,9 @@ async function seedHop(
     headSha: `head-${toIndex}`,
     spans,
   });
-  if (!written.ok) throw new Error(`hop seed failed: ${written.error.message}`);
+  if (!written.ok) {
+    throw new Error(`hop seed failed: ${written.error.message}`);
+  }
 }
 
 /** The Brief row id at a head index. */
@@ -135,7 +142,9 @@ async function briefIdFor(
     "base",
     `head-${headIndex}`,
   );
-  if (row === undefined) throw new Error(`no brief at head-${headIndex}`);
+  if (row === undefined) {
+    throw new Error(`no brief at head-${headIndex}`);
+  }
   return row.id;
 }
 
@@ -274,7 +283,9 @@ async function unwrapPreview(
   previewed: ReturnType<ReviewSessionRepository["preview"]>,
 ): Promise<ReviewSessionView> {
   const read = await previewed;
-  if (!read.ok) throw new Error(`preview failed: ${read.error.code}`);
+  if (!read.ok) {
+    throw new Error(`preview failed: ${read.error.code}`);
+  }
   return read.value;
 }
 
@@ -439,7 +450,9 @@ describe("preview, several pushes are ONE evaluation", () => {
   it("composes 7 → 8 → 9 → 10 into a single remap", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 7);
-    for (const index of [8, 9, 10]) await seedBrief(world, index);
+    for (const index of [8, 9, 10]) {
+      await seedBrief(world, index);
+    }
     await seedHop(world, 7, 8);
     await seedHop(world, 8, 9);
     await seedHop(world, 9, 10);
@@ -467,7 +480,9 @@ describe("preview, several pushes are ONE evaluation", () => {
   it("orphans every anchor when one hop of the chain is missing", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 7);
-    for (const index of [8, 9]) await seedBrief(world, index);
+    for (const index of [8, 9]) {
+      await seedBrief(world, index);
+    }
     await seedHop(world, 7, 8);
     // The 8 → 9 hop never landed: the chain cannot be linked end to end.
     await seedPreviousComment(world, previous);
@@ -1003,7 +1018,9 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   it("carries a read mark that survived every step", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 7);
-    for (const index of [8, 9, 10]) await seedBrief(world, index, ["c5"]);
+    for (const index of [8, 9, 10]) {
+      await seedBrief(world, index, ["c5"]);
+    }
     await seedHop(world, 7, 8);
     await seedHop(world, 8, 9);
     await seedHop(world, 9, 10);
@@ -1942,7 +1959,9 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
     const older = { briefId: first, reviewerId: REVIEWER };
     const anchor = { kind: CommentAnchorKinds.FILE, file: "src/app.ts" };
     const added = await sessions.addDraft(older, { anchor, body: "first" });
-    if (!added.ok) throw new Error("draft seed failed");
+    if (!added.ok) {
+      throw new Error("draft seed failed");
+    }
     await openSession(world, second);
 
     const refusals = [

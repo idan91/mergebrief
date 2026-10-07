@@ -33,7 +33,9 @@ export function isCommentOutdated(
   line: number | null,
   subjectType: string | null,
 ): boolean {
-  if ((subjectType ?? "line") !== "line") return false;
+  if ((subjectType ?? "line") !== "line") {
+    return false;
+  }
   return line === null;
 }
 

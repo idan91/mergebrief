@@ -151,7 +151,9 @@ test("a failed list keeps the header and URL box and asks again on Try again", a
   const faults = collectPageFaults(page);
   let inboxReads = 0;
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/inbox") inboxReads += 1;
+    if (new URL(request.url()).pathname === "/api/inbox") {
+      inboxReads += 1;
+    }
   });
   await openHomeAs(page, "failed");
 

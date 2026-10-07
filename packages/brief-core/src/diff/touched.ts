@@ -89,7 +89,9 @@ export function partitionGroups(
   // still an entry. Renames/copies touch BOTH sides.
   const touched = new Map<string, string>();
   const touch = (file: string, why: string) => {
-    if (!touched.has(file)) touched.set(file, why);
+    if (!touched.has(file)) {
+      touched.set(file, why);
+    }
   };
   for (const entry of compareFiles) {
     touch(entry.file, `compare status '${entry.status}'`);

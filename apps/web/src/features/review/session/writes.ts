@@ -152,7 +152,9 @@ async function send<T>(
       headers: { "content-type": "application/json" },
     };
 
-    if (body !== undefined) init.body = JSON.stringify(body);
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
 
     response = await apiFetch(path, init);
   } catch {

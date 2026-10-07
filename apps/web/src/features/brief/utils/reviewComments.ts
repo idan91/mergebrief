@@ -38,9 +38,15 @@ export function reviewCommentMatchesDiffLine(
   line: DiffLine,
   _chunkDiff: DiffLine[] = [],
 ): boolean {
-  if (line.kind === "hunk" || line.kind === "note") return false;
-  if (comment.file !== chunkFile) return false;
-  if (comment.line !== null) return line.newLine === comment.line;
+  if (line.kind === "hunk" || line.kind === "note") {
+    return false;
+  }
+  if (comment.file !== chunkFile) {
+    return false;
+  }
+  if (comment.line !== null) {
+    return line.newLine === comment.line;
+  }
   if (comment.originalLine !== null) {
     return line.oldLine === comment.originalLine;
   }
@@ -52,10 +58,14 @@ function reviewCommentBelongsToChunk(
   chunk: BriefChunk,
 ): boolean {
   const currentLine = comment.line;
-  if (currentLine !== null) return lineInRanges(currentLine, chunk.addedRanges);
+  if (currentLine !== null) {
+    return lineInRanges(currentLine, chunk.addedRanges);
+  }
 
   const originalLine = comment.originalLine;
-  if (originalLine === null) return false;
+  if (originalLine === null) {
+    return false;
+  }
   return (
     lineInRanges(originalLine, chunk.removedRanges) ||
     lineInRanges(originalLine, chunk.addedRanges)

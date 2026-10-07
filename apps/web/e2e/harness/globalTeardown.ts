@@ -10,10 +10,14 @@ import { API_PID_PATH, CONTAINER_ID_PATH } from "./env";
 
 /** Stop the API first: it holds a pool against the container removed below. */
 function stopApiServer(): void {
-  if (!existsSync(API_PID_PATH)) return;
+  if (!existsSync(API_PID_PATH)) {
+    return;
+  }
   const pid = Number.parseInt(readFileSync(API_PID_PATH, "utf8").trim(), 10);
   rmSync(API_PID_PATH, { force: true });
-  if (!Number.isInteger(pid) || pid <= 1) return;
+  if (!Number.isInteger(pid) || pid <= 1) {
+    return;
+  }
   try {
     process.kill(pid, "SIGTERM");
   } catch {

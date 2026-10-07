@@ -87,7 +87,9 @@ function drainStdinThen(fn) {
 // exits 0 in BOTH auth states; the verdict lives in its JSON body).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
-  if (scenario === "version-broken") process.exit(1);
+  if (scenario === "version-broken") {
+    process.exit(1);
+  }
   process.stdout.write(`${process.env.SHIM_VERSION ?? "2026.08.25-3e8eec8"}\n`);
   process.exit(0);
 }
@@ -117,7 +119,9 @@ if (argv[0] === "about") {
 }
 
 function aboutJson() {
-  if (process.env.SHIM_ABOUT) return process.env.SHIM_ABOUT;
+  if (process.env.SHIM_ABOUT) {
+    return process.env.SHIM_ABOUT;
+  }
   const identity =
     scenario === "auth-logged-out"
       ? { userEmail: null, subscriptionTier: null }

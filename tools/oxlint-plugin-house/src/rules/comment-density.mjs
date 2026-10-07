@@ -53,13 +53,17 @@ export const commentDensity = {
 
         let code = 0;
         for (const [index, text] of lines.entries()) {
-          if (text.trim() === "" || commented.has(index + 1)) continue;
+          if (text.trim() === "" || commented.has(index + 1)) {
+            continue;
+          }
           code += 1;
         }
 
         const comment = commented.size;
         const total = comment + code;
-        if (total < MIN_LINES || comment / total <= cap) return;
+        if (total < MIN_LINES || comment / total <= cap) {
+          return;
+        }
 
         context.report({
           node,

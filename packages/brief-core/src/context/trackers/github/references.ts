@@ -29,7 +29,9 @@ function resolveIssuesRepo(input: TicketReferenceInput): {
   );
   const configured =
     github?.kind === TicketTrackers.GITHUB ? github.issuesRepo : undefined;
-  if (configured === undefined) return input.repo;
+  if (configured === undefined) {
+    return input.repo;
+  }
 
   const [owner = "", repo = ""] = configured.split("/");
   return { owner, repo };
@@ -65,7 +67,9 @@ function collectMentions(
       buildHit(match.index, match[1] ?? "", match[2] ?? "", Number(match[3])),
     );
   }
-  if (!short) return hits;
+  if (!short) {
+    return hits;
+  }
 
   for (const match of text.matchAll(OWNER_REPO_HASH)) {
     hits.push(
@@ -99,7 +103,9 @@ function collectBranchSegments(
  * and a bare number in its PRs is nearly always another pull request.
  */
 function readsShortReferences(input: TicketReferenceInput): boolean {
-  if (input.trackers.length === 0) return true;
+  if (input.trackers.length === 0) {
+    return true;
+  }
   return input.trackers.some(
     (tracker) => tracker.kind === TicketTrackers.GITHUB,
   );
@@ -115,7 +121,9 @@ export function collectGitHubReferences(
   location: ReferenceLocation,
   input: TicketReferenceInput,
 ): ReferenceHit[] {
-  if (!input.readable.includes(TicketTrackers.GITHUB)) return [];
+  if (!input.readable.includes(TicketTrackers.GITHUB)) {
+    return [];
+  }
   const short = readsShortReferences(input);
   if (location === ReferenceLocations.BRANCH) {
     return short ? collectBranchSegments(text, input) : [];
@@ -125,6 +133,8 @@ export function collectGitHubReferences(
 
 export function canonicalizeGitHubUrl(raw: string): string | undefined {
   const issue = new RegExp(`^${GITHUB_ISSUE_URL.source}`).exec(raw);
-  if (issue === null) return undefined;
+  if (issue === null) {
+    return undefined;
+  }
   return buildIssueUrl(issue[1] ?? "", issue[2] ?? "", Number(issue[3]));
 }

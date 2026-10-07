@@ -18,8 +18,9 @@ class StubResizeObserver {
 
 function Probe({ withDiff = true }: { withDiff?: boolean }) {
   const splitWidth = useSplitWidth(true);
-  if (!withDiff)
+  if (!withDiff) {
     return <output>{splitWidth.wideEnough ? "wide" : "narrow"}</output>;
+  }
   return (
     <div ref={splitWidth.attachWrapper}>
       <output>{splitWidth.wideEnough ? "wide" : "narrow"}</output>

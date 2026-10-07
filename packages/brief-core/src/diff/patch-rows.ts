@@ -34,7 +34,9 @@ export function parsePatchRows(patch: string): PatchRow[] {
     // patch loses the leading space) and advances neither side, as the
     // changed-range parser always read it. A `\ No newline at end of
     // file` line advances neither side either.
-    if (hunk < 0 || line === "" || line.startsWith("\\")) continue;
+    if (hunk < 0 || line === "" || line.startsWith("\\")) {
+      continue;
+    }
     const marker = line[0];
     const content = line.slice(1);
     if (marker === "+") {

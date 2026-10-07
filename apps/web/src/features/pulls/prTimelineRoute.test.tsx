@@ -443,7 +443,9 @@ describe("DB brief route revision timeline", () => {
     );
     const heading = await waitFor(() => {
       const el = document.getElementById("conversation-heading");
-      if (el === null) throw new Error("no conversation heading yet");
+      if (el === null) {
+        throw new Error("no conversation heading yet");
+      }
       return el;
     });
     // Collapsed by default, no thread target in the URL.

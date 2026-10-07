@@ -321,16 +321,26 @@ function parsePullRequest(
   };
 
   const author = data.pull_request.user;
-  if (author !== null && author !== undefined) event.authorLogin = author.login;
-  if (data.before !== undefined) event.before = data.before;
-  if (data.after !== undefined) event.after = data.after;
+  if (author !== null && author !== undefined) {
+    event.authorLogin = author.login;
+  }
+  if (data.before !== undefined) {
+    event.before = data.before;
+  }
+  if (data.after !== undefined) {
+    event.after = data.after;
+  }
   const merged = data.pull_request.merged;
   if (action === PullRequestActions.CLOSED && merged !== undefined) {
     event.merged = merged;
   }
   const { updated_at: updatedAt, closed_at: closedAt } = data.pull_request;
-  if (updatedAt !== undefined) event.updatedAt = updatedAt;
-  if (closedAt !== undefined && closedAt !== null) event.closedAt = closedAt;
+  if (updatedAt !== undefined) {
+    event.updatedAt = updatedAt;
+  }
+  if (closedAt !== undefined && closedAt !== null) {
+    event.closedAt = closedAt;
+  }
   if (action === PullRequestActions.EDITED) {
     event.baseChanged = data.changes?.base !== undefined;
   }
@@ -386,7 +396,9 @@ function parseInstallation(
     senderId: data.sender.id,
   };
 
-  if (repoIds !== undefined) event.repoIds = repoIds;
+  if (repoIds !== undefined) {
+    event.repoIds = repoIds;
+  }
 
   return { ok: true, value: event };
 }

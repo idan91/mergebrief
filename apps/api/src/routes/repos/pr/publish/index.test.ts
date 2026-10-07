@@ -217,7 +217,9 @@ describe("publishReview", () => {
     );
 
     expect(result).toEqual({ ok: false, error: { kind: "publish-expired" } });
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(isReviewUnsent(result.error)).toBe(true);
     expect(submitPullRequestReview).not.toHaveBeenCalled();
     expect(deletePendingPullRequestReview).toHaveBeenCalledTimes(1);

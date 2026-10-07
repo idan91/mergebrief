@@ -57,7 +57,9 @@ async function renderBrief(searchParams: BriefSearchParams): Promise<void> {
 
 function readStampedView(): string | null {
   const region = document.getElementById("main-content");
-  if (region === null) throw new Error("main-content not rendered");
+  if (region === null) {
+    throw new Error("main-content not rendered");
+  }
   return region.getAttribute("data-diff-view");
 }
 

@@ -26,10 +26,18 @@ export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
     merged: prInfo.merged,
   };
 
-  if (state !== undefined) meta.state = state;
-  if (prInfo.baseRef !== undefined) meta.baseRef = prInfo.baseRef;
-  if (prInfo.headRepo !== undefined) meta.headRepo = prInfo.headRepo;
-  if (prInfo.baseRepo !== undefined) meta.baseRepo = prInfo.baseRepo;
+  if (state !== undefined) {
+    meta.state = state;
+  }
+  if (prInfo.baseRef !== undefined) {
+    meta.baseRef = prInfo.baseRef;
+  }
+  if (prInfo.headRepo !== undefined) {
+    meta.headRepo = prInfo.headRepo;
+  }
+  if (prInfo.baseRepo !== undefined) {
+    meta.baseRepo = prInfo.baseRepo;
+  }
   if (!openPullRequests.ok) {
     log.warn("generate: open pull request list failed", {
       code: openPullRequests.error.code,

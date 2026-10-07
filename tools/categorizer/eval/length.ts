@@ -10,7 +10,9 @@ export function textLengthNotes(
   label = "",
 ): string[] {
   const violations = briefs.flatMap((brief) => brief.lengthViolations ?? []);
-  if (violations.length === 0) return [];
+  if (violations.length === 0) {
+    return [];
+  }
   const offendingRuns = briefs.filter(
     (brief) => (brief.lengthViolations ?? []).length > 0,
   ).length;

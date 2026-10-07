@@ -17,7 +17,9 @@ export function planGrammarBudget(
 
   for (const grammar of rankGrammars(files)) {
     const next = spentBytes + GRAMMAR_GZIP_BYTES[grammar];
-    if (next > budgetBytes) continue;
+    if (next > budgetBytes) {
+      continue;
+    }
 
     admitted.push(grammar);
     spentBytes = next;
@@ -44,7 +46,9 @@ function compareByRowsThenName(
   left: [GrammarName, number],
   right: [GrammarName, number],
 ): number {
-  if (left[1] !== right[1]) return right[1] - left[1];
+  if (left[1] !== right[1]) {
+    return right[1] - left[1];
+  }
 
   return left[0].localeCompare(right[0]);
 }

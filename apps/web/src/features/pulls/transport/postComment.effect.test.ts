@@ -61,7 +61,9 @@ describe("post-now success effect on the Review Session store", () => {
     // Staged: counted by the soft gate's unposted-drafts reminder.
     expect(unpostedDraftCount(s.getState().reviewComments)).toBe(1);
     const draft = s.getState().reviewComments[0];
-    if (draft === undefined) throw new Error("unreachable");
+    if (draft === undefined) {
+      throw new Error("unreachable");
+    }
 
     // Exactly what the post-now handler applies on a `posted` result.
     actions.markCommentsSubmitted([draft.id]);
@@ -93,7 +95,9 @@ describe("post-now success effect on the Review Session store", () => {
     expect(unpostedDraftCount(s.getState().reviewComments)).toBe(2);
 
     const first = s.getState().reviewComments[0];
-    if (first === undefined) throw new Error("unreachable");
+    if (first === undefined) {
+      throw new Error("unreachable");
+    }
     actions.markCommentsSubmitted([first.id]);
 
     // Exactly one draft cleared; the other still reminds the author.

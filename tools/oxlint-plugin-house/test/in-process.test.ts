@@ -178,7 +178,9 @@ for (const {
   options,
 } of CASES) {
   const definition = plugin.rules[rule];
-  if (definition === undefined) throw new Error(`plugin has no rule ${rule}`);
+  if (definition === undefined) {
+    throw new Error(`plugin has no rule ${rule}`);
+  }
   const valid: ValidCase[] = [{ ...readFixture(rule, good) }];
   if (ignored !== undefined) {
     valid.push({ ...readFixture(rule, ignored) });

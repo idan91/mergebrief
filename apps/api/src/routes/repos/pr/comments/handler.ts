@@ -83,7 +83,9 @@ async function recordReplyReview(
     base: c.req.query("base"),
     head: c.req.query("head"),
   });
-  if (!span.success) return;
+  if (!span.success) {
+    return;
+  }
 
   const log = c.get("logger");
   try {
@@ -99,7 +101,9 @@ async function recordReplyReview(
       },
       BigInt(reviewId),
     );
-    if (recorded.ok) return;
+    if (recorded.ok) {
+      return;
+    }
 
     const reason =
       recorded.error.kind === FailureKinds.SESSION_REJECTED

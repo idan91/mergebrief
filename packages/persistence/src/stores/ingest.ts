@@ -219,7 +219,9 @@ async function findStoredBrief(
   prRow: PullRequestRow,
   headSha: string,
 ): Promise<BriefRowId | undefined> {
-  if (prRow.baseSha === null) return undefined;
+  if (prRow.baseSha === null) {
+    return undefined;
+  }
 
   const pullRequestId: PullRequestRowId = prRow.id;
   const rows = await executor

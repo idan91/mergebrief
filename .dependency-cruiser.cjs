@@ -13,7 +13,9 @@ function readMembers() {
   for (const kind of MEMBER_DIRS) {
     for (const name of fs.readdirSync(kind)) {
       const manifestPath = path.join(kind, name, "package.json");
-      if (!fs.existsSync(manifestPath)) continue;
+      if (!fs.existsSync(manifestPath)) {
+        continue;
+      }
       const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
       const deps = { ...manifest.dependencies, ...manifest.devDependencies };
       const workspaceDeps = Object.keys(deps).filter((dep) =>

@@ -34,7 +34,9 @@ describe("loadGeneratorConfig from env", () => {
   it("returns zero-config defaults when MERGEBRIEF_CONFIG is unset", () => {
     const result = loadGeneratorConfig({});
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value).toEqual({
       generator: { provider: "anthropic" },
       spend: { maxGenerationsPerDay: null },
@@ -47,7 +49,9 @@ describe("loadGeneratorConfig from env", () => {
   it("fails fast on a set-but-empty MERGEBRIEF_CONFIG, unset is not empty", () => {
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: "" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("set but empty");
   });
 
@@ -57,7 +61,9 @@ describe("loadGeneratorConfig from env", () => {
     );
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({
       provider: "anthropic",
       model: "claude-sonnet-5",
@@ -71,7 +77,9 @@ describe("loadGeneratorConfig from env", () => {
     );
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({
       provider: "anthropic",
       effort: "low",
@@ -99,7 +107,9 @@ describe("loadGeneratorConfig from env", () => {
       MERGEBRIEF_CONFIG: "mergebrief.config.yaml",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({
       provider: "anthropic",
       model: "claude-sonnet-5",
@@ -134,7 +144,9 @@ describe("resolveEnvConfigPath", () => {
 
     const result = resolveEnvConfigPath("mergebrief.config.yaml", orphan);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("workspace root");
     expect(result.error.issues.join("; ")).toContain("absolute path");
   });
@@ -146,7 +158,9 @@ describe("loadGeneratorConfigFile", () => {
       "/nonexistent/mergebrief.config.yaml",
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not readable (ENOENT)");
   });
 
@@ -156,7 +170,9 @@ describe("loadGeneratorConfigFile", () => {
     );
     const result = loadGeneratorConfigFile(path);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("not valid YAML");
     // File content (which could carry a pasted credential) never echoes.
@@ -191,14 +207,18 @@ describe("loadGeneratorConfigFile", () => {
     const path = configFile("");
     const result = loadGeneratorConfigFile(path);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({ provider: "anthropic" });
   });
 
   it("rejects a non-mapping root", () => {
     const result = loadGeneratorConfigFile(configFile("- just\n- a list\n"));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain(
       "root must be a YAML mapping",
     );
@@ -211,7 +231,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain('"generaotr"');
     expect(text).toContain("(redacted)");
@@ -243,7 +265,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("drafts:");
   });
 
@@ -254,7 +278,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.contextSources).toEqual([
       { type: "notion", tokenEnv: "MY_NOTION_VAR" },
     ]);
@@ -265,7 +291,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("generator:\n  provider: anthropic\n"),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.contextSources).toEqual([]);
   });
 
@@ -274,7 +302,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("contextSources:\n  - type: jira\n"),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.message).toBe("invalid context source configuration");
     expect(result.error.issues.join("; ")).toContain("contextSources");
   });
@@ -286,7 +316,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.trackers).toEqual([
       {
         kind: "notion",
@@ -302,7 +334,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("generator:\n  provider: anthropic\n"),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.trackers).toEqual([]);
   });
 
@@ -317,7 +351,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("trackers.");
     expect(result.error.issues.join("; ")).not.toContain("a".repeat(32));
   });
@@ -327,7 +363,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("x-notes: only extensions here\n"),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({ provider: "anthropic" });
   });
 
@@ -336,7 +374,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("generator:\n  provider: gemini\n"),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("generator:");
     expect(text).toContain('unknown provider "gemini"');
@@ -348,7 +388,9 @@ describe("loadGeneratorConfigFile", () => {
       configFile("generator:\n  provider: anthropic\n  modle: typo\n"),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
@@ -359,7 +401,9 @@ describe("loadGeneratorConfigFile", () => {
       ),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({
       provider: "claude-code",
       model: "claude-sonnet-5",

@@ -167,7 +167,9 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
 
   const payload: SubmitFlagPayload = { outcome: input.outcome ?? "comment" };
 
-  if (input.body !== undefined) payload.body = input.body;
+  if (input.body !== undefined) {
+    payload.body = input.body;
+  }
 
   return payload;
 }

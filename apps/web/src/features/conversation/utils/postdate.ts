@@ -18,14 +18,18 @@ export function postdatesBrief(
   briefGeneratedAt: string | undefined,
   ownReviewIds: ReadonlySet<number>,
 ): boolean {
-  if (briefGeneratedAt === undefined) return false;
+  if (briefGeneratedAt === undefined) {
+    return false;
+  }
   if (comment.reviewId !== undefined && ownReviewIds.has(comment.reviewId)) {
     return false;
   }
 
   const created = Date.parse(comment.createdAt);
   const cutoff = Date.parse(briefGeneratedAt);
-  if (Number.isNaN(created) || Number.isNaN(cutoff)) return false;
+  if (Number.isNaN(created) || Number.isNaN(cutoff)) {
+    return false;
+  }
   return created > cutoff;
 }
 
@@ -35,15 +39,21 @@ export function countCommentsAfterBrief(
   briefGeneratedAt: string | undefined,
   ownReviewIds: ReadonlySet<number>,
 ): number {
-  if (briefGeneratedAt === undefined) return 0;
+  if (briefGeneratedAt === undefined) {
+    return 0;
+  }
   let count = 0;
   for (const thread of conversation.threads) {
     for (const comment of thread.comments) {
-      if (postdatesBrief(comment, briefGeneratedAt, ownReviewIds)) count += 1;
+      if (postdatesBrief(comment, briefGeneratedAt, ownReviewIds)) {
+        count += 1;
+      }
     }
   }
   for (const comment of conversation.prComments) {
-    if (postdatesBrief(comment, briefGeneratedAt, ownReviewIds)) count += 1;
+    if (postdatesBrief(comment, briefGeneratedAt, ownReviewIds)) {
+      count += 1;
+    }
   }
   return count;
 }

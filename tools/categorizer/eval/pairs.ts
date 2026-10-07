@@ -132,7 +132,9 @@ export async function loadPairCases(
   for (const id of selected) {
     // oxlint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
     const loaded = await loadOnePair(id, join(pairsDir, id));
-    if (!loaded.ok) return loaded;
+    if (!loaded.ok) {
+      return loaded;
+    }
     cases.push(loaded.value);
   }
   return { ok: true, value: cases };
@@ -224,7 +226,9 @@ function toEvalFixture(value: z.infer<typeof FixtureSchema>): EvalFixture {
     commitRange: value.commitRange,
   };
 
-  if (repoContext !== undefined) fixture.repoContext = repoContext;
+  if (repoContext !== undefined) {
+    fixture.repoContext = repoContext;
+  }
 
   return fixture;
 }
@@ -238,7 +242,9 @@ function shapeCompareFiles(raw: FixtureCompareFiles): CompareFiles {
     complete: raw.complete,
   };
 
-  if (raw.status !== undefined) compareFiles.status = raw.status;
+  if (raw.status !== undefined) {
+    compareFiles.status = raw.status;
+  }
 
   return compareFiles;
 }
@@ -406,7 +412,9 @@ function scorePairProperty(
   const notes: string[] = [];
   for (const [index, pair] of pairs.entries()) {
     try {
-      if (property.check(pair)) passes += 1;
+      if (property.check(pair)) {
+        passes += 1;
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       notes.push(
@@ -502,7 +510,9 @@ export async function evaluatePairCase(
   let rebaselined = false;
   if (baselineMode === BaselineModes.COMPARE) {
     const loaded = loadBaseline(baselinePath, key);
-    if (!loaded.ok) return loaded;
+    if (!loaded.ok) {
+      return loaded;
+    }
     baseline = loaded.value;
   } else if (baselineMode === BaselineModes.REBASELINE) {
     if (result.generationFailures > 0) {

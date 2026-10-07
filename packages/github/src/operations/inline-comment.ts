@@ -89,8 +89,12 @@ function shapeInlineCommentParams(
 
   params.line = input.line;
   params.side = input.side;
-  if (input.startLine !== undefined) params.start_line = input.startLine;
-  if (input.startSide !== undefined) params.start_side = input.startSide;
+  if (input.startLine !== undefined) {
+    params.start_line = input.startLine;
+  }
+  if (input.startSide !== undefined) {
+    params.start_side = input.startSide;
+  }
   return params;
 }
 
@@ -123,7 +127,9 @@ export async function createInlineReviewComment(
       commentId: BigInt(response.data.id),
     };
 
-    if (reviewId !== undefined) value.reviewId = reviewId;
+    if (reviewId !== undefined) {
+      value.reviewId = reviewId;
+    }
 
     return { ok: true, value };
   } catch (error) {

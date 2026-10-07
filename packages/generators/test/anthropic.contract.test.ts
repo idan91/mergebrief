@@ -24,7 +24,7 @@ import {
 /**
  * The Anthropic adapter's consumption of the shared conformance suite.
  *
- * The fake is a stub SDK CLIENT (not wire-level) — a deliberate asymmetry
+ * The fake is a stub SDK CLIENT (not wire-level), a deliberate asymmetry
  * with the API adapters' fetch-level fixtures: these stubs predate the
  * shared pipeline and are the characterization anchor that held while
  * AnthropicGenerator migrated onto it. Promotion trigger to a wire-level
@@ -60,7 +60,9 @@ function stubClient(turns: readonly StubTurn[]): StubClient {
           })),
         });
         const turn = turns[requests.length - 1];
-        if (!turn) throw new Error("anthropic harness: no scripted turn left");
+        if (!turn) {
+          throw new Error("anthropic harness: no scripted turn left");
+        }
         let listener: ((event: Anthropic.MessageStreamEvent) => void) | null =
           null;
         return {
@@ -72,8 +74,12 @@ function stubClient(turns: readonly StubTurn[]): StubClient {
             return this;
           },
           async finalMessage() {
-            if ("abort" in turn) throw ABORT_ERROR;
-            if ("rejectWith" in turn) throw turn.rejectWith;
+            if ("abort" in turn) {
+              throw ABORT_ERROR;
+            }
+            if ("rejectWith" in turn) {
+              throw turn.rejectWith;
+            }
             if ("sdkParseRejection" in turn) {
               // Replay the deltas the stream saw before the SDK's eager
               // parse blew up at message_stop, then reject like the SDK.
@@ -118,7 +124,9 @@ function makeHandle(
     attempts: () => stub.requests.length,
     feedbackSeen: () => {
       const retry = stub.requests[1];
-      if (!retry) return null;
+      if (!retry) {
+        return null;
+      }
       // Everything past the base user turn is the feedback surface.
       return retry.messages
         .slice(1)
@@ -242,7 +250,7 @@ describe("AnthropicGenerator SDK error classification", () => {
   });
 });
 
-describe("AnthropicGenerator SDK eager-parse rejection (SDK >= 0.101)", () => {
+describe("AnthropicGenerator SDK eager-parse rejection from SDK 0.101 on", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "anthropic-sdkparse-"));

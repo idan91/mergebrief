@@ -109,8 +109,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
       state: PrStates.OPEN,
     };
 
-    if (overrides?.baseSha !== undefined)
+    if (overrides?.baseSha !== undefined) {
       pullRequest.baseSha = overrides.baseSha;
+    }
 
     const input: Mutable<TriggerGenerationInput> = {
       pullRequest,
@@ -123,7 +124,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
     if (overrides?.regenerationDebounceSeconds !== undefined) {
       input.regenerationDebounceSeconds = overrides.regenerationDebounceSeconds;
     }
-    if (overrides?.reopen !== undefined) input.reopen = overrides.reopen;
+    if (overrides?.reopen !== undefined) {
+      input.reopen = overrides.reopen;
+    }
     if (overrides?.refreshRunAt !== undefined) {
       input.refreshRunAt = overrides.refreshRunAt;
     }
@@ -177,7 +180,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
     // The job: task, key, payload (STRING ids, JSON can't carry bigint),
     // run_at ≈ now + 60s.
     const job = jobs[0];
-    if (job === undefined) throw new Error("expected a jobs row");
+    if (job === undefined) {
+      throw new Error("expected a jobs row");
+    }
     expect(job["task_identifier"]).toBe("generate");
     expect(job["key"]).toBe(`generate:${outcome.pullRequest.id}`);
     expect(job["payload"]).toEqual({
@@ -298,7 +303,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
         from: new Date(0),
         to: new Date("2100-01-01T00:00:00.000Z"),
       });
-      if (!claimed.ok) throw new Error(claimed.error.message);
+      if (!claimed.ok) {
+        throw new Error(claimed.error.message);
+      }
       await harness.raw("delete from graphile_worker.jobs");
     }
 
@@ -774,7 +781,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
   it("refuses invalid debounce with a Result error and no writes", async () => {
     const result = await trigger({ debounceSeconds: -1 });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected an error result");
+    if (result.ok) {
+      throw new Error("expected an error result");
+    }
     expect(result.error.code).toBe("invalid-debounce");
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
@@ -919,7 +928,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
         effort: "low",
         body: "{}",
       });
-      if (!written.ok) throw new Error(written.error.message);
+      if (!written.ok) {
+        throw new Error(written.error.message);
+      }
       await drainSucceeded();
       return written.value.id;
     }
@@ -937,7 +948,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
         lastSubmittedSha,
         submittedAt: new Date(),
       });
-      if (!stored.ok) throw new Error(stored.error.message);
+      if (!stored.ok) {
+        throw new Error(stored.error.message);
+      }
     }
 
     async function drainSucceeded(): Promise<void> {
@@ -948,7 +961,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
     async function readGeneration(): Promise<Record<string, unknown>> {
       const rows = await harness.raw("select status, attempts from generation");
       const row = rows[0];
-      if (row === undefined) throw new Error("no generation row");
+      if (row === undefined) {
+        throw new Error("no generation row");
+      }
       return row;
     }
 
@@ -1032,7 +1047,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
           body: "{}",
         },
       );
-      if (!delta.ok) throw new Error(delta.error.message);
+      if (!delta.ok) {
+        throw new Error(delta.error.message);
+      }
 
       const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
 
@@ -1184,7 +1201,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
       for (const bad of [-1, Number.NaN]) {
         const result = await trigger({ regenerationDebounceSeconds: bad });
         expect(result.ok).toBe(false);
-        if (result.ok) return;
+        if (result.ok) {
+          return;
+        }
         expect(result.error.code).toBe("invalid-debounce");
       }
     });

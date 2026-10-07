@@ -46,7 +46,9 @@ export function CoreLinesDisclosure({
     // Escape must dismiss a hover-opened panel too: focus may be anywhere,
     // so listen at the document while open, capture phase, and consume the
     // key so it never reaches page-level shortcut handling.
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
@@ -58,7 +60,9 @@ export function CoreLinesDisclosure({
   }, [anchor]);
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const close = () => setAnchor(null);
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
@@ -73,7 +77,9 @@ export function CoreLinesDisclosure({
         // Touch browsers synthesize mouseenter before click: a hover-open
         // there would be immediately toggled shut by the click. Hover
         // preview is a MOUSE affordance; touch/pen go through click.
-        if (event.pointerType === "mouse") setAnchor(triggerRef.current);
+        if (event.pointerType === "mouse") {
+          setAnchor(triggerRef.current);
+        }
       }}
     >
       {/* oxlint-disable-next-line house/no-raw-button -- headless zero-specificity trigger wrapper: the child carries the visuals */}

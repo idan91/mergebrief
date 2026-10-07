@@ -109,9 +109,13 @@ export function markComparisonRows(
   marks: ComparisonMarkFiles | null,
 ): Map<number, ComparisonRowKind> {
   const rows = new Map<number, ComparisonRowKind>();
-  if (!marks || !chunk.diff) return rows;
+  if (!marks || !chunk.diff) {
+    return rows;
+  }
   const file = marks.files.find((entry) => entry.file === chunk.file);
-  if (!file) return rows;
+  if (!file) {
+    return rows;
+  }
   chunk.diff.forEach((row, index) => {
     if (
       (row.kind === "add" || row.kind === "ctx") &&
@@ -138,7 +142,9 @@ export function groupComparisonRuns(
   chunk: BriefChunk,
   marks: Map<number, ComparisonRowKind>,
 ): ComparisonRun[] {
-  if (!chunk.diff || marks.size === 0) return [];
+  if (!chunk.diff || marks.size === 0) {
+    return [];
+  }
   const runs: ComparisonRun[] = [];
   let current: { rowIndexes: number[]; hasAdded: boolean; end: number } | null =
     null;
@@ -162,7 +168,9 @@ export function groupComparisonRuns(
       });
     }
     const run = runs.at(-1);
-    if (run) run.kind = current.hasAdded ? "added" : "removed";
+    if (run) {
+      run.kind = current.hasAdded ? "added" : "removed";
+    }
   }
   return runs;
 }
@@ -175,7 +183,9 @@ export function buildChunkComparisonView(
   const runs = groupComparisonRuns(chunk, rowMarks);
   const runByRow = new Map<number, ComparisonRun>();
   for (const run of runs) {
-    for (const index of run.rowIndexes) runByRow.set(index, run);
+    for (const index of run.rowIndexes) {
+      runByRow.set(index, run);
+    }
   }
   return { marks: rowMarks, runs, runByRow };
 }
@@ -189,7 +199,9 @@ export const REVISION_JUMP_ATTR = "data-jump-target";
 
 /** Selector for one rail (by key) or all rails (no key). */
 export function revisionJumpSelector(railKey?: string): string {
-  if (railKey === undefined) return `[${REVISION_JUMP_ATTR}]`;
+  if (railKey === undefined) {
+    return `[${REVISION_JUMP_ATTR}]`;
+  }
   return `[${REVISION_JUMP_ATTR}="${CSS.escape(railKey)}"]`;
 }
 
@@ -213,7 +225,9 @@ export function deriveRevisionJumpTargets(
   chunks: readonly BriefChunk[],
   marks: ComparisonMarkFiles | null,
 ): RevisionJumpTarget[] {
-  if (!marks) return [];
+  if (!marks) {
+    return [];
+  }
   return chunks.flatMap((chunk) =>
     buildChunkComparisonView(chunk, marks).runs.map((run) => ({
       chunkId: chunk.id,
@@ -258,7 +272,9 @@ function bindBriefChunkFallback(
   const group = brief.changeGroups.find(
     (candidate) => candidate.id === chunk.changeGroupId,
   );
-  if (!group) return { available: false };
+  if (!group) {
+    return { available: false };
+  }
   if (run.kind === "removed") {
     return { available: true, degraded: true, groupTitle: group.title };
   }
@@ -302,7 +318,9 @@ export function bindRevisionNarrativeCallout(
   brief: Brief,
   narrative: RevisionNarrative | null,
 ): ComparisonCalloutContent {
-  if (!narrative || !chunk.diff) return { available: false };
+  if (!narrative || !chunk.diff) {
+    return { available: false };
+  }
   const { headLines, oldLines } = runLines(run, chunk);
   const narrativeChunk = narrative.chunks.find(
     (candidate) =>
@@ -311,14 +329,18 @@ export function bindRevisionNarrativeCallout(
         oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
   );
   if (isUnattributedRemainderChunk(chunk)) {
-    if (!narrativeChunk) return bindRemainderFallback(run, chunk);
+    if (!narrativeChunk) {
+      return bindRemainderFallback(run, chunk);
+    }
     return {
       available: true,
       remainder: true,
       summary: narrativeChunk.summary,
     };
   }
-  if (!narrativeChunk) return bindBriefChunkFallback(run, chunk, brief);
+  if (!narrativeChunk) {
+    return bindBriefChunkFallback(run, chunk, brief);
+  }
   const group = brief.changeGroups.find(
     (candidate) => candidate.id === narrativeChunk.briefChangeGroupId,
   );
@@ -330,7 +352,9 @@ export function bindRevisionNarrativeCallout(
     const ownGroup = brief.changeGroups.find(
       (candidate) => candidate.id === chunk.changeGroupId,
     );
-    if (!ownGroup) return { available: false };
+    if (!ownGroup) {
+      return { available: false };
+    }
     return {
       available: true,
       groupTitle: ownGroup.title,
@@ -354,7 +378,9 @@ export function bindDeltaCallout(
   chunk: BriefChunk,
   delta: Brief | null,
 ): ComparisonCalloutContent {
-  if (!delta || !chunk.diff) return { available: false };
+  if (!delta || !chunk.diff) {
+    return { available: false };
+  }
   const { headLines, oldLines } = runLines(run, chunk);
   const deltaChunk = delta.chunks.find(
     (candidate) =>
@@ -362,11 +388,15 @@ export function bindDeltaCallout(
       (headLines.some((line) => lineInRanges(line, candidate.addedRanges)) ||
         oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
   );
-  if (!deltaChunk) return { available: false };
+  if (!deltaChunk) {
+    return { available: false };
+  }
   const group = delta.changeGroups.find(
     (candidate) => candidate.id === deltaChunk.changeGroupId,
   );
-  if (!group) return { available: false };
+  if (!group) {
+    return { available: false };
+  }
   return {
     available: true,
     groupTitle: group.title,

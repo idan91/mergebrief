@@ -66,7 +66,9 @@ function stubPost(results: readonly PostResult[]): PostThread {
   const queue = [...results];
   return vi.fn(async (_input: AddReviewThreadInput) => {
     const next = queue.shift();
-    if (next === undefined) throw new Error("stub: no result queued");
+    if (next === undefined) {
+      throw new Error("stub: no result queued");
+    }
     return next;
   });
 }
@@ -86,7 +88,9 @@ describe("postReviewThreads", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.landed).toEqual([
       LINE_COMMENT,
       FILE_COMMENT,
@@ -116,7 +120,9 @@ describe("postReviewThreads", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.landed).toEqual([LINE_COMMENT, RANGE_COMMENT]);
     expect(result.value.rejected).toEqual([FILE_COMMENT]);
     expect(post).toHaveBeenCalledTimes(3);
@@ -132,7 +138,9 @@ describe("postReviewThreads", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error).toEqual({
       code: GitHubApiErrorCodes.REQUEST_FAILED,
       message: "failed to add pull request review thread",
@@ -150,7 +158,9 @@ describe("postReviewThreads", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error).toEqual({ kind: "token-unreadable" });
   });
 
@@ -159,7 +169,9 @@ describe("postReviewThreads", () => {
     const result = await postReviewThreads(post, "PRR_node", [], hasNotExpired);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ landed: [], rejected: [] });
     expect(post).not.toHaveBeenCalled();
   });

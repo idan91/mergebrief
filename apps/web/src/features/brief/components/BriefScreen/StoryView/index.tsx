@@ -259,7 +259,9 @@ function collectPinnedChunkKeys(
   // the anchor's chunk.
   const hostKey =
     composerHost === null ? undefined : keyByChunkId.get(composerHost);
-  if (hostKey !== undefined) pinned.add(hostKey);
+  if (hostKey !== undefined) {
+    pinned.add(hostKey);
+  }
 
   if (pinned.size === 0) {
     return undefined;
@@ -333,7 +335,9 @@ function WindowedChunkList({
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
-      if (!chunk) return 0;
+      if (!chunk) {
+        return 0;
+      }
       return estimateChunkCardHeight({
         diffRowCount: diffRowCounts[index] ?? 0,
         open: openChunks.has(chunk.id),
@@ -347,7 +351,9 @@ function WindowedChunkList({
 
   const registry = useChunkWindows();
   useEffect(() => {
-    if (!registry) return;
+    if (!registry) {
+      return;
+    }
     return registry.register({
       scrollToChunk: (chunkId) => {
         const key = keyByChunkId.get(chunkId);
@@ -373,8 +379,9 @@ function WindowedChunkList({
     if (
       event.relatedTarget instanceof Node &&
       event.currentTarget.contains(event.relatedTarget)
-    )
+    ) {
       return;
+    }
     setFocusedKey(null);
   };
 
@@ -397,7 +404,9 @@ function WindowedChunkList({
     >
       {window.items.map((item) => {
         const chunk = group.chunks[item.index];
-        if (!chunk) return null;
+        if (!chunk) {
+          return null;
+        }
         return (
           <div
             key={item.key}
@@ -451,7 +460,9 @@ function resolveGroupDiffView(
   diffView: DiffView,
   chunks: readonly BriefChunk[],
 ): DiffView {
-  if (diffView !== DiffViews.SPLIT) return DiffViews.UNIFIED;
+  if (diffView !== DiffViews.SPLIT) {
+    return DiffViews.UNIFIED;
+  }
   const anyPairable = chunks.some((chunk) =>
     hasPairedSides(chunk.diff ?? NO_DIFF),
   );

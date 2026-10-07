@@ -35,7 +35,9 @@ const INSTALL_URL_PREFIX = "https://github.com/apps/";
 
 /** GitHub's new-installation page for the App, by its URL name. */
 function buildInstallUrl(slug: string | undefined): string | null {
-  if (slug === undefined) return null;
+  if (slug === undefined) {
+    return null;
+  }
   return `${INSTALL_URL_PREFIX}${encodeURIComponent(slug)}/installations/new`;
 }
 
@@ -44,7 +46,9 @@ function resolveRowWorld(row: PullRequestRow): ScopeContext | undefined {
   if (row.installationId !== null) {
     return { installationId: row.installationId };
   }
-  if (row.ownerUserId !== null) return { ownerUserId: row.ownerUserId };
+  if (row.ownerUserId !== null) {
+    return { ownerUserId: row.ownerUserId };
+  }
   return undefined;
 }
 
@@ -59,7 +63,9 @@ async function readLatestGenerations(
   >();
   for (const { pullRequest } of rows) {
     const ctx = resolveRowWorld(pullRequest);
-    if (ctx === undefined) continue;
+    if (ctx === undefined) {
+      continue;
+    }
     const key = JSON.stringify(ctx, (_, value: unknown) =>
       typeof value === "bigint" ? String(value) : value,
     );
@@ -77,7 +83,9 @@ async function readLatestGenerations(
     ),
   );
   for (const page of pages) {
-    for (const [id, row] of page) merged.set(id, row);
+    for (const [id, row] of page) {
+      merged.set(id, row);
+    }
   }
   return merged;
 }

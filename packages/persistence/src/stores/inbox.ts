@@ -148,7 +148,9 @@ interface ViewableGroup {
 function shapeCounts(groups: readonly ViewableGroup[]): InboxCounts {
   const counts = { new: 0, inProgress: 0, reviewed: 0, updated: 0 };
   for (const group of groups) {
-    if (group.state === InboxReviewStates.NEW) counts.new += group.open;
+    if (group.state === InboxReviewStates.NEW) {
+      counts.new += group.open;
+    }
     if (group.state === InboxReviewStates.IN_PROGRESS) {
       counts.inProgress += group.open;
     }

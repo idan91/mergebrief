@@ -82,8 +82,12 @@ function collectValidationTexts(error: RequestError): string[] {
     if (typeof entry === "string") {
       texts.push(entry);
     } else {
-      if (entry.field !== undefined) texts.push(entry.field);
-      if (entry.message !== undefined) texts.push(entry.message);
+      if (entry.field !== undefined) {
+        texts.push(entry.field);
+      }
+      if (entry.message !== undefined) {
+        texts.push(entry.message);
+      }
     }
   }
   return texts;

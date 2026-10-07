@@ -31,7 +31,9 @@ export function createChunkWindowRegistry(): ChunkWindowRegistry {
     },
     scrollToChunk(chunkId) {
       for (const registration of registrations) {
-        if (registration.scrollToChunk(chunkId)) return true;
+        if (registration.scrollToChunk(chunkId)) {
+          return true;
+        }
       }
       return false;
     },
@@ -56,7 +58,7 @@ export function ChunkWindowProvider({
   );
 }
 
-/** Null outside a provider (tests, the raw-span path) — jumps then rely on
+/** Null outside a provider (tests, the raw-span path); jumps then rely on
  * mounted DOM alone, which is exactly the pre-windowing behavior. */
 export function useChunkWindows(): ChunkWindowRegistry | null {
   return useContext(ChunkWindowContext);

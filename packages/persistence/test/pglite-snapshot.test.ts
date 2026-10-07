@@ -39,7 +39,9 @@ describe("deriveSnapshotKey", () => {
     const dir = await migrationsCopy();
     const baseline = await deriveSnapshotKey(dir);
     const firstSql = (await readdir(dir)).find((n) => n.endsWith(".sql"));
-    if (firstSql === undefined) throw new Error("no migrations in copy");
+    if (firstSql === undefined) {
+      throw new Error("no migrations in copy");
+    }
     const path = join(dir, firstSql);
     await writeFile(path, `${await readFile(path, "utf8")}\n-- key probe`);
     expect(await deriveSnapshotKey(dir)).not.toBe(baseline);

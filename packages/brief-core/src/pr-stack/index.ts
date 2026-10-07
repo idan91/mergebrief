@@ -133,8 +133,12 @@ function sameGitRef(
   rightRef: string,
   rightRepo: RepoIdentity | undefined,
 ): boolean {
-  if (leftRepo === undefined || rightRepo === undefined) return false;
-  if (leftRef === "" || rightRef === "") return false;
+  if (leftRepo === undefined || rightRepo === undefined) {
+    return false;
+  }
+  if (leftRef === "" || rightRef === "") {
+    return false;
+  }
   return (
     leftRef === rightRef &&
     leftRepo.owner === rightRepo.owner &&
@@ -147,15 +151,21 @@ function findParent(
   open: readonly OpenPullRequest[],
 ): OpenPullRequest | undefined {
   const baseRef = node.baseRef;
-  if (baseRef === undefined || baseRef === "") return undefined;
+  if (baseRef === undefined || baseRef === "") {
+    return undefined;
+  }
   const matches = open.filter(
     (item) =>
       item.number !== node.number &&
       sameGitRef(item.headRef, item.headRepo, baseRef, node.baseRepo),
   );
-  if (matches.length !== 1) return undefined;
+  if (matches.length !== 1) {
+    return undefined;
+  }
   const parent = matches[0];
-  if (parent === undefined) return undefined;
+  if (parent === undefined) {
+    return undefined;
+  }
   return parent;
 }
 
@@ -163,7 +173,9 @@ function findChildren(
   node: PrStackSelf,
   open: readonly OpenPullRequest[],
 ): OpenPullRequest[] {
-  if (node.headRef === "") return [];
+  if (node.headRef === "") {
+    return [];
+  }
   return open.filter(
     (item) =>
       item.number !== node.number &&
@@ -181,7 +193,9 @@ export function resolvePrStack(
       children: children.map(toMember),
     };
     const parent = findParent(self, open);
-    if (parent !== undefined) fork.parent = toMember(parent);
+    if (parent !== undefined) {
+      fork.parent = toMember(parent);
+    }
     return fork;
   }
 
@@ -190,8 +204,12 @@ export function resolvePrStack(
   let cursor: PrStackSelf = self;
   for (;;) {
     const parent = findParent(cursor, open);
-    if (parent === undefined) break;
-    if (seen.has(parent.number)) break;
+    if (parent === undefined) {
+      break;
+    }
+    if (seen.has(parent.number)) {
+      break;
+    }
     seen.add(parent.number);
     ancestors.push(parent);
     cursor = parent;
@@ -201,22 +219,30 @@ export function resolvePrStack(
   cursor = self;
   for (;;) {
     const nextChildren = findChildren(cursor, open);
-    if (nextChildren.length !== 1) break;
+    if (nextChildren.length !== 1) {
+      break;
+    }
     const child = nextChildren[0];
-    if (child === undefined || seen.has(child.number)) break;
+    if (child === undefined || seen.has(child.number)) {
+      break;
+    }
     seen.add(child.number);
     descendants.push(child);
     cursor = child;
   }
 
-  if (ancestors.length === 0 && descendants.length === 0) return undefined;
+  if (ancestors.length === 0 && descendants.length === 0) {
+    return undefined;
+  }
 
   const members = [
     ...ancestors.toReversed().map(toMember),
     toMember(self),
     ...descendants.map(toMember),
   ];
-  if (members.length < 2) return undefined;
+  if (members.length < 2) {
+    return undefined;
+  }
 
   return { members, index: ancestors.length + 1 };
 }
@@ -238,9 +264,17 @@ export function attachPrStack(
     title: meta.title,
     headRef: meta.headRef ?? "",
   };
-  if (meta.baseRef !== undefined) self.baseRef = meta.baseRef;
-  if (meta.headRepo !== undefined) self.headRepo = meta.headRepo;
-  if (meta.baseRepo !== undefined) self.baseRepo = meta.baseRepo;
+  if (meta.baseRef !== undefined) {
+    self.baseRef = meta.baseRef;
+  }
+  if (meta.headRepo !== undefined) {
+    self.headRepo = meta.headRepo;
+  }
+  if (meta.baseRepo !== undefined) {
+    self.baseRepo = meta.baseRepo;
+  }
   const stack = resolvePrStack(self, open);
-  if (stack !== undefined) meta.stack = stack;
+  if (stack !== undefined) {
+    meta.stack = stack;
+  }
 }

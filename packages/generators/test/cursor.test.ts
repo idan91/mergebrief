@@ -85,8 +85,12 @@ function request(extras?: {
     effort: "medium",
     label: "probe",
   };
-  if (extras?.log) req.log = extras.log;
-  if (extras?.onUsage) req.onUsage = extras.onUsage;
+  if (extras?.log) {
+    req.log = extras.log;
+  }
+  if (extras?.onUsage) {
+    req.onUsage = extras.onUsage;
+  }
   if (extras?.onWarning) {
     req.onWarning = extras.onWarning;
   }
@@ -112,7 +116,9 @@ async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
     },
     (error: unknown) => error,
   );
-  if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+  if (!(caught instanceof GeneratorError)) {
+    throw new Error("wrong rejection");
+  }
   return caught;
 }
 
@@ -550,7 +556,9 @@ describe("cursor registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.origin("low")).toMatchObject({ provider: "cursor" });
   });
 
@@ -562,7 +570,9 @@ describe("cursor registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "auth-logged-out" }),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not authenticated");
   });
 
@@ -572,7 +582,9 @@ describe("cursor registry entry", () => {
       makeDeps({}),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("not found on PATH");
   });
 
@@ -586,7 +598,9 @@ describe("cursor registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain(
       "bracket overrides are rejected",
     );
@@ -598,7 +612,9 @@ describe("cursor registry entry", () => {
       makeDeps({}),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
@@ -700,7 +716,9 @@ describe("interpretCursorAbout auth verdict", () => {
       }),
     );
     expect(verdict.ok).toBe(false);
-    if (verdict.ok) return;
+    if (verdict.ok) {
+      return;
+    }
     const text = verdict.error.issues.join("; ");
     expect(text).toContain("not authenticated");
     expect(text).toContain("cursor-agent login");
@@ -732,7 +750,9 @@ describe("interpretCursorAbout auth verdict", () => {
   it("warns unverifiable instead of refusing on non-JSON output", () => {
     const verdict = interpretCursorAbout("cursor-agent about: plain text\n");
     expect(verdict.ok).toBe(true);
-    if (!verdict.ok) return;
+    if (!verdict.ok) {
+      return;
+    }
     expect(verdict.value).toContain("unverifiable");
   });
 
@@ -741,7 +761,9 @@ describe("interpretCursorAbout auth verdict", () => {
       JSON.stringify({ cliVersion: "2026.08.25-3e8eec8" }),
     );
     expect(verdict.ok).toBe(true);
-    if (!verdict.ok) return;
+    if (!verdict.ok) {
+      return;
+    }
     expect(verdict.value).toContain("unverifiable");
   });
 });

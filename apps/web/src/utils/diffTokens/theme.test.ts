@@ -27,7 +27,9 @@ function findSampleToken(matches: (content: string) => boolean): {
   });
   const token = lines.flat().find((candidate) => matches(candidate.content));
 
-  if (token === undefined) throw new Error("no token matched the sample");
+  if (token === undefined) {
+    throw new Error("no token matched the sample");
+  }
 
   return token;
 }
@@ -48,7 +50,9 @@ function resolvePaletteClassId(token: string): number {
   const index = SYNTAX_PALETTE.findIndex(
     (candidate) => candidate.token === token,
   );
-  if (index < 0) throw new Error(`no palette entry named ${token}`);
+  if (index < 0) {
+    throw new Error(`no palette entry named ${token}`);
+  }
 
   return index;
 }

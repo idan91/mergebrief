@@ -25,7 +25,9 @@ const FILE_ROWS: DiffLine[] = [
 
 function stubSlice(from: number, to: number) {
   const lines: string[] = [];
-  for (let line = from; line <= to; line += 1) lines.push(`L${String(line)}`);
+  for (let line = from; line <= to; line += 1) {
+    lines.push(`L${String(line)}`);
+  }
   return { from, to, lines };
 }
 

@@ -54,7 +54,9 @@ export function useReviewFlow<T>(
   selector: (state: ReviewFlowStoreValue) => T,
 ): T {
   const store = useContext(ReviewFlowContext);
-  if (!store) throw new Error("ReviewFlowProvider is missing");
+  if (!store) {
+    throw new Error("ReviewFlowProvider is missing");
+  }
   return useStore(store, selector);
 }
 

@@ -6,7 +6,9 @@ const CLICK_INPUT_TYPES = new Set(["checkbox", "radio", "button", "submit"]);
 
 /** A key pressed while typing belongs to the field, never to a page shortcut. */
 export function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
   if (target instanceof HTMLInputElement) {
     return !CLICK_INPUT_TYPES.has(target.type);
   }

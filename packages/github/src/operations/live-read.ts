@@ -144,13 +144,19 @@ function mapFacts(
  */
 function readPartialData(error: unknown): PartialPage | undefined {
   const parsed = thrownPageSchema.safeParse(error);
-  if (!parsed.success) return undefined;
+  if (!parsed.success) {
+    return undefined;
+  }
 
   const unanswered = new Set<string>();
   for (const entry of parsed.data.errors) {
-    if (entry.type === GRAPHQL_NOT_FOUND) continue;
+    if (entry.type === GRAPHQL_NOT_FOUND) {
+      continue;
+    }
     const alias = entry.path?.[0];
-    if (typeof alias !== "string") return undefined;
+    if (typeof alias !== "string") {
+      return undefined;
+    }
     unanswered.add(alias);
   }
   return { data: parsed.data.data, unanswered };
@@ -171,7 +177,9 @@ export async function readPullRequestFacts(
     throw new Error(`live read takes at most ${LIVE_READ_PAGE_SIZE} refs`);
   }
   const page = new Map<string, PullRequestFacts | null>();
-  if (refs.length === 0) return { ok: true, value: page };
+  if (refs.length === 0) {
+    return { ok: true, value: page };
+  }
 
   let response: unknown;
   let unanswered: ReadonlySet<string> = new Set();
@@ -194,7 +202,9 @@ export async function readPullRequestFacts(
     return { ok: false, error: unexpectedResponseError(READ_CONTEXT) };
   }
   refs.forEach((ref, index) => {
-    if (unanswered.has(`p${index}`)) return;
+    if (unanswered.has(`p${index}`)) {
+      return;
+    }
     const repository = parsed.data[`p${index}`];
     const wire = repository?.pullRequest;
     page.set(

@@ -258,7 +258,9 @@ describe("readConversation with an owner viewer token", () => {
     let ciphertext = "undecryptable";
     if (input.plaintext !== undefined) {
       const sealed = await encryptToken(kp, keyRef, input.plaintext);
-      if (!sealed.ok) throw new Error("seal failed");
+      if (!sealed.ok) {
+        throw new Error("seal failed");
+      }
       ciphertext = sealed.value;
     }
     const session: ViewerPrincipal = {

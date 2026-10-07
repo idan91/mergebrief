@@ -103,8 +103,9 @@ async function seedSession(
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const expiresAt = new Date("2027-01-01T00:00:00Z");
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
@@ -437,7 +438,9 @@ describe("the per-repo gate across two installations", () => {
       brandRepoId(BigInt(OTHER_REPO_ID)),
       OTHER_PR_NUMBER,
     );
-    if (otherRow === undefined) throw new Error("seed missing");
+    if (otherRow === undefined) {
+      throw new Error("seed missing");
+    }
     const brief = await createArtifactStore(
       harness.handle,
       OTHER_CTX,
@@ -457,7 +460,9 @@ describe("the per-repo gate across two installations", () => {
       carriedChunkIds: [],
       anchorState: "anchored",
     });
-    if (!brief.ok) throw new Error("brief seed failed");
+    if (!brief.ok) {
+      throw new Error("brief seed failed");
+    }
 
     const res = await buildApp().request(
       `/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,

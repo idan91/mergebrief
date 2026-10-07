@@ -52,8 +52,9 @@ function isRecordedMessage(
 
 function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string")
+  if (typeof body !== "string") {
     throw new Error("expected a string request body");
+  }
   return body;
 }
 
@@ -98,7 +99,9 @@ function makeOpenAiHarness(): GeneratorContractHarness {
         }
         const turn = turns[served] ?? turns[turns.length - 1];
         served += 1;
-        if (turn === undefined) throw new Error("no scripted turn left");
+        if (turn === undefined) {
+          throw new Error("no scripted turn left");
+        }
         if ("abort" in turn) {
           // Never respond; abort the caller's signal and reject like fetch
           // does, the SDK converts this into its APIUserAbortError.
@@ -108,8 +111,11 @@ function makeOpenAiHarness(): GeneratorContractHarness {
               reject(
                 new DOMException("The operation was aborted.", "AbortError"),
               );
-            if (init?.signal?.aborted) fail();
-            else init?.signal?.addEventListener("abort", fail);
+            if (init?.signal?.aborted) {
+              fail();
+            } else {
+              init?.signal?.addEventListener("abort", fail);
+            }
           });
         }
         const sse = (content: string, refusal?: string) =>
@@ -117,7 +123,9 @@ function makeOpenAiHarness(): GeneratorContractHarness {
             status: 200,
             headers: { "content-type": "text/event-stream" },
           });
-        if ("refusal" in turn) return sse("", "I can't help with that.");
+        if ("refusal" in turn) {
+          return sse("", "I can't help with that.");
+        }
         return sse(turn.raw);
       };
 
@@ -128,14 +136,18 @@ function makeOpenAiHarness(): GeneratorContractHarness {
         provider: "openai",
         fetch: fixtureFetch,
       });
-      if (!core.ok) throw new Error(core.error.issues.join("; "));
+      if (!core.ok) {
+        throw new Error(core.error.issues.join("; "));
+      }
 
       const handle: ContractGeneratorHandle = {
         generator: core.value,
         attempts: () => recorded.length,
         feedbackSeen: () => {
           const retry = recorded[1];
-          if (!retry) return null;
+          if (!retry) {
+            return null;
+          }
           // Everything past the base [system, user] pair is feedback.
           return retry.messages
             .slice(2)
@@ -144,7 +156,9 @@ function makeOpenAiHarness(): GeneratorContractHarness {
         },
       };
 
-      if (wantsAbort) handle.signal = controller.signal;
+      if (wantsAbort) {
+        handle.signal = controller.signal;
+      }
 
       return handle;
     },

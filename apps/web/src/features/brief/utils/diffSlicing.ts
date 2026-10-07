@@ -16,12 +16,17 @@ export function sliceChunkDiff(
   chunk: Pick<BriefChunk, "addedRanges" | "removedRanges">,
 ): DiffLine[] {
   const changedRows = rows.filter((row) => {
-    if (row.kind === "add") return lineInRanges(row.newLine, chunk.addedRanges);
-    if (row.kind === "del")
+    if (row.kind === "add") {
+      return lineInRanges(row.newLine, chunk.addedRanges);
+    }
+    if (row.kind === "del") {
       return lineInRanges(row.oldLine, chunk.removedRanges);
+    }
     return false;
   });
-  if (changedRows.length === 0) return [];
+  if (changedRows.length === 0) {
+    return [];
+  }
 
   const selected = new Set<DiffLine>();
   for (const changedRow of changedRows) {
@@ -32,7 +37,9 @@ export function sliceChunkDiff(
     }
     if (hunkIndex >= 0) {
       const hunk = rows[hunkIndex];
-      if (hunk) selected.add(hunk);
+      if (hunk) {
+        selected.add(hunk);
+      }
     }
     for (let offset = -2; offset <= 2; offset += 1) {
       const row = rows[index + offset];
@@ -59,13 +66,17 @@ export function attachSlicedDiffs(
   brief: Brief,
   fileRows: FileRowsCache,
 ): Brief {
-  if (fileRows.isEmpty) return brief;
+  if (fileRows.isEmpty) {
+    return brief;
+  }
 
   const withDiffs: Brief = {
     ...brief,
     chunks: brief.chunks.map((chunk) => {
       const rows = fileRows.getFileRows(chunk.file);
-      if (rows === undefined) return chunk;
+      if (rows === undefined) {
+        return chunk;
+      }
       return { ...chunk, diff: sliceChunkDiff(rows, chunk) };
     }),
   };
@@ -73,7 +84,9 @@ export function attachSlicedDiffs(
   if (brief.unattributed !== undefined) {
     withDiffs.unattributed = brief.unattributed.map((entry) => {
       const rows = fileRows.getFileRows(entry.file);
-      if (rows === undefined) return entry;
+      if (rows === undefined) {
+        return entry;
+      }
       return { ...entry, diff: sliceChunkDiff(rows, entry) };
     });
   }
@@ -138,7 +151,9 @@ export function parseUnifiedDiffPatch(patch: string): DiffLine[] {
   // A patch ends with a newline, so the split leaves one empty string behind
   // the last row; read as a line it would become a context row past the hunk.
   const lines = patch.split("\n");
-  if (lines.at(-1) === "") lines.pop();
+  if (lines.at(-1) === "") {
+    lines.pop();
+  }
   // Git writes any number of header lines before a file's first hunk
   // (rename, mode, similarity, binary); none of them is content.
   let inHunk = false;
@@ -156,7 +171,9 @@ export function parseUnifiedDiffPatch(patch: string): DiffLine[] {
       inHunk = true;
       continue;
     }
-    if (!inHunk) continue;
+    if (!inHunk) {
+      continue;
+    }
     if (line.startsWith("\\ No newline")) {
       rows.push({ kind: "note", content: line });
       continue;
@@ -206,7 +223,9 @@ export function splitUnifiedDiffByFile(
   diff: string,
 ): ReadonlyMap<string, string> {
   const files = new Map<string, string>();
-  if (diff.length === 0) return files;
+  if (diff.length === 0) {
+    return files;
+  }
 
   let currentKey: string | undefined;
   let currentLines: string[] = [];

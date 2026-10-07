@@ -20,7 +20,9 @@ export function useRailHover() {
   const railHoverSeq = useRef(0);
 
   useEffect(() => {
-    if (!railHover) return;
+    if (!railHover) {
+      return;
+    }
     const close = () => setRailHover(null);
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });

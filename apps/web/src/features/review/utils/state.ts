@@ -92,7 +92,9 @@ export interface ChunkRegion {
 
 export function getChunkRegion(chunk: BriefChunk): ChunkRegion {
   const bounds = [...chunk.addedRanges, ...chunk.removedRanges];
-  if (bounds.length === 0) return { start: 1, end: 1 };
+  if (bounds.length === 0) {
+    return { start: 1, end: 1 };
+  }
   return {
     start: Math.min(...bounds.map((range) => range.start)),
     end: Math.max(...bounds.map((range) => range.end)),
@@ -107,7 +109,9 @@ export function riskEvidenceLabel(
 ): string {
   if (evidence.kind === "linked-comment") {
     const comment = comments.find((item) => item.id === evidence.commentId);
-    if (!comment) return t("review.summary.evidenceLinkedCommentMissing");
+    if (!comment) {
+      return t("review.summary.evidenceLinkedCommentMissing");
+    }
     return t("review.summary.evidenceLinkedComment", {
       location: commentLocation(comment),
     });
@@ -177,7 +181,9 @@ export function deriveUnresolvedItems(
   }
 
   for (const chunk of remainderChunks) {
-    if (input.reviewedChunkIds.has(chunk.id)) continue;
+    if (input.reviewedChunkIds.has(chunk.id)) {
+      continue;
+    }
     items.push({
       id: `remainder:${chunk.id}`,
       kind: "unreviewed-remainder",
@@ -258,7 +264,9 @@ export function isFlagUnderAnchor(
   if (flag.file !== anchor.filePath || flag.attr !== anchor.attribute) {
     return false;
   }
-  if (region === undefined) return false;
+  if (region === undefined) {
+    return false;
+  }
   return region.start <= anchor.endLine && region.end >= anchor.startLine;
 }
 
@@ -268,7 +276,9 @@ function getFlagsAtAnchor(
   item: SessionAttentionItem,
 ): RiskFlag[] {
   const { location } = item;
-  if (location.kind !== CommentAnchorKinds.LINE) return [];
+  if (location.kind !== CommentAnchorKinds.LINE) {
+    return [];
+  }
   return input.flags.filter((flag) =>
     isFlagUnderAnchor(flag, input.regions.get(flag.chunkId), {
       filePath: location.filePath,
@@ -295,7 +305,9 @@ function buildCarriedDraftItem(
   item: SessionAttentionItem,
 ): CarriedItem | undefined {
   const id = item.subject.id;
-  if (id === null) return undefined;
+  if (id === null) {
+    return undefined;
+  }
   const live = input.comments.find(
     (comment) =>
       comment.id === id && comment.status === ReviewCommentStatuses.DRAFT,
@@ -322,7 +334,9 @@ function buildCarriedDraftItem(
   const renders = input.chunks.some(
     (chunk) => chunk.file === item.location.filePath,
   );
-  if (renders || input.deletedMissingDrafts.has(id)) return undefined;
+  if (renders || input.deletedMissingDrafts.has(id)) {
+    return undefined;
+  }
   return {
     id: `carried:${id}`,
     kind: AttentionItemKinds.ORPHANED_ANCHOR,
@@ -343,7 +357,9 @@ function hasDraftMovedFromAttention(
   if (location.kind === CommentAnchorKinds.FILE) {
     return live.anchor.file !== location.filePath;
   }
-  if (!isLineCommentAnchor(live.anchor)) return true;
+  if (!isLineCommentAnchor(live.anchor)) {
+    return true;
+  }
   return (
     live.anchor.startLine !== location.startLine ||
     live.anchor.endLine !== location.endLine
@@ -353,7 +369,9 @@ function hasDraftMovedFromAttention(
 function formatAttentionLocationLabel(
   location: SessionAttentionItem["location"],
 ): string {
-  if (location.kind === CommentAnchorKinds.FILE) return location.filePath;
+  if (location.kind === CommentAnchorKinds.FILE) {
+    return location.filePath;
+  }
   return `${location.filePath}:${String(location.startLine)}`;
 }
 
@@ -367,7 +385,9 @@ function buildCarriedDispositionItem(
       input.dispositions[flag.id] ?? { kind: "open" },
     ),
   );
-  if (pending === undefined) return undefined;
+  if (pending === undefined) {
+    return undefined;
+  }
   return {
     id: `carried:${item.kind}:${pending.id}`,
     kind: item.kind,
@@ -406,8 +426,12 @@ export function reviewOutcomeLabel(
   t: TFunction,
   outcome: ReviewOutcome,
 ): string {
-  if (outcome === "request-changes") return t("review.outcome.requestChanges");
-  if (outcome === "approve") return t("review.outcome.approve");
+  if (outcome === "request-changes") {
+    return t("review.outcome.requestChanges");
+  }
+  if (outcome === "approve") {
+    return t("review.outcome.approve");
+  }
   return t("review.outcome.comment");
 }
 
@@ -434,9 +458,13 @@ export function riskDispositionCounts(
   const counts: RiskDispositionCounts = { addressed: 0, dismissed: 0, open: 0 };
   for (const flagId of flagIds) {
     const kind = dispositions[flagId]?.kind ?? "open";
-    if (kind === "addressed") counts.addressed += 1;
-    else if (kind === "dismissed") counts.dismissed += 1;
-    else counts.open += 1;
+    if (kind === "addressed") {
+      counts.addressed += 1;
+    } else if (kind === "dismissed") {
+      counts.dismissed += 1;
+    } else {
+      counts.open += 1;
+    }
   }
   return counts;
 }
@@ -448,7 +476,9 @@ export function isThinReason(reason: string): boolean {
 
 export function commentLocation(comment: ReviewComment): string {
   const { anchor } = comment;
-  if (isFileCommentAnchor(anchor)) return anchor.file;
+  if (isFileCommentAnchor(anchor)) {
+    return anchor.file;
+  }
   const sign = anchor.side === "new" ? "+" : "-";
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
     const startSign = anchor.startSide === "new" ? "+" : "-";

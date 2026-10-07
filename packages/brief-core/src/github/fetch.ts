@@ -78,9 +78,15 @@ export function metadataFromView(raw: unknown): PrMetadata {
     meta.state = ghState === "OPEN" ? "open" : "closed";
     meta.merged = ghState === "MERGED";
   }
-  if (typeof view.isDraft === "boolean") meta.draft = view.isDraft;
-  if (typeof view.headRefName === "string") meta.headRef = view.headRefName;
-  if (typeof view.baseRefName === "string") meta.baseRef = view.baseRefName;
+  if (typeof view.isDraft === "boolean") {
+    meta.draft = view.isDraft;
+  }
+  if (typeof view.headRefName === "string") {
+    meta.headRef = view.headRefName;
+  }
+  if (typeof view.baseRefName === "string") {
+    meta.baseRef = view.baseRefName;
+  }
   const headOwner = view.headRepositoryOwner?.login;
   const headName = view.headRepository?.name;
   if (headOwner !== undefined && headName !== undefined) {
@@ -111,7 +117,9 @@ function mapGhOpenPullRequest(
 ): OpenPullRequest | undefined {
   const headOwner = item.headRepositoryOwner?.login;
   const headName = item.headRepository?.name;
-  if (headOwner === undefined || headName === undefined) return undefined;
+  if (headOwner === undefined || headName === undefined) {
+    return undefined;
+  }
   return {
     number: item.number,
     title: item.title,
@@ -133,7 +141,9 @@ export function parseGhOpenPullRequests(
   const value: OpenPullRequest[] = [];
   for (const item of parsed.data) {
     const mapped = mapGhOpenPullRequest(item, listing);
-    if (mapped !== undefined) value.push(mapped);
+    if (mapped !== undefined) {
+      value.push(mapped);
+    }
   }
   return { ok: true, value };
 }
@@ -158,7 +168,9 @@ async function fetchOpenPullRequests(
     { maxBuffer: MAX_BUFFER },
   );
   const parsed = parseGhOpenPullRequests(JSON.parse(stdout), loc);
-  if (!parsed.ok) return undefined;
+  if (!parsed.ok) {
+    return undefined;
+  }
   return parsed.value;
 }
 
@@ -180,7 +192,9 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
   meta.baseRepo = { owner: loc.owner, repo: loc.repo };
   try {
     const open = await fetchOpenPullRequests(loc);
-    if (open !== undefined) attachPrStack(meta, loc.number, open);
+    if (open !== undefined) {
+      attachPrStack(meta, loc.number, open);
+    }
   } catch {
     // Listing is best-effort: a stack miss must not fail metadata.
   }
@@ -205,7 +219,9 @@ export async function resolveFullSha(
   if (!isCommitish(ref)) {
     throw new Error(`expected a hex commit SHA (7-40 chars); got "${ref}"`);
   }
-  if (ref.length === 40) return ref.toLowerCase();
+  if (ref.length === 40) {
+    return ref.toLowerCase();
+  }
   const { stdout } = await execFileAsync(
     "gh",
     ["api", `repos/${loc.owner}/${loc.repo}/commits/${ref}`, "--jq", ".sha"],

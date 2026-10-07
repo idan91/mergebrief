@@ -154,7 +154,9 @@ describe("parseWebhookEvent, pull_request", () => {
     expect(moved.baseChanged).toBe(true);
 
     const fixture = jsonFixture("pull_request.edited.json");
-    if (!isRecord(fixture)) throw new Error("fixture is not an object");
+    if (!isRecord(fixture)) {
+      throw new Error("fixture is not an object");
+    }
     const titleOnly = expectOk(
       parseWebhookEvent({
         eventName: "pull_request",
@@ -267,7 +269,9 @@ describe("parseWebhookEvent, pull_request", () => {
       }),
     );
     expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
-    if (event.kind !== ParsedWebhookEventKinds.IGNORED) return;
+    if (event.kind !== ParsedWebhookEventKinds.IGNORED) {
+      return;
+    }
     expect(event.eventName).toBe("pull_request");
     expect(event.action).toBe("labeled");
   });
@@ -509,7 +513,9 @@ describe("parseWebhookEvent, envelope handling", () => {
       parseWebhookEvent({ eventName: "star", payload: { action: "created" } }),
     );
     expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
-    if (event.kind !== ParsedWebhookEventKinds.IGNORED) return;
+    if (event.kind !== ParsedWebhookEventKinds.IGNORED) {
+      return;
+    }
     expect(event.eventName).toBe("star");
   });
 

@@ -102,7 +102,9 @@ export function IconButton(props: IconButtonProps) {
           onFocus?.(event);
         }}
         onPointerEnter={(event) => {
-          if (callout !== undefined) hover.arm(event);
+          if (callout !== undefined) {
+            hover.arm(event);
+          }
           onPointerEnter?.(event);
         }}
         onPointerLeave={(event) => {

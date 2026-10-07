@@ -130,7 +130,9 @@ async function readWithViewer<T>(
     attempts += 1;
     return read(github.createOctokit(token));
   }, isGitHubDenial);
-  if (result.ok) return result;
+  if (result.ok) {
+    return result;
+  }
   if ("kind" in result.error) {
     return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
   }
@@ -165,7 +167,9 @@ async function resolveStackSelf(
   const fetched = await readWithViewer(github, (octokit) =>
     fetchPullRequest(octokit, { ...target, prNumber }),
   );
-  if (!fetched.ok) return fetched;
+  if (!fetched.ok) {
+    return fetched;
+  }
   return {
     ok: true,
     value: {
@@ -550,7 +554,9 @@ export const readsController = {
       const listed = await readWithViewer(deps.github, (octokit) =>
         listOpenPullRequests(octokit, target),
       );
-      if (!listed.ok) return listed;
+      if (!listed.ok) {
+        return listed;
+      }
       open = listed.value;
       deps.openPullsCache.set(
         cacheKey,
@@ -566,7 +572,9 @@ export const readsController = {
       input.prNumber,
       open,
     );
-    if (!selfRead.ok) return selfRead;
+    if (!selfRead.ok) {
+      return selfRead;
+    }
 
     const stack = resolvePrStack(selfRead.value.self, open);
     if (stack === undefined) {

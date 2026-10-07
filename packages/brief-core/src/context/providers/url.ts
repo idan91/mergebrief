@@ -60,11 +60,19 @@ export function isPublicUrl(raw: string): boolean {
   } catch {
     return false;
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-  if (url.username !== "" || url.password !== "") return false;
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return false;
+  }
+  if (url.username !== "" || url.password !== "") {
+    return false;
+  }
   const host = url.hostname.replace(/^\[|\]$/g, ""); // unwrap [::1]
-  if (host === "localhost" || host.endsWith(".local")) return false;
-  if (isIP(host) && isPrivateAddr(host)) return false;
+  if (host === "localhost" || host.endsWith(".local")) {
+    return false;
+  }
+  if (isIP(host) && isPrivateAddr(host)) {
+    return false;
+  }
   return true;
 }
 
@@ -73,7 +81,9 @@ const validatingLookup: LookupFunction = (hostname, _options, callback) => {
   // `{ all: true }` so a host returning several A/AAAA records can't sneak a
   // private one past us. We connect to exactly the address we validate.
   dnsLookup(hostname, { all: true }, (err, addresses: LookupAddress[]) => {
-    if (err) return callback(err, "", 0);
+    if (err) {
+      return callback(err, "", 0);
+    }
     const blocked = addresses.find((a) => isPrivateAddr(a.address));
     if (blocked) {
       callback(
@@ -86,7 +96,9 @@ const validatingLookup: LookupFunction = (hostname, _options, callback) => {
       return;
     }
     const first = addresses[0];
-    if (!first) return callback(new Error("no address"), "", 0);
+    if (!first) {
+      return callback(new Error("no address"), "", 0);
+    }
     callback(null, first.address, first.family);
   });
 };
@@ -137,7 +149,9 @@ function fetchText(
         res.setEncoding("utf8");
         let body = "";
         res.on("data", (chunk: string) => {
-          if (body.length >= MAX_SNIPPET_CHARS) return;
+          if (body.length >= MAX_SNIPPET_CHARS) {
+            return;
+          }
           body += chunk;
           if (body.length >= MAX_SNIPPET_CHARS) {
             body = body.slice(0, MAX_SNIPPET_CHARS);
@@ -162,7 +176,9 @@ export function extractLinks(body: string): string[] {
   const seen = new Set<string>();
   for (const raw of body.match(URL_IN_TEXT) ?? []) {
     const url = raw.replace(/[.,;:]+$/, "");
-    if (!seen.has(url)) seen.add(url);
+    if (!seen.has(url)) {
+      seen.add(url);
+    }
   }
   return [...seen].slice(0, MAX_LINKS);
 }

@@ -61,7 +61,9 @@ async function insertGrant(db: Db): Promise<GrantRowId> {
     })
     .returning({ id: githubGrant.id });
   const row = rows[0];
-  if (row === undefined) throw new Error("grant insert returned no row");
+  if (row === undefined) {
+    throw new Error("grant insert returned no row");
+  }
   return row.id;
 }
 
@@ -103,8 +105,12 @@ function artifact(body: string): {
 
 /** Ascending bigint comparator, `Array#sort`'s default coerces to string. */
 function compareBigIntAsc(left: bigint, right: bigint): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
   return 0;
 }
 
@@ -380,7 +386,9 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
       CTX_A,
     ).purgePullRequest(prId);
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected purge success");
+    if (!result.ok) {
+      throw new Error("expected purge success");
+    }
     expect(result.value).toBe(1);
 
     // Every per-PR child gone by FK cascade, including the Review Session
@@ -440,7 +448,9 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
       installationId: TENANT_B,
     }).purgePullRequest(prId);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected notFound");
+    if (result.ok) {
+      throw new Error("expected notFound");
+    }
     expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
@@ -664,7 +674,9 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
       7,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected success");
+    if (!result.ok) {
+      throw new Error("expected success");
+    }
     expect(result.value.state).toBe(PrStates.CLOSED);
     expect(result.value.closedAt?.getTime()).toBe(closedAt.getTime());
     const expected = closedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
@@ -685,7 +697,9 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
         bad,
       );
       expect(result.ok).toBe(false);
-      if (result.ok) throw new Error("expected failure");
+      if (result.ok) {
+        throw new Error("expected failure");
+      }
       expect(result.error.code).toBe(PurgeErrorCodes.INVALID_GRACE);
     }
     const rows = await raw
@@ -708,7 +722,9 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
       null,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected success");
+    if (!result.ok) {
+      throw new Error("expected success");
+    }
     expect(result.value.purgeAfter).toBeNull();
 
     // A sweep far in the future still cannot touch a null-purge_after row.
@@ -728,7 +744,9 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
       installationId: TENANT_B,
     }).setRetention(prId, PrStates.CLOSED, new Date(), 3);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected notFound");
+    if (result.ok) {
+      throw new Error("expected notFound");
+    }
     expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
   });
 });

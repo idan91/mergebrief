@@ -372,7 +372,9 @@ function mapComment(
     url: comment.url,
   };
 
-  if (reviewId !== undefined) conversationComment.reviewId = reviewId;
+  if (reviewId !== undefined) {
+    conversationComment.reviewId = reviewId;
+  }
 
   return conversationComment;
 }
@@ -423,11 +425,15 @@ function mapThread(
   if (!isFileLevel && thread.startLine !== null) {
     conversationThread.startLine = thread.startLine;
   }
-  if (thread.diffSide !== null) conversationThread.side = thread.diffSide;
+  if (thread.diffSide !== null) {
+    conversationThread.side = thread.diffSide;
+  }
   if (thread.startDiffSide !== null) {
     conversationThread.startSide = thread.startDiffSide;
   }
-  if (anchorSha !== undefined) conversationThread.anchorSha = anchorSha;
+  if (anchorSha !== undefined) {
+    conversationThread.anchorSha = anchorSha;
+  }
 
   return conversationThread;
 }
@@ -619,7 +625,9 @@ export async function createReviewCommentReply(
     const hasSafeReviewId =
       typeof rawReviewId === "number" && Number.isSafeInteger(rawReviewId);
 
-    if (hasSafeReviewId) value.reviewId = rawReviewId;
+    if (hasSafeReviewId) {
+      value.reviewId = rawReviewId;
+    }
 
     return { ok: true, value };
   } catch (error) {

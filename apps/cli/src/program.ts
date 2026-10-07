@@ -244,7 +244,9 @@ async function authStatusBody(
 }
 
 function describeAuthState(authenticated: boolean | null): string {
-  if (authenticated === true) return "authenticated";
+  if (authenticated === true) {
+    return "authenticated";
+  }
   if (authenticated === false) {
     return "NOT authenticated (re-mint at <baseUrl>/settings)";
   }
@@ -535,8 +537,12 @@ export function buildProgram(deps: CliDeps): Command {
     }>();
     const globalOptions: Mutable<GlobalOptions> = { json: opts.json };
 
-    if (opts.profile !== undefined) globalOptions.profile = opts.profile;
-    if (opts.repo !== undefined) globalOptions.repo = opts.repo;
+    if (opts.profile !== undefined) {
+      globalOptions.profile = opts.profile;
+    }
+    if (opts.repo !== undefined) {
+      globalOptions.repo = opts.repo;
+    }
 
     return globalOptions;
   };

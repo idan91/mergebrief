@@ -13,7 +13,9 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 /** The title when it has text; a blank one falls back like a missing one. */
 export function readRowTitle(title: string | null): string | undefined {
-  if (title === null || title.trim() === "") return undefined;
+  if (title === null || title.trim() === "") {
+    return undefined;
+  }
   return title;
 }
 

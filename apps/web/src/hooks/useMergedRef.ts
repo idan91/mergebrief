@@ -7,7 +7,9 @@ function assignRef<T>(ref: Ref<T> | undefined, node: T | null): RefCleanup {
     const cleanup: unknown = ref(node);
     return typeof cleanup === "function" ? () => cleanup() : undefined;
   }
-  if (ref) ref.current = node;
+  if (ref) {
+    ref.current = node;
+  }
   return undefined;
 }
 
@@ -24,16 +26,23 @@ export function useMergedRef<T>(
     (node: T | null) => {
       const refs = [first, second];
       const cleanups = refs.map((ref) => assignRef(ref, node));
-      if (node === null) return undefined;
-      if (cleanups.every((cleanup) => cleanup === undefined)) return undefined;
+      if (node === null) {
+        return undefined;
+      }
+      if (cleanups.every((cleanup) => cleanup === undefined)) {
+        return undefined;
+      }
 
       // React skips the null call when a cleanup is returned, so every ref
       // without one is detached here by hand.
       return () => {
         refs.forEach((ref, position) => {
           const cleanup = cleanups[position];
-          if (cleanup === undefined) assignRef(ref, null);
-          else cleanup();
+          if (cleanup === undefined) {
+            assignRef(ref, null);
+          } else {
+            cleanup();
+          }
         });
       };
     },

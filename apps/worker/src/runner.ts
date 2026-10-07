@@ -95,7 +95,9 @@ export async function startWorker(
     crontab: options.crontab,
   };
 
-  if (options.logger !== undefined) runnerOptions.logger = options.logger;
+  if (options.logger !== undefined) {
+    runnerOptions.logger = options.logger;
+  }
 
   return run(runnerOptions);
 }

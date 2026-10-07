@@ -56,14 +56,26 @@ function badgeVariant(
   live: LivePrState | undefined,
 ): BadgeVariant | null {
   if (live) {
-    if (live.state === "merged") return BadgeVariants.MERGED;
-    if (live.state === "closed") return BadgeVariants.CLOSED;
+    if (live.state === "merged") {
+      return BadgeVariants.MERGED;
+    }
+    if (live.state === "closed") {
+      return BadgeVariants.CLOSED;
+    }
     return live.draft ? BadgeVariants.DRAFT : BadgeVariants.OPEN;
   }
-  if (pr.state === undefined) return null;
-  if (pr.merged === true) return BadgeVariants.MERGED;
-  if (pr.state === "closed") return BadgeVariants.CLOSED;
-  if (pr.draft === true) return BadgeVariants.DRAFT;
+  if (pr.state === undefined) {
+    return null;
+  }
+  if (pr.merged === true) {
+    return BadgeVariants.MERGED;
+  }
+  if (pr.state === "closed") {
+    return BadgeVariants.CLOSED;
+  }
+  if (pr.draft === true) {
+    return BadgeVariants.DRAFT;
+  }
   return BadgeVariants.OPEN;
 }
 
@@ -75,7 +87,9 @@ function badgeVariant(
 export function StateBadge({ pr, live }: StateBadgeProps) {
   const { t } = useTranslation();
   const variant = badgeVariant(pr, live);
-  if (variant === null) return null;
+  if (variant === null) {
+    return null;
+  }
   const label = t(BADGE_LABEL_KEYS[variant]);
   return (
     <span

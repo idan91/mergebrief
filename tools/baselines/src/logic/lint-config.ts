@@ -60,16 +60,26 @@ function stripJsonComments(text: string): string {
 
 /** oxlint severities: a string, a number, or `[severity, options]`. */
 function isSeverityOn(value: unknown): boolean {
-  if (Array.isArray(value)) return isSeverityOn(value[0]);
-  if (typeof value === "number") return value !== 0;
-  if (typeof value === "string") return value !== "off";
+  if (Array.isArray(value)) {
+    return isSeverityOn(value[0]);
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    return value !== "off";
+  }
   return false;
 }
 
 function readRuleBlock(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null) return {};
+  if (typeof value !== "object" || value === null) {
+    return {};
+  }
   const rules = Reflect.get(value, "rules");
-  if (typeof rules !== "object" || rules === null) return {};
+  if (typeof rules !== "object" || rules === null) {
+    return {};
+  }
   return { ...rules };
 }
 
@@ -79,7 +89,9 @@ function listRuleBlocks(config: unknown): Record<string, unknown>[] {
   if (typeof config === "object" && config !== null) {
     const overrides = Reflect.get(config, "overrides");
     if (Array.isArray(overrides)) {
-      for (const override of overrides) blocks.push(readRuleBlock(override));
+      for (const override of overrides) {
+        blocks.push(readRuleBlock(override));
+      }
     }
   }
   return blocks;
@@ -100,7 +112,9 @@ export function listConfiguredRules(
   const blocks = listRuleBlocks(config);
   const configured = new Set<string>();
   for (const rule of rules) {
-    if (blocks.some((block) => isSeverityOn(block[rule]))) configured.add(rule);
+    if (blocks.some((block) => isSeverityOn(block[rule]))) {
+      configured.add(rule);
+    }
   }
   return configured;
 }

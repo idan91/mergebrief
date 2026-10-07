@@ -201,8 +201,12 @@ function isAuditChannel(value: unknown): value is AuditChannel {
 
 /** One variable out of the context bag, unnarrowed; the callers guard it. */
 function readVar(variables: unknown, key: string): unknown {
-  if (typeof variables !== "object" || variables === null) return undefined;
-  if (!(key in variables)) return undefined;
+  if (typeof variables !== "object" || variables === null) {
+    return undefined;
+  }
+  if (!(key in variables)) {
+    return undefined;
+  }
   const bag: Record<string, unknown> = { ...variables };
   return bag[key];
 }

@@ -49,7 +49,9 @@ function resolveRemainder(view: typeof model) {
     (candidate) => candidate.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
   );
   const chunk = group?.chunks[0];
-  if (!group || !chunk) throw new Error("expected a remainder group and chunk");
+  if (!group || !chunk) {
+    throw new Error("expected a remainder group and chunk");
+  }
   return { remainder: group, remainderChunk: chunk };
 }
 

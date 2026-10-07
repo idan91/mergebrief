@@ -33,9 +33,15 @@ export function stepTrack(
   direction: TextDirection,
   bounds: TrackStepBounds,
 ): number | undefined {
-  if (key === "Home") return bounds.floor;
-  if (key === "End") return bounds.ceiling;
-  if (key !== "ArrowLeft" && key !== "ArrowRight") return undefined;
+  if (key === "Home") {
+    return bounds.floor;
+  }
+  if (key === "End") {
+    return bounds.ceiling;
+  }
+  if (key !== "ArrowLeft" && key !== "ArrowRight") {
+    return undefined;
+  }
 
   const towardStart = (key === "ArrowLeft") === (direction === "ltr");
   const next = towardStart ? track + bounds.step : track - bounds.step;
@@ -55,8 +61,9 @@ export function resolveStackedQuery(
   if (sidebar === SidebarLayouts.COLLAPSED) {
     return StackedQueries.SIDEBAR_COLLAPSED;
   }
-  if (sidebar === SidebarLayouts.EXPANDED)
+  if (sidebar === SidebarLayouts.EXPANDED) {
     return StackedQueries.SIDEBAR_EXPANDED;
+  }
   return StackedQueries.BARE;
 }
 

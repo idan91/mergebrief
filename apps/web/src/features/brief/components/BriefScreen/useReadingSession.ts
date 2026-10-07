@@ -78,7 +78,9 @@ function scrollElementToTop(
   // scrollIntoView does natively on box-less elements, its zero rect would
   // scroll to ~page top. Attribute check, not getClientRects: jsdom has no
   // layout, so a rect check would also veto every legitimate test scroll.
-  if (element.closest("[hidden]") !== null) return;
+  if (element.closest("[hidden]") !== null) {
+    return;
+  }
   const top = Math.max(
     0,
     window.scrollY + element.getBoundingClientRect().top - focusScrollOffset(),
@@ -107,10 +109,14 @@ const SETTLE_FRAMES = 3;
 
 /** One instant nudge onto the real element after an estimate-guided jump. */
 function correctLanding(element: HTMLElement, align: ChunkScrollAlign): void {
-  if (element.closest("[hidden]") !== null) return;
+  if (element.closest("[hidden]") !== null) {
+    return;
+  }
   const desiredTop = align === "top" ? focusScrollOffset() : 0;
   const delta = element.getBoundingClientRect().top - desiredTop;
-  if (Math.abs(delta) <= CORRECTION_THRESHOLD_PX) return;
+  if (Math.abs(delta) <= CORRECTION_THRESHOLD_PX) {
+    return;
+  }
   // "instant", not "auto", "auto" defers to the page's smooth behavior.
   window.scrollBy({ behavior: "instant", top: delta });
 }
@@ -257,7 +263,9 @@ function useChunkScroller(
             return;
           }
           if (element) {
-            if (element.closest("[hidden]") !== null) return;
+            if (element.closest("[hidden]") !== null) {
+              return;
+            }
             element.scrollIntoView({ behavior: "instant", block: "start" });
           } else if (!chunkWindows?.scrollToChunk(chunkId)) {
             // Unknown id or hidden pane: no-op, the pre-windowing contract
@@ -440,8 +448,11 @@ export function useReadingSession(
         supportingChunkIds.length > 0 &&
         supportingChunkIds.every((id) => !current.has(id));
       for (const id of supportingChunkIds) {
-        if (allCollapsed) next.add(id);
-        else next.delete(id);
+        if (allCollapsed) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
       }
       return next;
     });
@@ -661,8 +672,9 @@ export function useReadingSession(
       // so a collapsed landing would show nothing. Outside focus mode a
       // collapsed card is the user's triage: wayfinding jumps (toc, group
       // stepper, risk attrs) land on it WITHOUT re-expanding.
-      if (focusModeRef.current)
+      if (focusModeRef.current) {
         setOpenChunks((current) => new Set(current).add(chunkId));
+      }
       setActivePosition(chunkId);
       scrollToChunk(chunkId, behavior, align);
     },
@@ -680,12 +692,16 @@ export function useReadingSession(
   const toggleFocusMode = () => {
     const entering = !focusModeRef.current;
     setFocusMode(entering);
-    if (!entering) return;
+    if (!entering) {
+      return;
+    }
     // align="top" required: the focus pill only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via
     // focusScrollOffset() or the pill covers the chunk.
     const target = position.getState().activeChunkId ?? firstChunkId;
-    if (!target) return;
+    if (!target) {
+      return;
+    }
     // Focus mode reads the active card; a collapsed one would show nothing.
     openChunk(target);
     setActivePosition(target);
@@ -700,7 +716,9 @@ export function useReadingSession(
   // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
   // active chunk. align="top": see toggleFocusMode.
   const startReadThrough = () => {
-    if (!firstChunkId) return;
+    if (!firstChunkId) {
+      return;
+    }
     setFocusMode(true);
     openChunk(firstChunkId);
     setActivePosition(firstChunkId);
@@ -712,7 +730,9 @@ export function useReadingSession(
     (groupId: string) => {
       const group = model.groups.find((candidate) => candidate.id === groupId);
       const target = group?.chunks[0];
-      if (target) jumpToChunk(target.id);
+      if (target) {
+        jumpToChunk(target.id);
+      }
     },
     [jumpToChunk, model.groups],
   );
@@ -724,7 +744,9 @@ export function useReadingSession(
       const group = model.groups.find((candidate) => candidate.id === groupId);
       const target = group?.chunks[0];
       const heading = document.getElementById(deriveGroupHeadingId(groupId));
-      if (!target) return;
+      if (!target) {
+        return;
+      }
       if (!heading) {
         jumpToChunk(target.id);
         return;

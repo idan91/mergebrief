@@ -81,7 +81,9 @@ describe("Sheet", () => {
     const dialog = screen.getByRole("dialog");
     const buttons = dialog.querySelectorAll("button");
     const last = buttons[buttons.length - 1];
-    if (!last) throw new Error("no controls");
+    if (!last) {
+      throw new Error("no controls");
+    }
     last.focus();
 
     fireEvent.keyDown(last, { key: "Tab" });

@@ -31,11 +31,15 @@ export function buildPrPageTitle(
   const prTitle = input.title?.trim() ?? "";
   const segments: string[] = [];
 
-  if (prTitle !== "") segments.push(prTitle);
+  if (prTitle !== "") {
+    segments.push(prTitle);
+  }
   segments.push(
     translate("shell.pageTitle.prNumber", { number: input.prNumber }),
   );
-  if (input.repoSlug !== null) segments.push(input.repoSlug);
+  if (input.repoSlug !== null) {
+    segments.push(input.repoSlug);
+  }
 
   return buildPageTitle(translate, segments);
 }

@@ -51,7 +51,9 @@ function stringOrNull(value: unknown): value is string | null {
 }
 
 function parseToken(value: unknown): Result<ApiTokenView> {
-  if (!isRecord(value)) return { ok: false, error: "token must be an object" };
+  if (!isRecord(value)) {
+    return { ok: false, error: "token must be an object" };
+  }
   if (typeof value["id"] !== "string") {
     return { ok: false, error: "id must be a string" };
   }
@@ -96,7 +98,9 @@ export function parseTokensView(value: unknown): Result<TokensView> {
   const tokens: ApiTokenView[] = [];
   for (const item of value["tokens"]) {
     const parsed = parseToken(item);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
     tokens.push(parsed.value);
   }
   return { ok: true, value: { tokens } };
@@ -107,7 +111,9 @@ export function parseMintedToken(value: unknown): Result<MintedToken> {
     return { ok: false, error: "response must carry the token material" };
   }
   const apiToken = parseToken(value["apiToken"]);
-  if (!apiToken.ok) return apiToken;
+  if (!apiToken.ok) {
+    return apiToken;
+  }
   return {
     ok: true,
     value: { token: value["token"], apiToken: apiToken.value },

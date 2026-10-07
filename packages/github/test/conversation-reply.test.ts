@@ -31,7 +31,9 @@ describe("createReviewCommentReply, wrapping review id", () => {
       stubReplyOctokit({ id: 7001, pull_request_review_id: 555 }),
       INPUT,
     );
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ commentId: 7001, reviewId: 555 });
   });
 
@@ -40,7 +42,9 @@ describe("createReviewCommentReply, wrapping review id", () => {
       stubReplyOctokit({ id: 7001, pull_request_review_id: null }),
       INPUT,
     );
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ commentId: 7001 });
   });
 
@@ -49,7 +53,9 @@ describe("createReviewCommentReply, wrapping review id", () => {
       stubReplyOctokit({ id: 7001, pull_request_review_id: 9007199254740992 }),
       INPUT,
     );
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ commentId: 7001 });
   });
 });

@@ -195,7 +195,9 @@ describe("the session read in the route loader", () => {
     // The review flow states the reason instead of opening.
     fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     const advisory = screen.queryByRole("button", { name: /^continue$/i });
-    if (advisory !== null) fireEvent.click(advisory);
+    if (advisory !== null) {
+      fireEvent.click(advisory);
+    }
     expect(
       (await screen.findAllByText(/review session couldn't be loaded/i)).length,
     ).toBeGreaterThan(0);

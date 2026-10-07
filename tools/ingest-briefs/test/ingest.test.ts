@@ -26,7 +26,9 @@ function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
   value: bigint,
 ): T {
-  if (!guard(value)) throw new Error("unbrandable fixture id");
+  if (!guard(value)) {
+    throw new Error("unbrandable fixture id");
+  }
   return value;
 }
 
@@ -88,12 +90,16 @@ describe("ingestBriefDirectory", () => {
     // Body verbatim: byte-identical to the file.
     const repo = createTenantRepository(harness.handle, OWNER_CTX);
     const row = await repo.pullRequests.getByNumber(REPO_ID, 1);
-    if (row === undefined) throw new Error("pr row missing");
+    if (row === undefined) {
+      throw new Error("pr row missing");
+    }
     const store = createArtifactStore(harness.handle, OWNER_CTX);
     const briefs = await store.briefs.listForPullRequest(row.id);
     expect(briefs.map((brief) => brief.headIndex)).toEqual([1, 2]);
     const rev2 = briefs.find((brief) => brief.headIndex === 2);
-    if (rev2 === undefined) throw new Error("rev2 missing");
+    if (rev2 === undefined) {
+      throw new Error("rev2 missing");
+    }
     const stored = await store.briefs.get(row.id, rev2.baseSha, rev2.headSha);
     const fileBody = await readFile(
       join(FIXTURES, "mergebrief-e2e-fixture-1_2_22222222.brief.json"),

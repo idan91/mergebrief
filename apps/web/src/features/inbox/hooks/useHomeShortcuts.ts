@@ -19,9 +19,15 @@ export function useHomeShortcuts(enabled: boolean) {
       return undefined;
     }
     function toggleOnKey(event: KeyboardEvent): void {
-      if (event.key !== TOGGLE_KEY || event.metaKey || event.ctrlKey) return;
-      if (isTypingTarget(event.target)) return;
-      if (isInsideOverlay(event.target) && !isOpen) return;
+      if (event.key !== TOGGLE_KEY || event.metaKey || event.ctrlKey) {
+        return;
+      }
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (isInsideOverlay(event.target) && !isOpen) {
+        return;
+      }
       event.preventDefault();
       setOpen(!isOpen);
     }

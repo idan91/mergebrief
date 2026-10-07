@@ -27,7 +27,9 @@ const base: DiffLine[] = [
 
 function stubLines(from: number, to: number): Map<number, string> {
   const lines = new Map<number, string>();
-  for (let line = from; line <= to; line += 1) lines.set(line, `L${line}`);
+  for (let line = from; line <= to; line += 1) {
+    lines.set(line, `L${line}`);
+  }
   return lines;
 }
 

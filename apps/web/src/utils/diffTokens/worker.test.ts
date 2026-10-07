@@ -80,7 +80,9 @@ describe("diff token worker", () => {
 
     expect(reply.kind).toBe(TokenMessageKinds.TOKENS);
     expect(reply.requestId).toBe(7);
-    if (reply.kind !== TokenMessageKinds.TOKENS) return;
+    if (reply.kind !== TokenMessageKinds.TOKENS) {
+      return;
+    }
     expect(
       reply.tokensByRow.map(([row]) => row).toSorted((a, b) => a - b),
     ).toEqual([1, 2]);
@@ -229,7 +231,9 @@ describe("diff token worker", () => {
     const reply = workerReplySchema.parse(await readOneReply());
 
     expect(reply.kind).toBe(TokenMessageKinds.TOKENS);
-    if (reply.kind !== TokenMessageKinds.TOKENS) return;
+    if (reply.kind !== TokenMessageKinds.TOKENS) {
+      return;
+    }
     expect(
       reply.tokensByRow.map(([row]) => row).toSorted((a, b) => a - b),
     ).toEqual([0, 1]);

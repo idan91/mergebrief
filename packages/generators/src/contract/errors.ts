@@ -48,7 +48,9 @@ export function configError(
     issues,
   };
 
-  if (opts?.transient) error.transient = true;
+  if (opts?.transient) {
+    error.transient = true;
+  }
 
   return { ok: false, error };
 }

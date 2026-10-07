@@ -74,8 +74,12 @@ function loadDiff(head8) {
 
 /** The request URL, whatever shape `fetch` was handed. */
 function readRequestUrl(input) {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 
@@ -148,7 +152,9 @@ function answerLiveRead(init) {
   const { variables } = JSON.parse(init.body);
   const data = {};
   for (const [name, value] of Object.entries(variables)) {
-    if (!name.startsWith("n")) continue;
+    if (!name.startsWith("n")) {
+      continue;
+    }
     const index = name.slice(1);
     const slug = `${variables[`o${index}`]}/${variables[`r${index}`]}`;
     const row = INBOX.urlRows.find(

@@ -201,8 +201,12 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
 }
 
 function compareGrantIds(left: GrantRowId, right: GrantRowId): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
   return 0;
 }
 

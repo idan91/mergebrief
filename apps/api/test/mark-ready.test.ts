@@ -191,8 +191,9 @@ async function seedSession(
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -232,7 +233,9 @@ async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
     "select count(*)::int as n from audit_log where operation = 'mark-ready' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
-  if (typeof n !== "number") throw new Error("unexpected count result");
+  if (typeof n !== "number") {
+    throw new Error("unexpected count result");
+  }
   return n;
 }
 
@@ -252,8 +255,9 @@ async function markReady(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined)
+  if (cookie !== undefined) {
     headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
+  }
 
   return await app.request(path, { method: "POST", headers });
 }
@@ -504,8 +508,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
       graphql: (call) => {
-        if (call === 0) return graphqlUnauthorized();
-        if (call === 1) return nodeIdGraphql(true);
+        if (call === 0) {
+          return graphqlUnauthorized();
+        }
+        if (call === 1) {
+          return nodeIdGraphql(true);
+        }
         return mutationGraphql();
       },
     });
@@ -526,8 +534,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     stubGitHub({
       repositories: () => repoOk(),
       graphql: (call) => {
-        if (call === 0) return nodeIdGraphql(true);
-        if (call === 1) return mutationGraphql();
+        if (call === 0) {
+          return nodeIdGraphql(true);
+        }
+        if (call === 1) {
+          return mutationGraphql();
+        }
         return nodeIdGraphql(false);
       },
     });

@@ -59,48 +59,94 @@ function isAbsentOrSide(value: unknown): boolean {
 }
 
 export function isDraftComment(value: unknown): value is SessionDraftComment {
-  if (!isRecord(value)) return false;
-  if (typeof value["id"] !== "string") return false;
-  if (typeof value["filePath"] !== "string") return false;
-  if (typeof value["body"] !== "string") return false;
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (typeof value["id"] !== "string") {
+    return false;
+  }
+  if (typeof value["filePath"] !== "string") {
+    return false;
+  }
+  if (typeof value["body"] !== "string") {
+    return false;
+  }
 
-  if (typeof value["status"] !== "string") return false;
-  if (!DRAFT_STATUSES.has(value["status"])) return false;
+  if (typeof value["status"] !== "string") {
+    return false;
+  }
+  if (!DRAFT_STATUSES.has(value["status"])) {
+    return false;
+  }
 
-  if (value["kind"] === CommentAnchorKinds.FILE) return true;
-  if (value["kind"] !== CommentAnchorKinds.LINE) return false;
+  if (value["kind"] === CommentAnchorKinds.FILE) {
+    return true;
+  }
+  if (value["kind"] !== CommentAnchorKinds.LINE) {
+    return false;
+  }
 
-  if (!isSide(value["side"])) return false;
-  if (!isAbsentOrSide(value["startSide"])) return false;
+  if (!isSide(value["side"])) {
+    return false;
+  }
+  if (!isAbsentOrSide(value["startSide"])) {
+    return false;
+  }
 
   return isLine(value["startLine"]) && isLine(value["endLine"]);
 }
 
 export function isEvidence(value: unknown): boolean {
-  if (value === null) return true;
-  if (!isRecord(value)) return false;
+  if (value === null) {
+    return true;
+  }
+  if (!isRecord(value)) {
+    return false;
+  }
 
-  if (typeof value["kind"] !== "string") return false;
-  if (!EVIDENCE_KINDS.has(value["kind"])) return false;
+  if (typeof value["kind"] !== "string") {
+    return false;
+  }
+  if (!EVIDENCE_KINDS.has(value["kind"])) {
+    return false;
+  }
 
   return value["ref"] === null || typeof value["ref"] === "string";
 }
 
 export function isDisposition(value: unknown): value is SessionDisposition {
-  if (!isRecord(value)) return false;
-  if (typeof value["filePath"] !== "string") return false;
-  if (typeof value["attribute"] !== "string") return false;
-  if (!isLine(value["regionStart"])) return false;
-  if (!isLine(value["regionEnd"])) return false;
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (typeof value["filePath"] !== "string") {
+    return false;
+  }
+  if (typeof value["attribute"] !== "string") {
+    return false;
+  }
+  if (!isLine(value["regionStart"])) {
+    return false;
+  }
+  if (!isLine(value["regionEnd"])) {
+    return false;
+  }
 
-  if (typeof value["decision"] !== "string") return false;
-  if (!DECISIONS.has(value["decision"])) return false;
+  if (typeof value["decision"] !== "string") {
+    return false;
+  }
+  if (!DECISIONS.has(value["decision"])) {
+    return false;
+  }
 
   const reason = value["reason"];
-  if (reason !== null && typeof reason !== "string") return false;
+  if (reason !== null && typeof reason !== "string") {
+    return false;
+  }
 
   const carryStatus = value["carryStatus"];
-  if (carryStatus !== null && !isCarryStatus(carryStatus)) return false;
+  if (carryStatus !== null && !isCarryStatus(carryStatus)) {
+    return false;
+  }
 
   return isEvidence(value["evidence"]);
 }
@@ -111,9 +157,15 @@ function isCountAtLeast(value: unknown, floor: number): value is number {
 }
 
 export function isCarriedFrom(value: unknown): value is SessionCarriedFrom {
-  if (!isRecord(value)) return false;
-  if (typeof value["sessionId"] !== "string") return false;
-  if (typeof value["headSha"] !== "string") return false;
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (typeof value["sessionId"] !== "string") {
+    return false;
+  }
+  if (typeof value["headSha"] !== "string") {
+    return false;
+  }
 
   return (
     isCountAtLeast(value["revisions"], 1) && isCountAtLeast(value["items"], 0)

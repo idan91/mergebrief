@@ -140,21 +140,37 @@ function parseAuthor(value: unknown): ConversationAuthor | undefined {
     isBot: value["isBot"],
   };
 
-  if (safeAvatar !== undefined) author.avatarUrl = safeAvatar;
+  if (safeAvatar !== undefined) {
+    author.avatarUrl = safeAvatar;
+  }
 
   return author;
 }
 
 function parseComment(value: unknown): ConversationComment | undefined {
-  if (!isObject(value)) return undefined;
-  if (!isSafeId(value["commentId"])) return undefined;
+  if (!isObject(value)) {
+    return undefined;
+  }
+  if (!isSafeId(value["commentId"])) {
+    return undefined;
+  }
   const author = parseAuthor(value["author"]);
-  if (author === undefined) return undefined;
-  if (typeof value["body"] !== "string") return undefined;
-  if (typeof value["createdAt"] !== "string") return undefined;
-  if (typeof value["url"] !== "string") return undefined;
+  if (author === undefined) {
+    return undefined;
+  }
+  if (typeof value["body"] !== "string") {
+    return undefined;
+  }
+  if (typeof value["createdAt"] !== "string") {
+    return undefined;
+  }
+  if (typeof value["url"] !== "string") {
+    return undefined;
+  }
   const reviewId = value["reviewId"];
-  if (reviewId !== undefined && !isSafeId(reviewId)) return undefined;
+  if (reviewId !== undefined && !isSafeId(reviewId)) {
+    return undefined;
+  }
   const comment: Mutable<ConversationComment> = {
     commentId: value["commentId"],
     author,
@@ -163,7 +179,9 @@ function parseComment(value: unknown): ConversationComment | undefined {
     url: value["url"],
   };
 
-  if (reviewId !== undefined) comment.reviewId = reviewId;
+  if (reviewId !== undefined) {
+    comment.reviewId = reviewId;
+  }
 
   return comment;
 }
@@ -183,39 +201,70 @@ function optionalSide(value: unknown): value is ThreadSide | undefined {
 }
 
 function parseThread(value: unknown): ConversationThread | undefined {
-  if (!isObject(value)) return undefined;
-  if (!isSafeId(value["rootCommentId"])) return undefined;
-  if (typeof value["path"] !== "string") return undefined;
-  if (!optionalLine(value["line"])) return undefined;
-  if (!optionalLine(value["startLine"])) return undefined;
-  if (!optionalSide(value["side"])) return undefined;
-  if (!optionalSide(value["startSide"])) return undefined;
-  const subjectType = value["subjectType"];
-  if (typeof subjectType !== "string" || !SUBJECT_TYPES.includes(subjectType))
+  if (!isObject(value)) {
     return undefined;
-  if (typeof value["isResolved"] !== "boolean") return undefined;
-  if (typeof value["isOutdated"] !== "boolean") return undefined;
-  if (!optionalString(value["anchorSha"])) return undefined;
-  if (typeof value["hasMoreComments"] !== "boolean") return undefined;
+  }
+  if (!isSafeId(value["rootCommentId"])) {
+    return undefined;
+  }
+  if (typeof value["path"] !== "string") {
+    return undefined;
+  }
+  if (!optionalLine(value["line"])) {
+    return undefined;
+  }
+  if (!optionalLine(value["startLine"])) {
+    return undefined;
+  }
+  if (!optionalSide(value["side"])) {
+    return undefined;
+  }
+  if (!optionalSide(value["startSide"])) {
+    return undefined;
+  }
+  const subjectType = value["subjectType"];
+  if (typeof subjectType !== "string" || !SUBJECT_TYPES.includes(subjectType)) {
+    return undefined;
+  }
+  if (typeof value["isResolved"] !== "boolean") {
+    return undefined;
+  }
+  if (typeof value["isOutdated"] !== "boolean") {
+    return undefined;
+  }
+  if (!optionalString(value["anchorSha"])) {
+    return undefined;
+  }
+  if (typeof value["hasMoreComments"] !== "boolean") {
+    return undefined;
+  }
   // Contract: `line` is absent ONLY for outdated or file-level threads, a
   // fresh LINE thread without a line would silently unanchor, a FILE thread
   // WITH one would place inline.
   const isFileLevel = subjectType === ThreadSubjectTypes.FILE;
-  if (isFileLevel && value["line"] !== undefined) return undefined;
+  if (isFileLevel && value["line"] !== undefined) {
+    return undefined;
+  }
   if (!isFileLevel && !value["isOutdated"] && value["line"] === undefined) {
     return undefined;
   }
   const rawComments = value["comments"];
-  if (!Array.isArray(rawComments) || rawComments.length === 0) return undefined;
+  if (!Array.isArray(rawComments) || rawComments.length === 0) {
+    return undefined;
+  }
   const comments: ConversationComment[] = [];
   for (const raw of rawComments) {
     const comment = parseComment(raw);
-    if (comment === undefined) return undefined;
+    if (comment === undefined) {
+      return undefined;
+    }
     comments.push(comment);
   }
   // The root id IS the reply target: it must be the first comment shown,
   // or a reply would land on a different comment than the displayed thread.
-  if (comments[0]?.commentId !== value["rootCommentId"]) return undefined;
+  if (comments[0]?.commentId !== value["rootCommentId"]) {
+    return undefined;
+  }
   const thread: Mutable<ConversationThread> = {
     rootCommentId: value["rootCommentId"],
     path: value["path"],
@@ -227,26 +276,49 @@ function parseThread(value: unknown): ConversationThread | undefined {
     hasMoreComments: value["hasMoreComments"],
   };
 
-  if (value["line"] !== undefined) thread.line = value["line"];
-  if (value["startLine"] !== undefined) thread.startLine = value["startLine"];
-  if (value["side"] !== undefined) thread.side = value["side"];
-  if (value["startSide"] !== undefined) thread.startSide = value["startSide"];
-  if (value["anchorSha"] !== undefined) thread.anchorSha = value["anchorSha"];
+  if (value["line"] !== undefined) {
+    thread.line = value["line"];
+  }
+  if (value["startLine"] !== undefined) {
+    thread.startLine = value["startLine"];
+  }
+  if (value["side"] !== undefined) {
+    thread.side = value["side"];
+  }
+  if (value["startSide"] !== undefined) {
+    thread.startSide = value["startSide"];
+  }
+  if (value["anchorSha"] !== undefined) {
+    thread.anchorSha = value["anchorSha"];
+  }
 
   return thread;
 }
 
 function parseReview(value: unknown): ConversationReview | undefined {
-  if (!isObject(value)) return undefined;
-  if (!isSafeId(value["reviewId"])) return undefined;
-  const author = parseAuthor(value["author"]);
-  if (author === undefined) return undefined;
-  const state = value["state"];
-  if (typeof state !== "string" || !VERDICT_STATES.includes(state))
+  if (!isObject(value)) {
     return undefined;
-  if (typeof value["body"] !== "string") return undefined;
-  if (!optionalString(value["submittedAt"])) return undefined;
-  if (typeof value["url"] !== "string") return undefined;
+  }
+  if (!isSafeId(value["reviewId"])) {
+    return undefined;
+  }
+  const author = parseAuthor(value["author"]);
+  if (author === undefined) {
+    return undefined;
+  }
+  const state = value["state"];
+  if (typeof state !== "string" || !VERDICT_STATES.includes(state)) {
+    return undefined;
+  }
+  if (typeof value["body"] !== "string") {
+    return undefined;
+  }
+  if (!optionalString(value["submittedAt"])) {
+    return undefined;
+  }
+  if (typeof value["url"] !== "string") {
+    return undefined;
+  }
   const review: Mutable<ConversationReview> = {
     reviewId: value["reviewId"],
     author,
@@ -268,13 +340,25 @@ function parseReview(value: unknown): ConversationReview | undefined {
 }
 
 function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
-  if (!isObject(value)) return undefined;
-  if (!isSafeId(value["commentId"])) return undefined;
+  if (!isObject(value)) {
+    return undefined;
+  }
+  if (!isSafeId(value["commentId"])) {
+    return undefined;
+  }
   const author = parseAuthor(value["author"]);
-  if (author === undefined) return undefined;
-  if (typeof value["body"] !== "string") return undefined;
-  if (typeof value["createdAt"] !== "string") return undefined;
-  if (typeof value["url"] !== "string") return undefined;
+  if (author === undefined) {
+    return undefined;
+  }
+  if (typeof value["body"] !== "string") {
+    return undefined;
+  }
+  if (typeof value["createdAt"] !== "string") {
+    return undefined;
+  }
+  if (typeof value["url"] !== "string") {
+    return undefined;
+  }
   return {
     commentId: value["commentId"],
     author,
@@ -293,29 +377,38 @@ function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
 export function parseCollaborators(
   value: unknown,
 ): Result<readonly MentionCandidate[]> {
-  if (!isObject(value))
+  if (!isObject(value)) {
     return { ok: false, error: "collaborators: not an object" };
+  }
   const raw = value["collaborators"];
-  if (!Array.isArray(raw))
+  if (!Array.isArray(raw)) {
     return { ok: false, error: "collaborators: collaborators" };
-  if (typeof value["hasMore"] !== "boolean")
+  }
+  if (typeof value["hasMore"] !== "boolean") {
     return { ok: false, error: "collaborators: hasMore" };
+  }
   const candidates: MentionCandidate[] = [];
   for (const entry of raw) {
-    if (!isObject(entry) || typeof entry["login"] !== "string")
+    if (!isObject(entry) || typeof entry["login"] !== "string") {
       return { ok: false, error: "collaborators: entry shape" };
+    }
     const name = entry["name"];
     const avatarUrl = entry["avatarUrl"];
-    if (!optionalString(name) || !optionalString(avatarUrl))
+    if (!optionalString(name) || !optionalString(avatarUrl)) {
       return { ok: false, error: "collaborators: entry shape" };
+    }
     const safeAvatar =
       avatarUrl !== undefined && avatarUrl.startsWith("https://")
         ? avatarUrl
         : undefined;
     const candidate: Mutable<MentionCandidate> = { login: entry["login"] };
 
-    if (name !== undefined) candidate.name = name;
-    if (safeAvatar !== undefined) candidate.avatarUrl = safeAvatar;
+    if (name !== undefined) {
+      candidate.name = name;
+    }
+    if (safeAvatar !== undefined) {
+      candidate.avatarUrl = safeAvatar;
+    }
 
     candidates.push(candidate);
   }
@@ -324,17 +417,21 @@ export function parseCollaborators(
 
 /** Parse the conversation GET's body; `ok: false` = contract violation. */
 export function parseConversation(value: unknown): Result<PrConversation> {
-  if (!isObject(value))
+  if (!isObject(value)) {
     return { ok: false, error: "conversation: not an object" };
+  }
   const rawThreads = value["threads"];
   const rawReviews = value["reviews"];
   const rawPrComments = value["prComments"];
-  if (!Array.isArray(rawThreads))
+  if (!Array.isArray(rawThreads)) {
     return { ok: false, error: "conversation: threads" };
-  if (!Array.isArray(rawReviews))
+  }
+  if (!Array.isArray(rawReviews)) {
     return { ok: false, error: "conversation: reviews" };
-  if (!Array.isArray(rawPrComments))
+  }
+  if (!Array.isArray(rawPrComments)) {
     return { ok: false, error: "conversation: prComments" };
+  }
   if (
     typeof value["hasMoreThreads"] !== "boolean" ||
     typeof value["hasMoreReviews"] !== "boolean" ||
@@ -345,22 +442,25 @@ export function parseConversation(value: unknown): Result<PrConversation> {
   const threads: ConversationThread[] = [];
   for (const raw of rawThreads) {
     const thread = parseThread(raw);
-    if (thread === undefined)
+    if (thread === undefined) {
       return { ok: false, error: "conversation: thread shape" };
+    }
     threads.push(thread);
   }
   const reviews: ConversationReview[] = [];
   for (const raw of rawReviews) {
     const review = parseReview(raw);
-    if (review === undefined)
+    if (review === undefined) {
       return { ok: false, error: "conversation: review shape" };
+    }
     reviews.push(review);
   }
   const prComments: PrLevelComment[] = [];
   for (const raw of rawPrComments) {
     const comment = parsePrLevelComment(raw);
-    if (comment === undefined)
+    if (comment === undefined) {
       return { ok: false, error: "conversation: pr comment shape" };
+    }
     prComments.push(comment);
   }
   return {

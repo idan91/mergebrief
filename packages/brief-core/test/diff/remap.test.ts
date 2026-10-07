@@ -17,7 +17,7 @@ import {
 /**
  * The line-offset remapper: hunk-header offsets from an
  * incremental diff → new-side ranges for carried (frozen) chunk ranges.
- * Ambiguity — a hunk overlapping a carried range — returns a demotion
+ * Ambiguity, a hunk overlapping a carried range, returns a demotion
  * verdict, never a guessed range.
  */
 
@@ -38,7 +38,7 @@ describe("parseHunkSpans", () => {
     ]);
   });
 
-  it("parses zero-length sides (pure insertion / pure deletion)", () => {
+  it("parses zero-length sides of a pure insertion or pure deletion", () => {
     const patch = ["@@ -5,0 +6,2 @@", "@@ -9,2 +12,0 @@"].join("\n");
     expect(parseHunkSpans(patch)).toEqual([
       { oldStart: 5, oldLines: 0, newStart: 6, newLines: 2 },
@@ -101,7 +101,7 @@ describe("remapRanges", () => {
     expect(result.outcome).toBe(RemapOutcomes.DEMOTED);
   });
 
-  it("demotes on a pure insertion strictly inside a range (would split it)", () => {
+  it("demotes on a pure insertion strictly inside a range, which splits it", () => {
     // "-7,0" = insertion after old line 7; range 5..10 straddles it.
     const result = remapRanges(
       [{ start: 5, end: 10 }],
@@ -122,7 +122,7 @@ describe("remapRanges", () => {
     });
   });
 
-  it("leaves a range untouched when a pure insertion sits at or after its end", () => {
+  it("leaves a range untouched by a pure insertion at or after its end", () => {
     // Insertion after old line 10; range 5..10 stays put.
     const result = remapRanges(
       [{ start: 5, end: 10 }],
@@ -136,7 +136,7 @@ describe("remapRanges", () => {
 
   it("demotes on a pure insertion exactly at the start of a multi-line range", () => {
     // Insertion after old line 5 splits range 5..10 (line 5 stays, 6..10
-    // shift) — must demote, never carry unshifted.
+    // shift); it must demote, never carry unshifted.
     const result = remapRanges(
       [{ start: 5, end: 10 }],
       [{ oldStart: 5, oldLines: 0, newStart: 6, newLines: 2 }],
@@ -200,9 +200,11 @@ describe("remapThroughPatch", () => {
   });
 });
 
-/** The remapped ranges, or undefined for a demotion — keeps assertions flat. */
+/** The remapped ranges, or undefined for a demotion; keeps assertions flat. */
 function getRanges(result: RemapResult): readonly LineRange[] | undefined {
-  if (result.outcome === RemapOutcomes.REMAPPED) return result.ranges;
+  if (result.outcome === RemapOutcomes.REMAPPED) {
+    return result.ranges;
+  }
   return undefined;
 }
 
@@ -214,7 +216,7 @@ describe("remapThroughHops", () => {
     file,
     hunks: [{ oldStart: 10, oldLines: 3, newStart: 10, newLines: 6 }],
   };
-  /** Same shape on a different file — must not move `file`'s anchor. */
+  /** Same shape on a different file; must not move `file`'s anchor. */
   const otherFile: FileHunkSpans = { ...growsBefore, file: "src/b.ts" };
   /** A hunk sitting on top of the anchor. */
   const overlapsAnchor: FileHunkSpans = {
@@ -222,7 +224,7 @@ describe("remapThroughHops", () => {
     hunks: [{ oldStart: 21, oldLines: 2, newStart: 21, newLines: 9 }],
   };
 
-  /** Overlaps 23..28 only — misses the anchor unless hop 1's output is fed in. */
+  /** Overlaps 23..28 only; misses the anchor unless hop 1's output is fed in. */
   const overlapsShiftedAnchor: FileHunkSpans = {
     file,
     hunks: [{ oldStart: 26, oldLines: 2, newStart: 26, newLines: 9 }],

@@ -33,7 +33,9 @@ vi.mock("github", async (importOriginal) => ({
 }));
 
 function brandRepoId(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
+  if (!isRepoId(value)) {
+    throw new Error("bad repo id");
+  }
   return value;
 }
 
@@ -131,7 +133,9 @@ async function seedGrant(
 
 function missingGrantId(): GrantRowId {
   const value = 999_999n;
-  if (!isGrantRowId(value)) throw new Error("unbrandable fixture id");
+  if (!isGrantRowId(value)) {
+    throw new Error("unbrandable fixture id");
+  }
   return value;
 }
 

@@ -265,7 +265,9 @@ const SHARED = {
 
 function readWith(options: NotionHttpTransportOptions = {}) {
   const read = createNotionRead(SHARED, NotionTransports.HTTP.create(options));
-  if (!read.ok) throw new Error("unreachable");
+  if (!read.ok) {
+    throw new Error("unreachable");
+  }
   return read.value;
 }
 
@@ -277,7 +279,9 @@ describe("createNotionRead", () => {
   it("refuses a root with no Notion slot", () => {
     const read = createNotionRead(SHARED, undefined);
     expect(read.ok).toBe(false);
-    if (read.ok) return;
+    if (read.ok) {
+      return;
+    }
     expect(read.error.issues[0]).toMatch(/no transport/);
   });
 
@@ -287,7 +291,9 @@ describe("createNotionRead", () => {
       NotionTransports.HTTP.create(),
     );
     expect(read.ok).toBe(false);
-    if (read.ok) return;
+    if (read.ok) {
+      return;
+    }
     expect(read.error.issues.join("; ")).toContain("contextSources");
   });
 
@@ -308,7 +314,9 @@ describe("createNotionRead", () => {
       NotionTransports.HTTP.create(),
     );
     expect(unset.ok).toBe(false);
-    if (unset.ok) return;
+    if (unset.ok) {
+      return;
+    }
     const text = unset.error.issues.join("; ");
     expect(text).toContain("MY_NOTION");
     expect(text).not.toContain("ntn_");
@@ -323,7 +331,9 @@ describe("createNotionRead", () => {
       NotionTransports.HTTP.create(),
     );
     expect(read.ok).toBe(false);
-    if (read.ok) return;
+    if (read.ok) {
+      return;
+    }
     const text = read.error.issues.join("; ");
     expect(text).toContain("NAME");
     expect(text).not.toContain("ntn_pasted");
@@ -349,7 +359,9 @@ describe("createNotionRead", () => {
       makeKeyReference(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual([
       `GET /v1/data_sources/${DATABASE_ID}`,
       `GET /v1/databases/${DATABASE_ID}`,
@@ -444,7 +456,9 @@ describe("createNotionRead", () => {
       ok: false,
       error: { reason: TicketUnreadReasons.NOT_FOUND },
     });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.detail).toContain("name the data source id");
     expect(calls.some((call) => call.url.includes("/query"))).toBe(false);
   });
@@ -516,7 +530,9 @@ describe("createNotionRead", () => {
       makeUrlReference(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(calls[0]?.url).toBe(`https://api.notion.com/v1/pages/${PAGE_ID}`);
     expect(result.value).toMatchObject({
       key: "BRIEF-239",
@@ -551,7 +567,9 @@ describe("createNotionRead", () => {
       makeUrlReference(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.header).toBe("Bare page");
     expect(result.value.key).toBe("");
   });
@@ -584,7 +602,9 @@ describe("createNotionRead", () => {
       makeUrlReference(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.text).toHaveLength(20_000);
     const blockCalls = calls.filter((c) => c.url.includes("/children"));
     expect(blockCalls).toHaveLength(3);
@@ -674,7 +694,9 @@ describe("createNotionRead", () => {
     };
     const { result } = await readThroughProvider(routes, makeUrlReference());
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.text).toBe("First\nToggle");
   });
 

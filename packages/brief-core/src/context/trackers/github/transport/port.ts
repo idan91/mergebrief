@@ -33,7 +33,9 @@ export function readFailureForStatus(
   status: number,
   detail = `HTTP ${status}`,
 ): ContextReadFailure {
-  if (status === 404) return { reason: TicketUnreadReasons.NOT_FOUND, detail };
+  if (status === 404) {
+    return { reason: TicketUnreadReasons.NOT_FOUND, detail };
+  }
   if (status === 401 || status === 403) {
     return { reason: TicketUnreadReasons.NO_CREDENTIAL, detail };
   }

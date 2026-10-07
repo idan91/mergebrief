@@ -60,8 +60,9 @@ export function DbCompareBar({
     compare: "last-review" | "previous-brief",
     label: string,
   ): SegmentedOption<CompareParam> => {
-    if (isCompareAvailable(compare, availability))
+    if (isCompareAvailable(compare, availability)) {
       return { value: compare, label };
+    }
     const reason =
       (compare === "last-review" ? lastReviewDisabledReason : undefined) ??
       compareUnavailableTitle(t, compare);

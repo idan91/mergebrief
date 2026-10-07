@@ -19,7 +19,9 @@ describe("Checkbox", () => {
     const box = screen.getByRole("checkbox", {
       name: /only each reviewer's latest/i,
     });
-    if (!(box instanceof HTMLInputElement)) throw new Error("not an input");
+    if (!(box instanceof HTMLInputElement)) {
+      throw new Error("not an input");
+    }
     expect(box.type).toBe("checkbox");
     expect(box.checked).toBe(false);
   });

@@ -55,12 +55,19 @@ export function intersectRanges(a: LineRange[], b: LineRange[]): LineRange[] {
   while (i < as.length && j < bs.length) {
     const x = as[i];
     const y = bs[j];
-    if (x === undefined || y === undefined) break;
+    if (x === undefined || y === undefined) {
+      break;
+    }
     const start = Math.max(x.start, y.start);
     const end = Math.min(x.end, y.end);
-    if (start <= end) out.push({ start, end });
-    if (x.end < y.end) i++;
-    else j++;
+    if (start <= end) {
+      out.push({ start, end });
+    }
+    if (x.end < y.end) {
+      i++;
+    } else {
+      j++;
+    }
   }
   return out;
 }
@@ -72,13 +79,23 @@ export function subtractRanges(a: LineRange[], b: LineRange[]): LineRange[] {
   for (const range of normalize(a)) {
     let start = range.start;
     for (const cut of bs) {
-      if (cut.end < start) continue;
-      if (cut.start > range.end) break;
-      if (cut.start > start) out.push({ start, end: cut.start - 1 });
+      if (cut.end < start) {
+        continue;
+      }
+      if (cut.start > range.end) {
+        break;
+      }
+      if (cut.start > start) {
+        out.push({ start, end: cut.start - 1 });
+      }
       start = cut.end + 1;
-      if (start > range.end) break;
+      if (start > range.end) {
+        break;
+      }
     }
-    if (start <= range.end) out.push({ start, end: range.end });
+    if (start <= range.end) {
+      out.push({ start, end: range.end });
+    }
   }
   return out;
 }
@@ -141,7 +158,9 @@ export function deriveUnattributed(
       file.removedRanges,
       claimed.flatMap((c) => c.removedRanges),
     );
-    if (addedRanges.length === 0 && removedRanges.length === 0) return [];
+    if (addedRanges.length === 0 && removedRanges.length === 0) {
+      return [];
+    }
     return [{ file: file.file, addedRanges, removedRanges }];
   });
 }
@@ -170,7 +189,9 @@ export function buildConcernView(
   }
   return Concerns.flatMap((concern) => {
     const loc = totals.get(concern);
-    if (loc === undefined) return [];
+    if (loc === undefined) {
+      return [];
+    }
     return [{ concern, added: loc.added, deleted: loc.deleted }];
   });
 }
@@ -181,7 +202,9 @@ function overlapIssues(
   b: Pick<Chunk, "id">,
   overlap: LineRange[],
 ): string[] {
-  if (overlap.length === 0) return [];
+  if (overlap.length === 0) {
+    return [];
+  }
   const lines = overlap
     .map((r) => (r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`))
     .join(", ");
@@ -202,7 +225,9 @@ export function detectChunkOverlaps(
     for (let j = i + 1; j < chunks.length; j++) {
       const a = chunks[i];
       const b = chunks[j];
-      if (a === undefined || b === undefined || a.file !== b.file) continue;
+      if (a === undefined || b === undefined || a.file !== b.file) {
+        continue;
+      }
       issues.push(
         ...overlapIssues(
           "added",
@@ -253,7 +278,9 @@ export function crossCheckFileTotals(
     );
   }
   for (const [file, derived] of derivedByFile) {
-    if (reportedPaths.has(file)) continue;
+    if (reportedPaths.has(file)) {
+      continue;
+    }
     issues.push(
       `${file}: diff-derived +${derived.added} -${derived.deleted} but gh reports no such file`,
     );

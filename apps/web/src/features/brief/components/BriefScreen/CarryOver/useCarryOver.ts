@@ -70,7 +70,9 @@ export function useCarryOver({
   // A first-ever session carried nothing, and neither did a previous one that
   // wrote only an outcome, so a row claiming otherwise is worse than the
   // header's progress alone.
-  if (carriedFrom === null || carriedFrom.items === 0) return null;
+  if (carriedFrom === null || carriedFrom.items === 0) {
+    return null;
+  }
 
   // Exhaustive by construction: a new clearing operation the server can send
   // fails to compile here rather than falling through to a wrong one.
@@ -87,7 +89,9 @@ export function useCarryOver({
     },
     "reanchor-draft-comment": (item) => {
       flowActions.startReanchor(item.actionTargetId, composerDisabledReason);
-      if (armedDraftId !== item.actionTargetId) jumpToItem(item);
+      if (armedDraftId !== item.actionTargetId) {
+        jumpToItem(item);
+      }
     },
     "address-risk": (item) => {
       flowActions.setEvidenceTarget({

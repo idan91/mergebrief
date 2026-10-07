@@ -33,7 +33,9 @@ export function groupSiblingSpans(
     }
     const changed =
       row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.DEL;
-    if (!changed) return;
+    if (!changed) {
+      return;
+    }
     const owner = ownerOf(row);
     if (owner === undefined) {
       open = undefined;

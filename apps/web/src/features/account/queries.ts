@@ -20,8 +20,12 @@ export function buildViewerQueryOptions() {
     staleTime: VIEWER_STALE_MS,
     queryFn: async (): Promise<ViewerState> => {
       const response = await apiFetch(SESSION_PATH);
-      if (response.status === 401) return { kind: ViewerStates.SIGNED_OUT };
-      if (!response.ok) throw await errorFromResponse(response, SESSION_PATH);
+      if (response.status === 401) {
+        return { kind: ViewerStates.SIGNED_OUT };
+      }
+      if (!response.ok) {
+        throw await errorFromResponse(response, SESSION_PATH);
+      }
       return parseViewer(await apiJsonFromResponse(response, SESSION_PATH));
     },
   });

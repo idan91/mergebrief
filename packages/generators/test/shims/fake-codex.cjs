@@ -73,7 +73,9 @@ function drainStdinThen(fn) {
 // (real-CLI equivalent probed at adapter implementation, PR 6).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
-  if (scenario === "version-broken") process.exit(1);
+  if (scenario === "version-broken") {
+    process.exit(1);
+  }
   process.stdout.write("codex-cli 0.144.1\n");
   process.exit(0);
 }
@@ -103,7 +105,9 @@ if (schemaFlag !== -1 && process.env.SHIM_SCHEMA_COPY) {
 if (process.env.SHIM_MARKER_FILE) {
   process.on("SIGINT", () => {
     appendFileSync(process.env.SHIM_MARKER_FILE, "SIGINT\n");
-    if (scenario !== "ignores-sigint") process.exit(1);
+    if (scenario !== "ignores-sigint") {
+      process.exit(1);
+    }
   });
 }
 

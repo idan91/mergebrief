@@ -57,13 +57,17 @@ const SEED_ORIGIN = { provider: "stub", model: "stub", effort: "low" };
 
 function brandRepo(value: number): RepoId {
   const asBigInt = BigInt(value);
-  if (!isRepoId(asBigInt)) throw new Error("bad repo id");
+  if (!isRepoId(asBigInt)) {
+    throw new Error("bad repo id");
+  }
   return asBigInt;
 }
 
 function resolveInstallationContext(installationId: number): ScopeContext {
   const asBigInt = BigInt(installationId);
-  if (!isInstallationId(asBigInt)) throw new Error("bad installation id");
+  if (!isInstallationId(asBigInt)) {
+    throw new Error("bad installation id");
+  }
   return { installationId: asBigInt };
 }
 
@@ -83,9 +87,12 @@ async function writeBrief(
     commitCount: 1,
     body: "{}",
   });
-  if (!written.ok)
+  if (!written.ok) {
     throw new Error(`brief seed failed: ${written.error.message}`);
-  if (!isBriefRowId(written.value.id)) throw new Error("bad brief id");
+  }
+  if (!isBriefRowId(written.value.id)) {
+    throw new Error("bad brief id");
+  }
   return written.value.id;
 }
 
@@ -103,7 +110,9 @@ async function openSession(
     handle,
     ctx,
   ).reviewSessions.recordPublishedDrafts({ briefId, reviewerId }, published);
-  if (!result.ok) throw new Error(`session seed failed: ${result.error.code}`);
+  if (!result.ok) {
+    throw new Error(`session seed failed: ${result.error.code}`);
+  }
 }
 
 /**
@@ -124,7 +133,9 @@ async function seedInboxRow(
   const repo = installation?.repos.find(
     (candidate) => candidate.id === row.repoId,
   );
-  if (repo === undefined) throw new Error("fixture row names an unknown repo");
+  if (repo === undefined) {
+    throw new Error("fixture row names an unknown repo");
+  }
   const updatedAt = new Date(
     seededAt.getTime() - row.updatedMinutesAgo * MINUTE_MS,
   );
@@ -144,7 +155,9 @@ async function seedInboxRow(
       ...lifecycle,
     },
   );
-  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+  if (!isPullRequestRowId(written.id)) {
+    throw new Error("bad pull request id");
+  }
   const pullRequestId = written.id;
 
   if (row.state === InboxSeedStates.UPDATED) {
@@ -179,7 +192,9 @@ async function seedBehindRow(
       state: PrStates.OPEN,
     },
   );
-  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+  if (!isPullRequestRowId(written.id)) {
+    throw new Error("bad pull request id");
+  }
   await writeBrief(handle, ctx, written.id, INBOX_BEHIND_ROW.briefHead, 1);
 }
 
@@ -204,11 +219,15 @@ async function seedMergedRow(
       purgeAfter: null,
     },
   );
-  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+  if (!isPullRequestRowId(written.id)) {
+    throw new Error("bad pull request id");
+  }
 }
 
 function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad owner id");
+  if (!isReviewerId(value)) {
+    throw new Error("bad owner id");
+  }
   return value;
 }
 
@@ -261,7 +280,9 @@ async function main(): Promise<void> {
   try {
     const owner = brandReviewer(E2E_OWNER_USER_ID);
     const repoId = BigInt(E2E_REPO_ID);
-    if (!isRepoId(repoId)) throw new Error("bad repo id");
+    if (!isRepoId(repoId)) {
+      throw new Error("bad repo id");
+    }
     const summary = await ingestBriefDirectory(handle, {
       dir: FIXTURE_DIR,
       ctx: { ownerUserId: owner },

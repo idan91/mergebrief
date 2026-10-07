@@ -48,7 +48,9 @@ function chipFacets(
 ): readonly VerdictFacet[] {
   return VERDICT_ORDER.flatMap((state) => {
     const facet = facets.find((candidate) => candidate.state === state);
-    if (facet !== undefined) return [facet];
+    if (facet !== undefined) {
+      return [facet];
+    }
     return filter.verdicts.has(state)
       ? [{ state, humanCount: 0, botCount: 0 }]
       : [];

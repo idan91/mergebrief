@@ -166,7 +166,9 @@ function renderDetail(options: RenderOptions = {}) {
   if (options.mentionPool !== undefined) {
     composer.mentionPool = options.mentionPool;
   }
-  if (resolution !== undefined) composer.resolution = resolution;
+  if (resolution !== undefined) {
+    composer.resolution = resolution;
+  }
   const flowStore = createReviewFlowStore(
     {
       saveComment: vi.fn(),

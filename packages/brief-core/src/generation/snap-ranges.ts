@@ -47,12 +47,18 @@ function indexFileRows(patch: string): FileRows {
 
 /** Leading whitespace in columns; a blank line reads as deeper than anything. */
 function measureIndent(content: string): number {
-  if (content.trim() === "") return Number.POSITIVE_INFINITY;
+  if (content.trim() === "") {
+    return Number.POSITIVE_INFINITY;
+  }
   let columns = 0;
   for (const char of content) {
-    if (char === " ") columns += 1;
-    else if (char === "\t") columns += TAB_COLUMNS;
-    else break;
+    if (char === " ") {
+      columns += 1;
+    } else if (char === "\t") {
+      columns += TAB_COLUMNS;
+    } else {
+      break;
+    }
   }
   return columns;
 }
@@ -64,9 +70,12 @@ function measureIndent(content: string): number {
 function tallyBrackets(content: string, balance: number): number {
   let next = balance;
   for (const char of content) {
-    if (char === "(" || char === "[" || char === "{") next += 1;
-    else if (char === ")" || char === "]" || char === "}") {
-      if (next > 0) next -= 1;
+    if (char === "(" || char === "[" || char === "{") {
+      next += 1;
+    } else if (char === ")" || char === "]" || char === "}") {
+      if (next > 0) {
+        next -= 1;
+      }
     }
   }
   return next;
@@ -108,10 +117,14 @@ function resolveSnappedEnd(
 ): number {
   // An inverted range is the model's mistake; loc derivation drops it and
   // the snap must not turn it into a counted one.
-  if (range.end < range.start) return range.end;
+  if (range.end < range.start) {
+    return range.end;
+  }
   const opening = rows.get(range.start);
   const last = rows.get(range.end);
-  if (opening === undefined || last === undefined) return range.end;
+  if (opening === undefined || last === undefined) {
+    return range.end;
+  }
   const openIndent = measureIndent(opening.content);
   let balance = countOpenBrackets(rows, range);
   let end = range.end;
@@ -119,16 +132,22 @@ function resolveSnappedEnd(
   for (let taken = 0; taken < SNAP_CAP; taken += 1) {
     const line = end + 1;
     const row = rows.get(line);
-    if (row === undefined || row.hunk !== last.hunk || isClaimed(line)) break;
+    if (row === undefined || row.hunk !== last.hunk || isClaimed(line)) {
+      break;
+    }
     if (measureIndent(row.content) > openIndent) {
       end = line;
       balance = tallyBrackets(row.content, balance);
       continue;
     }
-    if (balance === 0 || !CLOSER_PREFIX.test(row.content.trim())) break;
+    if (balance === 0 || !CLOSER_PREFIX.test(row.content.trim())) {
+      break;
+    }
     end = line;
     balance = tallyBrackets(row.content, balance);
-    if (balance === 0) break;
+    if (balance === 0) {
+      break;
+    }
   }
 
   return end;
@@ -156,7 +175,9 @@ export function snapChunkRanges<C extends ChunkRanges>(
     store: Map<string, Set<number>>,
   ): LineRange[] => {
     const rows = rowsByFile.get(chunk.file)?.[side];
-    if (rows === undefined) return [...ranges];
+    if (rows === undefined) {
+      return [...ranges];
+    }
     const key = side === "added" ? "addedRanges" : "removedRanges";
     const others = chunks
       .filter(
@@ -169,7 +190,9 @@ export function snapChunkRanges<C extends ChunkRanges>(
 
     return ranges.map((range) => {
       const end = resolveSnappedEnd(range, rows, isClaimed);
-      for (let line = range.end + 1; line <= end; line += 1) taken.add(line);
+      for (let line = range.end + 1; line <= end; line += 1) {
+        taken.add(line);
+      }
       return { start: range.start, end };
     });
   };

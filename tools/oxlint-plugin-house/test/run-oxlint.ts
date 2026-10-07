@@ -34,7 +34,9 @@ interface JsonReport {
 }
 
 function isJsonReport(value: unknown): value is JsonReport {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
   const report = value as { diagnostics?: unknown };
   return Array.isArray(report.diagnostics);
 }
@@ -56,7 +58,9 @@ function collectFixtureDiagnostics(): ReadonlyMap<
     ],
     { encoding: "utf8" },
   );
-  if (run.error) throw run.error;
+  if (run.error) {
+    throw run.error;
+  }
 
   const parsed: unknown = JSON.parse(run.stdout);
   if (!isJsonReport(parsed)) {
@@ -67,7 +71,9 @@ function collectFixtureDiagnostics(): ReadonlyMap<
 
   for (const diagnostic of parsed.diagnostics) {
     const match = /^house\((.+)\)$/.exec(diagnostic.code);
-    if (match?.[1] === undefined) continue;
+    if (match?.[1] === undefined) {
+      continue;
+    }
 
     const key = relative(FIXTURES_DIR, diagnostic.filename);
     const found = byFixture.get(key) ?? [];

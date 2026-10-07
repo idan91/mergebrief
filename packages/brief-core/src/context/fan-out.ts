@@ -89,7 +89,9 @@ export async function fetchContextSnippets(
   const links = perProvider
     .flat()
     .map((snippet, index) => ({ ...snippet, id: `ctx-${index + 1}` }));
-  if (primaryTicket === undefined) return { links };
+  if (primaryTicket === undefined) {
+    return { links };
+  }
   return { links, primaryTicket };
 }
 
@@ -101,7 +103,9 @@ function attributeSupplied(
   supplied: PrimarySnippet,
   reference: TicketReference | undefined,
 ): PrimarySnippet {
-  if (reference === undefined) return supplied;
+  if (reference === undefined) {
+    return supplied;
+  }
   return { ...supplied, foundIn: reference.foundIn };
 }
 
@@ -122,7 +126,9 @@ async function readPrimaryTicket(
       snippet: attributeSupplied(options.suppliedPrimary, reference),
     };
   }
-  if (reference === undefined) return undefined;
+  if (reference === undefined) {
+    return undefined;
+  }
 
   const reads = options.reads ?? {};
   if (reads[reference.tracker] === undefined) {
@@ -149,7 +155,9 @@ async function readPrimaryTicket(
       reference.tracker,
     ]);
     const read = candidate === undefined ? undefined : reads[candidate.tracker];
-    if (candidate === undefined || read === undefined) return undefined;
+    if (candidate === undefined || read === undefined) {
+      return undefined;
+    }
     remainingReferences = remainingReferences.filter((r) => r !== candidate);
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
@@ -169,7 +177,9 @@ async function readPrimaryTicket(
     );
     const skipped =
       outcome.status === "unread" && outcome.resolvedToPullRequest === true;
-    if (!skipped) return outcome;
+    if (!skipped) {
+      return outcome;
+    }
     log(`context: ${candidate.url} is not a ticket, trying the next reference`);
   }
   return undefined;
@@ -207,8 +217,9 @@ async function readCandidate(
       reason: outcome.error.reason,
       detail: outcome.error.detail,
     };
-    if (outcome.error.resolvedToPullRequest === true)
+    if (outcome.error.resolvedToPullRequest === true) {
       unread.resolvedToPullRequest = true;
+    }
     return unread;
   }
   return { status: "read", snippet: outcome.value };

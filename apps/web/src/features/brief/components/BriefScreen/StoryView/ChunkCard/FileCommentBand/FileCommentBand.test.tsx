@@ -337,7 +337,9 @@ describe("FileCommentBand", () => {
       name: "Add a comment on src/a.ts",
     });
     const firstControl = controls[0];
-    if (firstControl === undefined) throw new Error("expected two controls");
+    if (firstControl === undefined) {
+      throw new Error("expected two controls");
+    }
     fireEvent.click(firstControl);
     expect(screen.getAllByText("Add comment on file")).toHaveLength(1);
   });

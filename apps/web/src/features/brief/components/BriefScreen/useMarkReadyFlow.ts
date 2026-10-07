@@ -147,7 +147,9 @@ export function useMarkReadyFlow(
   // open and left focus stranded inside an inert dialog.
   const [batchFailureRescue, setBatchFailureRescue] = useState(false);
   useEffect(() => {
-    if (!batchFailureRescue) return;
+    if (!batchFailureRescue) {
+      return;
+    }
     setBatchFailureRescue(false);
 
     const active = document.activeElement;
@@ -169,8 +171,12 @@ export function useMarkReadyFlow(
   // Mid-gate head advance: the route withholds `markReady` WITHOUT a remount,
   // so the modal unmounts while its open flag stays set.
   useEffect(() => {
-    if (!ownDraftActive || markReadyAvailable) return;
-    if (!gateOpenRef.current) return;
+    if (!ownDraftActive || markReadyAvailable) {
+      return;
+    }
+    if (!gateOpenRef.current) {
+      return;
+    }
     setMarkReadyGateOpen(false);
     const active = document.activeElement;
     if (active === null || active === document.body) {
@@ -185,7 +191,9 @@ export function useMarkReadyFlow(
     }
     // The CTA is aria-disabled (not hard disabled) while pending, so a click
     // still lands here and would reopen the gate over the running mutation.
-    if (markReadyPending) return;
+    if (markReadyPending) {
+      return;
+    }
     // The gate opens for risk flags OR unposted drafts: a zero-flag brief
     // with staged drafts must still offer the post-my-drafts checkbox, or the
     // drafts silently stay local while the PR goes ready.
@@ -215,9 +223,13 @@ export function useMarkReadyFlow(
   const jumpToDraftsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
     const first = unpostedDraftComments[0];
-    if (first === undefined) return;
+    if (first === undefined) {
+      return;
+    }
     const chunkId = resolveJumpChunkId(first, chunks);
-    if (chunkId !== "") jumpToChunk(chunkId);
+    if (chunkId !== "") {
+      jumpToChunk(chunkId);
+    }
   }, [chunks, jumpToChunk, unpostedDraftComments]);
   // Intent lines never feed the gate's OPEN condition.
   const intentGapCount = countIntentGaps(intentCheck);
@@ -232,7 +244,9 @@ export function useMarkReadyFlow(
   const batchInFlight = useRef(false);
   const runMarkReadyBatch = useCallback(
     async (drafts: readonly ReviewComment[]) => {
-      if (batchInFlight.current) return;
+      if (batchInFlight.current) {
+        return;
+      }
       batchInFlight.current = true;
       try {
         const total = drafts.length;

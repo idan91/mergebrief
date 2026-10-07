@@ -24,17 +24,24 @@ export function groupFlagsByFile(
   const byFile = new Map<string, RiskFlag[]>();
   for (const flag of flags) {
     const existing = byFile.get(flag.file);
-    if (existing) existing.push(flag);
-    else byFile.set(flag.file, [flag]);
+    if (existing) {
+      existing.push(flag);
+    } else {
+      byFile.set(flag.file, [flag]);
+    }
   }
 
   const seen = new Set<string>();
   const rows: FileFlagRow[] = [];
   for (const file of fileOrder) {
-    if (seen.has(file)) continue;
+    if (seen.has(file)) {
+      continue;
+    }
     seen.add(file);
     const fileFlags = byFile.get(file);
-    if (fileFlags === undefined) continue;
+    if (fileFlags === undefined) {
+      continue;
+    }
     const openFlags = fileFlags.filter(
       (flag) => getFlagDispositionKind(dispositions, flag.id) === "open",
     );
@@ -61,7 +68,9 @@ export function pickPathJumpChunkId(row: FileFlagRow): string {
 
 export function capitalizeSentence(text: string): string {
   const first = text[0];
-  if (first === undefined) return text;
+  if (first === undefined) {
+    return text;
+  }
   return `${first.toLocaleUpperCase()}${text.slice(1)}`;
 }
 

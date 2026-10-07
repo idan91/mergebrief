@@ -248,7 +248,9 @@ describe("Sidebar", () => {
     const rowName = firstGroup.group.title || firstGroup.group.summary;
     const row = screen.getAllByRole("button", { name: new RegExp(rowName) });
     const listRow = row.find((candidate) => candidate.closest("li") !== null);
-    if (!listRow) throw new Error("no list row");
+    if (!listRow) {
+      throw new Error("no list row");
+    }
 
     fireEvent.click(listRow, { detail: 0 });
 

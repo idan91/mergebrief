@@ -29,14 +29,18 @@ describe("validateSpendBlock", () => {
   it("parses maxGenerationsPerDay", () => {
     const result = validateSpendBlock({ maxGenerationsPerDay: 50 });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.maxGenerationsPerDay).toBe(50);
   });
 
   it("defaults to uncapped when the block is empty", () => {
     const result = validateSpendBlock({});
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.maxGenerationsPerDay).toBeNull();
   });
 
@@ -44,7 +48,9 @@ describe("validateSpendBlock", () => {
     for (const cap of [0, -1, 2.5]) {
       const result = validateSpendBlock({ maxGenerationsPerDay: cap });
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error.issues.join("; ")).toContain("spend:");
     }
   });
@@ -52,14 +58,18 @@ describe("validateSpendBlock", () => {
   it("rejects an unknown key inside the block", () => {
     const result = validateSpendBlock({ monthlyCap: 10 });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("unrecognized key");
   });
 
   it("refuses the retired dailyGenerationCap key", () => {
     const result = validateSpendBlock({ dailyGenerationCap: 50 });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("unrecognized key");
     expect(text).toContain("dailyGenerationCap");
@@ -68,7 +78,9 @@ describe("validateSpendBlock", () => {
   it("refuses the retired perRepo map", () => {
     const result = validateSpendBlock({ perRepo: { "acme/api": 5 } });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("unrecognized key");
     expect(text).toContain("perRepo");
@@ -77,7 +89,9 @@ describe("validateSpendBlock", () => {
   it("redacts a credential-shaped stray key in the issue text", () => {
     const result = validateSpendBlock({ "sk-or-v1-abc123def456": 3 });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("(redacted)");
     expect(text).not.toContain("sk-or-v1-abc123def456");
@@ -97,7 +111,9 @@ describe("the spend block inside the instance config file", () => {
     );
     const result = loadGeneratorConfigFile(path);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.spend).toEqual({ maxGenerationsPerDay: 40 });
   });
 
@@ -105,7 +121,9 @@ describe("the spend block inside the instance config file", () => {
     const path = configFile("generator:\n  provider: anthropic\n");
     const result = loadGeneratorConfigFile(path);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.spend).toEqual({ maxGenerationsPerDay: null });
   });
 

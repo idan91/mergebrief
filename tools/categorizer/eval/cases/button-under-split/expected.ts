@@ -2,14 +2,13 @@ import type { EvalProperty } from "../../properties";
 import { chunksFor, firstGroupIndex, groupIdsFor } from "../../briefQueries";
 
 /**
- * components#10 @ 3110bbb — ONE file (Button.tsx) carrying two entangled
+ * components#10 @ 3110bbb: ONE file (Button.tsx) carrying two entangled
  * intents: (a) new `rounded` prop (interface + default + render), (b)
  * class-map → data-* attribute refactor (Button.scss selector migration
  * supporting it, App.tsx call-site riding along). Observed under-split:
- * everything grouped as ONE group. The hard variant — the prop default
+ * everything grouped as ONE group. The hard variant: the prop default
  * lands inside the rewritten render block. This case measures any
- * base-prompt emphasis tweak on sub-file intent splitting (BRIEF-59
- * ticket, 2026-07-17 smoke).
+ * base-prompt emphasis tweak on sub-file intent splitting.
  */
 export const properties: EvalProperty[] = [
   {
@@ -30,7 +29,9 @@ export const properties: EvalProperty[] = [
       "Button.scss belongs to a group that also carries a Button.tsx chunk (the refactor), never a group of its own or the prop group alone",
     check: (brief) => {
       const scssGroups = groupIdsFor(brief, "Button.scss");
-      if (scssGroups.length !== 1) return false;
+      if (scssGroups.length !== 1) {
+        return false;
+      }
       return chunksFor(brief, "Button.tsx").some(
         (chunk) => chunk.changeGroupId === scssGroups[0],
       );

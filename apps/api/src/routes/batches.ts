@@ -15,7 +15,9 @@ export async function runInBatches<Entry, Outcome>(
     // Sequential on purpose: each batch bounds what runs at once.
     const done = await Promise.all(batch.map(work));
     outcomes.push(...done);
-    if (stopWhen !== undefined && done.some(stopWhen)) break;
+    if (stopWhen !== undefined && done.some(stopWhen)) {
+      break;
+    }
   }
   return outcomes;
 }
@@ -35,7 +37,9 @@ export async function runInPool<Entry>(
     while (next < entries.length) {
       const entry = entries[next];
       next += 1;
-      if (entry !== undefined) await work(entry);
+      if (entry !== undefined) {
+        await work(entry);
+      }
     }
   }
   const slots = Math.min(Math.max(1, width), entries.length);

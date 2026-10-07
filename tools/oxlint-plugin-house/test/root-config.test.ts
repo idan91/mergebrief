@@ -40,7 +40,9 @@ interface JsonReport {
 }
 
 function isJsonReport(value: unknown): value is JsonReport {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
   return Array.isArray((value as { diagnostics?: unknown }).diagnostics);
 }
 
@@ -87,15 +89,23 @@ function writeAdaptedRootConfig(root: string): void {
 
 function ruleIdOf(code: string): string | undefined {
   const house = /^house\((.+)\)$/.exec(code);
-  if (house?.[1] !== undefined) return `house/${house[1]}`;
+  if (house?.[1] !== undefined) {
+    return `house/${house[1]}`;
+  }
   const plugin = /^(?:eslint-plugin-)?i18next\((.+)\)$/.exec(code);
-  if (plugin?.[1] !== undefined) return `i18next/${plugin[1]}`;
+  if (plugin?.[1] !== undefined) {
+    return `i18next/${plugin[1]}`;
+  }
   // Core rules the root config configures itself, so a rule option the
   // config text promises is provable against a real run.
   const core = /^eslint\((.+)\)$/.exec(code);
-  if (core?.[1] !== undefined) return `eslint/${core[1]}`;
+  if (core?.[1] !== undefined) {
+    return `eslint/${core[1]}`;
+  }
   const imports = /^import\((.+)\)$/.exec(code);
-  if (imports?.[1] !== undefined) return `import/${imports[1]}`;
+  if (imports?.[1] !== undefined) {
+    return `import/${imports[1]}`;
+  }
   return undefined;
 }
 
@@ -130,7 +140,9 @@ function lintTree(request: LintRequest): LintResult {
       ],
       { cwd: root, encoding: "utf8", timeout: LINT_TIMEOUT_MS },
     );
-    if (run.error) throw run.error;
+    if (run.error) {
+      throw run.error;
+    }
 
     const parsed: unknown = JSON.parse(run.stdout);
     if (!isJsonReport(parsed)) {
@@ -139,7 +151,9 @@ function lintTree(request: LintRequest): LintResult {
     const rules = new Map<string, string[]>();
     for (const diagnostic of parsed.diagnostics) {
       const rule = ruleIdOf(diagnostic.code);
-      if (rule === undefined) continue;
+      if (rule === undefined) {
+        continue;
+      }
       const reported = `${rule}@${diagnostic.severity}`;
       const key = isAbsolute(diagnostic.filename)
         ? relative(realRoot, diagnostic.filename)
@@ -148,7 +162,9 @@ function lintTree(request: LintRequest): LintResult {
       found.push(reported);
       rules.set(key, found);
     }
-    for (const [key, found] of rules) rules.set(key, found.toSorted());
+    for (const [key, found] of rules) {
+      rules.set(key, found.toSorted());
+    }
     return {
       status: run.status ?? -1,
       rules,
@@ -185,6 +201,9 @@ const CAP_COMMENT = Array.from(
 
 /** Nine: one past the cap, which must report. */
 const OVER_CAP_COMMENT = `${CAP_COMMENT}\n// invariant line 9`;
+
+const BRACELESS_IF = `export function sign(value: number): number {\n  if (value < 0) return -1;\n  return 1;\n}\n`;
+const BRACED_IF = `export function sign(value: number): number {\n  if (value < 0) {\n    return -1;\n  }\n  return 1;\n}\n`;
 
 /** The absence check the standard bans: one operator matching both forms. */
 const LOOSE_ABSENCE = `export function isAbsent(value: number | null | undefined): boolean {
@@ -241,6 +260,8 @@ const MATRIX_FILES = {
   "apps/web/src/features/brief/utils/labels.ts": SHOUT_CASE_KEY_COPY,
   "apps/web/src/features/brief/utils/keys.ts": SHOUT_CASE_CATALOG_KEY,
   "packages/brief-core/src/fallback.ts": SHOUT_CASE_COPY,
+  "packages/brief-core/src/braceless.ts": BRACELESS_IF,
+  "packages/brief-core/src/braced.ts": BRACED_IF,
 };
 
 let matrix: LintResult | undefined;
@@ -373,6 +394,20 @@ describe("copy behind SHOUT_CASE names", () => {
     expect(
       rulesFor(lintMatrix(), "packages/brief-core/src/fallback.ts"),
     ).toEqual([]);
+  });
+});
+
+describe("braces on every body", () => {
+  it("reports a braceless if body", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/braceless.ts"),
+    ).toEqual(["eslint/curly@error"]);
+  });
+
+  it("passes a braced if body", () => {
+    expect(rulesFor(lintMatrix(), "packages/brief-core/src/braced.ts")).toEqual(
+      [],
+    );
   });
 });
 

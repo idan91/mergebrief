@@ -51,7 +51,9 @@ function transformProperties(
 ): Record<string, unknown> {
   const strictProps: Record<string, unknown> = {};
   for (const [key, propSchema] of Object.entries(properties)) {
-    if (isRecord(propSchema)) strictProps[key] = transformNode(propSchema);
+    if (isRecord(propSchema)) {
+      strictProps[key] = transformNode(propSchema);
+    }
   }
   return strictProps;
 }
@@ -72,7 +74,9 @@ function transformNode(
     const strictDefs: Record<string, unknown> = {};
     strict["$defs"] = strictDefs;
     for (const [name, defSchema] of Object.entries(defs)) {
-      if (isRecord(defSchema)) strictDefs[name] = transformNode(defSchema);
+      if (isRecord(defSchema)) {
+        strictDefs[name] = transformNode(defSchema);
+      }
     }
   }
 
@@ -96,17 +100,25 @@ function transformNode(
   }
 
   const description = pop(working, "description");
-  if (description !== undefined) strict["description"] = description;
+  if (description !== undefined) {
+    strict["description"] = description;
+  }
   const title = pop(working, "title");
-  if (title !== undefined) strict["title"] = title;
+  if (title !== undefined) {
+    strict["title"] = title;
+  }
 
   // The whole point of this module: closed vocabularies survive as real
   // keywords, so the server constrains decoding instead of hoping the text is
   // read. Both `enum` (finite set) and `const` (singleton) are carried.
   const enumValues = pop(working, "enum");
-  if (enumValues !== undefined) strict["enum"] = enumValues;
+  if (enumValues !== undefined) {
+    strict["enum"] = enumValues;
+  }
   const constValue = pop(working, "const");
-  if (constValue !== undefined) strict["const"] = constValue;
+  if (constValue !== undefined) {
+    strict["const"] = constValue;
+  }
 
   if (type === "object") {
     const properties = pop(working, "properties");
@@ -116,7 +128,9 @@ function transformNode(
     pop(working, "additionalProperties");
     strict["additionalProperties"] = false;
     const required = pop(working, "required");
-    if (required !== undefined) strict["required"] = required;
+    if (required !== undefined) {
+      strict["required"] = required;
+    }
   } else if (type === "string") {
     const format = pop(working, "format");
     if (typeof format === "string" && SUPPORTED_STRING_FORMATS.has(format)) {
@@ -127,7 +141,9 @@ function transformNode(
     }
   } else if (type === "array") {
     const items = pop(working, "items");
-    if (isRecord(items)) strict["items"] = transformNode(items);
+    if (isRecord(items)) {
+      strict["items"] = transformNode(items);
+    }
     const minItems = pop(working, "minItems");
     if (minItems === 0 || minItems === 1) {
       strict["minItems"] = minItems;

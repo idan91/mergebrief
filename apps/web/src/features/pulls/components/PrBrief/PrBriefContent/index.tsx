@@ -195,7 +195,9 @@ export function PrBriefContent({
   // header keeps the snapshot; a failed poll keeps the last live stack.
   const liveStack = useQuery(buildPrStackQueryOptions(repoId, prNumber));
   const livePrState: LivePrState = { state: meta.state, draft: meta.draft };
-  if (liveStack.data !== undefined) livePrState.stack = liveStack.data;
+  if (liveStack.data !== undefined) {
+    livePrState.stack = liveStack.data;
+  }
   // Deps are PRIMITIVES: `availability` and `searchParams` are per-render
   // literals, and this callback rides into GroupCard's memo boundary, which
   // must survive PR-meta poll ticks.

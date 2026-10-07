@@ -106,7 +106,9 @@ describe("useReadingSession reading position", () => {
 
 function requireFirst<T>(items: readonly T[], what: string): T {
   const first = items[0];
-  if (!first) throw new Error(`fixture has no ${what}`);
+  if (!first) {
+    throw new Error(`fixture has no ${what}`);
+  }
   return first;
 }
 
@@ -150,7 +152,9 @@ describe("useReadingSession heading landing", () => {
         />
       </ReviewSessionProvider>,
     );
-    if (!session) throw new Error("session not captured");
+    if (!session) {
+      throw new Error("session not captured");
+    }
     return { position, session: session as UseReadingSessionValue };
   }
 

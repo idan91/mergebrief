@@ -105,7 +105,9 @@ function isGenerationTrigger(event: ParsedPullRequestEvent): boolean {
 function nameUncoveredWork(
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
 ): UncoveredWork | undefined {
-  if (!("action" in event)) return UncoveredWorks.REVIEW;
+  if (!("action" in event)) {
+    return UncoveredWorks.REVIEW;
+  }
   if (event.action === PullRequestActions.READY_FOR_REVIEW) {
     return UncoveredWorks.ENTRY_COMMENT;
   }
@@ -127,8 +129,12 @@ function shapePullRequestUpsert(
     ...lifecycle,
   };
 
-  if (event.authorLogin !== undefined) upsert.authorLogin = event.authorLogin;
-  if (event.updatedAt !== undefined) upsert.githubUpdatedAt = event.updatedAt;
+  if (event.authorLogin !== undefined) {
+    upsert.authorLogin = event.authorLogin;
+  }
+  if (event.updatedAt !== undefined) {
+    upsert.githubUpdatedAt = event.updatedAt;
+  }
 
   return upsert;
 }
@@ -162,7 +168,9 @@ async function handlePullRequest(
         purgeAfter: null,
       }),
     );
-    if (!recorded.applied) logSkippedEvent(log, event);
+    if (!recorded.applied) {
+      logSkippedEvent(log, event);
+    }
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
@@ -173,7 +181,9 @@ async function handlePullRequest(
     const recorded = await createIngestRoutines(handle, ctx).recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),
     );
-    if (!recorded.applied) logSkippedEvent(log, event);
+    if (!recorded.applied) {
+      logSkippedEvent(log, event);
+    }
     return;
   }
   if (isGenerationTrigger(event)) {
@@ -185,7 +195,9 @@ async function handlePullRequest(
         shapePullRequestUpsert(event, { state: PrStates.OPEN }),
         { reopen: event.action === PullRequestActions.REOPENED },
       );
-      if (!recorded.applied) logSkippedEvent(log, event);
+      if (!recorded.applied) {
+        logSkippedEvent(log, event);
+      }
       return;
     }
     await triggerGeneration(
@@ -315,7 +327,9 @@ async function triggerGeneration(
     ...overrides,
   };
   const uncoveredWork = nameUncoveredWork(event);
-  if (uncoveredWork !== undefined) input.uncoveredWork = uncoveredWork;
+  if (uncoveredWork !== undefined) {
+    input.uncoveredWork = uncoveredWork;
+  }
   const result = await createIngestRoutines(handle, ctx).triggerGeneration(
     input,
   );
@@ -325,7 +339,9 @@ async function triggerGeneration(
     // the route's 500, never swallow it.
     throw new Error(`ingest trigger failed: ${result.error.code}`);
   }
-  if (!result.value.applied) logSkippedEvent(log, event);
+  if (!result.value.applied) {
+    logSkippedEvent(log, event);
+  }
   if (result.value.coveredBy !== undefined) {
     log.debug("webhook event covered by a stored brief, nothing queued", {
       repoId: String(event.repoId),

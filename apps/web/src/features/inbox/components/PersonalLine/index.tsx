@@ -17,8 +17,12 @@ interface PersonalCopy {
 
 /** The detail for one waiting row names its state outright. */
 function describeOneRow(t: TFunction, counts: InboxCounts): string {
-  if (counts.updated === 1) return t("home.personalLine.oneChanged");
-  if (counts.new === 1) return t("home.personalLine.oneNew");
+  if (counts.updated === 1) {
+    return t("home.personalLine.oneChanged");
+  }
+  if (counts.new === 1) {
+    return t("home.personalLine.oneNew");
+  }
   return t("home.personalLine.oneInProgress");
 }
 

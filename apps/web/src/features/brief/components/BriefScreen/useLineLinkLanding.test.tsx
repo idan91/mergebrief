@@ -114,7 +114,9 @@ describe("line link landing", () => {
     const row = await waitFor(() => {
       const cell = document.querySelector('td[data-line-new="10"]');
       const found = cell?.closest("tr");
-      if (!(found instanceof HTMLElement)) throw new Error("no row yet");
+      if (!(found instanceof HTMLElement)) {
+        throw new Error("no row yet");
+      }
       return found;
     });
     await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
@@ -143,7 +145,9 @@ describe("line link landing", () => {
     const row = await waitFor(() => {
       const cell = document.querySelector('td[data-line-new="4"]');
       const found = cell?.closest("tr");
-      if (!(found instanceof HTMLElement)) throw new Error("no row yet");
+      if (!(found instanceof HTMLElement)) {
+        throw new Error("no row yet");
+      }
       return found;
     });
     await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));

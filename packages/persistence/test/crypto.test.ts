@@ -64,14 +64,18 @@ describe("crypto: createEnvKeyProvider", () => {
   it("missing env var → missing error, no throw", async () => {
     const result = await providerWith({}).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected missing");
+    if (result.ok) {
+      throw new Error("expected missing");
+    }
     expect(result.error.code).toBe(KeyErrorCodes.MISSING);
   });
 
   it("empty env var → missing error", async () => {
     const result = await providerWith({ [KEY_REF]: "" }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected missing");
+    if (result.ok) {
+      throw new Error("expected missing");
+    }
     expect(result.error.code).toBe(KeyErrorCodes.MISSING);
   });
 
@@ -80,7 +84,9 @@ describe("crypto: createEnvKeyProvider", () => {
       [KEY_REF]: "not valid base64 !!!",
     }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected malformed");
+    if (result.ok) {
+      throw new Error("expected malformed");
+    }
     expect(result.error.code).toBe(KeyErrorCodes.MALFORMED);
   });
 
@@ -88,7 +94,9 @@ describe("crypto: createEnvKeyProvider", () => {
     const short = randomBytes(16).toString("base64");
     const result = await providerWith({ [KEY_REF]: short }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected wrongLength");
+    if (result.ok) {
+      throw new Error("expected wrongLength");
+    }
     expect(result.error.code).toBe(KeyErrorCodes.WRONG_LENGTH);
   });
 
@@ -96,7 +104,9 @@ describe("crypto: createEnvKeyProvider", () => {
     const short = randomBytes(30).toString("base64");
     const result = await providerWith({ [KEY_REF]: short }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected wrongLength");
+    if (result.ok) {
+      throw new Error("expected wrongLength");
+    }
     expect(result.error.message).not.toContain(short);
   });
 });
@@ -108,7 +118,9 @@ describe("crypto: encrypt/decrypt round-trip", () => {
     expect(sealed.startsWith("v1.")).toBe(true);
 
     const dec = await decryptToken(provider, KEY_REF, sealed);
-    if (!dec.ok) throw new Error("expected decrypt to succeed");
+    if (!dec.ok) {
+      throw new Error("expected decrypt to succeed");
+    }
     expect(dec.value).toBe(TOKEN);
   });
 
@@ -117,7 +129,9 @@ describe("crypto: encrypt/decrypt round-trip", () => {
     for (const plaintext of ["ünïcödé-🔑-token", "x".repeat(4096)]) {
       const sealed = await seal(provider, KEY_REF, plaintext);
       const dec = await decryptToken(provider, KEY_REF, sealed);
-      if (!dec.ok) throw new Error("expected decrypt to succeed");
+      if (!dec.ok) {
+        throw new Error("expected decrypt to succeed");
+      }
       expect(dec.value).toBe(plaintext);
     }
   });

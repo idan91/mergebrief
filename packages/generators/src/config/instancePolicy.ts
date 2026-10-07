@@ -93,9 +93,13 @@ export function loadInstancePolicy(
   // Same workspace-root anchoring as the generator loader. The api and
   // worker processes must read the SAME file for one env value.
   const resolved = resolveEnvConfigPath(path, process.cwd());
-  if (!resolved.ok) return resolved;
+  if (!resolved.ok) {
+    return resolved;
+  }
   const root = readConfigRoot(resolved.value);
-  if (!root.ok) return root;
+  if (!root.ok) {
+    return root;
+  }
   const block = root.value === null ? undefined : root.value["drafts"];
   if (block === undefined) {
     return {
@@ -104,7 +108,9 @@ export function loadInstancePolicy(
     };
   }
   const policy = validateDraftsBlock(block);
-  if (!policy.ok) return policy;
+  if (!policy.ok) {
+    return policy;
+  }
   return {
     ok: true,
     value: { draftPolicy: policy.value, source: resolved.value },

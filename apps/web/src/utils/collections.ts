@@ -3,8 +3,11 @@
 /** Return a new Set with `value` toggled (added if absent, removed if present). */
 export function toggleSet<T>(current: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(current);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
+  if (next.has(value)) {
+    next.delete(value);
+  } else {
+    next.add(value);
+  }
   return next;
 }
 

@@ -36,7 +36,9 @@ export function parseHunkSpans(patch: string): HunkSpan[] {
   const spans: HunkSpan[] = [];
   for (const line of patch.split("\n")) {
     const match = HUNK_HEADER.exec(line);
-    if (match?.[1] === undefined || match[3] === undefined) continue;
+    if (match?.[1] === undefined || match[3] === undefined) {
+      continue;
+    }
     spans.push({
       oldStart: Number(match[1]),
       oldLines: match[2] === undefined ? 1 : Number(match[2]),
@@ -138,7 +140,9 @@ export function remapThroughHops(
   ranges: readonly LineRange[],
   hops: readonly (Hop | null | undefined)[],
 ): RemapResult {
-  if (hops.length === 0) return demoted("no hops: nothing places this anchor");
+  if (hops.length === 0) {
+    return demoted("no hops: nothing places this anchor");
+  }
 
   let current = ranges;
   for (const hop of hops) {
@@ -148,12 +152,16 @@ export function remapThroughHops(
       return demoted("missing or empty hop in the chain");
     }
     const entry = hop.find((candidate) => candidate.file === file);
-    if (entry === undefined) continue;
+    if (entry === undefined) {
+      continue;
+    }
     if (entry.hunks.length === 0) {
       return demoted(`no spans parsed for ${file}: not evidence`);
     }
     const result = remapRanges(current, entry.hunks);
-    if (result.outcome === RemapOutcomes.DEMOTED) return result;
+    if (result.outcome === RemapOutcomes.DEMOTED) {
+      return result;
+    }
     current = result.ranges;
   }
   return { outcome: RemapOutcomes.REMAPPED, ranges: current };

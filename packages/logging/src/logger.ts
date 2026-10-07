@@ -198,7 +198,9 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
     },
   };
 
-  if (base !== undefined) pinoOptions.base = base;
+  if (base !== undefined) {
+    pinoOptions.base = base;
+  }
   // pino-pretty is a devDependency: referenced only in dev mode, resolved
   // lazily inside pino's worker thread.
   if (pretty && destination === undefined) {

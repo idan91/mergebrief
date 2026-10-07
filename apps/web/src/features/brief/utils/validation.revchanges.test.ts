@@ -24,7 +24,9 @@ describe("parseRevisionChanges", () => {
   it("accepts a well-formed sidecar", () => {
     const result = parseRevisionChanges(valid);
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error(result.error);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
     expect(result.value.prevIndex).toBe(1);
     expect(result.value.files).toHaveLength(2);
     expect(result.value.files[1]?.removedRanges).toEqual([

@@ -25,7 +25,9 @@ export interface ChunkCardSizeInput {
 export const EMPTY_DIFF_NOTE_PX = 40;
 
 export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
-  if (!input.open) return COLLAPSED_CARD_HEIGHT_PX;
+  if (!input.open) {
+    return COLLAPSED_CARD_HEIGHT_PX;
+  }
   if (input.diffRowCount === 0) {
     return CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX;
   }

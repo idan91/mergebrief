@@ -54,7 +54,9 @@ export function useDragSelection({
   // Reset the drag when the mouse is released anywhere. Without this, releasing
   // outside a commentable row leaves the selection highlight stuck on.
   useEffect(() => {
-    if (dragStart === null) return;
+    if (dragStart === null) {
+      return;
+    }
     const reset = () => {
       setDragStart(null);
       setDragCurrent(null);

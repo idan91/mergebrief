@@ -13,11 +13,17 @@ export function parseCapPx(
   rootFontSizePx: number,
 ): number | undefined {
   const match = CAP_PATTERN.exec(rawValue.trim());
-  if (match === null) return undefined;
+  if (match === null) {
+    return undefined;
+  }
   const [, amount, unit] = match;
-  if (amount === undefined) return undefined;
+  if (amount === undefined) {
+    return undefined;
+  }
   const value = Number.parseFloat(amount);
-  if (!Number.isFinite(value)) return undefined;
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
   return unit === "rem" ? value * rootFontSizePx : value;
 }
 

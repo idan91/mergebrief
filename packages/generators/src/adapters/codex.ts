@@ -167,12 +167,16 @@ export class CodexGenerator implements Generator {
           cwd: workDir.cwd,
           log,
         };
-        if (req.signal) runArgs.signal = req.signal;
+        if (req.signal) {
+          runArgs.signal = req.signal;
+        }
         const run = await runHarnessProcess(runArgs);
         return interpretCodexRun(this.command, req.label, run, wireSchema);
       },
     };
-    if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.salvageFields) {
+      floorArgs.salvageFields = req.salvageFields;
+    }
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
@@ -196,7 +200,9 @@ function describeCodexFailure(
     const exitDetail = run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`;
     return `failed (code ${exitDetail})`;
   }
-  if (lastAnswer === null) return "exited without an agent answer";
+  if (lastAnswer === null) {
+    return "exited without an agent answer";
+  }
   return "produced an answer alongside a fatal event (drifted CLI)";
 }
 
@@ -216,7 +222,9 @@ function interpretCodexRun(
   let sawFailureEvent = false;
   for (const line of run.stdout.split("\n")) {
     const event = parseCodexLine(line);
-    if (event === null) continue;
+    if (event === null) {
+      continue;
+    }
     if (event.kind === "agent-message") {
       // LAST completed agent_message wins, earlier ones are narration.
       lastAnswer = event.text;
@@ -263,23 +271,33 @@ function interpretCodexRun(
 type CodexEvent = { kind: "agent-message"; text: string } | { kind: "failure" };
 
 function parseCodexLine(line: string): CodexEvent | null {
-  if (line.trim() === "") return null;
+  if (line.trim() === "") {
+    return null;
+  }
   let value: unknown;
   try {
     value = JSON.parse(line);
   } catch {
     return null; // Non-JSON noise is not ours to interpret.
   }
-  if (typeof value !== "object" || value === null) return null;
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
   const type = Reflect.get(value, "type");
   if (type === "item.completed") {
     const item: unknown = Reflect.get(value, "item");
-    if (typeof item !== "object" || item === null) return null;
-    if (Reflect.get(item, "type") !== "agent_message") return null;
+    if (typeof item !== "object" || item === null) {
+      return null;
+    }
+    if (Reflect.get(item, "type") !== "agent_message") {
+      return null;
+    }
     const text = Reflect.get(item, "text");
     // Non-string text is envelope drift, not an answer, it must neither
     // overwrite an earlier valid answer nor masquerade as an empty one.
-    if (typeof text !== "string") return null;
+    if (typeof text !== "string") {
+      return null;
+    }
     return { kind: "agent-message", text };
   }
   if (type === "turn.failed" || type === "error") {

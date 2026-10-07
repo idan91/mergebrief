@@ -45,7 +45,9 @@ async function runQuery(
 ): Promise<unknown> {
   const options = buildFileRangeQueryOptions(stubParams(overrides));
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("no queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("no queryFn");
+  }
 
   return queryFn({} as never);
 }

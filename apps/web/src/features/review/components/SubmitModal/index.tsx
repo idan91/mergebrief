@@ -19,9 +19,15 @@ function deriveSubmitDescribedBy(
   staleUnacked: boolean,
   submitError: string | null,
 ): string | undefined {
-  if (blockedReason !== undefined) return "submit-modal-blocked";
-  if (staleUnacked) return "submit-modal-stale-warning";
-  if (submitError !== null) return "submit-modal-error";
+  if (blockedReason !== undefined) {
+    return "submit-modal-blocked";
+  }
+  if (staleUnacked) {
+    return "submit-modal-stale-warning";
+  }
+  if (submitError !== null) {
+    return "submit-modal-error";
+  }
   return undefined;
 }
 
@@ -118,14 +124,18 @@ export function SubmitModal({
   }
   if (staleHead !== wasStale) {
     setWasStale(staleHead);
-    if (staleHead) setAckStale(false);
+    if (staleHead) {
+      setAckStale(false);
+    }
   }
 
   // An in-modal view switch unmounts the control that carried focus; move it
   // to the new view's heading so the switch is announced and the Tab cycle
   // restarts from the top. Open itself is the Modal's focus claim, not ours.
   useEffect(() => {
-    if (open && prevViewRef.current !== view) headingRef.current?.focus();
+    if (open && prevViewRef.current !== view) {
+      headingRef.current?.focus();
+    }
     prevViewRef.current = view;
   }, [open, view]);
 
@@ -143,7 +153,9 @@ export function SubmitModal({
     submitError,
   );
   const attemptSubmit = () => {
-    if (!submitDisabled) submit();
+    if (!submitDisabled) {
+      submit();
+    }
   };
 
   let content: ReactNode;

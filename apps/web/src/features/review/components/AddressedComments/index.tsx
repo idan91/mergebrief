@@ -8,12 +8,18 @@ import styles from "./AddressedComments.module.scss";
 
 /** Formats the line range suffix for an addressed (shipped) review comment. */
 export function addressedCommentRange(comment: AddressedReviewComment): string {
-  if (comment.startLine !== null && comment.line !== null)
+  if (comment.startLine !== null && comment.line !== null) {
     return `:${comment.startLine}-${comment.line}`;
-  if (comment.line !== null) return `:${comment.line}`;
-  if (comment.originalStartLine !== null && comment.originalLine !== null)
+  }
+  if (comment.line !== null) {
+    return `:${comment.line}`;
+  }
+  if (comment.originalStartLine !== null && comment.originalLine !== null) {
     return `:original ${comment.originalStartLine}-${comment.originalLine}`;
-  if (comment.originalLine !== null) return `:original ${comment.originalLine}`;
+  }
+  if (comment.originalLine !== null) {
+    return `:original ${comment.originalLine}`;
+  }
   return "";
 }
 
@@ -65,7 +71,9 @@ export interface AddressedCommentsProps {
 export function AddressedComments({ chunk, comments }: AddressedCommentsProps) {
   const { t } = useTranslation();
   const ids = chunk.addressesComments ?? [];
-  if (ids.length === 0) return null;
+  if (ids.length === 0) {
+    return null;
+  }
   if (comments.length === 0) {
     return (
       <span>

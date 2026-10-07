@@ -40,7 +40,9 @@ export function parseViewer(body: unknown): ViewerState {
     return { kind: ViewerStates.UNKNOWN };
   }
   const { login, avatarUrl } = body["viewer"];
-  if (typeof avatarUrl !== "string") return { kind: ViewerStates.UNKNOWN };
+  if (typeof avatarUrl !== "string") {
+    return { kind: ViewerStates.UNKNOWN };
+  }
   return {
     kind: ViewerStates.SIGNED_IN,
     login: typeof login === "string" ? login : null,

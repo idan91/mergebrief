@@ -150,7 +150,9 @@ function renderTable(overrides: RenderOverrides = {}) {
     },
     appI18n.t,
   );
-  if (overrides.flowState) flowStore.setState(overrides.flowState);
+  if (overrides.flowState) {
+    flowStore.setState(overrides.flowState);
+  }
   const run = {
     chunkId: "c1",
     file: "src/a.ts",
@@ -171,7 +173,9 @@ function renderTable(overrides: RenderOverrides = {}) {
     conversationComposer: stubComposer(),
     reviewCommentLabel: "review comment",
   };
-  if (overrides.view !== undefined) props.view = overrides.view;
+  if (overrides.view !== undefined) {
+    props.view = overrides.view;
+  }
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider

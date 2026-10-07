@@ -40,7 +40,9 @@ describe("406 retry tuning", () => {
       prNumber: 1,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(406);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });

@@ -95,14 +95,18 @@ function resolveCatalogErrorLine(
 ): string | undefined {
   const code = body["code"];
   const params = body["params"];
-  if (typeof code !== "string" || !isKnownErrorCode(code)) return undefined;
+  if (typeof code !== "string" || !isKnownErrorCode(code)) {
+    return undefined;
+  }
 
   // `replace` isolates the params: a wire param named `count` would otherwise
   // steer i18next's plural lookup.
   const rendered = i18n.t(`errors.${code}`, {
     replace: isRecord(params) ? params : {},
   });
-  if (rendered.trim() === "" || rendered.includes("{{")) return undefined;
+  if (rendered.trim() === "" || rendered.includes("{{")) {
+    return undefined;
+  }
   return `${rendered} (${statusLabel})`;
 }
 
@@ -111,7 +115,9 @@ function serverErrorLine(bodyText: string, statusLabel: string): string {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed)) {
       const catalogLine = resolveCatalogErrorLine(parsed, statusLabel);
-      if (catalogLine !== undefined) return catalogLine;
+      if (catalogLine !== undefined) {
+        return catalogLine;
+      }
       const error = parsed["error"];
       if (typeof error === "string") {
         return `${error} (${statusLabel})`;
@@ -225,7 +231,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         redirect: "manual",
       };
 
-      if (body !== undefined) init.body = body;
+      if (body !== undefined) {
+        init.body = body;
+      }
 
       let response: Response;
       try {

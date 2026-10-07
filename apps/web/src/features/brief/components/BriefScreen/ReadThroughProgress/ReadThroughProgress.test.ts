@@ -17,9 +17,13 @@ describe("buildReadThroughSegments", () => {
 
   it("fills the segment by within-group chunk position, not completion", () => {
     const [group] = model.groups;
-    if (!group) throw new Error("fixture has no groups");
+    if (!group) {
+      throw new Error("fixture has no groups");
+    }
     const secondChunk = group.chunks[1];
-    if (!secondChunk) throw new Error("fixture group needs 2+ chunks");
+    if (!secondChunk) {
+      throw new Error("fixture group needs 2+ chunks");
+    }
 
     const segments = buildReadThroughSegments(
       model.groups,

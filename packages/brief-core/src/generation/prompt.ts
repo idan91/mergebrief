@@ -139,7 +139,9 @@ The user message includes a \`<repo_custom_attributes>\` block: additional risk-
 
 /** The repo-context sections actually in play for this generation, if any. */
 function repoContextSections(repoContext: RepoContext | undefined): string {
-  if (repoContext === undefined) return "";
+  if (repoContext === undefined) {
+    return "";
+  }
   const sections = [
     ...(repoContext.instructions === undefined
       ? []
@@ -468,10 +470,16 @@ function groupFacts(
   const files: string[] = [];
   const attrs: string[] = [];
   for (const chunk of brief.chunks) {
-    if (chunk.changeGroupId !== groupId) continue;
-    if (!files.includes(chunk.file)) files.push(chunk.file);
+    if (chunk.changeGroupId !== groupId) {
+      continue;
+    }
+    if (!files.includes(chunk.file)) {
+      files.push(chunk.file);
+    }
     for (const attr of chunk.riskSurface) {
-      if (!attrs.includes(attr)) attrs.push(attr);
+      if (!attrs.includes(attr)) {
+        attrs.push(attr);
+      }
     }
   }
   return { files, attrs };
@@ -496,7 +504,9 @@ function intentBucketLines(
 function renderAlignmentLine(
   alignment: { read: string; goal: string; response: string } | undefined,
 ): string[] {
-  if (alignment === undefined) return [];
+  if (alignment === undefined) {
+    return [];
+  }
   return [
     `- [alignment] ${alignment.read} — "${alignment.goal}" — ${alignment.response}`,
   ];

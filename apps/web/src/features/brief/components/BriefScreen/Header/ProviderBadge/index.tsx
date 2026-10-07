@@ -50,7 +50,9 @@ export interface ProviderBadgeProps {
  * INSIDE the meta-height line box; non-interactive origin chrome.
  */
 export function ProviderBadge({ generation }: ProviderBadgeProps) {
-  if (!generation) return null;
+  if (!generation) {
+    return null;
+  }
   const providerSlug = generation.provider;
   // Own-property reads only: the slug comes from artifact data, and a plain
   // index read would resolve inherited Object members ("toString").

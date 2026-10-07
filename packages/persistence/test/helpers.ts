@@ -122,7 +122,9 @@ export function waitMs(ms: number): Promise<WaitOutcome> {
 export async function freshPglite(): Promise<PGlite> {
   const client = await createMigratedPglite();
   onTestFinished(async () => {
-    if (!client.closed) await client.close();
+    if (!client.closed) {
+      await client.close();
+    }
   });
   return client;
 }
@@ -217,7 +219,9 @@ export async function applyMigrationFile(
 export async function virginPglite(): Promise<PGlite> {
   const client = new PGlite();
   onTestFinished(async () => {
-    if (!client.closed) await client.close();
+    if (!client.closed) {
+      await client.close();
+    }
   });
   return client;
 }
@@ -233,10 +237,13 @@ export async function pgliteBefore(
   const client = await virginPglite();
   const files = listMigrationFiles();
   const target = files.find((name) => name.startsWith(prefix));
-  if (target === undefined)
+  if (target === undefined) {
     throw new Error(`${prefix} migration file not found`);
+  }
   for (const name of files) {
-    if (name === target) break;
+    if (name === target) {
+      break;
+    }
     await applyMigrationFile(client, name);
   }
   return { client, target };

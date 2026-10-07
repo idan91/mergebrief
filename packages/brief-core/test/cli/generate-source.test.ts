@@ -130,7 +130,9 @@ class FakeGenerator implements Generator {
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
-    if (req.label !== "brief") throw new Error(`unexpected label ${req.label}`);
+    if (req.label !== "brief") {
+      throw new Error(`unexpected label ${req.label}`);
+    }
     return req.schema.parse(briefGen);
   }
 }

@@ -44,18 +44,24 @@ export async function createOpenAiCore(
 ): Promise<Result<OpenAiCompatibleCore, ConfigError>> {
   const clientOptions: ClientOptions = { apiKey: options.apiKey };
 
-  if (options.baseUrl) clientOptions.baseURL = options.baseUrl;
+  if (options.baseUrl) {
+    clientOptions.baseURL = options.baseUrl;
+  }
   if (options.defaultHeaders) {
     clientOptions.defaultHeaders = options.defaultHeaders;
   }
-  if (options.fetch) clientOptions.fetch = options.fetch;
+  if (options.fetch) {
+    clientOptions.fetch = options.fetch;
+  }
 
   const client = new OpenAI(clientOptions);
   const log = options.log ?? (() => {});
 
   const probe = await modelPreflight(client, options.model);
   if (!probe.ok) {
-    if (options.baseUrl === undefined) return probe;
+    if (options.baseUrl === undefined) {
+      return probe;
+    }
     // Escape hatch: self-hosted compatible servers may not implement
     // /models, boot proceeds, loudly. The URL is logged without userinfo,
     // query or fragment (any of which could carry credentials).

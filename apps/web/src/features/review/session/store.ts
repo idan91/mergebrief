@@ -147,8 +147,11 @@ export interface ReviewSessionStore extends StoreApi<ReviewSessionStoreValue> {
 
 function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
+  if (next.has(value)) {
+    next.delete(value);
+  } else {
+    next.add(value);
+  }
   return next;
 }
 
@@ -183,10 +186,14 @@ function buildLineCommentIdBase(anchor: LineCommentAnchor): string {
 /** Initial session state derived from the brief view model (snapshot overrides). */
 export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
   const dispositions: Record<string, Disposition> = {};
-  for (const flag of model.flags) dispositions[flag.id] = { kind: "open" };
+  for (const flag of model.flags) {
+    dispositions[flag.id] = { kind: "open" };
+  }
   const dominants: Record<string, Category> = {};
   for (const group of model.groups) {
-    if (group.kind !== GroupViewKinds.ATTRIBUTED) continue;
+    if (group.kind !== GroupViewKinds.ATTRIBUTED) {
+      continue;
+    }
     dominants[group.id] = group.group.dominantCategory;
   }
   return {
@@ -213,8 +220,11 @@ function withMembership<T>(
   member: boolean,
 ): Set<T> {
   const next = new Set(set);
-  if (member) next.add(value);
-  else next.delete(value);
+  if (member) {
+    next.add(value);
+  } else {
+    next.delete(value);
+  }
   return next;
 }
 
@@ -241,10 +251,14 @@ export function createReviewSessionStore(
       revert: () => void,
     ): Promise<SessionWriteResult<T> | null> {
       const gateway = getGateway();
-      if (gateway === null) return null;
+      if (gateway === null) {
+        return null;
+      }
       return ledger.trackWrite(async () => {
         const result = await operation(gateway);
-        if (result.ok) return result;
+        if (result.ok) {
+          return result;
+        }
         revert();
         set(
           result.failure.frozen
@@ -295,7 +309,9 @@ export function createReviewSessionStore(
           );
         },
         disposeFlag(flagIds, disposition) {
-          if (flagIds.length === 0) return;
+          if (flagIds.length === 0) {
+            return;
+          }
           const before = capture(get().dispositions, flagIds);
           const applied: Record<string, Disposition> = {};
           for (const id of flagIds) {
@@ -316,7 +332,9 @@ export function createReviewSessionStore(
           );
         },
         addressFlags(evidenceByFlagId) {
-          if (evidenceByFlagId.size === 0) return;
+          if (evidenceByFlagId.size === 0) {
+            return;
+          }
           const ids = [...evidenceByFlagId.keys()];
           const before = capture(get().dispositions, ids);
           const applied: Record<string, Disposition> = {};
@@ -420,7 +438,9 @@ export function createReviewSessionStore(
               comment.id === id &&
               comment.status === ReviewCommentStatuses.DRAFT,
           );
-          if (before === undefined) return;
+          if (before === undefined) {
+            return;
+          }
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
               // Submitted comments are immutable: GitHub holds the posted text,
@@ -448,7 +468,9 @@ export function createReviewSessionStore(
               comment.id === id &&
               comment.status === ReviewCommentStatuses.DRAFT,
           );
-          if (before === undefined) return false;
+          if (before === undefined) {
+            return false;
+          }
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
               comment.id === id &&
@@ -469,7 +491,9 @@ export function createReviewSessionStore(
           return true;
         },
         deleteMissingDraft(id) {
-          if (get().deletedMissingDrafts.has(id)) return;
+          if (get().deletedMissingDrafts.has(id)) {
+            return;
+          }
           set((state) => ({
             deletedMissingDrafts: new Set([...state.deletedMissingDrafts, id]),
           }));
@@ -491,7 +515,9 @@ export function createReviewSessionStore(
               comment.status === ReviewCommentStatuses.DRAFT,
           );
           const removed = comments[index];
-          if (removed === undefined) return;
+          if (removed === undefined) {
+            return;
+          }
           set((state) => ({
             reviewComments: state.reviewComments.filter(
               (comment) =>
@@ -520,7 +546,9 @@ export function createReviewSessionStore(
           }));
         },
         markCommentsSubmitted(ids) {
-          if (ids.length === 0) return;
+          if (ids.length === 0) {
+            return;
+          }
           const flipped = new Set(ids);
           // The submit route flipped the rows already; this mirrors it.
           set((state) => ({
@@ -601,9 +629,14 @@ function restore(
 ): Record<string, Disposition> {
   const next = { ...dispositions };
   for (const [id, disposition] of before) {
-    if (next[id] !== applied[id]) continue;
-    if (disposition === undefined) delete next[id];
-    else next[id] = disposition;
+    if (next[id] !== applied[id]) {
+      continue;
+    }
+    if (disposition === undefined) {
+      delete next[id];
+    } else {
+      next[id] = disposition;
+    }
   }
   return next;
 }

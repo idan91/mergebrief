@@ -76,9 +76,13 @@ export async function fetchPullRequest(
       info.baseRef = data.base.ref;
     }
     const baseRepo = readRepoIdentity(data.base.repo);
-    if (baseRepo !== undefined) info.baseRepo = baseRepo;
+    if (baseRepo !== undefined) {
+      info.baseRepo = baseRepo;
+    }
     const headRepo = readRepoIdentity(data.head.repo);
-    if (headRepo !== undefined) info.headRepo = headRepo;
+    if (headRepo !== undefined) {
+      info.headRepo = headRepo;
+    }
     return {
       ok: true,
       value: info,
@@ -121,14 +125,18 @@ export async function fetchPullRequestFiles(
 
 function readRepoIdentity(repo: unknown): RepoIdentity | undefined {
   const parsed = gitHubRepoSchema.safeParse(repo);
-  if (!parsed.success) return undefined;
+  if (!parsed.success) {
+    return undefined;
+  }
   return { owner: parsed.data.owner.login, repo: parsed.data.name };
 }
 
 function mapListedPullRequest(
   item: OpenPullRequestRow,
 ): OpenPullRequest | undefined {
-  if (item.head.repo === null) return undefined;
+  if (item.head.repo === null) {
+    return undefined;
+  }
   return {
     number: item.number,
     title: item.title,
@@ -166,7 +174,9 @@ export async function listOpenPullRequests(
     const value: OpenPullRequest[] = [];
     for (const item of parsed.data) {
       const mapped = mapListedPullRequest(item);
-      if (mapped !== undefined) value.push(mapped);
+      if (mapped !== undefined) {
+        value.push(mapped);
+      }
     }
     return {
       ok: true,
@@ -371,7 +381,9 @@ function shapeCompareFiles(
 ): CompareFiles {
   const compareFiles: Mutable<CompareFiles> = { files, complete };
 
-  if (status !== undefined) compareFiles.status = status;
+  if (status !== undefined) {
+    compareFiles.status = status;
+  }
 
   return compareFiles;
 }

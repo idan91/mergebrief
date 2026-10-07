@@ -91,7 +91,9 @@ interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
 async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   // The surface off is zero local briefs, not a refusal to curate.
   const dir = localBriefsDir();
-  if (dir === undefined) return [];
+  if (dir === undefined) {
+    return [];
+  }
   let entries: string[];
   try {
     entries = await readdir(dir);
@@ -109,10 +111,12 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   }
   const briefIds = entries
     .flatMap((entry) => {
-      if (entry.endsWith(".brief.json"))
+      if (entry.endsWith(".brief.json")) {
         return [entry.slice(0, -".brief.json".length)];
-      if (entry.endsWith(".delta.json"))
+      }
+      if (entry.endsWith(".delta.json")) {
         return [entry.slice(0, -".delta.json".length)];
+      }
       return [];
     })
     .filter(isValidBriefId)
@@ -139,9 +143,15 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
         sha: brief.pr.sha,
       };
 
-      if (brief.index !== undefined) summary.index = brief.index;
-      if (brief.baselineSha) summary.baselineSha = brief.baselineSha;
-      if (brief.headSha) summary.headSha = brief.headSha;
+      if (brief.index !== undefined) {
+        summary.index = brief.index;
+      }
+      if (brief.baselineSha) {
+        summary.baselineSha = brief.baselineSha;
+      }
+      if (brief.headSha) {
+        summary.headSha = brief.headSha;
+      }
       if (brief.baselineIndex !== null && brief.baselineIndex !== undefined) {
         summary.baselineIndex = brief.baselineIndex;
       }
@@ -165,7 +175,9 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   );
 
   return summaries.map((summary) => {
-    if (summary.artifactKind !== "brief") return summary;
+    if (summary.artifactKind !== "brief") {
+      return summary;
+    }
     const comparisons = buildComparisonAvailability(
       summary,
       summaries,
@@ -280,7 +292,9 @@ async function readLocalComparisonMarksEntries(
  * Reconstructing from repo and number is ambiguous when repo names contain hyphens.
  */
 function briefStemFromSummary(summary: LocalBriefSummary): string | undefined {
-  if (summary.index === undefined) return undefined;
+  if (summary.index === undefined) {
+    return undefined;
+  }
   const suffix = `_${summary.index}_${summary.sha.slice(0, 8)}`;
   return summary.id.endsWith(suffix)
     ? summary.id.slice(0, -suffix.length)
@@ -301,7 +315,9 @@ function buildComparisonAvailability(
   legacyRevisionChanges: LegacyRevisionChangesEntry[],
 ): ComparisonAvailability | undefined {
   const stem = briefStemFromSummary(summary);
-  if (!stem) return undefined;
+  if (!stem) {
+    return undefined;
+  }
   const prefix = `${stem}_`;
   const marksForHead = marks.filter(
     (mark) => mark.headSha === summary.sha && mark.id.startsWith(prefix),
@@ -319,7 +335,9 @@ function buildComparisonAvailability(
       baselineIndex: previousBriefMarks.baselineIndex,
     };
 
-    if (narrativeIds.has(summary.id)) previousBrief.narrativeId = summary.id;
+    if (narrativeIds.has(summary.id)) {
+      previousBrief.narrativeId = summary.id;
+    }
 
     comparisons.previousBrief = previousBrief;
   } else {
@@ -353,7 +371,9 @@ function buildComparisonAvailability(
       baselineIndex: checkpointMarks.baselineIndex,
     };
 
-    if (matchingDelta) lastReview.deltaId = matchingDelta.id;
+    if (matchingDelta) {
+      lastReview.deltaId = matchingDelta.id;
+    }
 
     comparisons.lastReview = lastReview;
   }
@@ -386,7 +406,9 @@ export async function readRevisionChanges(
       "utf8",
     );
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return null;
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return null;
+    }
     return failRead(
       LocalBriefErrorCodes.UNREADABLE,
       `unreadable revision-changes sidecar ${briefId}`,
@@ -459,7 +481,9 @@ async function readLegacyRevisionChangesAsMarks(
   marksId: string,
 ): Promise<ComparisonMarks | null> {
   const revisionChanges = await readRevisionChanges(marksId);
-  if (!revisionChanges) return null;
+  if (!revisionChanges) {
+    return null;
+  }
   return {
     baselineSha: revisionChanges.prevHeadSha,
     headSha: revisionChanges.headSha,
@@ -489,7 +513,9 @@ export async function readRevisionNarrative(
       "utf8",
     );
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return null;
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return null;
+    }
     return failRead(
       LocalBriefErrorCodes.UNREADABLE,
       `unreadable revision narrative ${narrativeId}`,
@@ -531,7 +557,9 @@ async function readBriefFile(briefId: string): Promise<Brief> {
     }
     return parsedBrief.value;
   } catch (error) {
-    if (error instanceof BriefReadError) throw error;
+    if (error instanceof BriefReadError) {
+      throw error;
+    }
     if (!isNodeError(error) || error.code !== "ENOENT") {
       return failRead(
         LocalBriefErrorCodes.UNREADABLE,
@@ -596,7 +624,9 @@ async function attachReviewComments(
   briefId: string,
 ): Promise<Brief> {
   const reviewComments = await readReviewComments(briefId, brief.artifactKind);
-  if (reviewComments === undefined) return brief;
+  if (reviewComments === undefined) {
+    return brief;
+  }
   return {
     ...brief,
     reviewComments,
@@ -616,7 +646,9 @@ async function readReviewComments(
       "utf8",
     );
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return undefined;
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return undefined;
+    }
     return failRead(
       LocalBriefErrorCodes.UNREADABLE,
       `unreadable comments sidecar ${briefId}`,
@@ -696,7 +728,9 @@ async function readDiffsSidecar(briefId: string): Promise<string> {
         "utf8",
       );
     } catch (error) {
-      if (isNodeError(error) && error.code === "ENOENT") continue;
+      if (isNodeError(error) && error.code === "ENOENT") {
+        continue;
+      }
       return failRead(
         LocalBriefErrorCodes.UNREADABLE,
         `unreadable diffs sidecar ${briefId}`,

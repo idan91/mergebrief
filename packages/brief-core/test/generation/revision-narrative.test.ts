@@ -247,8 +247,9 @@ class FakeGenerator implements Generator {
       "revision narrative": narrativeGen,
     };
     const fixture = fixtures[req.label];
-    if (fixture === undefined)
+    if (fixture === undefined) {
       throw new Error(`no fixture for label "${req.label}"`);
+    }
     return req.schema.parse(fixture);
   }
 }
@@ -490,7 +491,9 @@ describe("text length floor, delta + narrative pipelines", () => {
       req: GenerateRequest<S>,
     ): Promise<z.infer<S>> {
       const fixture = this.overrides[req.label];
-      if (fixture !== undefined) return req.schema.parse(fixture);
+      if (fixture !== undefined) {
+        return req.schema.parse(fixture);
+      }
       return super.generate(req);
     }
   }
@@ -799,7 +802,9 @@ describe("generateAndWriteDelta checkpoint marks", () => {
   it("writes checkpoint marks BEFORE the delta LLM call", async () => {
     let marksExistedAtLlmCall = false;
     const generator = new FakeGenerator([], (label) => {
-      if (label === "delta") marksExistedAtLlmCall = existsSync(marksFile());
+      if (label === "delta") {
+        marksExistedAtLlmCall = existsSync(marksFile());
+      }
     });
     await generateAndWriteDelta(
       dir,

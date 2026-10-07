@@ -73,7 +73,9 @@ describe("migration 0013 grant backfill", () => {
       new Date("2027-03-01T00:00:00Z"),
     );
     const fallback = expiryByPair.get("P2.access");
-    if (fallback === undefined) throw new Error("missing P2 grant");
+    if (fallback === undefined) {
+      throw new Error("missing P2 grant");
+    }
     const monthsOut = (fallback.getTime() - Date.now()) / (30 * 24 * 3_600_000);
     expect(monthsOut).toBeGreaterThan(5);
     expect(monthsOut).toBeLessThan(7);

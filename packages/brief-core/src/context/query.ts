@@ -22,6 +22,8 @@ export function buildContextQuery(input: TicketReferenceInput): ContextQuery {
     trackers: input.trackers,
     references,
   };
-  if (primary !== undefined) return { ...query, primary };
+  if (primary !== undefined) {
+    return { ...query, primary };
+  }
   return query;
 }

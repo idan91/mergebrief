@@ -40,7 +40,9 @@ export function collectExpansionRows(
     },
     onReadLine: (line, oldOffset) => {
       const content = readSliceLine(params.slice, line);
-      if (content === undefined) return;
+      if (content === undefined) {
+        return;
+      }
       rows.push({
         kind: DiffLineKinds.CTX,
         origin: DiffRowOrigins.EXPANDED,
@@ -73,7 +75,9 @@ export function countExpansionRows(
   };
   const tally = (kind: DiffLineKind): void => {
     if (kind === DiffLineKinds.DEL) {
-      if (adds > 0) flush();
+      if (adds > 0) {
+        flush();
+      }
       dels += 1;
       return;
     }
@@ -122,8 +126,12 @@ function visitExpansionRows(
   for (const row of fileRows) {
     if (row.kind === DiffLineKinds.HUNK) {
       const header = readHunkHeader(row);
-      if (header === undefined) continue;
-      if (header.newStart > range.to) break;
+      if (header === undefined) {
+        continue;
+      }
+      if (header.newStart > range.to) {
+        break;
+      }
 
       fillFromRead(header.newStart - 1);
       oldOffset = header.oldStart - header.newStart;
@@ -140,13 +148,19 @@ function visitExpansionRows(
         row.oldLine !== undefined &&
         !carried.has(row.oldLine);
 
-      if (shown) visitor.onFileRow(row);
+      if (shown) {
+        visitor.onFileRow(row);
+      }
       oldOffset += 1;
       continue;
     }
 
-    if (row.newLine === undefined) continue;
-    if (row.newLine > range.to) break;
+    if (row.newLine === undefined) {
+      continue;
+    }
+    if (row.newLine > range.to) {
+      break;
+    }
 
     fillFromRead(row.newLine - 1);
     if (row.newLine >= range.from) {
@@ -166,7 +180,9 @@ export function isExpansionCovered(
 ): boolean {
   const covered = new Set<number>();
   for (const row of fileRows) {
-    if (row.newLine === undefined || row.kind === DiffLineKinds.HUNK) continue;
+    if (row.newLine === undefined || row.kind === DiffLineKinds.HUNK) {
+      continue;
+    }
     if (row.newLine >= range.from && row.newLine <= range.to) {
       covered.add(row.newLine);
     }
@@ -190,13 +206,17 @@ function readSliceLine(
   slice: FileRangeSlice,
   line: number,
 ): string | undefined {
-  if (line < slice.from || line > slice.to) return undefined;
+  if (line < slice.from || line > slice.to) {
+    return undefined;
+  }
 
   return slice.lines[line - slice.from];
 }
 
 function readOffsetAfter(row: DiffLine, offset: number): number {
-  if (row.kind === DiffLineKinds.ADD) return offset - 1;
+  if (row.kind === DiffLineKinds.ADD) {
+    return offset - 1;
+  }
   if (row.oldLine !== undefined && row.newLine !== undefined) {
     return row.oldLine - row.newLine;
   }
@@ -210,7 +230,9 @@ function readHunkHeader(
   const match = HUNK_HEADER.exec(row.content);
   const oldStart = match?.groups?.["oldStart"];
   const newStart = match?.groups?.["newStart"];
-  if (oldStart === undefined || newStart === undefined) return undefined;
+  if (oldStart === undefined || newStart === undefined) {
+    return undefined;
+  }
 
   return { oldStart: Number(oldStart), newStart: Number(newStart) };
 }

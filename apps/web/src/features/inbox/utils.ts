@@ -37,7 +37,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
   if (params.page !== undefined && params.page !== FIRST_PAGE) {
     search.set(InboxQueryKeys.PAGE, String(params.page));
   }
-  if (params.sort !== undefined) search.set(InboxQueryKeys.SORT, params.sort);
+  if (params.sort !== undefined) {
+    search.set(InboxQueryKeys.SORT, params.sort);
+  }
   if (params.layout !== undefined) {
     search.set(InboxQueryKeys.LAYOUT, params.layout);
   }
@@ -61,7 +63,9 @@ function appendEach(
   key: string,
   values: readonly string[] | undefined,
 ): void {
-  for (const value of values ?? []) search.append(key, value);
+  for (const value of values ?? []) {
+    search.append(key, value);
+  }
 }
 
 const ABOVE_FOLD = new Set<InboxItem["reviewState"]>(
@@ -110,9 +114,13 @@ export function formatAge(stamp: string, now: Date): Age {
   if (elapsed < DAY_MS) {
     return { unit: AgeUnits.HOURS, count: Math.floor(elapsed / HOUR_MS) };
   }
-  if (elapsed < YESTERDAY_MS) return { unit: AgeUnits.YESTERDAY, count: 1 };
+  if (elapsed < YESTERDAY_MS) {
+    return { unit: AgeUnits.YESTERDAY, count: 1 };
+  }
   const days = Math.floor(elapsed / DAY_MS);
-  if (elapsed < DATE_AFTER_MS) return { unit: AgeUnits.DAYS, count: days };
+  if (elapsed < DATE_AFTER_MS) {
+    return { unit: AgeUnits.DAYS, count: days };
+  }
   return { unit: AgeUnits.DATE, count: days };
 }
 
@@ -130,7 +138,9 @@ export function splitTitleCode(title: string): readonly TitleSegment[] {
 
   for (const match of title.matchAll(CODE_SPAN)) {
     const code = match[1];
-    if (code === undefined) continue;
+    if (code === undefined) {
+      continue;
+    }
     if (match.index > cursor) {
       segments.push({
         kind: TitleSegmentKinds.TEXT,
@@ -149,7 +159,9 @@ export function splitTitleCode(title: string): readonly TitleSegment[] {
 
 /** GitHub when the API said GitHub did not answer; otherwise the server itself. */
 export function readFailureSide(code: ApiErrorCode): FailureSide {
-  if (code === ApiErrorCodes.GITHUB_UNAVAILABLE) return FailureSides.GITHUB;
+  if (code === ApiErrorCodes.GITHUB_UNAVAILABLE) {
+    return FailureSides.GITHUB;
+  }
   return FailureSides.SERVER;
 }
 

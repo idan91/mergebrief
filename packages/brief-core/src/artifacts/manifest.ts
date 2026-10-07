@@ -49,7 +49,9 @@ export async function lookupBriefShaByIndex(
 ): Promise<string | null> {
   const manifest = await load(manifestPath(outDir, stem));
   for (const [sha, i] of Object.entries(manifest)) {
-    if (i === index) return sha;
+    if (i === index) {
+      return sha;
+    }
   }
   return null;
 }
@@ -68,7 +70,9 @@ export async function assignBriefIndex(
   const path = manifestPath(outDir, stem);
   const manifest = await load(path);
   const existing = manifest[headSha];
-  if (existing !== undefined) return existing;
+  if (existing !== undefined) {
+    return existing;
+  }
   const next = Math.max(0, ...Object.values(manifest)) + 1;
   manifest[headSha] = next;
   await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);

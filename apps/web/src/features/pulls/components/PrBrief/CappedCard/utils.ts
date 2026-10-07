@@ -1,14 +1,16 @@
 /**
  * The cap counts a UTC calendar day, so it resets at the first midnight UTC
  * strictly after the skip was recorded. Derived from the SKIP time, never
- * from "now" — a capped row left over from an earlier day must not claim to
+ * from "now": a capped row left over from an earlier day must not claim to
  * be waiting on tonight.
  */
 import type { TFunction } from "i18next";
 
 export function capResetsAt(cappedAtIso: string): Date | undefined {
   const cappedAt = new Date(cappedAtIso);
-  if (Number.isNaN(cappedAt.getTime())) return undefined;
+  if (Number.isNaN(cappedAt.getTime())) {
+    return undefined;
+  }
   return new Date(
     Date.UTC(
       cappedAt.getUTCFullYear(),
@@ -30,7 +32,9 @@ export function cappedLabel(
   now: Date = new Date(),
 ): string {
   const resetsAt = capResetsAt(cappedAtIso);
-  if (resetsAt === undefined) return t("pulls.capped.reached");
+  if (resetsAt === undefined) {
+    return t("pulls.capped.reached");
+  }
   if (resetsAt.getTime() <= now.getTime()) {
     // The window already rolled over: the cap is no longer holding anything
     // back, so promising a future resume time would be a lie.

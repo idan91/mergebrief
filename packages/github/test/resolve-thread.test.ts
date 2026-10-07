@@ -2,7 +2,7 @@
 // maps a root comment id to the thread's node id, the converged read-time
 // paths, the multi-page cursor walk and its page cap, the not-found paths, and
 // the sanitized failure paths. GraphQL is stubbed at the `octokit.graphql`
-// interface — no throttle concerns, since GraphQL calls are not on the
+// interface. No throttle concerns, since GraphQL calls are not on the
 // notification-triggering REST throttle list.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
@@ -110,7 +110,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(2);
     // The walk carries owner/repo/number as variables (never interpolated).
@@ -148,7 +150,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(2);
     const [mutationQuery, mutationVars] = graphql.mock.calls[1] ?? [];
@@ -173,9 +177,11 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(true);
-    // No mutation call — the read-time state short-circuits.
+    // No mutation call: the read-time state short-circuits.
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -196,7 +202,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(true);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -233,7 +241,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(3);
     const [, secondWalkVars] = graphql.mock.calls[1] ?? [];
@@ -247,7 +257,7 @@ describe("setReviewThreadResolution", () => {
     expect(mutationVars).toEqual({ threadId: THREAD_NODE_ID });
   });
 
-  it("not-found when the root comment id matches no thread after the last page", async () => {
+  it("not-found when the root comment id matches no thread on any page", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(
@@ -278,7 +288,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     // Walked both pages, never mutated.
     expect(graphql).toHaveBeenCalledTimes(2);
@@ -301,7 +313,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -323,13 +337,15 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
-  it("skips an unsafe-integer root database id instead of false-matching a rounded id", async () => {
-    // `Number("9007199254740993")` ROUNDS to 9007199254740992 — drop the
+  it("skips an unsafe-integer root database id rather than match it rounded", async () => {
+    // `Number("9007199254740993")` ROUNDS to 9007199254740992. Drop the
     // safe-integer guard and this thread would falsely match a request for the
     // rounded id, mutating the WRONG thread. The correct outcome is not-found.
     const roundsTo = 9_007_199_254_740_992;
@@ -357,9 +373,11 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    // Nothing was mutated — no second call at all.
+    // Nothing was mutated: no second call at all.
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -384,7 +402,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyInTargetState).toBe(false);
     const [, mutationVars] = graphql.mock.calls[1] ?? [];
     expect(mutationVars).toEqual({ threadId: THREAD_NODE_ID });
@@ -413,7 +433,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -425,7 +447,9 @@ describe("setReviewThreadResolution", () => {
       RESOLVE_INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -439,7 +463,9 @@ describe("setReviewThreadResolution", () => {
       RESOLVE_INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
@@ -462,12 +488,14 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(20);
   });
 
-  it("maps a walk-time GraphQL error (forbidden) to a sanitized failure, no mutation", async () => {
+  it("maps a forbidden walk-time error to a failure without mutating", async () => {
     const graphql = vi
       .fn()
       .mockRejectedValueOnce(
@@ -480,7 +508,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(graphql).toHaveBeenCalledTimes(1);
     // No secret/upstream text leaks through the sanitization chokepoint.
@@ -523,11 +553,13 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
-  it("does NOT converge on a mutation-time GraphQL error (no message sniffing)", async () => {
+  it("never converges on a mutation-time GraphQL error, whatever its message", async () => {
     // Deliberate: this op has no verified already-in-state discriminator for
     // the mutation, so a mutation-level race stays a sanitized error (the FE
     // refetch reconciles) rather than being guessed from upstream text.
@@ -554,7 +586,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
     expect(JSON.stringify(result.error)).not.toContain("already resolved");
@@ -571,7 +605,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -597,7 +633,9 @@ describe("setReviewThreadResolution", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

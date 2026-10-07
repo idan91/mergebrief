@@ -30,7 +30,9 @@ export function resolveEnvConfigPath(
       "MERGEBRIEF_CONFIG: set but empty — unset it for zero-config defaults, or point it at a config file",
     ]);
   }
-  if (isAbsolute(path)) return { ok: true, value: path };
+  if (isAbsolute(path)) {
+    return { ok: true, value: path };
+  }
   let dir = resolve(cwd);
   for (;;) {
     if (existsSync(join(dir, "pnpm-workspace.yaml"))) {

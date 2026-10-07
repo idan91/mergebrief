@@ -77,7 +77,9 @@ export async function writeFreshBrief(
   }
   const { links, primaryTicket } = await loadContext();
   const fetchedPr: FetchedPr = { locator, meta, diff, links };
-  if (primaryTicket !== undefined) fetchedPr.primaryTicket = primaryTicket;
+  if (primaryTicket !== undefined) {
+    fetchedPr.primaryTicket = primaryTicket;
+  }
   const options: GenerateBriefOptions = {
     pr: fetchedPr,
     headIndex,

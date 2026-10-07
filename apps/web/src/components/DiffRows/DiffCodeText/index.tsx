@@ -50,7 +50,9 @@ export function DiffCodeText({ content, tokens, emphasis }: DiffCodeTextProps) {
         tokens={spelled}
       />
     );
-    if (!segment.emphasised) return inner;
+    if (!segment.emphasised) {
+      return inner;
+    }
 
     return (
       <mark className={rowStyles["emphasis"]} key={segment.from}>
@@ -71,14 +73,18 @@ function sliceSegments(
   for (const range of ranges) {
     const from = Math.max(range.from, cursor);
     const to = Math.min(range.to, length);
-    if (to <= from) continue;
-    if (from > cursor)
+    if (to <= from) {
+      continue;
+    }
+    if (from > cursor) {
       segments.push({ from: cursor, to: from, emphasised: false });
+    }
     segments.push({ from, to, emphasised: true });
     cursor = to;
   }
-  if (cursor < length)
+  if (cursor < length) {
     segments.push({ from: cursor, to: length, emphasised: false });
+  }
 
   return segments;
 }
@@ -97,7 +103,9 @@ function TokenSlices({
   from,
   to,
 }: TokenSlicesProps): ReactNode {
-  if (tokens === undefined) return content.slice(from, to);
+  if (tokens === undefined) {
+    return content.slice(from, to);
+  }
 
   const spans: ReactNode[] = [];
   let offset = 0;
@@ -106,7 +114,9 @@ function TokenSlices({
     offset += token.text.length;
     const sliceFrom = Math.max(start, from);
     const sliceTo = Math.min(offset, to);
-    if (sliceTo <= sliceFrom) return;
+    if (sliceTo <= sliceFrom) {
+      return;
+    }
     spans.push(
       <span className={styles[resolveSyntaxClass(token.classId)]} key={index}>
         {token.text.slice(sliceFrom - start, sliceTo - start)}
@@ -118,7 +128,9 @@ function TokenSlices({
 }
 
 function spellsContent(tokens: RowTokenLine, content: string): boolean {
-  if (tokens.length === 0) return false;
+  if (tokens.length === 0) {
+    return false;
+  }
 
   return tokens.map((token) => token.text).join("") === content;
 }

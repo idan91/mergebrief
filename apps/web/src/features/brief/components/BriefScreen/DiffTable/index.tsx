@@ -66,9 +66,13 @@ export function DiffTable(props: DiffTableProps) {
     index: number,
     columnCount: number,
   ): ReactNode {
-    if (row.kind !== DiffLineKinds.HUNK) return null;
+    if (row.kind !== DiffLineKinds.HUNK) {
+      return null;
+    }
     const own = resolveHunkRowEdges(table.edgesByRow, index);
-    if (own.length === 0) return null;
+    if (own.length === 0) {
+      return null;
+    }
     return (
       <ExpandControl
         columnCount={columnCount}
@@ -86,7 +90,9 @@ export function DiffTable(props: DiffTableProps) {
     const frame = model.spanStarts.get(index);
     const owner =
       frame === undefined ? undefined : lineOwners?.owners.get(frame.owner);
-    if (frame === undefined || owner === undefined) return null;
+    if (frame === undefined || owner === undefined) {
+      return null;
+    }
     const lines = resolveSpanLines(rows, frame.rows);
     return (
       <SiblingSpanHeader
@@ -113,7 +119,9 @@ export function DiffTable(props: DiffTableProps) {
       row,
       rows[index - 1],
     );
-    if (header === null && own.length === 0) return null;
+    if (header === null && own.length === 0) {
+      return null;
+    }
     // The control belongs to the gap above the row, the header to the rows
     // below it.
     return (
@@ -135,7 +143,9 @@ export function DiffTable(props: DiffTableProps) {
 
   function buildTrailingRow(columnCount: number): ReactNode {
     const own = table.edgesByRow.get(rows.length) ?? [];
-    if (own.length === 0) return null;
+    if (own.length === 0) {
+      return null;
+    }
     return (
       <ExpandRow
         columnCount={columnCount}
@@ -212,7 +222,9 @@ export function DiffTable(props: DiffTableProps) {
 
   function buildCodeTrailer(_line: DiffLine, index: number): ReactNode {
     const view = rowViews[index];
-    if (view === undefined || !view.isRevStart || !view.revRun) return null;
+    if (view === undefined || !view.isRevStart || !view.revRun) {
+      return null;
+    }
     return <RevisionTag run={view.revRun} />;
   }
 
@@ -237,7 +249,9 @@ export function DiffTable(props: DiffTableProps) {
     sideColumns?: number,
   ): ReactNode {
     const view = rowViews[index];
-    if (view === undefined) return null;
+    if (view === undefined) {
+      return null;
+    }
     const baseIndex = table.baseIndexOf?.[index] ?? index;
     // An expanded or guest row has no base index: its threads are the
     // file's whose line it now shows, a sibling's or a hidden one.

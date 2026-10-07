@@ -35,7 +35,9 @@ function minutesAgo(minutes: number): Date {
 }
 
 function unwrap<T, E>(result: Result<T, E>): T {
-  if (!result.ok) throw new Error(`expected ok, got ${JSON.stringify(result)}`);
+  if (!result.ok) {
+    throw new Error(`expected ok, got ${JSON.stringify(result)}`);
+  }
   return result.value;
 }
 

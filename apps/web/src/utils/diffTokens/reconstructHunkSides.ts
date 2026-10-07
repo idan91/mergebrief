@@ -23,8 +23,12 @@ export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
   let lastNewLine: number | undefined;
 
   function flush(): void {
-    if (oldSide.text.length > 0) sides.push(oldSide);
-    if (newSide.text.length > 0) sides.push(newSide);
+    if (oldSide.text.length > 0) {
+      sides.push(oldSide);
+    }
+    if (newSide.text.length > 0) {
+      sides.push(newSide);
+    }
     oldSide = startSide(HunkSideNames.OLD);
     newSide = startSide(HunkSideNames.NEW);
     lastOldLine = undefined;
@@ -41,7 +45,9 @@ export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
     const readsNew = row.kind === DiffLineKinds.ADD || isContextKind(row.kind);
     const skipsOld = readsOld && skipsLines(lastOldLine, row.oldLine);
     const skipsNew = readsNew && skipsLines(lastNewLine, row.newLine);
-    if (skipsOld || skipsNew) flush();
+    if (skipsOld || skipsNew) {
+      flush();
+    }
 
     if (readsOld) {
       oldSide.text.push(row.content);
@@ -49,7 +55,9 @@ export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
       if (oldSide.startLine === undefined && row.oldLine !== undefined) {
         oldSide.startLine = row.oldLine;
       }
-      if (row.oldLine !== undefined) lastOldLine = row.oldLine;
+      if (row.oldLine !== undefined) {
+        lastOldLine = row.oldLine;
+      }
     }
 
     if (readsNew) {
@@ -58,7 +66,9 @@ export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
       if (newSide.startLine === undefined && row.newLine !== undefined) {
         newSide.startLine = row.newLine;
       }
-      if (row.newLine !== undefined) lastNewLine = row.newLine;
+      if (row.newLine !== undefined) {
+        lastNewLine = row.newLine;
+      }
     }
   });
 
@@ -71,7 +81,9 @@ function skipsLines(
   lastLine: number | undefined,
   line: number | undefined,
 ): boolean {
-  if (lastLine === undefined || line === undefined) return false;
+  if (lastLine === undefined || line === undefined) {
+    return false;
+  }
 
   return line !== lastLine + 1;
 }

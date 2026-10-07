@@ -165,7 +165,9 @@ export async function runHarnessProcess(
       const pid = child.pid;
       // Never signal a child without a positive pid. During macOS spawn failure its internal
       // handle may still use pid 0; child.kill or kill(-0) would signal our own process group.
-      if (!pid) return;
+      if (!pid) {
+        return;
+      }
       try {
         process.kill(-pid, sig);
       } catch {
@@ -184,7 +186,9 @@ export async function runHarnessProcess(
       // never starts a ladder (descendants of a successful run are not our
       // kill responsibility), and the pgid may already be reused. A ladder
       // that was already pending completes via cleanup(), unaffected.
-      if (ladderStarted || closed) return;
+      if (ladderStarted || closed) {
+        return;
+      }
       ladderStarted = true;
       signalTree("SIGINT");
       killTimer = setTimeout(() => {
@@ -199,15 +203,21 @@ export async function runHarnessProcess(
 
     // --- timers -------------------------------------------------------------
     const hardTimer = setTimeout(() => {
-      if (terminalCause()) return;
+      if (terminalCause()) {
+        return;
+      }
       timedOut = "hard";
       killLadder();
     }, args.timeouts.hardMs);
     let inactivityTimer: NodeJS.Timeout | null = null;
     const resetInactivity = (): void => {
-      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
       inactivityTimer = setTimeout(() => {
-        if (terminalCause()) return;
+        if (terminalCause()) {
+          return;
+        }
         timedOut = "inactivity";
         killLadder();
       }, args.timeouts.inactivityMs);
@@ -217,13 +227,17 @@ export async function runHarnessProcess(
     // Consumer exceptions must kill and reject rather than escape the event callback.
     // Once a terminal cause wins, suppress kill-grace output so a malformed flush cannot replace it.
     const deliverLine = (line: string): void => {
-      if (terminalCause() || !args.onStdoutLine) return;
+      if (terminalCause() || !args.onStdoutLine) {
+        return;
+      }
       try {
         args.onStdoutLine(line);
       } catch (error) {
         // Re-check: a REENTRANT callback may have aborted the signal (or a
         // timer fired) before throwing, the earlier cause keeps the run.
-        if (terminalCause()) return;
+        if (terminalCause()) {
+          return;
+        }
         consumerFailed = true;
         consumerFailure = error;
         killLadder();
@@ -233,7 +247,9 @@ export async function runHarnessProcess(
     const onAbort = (): void => {
       // First terminal cause wins: an abort landing after a watchdog fired
       // must not erase the timeout classification mid-kill.
-      if (terminalCause()) return;
+      if (terminalCause()) {
+        return;
+      }
       aborted = true;
       killLadder();
     };
@@ -241,7 +257,9 @@ export async function runHarnessProcess(
 
     const cleanup = (): void => {
       clearTimeout(hardTimer);
-      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
       if (killTimer) {
         clearTimeout(killTimer);
         // The direct child closed while an escalation was pending: a
@@ -263,7 +281,9 @@ export async function runHarnessProcess(
       // Once the cap is hit, further chunks (e.g. kill-grace flushes from a
       // SIGINT-ignoring flooder) are dropped, appending would defeat the
       // bound being enforced.
-      if (stdoutCapped) return;
+      if (stdoutCapped) {
+        return;
+      }
       resetInactivity();
       stdout += text;
       // Runaway-output bound. The BOUND is enforced unconditionally, a
@@ -286,7 +306,9 @@ export async function runHarnessProcess(
         const parts = (lineBuffer + text).split("\n");
         lineBuffer = parts.pop() ?? "";
         for (const line of parts) {
-          if (line.trim() !== "") deliverLine(line);
+          if (line.trim() !== "") {
+            deliverLine(line);
+          }
         }
       }
     });
@@ -308,7 +330,9 @@ export async function runHarnessProcess(
       // Only PRE-spawn failures (ENOENT/EACCES, pid never assigned) are
       // cli-missing; post-spawn process-control errors (e.g. a kill failing)
       // must not hijack the run's outcome, the close handler owns it.
-      if (child.pid !== undefined) return;
+      if (child.pid !== undefined) {
+        return;
+      }
       cleanup();
       // An abort that landed during the async spawn gap still wins: the
       // abort rejection propagates untouched.
@@ -325,9 +349,13 @@ export async function runHarnessProcess(
       // reentrantly aborts) on the unterminated last line must reject the
       // run, never start a fresh ladder against a post-close pgid.
       closed = true;
-      if (lineBuffer.trim() !== "") deliverLine(lineBuffer);
+      if (lineBuffer.trim() !== "") {
+        deliverLine(lineBuffer);
+      }
       cleanup();
-      if (spawnFailure) return; // already rejected
+      if (spawnFailure) {
+        return;
+      } // already rejected
       if (consumerFailed) {
         reject(consumerFailure);
         return;
@@ -450,7 +478,9 @@ function envForSpawn(
   const stripped = new Set<string>(HARNESS_STRIPPED_CREDENTIAL_VARS);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(source)) {
-    if (typeof value === "string" && !stripped.has(key)) out[key] = value;
+    if (typeof value === "string" && !stripped.has(key)) {
+      out[key] = value;
+    }
   }
   return out;
 }

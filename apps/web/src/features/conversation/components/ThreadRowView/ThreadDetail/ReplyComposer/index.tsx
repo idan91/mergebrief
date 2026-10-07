@@ -142,11 +142,15 @@ export function ReplyComposer({
       return;
     }
     consumedQuoteNonce.current = quote.nonce;
-    if (inFlight.current) return;
+    if (inFlight.current) {
+      return;
+    }
     edit(appendQuote(localRef.current, quote.block));
     window.setTimeout(() => {
       const element = textareaElement.current;
-      if (element === null) return;
+      if (element === null) {
+        return;
+      }
       element.focus();
       element.setSelectionRange(element.value.length, element.value.length);
     }, 0);
@@ -158,7 +162,9 @@ export function ReplyComposer({
   const comboButtonRef = useRef<HTMLButtonElement | null>(null);
   const handoffFocusRef = useRef(false);
   useEffect(() => {
-    if (pendingAction !== null || !handoffFocusRef.current) return;
+    if (pendingAction !== null || !handoffFocusRef.current) {
+      return;
+    }
     handoffFocusRef.current = false;
     // Only hand over focus we actually stranded: anything the settle already
     // moved focus to (a rescue elsewhere, the reviewer clicking on) keeps it.
@@ -178,7 +184,9 @@ export function ReplyComposer({
       announce(copy);
       return;
     }
-    if (blocked || inFlight.current) return;
+    if (blocked || inFlight.current) {
+      return;
+    }
     // The combo is only reachable while the leg exists; guard anyway so a
     // stale closure can never take the compound path without it.
     const resolveLeg = alsoResolve ? resolveAfterPost : undefined;

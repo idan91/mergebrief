@@ -36,7 +36,9 @@ export function createInstallationIssueApi(
         locator.repo,
         locator.number,
       );
-      if (read.ok) return read;
+      if (read.ok) {
+        return read;
+      }
       return { ok: false, error: toReadFailure(read.error) };
     },
   };

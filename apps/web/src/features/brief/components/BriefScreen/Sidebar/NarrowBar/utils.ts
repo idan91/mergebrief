@@ -10,7 +10,9 @@ export function resolveStepTarget(
   direction: 1 | -1,
 ): string | undefined {
   const activeIndex = groups.findIndex((group) => group.id === activeGroupId);
-  if (activeIndex === -1) return groups[0]?.id;
+  if (activeIndex === -1) {
+    return groups[0]?.id;
+  }
 
   const clamped = Math.min(
     groups.length - 1,

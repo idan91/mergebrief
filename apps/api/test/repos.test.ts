@@ -44,7 +44,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 
@@ -142,8 +144,9 @@ describe("GET /api/repos", () => {
     const cookie = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -164,8 +167,9 @@ describe("GET /api/repos", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,

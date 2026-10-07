@@ -141,9 +141,13 @@ export function assembleHops(
   const chain: Hop[] = [];
   for (let index = 1; index < heads.length; index++) {
     const row = byPair.get(hopKey(heads[index - 1], heads[index]));
-    if (row === undefined) return null;
+    if (row === undefined) {
+      return null;
+    }
     const parsed = HunkSpansSchema.safeParse(readJson(row.spans));
-    if (!parsed.success) return null;
+    if (!parsed.success) {
+      return null;
+    }
     chain.push(parsed.data);
   }
   return chain;
@@ -171,9 +175,13 @@ function replace(
   start: number,
   end: number,
 ): { start: number; end: number } | undefined {
-  if (context.hops === null) return undefined;
+  if (context.hops === null) {
+    return undefined;
+  }
   const result = remapThroughHops(filePath, [{ start, end }], context.hops);
-  if (result.outcome === RemapOutcomes.DEMOTED) return undefined;
+  if (result.outcome === RemapOutcomes.DEMOTED) {
+    return undefined;
+  }
   const range = result.ranges[0];
   return range === undefined ? undefined : range;
 }
@@ -382,7 +390,9 @@ function carryEvidence(
     return { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
   }
   const kept = { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
-  if (row.evidence.kind === DispositionEvidenceKinds.MANUAL_NOTE) return kept;
+  if (row.evidence.kind === DispositionEvidenceKinds.MANUAL_NOTE) {
+    return kept;
+  }
   if (row.evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     const now = surviving.draftComments.get(row.evidence.ref);
     if (now !== undefined) {
@@ -478,7 +488,9 @@ export function evaluateCarryOver(
         };
         const carried = row.carriedFromCommentId;
         const pairs: [string, SurvivingComment][] = [[now.id, now]];
-        if (carried !== null) pairs.push([String(carried), now]);
+        if (carried !== null) {
+          pairs.push([String(carried), now]);
+        }
         return pairs;
       }),
     ),

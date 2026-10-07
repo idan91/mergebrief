@@ -1,17 +1,10 @@
-// Navigation + scroll measurement on the generated large fixture:
-//   jump-far-chunk         — toc click on the far group → scroll settled
-//   jump-landing-offset-px — how far from the target the scroll actually
-//                            stopped (0 = landed clean)
-//   scroll-*               — scripted full-page scroll, rAF frame-gap
-//                            distribution
-// Baselines for the list-virtualization work: the jump path must land
-// correctly once far chunks stop being mounted, and the frame gaps bound how
-// much windowing is allowed to cost during scroll.
-//
+// Navigation and scroll measurement on the generated large fixture:
+//   jump-far-chunk: toc click on the far group until the scroll settles
+//   jump-landing-offset-px: px the scroll stopped from its target, 0 = clean
+//   scroll-*: scripted full-page scroll, rAF frame-gap distribution
 // Landing offsets are ASSERTED, not just recorded: the windowed jump path
 // (instant scroll + settle-correction) owns landing within the correction
-// threshold, cold and warmed. Pre-virtualization these were report-only —
-// a cold far jump genuinely mis-landed (~250-580px of cv estimate drift).
+// threshold, cold and warmed.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
@@ -47,17 +40,23 @@ async function waitForScrollSettled(page: Page): Promise<void> {
         let lastY = window.scrollY;
         const tick = () => {
           totalFrames += 1;
-          if (window.scrollY === lastY) stableFrames += 1;
-          else stableFrames = 0;
+          if (window.scrollY === lastY) {
+            stableFrames += 1;
+          } else {
+            stableFrames = 0;
+          }
           lastY = window.scrollY;
-          if (stableFrames >= 10) resolve();
-          else if (totalFrames > 300)
+          if (stableFrames >= 10) {
+            resolve();
+          } else if (totalFrames > 300) {
             reject(
               new Error(
                 `scroll never settled; scrollY=${String(window.scrollY)}`,
               ),
             );
-          else requestAnimationFrame(tick);
+          } else {
+            requestAnimationFrame(tick);
+          }
         };
         requestAnimationFrame(tick);
       }),
@@ -68,9 +67,12 @@ async function waitForScrollSettled(page: Page): Promise<void> {
 async function landingOffset(target: Locator): Promise<number> {
   return target.evaluate((element) => {
     const rect = element.getBoundingClientRect();
-    if (rect.bottom < 0) return Math.round(-rect.bottom);
-    if (rect.top > window.innerHeight)
+    if (rect.bottom < 0) {
+      return Math.round(-rect.bottom);
+    }
+    if (rect.top > window.innerHeight) {
       return Math.round(rect.top - window.innerHeight);
+    }
     return 0;
   });
 }
@@ -88,7 +90,7 @@ test("jump to far chunk timing", async ({ page }) => {
   const lastTarget = getFirstChunk(sections.last());
 
   // The very first far jump navigates over never-revealed diffs whose
-  // heights are still estimates — its miss distance is the honest cold
+  // heights are still estimates, so its miss distance is the honest cold
   // number. Later jumps ride remembered sizes (`contain-intrinsic-block-size:
   // auto` keeps the real size after first reveal) and land clean.
   await toc.last().click();
@@ -108,7 +110,7 @@ test("jump to far chunk timing", async ({ page }) => {
     times.push(Date.now() - start);
     offsets.push(await landingOffset(lastTarget));
 
-    // Return trip resets the starting point; recorded into the same series —
+    // Return trip resets the starting point; recorded into the same series:
     // the far jump is symmetric and one metric keeps the report readable.
     await toc.first().click();
     await waitForScrollSettled(page);
@@ -116,8 +118,9 @@ test("jump to far chunk timing", async ({ page }) => {
   }
   report("jump-far-chunk", times);
   report("jump-landing-offset-px", offsets);
-  for (const offset of offsets)
+  for (const offset of offsets) {
     expect(offset).toBeLessThanOrEqual(LANDING_TOLERANCE_PX);
+  }
 });
 
 test("scroll frame gaps", async ({ page }) => {
@@ -127,7 +130,7 @@ test("scroll frame gaps", async ({ page }) => {
 
   // Scripted top-to-bottom scroll inside one rAF loop: every gap between
   // consecutive frames is a sample. A long gap = a frame the main thread
-  // could not produce — the jank virtualization must not add to. Instant
+  // could not produce, the jank virtualization must not add to. Instant
   // behavior per step: the CSS `scroll-behavior: smooth` would otherwise
   // animate toward each step and the page would never traverse its real
   // height inside the loop.
@@ -139,7 +142,9 @@ test("scroll frame gaps", async ({ page }) => {
       let start: number | null = null;
       const tick = (now: number) => {
         start ??= now;
-        if (last !== null) collected.push(now - last);
+        if (last !== null) {
+          collected.push(now - last);
+        }
         last = now;
         const progress = Math.min((now - start) / durationMs, 1);
         // Ceiling re-read per tick: revealing below-fold content grows the
@@ -148,8 +153,11 @@ test("scroll frame gaps", async ({ page }) => {
         const ceiling =
           document.documentElement.scrollHeight - window.innerHeight;
         window.scrollTo({ top: progress * ceiling, behavior: "instant" });
-        if (progress >= 1) resolve(collected);
-        else requestAnimationFrame(tick);
+        if (progress >= 1) {
+          resolve(collected);
+        } else {
+          requestAnimationFrame(tick);
+        }
       };
       requestAnimationFrame(tick);
     });

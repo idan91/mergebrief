@@ -186,7 +186,9 @@ export async function seedBrief(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedBrief: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedBrief: pr missing");
+  }
   const written = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: "base",
@@ -202,7 +204,9 @@ export async function seedBrief(
     // (correctly) drop across the seeded span.
     anchorState: "anchored",
   });
-  if (!written.ok) throw new Error(`seedBrief: ${written.error.code}`);
+  if (!written.ok) {
+    throw new Error(`seedBrief: ${written.error.code}`);
+  }
   return written.value.id;
 }
 
@@ -234,14 +238,18 @@ async function writeHop(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedHop: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedHop: pr missing");
+  }
   const written = await createArtifactStore(handle, CTX).hunkSpans.write({
     pullRequestId: pr.id,
     baselineSha: `head-${fromIndex}`,
     headSha: `head-${toIndex}`,
     spans,
   });
-  if (!written.ok) throw new Error(`seedHop: ${written.error.code}`);
+  if (!written.ok) {
+    throw new Error(`seedHop: ${written.error.code}`);
+  }
 }
 
 /** A hop whose hunk lands inside the flagged region, so a decision reopens. */
@@ -280,7 +288,9 @@ export async function seedOrphanedDraft(
       body: "and this one too",
     },
   );
-  if (!added.ok) throw new Error("second draft comment seed failed");
+  if (!added.ok) {
+    throw new Error("second draft comment seed failed");
+  }
 }
 
 /**

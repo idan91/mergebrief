@@ -20,7 +20,9 @@ import type { ConversationLanding, LandingContext } from "./types";
 export function focusConversationHeading(): void {
   window.requestAnimationFrame(() => {
     const heading = document.getElementById("conversation-heading");
-    if (!(heading instanceof HTMLElement)) return;
+    if (!(heading instanceof HTMLElement)) {
+      return;
+    }
     heading.scrollIntoView({ block: "start" });
     heading.focus({ preventScroll: true });
   });
@@ -59,7 +61,9 @@ export function landOnChunkCard(
     settleLanding(context, card, () => correctCardLanding(card));
     return;
   }
-  if (attemptsLeft <= 0) return;
+  if (attemptsLeft <= 0) {
+    return;
+  }
 
   context.frameRef.current = window.requestAnimationFrame(() => {
     landOnChunkCard(context, chunkId, attemptsLeft - 1);
@@ -197,8 +201,12 @@ function resolveLandingFocus(
   row: HTMLElement,
   target: ConversationLanding,
 ): HTMLElement {
-  if ("threadId" in target) return row.querySelector("button") ?? row;
-  if (!row.hasAttribute("tabindex")) row.tabIndex = -1;
+  if ("threadId" in target) {
+    return row.querySelector("button") ?? row;
+  }
+  if (!row.hasAttribute("tabindex")) {
+    row.tabIndex = -1;
+  }
   return row;
 }
 
@@ -212,7 +220,9 @@ function findLandingRow(
   target: ConversationLanding,
 ): HTMLElement | null {
   const card = document.getElementById(chunkId);
-  if (card === null) return null;
+  if (card === null) {
+    return null;
+  }
   if ("threadId" in target) {
     const row = card.querySelector(
       `[data-conversation-thread="${String(target.threadId)}"]`,

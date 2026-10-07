@@ -90,9 +90,15 @@ function isSubject(value: unknown): value is SessionAttentionItem["subject"] {
 }
 
 function isLocation(value: unknown): value is SessionAttentionItem["location"] {
-  if (!isRecord(value)) return false;
-  if (typeof value["filePath"] !== "string") return false;
-  if (value["kind"] === CommentAnchorKinds.FILE) return true;
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (typeof value["filePath"] !== "string") {
+    return false;
+  }
+  if (value["kind"] === CommentAnchorKinds.FILE) {
+    return true;
+  }
   return (
     value["kind"] === CommentAnchorKinds.LINE &&
     isLine(value["startLine"]) &&

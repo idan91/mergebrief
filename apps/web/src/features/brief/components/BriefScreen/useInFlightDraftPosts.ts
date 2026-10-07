@@ -23,14 +23,18 @@ export function useInFlightDraftPosts(): InFlightDraftPosts {
   const active = useRef(new Set<string>());
 
   const begin = useCallback((commentId: string) => {
-    if (active.current.has(commentId)) return false;
+    if (active.current.has(commentId)) {
+      return false;
+    }
     active.current.add(commentId);
     setIds(new Set(active.current));
     return true;
   }, []);
 
   const end = useCallback((commentId: string) => {
-    if (!active.current.delete(commentId)) return;
+    if (!active.current.delete(commentId)) {
+      return;
+    }
     setIds(new Set(active.current));
   }, []);
 

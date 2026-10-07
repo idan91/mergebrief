@@ -106,7 +106,9 @@ export function SplitRows({
         }
 
         const lead = pair.right ?? pair.left;
-        if (lead === undefined) return null;
+        if (lead === undefined) {
+          return null;
+        }
         // A gap can open at either unified index the pair covers, once each.
         const before: { cell: SplitCell; side: SplitSide }[] = [];
         if (pair.left !== undefined) {
@@ -188,7 +190,9 @@ function readSideAttributes(
   cell: SplitCell | undefined,
   side: SplitSide,
 ): DiffRowAttributes {
-  if (slot === undefined || cell === undefined) return NO_ATTRIBUTES;
+  if (slot === undefined || cell === undefined) {
+    return NO_ATTRIBUTES;
+  }
 
   return slot(cell.line, cell.index, side);
 }
@@ -311,18 +315,26 @@ const HOP_KEYS: Record<string, SplitSide> = {
 /** Left and Right move focus to the other side's line cell on the same row. */
 function hopAcrossSides(event: KeyboardEvent<HTMLTableCellElement>): void {
   const target = HOP_KEYS[event.key];
-  if (target === undefined) return;
+  if (target === undefined) {
+    return;
+  }
   // A modified arrow belongs to the reader's assistive tech or the browser's
   // own selection chords, and a hop to the side already focused is not a hop:
   // taking either would swallow a key this row has no business claiming.
-  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-  if (event.currentTarget.dataset["side"] === target) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+    return;
+  }
+  if (event.currentTarget.dataset["side"] === target) {
+    return;
+  }
 
   const row = event.currentTarget.closest("tr");
   const cell = row?.querySelector<HTMLElement>(
     `td[data-side="${target}"][tabindex]`,
   );
-  if (cell === null || cell === undefined) return;
+  if (cell === null || cell === undefined) {
+    return;
+  }
 
   event.preventDefault();
   cell.focus();

@@ -33,7 +33,9 @@ export function collectStoredEdges(
   for (const gap of gaps) {
     const edgeKey = formatExpansionKey(chunkId, gap.edge);
     const expansion = expandedEdges.get(edgeKey);
-    if (expansion !== undefined) stored.push({ gap, edgeKey, expansion });
+    if (expansion !== undefined) {
+      stored.push({ gap, edgeKey, expansion });
+    }
   }
 
   return stored;
@@ -50,7 +52,9 @@ export function spliceStoredEdges(params: SpliceStoredEdgesParams): DiffLine[] {
       gap: edge.gap,
       slice: sliceLines(edge.expansion.range, params.lines),
     };
-    if (params.fileRows !== undefined) application.fileRows = params.fileRows;
+    if (params.fileRows !== undefined) {
+      application.fileRows = params.fileRows;
+    }
     return application;
   });
 
@@ -87,7 +91,9 @@ export function mapBaseIndexes(
       indexes.push(-1);
       continue;
     }
-    while (cursor < base.length && base[cursor] !== row) cursor += 1;
+    while (cursor < base.length && base[cursor] !== row) {
+      cursor += 1;
+    }
     indexes.push(cursor < base.length ? cursor : -1);
     cursor += 1;
   }
@@ -110,7 +116,9 @@ export function placeExpandableEdges(
 
   for (const spliced of splicedGaps) {
     const base = baseGaps.find((candidate) => contains(candidate, spliced));
-    if (base === undefined) continue;
+    if (base === undefined) {
+      continue;
+    }
     const edgeKey = formatExpansionKey(chunkId, base.edge);
     const edge: ExpandableEdge = {
       rowIndex: spliced.edge.rowIndex,
@@ -123,8 +131,12 @@ export function placeExpandableEdges(
       other === undefined
         ? undefined
         : expandedEdges.get(formatExpansionKey(chunkId, other.edge));
-    if (sibling !== undefined) edge.sibling = sibling.range;
-    if (fileEnd !== undefined) edge.fileEnd = fileEnd;
+    if (sibling !== undefined) {
+      edge.sibling = sibling.range;
+    }
+    if (fileEnd !== undefined) {
+      edge.fileEnd = fileEnd;
+    }
     edges.push(edge);
   }
 
@@ -141,9 +153,15 @@ function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
 }
 
 function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
-  if (outer.edge.direction !== inner.edge.direction) return false;
-  if (inner.from < outer.from) return false;
-  if (outer.to === undefined) return inner.to === undefined;
+  if (outer.edge.direction !== inner.edge.direction) {
+    return false;
+  }
+  if (inner.from < outer.from) {
+    return false;
+  }
+  if (outer.to === undefined) {
+    return inner.to === undefined;
+  }
 
   return inner.to !== undefined && inner.to <= outer.to;
 }
@@ -164,7 +182,9 @@ export function countExpandedRows(
   let count = 0;
 
   for (const [edgeKey, expansion] of expandedEdges) {
-    if (!edgeKey.startsWith(prefix)) continue;
+    if (!edgeKey.startsWith(prefix)) {
+      continue;
+    }
     const { start, end } = expansion.range;
     if (fileRows === undefined) {
       count += end - start + 1;
@@ -183,7 +203,9 @@ export function countExpandedRows(
 export function buildExpansionKey(
   edges: readonly StoredEdge[],
 ): string | undefined {
-  if (edges.length === 0) return undefined;
+  if (edges.length === 0) {
+    return undefined;
+  }
 
   return edges
     .map(
@@ -201,14 +223,24 @@ export function buildExpansionKey(
 export function resolveExpanderStep(
   edge: ExpandableEdge,
 ): ExpanderStep | undefined {
-  if (isPastFileEnd(edge)) return undefined;
+  if (isPastFileEnd(edge)) {
+    return undefined;
+  }
   const params: ResolveExpansionRangeParams = { gap: edge.gap };
-  if (edge.sibling !== undefined) params.blocked = [edge.sibling];
-  if (edge.expansion !== undefined) params.expanded = edge.expansion.range;
+  if (edge.sibling !== undefined) {
+    params.blocked = [edge.sibling];
+  }
+  if (edge.expansion !== undefined) {
+    params.expanded = edge.expansion.range;
+  }
   const range = resolveExpansionRange(params);
-  if (range === undefined) return undefined;
+  if (range === undefined) {
+    return undefined;
+  }
   const bounded = clampToFileEnd(range, edge);
-  if (bounded === undefined) return undefined;
+  if (bounded === undefined) {
+    return undefined;
+  }
   const span = bounded.to - bounded.from + 1;
   const openEnded =
     edge.gap.to === undefined &&
@@ -226,18 +258,30 @@ function clampToFileEnd(
   range: ExpansionRange,
   edge: ExpandableEdge,
 ): ExpansionRange | undefined {
-  if (edge.fileEnd === undefined) return range;
-  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return range;
-  if (range.from > edge.fileEnd) return undefined;
+  if (edge.fileEnd === undefined) {
+    return range;
+  }
+  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) {
+    return range;
+  }
+  if (range.from > edge.fileEnd) {
+    return undefined;
+  }
 
   return { from: range.from, to: Math.min(range.to, edge.fileEnd) };
 }
 
 function isPastFileEnd(edge: ExpandableEdge): boolean {
-  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return false;
-  if (edge.fileEnd !== undefined && edge.gap.from > edge.fileEnd) return true;
+  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) {
+    return false;
+  }
+  if (edge.fileEnd !== undefined && edge.gap.from > edge.fileEnd) {
+    return true;
+  }
   const expansion = edge.expansion;
-  if (expansion?.totalLines === undefined) return false;
+  if (expansion?.totalLines === undefined) {
+    return false;
+  }
 
   return expansion.range.end >= expansion.totalLines;
 }
@@ -250,7 +294,9 @@ export function resolveReachableLines(
   edges: readonly ExpandableEdge[],
 ): LineRange[] {
   const first = edges[0];
-  if (first === undefined) return [];
+  if (first === undefined) {
+    return [];
+  }
   const gapStart = first.gap.from;
   const gapEnd = first.gap.to ?? Number.POSITIVE_INFINITY;
   const reachable: LineRange[] = [];
@@ -263,12 +309,16 @@ export function resolveReachableLines(
   if (down !== undefined) {
     const taken = down.expansion?.range;
     const start = taken === undefined ? gapStart : taken.end + 1;
-    if (start <= gapEnd) reachable.push({ start, end: gapEnd });
+    if (start <= gapEnd) {
+      reachable.push({ start, end: gapEnd });
+    }
   }
   if (up !== undefined) {
     const taken = up.expansion?.range;
     const end = taken === undefined ? gapEnd : taken.start - 1;
-    if (gapStart <= end) reachable.push({ start: gapStart, end });
+    if (gapStart <= end) {
+      reachable.push({ start: gapStart, end });
+    }
   }
 
   return reachable;

@@ -9,8 +9,12 @@ export function isDue(
   now: Date,
   staleMs: number,
 ): boolean {
-  if (row.state === PrStates.MERGED) return false;
-  if (row.githubReadAt === null) return true;
+  if (row.state === PrStates.MERGED) {
+    return false;
+  }
+  if (row.githubReadAt === null) {
+    return true;
+  }
   return row.githubReadAt.getTime() < now.getTime() - staleMs;
 }
 

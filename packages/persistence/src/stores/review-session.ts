@@ -492,7 +492,9 @@ function carriedThroughChain(
 ): string[] {
   let survivors: Set<string> | undefined;
   for (const step of chain) {
-    if (step.headIndex <= fromHeadIndex) continue;
+    if (step.headIndex <= fromHeadIndex) {
+      continue;
+    }
     const parsed = StoredIdsSchema.safeParse(step.carriedChunkIds);
     const carried = new Set(parsed.success ? parsed.data : []);
     survivors =
@@ -515,10 +517,18 @@ function descendedThroughChain(
   for (let index = 1; index < chain.length; index++) {
     const step = chain[index];
     const adjacent = chain[index - 1];
-    if (step === undefined || adjacent === undefined) return false;
-    if (step.headIndex <= fromHeadIndex) continue;
-    if (step.anchorState !== AnchorStates.ANCHORED) return false;
-    if (step.headSha === adjacent.headSha) return false;
+    if (step === undefined || adjacent === undefined) {
+      return false;
+    }
+    if (step.headIndex <= fromHeadIndex) {
+      continue;
+    }
+    if (step.anchorState !== AnchorStates.ANCHORED) {
+      return false;
+    }
+    if (step.headSha === adjacent.headSha) {
+      return false;
+    }
   }
   return true;
 }
@@ -534,7 +544,9 @@ interface PreviousSession {
 /** The one row a `.returning()` insert owes; its absence is an infra error. */
 function only<TRow>(rows: TRow[], subject: string): TRow {
   const row = rows[0];
-  if (row === undefined) throw new Error(`${subject} write returned no row`);
+  if (row === undefined) {
+    throw new Error(`${subject} write returned no row`);
+  }
   return row;
 }
 
@@ -864,7 +876,9 @@ export function createReviewSessionRepository(
     facts: BriefFacts,
     heads: readonly string[],
   ): Promise<Hop[] | null> {
-    if (heads.length < 2) return assembleHops(heads, []);
+    if (heads.length < 2) {
+      return assembleHops(heads, []);
+    }
     const rows = await tx
       .select({
         baselineSha: hunkSpan.baselineSha,

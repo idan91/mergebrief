@@ -1,4 +1,4 @@
-// Collaborators primitive: everyone who can collaborate on the repo — direct
+// Collaborators primitive: everyone who can collaborate on the repo, direct
 // collaborators AND org/team-granted members (`affiliation: ALL` is critical).
 // Drives the wire→domain mapping, the capped cursor loop, and the sanitized
 // failure paths.
@@ -25,8 +25,8 @@ function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
 
 const INPUT = { owner: "o", repo: "r" } as const;
 
-describe("listRepoCollaborators — mapping", () => {
-  it("maps collaborators (login, name, avatarUrl) and sends affiliation ALL via variables-only query", async () => {
+describe("listRepoCollaborators mapping", () => {
+  it("maps collaborator fields and sends affiliation ALL as a variable", async () => {
     const graphql = vi.fn().mockResolvedValue(
       collaboratorsResponse({
         nodes: [
@@ -40,7 +40,9 @@ describe("listRepoCollaborators — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.hasMore).toBe(false);
     expect(result.value.collaborators).toEqual([
       {
@@ -50,7 +52,7 @@ describe("listRepoCollaborators — mapping", () => {
       },
       { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
     ]);
-    // affiliation ALL includes org/team-granted access — the bulk of the pool.
+    // affiliation ALL includes org/team-granted access, the bulk of the pool.
     const [query, variables] = graphql.mock.calls[0] ?? [];
     expect(String(query)).toContain("affiliation: ALL");
     expect(String(query)).toContain("$owner");
@@ -68,7 +70,9 @@ describe("listRepoCollaborators — mapping", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(
       result.value.collaborators.map((collaborator) => collaborator.login),
     ).toEqual(["carol"]);
@@ -81,13 +85,15 @@ describe("listRepoCollaborators — mapping", () => {
       INPUT,
     );
     expect(emptyResult.ok).toBe(true);
-    if (!emptyResult.ok) throw new Error("unreachable");
+    if (!emptyResult.ok) {
+      throw new Error("unreachable");
+    }
     expect(emptyResult.value.collaborators).toEqual([]);
   });
 });
 
-describe("listRepoCollaborators — pagination", () => {
-  it("follows the cursor across pages and reports hasMore false when exhausted", async () => {
+describe("listRepoCollaborators pagination", () => {
+  it("follows the cursor across pages and reports hasMore false at the end", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(
@@ -105,7 +111,9 @@ describe("listRepoCollaborators — pagination", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(
       result.value.collaborators.map((collaborator) => collaborator.login),
     ).toEqual(["alice", "bob"]);
@@ -134,15 +142,17 @@ describe("listRepoCollaborators — pagination", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    // Cap is 3 pages × 100 — past that the pool is noise, not autocomplete.
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    // Cap is 3 pages × 100; past that the pool is noise, not autocomplete.
     expect(graphql).toHaveBeenCalledTimes(3);
     expect(result.value.collaborators).toHaveLength(3);
     expect(result.value.hasMore).toBe(true);
   });
 });
 
-describe("listRepoCollaborators — failures", () => {
+describe("listRepoCollaborators failures", () => {
   it("returns sanitized NOT_FOUND for a null repository field", async () => {
     const graphql = vi.fn().mockResolvedValue({ repository: null });
     const result = await listRepoCollaborators(
@@ -150,7 +160,9 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain("o/r");
   });
@@ -164,7 +176,9 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
@@ -179,7 +193,9 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
     expect(result.error.message).not.toContain(UPSTREAM_TEXT);
@@ -200,13 +216,15 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(502);
     expect(result.error.message).not.toContain("boom");
   });
 
-  it("returns a sanitized failure for an ill-shaped 2xx body, including mid-pagination", async () => {
+  it("returns a sanitized failure for an ill-shaped 2xx body on any page", async () => {
     const malformed = vi
       .fn()
       .mockResolvedValue({ repository: { collaborators: { nope: true } } });
@@ -215,7 +233,9 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
 
     const midPage = vi
@@ -229,7 +249,9 @@ describe("listRepoCollaborators — failures", () => {
       INPUT,
     );
     expect(midResult.ok).toBe(false);
-    if (midResult.ok) throw new Error("unreachable");
+    if (midResult.ok) {
+      throw new Error("unreachable");
+    }
     expect(midResult.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 });

@@ -131,8 +131,12 @@ export function comparisonAvailability(
 export function defaultComparison(
   availability: CompareOptionFlags,
 ): CompareParam {
-  if (availability.lastReview) return "last-review";
-  if (availability.previousBrief) return "previous-brief";
+  if (availability.lastReview) {
+    return "last-review";
+  }
+  if (availability.previousBrief) {
+    return "previous-brief";
+  }
   return "off";
 }
 
@@ -140,8 +144,12 @@ function isAvailable(
   compare: CompareParam,
   availability: CompareOptionFlags,
 ): boolean {
-  if (compare === "off") return true;
-  if (compare === "previous-brief") return availability.previousBrief;
+  if (compare === "off") {
+    return true;
+  }
+  if (compare === "previous-brief") {
+    return availability.previousBrief;
+  }
   return availability.lastReview;
 }
 

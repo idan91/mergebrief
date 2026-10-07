@@ -9,7 +9,9 @@ import { startApiServer } from "./api-server";
 let squatter: Server | undefined;
 
 afterEach(async () => {
-  if (squatter === undefined) return;
+  if (squatter === undefined) {
+    return;
+  }
   await new Promise<void>((resolve) => squatter?.close(() => resolve()));
   squatter = undefined;
 });

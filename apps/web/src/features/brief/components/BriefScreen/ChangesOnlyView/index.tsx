@@ -105,7 +105,9 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
         spanRows={props.narrativeSpanRows}
       />
     );
-  if (props.rawSpanDiff === undefined) return summary;
+  if (props.rawSpanDiff === undefined) {
+    return summary;
+  }
   // Key on the LENS plus the addressed span so a lens switch or revision
   // change remounts and resets to the summary, both lenses can resolve to
   // the SAME span, and a lens switch is still a view change.
@@ -200,11 +202,15 @@ function PreviousBriefChanges({
       {lengthNote}
       <p className={styles["overview"]}>{narrative.overview}</p>
       {model.groups.map((group) => {
-        if (group.kind !== GroupViewKinds.ATTRIBUTED) return null;
+        if (group.kind !== GroupViewKinds.ATTRIBUTED) {
+          return null;
+        }
         const chunks = narrative.chunks.filter(
           (chunk) => chunk.briefChangeGroupId === group.group.id,
         );
-        if (chunks.length === 0) return null;
+        if (chunks.length === 0) {
+          return null;
+        }
         return (
           <section className={styles["group"]} key={group.id}>
             <div className={styles["groupHead"]}>
@@ -324,7 +330,9 @@ function WindowedNarrativeList({
     >
       {window.items.map((item) => {
         const chunk = chunks[item.index];
-        if (!chunk) return null;
+        if (!chunk) {
+          return null;
+        }
         return (
           <div
             key={item.key}
@@ -520,7 +528,9 @@ function LastReviewChanges({
       </div>
       <DeltaContext brief={delta} />
       {model.groups.map((group) => {
-        if (group.kind !== GroupViewKinds.ATTRIBUTED) return null;
+        if (group.kind !== GroupViewKinds.ATTRIBUTED) {
+          return null;
+        }
         return (
           <section className={styles["group"]} key={group.id}>
             <div className={styles["groupHead"]}>

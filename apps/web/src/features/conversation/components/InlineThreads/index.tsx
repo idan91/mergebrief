@@ -34,7 +34,9 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
     setExpandedThreads((current) => toggleSet(current, threadId));
   const toggleBot = (author: string) =>
     setExpandedBots((current) => toggleSet(current, author));
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    return null;
+  }
   return (
     <section
       aria-label={t("conversation.ariaLabelInlineThreads")}

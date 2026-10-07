@@ -32,7 +32,9 @@ export async function resolveEntryCommentAllowed(
         ? "generate: entry comment suppressed — draft PR with entryCommentOnDrafts off"
         : "generate: entry comment suppressed — draft PR with settings unreadable",
     );
-    if (optedOut) await entryCommentManager.remove();
+    if (optedOut) {
+      await entryCommentManager.remove();
+    }
   }
 
   return entryCommentAllowed;

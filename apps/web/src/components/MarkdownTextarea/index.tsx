@@ -108,7 +108,9 @@ interface PreviewPanelProps {
 function PreviewPanel({ renderPreview, value }: PreviewPanelProps) {
   const { t } = useTranslation();
 
-  if (renderPreview !== undefined) return renderPreview(value);
+  if (renderPreview !== undefined) {
+    return renderPreview(value);
+  }
   if (value.trim()) {
     return <Markdown content={value} renderHtml renderSuggestions />;
   }
@@ -173,15 +175,22 @@ export function MarkdownTextarea({
   const onTablistKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = MODES.indexOf(facade.mode);
     let next = index;
-    if (event.key === "ArrowRight") next = (index + 1) % MODES.length;
-    else if (event.key === "ArrowLeft")
+    if (event.key === "ArrowRight") {
+      next = (index + 1) % MODES.length;
+    } else if (event.key === "ArrowLeft") {
       next = (index - 1 + MODES.length) % MODES.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = MODES.length - 1;
-    else return;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = MODES.length - 1;
+    } else {
+      return;
+    }
     event.preventDefault();
     const mode = MODES[next];
-    if (!mode) return;
+    if (!mode) {
+      return;
+    }
     facade.setMode(mode);
     document.getElementById(tabId(mode))?.focus();
   };
@@ -199,18 +208,25 @@ export function MarkdownTextarea({
     const buttons = toolbarRef.current
       ? [...toolbarRef.current.querySelectorAll("button")]
       : [];
-    if (buttons.length === 0) return;
+    if (buttons.length === 0) {
+      return;
+    }
     const current = buttons.findIndex(
       (button) => button === document.activeElement,
     );
     const index = current === -1 ? toolbarTabStop : current;
     let next = index;
-    if (event.key === "ArrowRight") next = (index + 1) % buttons.length;
-    else if (event.key === "ArrowLeft")
+    if (event.key === "ArrowRight") {
+      next = (index + 1) % buttons.length;
+    } else if (event.key === "ArrowLeft") {
       next = (index - 1 + buttons.length) % buttons.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = buttons.length - 1;
-    else return;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = buttons.length - 1;
+    } else {
+      return;
+    }
     event.preventDefault();
     setToolbarIndex(next);
     buttons[next]?.focus();
@@ -227,7 +243,9 @@ export function MarkdownTextarea({
   // moment the write panel hides.
   const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // IME commit/cancel keys are never editor commands.
-    if (event.nativeEvent.isComposing) return;
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
     const meta = event.metaKey || event.ctrlKey;
     if (meta && event.key === "Enter" && onSubmit !== undefined) {
       // The consumer's own submit guards (empty, pending, over-cap) apply;
@@ -253,12 +271,13 @@ export function MarkdownTextarea({
       // Hiding the panel that holds focus drops it to <body>, which would
       // kill this very handler, move focus WITH the mode, both ways.
       window.setTimeout(() => {
-        if (next === MarkdownTextareaModes.WRITE)
+        if (next === MarkdownTextareaModes.WRITE) {
           facade.textareaRef.current?.focus();
-        else
+        } else {
           document
             .getElementById(panelId(MarkdownTextareaModes.PREVIEW))
             ?.focus();
+        }
       }, 0);
       return;
     }
@@ -390,7 +409,9 @@ export function MarkdownTextarea({
           onKeyDown={(event) => {
             // The open popup owns navigation/accept/dismiss keys; every
             // other key falls through to the editing shortcuts.
-            if (mentions.onKeyDown(event)) return;
+            if (mentions.onKeyDown(event)) {
+              return;
+            }
             facade.onTextareaKeyDown(event);
           }}
           onDragOver={facade.onTextareaDragOver}

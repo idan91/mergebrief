@@ -31,7 +31,7 @@ function makeCodexHarness(): GeneratorContractHarness {
       model: "codex-default",
       effort: "medium",
     },
-    // turn.failed / error events carry undiscriminated message strings —
+    // turn.failed / error events carry undiscriminated message strings;
     // there is no refusal signal to classify (capabilities note §2).
     supportsRefusal: false,
     isAbortRejection: (error) => abortReason !== null && error === abortReason,
@@ -39,8 +39,12 @@ function makeCodexHarness(): GeneratorContractHarness {
       // Inside failureDir: the contract suite's afterEach removes it.
       scriptDir = mkdtempSync(join(failureDir, "script-"));
       const scripted = turns.map((turn) => {
-        if ("abort" in turn) return { hang: true };
-        if ("refusal" in turn) throw new Error("codex has no refusal turn");
+        if ("abort" in turn) {
+          return { hang: true };
+        }
+        if ("refusal" in turn) {
+          throw new Error("codex has no refusal turn");
+        }
         return { output: turn.raw };
       });
       writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(scripted));
@@ -84,7 +88,9 @@ function makeCodexHarness(): GeneratorContractHarness {
           return existsSync(stdin) ? readFileSync(stdin, "utf8") : null;
         },
       };
-      if (wantsAbort) handle.signal = controller.signal;
+      if (wantsAbort) {
+        handle.signal = controller.signal;
+      }
       return handle;
     },
   };

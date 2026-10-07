@@ -87,24 +87,36 @@ function useGroupMeasure(handle: HTMLElement | null): MeasuredGroup {
     const main = group?.closest(".main");
     const observable =
       group && chunks && card && main && typeof ResizeObserver !== "undefined";
-    if (!observable) return;
+    if (!observable) {
+      return;
+    }
 
     const sizes = new ResizeObserver((entries) => {
       const next = { ...latestRef.current };
       for (const entry of entries) {
-        if (entry.target === group) next.column = readEntryWidth(entry);
-        if (entry.target === chunks) next.chunks = readEntryWidth(entry);
-        if (entry.target === card) next.card = readEntryWidth(entry);
+        if (entry.target === group) {
+          next.column = readEntryWidth(entry);
+        }
+        if (entry.target === chunks) {
+          next.chunks = readEntryWidth(entry);
+        }
+        if (entry.target === card) {
+          next.card = readEntryWidth(entry);
+        }
       }
       latestRef.current = next;
-      if (!main.hasAttribute(STORY_DRAG_ATTR)) flush();
+      if (!main.hasAttribute(STORY_DRAG_ATTR)) {
+        flush();
+      }
     });
     sizes.observe(group);
     sizes.observe(chunks);
     sizes.observe(card);
 
     const release = new MutationObserver(() => {
-      if (!main.hasAttribute(STORY_DRAG_ATTR)) flush();
+      if (!main.hasAttribute(STORY_DRAG_ATTR)) {
+        flush();
+      }
     });
     release.observe(main, { attributeFilter: [STORY_DRAG_ATTR] });
 
@@ -140,7 +152,9 @@ export function useStorySplitterFacade({
 
   const endDrag = useCallback((): StoryDrag | undefined => {
     const drag = dragRef.current;
-    if (drag === undefined) return undefined;
+    if (drag === undefined) {
+      return undefined;
+    }
 
     dragRef.current = undefined;
     drag.main.removeAttribute(STORY_DRAG_ATTR);
@@ -155,7 +169,9 @@ export function useStorySplitterFacade({
   useEffect(
     () => () => {
       const drag = endDrag();
-      if (drag !== undefined) restoreTrack(drag);
+      if (drag !== undefined) {
+        restoreTrack(drag);
+      }
     },
     [endDrag, handle],
   );
@@ -167,7 +183,9 @@ export function useStorySplitterFacade({
       floor,
       ceiling,
     });
-    if (next === undefined) return;
+    if (next === undefined) {
+      return;
+    }
 
     event.preventDefault();
     // Key repeat outruns the observer; the next press steps from this commit
@@ -177,9 +195,13 @@ export function useStorySplitterFacade({
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
-    if (event.button !== 0 || dragRef.current !== undefined) return;
+    if (event.button !== 0 || dragRef.current !== undefined) {
+      return;
+    }
     const main = event.currentTarget.closest<HTMLElement>(".main");
-    if (main === null) return;
+    if (main === null) {
+      return;
+    }
 
     // Cancelling pointerdown suppresses the mouse events that would start a
     // text selection, and with them the focus move; focus is done by hand.
@@ -202,8 +224,12 @@ export function useStorySplitterFacade({
 
   const onPointerMove = (event: PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
-    if (drag === undefined || drag.pointerId !== event.pointerId) return;
-    if (!hasMovedPastSlop(drag, event.clientX, STORY_DRAG_SLOP_PX)) return;
+    if (drag === undefined || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    if (!hasMovedPastSlop(drag, event.clientX, STORY_DRAG_SLOP_PX)) {
+      return;
+    }
 
     const direction = resolveTextDirection(event.currentTarget);
     const next = deriveTrackFromPointer(
@@ -217,10 +243,14 @@ export function useStorySplitterFacade({
   };
 
   const onPointerUp = (event: PointerEvent<HTMLElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    if (dragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
     const drag = endDrag();
     releaseCapture(event.currentTarget, event.pointerId);
-    if (drag === undefined || !drag.moved) return;
+    if (drag === undefined || !drag.moved) {
+      return;
+    }
 
     const direction = resolveTextDirection(event.currentTarget);
     const raw = deriveTrackFromPointer(
@@ -235,10 +265,14 @@ export function useStorySplitterFacade({
   };
 
   const onPointerCancel = (event: PointerEvent<HTMLElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    if (dragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
     const drag = endDrag();
     releaseCapture(event.currentTarget, event.pointerId);
-    if (drag !== undefined) restoreTrack(drag);
+    if (drag !== undefined) {
+      restoreTrack(drag);
+    }
   };
 
   return {

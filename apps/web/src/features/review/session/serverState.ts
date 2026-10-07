@@ -121,7 +121,9 @@ export function sessionInitialState(
   payload: ReviewSessionPayload | undefined,
 ): ReviewSessionState {
   const base = deriveInitialState(model);
-  if (payload === undefined) return base;
+  if (payload === undefined) {
+    return base;
+  }
   const chunkRegions = getChunkRegions(model);
   const { reviewComments, unplacedDrafts } = resolveDraftComments(
     payload.draftComments,
@@ -130,7 +132,9 @@ export function sessionInitialState(
   const dominants = { ...base.dominants };
   const reclassifiedGroups = new Set<string>();
   for (const entry of payload.reclassifications) {
-    if (!(entry.changeGroupId in dominants)) continue;
+    if (!(entry.changeGroupId in dominants)) {
+      continue;
+    }
     dominants[entry.changeGroupId] = entry.category;
     reclassifiedGroups.add(entry.changeGroupId);
   }
@@ -164,7 +168,9 @@ export function sessionInitialState(
 export function parseReviewSessionPayload(
   body: unknown,
 ): Result<ReviewSessionPayload, string> {
-  if (!isRecord(body)) return { ok: false, error: "session: not an object" };
+  if (!isRecord(body)) {
+    return { ok: false, error: "session: not an object" };
+  }
   const materialized = body["materialized"];
   const carriedFrom = body["carriedFrom"];
   const attention = body["attention"];

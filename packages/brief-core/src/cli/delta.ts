@@ -237,7 +237,9 @@ async function main(): Promise<void> {
     console.error(reads.error.issues.join("; "));
     process.exit(1);
   }
-  if (local.warning !== undefined) log(`warning: ${local.warning}`);
+  if (local.warning !== undefined) {
+    log(`warning: ${local.warning}`);
+  }
   const fetchOptions: FetchContextSnippetsOptions =
     suppliedPrimary === undefined ? {} : { suppliedPrimary };
 

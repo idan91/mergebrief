@@ -52,7 +52,9 @@ function collectInvocations(text: string): readonly string[] {
     /`mergebrief ([a-z|<>-]+)(?: ((?!--)[a-z|<>-]+))?/g,
   )) {
     const first = match[1];
-    if (first === undefined || first.startsWith("<")) continue;
+    if (first === undefined || first.startsWith("<")) {
+      continue;
+    }
     const second = match[2];
     for (const firstAlt of first.split("|")) {
       if (second === undefined || second.startsWith("<")) {

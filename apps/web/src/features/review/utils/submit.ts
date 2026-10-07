@@ -55,7 +55,9 @@ export function buildSubmitPayload(
 ): SubmitPayload {
   const payload: SubmitPayload = { outcome: input.outcome };
 
-  if (input.body !== undefined) payload.body = input.body;
+  if (input.body !== undefined) {
+    payload.body = input.body;
+  }
 
   return payload;
 }

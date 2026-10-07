@@ -22,8 +22,14 @@ export function parseOperationsMap(raw: unknown): Map<string, MapEntry> {
 
 /** TTY label per arm, non-contractual rendering only. */
 export function labelArm(arm: CliArm): string {
-  if ("command" in arm) return arm.command;
-  if ("gap" in arm) return "gap (no CLI command yet)";
-  if ("webOnly" in arm) return "web-only";
+  if ("command" in arm) {
+    return arm.command;
+  }
+  if ("gap" in arm) {
+    return "gap (no CLI command yet)";
+  }
+  if ("webOnly" in arm) {
+    return "web-only";
+  }
   return "unknown to this CLI (server is newer)";
 }

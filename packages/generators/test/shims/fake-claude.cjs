@@ -76,7 +76,9 @@ function drainStdinThen(fn) {
 // Boot-probe surface: `--version` and `auth status` (capabilities note §1).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
-  if (scenario === "version-broken") process.exit(1);
+  if (scenario === "version-broken") {
+    process.exit(1);
+  }
   // Default = the billing-attribution floor (BRIEF-150); SHIM_VERSION
   // overrides for the old-version warning cases.
   process.stdout.write(
@@ -132,7 +134,9 @@ function authStatusJson() {
 if (process.env.SHIM_MARKER_FILE) {
   process.on("SIGINT", () => {
     appendFileSync(process.env.SHIM_MARKER_FILE, "SIGINT\n");
-    if (scenario !== "ignores-sigint") process.exit(130);
+    if (scenario !== "ignores-sigint") {
+      process.exit(130);
+    }
     // ignores-sigint: recorded, deliberately keep running until SIGKILL.
   });
 }
@@ -222,7 +226,9 @@ if (scenario === "scripted") {
         structured_output: parsed,
       });
       // Envelope-drift arm: an older/newer CLI without modelUsage.
-      if (script.noModelUsage) delete envelope.modelUsage;
+      if (script.noModelUsage) {
+        delete envelope.modelUsage;
+      }
       // Hostile-key arm: modelUsage keys straight from the script.
       if (script.servedModels) {
         envelope.modelUsage = Object.fromEntries(

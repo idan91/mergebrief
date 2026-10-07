@@ -220,7 +220,9 @@ function renderLines(
           ` — ${p.description}`,
       );
     }
-    for (const note of entry.notes) lines.push(`  note: ${note}`);
+    for (const note of entry.notes) {
+      lines.push(`  note: ${note}`);
+    }
   }
   lines.push(
     `${cases.length} case${cases.length === 1 ? "" : "s"}, ` +
@@ -239,7 +241,9 @@ function describeRegressionOutcome(
     const plural = regressions === 1 ? "" : "S";
     return `${regressions} REGRESSION${plural}`;
   }
-  if (anythingLoud) return "no regressions (see lines above)";
+  if (anythingLoud) {
+    return "no regressions (see lines above)";
+  }
   return "no change vs baseline";
 }
 

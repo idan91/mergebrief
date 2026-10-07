@@ -66,9 +66,15 @@ function readRequestBody(init: RequestInit | undefined): unknown {
 }
 
 function readRequestUrl(input: string | URL | Request | undefined): string {
-  if (input === undefined) return "";
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (input === undefined) {
+    return "";
+  }
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 

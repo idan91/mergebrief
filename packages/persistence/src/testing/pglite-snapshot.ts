@@ -83,7 +83,9 @@ async function snapshotFile(): Promise<string> {
     () => true,
     () => false,
   );
-  if (cached) return file;
+  if (cached) {
+    return file;
+  }
 
   // Publish under a per-process staging name and rename: on a cold cache every
   // worker builds concurrently, and a half-written file must never become

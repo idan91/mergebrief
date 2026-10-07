@@ -211,7 +211,9 @@ export function useComparisonOverlay(
   const localDeltaArtifact = localDelta.data;
   const slicedLocalDelta = useMemo(() => {
     // A sidecar that failed to read means no delta, never row-less cards.
-    if (localDeltaFailed) return undefined;
+    if (localDeltaFailed) {
+      return undefined;
+    }
     if (localDeltaArtifact === undefined || localDeltaPatches === undefined) {
       return localDeltaArtifact;
     }

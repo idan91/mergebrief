@@ -37,7 +37,9 @@ async function openLeadingCards(page: Page): Promise<number> {
   for (let index = 0; index < count; index += 1) {
     const toggle = toggles.nth(index);
     const expanded = await toggle.getAttribute("aria-expanded");
-    if (expanded !== "true") await toggle.click();
+    if (expanded !== "true") {
+      await toggle.click();
+    }
   }
 
   const clickedAt = Date.now();
@@ -143,7 +145,9 @@ function readRowSlack(page: Page): Promise<number[]> {
   return page.locator("tr[data-line-kind]").evaluateAll((rows) =>
     rows.map((row) => {
       const code = row.querySelector<HTMLElement>('td[class*="code"]');
-      if (code === null) return Number.POSITIVE_INFINITY;
+      if (code === null) {
+        return Number.POSITIVE_INFINITY;
+      }
       const style = getComputedStyle(code);
       const content =
         code.clientWidth -
@@ -160,7 +164,9 @@ function readRowSlack(page: Page): Promise<number[]> {
       range.selectNodeContents(code);
       const rects = [...range.getClientRects()];
       code.style.whiteSpace = previous;
-      if (rects.length === 0) return Number.POSITIVE_INFINITY;
+      if (rects.length === 0) {
+        return Number.POSITIVE_INFINITY;
+      }
       const start = Math.min(...rects.map((rect) => rect.left));
       const end = Math.max(...rects.map((rect) => rect.right));
 
@@ -179,7 +185,9 @@ function readRowHeights(page: Page): Promise<number[]> {
 
 /** A code row is a whole number of 22px lines; a hunk or note row is 31px. */
 function isRowHeight(height: number): boolean {
-  if (Math.abs(height - FULL_WIDTH_ROW_PX) <= LINE_TOLERANCE_PX) return true;
+  if (Math.abs(height - FULL_WIDTH_ROW_PX) <= LINE_TOLERANCE_PX) {
+    return true;
+  }
 
   const lines = Math.round(height / ROW_LINE_PX);
   return (

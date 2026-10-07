@@ -63,7 +63,9 @@ function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
     label: "probe",
   };
 
-  if (log) req.log = log;
+  if (log) {
+    req.log = log;
+  }
 
   return req;
 }
@@ -135,7 +137,9 @@ describe("CodexGenerator invocation profile", () => {
       "-c",
       "model_reasoning_effort=high",
     ]);
-    if (!Array.isArray(argv)) throw new Error("expected recorded argv array");
+    if (!Array.isArray(argv)) {
+      throw new Error("expected recorded argv array");
+    }
     expect(argv.join(" ")).not.toContain("produce ok");
     // Prompt (system + user stitched) went via stdin; the schema tempfile
     // carried the enum-preserving schema (captured before cleanup).
@@ -151,7 +155,9 @@ describe("CodexGenerator invocation profile", () => {
       readFileSync(join(scriptDir, "schema-meta-0.json"), "utf8"),
     );
     expect(meta).toMatchObject({ mode: 0o600 });
-    if (typeof meta !== "object" || meta === null) throw new Error("bad meta");
+    if (typeof meta !== "object" || meta === null) {
+      throw new Error("bad meta");
+    }
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
@@ -181,8 +187,9 @@ describe("CodexGenerator invocation profile", () => {
     const schema: unknown = JSON.parse(
       readFileSync(join(scriptDir, "schema-0.json"), "utf8"),
     );
-    if (typeof schema !== "object" || schema === null)
+    if (typeof schema !== "object" || schema === null) {
       throw new Error("bad schema");
+    }
     expect(Reflect.get(schema, "required")).toEqual(["ok", "note"]);
     expect(Reflect.get(schema, "properties")).toMatchObject({
       note: { anyOf: [{ type: "string" }, { type: "null" }] },
@@ -205,7 +212,9 @@ describe("CodexGenerator invocation profile", () => {
     const meta: unknown = JSON.parse(
       readFileSync(join(scriptDir, "schema-meta-0.json"), "utf8"),
     );
-    if (typeof meta !== "object" || meta === null) throw new Error("bad meta");
+    if (typeof meta !== "object" || meta === null) {
+      throw new Error("bad meta");
+    }
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
@@ -223,7 +232,9 @@ describe("CodexGenerator invocation profile", () => {
     const argv: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
-    if (!Array.isArray(argv)) throw new Error("expected argv array");
+    if (!Array.isArray(argv)) {
+      throw new Error("expected argv array");
+    }
     expect(argv.slice(-2)).toEqual(["--model", "gpt-5.6-sol"]);
     expect(generator.origin("low")).toEqual({
       provider: "codex",
@@ -262,7 +273,9 @@ describe("CodexGenerator answer selection and classification", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     // The shim's message is "stream error: rate limited", free-form CLI
     // text must never reach the error message.
@@ -281,7 +294,9 @@ describe("CodexGenerator answer selection and classification", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.message).not.toContain("SENTINEL");
   });
 
@@ -367,7 +382,9 @@ describe("codex registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.origin("high")).toEqual({
       provider: "codex",
       model: "codex-default",
@@ -381,7 +398,9 @@ describe("codex registry entry", () => {
       makeDeps({ SHIM_SCENARIO: "auth-error" }),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("codex login");
   });
 

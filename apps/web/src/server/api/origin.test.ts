@@ -24,7 +24,9 @@ describe("resolveApiOrigin", () => {
   it("refuses a value no URL parser accepts", () => {
     const resolved = resolveApiOrigin({ [API_ORIGIN_ENV_VAR]: "http://[" });
     expect(resolved.ok).toBe(false);
-    if (resolved.ok) return;
+    if (resolved.ok) {
+      return;
+    }
     expect(resolved.error.code).toBe(OriginErrorCodes.UNPARSEABLE);
   });
 
@@ -32,7 +34,9 @@ describe("resolveApiOrigin", () => {
     for (const raw of ["file:///etc/passwd", "api:3001"]) {
       const resolved = resolveApiOrigin({ [API_ORIGIN_ENV_VAR]: raw });
       expect(resolved.ok).toBe(false);
-      if (resolved.ok) return;
+      if (resolved.ok) {
+        return;
+      }
       expect(resolved.error.code).toBe(OriginErrorCodes.NOT_HTTP);
     }
   });

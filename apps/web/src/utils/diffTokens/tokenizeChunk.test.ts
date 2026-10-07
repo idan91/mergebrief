@@ -25,7 +25,9 @@ function resolvePaletteClassId(token: string): number {
   const index = SYNTAX_PALETTE.findIndex(
     (candidate) => candidate.token === token,
   );
-  if (index < 0) throw new Error(`no palette entry named ${token}`);
+  if (index < 0) {
+    throw new Error(`no palette entry named ${token}`);
+  }
 
   return index;
 }
@@ -37,7 +39,9 @@ function readClassIdFor(
   const token = lines
     .flat()
     .find((candidate) => candidate.text.trim() === content);
-  if (token === undefined) throw new Error(`no token for ${content}`);
+  if (token === undefined) {
+    throw new Error(`no token for ${content}`);
+  }
 
   return token.classId;
 }
@@ -234,7 +238,9 @@ function readRowClassId(
   content: string,
 ): number {
   const tokens = byRow.get(rowIndex);
-  if (tokens === undefined) throw new Error(`no tokens for row ${rowIndex}`);
+  if (tokens === undefined) {
+    throw new Error(`no tokens for row ${rowIndex}`);
+  }
 
   return readClassIdFor([tokens], content);
 }

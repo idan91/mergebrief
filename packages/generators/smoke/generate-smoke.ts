@@ -22,9 +22,13 @@ const SmokeSchema = z.object({
 /** Absent flag → undefined; present-without-a-value → usage (exit 2). */
 function flagValue(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
-  if (index === -1) return undefined;
+  if (index === -1) {
+    return undefined;
+  }
   const value = args[index + 1];
-  if (value === undefined || value.startsWith("-")) usage();
+  if (value === undefined || value.startsWith("-")) {
+    usage();
+  }
   return value;
 }
 
@@ -54,8 +58,12 @@ async function main(): Promise<void> {
     const command = flagValue(args, "--command");
     const flagConfig: SmokeGeneratorConfig = { provider: adapter };
 
-    if (model) flagConfig.model = model;
-    if (command) flagConfig.command = command;
+    if (model) {
+      flagConfig.model = model;
+    }
+    if (command) {
+      flagConfig.command = command;
+    }
 
     generatorConfig = flagConfig;
   } else {

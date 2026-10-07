@@ -44,6 +44,8 @@ export function resolveCliTrackerReads(
   trackers: readonly TrackerConfig[],
   root: TrackerRootDeps,
 ): Result<TrackerReads | undefined, ConfigError> {
-  if (supplied !== undefined) return { ok: true, value: undefined };
+  if (supplied !== undefined) {
+    return { ok: true, value: undefined };
+  }
   return resolveTrackerReads(trackers, root);
 }

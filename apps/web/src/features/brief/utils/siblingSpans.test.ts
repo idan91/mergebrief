@@ -12,8 +12,9 @@ const OWNERS: Record<number, string> = {
 const OLD_OWNERS: Record<number, string> = { 20: "c2", 29: "u-1" };
 
 function readOwner(line: DiffLine): string | undefined {
-  if (line.kind === "del")
+  if (line.kind === "del") {
     return line.oldLine === undefined ? undefined : OLD_OWNERS[line.oldLine];
+  }
   return line.newLine === undefined ? undefined : OWNERS[line.newLine];
 }
 

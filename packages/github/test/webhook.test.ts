@@ -33,11 +33,13 @@ describe("verifyWebhookSignature", () => {
       signature,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
-  it("rejects a replayed signature against a different body (INVALID_SIGNATURE)", async () => {
+  it("rejects a replayed signature against a different body", async () => {
     const signature = await sign(SECRET, PAYLOAD);
     const result = await verifyWebhookSignature({
       secret: SECRET,
@@ -45,7 +47,9 @@ describe("verifyWebhookSignature", () => {
       signature,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
@@ -60,18 +64,22 @@ describe("verifyWebhookSignature", () => {
       signature: tampered,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
-  it("rejects a malformed signature (no sha256= prefix) with INVALID_SIGNATURE", async () => {
+  it("rejects a signature without the sha256= prefix as malformed", async () => {
     const result = await verifyWebhookSignature({
       secret: SECRET,
       payload: PAYLOAD,
       signature: "not-a-real-signature",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
@@ -82,7 +90,9 @@ describe("verifyWebhookSignature", () => {
       signature: undefined,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.MISSING_SIGNATURE);
   });
 
@@ -93,7 +103,9 @@ describe("verifyWebhookSignature", () => {
       signature: "   ",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.MISSING_SIGNATURE);
   });
 
@@ -104,7 +116,9 @@ describe("verifyWebhookSignature", () => {
       payload: OTHER_PAYLOAD,
       signature,
     });
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.message).not.toContain(SECRET);
     expect(result.error.message).not.toContain(OTHER_PAYLOAD);
   });

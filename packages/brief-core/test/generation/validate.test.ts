@@ -597,8 +597,9 @@ function chunkWith(
     riskSurface,
   };
 
-  if (withNote)
+  if (withNote) {
     chunk.riskNotes = riskSurface.map((attr) => ({ attr, note: "n" }));
+  }
 
   return chunk;
 }

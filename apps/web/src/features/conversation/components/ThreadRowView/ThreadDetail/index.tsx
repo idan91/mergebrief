@@ -61,7 +61,9 @@ export function ThreadDetail({
     { block: string; nonce: number } | undefined
   >(undefined);
   const pushQuote = (text: string) => {
-    if (text.trim() === "") return;
+    if (text.trim() === "") {
+      return;
+    }
     setQuote((current) => ({
       block: buildQuoteBlock(text),
       nonce: (current?.nonce ?? 0) + 1,
@@ -105,11 +107,15 @@ export function ThreadDetail({
         return;
       }
       // An open modal owns the keyboard. R must not act behind it.
-      if (document.querySelector('[aria-modal="true"]') !== null) return;
+      if (document.querySelector('[aria-modal="true"]') !== null) {
+        return;
+      }
       // Containment scopes the shortcut: with the same thread rendered inline
       // AND in the section, only the detail holding the selection reacts.
       const text = selectionRef.current();
-      if (text === null || text.trim() === "") return;
+      if (text === null || text.trim() === "") {
+        return;
+      }
       event.preventDefault();
       setQuote((current) => ({
         block: buildQuoteBlock(text),
@@ -131,7 +137,9 @@ export function ThreadDetail({
       jumpToChunk(placement.chunkId);
       return;
     }
-    if (placement.kind !== ThreadPlacementKinds.CHUNK) return;
+    if (placement.kind !== ThreadPlacementKinds.CHUNK) {
+      return;
+    }
     jumpToChunk(placement.chunkId, {
       rowId: placement.rowId,
       threadId: thread.rootCommentId,

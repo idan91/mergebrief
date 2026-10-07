@@ -20,7 +20,9 @@ export function useUrlBoxFacade() {
 
   useEffect(() => {
     function focusOnSlash(event: KeyboardEvent): void {
-      if (event.key !== FOCUS_KEY || event.metaKey || event.ctrlKey) return;
+      if (event.key !== FOCUS_KEY || event.metaKey || event.ctrlKey) {
+        return;
+      }
       if (isTypingTarget(event.target) || isInsideOverlay(event.target)) {
         return;
       }
@@ -33,7 +35,9 @@ export function useUrlBoxFacade() {
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (url.trim() === "") return;
+    if (url.trim() === "") {
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {

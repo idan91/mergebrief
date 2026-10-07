@@ -65,7 +65,9 @@ describe("in-place brief switch through the screen", () => {
   it("clears Viewed marks for the same chunk ids in a different brief", async () => {
     const { switchTo } = await renderView("brief-a", briefFixture);
     const viewed = screen.getAllByRole("checkbox", { name: /^Viewed/ })[0];
-    if (!viewed) throw new Error("no Viewed checkbox rendered");
+    if (!viewed) {
+      throw new Error("no Viewed checkbox rendered");
+    }
     fireEvent.click(viewed);
     expect((viewed as HTMLInputElement).checked).toBe(true);
 

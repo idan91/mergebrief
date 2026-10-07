@@ -22,7 +22,9 @@ const PricesSchema = z.record(z.string(), PriceRowSchema);
 export type PriceTable = z.infer<typeof PricesSchema>;
 
 export function loadPrices(path: string): Result<PriceTable | null, string> {
-  if (!existsSync(path)) return { ok: true, value: null };
+  if (!existsSync(path)) {
+    return { ok: true, value: null };
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(path, "utf8"));

@@ -56,7 +56,9 @@ export function SiblingSpanHeader({
           // A modified click keeps its link meaning (new tab, new
           // window); a plain one runs the in-app landing, which finds
           // a windowed card without a page load.
-          if (isModifiedClick(event)) return;
+          if (isModifiedClick(event)) {
+            return;
+          }
           event.preventDefault();
           jumpToLine(owner.chunkId, { side, line: from });
         }}
@@ -100,7 +102,9 @@ export function SiblingSpanHeader({
 }
 
 function resolveJumpName(t: TFunction, owner: SpanOwner): string {
-  if (owner.remainder) return t("brief.diff.siblingSpanJumpRemainder");
+  if (owner.remainder) {
+    return t("brief.diff.siblingSpanJumpRemainder");
+  }
 
   return t("brief.diff.siblingSpanJumpGroup", { group: owner.groupName });
 }

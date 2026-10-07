@@ -147,7 +147,9 @@ function stubPort(
         log.calls.push({ installationId, input });
         const result = results[Math.min(call, results.length - 1)];
         call += 1;
-        if (result === undefined) throw new Error("port stub exhausted");
+        if (result === undefined) {
+          throw new Error("port stub exhausted");
+        }
         return result;
       },
       listRepoCollaborators: async () => {
@@ -297,8 +299,9 @@ async function seedSession(
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -334,12 +337,16 @@ async function seedPullRequestWithEntryComment(
     handle,
     CTX,
   ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
-  if (row === undefined) throw new Error("seed row missing");
+  if (row === undefined) {
+    throw new Error("seed row missing");
+  }
   const set = await createTenantRepository(
     handle,
     CTX,
   ).pullRequests.setEntryComment(row.id, entryCommentId);
-  if (!set.ok) throw new Error("setEntryComment failed in seed");
+  if (!set.ok) {
+    throw new Error("setEntryComment failed in seed");
+  }
 }
 
 const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
@@ -363,7 +370,9 @@ async function seedBrief(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedBriefSession: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedBriefSession: pr missing");
+  }
   const brief = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
@@ -375,8 +384,12 @@ async function seedBrief(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) throw new Error("seedBriefSession: brief write failed");
-  if (!withSession) return;
+  if (!brief.ok) {
+    throw new Error("seedBriefSession: brief write failed");
+  }
+  if (!withSession) {
+    return;
+  }
 
   const written = await repo.reviewSessions.setOutcome(
     {
@@ -385,7 +398,9 @@ async function seedBrief(
     },
     ReviewOutcomes.COMMENT,
   );
-  if (!written.ok) throw new Error("seedBriefSession: session seed failed");
+  if (!written.ok) {
+    throw new Error("seedBriefSession: session seed failed");
+  }
 }
 
 async function getConversation(
@@ -412,8 +427,9 @@ async function postReply(
     "content-type": "application/json",
   };
 
-  if (cookie !== undefined)
+  if (cookie !== undefined) {
     headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
+  }
 
   return await app.request(path, {
     method: "POST",
@@ -427,7 +443,9 @@ async function replyAuditCount(harness: PgliteHarness): Promise<number> {
     "select count(*)::int as n from audit_log where operation = 'reply-to-comment' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
-  if (typeof n !== "number") throw new Error("unexpected count result");
+  if (typeof n !== "number") {
+    throw new Error("unexpected count result");
+  }
   return n;
 }
 
@@ -994,7 +1012,9 @@ describe("appInstallationPort", () => {
       prNumber: 7,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe("request-failed");
     expect(JSON.stringify(result.error)).not.toContain("ghs_SECRET");
 
@@ -1003,7 +1023,9 @@ describe("appInstallationPort", () => {
       repo: "r",
     });
     expect(collaborators.ok).toBe(false);
-    if (collaborators.ok) throw new Error("unreachable");
+    if (collaborators.ok) {
+      throw new Error("unreachable");
+    }
     expect(collaborators.error.code).toBe("request-failed");
     expect(JSON.stringify(collaborators.error)).not.toContain("ghs_SECRET");
   });

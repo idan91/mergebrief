@@ -32,7 +32,9 @@ describe("Pager", () => {
     expect(onPage.mock.calls).toHaveLength(2);
     expect(onPage.mock.calls[0]).toEqual([12]);
     const [step] = onPage.mock.calls[1] ?? [];
-    if (typeof step !== "function") throw new Error("Next is not a step");
+    if (typeof step !== "function") {
+      throw new Error("Next is not a step");
+    }
     expect(step(1)).toBe(2);
     expect(step(3)).toBe(4);
   });

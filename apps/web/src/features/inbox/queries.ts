@@ -32,7 +32,9 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
       query.state.data?.kind === InboxStates.FAILED ? 0 : INBOX_STALE_MS,
     queryFn: async (): Promise<InboxState> => {
       const response = await apiFetch(path);
-      if (response.status === 401) return { kind: InboxStates.SIGNED_OUT };
+      if (response.status === 401) {
+        return { kind: InboxStates.SIGNED_OUT };
+      }
       if (!response.ok) {
         // Only a code the API wrote names a side; a codeless answer is a
         // proxy speaking for a down server, never GitHub.

@@ -21,7 +21,9 @@ export function setPidFile(path: string): void {
 /** Append-only: workers write concurrently, one short line each. */
 export function recordApiPid(pid: number): void {
   const file = getPidFile();
-  if (file === undefined) return;
+  if (file === undefined) {
+    return;
+  }
   appendFileSync(file, `${String(pid)}\n`);
 }
 
@@ -39,7 +41,9 @@ function isLeakedApiProcess(pid: number): boolean {
 
 export function sweepLeakedApiProcesses(): number {
   const file = getPidFile();
-  if (file === undefined) return 0;
+  if (file === undefined) {
+    return 0;
+  }
   let contents = "";
   try {
     contents = readFileSync(file, "utf8");
@@ -49,8 +53,12 @@ export function sweepLeakedApiProcesses(): number {
   let swept = 0;
   for (const line of contents.split("\n")) {
     const pid = Number.parseInt(line, 10);
-    if (!Number.isInteger(pid) || pid <= 1) continue;
-    if (!isLeakedApiProcess(pid)) continue;
+    if (!Number.isInteger(pid) || pid <= 1) {
+      continue;
+    }
+    if (!isLeakedApiProcess(pid)) {
+      continue;
+    }
     try {
       process.kill(pid, "SIGKILL");
       swept += 1;

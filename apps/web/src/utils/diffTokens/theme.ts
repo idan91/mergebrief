@@ -63,10 +63,14 @@ export const MERGEBRIEF_DARK: ThemeRegistrationRaw = buildMergebriefTheme();
 
 function recolourRule(rule: ThemeRule): ThemeRule {
   const foreground = rule.settings?.foreground;
-  if (foreground === undefined) return rule;
+  if (foreground === undefined) {
+    return rule;
+  }
 
   const replacement = RECOLOURED[foreground.toLowerCase()];
-  if (replacement === undefined) return rule;
+  if (replacement === undefined) {
+    return rule;
+  }
 
   return { ...rule, settings: { ...rule.settings, foreground: replacement } };
 }
@@ -77,7 +81,9 @@ export function listThemeForegrounds(theme: ThemeRegistrationRaw): string[] {
 
   for (const rule of theme.tokenColors ?? []) {
     const foreground = rule.settings?.foreground;
-    if (foreground !== undefined) seen.add(foreground.toLowerCase());
+    if (foreground !== undefined) {
+      seen.add(foreground.toLowerCase());
+    }
   }
 
   return [...seen];

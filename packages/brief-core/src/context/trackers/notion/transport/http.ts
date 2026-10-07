@@ -93,11 +93,15 @@ function describeHttpFailure(status: number, body: string): ReadResult<never> {
     code !== undefined && ERROR_CODE_TOKEN.test(code) ? ` ${code}` : "";
   const detail = `notion answered ${status}${codeSuffix}`;
 
-  if (status === 404) return failRead(TicketUnreadReasons.NOT_FOUND, detail);
-  if (status === 401 || status === 403)
+  if (status === 404) {
+    return failRead(TicketUnreadReasons.NOT_FOUND, detail);
+  }
+  if (status === 401 || status === 403) {
     return failRead(TicketUnreadReasons.NO_CREDENTIAL, detail);
-  if (status === 429 || status === 529)
+  }
+  if (status === 429 || status === 529) {
     return failRead(TicketUnreadReasons.RATE_LIMITED, detail);
+  }
   return failRead(TicketUnreadReasons.TIMEOUT, detail);
 }
 
@@ -125,7 +129,9 @@ function toBlockPage(raw: z.infer<typeof blockListSchema>): NotionBlockPage {
   const blocks: NotionBlock[] = [];
   for (const entry of raw.results) {
     const block = blockSchema.safeParse(entry);
-    if (!block.success) continue;
+    if (!block.success) {
+      continue;
+    }
     const { id, type, has_children: hasChildren } = block.data;
     blocks.push({
       id,
@@ -215,9 +221,13 @@ export function createNotionHttpTransport(
         method: "GET",
         path: `/v1/databases/${databaseId}`,
       });
-      if (!answer.ok) return answer;
+      if (!answer.ok) {
+        return answer;
+      }
       const database = decode(databaseSchema, answer.value, "database");
-      if (!database.ok) return database;
+      if (!database.ok) {
+        return database;
+      }
       const dataSourceIds = database.value.data_sources.map(
         (source) => source.id,
       );
@@ -229,9 +239,13 @@ export function createNotionHttpTransport(
         method: "GET",
         path: `/v1/data_sources/${dataSourceId}`,
       });
-      if (!answer.ok) return answer;
+      if (!answer.ok) {
+        return answer;
+      }
       const source = decode(dataSourceSchema, answer.value, "data source");
-      if (!source.ok) return source;
+      if (!source.ok) {
+        return source;
+      }
       return { ok: true, value: { properties: source.value.properties } };
     },
 
@@ -247,13 +261,21 @@ export function createNotionHttpTransport(
           page_size: 1,
         },
       });
-      if (!answer.ok) return answer;
+      if (!answer.ok) {
+        return answer;
+      }
       const pages = decode(pageListSchema, answer.value, "query");
-      if (!pages.ok) return pages;
+      if (!pages.ok) {
+        return pages;
+      }
       const [first] = pages.value.results;
-      if (first === undefined) return { ok: true, value: undefined };
+      if (first === undefined) {
+        return { ok: true, value: undefined };
+      }
       const page = decode(pageSchema, first, "page");
-      if (!page.ok) return page;
+      if (!page.ok) {
+        return page;
+      }
       return { ok: true, value: toPage(page.value) };
     },
 
@@ -262,9 +284,13 @@ export function createNotionHttpTransport(
         method: "GET",
         path: `/v1/pages/${pageId}`,
       });
-      if (!answer.ok) return answer;
+      if (!answer.ok) {
+        return answer;
+      }
       const page = decode(pageSchema, answer.value, "page");
-      if (!page.ok) return page;
+      if (!page.ok) {
+        return page;
+      }
       return { ok: true, value: toPage(page.value) };
     },
 
@@ -272,15 +298,21 @@ export function createNotionHttpTransport(
       const query: Record<string, string> = {
         page_size: String(BLOCK_PAGE_SIZE),
       };
-      if (cursor !== undefined) query["start_cursor"] = cursor;
+      if (cursor !== undefined) {
+        query["start_cursor"] = cursor;
+      }
       const answer = await request(session, {
         method: "GET",
         path: `/v1/blocks/${blockId}/children`,
         query,
       });
-      if (!answer.ok) return answer;
+      if (!answer.ok) {
+        return answer;
+      }
       const list = decode(blockListSchema, answer.value, "block list");
-      if (!list.ok) return list;
+      if (!list.ok) {
+        return list;
+      }
       return { ok: true, value: toBlockPage(list.value) };
     },
   };

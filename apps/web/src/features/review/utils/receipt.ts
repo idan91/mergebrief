@@ -223,7 +223,9 @@ export function buildReceipt(
     reclassifiedCount: snapshot.reclassifiedGroupIds.length,
   };
 
-  if (receiptRepoConfig !== undefined) receipt.repoConfig = receiptRepoConfig;
+  if (receiptRepoConfig !== undefined) {
+    receipt.repoConfig = receiptRepoConfig;
+  }
 
   return receipt;
 }
@@ -234,7 +236,9 @@ export function buildReceipt(
  * prints no side sign.
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {
-  if (comment.kind === CommentAnchorKinds.FILE) return comment.file;
+  if (comment.kind === CommentAnchorKinds.FILE) {
+    return comment.file;
+  }
   const sign = comment.side === "new" ? "+" : "-";
   if (comment.startSide !== undefined && comment.startSide !== comment.side) {
     const startSign = comment.startSide === "new" ? "+" : "-";
@@ -310,11 +314,15 @@ export function receiptRiskGroups(
 function buildReceiptRepoConfig(
   repoConfig: RepoConfigContext | null | undefined,
 ): ReceiptRepoConfig | undefined {
-  if (repoConfig === null || repoConfig === undefined) return undefined;
+  if (repoConfig === null || repoConfig === undefined) {
+    return undefined;
+  }
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
-  if (!anyPresent) return undefined;
+  if (!anyPresent) {
+    return undefined;
+  }
   const policySha =
     repoConfig.files.find((file) => file.path.endsWith("policy.yaml"))
       ?.blobSha ?? null;
@@ -339,7 +347,9 @@ function renderDeEmphasisLine(
   attributes: number,
   policySha: string | null,
 ): string | null {
-  if (attributes === 0) return null;
+  if (attributes === 0) {
+    return null;
+  }
 
   const noun = attributes === 1 ? "attribute" : "attributes";
   const at = policySha === null ? "" : ` @ ${policySha.slice(0, 7)}`;
@@ -382,14 +392,18 @@ function renderProgressLines(receipt: Receipt): string[] {
 }
 
 function renderReclassifiedBlock(count: number): string {
-  if (count === 0) return "";
+  if (count === 0) {
+    return "";
+  }
   return `\n  ${count} group reclassified by reviewer`;
 }
 
 function renderRepoConfigBlock(
   repoConfig: ReceiptRepoConfig | undefined,
 ): string {
-  if (repoConfig === undefined) return "";
+  if (repoConfig === undefined) {
+    return "";
+  }
 
   const fileLines = repoConfig.files.map((file) => {
     const sha =

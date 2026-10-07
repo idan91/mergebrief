@@ -25,7 +25,9 @@ export const VERDICT_LABEL_KEYS: Readonly<
  * outdated: that is why it left the code view.
  */
 export function threadStateChip(thread: ConversationThread): string {
-  if (thread.isOutdated) return "outdated";
+  if (thread.isOutdated) {
+    return "outdated";
+  }
   return thread.isResolved ? "resolved" : "open";
 }
 

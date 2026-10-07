@@ -63,7 +63,9 @@ export function createSessionWriteGateway(
     setRead: (chunkId, read) => writes.setRead(chunkId, read),
     dispose(flagIds, disposition) {
       const flags = buildFlagAnchors(flagIds);
-      if (flags.length !== flagIds.length) return Promise.resolve(UNRESOLVED);
+      if (flags.length !== flagIds.length) {
+        return Promise.resolve(UNRESOLVED);
+      }
       return disposition.kind === "open"
         ? writes.reopenRisks(flags)
         : writes.dismissRisks(flags, disposition.reason);

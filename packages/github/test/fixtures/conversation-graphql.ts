@@ -1,5 +1,5 @@
 // GraphQL response fixtures for the conversation primitive: builders mirroring
-// the wire shape `octokit.graphql` resolves with — the `data` content directly,
+// the wire shape `octokit.graphql` resolves with: the `data` content directly,
 // no envelope. Covers human thread, reply chain, resolved, outdated, bot
 // author, PR-level comment, and a pagination page.
 
@@ -21,7 +21,9 @@ function fullId(
   raw: string | null | undefined,
   fallback: number,
 ): string | null {
-  if (raw !== undefined) return raw;
+  if (raw !== undefined) {
+    return raw;
+  }
   const value = id === undefined ? fallback : id;
   return value === null ? null : String(value);
 }

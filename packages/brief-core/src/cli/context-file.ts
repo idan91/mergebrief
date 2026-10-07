@@ -61,10 +61,14 @@ function toPrimarySnippet(
 /** Read the file into the snippet the fan-out stamps as read: read, parse, validate, shape. */
 export function readContextFile(path: string): Result<PrimarySnippet, string> {
   const raw = readTextFile(path);
-  if (!raw.ok) return raw;
+  if (!raw.ok) {
+    return raw;
+  }
 
   const json = parseJsonText(raw.value, path);
-  if (!json.ok) return json;
+  if (!json.ok) {
+    return json;
+  }
 
   const file = contextFileSchema.safeParse(json.value);
   if (!file.success) {

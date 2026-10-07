@@ -1,6 +1,5 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
+// Revision-pair case, an AUTHORED fixture: own-repo file shapes,
+// difflib-generated diffs, and a placeholder PR locator.
 // Additive increment: b gains lines, meaning unchanged. Stability side of spec pairs 1-4.
 import type { PairEvalProperty } from "../../pairs";
 import {
@@ -60,7 +59,9 @@ export const pairProperties: PairEvalProperty[] = [
     check: (pair) => {
       const base = pair.base.intentCheck;
       const revised = pair.revised.intentCheck;
-      if (base === undefined || revised === undefined) return false;
+      if (base === undefined || revised === undefined) {
+        return false;
+      }
       return (
         base.specificity === revised.specificity &&
         revised.accomplished.length >= base.accomplished.length &&

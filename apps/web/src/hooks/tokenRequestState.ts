@@ -79,18 +79,24 @@ export function useTokenRequestState(
   const latestStart = useLatestRef(input.startRequest);
 
   useEffect(() => {
-    if (!tokenizable) return undefined;
+    if (!tokenizable) {
+      return undefined;
+    }
 
     let live = true;
     const handle = latestStart.current();
     const timer = setTimeout(() => {
-      if (live) setLapsedKey(requestKey);
+      if (live) {
+        setLapsedKey(requestKey);
+      }
     }, PENDING_CEILING_MS);
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     void handle.promise.then((result) => {
       clearTimeout(timer);
-      if (!live) return undefined;
+      if (!live) {
+        return undefined;
+      }
       if (isRetryableLoad(result) && attempt < GRAMMAR_LOAD_RETRIES) {
         retryTimer = setTimeout(
           () => setRetry({ requestKey, attempt: attempt + 1 }),
@@ -107,7 +113,9 @@ export function useTokenRequestState(
     return () => {
       live = false;
       clearTimeout(timer);
-      if (retryTimer !== undefined) clearTimeout(retryTimer);
+      if (retryTimer !== undefined) {
+        clearTimeout(retryTimer);
+      }
       handle.cancel();
     };
   }, [
@@ -119,8 +127,12 @@ export function useTokenRequestState(
     latestStart,
   ]);
 
-  if (!tokenizable) return PLAIN_STATE;
-  if (settled.requestKey === requestKey) return settled.state;
+  if (!tokenizable) {
+    return PLAIN_STATE;
+  }
+  if (settled.requestKey === requestKey) {
+    return settled.state;
+  }
 
   return lapsedKey === requestKey ? PLAIN_STATE : PENDING_STATE;
 }
@@ -131,7 +143,9 @@ function isTokenizableInput(
   admitted: ReadonlySet<GrammarName>,
 ): boolean {
   const grammar = resolveGrammar(filePath);
-  if (grammar === undefined) return false;
+  if (grammar === undefined) {
+    return false;
+  }
 
   return isChunkTokenizable(rowCount) && admitted.has(grammar);
 }
@@ -144,7 +158,9 @@ function isRetryableLoad(result: ChunkTokensResult): boolean {
 }
 
 function shapeState(result: ChunkTokensResult): ChunkTokensState {
-  if (result.status === ChunkTokenStatuses.READY) return result;
+  if (result.status === ChunkTokenStatuses.READY) {
+    return result;
+  }
 
   return PLAIN_STATE;
 }

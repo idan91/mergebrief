@@ -51,7 +51,9 @@ class StubWorker {
 
 function readWorker(): StubWorker {
   const worker = StubWorker.latest;
-  if (worker === undefined) throw new Error("no worker was constructed");
+  if (worker === undefined) {
+    throw new Error("no worker was constructed");
+  }
 
   return worker;
 }
@@ -63,7 +65,9 @@ function readSentRequestId(index: number): number {
   }
 
   const { requestId } = Object(message) as { requestId?: unknown };
-  if (typeof requestId !== "number") throw new Error("no request id was sent");
+  if (typeof requestId !== "number") {
+    throw new Error("no request id was sent");
+  }
 
   return requestId;
 }

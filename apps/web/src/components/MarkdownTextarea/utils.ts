@@ -86,7 +86,9 @@ const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)( \[[ xX]\])? (.*)$/;
 
 function parseListItemLine(line: string): ListItemLine | null {
   const match = LIST_ITEM_PATTERN.exec(line);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
   return {
     indent: match[1] ?? "",
     marker: match[2] ?? "-",
@@ -121,15 +123,21 @@ export function continueListOnEnter(
   selectionStart: number,
   selectionEnd: number,
 ): TextEdit | null {
-  if (selectionStart !== selectionEnd) return null;
+  if (selectionStart !== selectionEnd) {
+    return null;
+  }
   const lineStart = lineStartAt(text, selectionStart);
   const lineEnd = lineEndAt(text, selectionStart);
   const line = text.slice(lineStart, lineEnd);
   const item = parseListItemLine(line);
-  if (item === null) return null;
+  if (item === null) {
+    return null;
+  }
   const prefixLength = line.length - item.content.length;
   // Caret inside the marker itself: not an intent to continue the list.
-  if (selectionStart < lineStart + prefixLength) return null;
+  if (selectionStart < lineStart + prefixLength) {
+    return null;
+  }
   if (item.content === "") {
     // Empty item: terminate the list, the marker line becomes empty.
     return {
@@ -170,24 +178,35 @@ export function indentListSelection(
   const lastLineEnd = lineEndAt(text, effectiveEnd);
   const block = text.slice(firstLineStart, lastLineEnd);
   const lines = block.split("\n");
-  if (lines.every((line) => parseListItemLine(line) === null)) return null;
+  if (lines.every((line) => parseListItemLine(line) === null)) {
+    return null;
+  }
   let firstLineDelta = 0;
   let totalDelta = 0;
   const nextLines = lines.map((line, index) => {
-    if (parseListItemLine(line) === null) return line;
+    if (parseListItemLine(line) === null) {
+      return line;
+    }
     let next = line;
-    if (direction === "indent") next = `${LIST_INDENT}${line}`;
-    else if (line.startsWith(LIST_INDENT))
+    if (direction === "indent") {
+      next = `${LIST_INDENT}${line}`;
+    } else if (line.startsWith(LIST_INDENT)) {
       next = line.slice(LIST_INDENT.length);
-    else next = line.replace(/^\s/, "");
+    } else {
+      next = line.replace(/^\s/, "");
+    }
     const delta = next.length - line.length;
-    if (index === 0) firstLineDelta = delta;
+    if (index === 0) {
+      firstLineDelta = delta;
+    }
     totalDelta += delta;
     return next;
   });
   // Outdent at the margin changes nothing: decline so the caller doesn't
   // consume the keystroke (or mark the value dirty) for a no-op.
-  if (totalDelta === 0) return null;
+  if (totalDelta === 0) {
+    return null;
+  }
   return {
     text: `${text.slice(0, firstLineStart)}${nextLines.join("\n")}${text.slice(lastLineEnd)}`,
     selectionStart: Math.max(firstLineStart, selectionStart + firstLineDelta),
@@ -263,9 +282,13 @@ export function activeMentionQuery(
   const before = text.slice(0, caret);
   // An odd number of fence delimiters before the caret = inside a fence.
   const fences = before.match(/^(?:```|~~~)/gm);
-  if (fences !== null && fences.length % 2 === 1) return null;
+  if (fences !== null && fences.length % 2 === 1) {
+    return null;
+  }
   const match = MENTION_PATTERN.exec(before);
-  if (match === null) return null;
+  if (match === null) {
+    return null;
+  }
   const query = match[1] ?? "";
   return { start: caret - query.length - 1, query };
 }

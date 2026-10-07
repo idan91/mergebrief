@@ -28,7 +28,9 @@ export function renderIssueHeader(record: IssueRecord): string {
 
 function parseIssueLocator(url: string): IssueLocator | undefined {
   const match = ISSUE_URL.exec(url);
-  if (match === null) return undefined;
+  if (match === null) {
+    return undefined;
+  }
   const [, owner = "", repo = "", number = ""] = match;
   return { owner, repo, number: Number(number) };
 }
@@ -57,13 +59,17 @@ async function readPrimaryIssue(
   try {
     read = await transport.readIssue(locator, deps.signal);
   } catch (error) {
-    if (!deps.signal.aborted && !isAbortError(error)) throw error;
+    if (!deps.signal.aborted && !isAbortError(error)) {
+      throw error;
+    }
     return {
       ok: false,
       error: { reason: TicketUnreadReasons.TIMEOUT, detail: "read aborted" },
     };
   }
-  if (!read.ok) return read;
+  if (!read.ok) {
+    return read;
+  }
 
   const record = read.value;
   if (record.isPullRequest) {

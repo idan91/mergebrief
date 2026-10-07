@@ -25,7 +25,9 @@ export function RiskChipDisclosure({
   useEffect(() => {
     // Escape must dismiss a hover-opened callout too: focus may be
     // anywhere, so listen at the document while open.
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         // Consume the key: it dismissed this callout, so it must not ALSO
@@ -41,7 +43,9 @@ export function RiskChipDisclosure({
   }, [anchor]);
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const close = () => setAnchor(null);
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
@@ -56,7 +60,9 @@ export function RiskChipDisclosure({
         // Touch browsers synthesize mouseenter before click: a hover-open
         // there would be immediately toggled shut by the click. Hover
         // preview is a MOUSE affordance; touch/pen go through click.
-        if (event.pointerType === "mouse") setAnchor(event.currentTarget);
+        if (event.pointerType === "mouse") {
+          setAnchor(event.currentTarget);
+        }
       }}
     >
       {/* oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it */}

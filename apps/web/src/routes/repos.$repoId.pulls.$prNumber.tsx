@@ -70,8 +70,12 @@ function spanFromSearch(search: PrBriefSearch): Span | undefined {
 }
 
 function coerceNumber(value: unknown): number {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") return Number(value);
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value === "string") {
+    return Number(value);
+  }
   return NaN;
 }
 
@@ -87,12 +91,16 @@ function buildSpanKey(baseSha: string, headSha: string): string {
 
 function parsePrNumber(raw: string): number {
   const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) throw notFound();
+  if (!Number.isInteger(value) || value <= 0) {
+    throw notFound();
+  }
   return value;
 }
 
 function assertRepoId(raw: string): string {
-  if (!/^\d+$/.test(raw)) throw notFound();
+  if (!/^\d+$/.test(raw)) {
+    throw notFound();
+  }
   return raw;
 }
 
@@ -292,7 +300,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     }
   },
   head: ({ loaderData }) => {
-    if (loaderData === undefined) return {};
+    if (loaderData === undefined) {
+      return {};
+    }
 
     return { meta: [{ title: buildPrPageTitle(appI18n.t, loaderData) }] };
   },
@@ -454,7 +464,9 @@ function PrBriefRoute() {
     [timeline],
   );
   const revisionJump = useMemo(() => {
-    if (revisionSpansKey === undefined) return undefined;
+    if (revisionSpansKey === undefined) {
+      return undefined;
+    }
     const spans = revisionSpansKey.split("\n").map((line) => {
       const [headSha = "", headIndex = ""] = line.split(" ");
       return { headSha, headIndex: Number(headIndex) };
@@ -492,9 +504,13 @@ function PrBriefRoute() {
       ? timeline.selected.headIndex
       : undefined;
   useEffect(() => {
-    if (pinnedRev === undefined) return;
+    if (pinnedRev === undefined) {
+      return;
+    }
     const legacySpan = search.head !== undefined || search.base !== undefined;
-    if (search.rev === pinnedRev && !legacySpan) return;
+    if (search.rev === pinnedRev && !legacySpan) {
+      return;
+    }
     void navigate({
       search: ({ head: _h, base: _b, ...rest }) => ({
         ...rest,
@@ -514,7 +530,9 @@ function PrBriefRoute() {
       active instanceof HTMLElement &&
       active !== document.body &&
       active.isConnected;
-    if (focusSurvived) return;
+    if (focusSurvived) {
+      return;
+    }
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [state.kind, selectedSpanKey]);
 
@@ -589,11 +607,15 @@ function PrBriefRoute() {
   const conversationFilter = useMemo(() => {
     const filterSearch: Mutable<ConversationFilterSearch> = {};
 
-    if (search.verdicts !== undefined) filterSearch.verdicts = search.verdicts;
+    if (search.verdicts !== undefined) {
+      filterSearch.verdicts = search.verdicts;
+    }
     if (search.reviewers !== undefined) {
       filterSearch.reviewers = search.reviewers;
     }
-    if (search.reviews !== undefined) filterSearch.reviews = search.reviews;
+    if (search.reviews !== undefined) {
+      filterSearch.reviews = search.reviews;
+    }
 
     return parseConversationFilter(filterSearch);
   }, [search.reviewers, search.reviews, search.verdicts]);

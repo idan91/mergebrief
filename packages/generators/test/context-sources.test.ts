@@ -31,7 +31,9 @@ describe("validateContextSourcesBlock", () => {
       { type: "notion", tokenEnv: "NOTION_TWO" },
     ]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain(
       'contextSources.1."type": duplicate entry of type "notion"',
     );
@@ -40,15 +42,19 @@ describe("validateContextSourcesBlock", () => {
   it("refuses a non-list block", () => {
     const result = validateContextSourcesBlock({ type: "notion" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.message).toBe("invalid context source configuration");
     expect(result.error.issues[0]).toMatch(/^contextSources: /);
   });
 
-  it("names an unknown type with the vocabulary, redacting secret-shaped ones", () => {
+  it("names an unknown type with the vocabulary, redacting secret shapes", () => {
     const jira = validateContextSourcesBlock([{ type: "jira" }]);
     expect(jira.ok).toBe(false);
-    if (jira.ok) return;
+    if (jira.ok) {
+      return;
+    }
     expect(jira.error.issues.join("; ")).toContain(
       'unknown type (valid: notion); got "jira"',
     );
@@ -57,18 +63,22 @@ describe("validateContextSourcesBlock", () => {
       { type: "ntn_1234567890abcdef" },
     ]);
     expect(pasted.ok).toBe(false);
-    if (pasted.ok) return;
+    if (pasted.ok) {
+      return;
+    }
     const text = pasted.error.issues.join("; ");
     expect(text).toContain("(redacted)");
     expect(text).not.toContain("ntn_");
   });
 
-  it("refuses a tokenEnv that is a value rather than a NAME, without echoing it", () => {
+  it("refuses a tokenEnv that is a value, not a NAME, without echoing it", () => {
     const result = validateContextSourcesBlock([
       { type: "notion", tokenEnv: "ntn_secret-with-dash" },
     ]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("contextSources.0.");
     expect(text).toContain("environment variable NAME");
@@ -80,7 +90,9 @@ describe("validateContextSourcesBlock", () => {
       { type: "notion", tokenEnv: "ntn_1234567890abcdef" },
     ]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).not.toContain("ntn_");
   });
 
@@ -89,7 +101,9 @@ describe("validateContextSourcesBlock", () => {
       { type: "notion", token: "x", ntn_abc123: "y" },
     ]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain('"token"');
     expect(text).toContain("(redacted)");

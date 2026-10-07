@@ -51,9 +51,13 @@ export function useFileRangeReader(
   const queryClient = useQueryClient();
 
   return async (range) => {
-    if (source === undefined) return undefined;
+    if (source === undefined) {
+      return undefined;
+    }
     const params = buildParams(source, path, range);
-    if (!isFileRangeReadable(params)) return undefined;
+    if (!isFileRangeReadable(params)) {
+      return undefined;
+    }
 
     return queryClient.fetchQuery(buildFileRangeQueryOptions(params));
   };
@@ -81,7 +85,9 @@ function combineFileRanges(
 
   for (const result of results) {
     const data = result.data;
-    if (data?.kind !== "ready") continue;
+    if (data?.kind !== "ready") {
+      continue;
+    }
     data.range.lines.forEach((content, offset) => {
       lines.set(data.range.from + offset, content);
     });

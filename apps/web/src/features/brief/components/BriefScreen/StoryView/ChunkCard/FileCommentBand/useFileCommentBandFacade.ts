@@ -46,9 +46,13 @@ export function useFileCommentBandFacade({
     [inboundRows],
   );
   const comments = useMemo(() => {
-    if (ownInbound.length === 0) return fileComments;
+    if (ownInbound.length === 0) {
+      return fileComments;
+    }
     const demoted = demotedSubmittedCommentIds(fileComments, ownInbound);
-    if (demoted.size === 0) return fileComments;
+    if (demoted.size === 0) {
+      return fileComments;
+    }
     return fileComments.filter((comment) => !demoted.has(comment.id));
   }, [fileComments, ownInbound]);
   const postingCommentIds = comments
@@ -60,7 +64,9 @@ export function useFileCommentBandFacade({
     EMPTY_EXPANDED_THREADS;
 
   useEffect(() => {
-    if (composerOpen) setCollapsed(false);
+    if (composerOpen) {
+      setCollapsed(false);
+    }
   }, [composerOpen]);
 
   const hasSaved = comments.length > 0 || inboundRows.length > 0;
@@ -84,7 +90,9 @@ export function useFileCommentBandFacade({
     deleteComment,
     saveComment,
     toggleCollapsed: () => {
-      if (composerOpen) return;
+      if (composerOpen) {
+        return;
+      }
       setCollapsed((current) => !current);
     },
     toggleComment,

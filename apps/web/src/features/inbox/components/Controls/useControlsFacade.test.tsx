@@ -154,7 +154,9 @@ describe("useControlsFacade", () => {
     review?.onChoose("updated");
 
     const [next] = write.mock.calls[0] ?? [];
-    if (typeof next !== "function") throw new Error("the write is not live");
+    if (typeof next !== "function") {
+      throw new Error("the write is not live");
+    }
     expect(next(readInboxChoices(parseInboxSearch({ review: "new" })))).toEqual(
       {
         review: "new,updated",

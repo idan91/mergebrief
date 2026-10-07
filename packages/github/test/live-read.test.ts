@@ -62,7 +62,9 @@ describe("readPullRequestFacts", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.get("o/r#7")).toEqual({
       repoId: 424242n,
       repoFullName: "o/r",
@@ -113,7 +115,9 @@ describe("readPullRequestFacts", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.get("o/r#7")?.title).toBe("Add thing");
     expect(result.value.get("gone/x#1")).toBeNull();
   });
@@ -134,7 +138,9 @@ describe("readPullRequestFacts", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.get("o/r#7")?.title).toBe("Add thing");
     expect(result.value.has("o/r#8")).toBe(false);
     expect(result.value.get("gone/x#1")).toBeNull();
@@ -153,7 +159,9 @@ describe("readPullRequestFacts", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.size).toBe(0);
   });
 
@@ -170,7 +178,9 @@ describe("readPullRequestFacts", () => {
     ]);
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
   });
 
@@ -186,7 +196,9 @@ describe("readPullRequestFacts", () => {
     ]);
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
     expect(result.error.message).not.toContain("slow down");
   });
@@ -219,7 +231,9 @@ describe("readPullRequestFacts", () => {
     ]);
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

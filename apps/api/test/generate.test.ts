@@ -44,7 +44,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 
@@ -61,8 +63,9 @@ async function seedSession(
   const hash = createHash("sha256").update(cookie).digest("hex");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -375,8 +378,9 @@ describe("POST /api/generate: the url-box door", () => {
       const hash = createHash("sha256").update(raw).digest("hex");
       const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
       const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-      if (!sealedAccess.ok || !sealedRefresh.ok)
+      if (!sealedAccess.ok || !sealedRefresh.ok) {
         throw new Error("seed encrypt failed");
+      }
       const grant = await createGrantAuth(harness.handle).createGrant({
         ghTokenCiphertext: sealedAccess.value,
         ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -474,8 +478,9 @@ describe("POST /api/generate: the url-box door", () => {
       const hash = createHash("sha256").update(raw).digest("hex");
       const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
       const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-      if (!sealedAccess.ok || !sealedRefresh.ok)
+      if (!sealedAccess.ok || !sealedRefresh.ok) {
         throw new Error("seed encrypt failed");
+      }
       const grant = await createGrantAuth(harness.handle).createGrant({
         ghTokenCiphertext: sealedAccess.value,
         ghRefreshTokenCiphertext: sealedRefresh.value,

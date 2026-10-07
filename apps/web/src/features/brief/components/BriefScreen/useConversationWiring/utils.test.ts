@@ -21,7 +21,9 @@ const nativeScrollBy = window.scrollBy;
 function runFrames(count: number) {
   for (let ran = 0; ran < count; ran += 1) {
     const frame = frames.shift();
-    if (frame === undefined) return;
+    if (frame === undefined) {
+      return;
+    }
     frame(0);
   }
 }

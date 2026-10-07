@@ -118,7 +118,9 @@ export function validateReadingOrder(
    */
   carriedGroupIds: readonly string[] = [],
 ): string[] {
-  if (readingOrder === undefined) return [];
+  if (readingOrder === undefined) {
+    return [];
+  }
 
   const issues: string[] = [];
   const groupIds = new Set([...groups.map((g) => g.id), ...carriedGroupIds]);
@@ -195,7 +197,9 @@ export function fanOutIntentCheck(
   };
   // "" on `read` is the wire's no-read sentinel; the stored shape is absence.
   const { read, goal, response } = generated.alignment;
-  if (read !== "") intentCheck.alignment = { read, goal, response };
+  if (read !== "") {
+    intentCheck.alignment = { read, goal, response };
+  }
   return intentCheck;
 }
 
@@ -219,7 +223,9 @@ function resolveTicketPairs(
   const pairs = ticketUrls
     .map((url, index) => ({ url, title: ticketTitles[index] ?? "" }))
     .filter((pair) => {
-      if (injectedUrls.includes(pair.url)) return true;
+      if (injectedUrls.includes(pair.url)) {
+        return true;
+      }
       issues.push(
         `intent check cites un-injected ticket URL "${pair.url}" — dropped`,
       );
@@ -249,11 +255,17 @@ function findAlignmentDefect(
   primary: PrimaryTicketFacts | undefined,
   contentByUrl: ReadonlyMap<string, string>,
 ): string | undefined {
-  if (primary === undefined) return "no primary ticket";
-  if (!primary.read) return "the primary ticket was not read";
+  if (primary === undefined) {
+    return "no primary ticket";
+  }
+  if (!primary.read) {
+    return "the primary ticket was not read";
+  }
 
   const goal = normalizeWhitespace(alignment.goal);
-  if (goal === "") return "empty goal quote";
+  if (goal === "") {
+    return "empty goal quote";
+  }
   if (goal.split(" ").length < ALIGNMENT_GOAL_MIN_WORDS) {
     return `goal quote shorter than ${ALIGNMENT_GOAL_MIN_WORDS} words`;
   }
@@ -275,10 +287,14 @@ function verifyAlignment(
   contentByUrl: ReadonlyMap<string, string>,
   issues: string[],
 ): IntentCheck["alignment"] {
-  if (alignment === undefined) return undefined;
+  if (alignment === undefined) {
+    return undefined;
+  }
 
   const defect = findAlignmentDefect(alignment, primary, contentByUrl);
-  if (defect === undefined) return alignment;
+  if (defect === undefined) {
+    return alignment;
+  }
 
   issues.push(`alignment read "${alignment.read}" dropped — ${defect}`);
   return undefined;
@@ -354,7 +370,9 @@ export function validateIntentCheck(
     bucket: string,
     item: { intent: string; sourceUrl: string },
   ): boolean {
-    if (allowedSources.has(item.sourceUrl)) return true;
+    if (allowedSources.has(item.sourceUrl)) {
+      return true;
+    }
     issues.push(
       `${bucket} item "${item.intent}" cites unknown source "${item.sourceUrl}" — dropped`,
     );
@@ -390,7 +408,9 @@ export function validateIntentCheck(
 
   function pruneGroups(bucket: string, label: string, ids: string[]): string[] {
     return ids.filter((id) => {
-      if (groupIds.has(id)) return true;
+      if (groupIds.has(id)) {
+        return true;
+      }
       issues.push(
         `${bucket} item "${label}" references unknown group "${id}" — pruned`,
       );
@@ -405,7 +425,9 @@ export function validateIntentCheck(
   function forceUnacknowledged<
     T extends { intent: string; acknowledged: boolean },
   >(bucket: string, item: T): T {
-    if (!item.acknowledged) return item;
+    if (!item.acknowledged) {
+      return item;
+    }
     issues.push(
       `${bucket} item "${item.intent}" carries acknowledged=true — forced false (meaningful only in deviations)`,
     );
@@ -463,7 +485,9 @@ export function validateIntentCheck(
         groupIds: pruneGroups(bucket, item.intent, item.groupIds),
       }))
       .filter((item) => {
-        if (item.groupIds.length > 0) return true;
+        if (item.groupIds.length > 0) {
+          return true;
+        }
         issues.push(
           `${bucket} item "${item.intent}" has no valid group anchor — dropped (both-sides grounding required)`,
         );
@@ -516,7 +540,9 @@ export function validateIntentCheck(
       });
     })
     .filter((item) => {
-      if (item.groupIds.length > 0) return true;
+      if (item.groupIds.length > 0) {
+        return true;
+      }
       issues.push(
         `doneButUnstated item "${item.intent}" has no valid group anchor — dropped (no grounding)`,
       );
@@ -547,7 +573,9 @@ export function validateIntentCheck(
     deviations,
     claimedButUnachieved,
   };
-  if (alignment !== undefined) verified.alignment = alignment;
+  if (alignment !== undefined) {
+    verified.alignment = alignment;
+  }
   return { intentCheck: verified, issues };
 }
 
@@ -649,7 +677,9 @@ function depKeyFromLine(
   switch (format) {
     case "json": {
       const m = /^\s*"([^"]+)"\s*:\s*"([^"]*)"/.exec(content);
-      if (!m) return undefined;
+      if (!m) {
+        return undefined;
+      }
       const key = m[1] ?? "";
       const value = m[2] ?? "";
       if (ctx.jsonSection !== undefined) {
@@ -661,15 +691,21 @@ function depKeyFromLine(
     }
     case "toml": {
       const m = /^([A-Za-z_][\w.-]*)\s*=\s*(.+)$/.exec(content.trim());
-      if (!m) return undefined;
+      if (!m) {
+        return undefined;
+      }
       const key = m[1] ?? "";
       const value = m[2] ?? "";
       if (ctx.tomlTable !== undefined) {
         return ctx.tomlTable.includes("dependencies") ? key : undefined;
       }
-      if (TOML_NON_DEP_KEYS.has(key)) return undefined;
+      if (TOML_NON_DEP_KEYS.has(key)) {
+        return undefined;
+      }
       const quoted = /^"([^"]*)"/.exec(value);
-      if (quoted) return VERSION_SHAPED.test(quoted[1] ?? "") ? key : undefined;
+      if (quoted) {
+        return VERSION_SHAPED.test(quoted[1] ?? "") ? key : undefined;
+      }
       // inline table: serde = { version = "1.0", … } / { path = … } / { git = … }
       return /^\{.*\b(?:version|path|git|workspace)\s*=/.test(value)
         ? key
@@ -696,7 +732,9 @@ function depKeyFromLine(
       return m?.[1];
     }
     case "pom": {
-      if (!ctx.inPomDependencies) return undefined;
+      if (!ctx.inPomDependencies) {
+        return undefined;
+      }
       const m = /<artifactId>([^<]+)<\/artifactId>/.exec(content);
       return m?.[1];
     }
@@ -731,7 +769,9 @@ function advanceJsonSection(
   if (open) {
     return { name: open[2] ?? "", indent: (open[1] ?? "").length };
   }
-  if (current === undefined || !/^\s*[}\]]/.test(content)) return current;
+  if (current === undefined || !/^\s*[}\]]/.test(content)) {
+    return current;
+  }
 
   const indent = content.length - content.trimStart().length;
   return indent <= current.indent ? undefined : current;
@@ -772,18 +812,28 @@ function collectDepEntries(
       continue;
     }
     const marker = raw === "" ? " " : raw[0];
-    if (marker === oppositeMarker) continue;
-    if (marker !== " " && marker !== changedMarker) continue;
+    if (marker === oppositeMarker) {
+      continue;
+    }
+    if (marker !== " " && marker !== changedMarker) {
+      continue;
+    }
     const content = raw.slice(1);
 
     if (format === "json") {
       jsonSection = advanceJsonSection(content, jsonSection);
     } else if (format === "toml") {
       const table = /^\s*\[+([^\]]+)\]/.exec(content);
-      if (table) tomlTable = table[1];
+      if (table) {
+        tomlTable = table[1];
+      }
     } else if (format === "pom") {
-      if (/<dependenc(?:y|ies)>/.test(content)) inPomDependencies = true;
-      if (/<\/dependenc(?:y|ies)>/.test(content)) inPomDependencies = false;
+      if (/<dependenc(?:y|ies)>/.test(content)) {
+        inPomDependencies = true;
+      }
+      if (/<\/dependenc(?:y|ies)>/.test(content)) {
+        inPomDependencies = false;
+      }
     }
 
     if (marker === changedMarker) {
@@ -792,7 +842,9 @@ function collectDepEntries(
         tomlTable,
         inPomDependencies,
       });
-      if (key !== undefined) entries.push({ key, line: lineNo });
+      if (key !== undefined) {
+        entries.push({ key, line: lineNo });
+      }
     }
     lineNo++;
   }
@@ -878,7 +930,9 @@ export function validateRiskAttributes<C extends Chunk>(
       }
     }
 
-    if (drops.size === 0) return chunk;
+    if (drops.size === 0) {
+      return chunk;
+    }
     const riskSurface = chunk.riskSurface.filter((attr) => !drops.has(attr));
     const riskNotes = chunk.riskNotes?.filter((n) => !drops.has(n.attr));
     const hasNotes = riskNotes !== undefined && riskNotes.length > 0;
@@ -909,7 +963,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
   // outside its path scope, checked for riskSurface AND riskNotes
   // independently, so a bad token cannot survive by hiding in a note.
   function badTokenReason(token: string, file: string): string | undefined {
-    if (builtIn.has(token)) return undefined;
+    if (builtIn.has(token)) {
+      return undefined;
+    }
     const custom = customByName.get(token);
     if (custom === undefined) {
       return `unknown risk token "${token}" — not built-in and not defined by this repo's policy`;
@@ -938,7 +994,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
         );
       }
     }
-    if (drops.size === 0) return chunk;
+    if (drops.size === 0) {
+      return chunk;
+    }
     const riskSurface = chunk.riskSurface.filter((token) => !drops.has(token));
     const riskNotes = chunk.riskNotes?.filter((note) => !drops.has(note.attr));
     const hasNotes = riskNotes !== undefined && riskNotes.length > 0;
@@ -1008,7 +1066,9 @@ function checkTextLength(
   issues: string[],
 ): void {
   const cap = TEXT_LENGTH_CAPS[surface];
-  if (text.length <= cap) return;
+  if (text.length <= cap) {
+    return;
+  }
   violations.push({ surface, field, actual: text.length, cap });
   issues.push(`${field} is ${text.length} chars — exceeds the ${cap}-char cap`);
 }
@@ -1112,7 +1172,9 @@ export function validateMarksNarrativeCoverage(
       (range) =>
         !chunksForFile.some((c) => anyOverlap([range], c.removedRanges)),
     );
-    if (uncoveredAdded.length === 0 && uncoveredRemoved.length === 0) continue;
+    if (uncoveredAdded.length === 0 && uncoveredRemoved.length === 0) {
+      continue;
+    }
     const sides = [
       ...(uncoveredAdded.length > 0
         ? [`added ${uncoveredAdded.map(formatRange).join(", ")}`]

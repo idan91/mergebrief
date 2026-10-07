@@ -31,7 +31,9 @@ export function useFileCommentComposer({
       setComposerOpen(false);
       return;
     }
-    if (!chunkOpen) toggleChunk(chunk.id);
+    if (!chunkOpen) {
+      toggleChunk(chunk.id);
+    }
     setComposerOpen(true);
   }, [
     chunk.file,

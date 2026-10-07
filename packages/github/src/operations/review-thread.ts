@@ -133,8 +133,12 @@ function shapeThreadMutationInput(
 
   variables.line = input.line;
   variables.side = input.side;
-  if (input.startLine !== undefined) variables.startLine = input.startLine;
-  if (input.startSide !== undefined) variables.startSide = input.startSide;
+  if (input.startLine !== undefined) {
+    variables.startLine = input.startLine;
+  }
+  if (input.startSide !== undefined) {
+    variables.startSide = input.startSide;
+  }
   return variables;
 }
 

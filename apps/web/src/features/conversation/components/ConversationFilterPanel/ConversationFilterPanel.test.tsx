@@ -72,12 +72,16 @@ describe("ConversationFilterPanel", () => {
     const { onChange } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: /approved/ }));
     const afterVerdict = onChange.mock.calls[0]?.[0];
-    if (afterVerdict === undefined) throw new Error("no verdict change");
+    if (afterVerdict === undefined) {
+      throw new Error("no verdict change");
+    }
     expect([...afterVerdict.verdicts]).toEqual(["APPROVED"]);
 
     fireEvent.click(screen.getByRole("button", { name: /@alice/ }));
     const afterReviewer = onChange.mock.calls[1]?.[0];
-    if (afterReviewer === undefined) throw new Error("no reviewer change");
+    if (afterReviewer === undefined) {
+      throw new Error("no reviewer change");
+    }
     expect([...afterReviewer.reviewers]).toEqual(["alice"]);
   });
 
@@ -87,7 +91,9 @@ describe("ConversationFilterPanel", () => {
     expect(bot.textContent).toContain("bot");
     fireEvent.click(bot);
     const next = onChange.mock.calls[0]?.[0];
-    if (next === undefined) throw new Error("no change reported");
+    if (next === undefined) {
+      throw new Error("no change reported");
+    }
     expect([...next.reviewers]).toEqual(["coderabbitai"]);
   });
 
@@ -97,12 +103,16 @@ describe("ConversationFilterPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "All" }));
     const all = onChange.mock.calls[0]?.[0];
-    if (all === undefined) throw new Error("no All change");
+    if (all === undefined) {
+      throw new Error("no All change");
+    }
     expect([...all.reviewers]).toEqual(["alice", "bob", "coderabbitai"]);
 
     fireEvent.click(screen.getByRole("button", { name: "None" }));
     const none = onChange.mock.calls[1]?.[0];
-    if (none === undefined) throw new Error("no None change");
+    if (none === undefined) {
+      throw new Error("no None change");
+    }
     expect(none.reviewers.size).toBe(0);
   });
 
@@ -160,12 +170,15 @@ describe("ConversationFilterPanel", () => {
     const toggle = screen.getByRole("checkbox", {
       name: /only each reviewer's latest/i,
     });
-    if (!(toggle instanceof HTMLInputElement))
+    if (!(toggle instanceof HTMLInputElement)) {
       throw new Error("not a checkbox");
+    }
     expect(toggle.checked).toBe(true);
     fireEvent.click(toggle);
     const next = onChange.mock.calls[0]?.[0];
-    if (next === undefined) throw new Error("no change reported");
+    if (next === undefined) {
+      throw new Error("no change reported");
+    }
     expect(next.latestOnly).toBe(false);
   });
 
@@ -175,7 +188,9 @@ describe("ConversationFilterPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     const next = onChange.mock.calls[0]?.[0];
-    if (next === undefined) throw new Error("no change reported");
+    if (next === undefined) {
+      throw new Error("no change reported");
+    }
     expect(next.reviewers.size).toBe(0);
     expect(next.latestOnly).toBe(false);
   });

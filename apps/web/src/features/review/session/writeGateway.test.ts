@@ -11,7 +11,9 @@ import { ReviewCommentStatuses } from "../utils/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]?.id;
-if (flagId === undefined) throw new Error("fixture has no risk flags");
+if (flagId === undefined) {
+  throw new Error("fixture has no risk flags");
+}
 
 const OK = { ok: true as const, value: undefined };
 

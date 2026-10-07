@@ -46,7 +46,9 @@ function stubReaderReturning(
   return {
     async readIssue(locator) {
       calls.push(locator);
-      if ("reason" in outcome) return { ok: false, error: outcome };
+      if ("reason" in outcome) {
+        return { ok: false, error: outcome };
+      }
       return { ok: true, value: outcome };
     },
   };
@@ -57,7 +59,9 @@ const SHARED = { env: {}, contextSources: [] };
 /** The read for a root whose GitHub slot holds this transport; the test's one way in. */
 function readWith(transport: GitHubTransport) {
   const read = createGitHubRead(SHARED, transport);
-  if (!read.ok) throw new Error("unreachable");
+  if (!read.ok) {
+    throw new Error("unreachable");
+  }
   return read.value;
 }
 
@@ -65,7 +69,9 @@ describe("createGitHubRead", () => {
   it("refuses a root with no GitHub slot", () => {
     const read = createGitHubRead(SHARED, undefined);
     expect(read.ok).toBe(false);
-    if (read.ok) throw new Error("unreachable");
+    if (read.ok) {
+      throw new Error("unreachable");
+    }
     expect(read.error.issues[0]).toMatch(/no transport/);
   });
 
@@ -106,7 +112,9 @@ describe("createGitHubRead", () => {
     );
     const result = await provider.readPrimary(REFERENCE, stubDeps());
     expect(result?.ok).toBe(true);
-    if (!result?.ok) throw new Error("unreachable");
+    if (!result?.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.text).toHaveLength(MAX_SNIPPET_CHARS);
   });
 
@@ -180,7 +188,9 @@ describe("createGitHubRead", () => {
     );
     expect(calls).toEqual([]);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.reason).toBe(TicketUnreadReasons.UNSUPPORTED);
   });
 });

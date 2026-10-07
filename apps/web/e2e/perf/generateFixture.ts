@@ -1,7 +1,7 @@
 // Deterministic large-brief artifact generator for the perf harness (and any
 // consumer needing a big local brief, e.g. list-virtualization work). Emits a
-// two-revision artifact set shaped exactly like the committed e2e fixtures —
-// the ingest tool's filename grammar — but at
+// two-revision artifact set shaped exactly like the committed e2e fixtures,
+// in the ingest tool's filename grammar, but at
 // a size where revision/lens interaction cost is measurable. Output is
 // self-validated through the app's own parsers before writing: a drifted
 // schema fails generation, never the measurement run.
@@ -47,17 +47,25 @@ function parseArgs(argv: string[]): Scale {
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i];
     const value = argv[i + 1];
-    if (value === undefined) throw new Error(`Missing value for ${flag ?? ""}`);
-    if (flag === "--groups") scale.groups = Number(value);
-    else if (flag === "--chunks-per-group")
+    if (value === undefined) {
+      throw new Error(`Missing value for ${flag ?? ""}`);
+    }
+    if (flag === "--groups") {
+      scale.groups = Number(value);
+    } else if (flag === "--chunks-per-group") {
       scale.chunksPerGroup = Number(value);
-    else if (flag === "--out") scale.outDir = resolve(value);
-    else throw new Error(`Unknown flag ${flag ?? ""}`);
+    } else if (flag === "--out") {
+      scale.outDir = resolve(value);
+    } else {
+      throw new Error(`Unknown flag ${flag ?? ""}`);
+    }
   }
-  if (!Number.isInteger(scale.groups) || scale.groups < 1)
+  if (!Number.isInteger(scale.groups) || scale.groups < 1) {
     throw new Error("--groups must be a positive integer");
-  if (!Number.isInteger(scale.chunksPerGroup) || scale.chunksPerGroup < 1)
+  }
+  if (!Number.isInteger(scale.chunksPerGroup) || scale.chunksPerGroup < 1) {
     throw new Error("--chunks-per-group must be a positive integer");
+  }
   return scale;
 }
 
@@ -91,11 +99,14 @@ function buildChunkSpecs(scale: Scale): ChunkSpec[] {
       const deleted = 2 + vary(n, 14);
       const start = 10 + vary(n, 300);
       let risk: string[] = [];
-      if (n % 13 === 0) risk = ["hot-path"];
-      else if (n % 7 === 0) risk = ["dense-logic"];
+      if (n % 13 === 0) {
+        risk = ["hot-path"];
+      } else if (n % 7 === 0) {
+        risk = ["dense-logic"];
+      }
       // Ranges mirror the patch layout exactly (one hunk, adds/dels starting
       // after PATCH_CONTEXT context rows) so the brief's claimed spans and the
-      // rendered diff rows agree — the fixture's one job is honest size.
+      // rendered diff rows agree. The fixture's one job is honest size.
       chunks.push({
         id: `c${String(n)}`,
         groupId: `g${String(g)}`,
@@ -160,7 +171,7 @@ function buildBrief(revision: 1 | 2, scale: Scale, chunks: ChunkSpec[]) {
     concernView: [
       { concern: "implementation", added: totalAdded, deleted: totalDeleted },
     ],
-    // Synthetic chunks claim every changed line — fully attributed.
+    // Synthetic chunks claim every changed line, so none is unattributed.
     unattributed: [],
     pr: {
       repo: "mergebrief/perf-fixture",
@@ -198,16 +209,20 @@ function buildPatch(chunk: ChunkSpec): string {
     `+++ b/${chunk.file}`,
     `@@ -${String(hunkStart)},${String(oldCount)} +${String(hunkStart)},${String(newCount)} @@ function synthetic${chunk.id}()`,
   ];
-  for (let i = 0; i < PATCH_CONTEXT; i += 1)
+  for (let i = 0; i < PATCH_CONTEXT; i += 1) {
     lines.push(` const before${String(i)} = compute(input, ${String(i)});`);
-  for (let i = 0; i < chunk.deleted; i += 1)
+  }
+  for (let i = 0; i < chunk.deleted; i += 1) {
     lines.push(`-  legacyPath(records[${String(i)}], { strict: false });`);
-  for (let i = 0; i < chunk.added; i += 1)
+  }
+  for (let i = 0; i < chunk.added; i += 1) {
     lines.push(
       `+  nextPath(records[${String(i)}], { strict: true, tag: "${chunk.id}" });`,
     );
-  for (let i = 0; i < PATCH_CONTEXT; i += 1)
+  }
+  for (let i = 0; i < PATCH_CONTEXT; i += 1) {
     lines.push(` const after${String(i)} = finalize(output, ${String(i)});`);
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -273,8 +288,9 @@ function assertOk<T>(
   result: { ok: true; value: T } | { ok: false; error: string },
   what: string,
 ): T {
-  if (!result.ok)
+  if (!result.ok) {
     throw new Error(`Generated ${what} failed validation: ${result.error}`);
+  }
   return result.value;
 }
 
@@ -297,8 +313,9 @@ async function main(): Promise<void> {
     patch: buildPatch(chunk),
   }));
   for (const diff of diffs) {
-    if (parseUnifiedDiffPatch(diff.patch).length === 0)
+    if (parseUnifiedDiffPatch(diff.patch).length === 0) {
       throw new Error(`Generated patch for ${diff.file} parsed to zero rows`);
+    }
   }
 
   await rm(scale.outDir, { recursive: true, force: true });

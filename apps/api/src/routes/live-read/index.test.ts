@@ -50,7 +50,9 @@ function brand<T extends bigint>(
   value: bigint,
   guard: (v: bigint) => v is T,
 ): T {
-  if (!guard(value)) throw new Error("unbrandable fixture value");
+  if (!guard(value)) {
+    throw new Error("unbrandable fixture value");
+  }
   return value;
 }
 const OWNER: ReviewerId = brand(501n, isReviewerId);
@@ -113,7 +115,9 @@ function stubReads(
     const { token } = octokit as unknown as TokenOctokit;
     calls.push({ token, refs });
     const page = new Map<string, PullRequestFacts | null>();
-    for (const ref of refs) page.set(getLiveReadKey(ref), answer(token, ref));
+    for (const ref of refs) {
+      page.set(getLiveReadKey(ref), answer(token, ref));
+    }
     return { ok: true, value: page satisfies LiveReadPage };
   });
   return calls;
@@ -133,7 +137,9 @@ function stubWithheldReads(
     const page = new Map<string, PullRequestFacts | null>();
     for (const ref of refs) {
       const facts = answer(token, ref);
-      if (facts !== undefined) page.set(getLiveReadKey(ref), facts);
+      if (facts !== undefined) {
+        page.set(getLiveReadKey(ref), facts);
+      }
     }
     return { ok: true, value: page satisfies LiveReadPage };
   });
@@ -176,7 +182,9 @@ async function readRow(prNumber: number): Promise<PullRequestRow> {
   const row = await createTenantRepository(harness.handle, {
     ownerUserId: OWNER,
   }).pullRequests.getByNumber(REPO, prNumber);
-  if (row === undefined) throw new Error(`row ${prNumber} missing`);
+  if (row === undefined) {
+    throw new Error(`row ${prNumber} missing`);
+  }
   return row;
 }
 
@@ -194,7 +202,9 @@ function deps(overrides?: {
   if (overrides?.fallbackToken !== undefined) {
     built.fallbackToken = overrides.fallbackToken;
   }
-  if (overrides?.waitMs !== undefined) built.waitMs = overrides.waitMs;
+  if (overrides?.waitMs !== undefined) {
+    built.waitMs = overrides.waitMs;
+  }
   return built;
 }
 
@@ -214,7 +224,9 @@ describe("refreshUrlPullRequests", () => {
   it("writes the facts and a live open beats a stored closed", async () => {
     stubReads(() => stubFacts({ title: "from GitHub", draft: true }));
     const [row] = await seedRows(1);
-    if (row === undefined) throw new Error("seed failed");
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
     await createTenantRepository(harness.handle, {
       ownerUserId: OWNER,
     }).pullRequests.upsert({
@@ -255,8 +267,12 @@ describe("refreshUrlPullRequests", () => {
 
   it("retries a missing row on the operator token before marking it", async () => {
     const calls = stubReads((token, ref) => {
-      if (ref.prNumber === 1) return stubFacts();
-      if (ref.prNumber === 2 && token === OPERATOR_TOKEN) return stubFacts();
+      if (ref.prNumber === 1) {
+        return stubFacts();
+      }
+      if (ref.prNumber === 2 && token === OPERATOR_TOKEN) {
+        return stubFacts();
+      }
       return null;
     });
     await seedRows(3);
@@ -356,7 +372,9 @@ describe("refreshUrlPullRequests", () => {
 
   it("a row GitHub gave no answer for waits the window", async () => {
     const calls = stubWithheldReads((token, ref) => {
-      if (ref.prNumber === 1) return undefined;
+      if (ref.prNumber === 1) {
+        return undefined;
+      }
       return stubFacts();
     });
     await seedRows(2);
@@ -374,7 +392,9 @@ describe("refreshUrlPullRequests", () => {
 
   it("a row the viewer was refused is retried on the operator token", async () => {
     const calls = stubWithheldReads((token, ref) => {
-      if (ref.prNumber !== 1) return stubFacts();
+      if (ref.prNumber !== 1) {
+        return stubFacts();
+      }
       return token === OPERATOR_TOKEN ? stubFacts() : undefined;
     });
     await seedRows(2);
@@ -394,7 +414,9 @@ describe("refreshUrlPullRequests", () => {
 
   it("a row refused to both tokens waits the window unmarked", async () => {
     stubWithheldReads((token, ref) => {
-      if (ref.prNumber !== 1) return stubFacts();
+      if (ref.prNumber !== 1) {
+        return stubFacts();
+      }
       return token === OPERATOR_TOKEN ? null : undefined;
     });
     await seedRows(2);
@@ -423,7 +445,9 @@ describe("refreshUrlPullRequests", () => {
           };
         }
         const page = new Map<string, PullRequestFacts | null>();
-        for (const ref of refs) page.set(getLiveReadKey(ref), null);
+        for (const ref of refs) {
+          page.set(getLiveReadKey(ref), null);
+        }
         return { ok: true, value: page };
       },
     );
@@ -471,7 +495,9 @@ describe("refreshUrlPullRequests", () => {
     vi.mocked(readPullRequestFacts).mockImplementation(async (_o, refs) => {
       await gate;
       const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) page.set(getLiveReadKey(ref), stubFacts());
+      for (const ref of refs) {
+        page.set(getLiveReadKey(ref), stubFacts());
+      }
       return { ok: true, value: page };
     });
     await seedRows(1);
@@ -496,7 +522,9 @@ describe("refreshUrlPullRequests", () => {
       calls.push({ token: VIEWER_TOKEN, refs });
       await gate;
       const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) page.set(getLiveReadKey(ref), stubFacts());
+      for (const ref of refs) {
+        page.set(getLiveReadKey(ref), stubFacts());
+      }
       return { ok: true, value: page };
     });
     await seedRows(1);
@@ -523,7 +551,9 @@ describe("refreshUrlPullRequests", () => {
       calls.push({ token: VIEWER_TOKEN, refs });
       await gate;
       const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) page.set(getLiveReadKey(ref), stubFacts());
+      for (const ref of refs) {
+        page.set(getLiveReadKey(ref), stubFacts());
+      }
       return { ok: true, value: page };
     });
     await seedRows(1);

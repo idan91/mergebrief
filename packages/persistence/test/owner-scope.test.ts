@@ -136,7 +136,9 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
       submittedAt: new Date(),
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected a rejection");
+    if (result.ok) {
+      throw new Error("expected a rejection");
+    }
     expect(result.error.code).toBe(RepositoryErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
@@ -190,7 +192,9 @@ describe("owner-scoped artifact store", () => {
     const first = await store.briefs.write(input);
     const second = await store.briefs.write({ ...input, body: "rewritten" });
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) throw new Error("expected success");
+    if (!first.ok || !second.ok) {
+      throw new Error("expected success");
+    }
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.installationId).toBeNull();
 
@@ -465,7 +469,9 @@ describe("owner-scoped review sessions", () => {
       body: '{"brief":true}',
       ...ORIGIN,
     });
-    if (!brief.ok) throw new Error("brief seed failed");
+    if (!brief.ok) {
+      throw new Error("brief seed failed");
+    }
     const key = {
       briefId: brief.value.id,
       reviewerId: OWNER_A,

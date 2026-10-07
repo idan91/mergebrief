@@ -178,8 +178,9 @@ async function seedSession(
     KEY_REF,
     opts?.refreshPlaintext ?? REFRESH_TOKEN,
   );
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const expiresAt = opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z");
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
@@ -217,7 +218,9 @@ async function seedBrief(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedBrief: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedBrief: pr missing");
+  }
   const store = createArtifactStore(handle, CTX);
   const prior = await store.briefs.listForPullRequest(pr.id);
   const write: Mutable<BriefWriteInput> = {
@@ -232,7 +235,9 @@ async function seedBrief(
     body: BRIEF_BODY,
   };
 
-  if (repoConfig !== undefined) write.repoConfig = repoConfig;
+  if (repoConfig !== undefined) {
+    write.repoConfig = repoConfig;
+  }
 
   const written = await store.briefs.write(write);
   if (!written.ok) {
@@ -255,7 +260,9 @@ async function seedDelta(
     brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
-  if (pr === undefined) throw new Error("seedDelta: pr missing");
+  if (pr === undefined) {
+    throw new Error("seedDelta: pr missing");
+  }
   const written = await createArtifactStore(handle, CTX).deltas.write({
     pullRequestId: pr.id,
     baselineSha: baseline,
@@ -265,8 +272,9 @@ async function seedDelta(
     effort: "high",
     body: DELTA_BODY,
   });
-  if (!written.ok)
+  if (!written.ok) {
     throw new Error(`seedDelta: write failed ${written.error.code}`);
+  }
 }
 
 function deltaPath(baseline: string, head: string): string {
@@ -561,7 +569,9 @@ describe("reviewer read API + authz gate", () => {
       KEY_REF,
       String(rows[0]?.["gh_token_ciphertext"]),
     );
-    if (!decrypted.ok) throw new Error("stored grant ciphertext unreadable");
+    if (!decrypted.ok) {
+      throw new Error("stored grant ciphertext unreadable");
+    }
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
 
@@ -583,7 +593,9 @@ describe("reviewer read API + authz gate", () => {
     // Mint a Bearer token LINKED to the session's grant, the route's exact
     // link-never-copy semantics (tokens.ts passes currentSession.grantId).
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
-    if (resolved === undefined) throw new Error("seeded session not found");
+    if (resolved === undefined) {
+      throw new Error("seeded session not found");
+    }
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,

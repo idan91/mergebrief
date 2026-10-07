@@ -67,7 +67,9 @@ describe("reviewCommentsForChunk", () => {
     ).toEqual(["3419186366"]);
     const row = newFileChunk.diff[0];
     expect(row).toBeDefined();
-    if (!row) return;
+    if (!row) {
+      return;
+    }
     expect(
       reviewCommentMatchesDiffLine(
         outdated,

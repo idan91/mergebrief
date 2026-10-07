@@ -77,7 +77,9 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
       refresh,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(result.value.ghTokenCiphertext).toBe("v1.rotated-access");
     expect(result.value.ghRefreshTokenCiphertext).toBe("v1.rotated-refresh");
@@ -102,7 +104,9 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
       NEVER_CALLED,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     // Returned as-is, untouched: the stored (fresh) pair stands.
     expect(result.value.ghTokenCiphertext).toBe("v1.enc-access");
     expect(result.value.refreshExpiresAt).toEqual(FUTURE);
@@ -118,7 +122,9 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
 
     const result = await auth.refreshGrant(grant.id, "v1.enc-access", refresh);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GrantAuthErrorCodes.REFRESH_REJECTED);
 
     const rows = await internal(handle)
@@ -138,7 +144,9 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
       NEVER_CALLED,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GrantAuthErrorCodes.NOT_FOUND);
   });
 });

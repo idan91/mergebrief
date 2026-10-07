@@ -32,7 +32,9 @@ function isIndexable(
 function getAt(root: unknown, path: (string | number)[]): unknown {
   let current: unknown = root;
   for (const segment of path) {
-    if (!isIndexable(current)) return undefined;
+    if (!isIndexable(current)) {
+      return undefined;
+    }
     current = current[segment];
   }
   return current;
@@ -61,7 +63,9 @@ function findDroppableElement(
       typeof index === "number" &&
       typeof field === "string" &&
       droppable.has(field);
-    if (droppableElement) return { parent: path.slice(0, i), index };
+    if (droppableElement) {
+      return { parent: path.slice(0, i), index };
+    }
   }
   return undefined;
 }
@@ -77,17 +81,23 @@ function collectRemovals(
       (p): p is string | number => typeof p !== "symbol",
     );
     const removal = findDroppableElement(path, droppable);
-    if (removal === undefined) continue;
+    if (removal === undefined) {
+      continue;
+    }
 
     const key = `${pathKey(removal.parent)}#${removal.index}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     removals.push(removal);
   }
   removals.sort((a, b) => {
     const ka = pathKey(a.parent);
     const kb = pathKey(b.parent);
-    if (ka !== kb) return ka < kb ? -1 : 1;
+    if (ka !== kb) {
+      return ka < kb ? -1 : 1;
+    }
     return b.index - a.index;
   });
   return removals;
@@ -95,7 +105,9 @@ function collectRemovals(
 
 function describeElement(element: unknown): string {
   const text = JSON.stringify(element);
-  if (text === undefined) return "undefined";
+  if (text === undefined) {
+    return "undefined";
+  }
   return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
 
@@ -121,10 +133,14 @@ export function salvageDroppableEnums<S extends z.ZodType>(
       return { value: parsed.data, issues };
     }
     const removals = collectRemovals(parsed.error.issues, droppable);
-    if (removals.length === 0) return null;
+    if (removals.length === 0) {
+      return null;
+    }
     for (const removal of removals) {
       const parent = getAt(working, removal.parent);
-      if (!Array.isArray(parent) || removal.index >= parent.length) return null;
+      if (!Array.isArray(parent) || removal.index >= parent.length) {
+        return null;
+      }
       const [removed] = parent.splice(removal.index, 1);
       issues.push(
         `dropped ${[...removal.parent, removal.index].join(".")} = ${describeElement(removed)} (failed schema validation)`,

@@ -15,7 +15,9 @@ export function pairSplitRows(diff: readonly DiffLine[]): SplitRow[] {
 
   while (cursor < diff.length) {
     const line = diff[cursor];
-    if (line === undefined) break;
+    if (line === undefined) {
+      break;
+    }
     const key = keys[cursor] ?? String(cursor);
 
     if (isFullWidthDiffRow(line)) {
@@ -58,7 +60,9 @@ export function countSplitRows(diff: readonly DiffLine[]): number {
 
   while (cursor < diff.length) {
     const line = diff[cursor];
-    if (line === undefined) break;
+    if (line === undefined) {
+      break;
+    }
 
     if (line.kind === DiffLineKinds.DEL || line.kind === DiffLineKinds.ADD) {
       const dels = measureRun(diff, cursor, DiffLineKinds.DEL);
@@ -81,7 +85,9 @@ function measureRun(
   kind: DiffLine["kind"],
 ): number {
   let length = 0;
-  while (diff[from + length]?.kind === kind) length += 1;
+  while (diff[from + length]?.kind === kind) {
+    length += 1;
+  }
 
   return length;
 }
@@ -95,7 +101,9 @@ function takeRun(
 
   for (let index = from; index < diff.length; index += 1) {
     const line = diff[index];
-    if (line === undefined || line.kind !== kind) break;
+    if (line === undefined || line.kind !== kind) {
+      break;
+    }
     run.push({ line, index });
   }
 
@@ -116,8 +124,12 @@ function zipSides(
     const leftKey = left === undefined ? "x" : (keys[left.index] ?? "x");
     const rightKey = right === undefined ? "x" : (keys[right.index] ?? "x");
     const row: SplitRow = { key: `${leftKey}|${rightKey}` };
-    if (left !== undefined) row.left = left;
-    if (right !== undefined) row.right = right;
+    if (left !== undefined) {
+      row.left = left;
+    }
+    if (right !== undefined) {
+      row.right = right;
+    }
     rows.push(row);
   }
 

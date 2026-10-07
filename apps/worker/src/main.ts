@@ -171,7 +171,9 @@ async function main(): Promise<void> {
   };
 
   // Absent → brief-core's medium default.
-  if (configuredEffort !== undefined) generateDeps.effort = configuredEffort;
+  if (configuredEffort !== undefined) {
+    generateDeps.effort = configuredEffort;
+  }
   // Absent → never.
   if (configuredFullRegeneration !== undefined) {
     generateDeps.fullRegeneration = configuredFullRegeneration;

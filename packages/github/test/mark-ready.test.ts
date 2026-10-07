@@ -1,7 +1,7 @@
 // Mark-ready mutation tests: the resolve-then-mutate flow, the converged paths
 // (read-time non-draft + the "not a draft" mutation race), the null-resource
 // not-found, and the sanitized failure paths. GraphQL is stubbed at the
-// `octokit.graphql` interface — no throttle concerns, since GraphQL calls are
+// `octokit.graphql` interface. No throttle concerns, since GraphQL calls are
 // not on the notification-triggering REST throttle list.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
@@ -25,7 +25,7 @@ function mutationResponse(): unknown {
 }
 
 describe("markPullRequestReadyForReview", () => {
-  it("resolves the node id then runs the mutation (draft → ready), converged=false", async () => {
+  it("resolves the node id then runs the draft-to-ready mutation", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(nodeIdResponse(true))
@@ -35,7 +35,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyReady).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(2);
     // Resolve carries the owner/repo/number as variables (never interpolated).
@@ -54,13 +56,15 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyReady).toBe(true);
-    // No mutation call — the read-time check short-circuits.
+    // No mutation call: the read-time check short-circuits.
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
-  it("converges when the mutation races a concurrent ready ('not a draft')", async () => {
+  it("converges when the mutation races a concurrent ready", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(nodeIdResponse(true))
@@ -74,7 +78,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.alreadyReady).toBe(true);
     expect(graphql).toHaveBeenCalledTimes(2);
   });
@@ -86,7 +92,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -100,11 +108,13 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
-  it("maps a resolve-time GraphQL error (forbidden) to a sanitized failure, no mutation", async () => {
+  it("maps a forbidden resolve-time error to a failure without mutating", async () => {
     const graphql = vi
       .fn()
       .mockRejectedValueOnce(
@@ -115,7 +125,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(graphql).toHaveBeenCalledTimes(1);
     // No secret/upstream text leaks through the sanitization chokepoint.
@@ -147,7 +159,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -160,7 +174,9 @@ describe("markPullRequestReadyForReview", () => {
       INPUT,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

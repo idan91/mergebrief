@@ -68,7 +68,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.threadId).toBe(THREAD_ID);
     const [mutation] = graphql.mock.calls[0] ?? [];
     expect(String(mutation)).toContain("addPullRequestReviewThread");
@@ -130,7 +132,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error).toEqual({
       kind: ReviewThreadFailureKinds.ANCHOR_REJECTED,
     });
@@ -151,7 +155,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error).toEqual({
       kind: ReviewThreadFailureKinds.ANCHOR_REJECTED,
     });
@@ -171,7 +177,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
     if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
       throw new Error("unreachable");
@@ -191,7 +199,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
     if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
       throw new Error("unreachable");
@@ -225,7 +235,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
     if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
       throw new Error("unreachable");
@@ -245,7 +257,9 @@ describe("addPullRequestReviewThread", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
     if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
       throw new Error("unreachable");

@@ -92,13 +92,16 @@ function mockOctokit(overrides: {
 }
 
 function toRepoId(value: bigint) {
-  if (!isRepoId(value)) throw new Error("expected a positive repo id");
+  if (!isRepoId(value)) {
+    throw new Error("expected a positive repo id");
+  }
   return value;
 }
 
 function toInstallationId(value: bigint) {
-  if (!isInstallationId(value))
+  if (!isInstallationId(value)) {
     throw new Error("expected a positive installation id");
+  }
   return value;
 }
 
@@ -113,7 +116,9 @@ describe("postEntryComment", () => {
       body: "brief ready",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.commentId).toBe(42n);
     expect(createComment).toHaveBeenCalledWith({
       owner: "o",
@@ -135,7 +140,9 @@ describe("postEntryComment", () => {
       body: "brief ready",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -149,7 +156,9 @@ describe("postEntryComment", () => {
       body: "x",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.status).toBe(403);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
@@ -193,7 +202,9 @@ describe("deleteComment", () => {
       commentId: 99n,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(500);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
@@ -212,7 +223,9 @@ describe("fetchComment", () => {
       commentId: 99n,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ body: "brief ready" });
     expect(getComment).toHaveBeenCalledWith({
       owner: "o",
@@ -230,7 +243,9 @@ describe("fetchComment", () => {
       commentId: 99n,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBeUndefined();
   });
 
@@ -243,7 +258,9 @@ describe("fetchComment", () => {
       commentId: 99n,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(500);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
@@ -258,7 +275,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.fullName).toBe("o/r");
     expect(result.value.private).toBe(true);
     expect(result.value.repoId).toBe(1n);
@@ -279,7 +298,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerCanPush).toBe(true);
   });
 
@@ -290,7 +311,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerCanPush).toBe(false);
   });
 
@@ -308,7 +331,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerCanPush).toBe(false);
   });
 
@@ -324,7 +349,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerCanPush).toBe(false);
   });
 
@@ -340,7 +367,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerIsAdmin).toBe(true);
   });
 
@@ -351,7 +380,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerIsAdmin).toBe(false);
   });
 
@@ -367,7 +398,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.viewerIsAdmin).toBe(false);
   });
 
@@ -376,7 +409,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.status).toBe(404);
     const serialized = JSON.stringify(result.error);
@@ -389,7 +424,9 @@ describe("fetchRepositoryById", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });
@@ -412,7 +449,9 @@ describe("listInstallationRepositoriesForUser", () => {
       INSTALLATION,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.size).toBe(3);
     expect(result.value.get(toRepoId(101n))).toEqual({
       fullName: "octo/alpha",
@@ -447,7 +486,9 @@ describe("listInstallationRepositoriesForUser", () => {
       INSTALLATION,
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.get(toRepoId(101n))?.viewerIsAdmin).toBe(true);
     expect(result.value.get(toRepoId(202n))?.viewerIsAdmin).toBe(false);
     expect(result.value.get(toRepoId(303n))?.viewerIsAdmin).toBe(false);
@@ -461,7 +502,9 @@ describe("listInstallationRepositoriesForUser", () => {
       INSTALLATION,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
@@ -474,7 +517,9 @@ describe("listInstallationRepositoriesForUser", () => {
       INSTALLATION,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
@@ -490,7 +535,9 @@ describe("listInstallationRepositoriesForUser", () => {
       INSTALLATION,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });
@@ -503,7 +550,9 @@ describe("mapRequestError rate-limit classification", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
     expect(result.error.status).toBe(403);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
@@ -516,7 +565,9 @@ describe("mapRequestError rate-limit classification", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 
@@ -527,7 +578,9 @@ describe("mapRequestError rate-limit classification", () => {
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
   });
 });
@@ -570,7 +623,9 @@ describe("fetchPullRequest / fetchDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({
       repoId: 424242n,
       repoFullName: "o/r",
@@ -623,7 +678,9 @@ describe("fetchPullRequest / fetchDiff", () => {
         prNumber: 3,
       });
       expect(result.ok).toBe(true);
-      if (!result.ok) throw new Error("unreachable");
+      if (!result.ok) {
+        throw new Error("unreachable");
+      }
       expect("baseRef" in result.value).toBe(false);
     },
   );
@@ -652,7 +709,9 @@ describe("fetchPullRequest / fetchDiff", () => {
       prNumber: 4,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.state).toBe("closed");
     expect(result.value.merged).toBe(true);
   });
@@ -681,7 +740,9 @@ describe("fetchPullRequest / fetchDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.body).toBe("");
   });
 
@@ -697,7 +758,9 @@ describe("fetchPullRequest / fetchDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual([
       { path: "src/a.ts", additions: 3, deletions: 1 },
       { path: "src/b.ts", additions: 10, deletions: 0 },
@@ -722,7 +785,9 @@ describe("fetchPullRequest / fetchDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 });
@@ -761,7 +826,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual([
       {
         number: 12,
@@ -812,7 +879,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual([
       {
         number: 10,
@@ -843,7 +912,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual([]);
   });
 
@@ -880,7 +951,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.map((item) => item.number)).toEqual([1, 2]);
   });
 
@@ -892,7 +965,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -905,7 +980,9 @@ describe("listOpenPullRequests", () => {
       repo: "r",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.message).toContain("unexpected");
   });
@@ -922,7 +999,9 @@ describe("fetchDiff / compareDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBe(diff);
     expect(pullsGet).toHaveBeenCalledWith({
       owner: "o",
@@ -943,7 +1022,9 @@ describe("fetchDiff / compareDiff", () => {
       head: "head-sha",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBe(diff);
     expect(compareBasehead).toHaveBeenCalledWith({
       owner: "o",
@@ -963,7 +1044,9 @@ describe("fetchDiff / compareDiff", () => {
       head: "h",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -977,7 +1060,9 @@ describe("fetchDiff / compareDiff", () => {
       prNumber: 3,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -1005,7 +1090,9 @@ describe("fetchCompareFiles", () => {
       head: "head-sha",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.files).toEqual([
       { filename: "src/a.ts", status: "modified" },
       {
@@ -1038,7 +1125,9 @@ describe("fetchCompareFiles", () => {
       head: "h",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.status).toBe("diverged");
   });
 
@@ -1056,7 +1145,9 @@ describe("fetchCompareFiles", () => {
       head: "h",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.complete).toBe(false);
     expect(result.value.files).toHaveLength(300);
   });
@@ -1071,7 +1162,9 @@ describe("fetchCompareFiles", () => {
       head: "h",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual({ files: [], complete: false });
   });
 
@@ -1085,7 +1178,9 @@ describe("fetchCompareFiles", () => {
       head: "h",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -1120,7 +1215,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       prNumber: 3,
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toEqual(wire);
     expect(paginate).toHaveBeenCalledWith(listReviewComments, {
       owner: "o",
@@ -1139,7 +1236,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       prNumber: 3,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -1156,7 +1255,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       head: "h1",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBe(5);
     expect(compareBasehead).toHaveBeenCalledWith({
       owner: "o",
@@ -1176,7 +1277,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       head: "h1",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -1192,7 +1295,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       ref: "abc1234",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value).toBe("f".repeat(40));
     expect(getCommit).toHaveBeenCalledWith({
       owner: "o",
@@ -1210,7 +1315,9 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
       ref: "abc1234",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -1264,7 +1371,9 @@ describe("fetchIssue", () => {
     });
     const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.body).toBe("");
     expect(result.value.milestone).toBeNull();
     expect(result.value.stateReason).toBeNull();
@@ -1284,7 +1393,9 @@ describe("fetchIssue", () => {
     });
     const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.isPullRequest).toBe(true);
   });
 
@@ -1292,7 +1403,9 @@ describe("fetchIssue", () => {
     const issuesGet = vi.fn().mockRejectedValue(requestError(404));
     const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.status).toBe(404);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);

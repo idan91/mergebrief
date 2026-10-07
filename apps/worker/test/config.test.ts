@@ -29,7 +29,9 @@ describe("loadConfig", () => {
     // the generator block just selects the adapter.
     const result = loadConfig(VALID_ENV);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.databaseUrl).toBe(VALID_ENV.DATABASE_URL);
     expect(result.value.generator).toEqual({ provider: "anthropic" });
     expect(result.value.publicBaseUrl).toBe(VALID_ENV.PUBLIC_BASE_URL);
@@ -45,7 +47,9 @@ describe("loadConfig", () => {
 
     const refused = loadConfig({ ...VALID_ENV, AUDIT_RETENTION_DAYS: "7" });
     expect(refused.ok).toBe(false);
-    if (refused.ok) return;
+    if (refused.ok) {
+      return;
+    }
     expect(refused.error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
   });
 
@@ -55,7 +59,9 @@ describe("loadConfig", () => {
       MERGEBRIEF_AUTO_MIGRATE: "false",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.autoMigrate).toBe(false);
   });
 
@@ -65,7 +71,9 @@ describe("loadConfig", () => {
     );
     const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.generator).toEqual({
       provider: "anthropic",
       model: "claude-sonnet-5",
@@ -76,7 +84,9 @@ describe("loadConfig", () => {
     const path = configFile("generator:\n  provider: gemini\n");
     const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join(";")).toContain("unknown provider");
   });
 
@@ -88,7 +98,9 @@ describe("loadConfig", () => {
       GENERATOR_API_KEY_ENV: "MY_PROVIDER_KEY",
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join(";");
     expect(text).toContain("GENERATOR_API_KEY_ENV: removed");
     expect(text).toContain("generator.apiKeyEnv");
@@ -98,21 +110,27 @@ describe("loadConfig", () => {
     const { PUBLIC_BASE_URL: _omitted, ...withoutBaseUrl } = VALID_ENV;
     const result = loadConfig(withoutBaseUrl);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
   });
 
   it("rejects a non-URL PUBLIC_BASE_URL", () => {
     const result = loadConfig({ ...VALID_ENV, PUBLIC_BASE_URL: "not a url" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
   });
 
   it("rejects a missing DATABASE_URL", () => {
     const result = loadConfig({ PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.code).toBe(ConfigErrorCodes.INVALID);
     expect(result.error.issues.join(";")).toContain("DATABASE_URL");
   });
@@ -138,14 +156,18 @@ describe("loadConfig", () => {
   it("rejects a slot count below one", () => {
     const result = loadConfig({ ...VALID_ENV, WORKER_CONCURRENCY: "0" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
   });
 
   it("rejects a non-integer slot count", () => {
     const result = loadConfig({ ...VALID_ENV, WORKER_CONCURRENCY: "abc" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
   });
 
@@ -254,7 +276,9 @@ describe("loadConfig", () => {
   it("collects issues from multiple surfaces at once", () => {
     const result = loadConfig({ GENERATOR_API_KEY_ENV: "X" });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.length).toBeGreaterThanOrEqual(3);
   });
 });

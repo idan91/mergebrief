@@ -34,7 +34,9 @@ describe("base ref resolution", () => {
     try {
       const result = checkBaselines(checkout.root, "release");
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error).toMatchObject({ code: BaseErrorCodes.UNKNOWN_REF });
       expect(result.error.message).toContain("fetch it");
     } finally {
@@ -47,7 +49,9 @@ describe("base ref resolution", () => {
     try {
       const result = checkBaselines(root, "main");
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error).toMatchObject({
         code: BaseErrorCodes.NOT_A_REPOSITORY,
       });
@@ -115,7 +119,9 @@ describe("the gate process", () => {
       runGit(checkout.root, ["commit", "-m", "unrelated root"]);
       const result = checkBaselines(checkout.root, "main");
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error).toMatchObject({
         code: BaseErrorCodes.NO_MERGE_BASE,
       });
@@ -142,7 +148,9 @@ describe("reading the change set", () => {
       const missing = "0".repeat(40);
       const result = listChangedFiles(checkout.root, missing);
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      if (result.ok) {
+        return;
+      }
       expect(result.error).toMatchObject({
         code: BaseErrorCodes.UNREADABLE_TREE,
       });
@@ -163,7 +171,9 @@ describe("reading the change set", () => {
       writeTree(checkout.root, { [awkward]: "export const c = 2;\n" });
       const result = listChangedFiles(checkout.root, base);
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      if (!result.ok) {
+        return;
+      }
       expect(result.value.map((file) => file.path)).toContain(awkward);
     } finally {
       checkout.dispose();
@@ -178,7 +188,9 @@ describe("reading the change set", () => {
       symlinkSync("./b.ts", join(checkout.root, "src/a.ts"));
       const result = listChangedFiles(checkout.root, base);
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      if (!result.ok) {
+        return;
+      }
       expect(result.value).toContainEqual({
         path: "src/a.ts",
         kind: ChangeKinds.MODIFIED,
@@ -193,7 +205,9 @@ describe("name-status framing", () => {
   it("takes the destination of a rename and keeps the source", () => {
     const result = readChangeRecords(["R100", "src/old.ts", "src/new.ts", ""]);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value).toEqual([
       {
         path: "src/new.ts",
@@ -213,7 +227,9 @@ describe("name-status framing", () => {
       "",
     ]);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value).toEqual([
       { path: "src/copy.ts", kind: ChangeKinds.ADDED },
       { path: "src/b.ts", kind: ChangeKinds.MODIFIED },
@@ -223,7 +239,9 @@ describe("name-status framing", () => {
   it("refuses a status the gate does not model", () => {
     const result = readChangeRecords(["U", "src/a.ts", ""]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error).toMatchObject({
       code: BaseErrorCodes.UNREADABLE_TREE,
     });
@@ -232,14 +250,18 @@ describe("name-status framing", () => {
   it("refuses a two-path status whose destination is missing", () => {
     const result = readChangeRecords(["R100", "src/old.ts"]);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.message).toContain("no destination");
   });
 
   it("reads an empty diff as no changes", () => {
     const result = readChangeRecords([""]);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value).toEqual([]);
   });
 });

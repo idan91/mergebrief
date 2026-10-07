@@ -36,7 +36,9 @@ export function unionExpanded(
   current: LineRange | undefined,
   added: LineRange,
 ): LineRange {
-  if (current === undefined) return added;
+  if (current === undefined) {
+    return added;
+  }
 
   return {
     start: Math.min(current.start, added.start),
@@ -61,7 +63,9 @@ export function findExpansionGaps(diff: readonly DiffLine[]): ExpansionGap[] {
   const anchors = listNewSideAnchors(diff);
   const first = anchors[0];
   const last = anchors.at(-1);
-  if (first === undefined || last === undefined) return [];
+  if (first === undefined || last === undefined) {
+    return [];
+  }
 
   const trail = traceOffsets(diff);
   const gaps: ExpansionGap[] = [];
@@ -99,10 +103,14 @@ export function resolveExpansionRange(
 ): ExpansionRange | undefined {
   const direction = params.gap.edge.direction;
   const remaining = resolveRemaining(params.gap, params.expanded);
-  if (remaining === undefined) return undefined;
+  if (remaining === undefined) {
+    return undefined;
+  }
 
   const bounded = applyStopRule(remaining, direction, params.blocked ?? []);
-  if (bounded === undefined) return undefined;
+  if (bounded === undefined) {
+    return undefined;
+  }
 
   return takeStep(bounded, direction);
 }
@@ -125,7 +133,9 @@ export function spliceExpandedRows(
     from: Math.max(slice.from, gap.from),
     to: Math.min(slice.to, limit),
   };
-  if (bounded.from > bounded.to) return [...diff];
+  if (bounded.from > bounded.to) {
+    return [...diff];
+  }
 
   const rows =
     params.fileRows === undefined
@@ -137,12 +147,16 @@ export function spliceExpandedRows(
           base: diff,
           slice,
         });
-  if (rows.length === 0) return [...diff];
+  if (rows.length === 0) {
+    return [...diff];
+  }
 
   const index = gap.edge.rowIndex;
   const next = [...diff.slice(0, index), ...rows, ...diff.slice(index)];
   const covered = { from: bounded.from, to: params.coveredTo ?? bounded.to };
-  if (!closesGap(gap, covered)) return next;
+  if (!closesGap(gap, covered)) {
+    return next;
+  }
 
   return dropSeamHeader(next, index, rows.length, gap.edge.direction);
 }
@@ -169,8 +183,12 @@ export function spliceAllExpandedRows(
       gap: entry.gap,
       slice: entry.slice,
     };
-    if (entry.fileRows !== undefined) params.fileRows = entry.fileRows;
-    if (entry.coveredTo !== undefined) params.coveredTo = entry.coveredTo;
+    if (entry.fileRows !== undefined) {
+      params.fileRows = entry.fileRows;
+    }
+    if (entry.coveredTo !== undefined) {
+      params.coveredTo = entry.coveredTo;
+    }
     rows = spliceExpandedRows(params);
   }
 
@@ -184,7 +202,9 @@ function reconcileGaps(
   const merged = new Set<ExpansionApplication>();
 
   for (const entry of entries) {
-    if (merged.has(entry)) continue;
+    if (merged.has(entry)) {
+      continue;
+    }
     const sibling = entries.find(
       (candidate) => candidate !== entry && isSameGap(candidate.gap, entry.gap),
     );
@@ -225,7 +245,9 @@ function joinGapReads(
     down.gap.to !== undefined &&
     down.slice.from <= down.gap.from &&
     up.slice.to >= down.gap.to;
-  if (!meet || !covers) return [down, clipped];
+  if (!meet || !covers) {
+    return [down, clipped];
+  }
 
   return [{ ...down, coveredTo: up.slice.to }, clipped];
 }
@@ -235,7 +257,9 @@ function sliceRange(
   from: number,
   to: number,
 ): FileRangeSlice {
-  if (from > to) return { from, to, lines: [] };
+  if (from > to) {
+    return { from, to, lines: [] };
+  }
 
   return {
     from,
@@ -249,7 +273,9 @@ function compareApplications(
   right: ExpansionApplication,
 ): number {
   const byIndex = right.gap.edge.rowIndex - left.gap.edge.rowIndex;
-  if (byIndex !== 0) return byIndex;
+  if (byIndex !== 0) {
+    return byIndex;
+  }
 
   return (
     rankDirection(left.gap.edge.direction) -
@@ -271,8 +297,12 @@ function findInnerGaps(
   for (let position = 1; position < anchors.length; position += 1) {
     const above = anchors[position - 1];
     const below = anchors[position];
-    if (above === undefined || below === undefined) continue;
-    if (below.newLine <= above.newLine + 1) continue;
+    if (above === undefined || below === undefined) {
+      continue;
+    }
+    if (below.newLine <= above.newLine + 1) {
+      continue;
+    }
 
     const header = findHeaderBetween(diff, above.index, below.index);
     const from = above.newLine + 1;
@@ -298,7 +328,9 @@ function findRunStart(
   aboveIndex: number,
   header: number | undefined,
 ): number {
-  if (header !== undefined) return header + 1;
+  if (header !== undefined) {
+    return header + 1;
+  }
   let index = aboveIndex + 1;
 
   while (index < diff.length) {
@@ -308,7 +340,9 @@ function findRunStart(
       row?.kind === DiffLineKinds.DEL &&
       previous?.oldLine !== undefined &&
       row.oldLine === previous.oldLine + 1;
-    if (!continues) break;
+    if (!continues) {
+      break;
+    }
     index += 1;
   }
 
@@ -327,14 +361,22 @@ function readRunOffset(
 ): number {
   for (let index = runStart; index < diff.length; index += 1) {
     const row = diff[index];
-    if (row === undefined || row.kind === DiffLineKinds.HUNK) break;
+    if (row === undefined || row.kind === DiffLineKinds.HUNK) {
+      break;
+    }
     const stated = readStatedOffset(row);
-    if (stated === undefined) continue;
+    if (stated === undefined) {
+      continue;
+    }
     let offset = stated;
     for (let back = index - 1; back >= runStart; back -= 1) {
       const crossed = diff[back];
-      if (crossed?.kind === DiffLineKinds.ADD) offset += 1;
-      if (crossed?.kind === DiffLineKinds.DEL) offset -= 1;
+      if (crossed?.kind === DiffLineKinds.ADD) {
+        offset += 1;
+      }
+      if (crossed?.kind === DiffLineKinds.DEL) {
+        offset -= 1;
+      }
     }
     return offset;
   }
@@ -349,7 +391,9 @@ function shapeGap(
   offset: number,
 ): ExpansionGap {
   const gap: ExpansionGap = { edge, from, offset };
-  if (to !== undefined) gap.to = to;
+  if (to !== undefined) {
+    gap.to = to;
+  }
 
   return gap;
 }
@@ -358,8 +402,12 @@ function listNewSideAnchors(diff: readonly DiffLine[]): NewSideAnchor[] {
   const anchors: NewSideAnchor[] = [];
 
   diff.forEach((row, index) => {
-    if (row.newLine === undefined) return;
-    if (row.kind === DiffLineKinds.HUNK) return;
+    if (row.newLine === undefined) {
+      return;
+    }
+    if (row.kind === DiffLineKinds.HUNK) {
+      return;
+    }
     anchors.push({ index, newLine: row.newLine });
   });
 
@@ -377,11 +425,19 @@ function traceOffsets(diff: readonly DiffLine[]): number[] {
 
   for (const row of diff) {
     const header = readHunkOffset(row);
-    if (header !== undefined) offset = header;
+    if (header !== undefined) {
+      offset = header;
+    }
     const stated = readStatedOffset(row);
-    if (stated !== undefined) offset = stated;
-    if (row.kind === DiffLineKinds.ADD) offset -= 1;
-    if (row.kind === DiffLineKinds.DEL) offset += 1;
+    if (stated !== undefined) {
+      offset = stated;
+    }
+    if (row.kind === DiffLineKinds.ADD) {
+      offset -= 1;
+    }
+    if (row.kind === DiffLineKinds.DEL) {
+      offset += 1;
+    }
     trail.push(offset);
   }
 
@@ -389,17 +445,23 @@ function traceOffsets(diff: readonly DiffLine[]): number[] {
 }
 
 function readStatedOffset(row: DiffLine): number | undefined {
-  if (row.oldLine === undefined || row.newLine === undefined) return undefined;
+  if (row.oldLine === undefined || row.newLine === undefined) {
+    return undefined;
+  }
 
   return row.oldLine - row.newLine;
 }
 
 function readHunkOffset(row: DiffLine): number | undefined {
-  if (row.kind !== DiffLineKinds.HUNK) return undefined;
+  if (row.kind !== DiffLineKinds.HUNK) {
+    return undefined;
+  }
   const match = HUNK_HEADER.exec(row.content);
   const oldStart = match?.groups?.["oldStart"];
   const newStart = match?.groups?.["newStart"];
-  if (oldStart === undefined || newStart === undefined) return undefined;
+  if (oldStart === undefined || newStart === undefined) {
+    return undefined;
+  }
 
   return Number(oldStart) - Number(newStart);
 }
@@ -414,7 +476,9 @@ function findHeaderBetween(
   below: number,
 ): number | undefined {
   for (let index = above + 1; index < below; index += 1) {
-    if (diff[index]?.kind === DiffLineKinds.HUNK) return index;
+    if (diff[index]?.kind === DiffLineKinds.HUNK) {
+      return index;
+    }
   }
 
   return undefined;
@@ -428,7 +492,9 @@ function resolveRemaining(
     gap.edge.direction === ExpansionDirections.DOWN
       ? resolveRemainingBelow(gap, expanded)
       : resolveRemainingAbove(gap, expanded);
-  if (range.from > range.to) return undefined;
+  if (range.from > range.to) {
+    return undefined;
+  }
 
   return range;
 }
@@ -459,12 +525,16 @@ function applyStopRule(
   direction: ExpansionDirection,
   blocked: readonly LineRange[],
 ): ExpansionRange | undefined {
-  if (range.from > range.to) return undefined;
+  if (range.from > range.to) {
+    return undefined;
+  }
   const bounded =
     direction === ExpansionDirections.DOWN
       ? stopBelow(range, blocked)
       : stopAbove(range, blocked);
-  if (bounded.from > bounded.to) return undefined;
+  if (bounded.from > bounded.to) {
+    return undefined;
+  }
 
   return bounded;
 }
@@ -476,7 +546,9 @@ function stopBelow(
   let to = range.to;
 
   for (const block of blocked) {
-    if (block.end < range.from || block.start > to) continue;
+    if (block.end < range.from || block.start > to) {
+      continue;
+    }
     to = Math.min(to, block.start - 1);
   }
 
@@ -490,7 +562,9 @@ function stopAbove(
   let from = range.from;
 
   for (const block of blocked) {
-    if (block.start > range.to || block.end < from) continue;
+    if (block.start > range.to || block.end < from) {
+      continue;
+    }
     from = Math.max(from, block.end + 1);
   }
 
@@ -502,7 +576,9 @@ function takeStep(
   direction: ExpansionDirection,
 ): ExpansionRange {
   const span = range.to - range.from + 1;
-  if (span <= EXPAND_STEP) return range;
+  if (span <= EXPAND_STEP) {
+    return range;
+  }
   if (direction === ExpansionDirections.DOWN) {
     return { from: range.from, to: range.from + EXPAND_STEP - 1 };
   }
@@ -519,7 +595,9 @@ function buildExpandedRows(
 
   for (let line = range.from; line <= range.to; line += 1) {
     const content = slice.lines[line - slice.from];
-    if (content === undefined) continue;
+    if (content === undefined) {
+      continue;
+    }
     rows.push({
       kind: DiffLineKinds.CTX,
       origin: DiffRowOrigins.EXPANDED,
@@ -533,7 +611,9 @@ function buildExpandedRows(
 }
 
 function closesGap(gap: ExpansionGap, range: ExpansionRange): boolean {
-  if (gap.to === undefined) return false;
+  if (gap.to === undefined) {
+    return false;
+  }
 
   return range.from <= gap.from && range.to >= gap.to;
 }
@@ -551,7 +631,9 @@ function dropSeamHeader(
 ): DiffLine[] {
   const seam =
     direction === ExpansionDirections.DOWN ? index + inserted : index - 1;
-  if (rows[seam]?.kind !== DiffLineKinds.HUNK) return rows;
+  if (rows[seam]?.kind !== DiffLineKinds.HUNK) {
+    return rows;
+  }
 
   return [...rows.slice(0, seam), ...rows.slice(seam + 1)];
 }

@@ -62,8 +62,12 @@ export function buildPairPartners(
   const partners = new Map<number, number>();
 
   for (const pair of pairs) {
-    if (pair.left === undefined || pair.right === undefined) continue;
-    if (pair.left === pair.right) continue;
+    if (pair.left === undefined || pair.right === undefined) {
+      continue;
+    }
+    if (pair.left === pair.right) {
+      continue;
+    }
     partners.set(pair.left.index, pair.right.index);
     partners.set(pair.right.index, pair.left.index);
   }
@@ -130,7 +134,9 @@ export function spanForPlacement(
   layout: UnderRowLayout,
 ): number {
   const sideColumns = layout.sideColumns ?? 0;
-  if (placement === SplitSides.RIGHT) return sideColumns;
+  if (placement === SplitSides.RIGHT) {
+    return sideColumns;
+  }
   return layout.columnCount - sideColumns;
 }
 
@@ -166,7 +172,9 @@ export function resolvePlacement(
 export function placementForAnchor(
   anchor: CommentAnchor,
 ): SplitSide | undefined {
-  if (!isLineCommentAnchor(anchor)) return undefined;
+  if (!isLineCommentAnchor(anchor)) {
+    return undefined;
+  }
   return resolvePlacement(anchor.side, anchor.startSide);
 }
 
@@ -199,7 +207,9 @@ export function placementForThread(
   thread: ConversationThread,
   line: DiffLine,
 ): SplitSide | undefined {
-  if (thread.side === undefined) return sideForRow(line);
+  if (thread.side === undefined) {
+    return sideForRow(line);
+  }
   if (thread.startSide !== undefined && thread.startSide !== thread.side) {
     return undefined;
   }
@@ -211,8 +221,12 @@ export function isSideFocusable(
   line: DiffLine,
   side: SplitSide | undefined,
 ): boolean {
-  if (side === undefined) return true;
-  if (isContextKind(line.kind)) return side === SplitSides.RIGHT;
+  if (side === undefined) {
+    return true;
+  }
+  if (isContextKind(line.kind)) {
+    return side === SplitSides.RIGHT;
+  }
   return true;
 }
 
@@ -223,7 +237,9 @@ export function resolveDragSelection(
   startSide: SplitSide | undefined,
   currentSide: SplitSide | undefined,
 ): DragSelection {
-  if (start === null || current === null) return NO_SELECTION;
+  if (start === null || current === null) {
+    return NO_SELECTION;
+  }
   if (startSide !== undefined && startSide === currentSide) {
     return {
       indexes: collectSideIndexes(pairs, startSide, start, current),
@@ -264,14 +280,20 @@ export function collectSideIndexes(
   const positions = pairs.map((pair) => pair[side]?.index);
   const fromAt = positions.indexOf(from);
   const toAt = positions.indexOf(to);
-  if (fromAt < 0 || toAt < 0) return [];
+  if (fromAt < 0 || toAt < 0) {
+    return [];
+  }
   const [low, high] = fromAt < toAt ? [fromAt, toAt] : [toAt, fromAt];
   const indexes: number[] = [];
 
   for (let position = low; position <= high; position += 1) {
-    if (pairs[position]?.full !== undefined) return [];
+    if (pairs[position]?.full !== undefined) {
+      return [];
+    }
     const index = positions[position];
-    if (index !== undefined) indexes.push(index);
+    if (index !== undefined) {
+      indexes.push(index);
+    }
   }
 
   return indexes;
@@ -471,7 +493,9 @@ export function collectAnchoredIndexes(
     const indexes: number[] = [];
     rows.forEach((row, index) => {
       const line = lineOnSide(row, anchor.side);
-      if (line === undefined) return;
+      if (line === undefined) {
+        return;
+      }
       if (line >= anchor.startLine && line <= anchor.endLine) {
         indexes.push(index);
       }
@@ -484,7 +508,9 @@ export function collectAnchoredIndexes(
   const end = rows.findLastIndex(
     (row) => lineOnSide(row, anchor.side) === anchor.endLine,
   );
-  if (start === -1 || end === -1 || end < start) return [];
+  if (start === -1 || end === -1 || end < start) {
+    return [];
+  }
 
   return rangeBetween(start, end).filter((index) => {
     const row = rows[index];
@@ -520,7 +546,9 @@ export function collectOwnerRowIds(
       line === undefined
         ? -1
         : ownerRows.findIndex((row) => matchesLine(row, line));
-    if (at === -1) return [];
+    if (at === -1) {
+      return [];
+    }
     rowIds.push(rowId(owner.id, at));
   }
 
@@ -545,8 +573,12 @@ export function isSpanRowCommentable(
   line: DiffLine,
   owner: BriefChunk | undefined,
 ): boolean {
-  if (owner === undefined) return false;
-  if (owner.diff === undefined) return isCommentableLine(line);
+  if (owner === undefined) {
+    return false;
+  }
+  if (owner.diff === undefined) {
+    return isCommentableLine(line);
+  }
 
   return owner.diff.some((row) => matchesLine(row, line));
 }
@@ -574,18 +606,26 @@ export function focusExpandedLine(
   line: number,
   options: FocusOptions,
 ): void {
-  if (table === null) return;
+  if (table === null) {
+    return;
+  }
   const wanted = String(line);
   const unified = table.querySelectorAll(EXPANDED_ROW_SELECTOR);
   for (const row of unified) {
     const numbers = row.querySelectorAll("[data-line-number]");
-    if (numbers[1]?.textContent !== wanted) continue;
-    if (row instanceof HTMLElement) row.focus(options);
+    if (numbers[1]?.textContent !== wanted) {
+      continue;
+    }
+    if (row instanceof HTMLElement) {
+      row.focus(options);
+    }
     return;
   }
   const cells = table.querySelectorAll(EXPANDED_RIGHT_NUMBER_SELECTOR);
   for (const cell of cells) {
-    if (cell.textContent !== wanted) continue;
+    if (cell.textContent !== wanted) {
+      continue;
+    }
     const target = cell.nextElementSibling;
     if (target instanceof HTMLElement && target.matches("[tabindex]")) {
       target.focus(options);
@@ -597,7 +637,9 @@ export function focusExpandedLine(
 export function collectThreadLines(rows: readonly DigestThreadRow[]): number[] {
   const lines: number[] = [];
   for (const row of rows) {
-    if (row.thread.line !== undefined) lines.push(row.thread.line);
+    if (row.thread.line !== undefined) {
+      lines.push(row.thread.line);
+    }
   }
 
   return lines;
@@ -609,7 +651,9 @@ export function showsThreadOnRow(
   line: DiffLine,
 ): boolean {
   const threadLine = row.thread.line;
-  if (threadLine === undefined) return false;
+  if (threadLine === undefined) {
+    return false;
+  }
   const side = row.thread.side ?? ThreadSides.RIGHT;
 
   return (
@@ -696,7 +740,9 @@ export function frameSpansOnPairs(
 /** A pair's cells in the order the row slots fire: left, then right. */
 function collectPairCells(pair: SplitRow): SplitCell[] {
   const cells: SplitCell[] = [];
-  if (pair.left !== undefined) cells.push(pair.left);
+  if (pair.left !== undefined) {
+    cells.push(pair.left);
+  }
   if (pair.right !== undefined && pair.right !== pair.left) {
     cells.push(pair.right);
   }
@@ -709,9 +755,13 @@ function resolvePairSpan(
   spanOfRow: ReadonlyMap<number, SiblingSpan>,
 ): SiblingSpan | undefined {
   const first = cells[0];
-  if (first === undefined) return undefined;
+  if (first === undefined) {
+    return undefined;
+  }
   const span = spanOfRow.get(first.index);
-  if (span === undefined) return undefined;
+  if (span === undefined) {
+    return undefined;
+  }
   const shared = cells.every((cell) => spanOfRow.get(cell.index) === span);
 
   return shared ? span : undefined;
@@ -761,7 +811,9 @@ function sharesOwner(
   ownerOf: (index: number) => string | undefined,
 ): boolean {
   const { left, right } = pair;
-  if (left === undefined || right === undefined || left === right) return true;
+  if (left === undefined || right === undefined || left === right) {
+    return true;
+  }
 
   return ownerOf(left.index) === ownerOf(right.index);
 }
@@ -802,7 +854,9 @@ export function collectSpannedRows(
 ): ReadonlySet<number> {
   const spanned = new Set<number>();
   for (const frame of frames) {
-    for (const index of frame.rows) spanned.add(index);
+    for (const index of frame.rows) {
+      spanned.add(index);
+    }
   }
 
   return spanned;
@@ -816,7 +870,9 @@ export function mapToBaseIndexes(
   indexes: readonly number[],
   baseIndexOf: readonly number[] | undefined,
 ): number[] | undefined {
-  if (baseIndexOf === undefined) return [...indexes];
+  if (baseIndexOf === undefined) {
+    return [...indexes];
+  }
   const mapped = indexes.map((index) => baseIndexOf[index] ?? -1);
 
   return mapped.includes(-1) ? undefined : mapped;
@@ -827,7 +883,9 @@ export function collectDragBaseIndexes(
   dragIndexes: ReadonlySet<number>,
   baseIndexOf: readonly number[] | undefined,
 ): Set<number> {
-  if (baseIndexOf === undefined) return new Set(dragIndexes);
+  if (baseIndexOf === undefined) {
+    return new Set(dragIndexes);
+  }
 
   return new Set(
     [...dragIndexes]
@@ -848,9 +906,13 @@ export function resolveSpanRangeOwner(
   ownerChunkById: ReadonlyMap<string, BriefChunk>,
 ): BriefChunk | undefined {
   const ownerIds = new Set(indexes.map((index) => spanOwnerByRow.get(index)));
-  if (ownerIds.size !== 1) return undefined;
+  if (ownerIds.size !== 1) {
+    return undefined;
+  }
   const [ownerId] = ownerIds;
-  if (ownerId === undefined) return undefined;
+  if (ownerId === undefined) {
+    return undefined;
+  }
   if (indexes.some((index) => rowViews[index]?.isCommentable !== true)) {
     return undefined;
   }
@@ -885,8 +947,12 @@ export function resolveBeforeRowEdges(
   previousRow: DiffLine | undefined,
 ): ExpandableEdge[] {
   const hosted = edgesByRow.get(index) ?? [];
-  if (hosted.length === 0 || row.kind === DiffLineKinds.HUNK) return [];
-  if (previousRow?.kind !== DiffLineKinds.HUNK) return [...hosted];
+  if (hosted.length === 0 || row.kind === DiffLineKinds.HUNK) {
+    return [];
+  }
+  if (previousRow?.kind !== DiffLineKinds.HUNK) {
+    return [...hosted];
+  }
 
   return hosted.filter((edge) => !isUpEdge(edge));
 }
@@ -899,7 +965,9 @@ export function demoteSubmitted(
   comments: ReviewComment[],
   ownThreads: readonly ConversationThread[],
 ): ReviewComment[] {
-  if (ownThreads.length === 0) return comments;
+  if (ownThreads.length === 0) {
+    return comments;
+  }
   const demoted = demotedSubmittedCommentIds(comments, ownThreads);
 
   return demoted.size === 0
@@ -921,7 +989,9 @@ export function buildLineSelection(
   baseIndexOf: readonly number[] | undefined,
 ): LineSelection | null {
   const anchor = buildLineAnchor(chunkId, file, rows, indexes, side);
-  if (anchor === null) return null;
+  if (anchor === null) {
+    return null;
+  }
   const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
   const rowIds =
     baseIndexes === undefined
@@ -967,7 +1037,9 @@ function shapeLineSelection(
     endLine: anchor.endLine,
     rowIds,
   };
-  if (anchor.startSide !== undefined) selection.startSide = anchor.startSide;
+  if (anchor.startSide !== undefined) {
+    selection.startSide = anchor.startSide;
+  }
 
   return selection;
 }

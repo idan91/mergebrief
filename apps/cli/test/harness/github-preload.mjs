@@ -10,8 +10,12 @@ const realFetch = globalThis.fetch;
 
 /** The request URL, whatever shape `fetch` was handed. */
 function readRequestUrl(input) {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
   return input.url;
 }
 

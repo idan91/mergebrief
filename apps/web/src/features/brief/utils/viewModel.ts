@@ -172,7 +172,9 @@ export function riskFlagDescription(
   t: TFunction,
   flag: Pick<RiskFlag, "descriptionKey" | "criteria">,
 ): string {
-  if (flag.descriptionKey !== undefined) return t(flag.descriptionKey);
+  if (flag.descriptionKey !== undefined) {
+    return t(flag.descriptionKey);
+  }
   return flag.criteria ?? t("brief.risk.repoDefined");
 }
 
@@ -270,14 +272,21 @@ export function buildBriefViewModel(
       } else if (meta.criteria !== undefined) {
         flag.criteria = meta.criteria;
       }
-      if (meta.implication !== undefined) flag.implication = meta.implication;
-      if (note !== undefined) flag.note = note;
+      if (meta.implication !== undefined) {
+        flag.implication = meta.implication;
+      }
+      if (note !== undefined) {
+        flag.note = note;
+      }
 
       flags.push(flag);
       flagsById.set(flag.id, flag);
       const groupFlags = flagsByGroup.get(groupId);
-      if (groupFlags) groupFlags.push(flag);
-      else flagsByGroup.set(groupId, [flag]);
+      if (groupFlags) {
+        groupFlags.push(flag);
+      } else {
+        flagsByGroup.set(groupId, [flag]);
+      }
     }
   }
 
@@ -298,7 +307,9 @@ export function buildBriefViewModel(
     riskMetaByChunk,
   };
 
-  if (unattributed !== undefined) viewModel.unattributed = unattributed;
+  if (unattributed !== undefined) {
+    viewModel.unattributed = unattributed;
+  }
 
   return viewModel;
 }
@@ -367,18 +378,24 @@ function orderGroupsByReadingOrder(
   groups: AttributedGroupView[],
   readingOrder: ReadingOrderStep[] | undefined,
 ): AttributedGroupView[] {
-  if (!readingOrder || readingOrder.length === 0) return groups;
+  if (!readingOrder || readingOrder.length === 0) {
+    return groups;
+  }
   const byId = new Map(groups.map((group) => [group.id, group]));
   const stepGroupIds = readingOrder.map((step) => step.groupId);
   const isPermutation =
     stepGroupIds.length === groups.length &&
     new Set(stepGroupIds).size === stepGroupIds.length &&
     stepGroupIds.every((id) => byId.has(id));
-  if (!isPermutation) return groups;
+  if (!isPermutation) {
+    return groups;
+  }
   const ordered = readingOrder
     .map((step, index): AttributedGroupView | undefined => {
       const group = byId.get(step.groupId);
-      if (!group) return undefined;
+      if (!group) {
+        return undefined;
+      }
       return {
         ...group,
         index,
@@ -399,7 +416,9 @@ function appendRemainderGroup(
 ): GroupView[] {
   const usedIds = new Set(brief.chunks.map((chunk) => chunk.id));
   const hydration = hydrateRemainderGroup(brief.unattributed, usedIds);
-  if (hydration === undefined) return attributed;
+  if (hydration === undefined) {
+    return attributed;
+  }
 
   const remainder: UnattributedRemainderGroupView = {
     kind: GroupViewKinds.UNATTRIBUTED_REMAINDER,
@@ -435,7 +454,9 @@ function sumRanges(ranges: LineRange[]): number {
 function buildUnattributedView(
   files: UnattributedFile[] | undefined,
 ): UnattributedView | undefined {
-  if (files === undefined) return undefined;
+  if (files === undefined) {
+    return undefined;
+  }
   const fileViews = files.map((file) => ({
     ...file,
     added: sumRanges(file.addedRanges),
@@ -478,7 +499,9 @@ function listChunkFirings(
   const firings: LoudFiring[] = [];
   for (const attr of chunk.riskSurface) {
     const meta = model.riskMetaByChunk.get(chunk.id)?.get(attr);
-    if (meta?.deEmphasized) continue;
+    if (meta?.deEmphasized) {
+      continue;
+    }
     firings.push({ groupId, attr, source: meta?.source ?? "built-in" });
   }
   return firings;
@@ -506,7 +529,9 @@ export function buildAttributeRail(model: BriefViewModel): AttributeRail {
   const sourceByAttr = new Map<RiskToken, AttributeSource>();
   for (const firing of listLoudFirings(model)) {
     const groupIds = groupsByAttr.get(firing.attr) ?? [];
-    if (!groupIds.includes(firing.groupId)) groupIds.push(firing.groupId);
+    if (!groupIds.includes(firing.groupId)) {
+      groupIds.push(firing.groupId);
+    }
     groupsByAttr.set(firing.attr, groupIds);
     if (!sourceByAttr.has(firing.attr)) {
       sourceByAttr.set(firing.attr, firing.source);

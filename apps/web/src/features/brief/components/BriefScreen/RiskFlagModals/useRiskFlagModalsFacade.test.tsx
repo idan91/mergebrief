@@ -45,7 +45,9 @@ function setup() {
 
 function firstFlagId(): string {
   const flagId = [...model.flagsById.keys()][0];
-  if (flagId === undefined) throw new Error("fixture has no flags");
+  if (flagId === undefined) {
+    throw new Error("fixture has no flags");
+  }
   return flagId;
 }
 

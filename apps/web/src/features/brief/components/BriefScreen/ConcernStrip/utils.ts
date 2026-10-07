@@ -68,7 +68,9 @@ export function concernShares(
 
   const working: WorkingShare[] = Object.values(Concerns).flatMap((concern) => {
     const entry = byConcern.get(concern);
-    if (entry === undefined) return [];
+    if (entry === undefined) {
+      return [];
+    }
     return [
       buildWorkingShare(SplitSegmentKinds.CONCERN, entry, total, concern),
     ];
@@ -91,9 +93,13 @@ export function concernShares(
       .map((item, index) => ({ remainder: item.remainder, index }))
       .toSorted((a, b) => b.remainder - a.remainder);
     for (const { index } of byRemainder) {
-      if (leftover === 0) break;
+      if (leftover === 0) {
+        break;
+      }
       const item = working[index];
-      if (item === undefined) continue;
+      if (item === undefined) {
+        continue;
+      }
       item.share.percent += 1;
       leftover -= 1;
     }

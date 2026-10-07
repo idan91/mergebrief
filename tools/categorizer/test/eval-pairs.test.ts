@@ -1,5 +1,5 @@
 // Revision-pair machinery: the pair runner drives the SAME plan/stitch the
-// production worker runs — fake generators only, no API.
+// production worker runs, with fake generators only and no API.
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,8 +37,12 @@ class SequenceGenerator implements Generator {
     this.requests.push({ system: req.system, user: req.user });
     const output = this.outputs[this.calls];
     this.calls += 1;
-    if (output === undefined) throw new Error("sequence exhausted");
-    if (output instanceof Error) throw output;
+    if (output === undefined) {
+      throw new Error("sequence exhausted");
+    }
+    if (output instanceof Error) {
+      throw output;
+    }
     return req.schema.parse(output);
   }
 }
@@ -183,7 +187,9 @@ describe("loadPairCases", () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
     expect(cases.ok).toBe(true);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     expect(cases.value).toHaveLength(1);
     expect(cases.value[0]?.id).toBe("demo-pair");
     expect(cases.value[0]?.properties[0]?.id).toBe("frozen-survives");
@@ -203,18 +209,24 @@ describe("loadPairCases", () => {
       join(tmpdir(), "definitely-missing-pairs-dir"),
     );
     expect(cases.ok).toBe(true);
-    if (!cases.ok) return;
+    if (!cases.ok) {
+      return;
+    }
     expect(cases.value).toEqual([]);
   });
 });
 
 describe("runPairCase", () => {
-  it("runs base fresh, revision anchored, and stitches — frozen carry survives", async () => {
+  it("stitches a fresh base and anchored revision so frozen carry survives", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
 
     const generator = new SequenceGenerator([
       genOutput([
@@ -230,7 +242,9 @@ describe("runPairCase", () => {
     expect(result.pairs).toHaveLength(1);
     expect(result.generationFailures).toBe(0);
     const pair = result.pairs[0];
-    if (pair === undefined) throw new Error("no pair");
+    if (pair === undefined) {
+      throw new Error("no pair");
+    }
     // The base run was fresh; the revised run was anchored.
     expect(generator.requests[0]?.system).not.toContain(
       "Anchored regeneration",
@@ -248,9 +262,13 @@ describe("runPairCase", () => {
   it("counts a failed revision generation as a run failure, not a crash", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
 
     const generator = new SequenceGenerator([
       genOutput([
@@ -266,13 +284,17 @@ describe("runPairCase", () => {
   });
 });
 
-describe("runPairCase — fresh mode (vacuous-pass probe)", () => {
+describe("runPairCase fresh mode as the vacuous-pass probe", () => {
   it("skips the anchor view and the stitch: raw model output, no stamp", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
     const generator = new SequenceGenerator([
       genOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
@@ -293,7 +315,9 @@ describe("runPairCase — fresh mode (vacuous-pass probe)", () => {
     );
     expect(result.pairs).toHaveLength(1);
     const pair = result.pairs[0];
-    if (pair === undefined) throw new Error("no pair");
+    if (pair === undefined) {
+      throw new Error("no pair");
+    }
     expect(generator.requests[1]?.system).not.toContain(
       "Anchored regeneration",
     );
@@ -311,9 +335,13 @@ describe("evaluatePairCase", () => {
   it("scores, persists both sides, and reports no baseline for a dry case", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
     const generator = new SequenceGenerator([
       genOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
@@ -336,7 +364,9 @@ describe("evaluatePairCase", () => {
       () => {},
     );
     expect(evaluated.ok).toBe(true);
-    if (!evaluated.ok) throw new Error(evaluated.error);
+    if (!evaluated.ok) {
+      throw new Error(evaluated.error);
+    }
     expect(evaluated.value.outcome.baseline).toBeNull();
     expect(evaluated.value.outcome.runsScored).toBe(1);
     expect(evaluated.value.outcome.scores.get("frozen-survives")?.passes).toBe(
@@ -353,9 +383,13 @@ describe("evaluatePairCase", () => {
   it("carries a labeled text-length note when a side's summary is over cap", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
     const generator = new SequenceGenerator([
       genOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
@@ -363,7 +397,7 @@ describe("evaluatePairCase", () => {
       ]),
       genOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
-        // genOutput derives summary from the title — an over-cap title
+        // genOutput derives summary from the title, so an over-cap title
         // produces an over-cap summary (and an over-cap title violation).
         { id: "tmpB", title: "x".repeat(260), file: "b.ts" },
       ]),
@@ -380,7 +414,9 @@ describe("evaluatePairCase", () => {
       () => {},
     );
     expect(evaluated.ok).toBe(true);
-    if (!evaluated.ok) throw new Error(evaluated.error);
+    if (!evaluated.ok) {
+      throw new Error(evaluated.error);
+    }
     const notes = evaluated.value.outcome.notes.join("\n");
     expect(notes).toContain("revised text length: 1/1 runs over cap");
     expect(notes).not.toContain("base text length");
@@ -391,9 +427,13 @@ describe("evaluatePairCase", () => {
     // path would overwrite a committed baseline during a cross-model run.
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
     const outputs = () => [
       genOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
@@ -416,7 +456,9 @@ describe("evaluatePairCase", () => {
       () => {},
     );
     expect(evaluated.ok).toBe(true);
-    if (!evaluated.ok) throw new Error(evaluated.error);
+    if (!evaluated.ok) {
+      throw new Error(evaluated.error);
+    }
     expect(evaluated.value.outcome.baseline).toBeNull();
     expect(evaluated.value.rebaselined).toBe(false);
     expect(existsSync(join(pairCase.dir, "baseline.json"))).toBe(false);
@@ -425,9 +467,13 @@ describe("evaluatePairCase", () => {
   it("rebaseline writes and re-reads the baseline at the same key", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     const pairCase = cases.value[0];
-    if (pairCase === undefined) throw new Error("no case");
+    if (pairCase === undefined) {
+      throw new Error("no case");
+    }
     const outputs = () => [
       genOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
@@ -450,7 +496,9 @@ describe("evaluatePairCase", () => {
       () => {},
     );
     expect(wrote.ok).toBe(true);
-    if (!wrote.ok) throw new Error(wrote.error);
+    if (!wrote.ok) {
+      throw new Error(wrote.error);
+    }
     expect(wrote.value.rebaselined).toBe(true);
     expect(existsSync(join(pairCase.dir, "baseline.json"))).toBe(true);
 
@@ -465,7 +513,9 @@ describe("evaluatePairCase", () => {
       () => {},
     );
     expect(reread.ok).toBe(true);
-    if (!reread.ok) throw new Error(reread.error);
+    if (!reread.ok) {
+      throw new Error(reread.error);
+    }
     expect(reread.value.outcome.baseline?.properties["frozen-survives"]).toBe(
       1,
     );
@@ -479,7 +529,9 @@ describe("selectCases", () => {
   it("passes both case sets through with no filter", () => {
     const result = selectCases(singles, pairs, undefined);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.singles).toHaveLength(2);
     expect(result.value.pairs).toHaveLength(1);
   });
@@ -489,7 +541,9 @@ describe("selectCases", () => {
     expect(pairHit.ok && pairHit.value.pairs).toHaveLength(1);
     const miss = selectCases(singles, pairs, "nope");
     expect(miss.ok).toBe(false);
-    if (miss.ok) return;
+    if (miss.ok) {
+      return;
+    }
     expect(miss.error).toContain("p1");
   });
 
@@ -498,7 +552,7 @@ describe("selectCases", () => {
   });
 });
 
-describe("parseEvalArgs — --pair-fresh", () => {
+describe("parseEvalArgs --pair-fresh", () => {
   it("parses the flag and refuses it alongside --rebaseline", () => {
     const parsed = parseEvalArgs(["--pair-fresh"]);
     expect(parsed.ok && parsed.value.pairFresh).toBe(true);
@@ -546,7 +600,7 @@ describe("scorePairRuns", () => {
 
 // ---------------------------------------------------------------------------
 // The committed pair source: every case must load, and the shared property
-// builders must be shown to FAIL against broken pairs — mechanical
+// builders must be shown to FAIL against broken pairs: mechanical
 // vacuous-pass evidence before any live baseline lands.
 // ---------------------------------------------------------------------------
 
@@ -571,7 +625,9 @@ describe("committed pair case set", () => {
   it("every committed pair case loads with unique, non-empty properties", async () => {
     const cases = await loadPairCases(PAIRS_DIR);
     expect(cases.ok).toBe(true);
-    if (!cases.ok) throw new Error(cases.error);
+    if (!cases.ok) {
+      throw new Error(cases.error);
+    }
     expect(cases.value.length).toBeGreaterThanOrEqual(11);
     for (const pairCase of cases.value) {
       expect(pairCase.properties.length).toBeGreaterThan(0);
@@ -634,7 +690,7 @@ function buildRevisionPair(base: Brief, revised: Brief): RevisionPair {
   };
 }
 
-describe("shared pair properties fail against broken pairs (vacuous-pass evidence)", () => {
+describe("shared pair properties fail against broken pairs", () => {
   const base = briefWith([
     { id: "g1", file: "a.ts", attrs: ["touches-auth"] },
     { id: "g2", file: "b.ts" },
@@ -650,7 +706,7 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
     expect(survives.check(buildRevisionPair(base, rewritten))).toBe(false);
   });
 
-  it("frozenAttrsNeverChange: fails when an attribute drifts on the frozen file", () => {
+  it("frozenAttrsNeverChange: fails when a frozen file's attribute drifts", () => {
     const property = frozenAttrsNeverChange("a.ts");
     expect(property.check(buildRevisionPair(base, base))).toBe(true);
     const drifted = briefWith([
@@ -683,7 +739,7 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
     expect(property.check(buildRevisionPair(base, reminted))).toBe(false);
   });
 
-  it("survivorOrderStable: fails on reordered or re-ranged chunks and on an absent file", () => {
+  it("survivorOrderStable: fails on reorder, re-range, or an absent file", () => {
     const twoChunkBase: Brief = {
       ...base,
       chunks: [

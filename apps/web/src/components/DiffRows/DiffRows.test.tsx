@@ -332,7 +332,9 @@ describe("DiffRows", () => {
     expect(row?.getAttribute("data-selected")).toBe("");
     expect(row?.getAttribute("data-rev")).toBe("added");
     expect(row?.getAttribute("tabindex")).toBe("0");
-    if (row) fireEvent.keyDown(row, { key: "Enter" });
+    if (row) {
+      fireEvent.keyDown(row, { key: "Enter" });
+    }
     expect(onKeyDown).toHaveBeenCalledTimes(1);
   });
 

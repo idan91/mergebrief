@@ -67,7 +67,9 @@ describe("resolvePrStack", () => {
   it("does not duplicate self when it also appears in the open list", () => {
     const stack = resolvePrStack(MIDDLE, [ROOT, MIDDLE, TIP]);
     expect(stack !== undefined && isLinearPrStack(stack)).toBe(true);
-    if (stack === undefined || !isLinearPrStack(stack)) return;
+    if (stack === undefined || !isLinearPrStack(stack)) {
+      return;
+    }
     const numbers = stack.members.map((member) => member.number);
     expect(numbers).toEqual([12, 13, 14]);
   });

@@ -69,13 +69,17 @@ export const DEFAULT_CONVERSATION_FILTER: ConversationFilter = {
 
 function parseVerdictToken(token: string): FilterVerdictState | undefined {
   for (const state of VERDICT_ORDER) {
-    if (VERDICT_PARAM[state] === token) return state;
+    if (VERDICT_PARAM[state] === token) {
+      return state;
+    }
   }
   return undefined;
 }
 
 function splitParam(value: unknown): readonly string[] {
-  if (typeof value !== "string" || value === "") return [];
+  if (typeof value !== "string" || value === "") {
+    return [];
+  }
   return value
     .split(",")
     .map((token) => token.trim())
@@ -93,7 +97,9 @@ export function parseConversationFilter(
   const verdicts = new Set<FilterVerdictState>();
   for (const token of splitParam(params["verdicts"])) {
     const state = parseVerdictToken(token);
-    if (state !== undefined) verdicts.add(state);
+    if (state !== undefined) {
+      verdicts.add(state);
+    }
   }
   return {
     verdicts,
@@ -112,9 +118,15 @@ export function conversationFilterSearch(
   const reviewers = [...filter.reviewers];
   const search: Mutable<ConversationFilterSearch> = {};
 
-  if (verdicts.length !== 0) search.verdicts = verdicts.join(",");
-  if (reviewers.length !== 0) search.reviewers = reviewers.join(",");
-  if (!filter.latestOnly) search.reviews = ALL_REVIEWS_PARAM;
+  if (verdicts.length !== 0) {
+    search.verdicts = verdicts.join(",");
+  }
+  if (reviewers.length !== 0) {
+    search.reviewers = reviewers.join(",");
+  }
+  if (!filter.latestOnly) {
+    search.reviews = ALL_REVIEWS_PARAM;
+  }
 
   return search;
 }
@@ -139,8 +151,9 @@ function isNewer(
   if (
     candidate.submittedAt === undefined ||
     incumbent.submittedAt === undefined
-  )
+  ) {
     return true;
+  }
   return candidate.submittedAt >= incumbent.submittedAt;
 }
 
@@ -172,7 +185,9 @@ function matchesVerdict(
   review: ConversationReview,
   filter: ConversationFilter,
 ): boolean {
-  if (filter.verdicts.size === 0) return true;
+  if (filter.verdicts.size === 0) {
+    return true;
+  }
   // DISMISSED can never be in the set, so it falls out here by construction.
   return VERDICT_ORDER.some(
     (state) => state === review.state && filter.verdicts.has(state),
@@ -211,7 +226,9 @@ export function applyConversationFilter(
         matchesVerdict(review, filter),
     ),
     threads: conversation.threads.filter((thread) => {
-      if (filter.reviewers.size === 0) return true;
+      if (filter.reviewers.size === 0) {
+        return true;
+      }
       const author = threadAuthor(thread);
       return author !== undefined && matchesReviewer(author, filter);
     }),
@@ -242,7 +259,9 @@ export function verdictFacets(
   const facets: VerdictFacet[] = [];
   for (const state of VERDICT_ORDER) {
     const matching = visible.filter((review) => review.state === state);
-    if (matching.length === 0) continue;
+    if (matching.length === 0) {
+      continue;
+    }
     facets.push({
       state,
       humanCount: matching.filter((review) => !review.author.isBot).length,
@@ -272,14 +291,22 @@ export function reviewerFacets(
       byLogin.set(author.login, { login: author.login, isBot: author.isBot });
     }
   };
-  for (const review of conversation.reviews) add(review.author);
+  for (const review of conversation.reviews) {
+    add(review.author);
+  }
   for (const thread of conversation.threads) {
     const author = threadAuthor(thread);
-    if (author !== undefined) add(author);
+    if (author !== undefined) {
+      add(author);
+    }
   }
-  for (const comment of conversation.prComments) add(comment.author);
+  for (const comment of conversation.prComments) {
+    add(comment.author);
+  }
   return [...byLogin.values()].toSorted((left, right) => {
-    if (left.isBot !== right.isBot) return left.isBot ? 1 : -1;
+    if (left.isBot !== right.isBot) {
+      return left.isBot ? 1 : -1;
+    }
     return left.login.localeCompare(right.login);
   });
 }
@@ -294,12 +321,16 @@ export function reconcileReviewers(
   filter: ConversationFilter,
   conversation: PrConversation,
 ): ConversationFilter {
-  if (filter.reviewers.size === 0) return filter;
+  if (filter.reviewers.size === 0) {
+    return filter;
+  }
   const known = new Set(
     reviewerFacets(conversation).map((facet) => facet.login),
   );
   const kept = [...filter.reviewers].filter((login) => known.has(login));
-  if (kept.length === filter.reviewers.size) return filter;
+  if (kept.length === filter.reviewers.size) {
+    return filter;
+  }
   return { ...filter, reviewers: new Set(kept) };
 }
 
@@ -314,7 +345,9 @@ export function countHiddenInlineThreads(
   filter: ConversationFilter,
   chunks: readonly BriefChunk[],
 ): number {
-  if (filter.reviewers.size === 0) return 0;
+  if (filter.reviewers.size === 0) {
+    return 0;
+  }
   let hidden = 0;
   for (const rows of buildInlineThreads({
     conversation,

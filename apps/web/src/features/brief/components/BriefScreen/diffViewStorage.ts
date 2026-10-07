@@ -9,11 +9,15 @@ export const DIFF_VIEW_STORAGE_KEY = "mergebrief.diffView";
 const diffViewSchema = z.enum(DiffViews).catch(DiffViews.UNIFIED);
 
 export function readDiffView(): DiffView {
-  if (typeof window === "undefined") return DiffViews.UNIFIED;
+  if (typeof window === "undefined") {
+    return DiffViews.UNIFIED;
+  }
 
   try {
     const raw = window.localStorage.getItem(DIFF_VIEW_STORAGE_KEY);
-    if (raw === null) return DiffViews.UNIFIED;
+    if (raw === null) {
+      return DiffViews.UNIFIED;
+    }
 
     return diffViewSchema.parse(JSON.parse(raw));
   } catch {
@@ -22,7 +26,9 @@ export function readDiffView(): DiffView {
 }
 
 export function writeDiffView(view: DiffView): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     window.localStorage.setItem(DIFF_VIEW_STORAGE_KEY, JSON.stringify(view));

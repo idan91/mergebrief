@@ -37,7 +37,9 @@ describe("useMergedRef", () => {
   it("forwards a callback ref's cleanup so an owned observer detaches", () => {
     const torn: string[] = [];
     const owning = (node: HTMLDivElement | null) => {
-      if (node === null) return undefined;
+      if (node === null) {
+        return undefined;
+      }
       return () => {
         torn.push("cleanup");
       };

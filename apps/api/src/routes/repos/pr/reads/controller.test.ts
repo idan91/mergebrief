@@ -190,7 +190,9 @@ describe("readsController", () => {
     );
 
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected success");
+    if (!result.ok) {
+      throw new Error("expected success");
+    }
     expect(result.value).toEqual({
       stack: {
         members: [

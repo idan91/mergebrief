@@ -297,7 +297,9 @@ describe("ChunkCard selectable file path", () => {
     // The gesture replaces it with a DIFFERENT range (missed a character).
     const file = within(toggle).getByText(chunk.file);
     const text = file.firstChild;
-    if (!(text instanceof Text)) throw new Error("expected a text node");
+    if (!(text instanceof Text)) {
+      throw new Error("expected a text node");
+    }
     const range = document.createRange();
     range.setStart(text, 0);
     range.setEnd(text, 3);
@@ -353,7 +355,9 @@ describe("ChunkCard selectable file path", () => {
     fireEvent.mouseDown(toggle, { detail: 2 });
     const file = within(toggle).getByText(chunk.file);
     const text = file.firstChild;
-    if (!(text instanceof Text)) throw new Error("expected a text node");
+    if (!(text instanceof Text)) {
+      throw new Error("expected a text node");
+    }
     const range = document.createRange();
     range.setStart(text, 0);
     range.setEnd(text, 3);

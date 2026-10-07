@@ -177,7 +177,9 @@ describe("runCapabilities --require is fail-closed", () => {
     );
     await expect(run).rejects.toThrow(CliError);
     const error = await run.catch((cause: unknown) => cause);
-    if (!(error instanceof CliError)) throw new Error("expected CliError");
+    if (!(error instanceof CliError)) {
+      throw new Error("expected CliError");
+    }
     expect(error.code).toBe(ExitCodes.INCOMPATIBLE);
     expect(error.message).toContain("read-gone");
     expect(error.message).toContain("submit-review");
@@ -290,11 +292,14 @@ describe("mergebrief capabilities against the real api", () => {
     const kp = world.keyProvider;
     try {
       const reviewerId = BigInt(555);
-      if (!isReviewerId(reviewerId)) throw new Error("bad id");
+      if (!isReviewerId(reviewerId)) {
+        throw new Error("bad id");
+      }
       const sealedAccess = await encryptToken(kp, "SESSION_KEY_V1", "ghu_A");
       const sealedRefresh = await encryptToken(kp, "SESSION_KEY_V1", "ghr_R");
-      if (!sealedAccess.ok || !sealedRefresh.ok)
+      if (!sealedAccess.ok || !sealedRefresh.ok) {
         throw new Error("seed encrypt failed");
+      }
       const grant = await createGrantAuth(harness.handle).createGrant({
         ghTokenCiphertext: sealedAccess.value,
         ghRefreshTokenCiphertext: sealedRefresh.value,

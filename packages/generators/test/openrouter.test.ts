@@ -42,8 +42,9 @@ afterEach(() => {
 
 function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string")
+  if (typeof body !== "string") {
     throw new Error("expected a string request body");
+  }
   return body;
 }
 
@@ -96,10 +97,13 @@ function scriptedFetch(
 ): Scripted {
   const bodies: Record<string, unknown>[] = [];
   const fixture: typeof fetch = async (input, init) => {
-    if (getRequestUrl(input).endsWith("/models"))
+    if (getRequestUrl(input).endsWith("/models")) {
       return modelsResponse(supported);
+    }
     const parsed: unknown = JSON.parse(getRequestBody(init));
-    if (!isRecord(parsed)) throw new Error("unexpected request body");
+    if (!isRecord(parsed)) {
+      throw new Error("unexpected request body");
+    }
     bodies.push(parsed);
     return respond(parsed, bodies.length);
   };
@@ -117,7 +121,9 @@ async function mustCore(
     fetch: scripted.fetch,
     ...overrides,
   });
-  if (!core.ok) throw new Error(core.error.issues.join("; "));
+  if (!core.ok) {
+    throw new Error(core.error.issues.join("; "));
+  }
   return core.value;
 }
 
@@ -145,7 +151,9 @@ describe("OpenRouter request translation", () => {
     });
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     const body = scripted.bodies[0];
-    if (!body) throw new Error("no request recorded");
+    if (!body) {
+      throw new Error("no request recorded");
+    }
     // Forced last, the configured false must lose.
     expect(body["provider"]).toEqual({
       order: ["some-lab"],
@@ -268,8 +276,9 @@ async function caughtFrom(generator: {
     },
     (error: unknown) => error,
   );
-  if (!(caught instanceof GeneratorError))
+  if (!(caught instanceof GeneratorError)) {
     throw new Error("wrong rejection type");
+  }
   return caught;
 }
 
@@ -433,7 +442,9 @@ describe("OpenRouter preflight", () => {
           : new Response("{}", { status: 500 }),
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("structured_outputs");
   });
 
@@ -445,7 +456,9 @@ describe("OpenRouter preflight", () => {
       fetch: async () => modelsResponse(["structured_outputs"]),
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain(
       '"missing/slug" not found',
     );
@@ -463,7 +476,9 @@ describe("OpenRouter preflight", () => {
         }),
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     const text = result.error.issues.join("; ");
     expect(text).toContain("rejected the API key");
     expect(text).not.toContain("SENTINEL");
@@ -483,7 +498,9 @@ describe("OpenRouter preflight", () => {
         }),
     });
     expect(on503.ok).toBe(false);
-    if (on503.ok) return;
+    if (on503.ok) {
+      return;
+    }
     expect(on503.error.transient).toBe(true);
 
     const onNetwork = await createOpenRouterCore({
@@ -495,7 +512,9 @@ describe("OpenRouter preflight", () => {
       },
     });
     expect(onNetwork.ok).toBe(false);
-    if (onNetwork.ok) return;
+    if (onNetwork.ok) {
+      return;
+    }
     expect(onNetwork.error.transient).toBe(true);
   });
 
@@ -537,7 +556,9 @@ describe("openrouter registry entry", () => {
       { env, failureDir: tempDir("openrouter-nokey-") },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("OPENROUTER_API_KEY");
   });
 
@@ -590,7 +611,9 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
         }
         const turn = turns[served] ?? turns[turns.length - 1];
         served += 1;
-        if (turn === undefined) throw new Error("no scripted turn left");
+        if (turn === undefined) {
+          throw new Error("no scripted turn left");
+        }
         if ("abort" in turn) {
           queueMicrotask(() => controller.abort());
           return new Promise<Response>((_resolve, reject) => {
@@ -598,8 +621,11 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
               reject(
                 new DOMException("The operation was aborted.", "AbortError"),
               );
-            if (init?.signal?.aborted) fail();
-            else init?.signal?.addEventListener("abort", fail);
+            if (init?.signal?.aborted) {
+              fail();
+            } else {
+              init?.signal?.addEventListener("abort", fail);
+            }
           });
         }
         const respond = (content: string, refusal?: string) =>
@@ -607,7 +633,9 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
             status: 200,
             headers: { "content-type": "text/event-stream" },
           });
-        if ("refusal" in turn) return respond("", "I can't help with that.");
+        if ("refusal" in turn) {
+          return respond("", "I can't help with that.");
+        }
         return respond(turn.raw);
       };
 
@@ -617,14 +645,18 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
         failureDir,
         fetch: fixture,
       });
-      if (!core.ok) throw new Error(core.error.issues.join("; "));
+      if (!core.ok) {
+        throw new Error(core.error.issues.join("; "));
+      }
 
       const handle: ContractGeneratorHandle = {
         generator: core.value,
         attempts: () => recorded.length,
         feedbackSeen: () => {
           const retry = recorded[1];
-          if (!retry) return null;
+          if (!retry) {
+            return null;
+          }
           return retry.messages
             .slice(2)
             .map((message) => message.content)
@@ -632,7 +664,9 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
         },
       };
 
-      if (wantsAbort) handle.signal = controller.signal;
+      if (wantsAbort) {
+        handle.signal = controller.signal;
+      }
 
       return handle;
     },

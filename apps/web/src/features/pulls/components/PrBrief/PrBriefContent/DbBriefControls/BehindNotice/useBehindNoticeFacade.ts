@@ -55,13 +55,17 @@ export function useBehindNoticeFacade(
   });
 
   useEffect(() => {
-    if (meta.behind || !awaitingBrief.current) return;
+    if (meta.behind || !awaitingBrief.current) {
+      return;
+    }
     awaitingBrief.current = false;
     announce(t("pulls.behind.arrived"));
   }, [announce, meta.behind, t]);
 
   const state: BehindNoticeState = { announcement };
-  if (!meta.behind) return state;
+  if (!meta.behind) {
+    return state;
+  }
 
   const notice: BehindNoticeProps = {
     queued: isGenerationUnderway(meta),

@@ -49,6 +49,8 @@
     // Loose equality never, `null` included: a value that can be either
     // absent form is checked against both, so the two stay distinguishable.
     "eqeqeq": ["error", "always"],
+    // Every if, else, for and while body takes braces, one-liners included.
+    "curly": ["error", "all"],
     // Blocks nest at most three deep inside a function; tests included.
     "max-depth": ["error", { "max": 3 }],
     "typescript/no-explicit-any": "error",

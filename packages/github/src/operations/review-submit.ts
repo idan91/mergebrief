@@ -63,7 +63,9 @@ export async function submitPullRequestReview(
     pullRequestReviewId: input.reviewNodeId,
     event: input.event,
   };
-  if (input.body !== undefined) variables.body = input.body;
+  if (input.body !== undefined) {
+    variables.body = input.body;
+  }
 
   let response: unknown;
   try {

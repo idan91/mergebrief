@@ -54,14 +54,18 @@ describe("parseBriefContext", () => {
   it("parses a full envelope round-trip", () => {
     const parsed = parseBriefContext({ repoConfig: SNAPSHOT });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value).toEqual(SNAPSHOT);
   });
 
   it("null snapshot parses to null", () => {
     const parsed = parseBriefContext({ repoConfig: null });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) throw new Error("unreachable");
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value).toBeNull();
   });
 

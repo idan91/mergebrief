@@ -59,7 +59,9 @@ export interface DiffRowView {
  * comment can anchor to it.
  */
 export function isCommentableLine(line: DiffLine): boolean {
-  if (line.origin !== DiffRowOrigins.EXPANDED) return true;
+  if (line.origin !== DiffRowOrigins.EXPANDED) {
+    return true;
+  }
 
   return line.kind !== DiffLineKinds.CTX;
 }
@@ -94,16 +96,26 @@ export function resolveStrandedRows(
 ): Map<string, string> {
   const rows = chunk.diff ?? [];
   const stranded = new Map<string, string>();
-  if (rows.length === 0) return stranded;
+  if (rows.length === 0) {
+    return stranded;
+  }
   for (const comment of comments) {
     const anchor = comment.anchor;
-    if (!isLineCommentAnchor(anchor)) continue;
-    if (anchor.rowIds.length > 0) continue;
-    if (rows.some((line) => anchorEndsOnRow(anchor, line))) continue;
+    if (!isLineCommentAnchor(anchor)) {
+      continue;
+    }
+    if (anchor.rowIds.length > 0) {
+      continue;
+    }
+    if (rows.some((line) => anchorEndsOnRow(anchor, line))) {
+      continue;
+    }
     let adopted = 0;
     for (const [index, line] of rows.entries()) {
       const value = resolveSideLine(line, anchor);
-      if (value !== undefined && value <= anchor.endLine) adopted = index;
+      if (value !== undefined && value <= anchor.endLine) {
+        adopted = index;
+      }
     }
     stranded.set(comment.id, rowId(chunk.id, adopted));
   }
@@ -130,11 +142,15 @@ export function getDiffRowView({
   const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
   const isRevEnd = revRun !== undefined && revRun.rowIndexes.at(-1) === index;
   const rowComments = comments.filter((comment) => {
-    if (!isLineCommentAnchor(comment.anchor)) return false;
+    if (!isLineCommentAnchor(comment.anchor)) {
+      return false;
+    }
     if (comment.anchor.rowIds.length > 0) {
       return comment.anchor.rowIds.at(-1) === id;
     }
-    if (anchorEndsOnRow(comment.anchor, line)) return true;
+    if (anchorEndsOnRow(comment.anchor, line)) {
+      return true;
+    }
     return strandedRowIds.get(comment.id) === id;
   });
   const rowAddressedComments = addressedComments.filter((comment) =>

@@ -88,7 +88,9 @@ export function ReadThroughProgress({
     }
   }, [currentIndex]);
 
-  if (segments.length === 0) return null;
+  if (segments.length === 0) {
+    return null;
+  }
   const complete =
     segments.length > 0 && segments[segments.length - 1]?.isCurrent
       ? segments[segments.length - 1]?.fillPercent === 100

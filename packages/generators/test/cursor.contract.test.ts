@@ -34,7 +34,7 @@ function makeCursorHarness(): GeneratorContractHarness {
       model: "cursor-default",
       effort: null,
     },
-    // cursor has no distinct refusal signal — refusals arrive as ordinary
+    // cursor has no distinct refusal signal; refusals arrive as ordinary
     // result text and fall to the schema floor.
     supportsRefusal: false,
     isAbortRejection: (error) => abortReason !== null && error === abortReason,
@@ -44,8 +44,12 @@ function makeCursorHarness(): GeneratorContractHarness {
       // *.failed.json entries, so the extra directory is invisible to it.
       scriptDir = mkdtempSync(join(failureDir, "script-"));
       const scripted = turns.map((turn) => {
-        if ("abort" in turn) return { hang: true };
-        if ("refusal" in turn) throw new Error("cursor has no refusal turn");
+        if ("abort" in turn) {
+          return { hang: true };
+        }
+        if ("refusal" in turn) {
+          throw new Error("cursor has no refusal turn");
+        }
         return { output: turn.raw };
       });
       writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(scripted));
@@ -55,7 +59,7 @@ function makeCursorHarness(): GeneratorContractHarness {
       if (wantsAbort) {
         abortReason = new Error("contract abort");
         // Abort only after the shim demonstrably STARTED (it writes the
-        // counter file first thing) — a fixed delay could abort before the
+        // counter file first thing). A fixed delay could abort before the
         // spawn under CI load and break the one-attempt assertion. The
         // fail-safe keeps a scripting bug from hanging the test.
         const counter = join(scriptDir, "counter");
@@ -94,7 +98,9 @@ function makeCursorHarness(): GeneratorContractHarness {
           return existsSync(stdin) ? readFileSync(stdin, "utf8") : null;
         },
       };
-      if (wantsAbort) handle.signal = controller.signal;
+      if (wantsAbort) {
+        handle.signal = controller.signal;
+      }
       return handle;
     },
   };

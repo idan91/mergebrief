@@ -23,7 +23,9 @@ function isStaleRead(
   read: InboxGeneration | null | undefined,
   listed: InboxGeneration | null,
 ): boolean {
-  if (read === null || read === undefined || isInFlight(read)) return false;
+  if (read === null || read === undefined || isInFlight(read)) {
+    return false;
+  }
   return read.updatedAt < (listed?.updatedAt ?? "");
 }
 
@@ -42,7 +44,9 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | null {
     // the retry, and an outage must not be hit every four seconds.
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (query.state.status === "error" || data === undefined) return false;
+      if (query.state.status === "error" || data === undefined) {
+        return false;
+      }
       const keepPolling =
         isInFlight(data.generation) ||
         isStaleRead(data.generation, item.generation);
@@ -54,7 +58,9 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | null {
   const staleRead = isStaleRead(read, item.generation);
   const settled = enabled && read !== null && !isInFlight(read) && !staleRead;
   useEffect(() => {
-    if (!settled) return;
+    if (!settled) {
+      return;
+    }
     void queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
   }, [settled, queryClient]);
 

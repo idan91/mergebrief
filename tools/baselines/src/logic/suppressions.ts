@@ -12,7 +12,9 @@ import {
 } from "../types";
 
 function isCountEntry(value: unknown): value is { count: number } {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
   const count: unknown = Reflect.get(value, "count");
   return typeof count === "number" && Number.isInteger(count) && count >= 0;
 }
@@ -138,7 +140,9 @@ function findStaleDeletion(
   path: string,
 ): Finding | undefined {
   const stale = head.get(path);
-  if (stale === undefined) return undefined;
+  if (stale === undefined) {
+    return undefined;
+  }
   return {
     kind: FindingKinds.STALE_DELETION,
     subject: path,
@@ -152,7 +156,9 @@ function findCarriedDebt(
   edited: string,
 ): readonly Finding[] {
   const carried = head.get(path);
-  if (carried === undefined) return [];
+  if (carried === undefined) {
+    return [];
+  }
   return [...carried].map(([rule, count]) => ({
     kind: FindingKinds.UNCLEANED_EDIT,
     subject: `${path} ${rule}`,
@@ -173,11 +179,15 @@ function findUncleanedEdits(
   for (const file of changed) {
     if (file.kind === ChangeKinds.DELETED) {
       const stale = findStaleDeletion(head, file.path);
-      if (stale !== undefined) findings.push(stale);
+      if (stale !== undefined) {
+        findings.push(stale);
+      }
       continue;
     }
     findings.push(...findCarriedDebt(head, file.path, file.path));
-    if (file.previousPath === undefined) continue;
+    if (file.previousPath === undefined) {
+      continue;
+    }
     findings.push(...findCarriedDebt(head, file.previousPath, file.path));
   }
   return findings;
@@ -189,8 +199,12 @@ function reasonFor(
   deletedPaths: ReadonlySet<string>,
   configuredRules: ReadonlySet<string>,
 ): RetiredSuppression["reason"] {
-  if (deletedPaths.has(path)) return RetirementReasons.DELETED;
-  if (!configuredRules.has(rule)) return RetirementReasons.POLICY;
+  if (deletedPaths.has(path)) {
+    return RetirementReasons.DELETED;
+  }
+  if (!configuredRules.has(rule)) {
+    return RetirementReasons.POLICY;
+  }
   return RetirementReasons.FIXED;
 }
 
@@ -206,7 +220,9 @@ function listRetired(
     const headPath = renamedTo.get(path) ?? path;
     for (const [rule, before] of counts) {
       const after = countFor(head, headPath, rule);
-      if (after >= before) continue;
+      if (after >= before) {
+        continue;
+      }
       retired.push({
         path,
         rule,
@@ -244,7 +260,9 @@ export function compareSuppressions(
       renamedFrom.set(file.path, file.previousPath);
       renamedTo.set(file.previousPath, file.path);
     }
-    if (file.kind === ChangeKinds.DELETED) deletedPaths.add(file.path);
+    if (file.kind === ChangeKinds.DELETED) {
+      deletedPaths.add(file.path);
+    }
   }
 
   const findings = [

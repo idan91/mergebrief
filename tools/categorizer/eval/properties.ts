@@ -60,7 +60,9 @@ function scoreProperty(
 
   for (const [runIndex, brief] of runs.entries()) {
     try {
-      if (property.check(brief)) passes += 1;
+      if (property.check(brief)) {
+        passes += 1;
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       notes.push(

@@ -539,7 +539,9 @@ async function runOne(
 function parseArgs(
   args: string[],
 ): { urls: string[]; range: Range | undefined } | null {
-  if (args.length === 0) return null;
+  if (args.length === 0) {
+    return null;
+  }
   const [url, maybeBase, maybeHead] = args;
   if (
     args.length === 3 &&
@@ -621,7 +623,9 @@ async function main(): Promise<void> {
 
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
-  if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
+  if (local.warning !== undefined) {
+    console.error(`warning: ${local.warning}`);
+  }
   const trackers = resolveEffectiveTrackers(local, loaded.value.trackers);
   // Same spot, same rule: tracker tokens resolve by env-var NAME here only.
   const suppliedPrimary = supplied?.ok ? supplied.value : undefined;
@@ -691,7 +695,9 @@ async function main(): Promise<void> {
     printSummary(result.brief);
   }
 
-  if (failures > 0) process.exit(1);
+  if (failures > 0) {
+    process.exit(1);
+  }
 }
 
 // Only run the CLI when this file is the process entry point, `generateAndWrite`

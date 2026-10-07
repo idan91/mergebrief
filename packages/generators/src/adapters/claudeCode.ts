@@ -234,12 +234,16 @@ export class ClaudeCodeGenerator implements Generator {
           cwd: workDir.cwd,
           log,
         };
-        if (req.signal) runArgs.signal = req.signal;
+        if (req.signal) {
+          runArgs.signal = req.signal;
+        }
         const run = await runHarnessProcess(runArgs);
         return this.interpret(req.label, run, log, req.onWarning);
       },
     };
-    if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.salvageFields) {
+      floorArgs.salvageFields = req.salvageFields;
+    }
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
@@ -267,7 +271,9 @@ export class ClaudeCodeGenerator implements Generator {
     let lastApiRetryCategory: string | null = null;
     for (const line of run.stdout.split("\n")) {
       const event = parseEventLine(line);
-      if (event === null) continue;
+      if (event === null) {
+        continue;
+      }
       if (event.type === "system" && event.subtype === "api_retry") {
         lastApiRetryCategory = event.errorCategory;
       } else if (event.type === "result") {
@@ -348,7 +354,9 @@ export class ClaudeCodeGenerator implements Generator {
       this.onModelMismatch?.(this.model, []);
       return;
     }
-    if (envelope.modelUsage.includes(this.model)) return;
+    if (envelope.modelUsage.includes(this.model)) {
+      return;
+    }
 
     const served = listServedModels(envelope.modelUsage);
     const reported = describeServedModels(served, envelope.modelUsage.length);
@@ -368,14 +376,18 @@ type StreamEvent =
   | { type: "result"; envelope: ResultEnvelope };
 
 function parseEventLine(line: string): StreamEvent | null {
-  if (line.trim() === "") return null;
+  if (line.trim() === "") {
+    return null;
+  }
   let value: unknown;
   try {
     value = JSON.parse(line);
   } catch {
     return null; // Non-JSON noise on stdout is not ours to interpret.
   }
-  if (typeof value !== "object" || value === null) return null;
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
   const type = Reflect.get(value, "type");
   if (type === "system") {
     const subtype = Reflect.get(value, "subtype");
@@ -433,7 +445,9 @@ const VERSION_SHAPE = /(\d+)\.(\d+)\.(\d+)/;
 
 function parseCliVersion(text: string): [number, number, number] | null {
   const match = VERSION_SHAPE.exec(text);
-  if (match === null) return null;
+  if (match === null) {
+    return null;
+  }
   const [, major, minor, patch] = match;
   return [Number(major), Number(minor), Number(patch)];
 }
@@ -449,11 +463,15 @@ export function buildClaudeVersionWarning(stdout: string): string | null {
     return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable`;
   }
   const floor = parseCliVersion(CLAUDE_BILLING_VERSION_FLOOR);
-  if (floor === null) return null; // unreachable: the floor constant parses
+  if (floor === null) {
+    return null;
+  } // unreachable: the floor constant parses
   for (let i = 0; i < 3; i++) {
     const a = seen[i] ?? 0;
     const b = floor[i] ?? 0;
-    if (a > b) return null;
+    if (a > b) {
+      return null;
+    }
     if (a < b) {
       // Rendered digits come from the parse, never raw stdout.
       return `warning: claude CLI ${seen.join(".")} is older than ${CLAUDE_BILLING_VERSION_FLOOR}, the oldest version verified to bill subscription OAuth runs to the subscription — older versions charged the Console API account instead; upgrade the CLI`;
@@ -506,7 +524,9 @@ export function interpretClaudeAuthStatus(
     return { ok: true, value: UNVERIFIABLE_WARNING };
   }
   const status = authStatusShape.safeParse(parsed);
-  if (!status.success) return { ok: true, value: UNVERIFIABLE_WARNING };
+  if (!status.success) {
+    return { ok: true, value: UNVERIFIABLE_WARNING };
+  }
   // null and undefined both mean "route field not usable" downstream.
   const authMethod = status.data.authMethod ?? undefined;
   const apiKeySource = status.data.apiKeySource ?? undefined;

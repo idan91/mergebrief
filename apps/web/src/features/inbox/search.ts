@@ -55,7 +55,9 @@ function readList(value: unknown): readonly string[] {
 
 /** The router decodes a digits-only value as a number; an id reads back as its digits. */
 function readListPart(part: unknown): string | undefined {
-  if (typeof part === "string") return part;
+  if (typeof part === "string") {
+    return part;
+  }
   if (typeof part === "number" && Number.isSafeInteger(part)) {
     return String(part);
   }
@@ -70,7 +72,9 @@ function keepKnown<Value extends string>(
   const kept: Value[] = [];
   for (const value of values) {
     const match = known.find((candidate) => candidate === value);
-    if (match !== undefined && !kept.includes(match)) kept.push(match);
+    if (match !== undefined && !kept.includes(match)) {
+      kept.push(match);
+    }
   }
   return kept;
 }
@@ -79,7 +83,9 @@ function readOne<Value extends string>(
   value: unknown,
   vocabulary: Record<string, Value>,
 ): Value | undefined {
-  if (typeof value !== "string") return undefined;
+  if (typeof value !== "string") {
+    return undefined;
+  }
   const [known] = keepKnown([value], vocabulary);
   return known;
 }
@@ -89,7 +95,9 @@ function readPage(value: unknown): number | undefined {
   if (typeof page !== "number" || !Number.isInteger(page) || page < 2) {
     return undefined;
   }
-  if (page > MAX_PAGE) return undefined;
+  if (page > MAX_PAGE) {
+    return undefined;
+  }
   return page;
 }
 
@@ -116,16 +124,24 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   const installations = readIds(search["installation"]);
   const archived = readOne(search["archived"], InboxArchivedFilters);
 
-  if (page !== undefined) parsed.page = page;
-  if (sort !== undefined && sort !== InboxSorts.UPDATED) parsed.sort = sort;
+  if (page !== undefined) {
+    parsed.page = page;
+  }
+  if (sort !== undefined && sort !== InboxSorts.UPDATED) {
+    parsed.sort = sort;
+  }
   if (layout !== undefined && layout !== InboxLayouts.FOLDED) {
     parsed.layout = layout;
   }
   if (states.length > 0 && !isDefaultStates(states)) {
     parsed.state = states.join(LIST_SEPARATOR);
   }
-  if (repos.length > 0) parsed.repo = repos.join(LIST_SEPARATOR);
-  if (reviews.length > 0) parsed.review = reviews.join(LIST_SEPARATOR);
+  if (repos.length > 0) {
+    parsed.repo = repos.join(LIST_SEPARATOR);
+  }
+  if (reviews.length > 0) {
+    parsed.review = reviews.join(LIST_SEPARATOR);
+  }
   if (author !== undefined && author !== InboxAuthorFilters.ALL) {
     parsed.author = author;
   }
@@ -155,14 +171,30 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
   const reviews = keepKnown(readList(search.review), InboxReviewStates);
   const installations = readIds(search.installation);
 
-  if (search.page !== undefined) params.page = search.page;
-  if (search.sort !== undefined) params.sort = search.sort;
-  if (search.layout !== undefined) params.layout = search.layout;
-  if (states.length > 0) params.state = states;
-  if (repos.length > 0) params.repo = repos;
-  if (reviews.length > 0) params.review = reviews;
-  if (search.author !== undefined) params.author = search.author;
-  if (installations.length > 0) params.installation = installations;
+  if (search.page !== undefined) {
+    params.page = search.page;
+  }
+  if (search.sort !== undefined) {
+    params.sort = search.sort;
+  }
+  if (search.layout !== undefined) {
+    params.layout = search.layout;
+  }
+  if (states.length > 0) {
+    params.state = states;
+  }
+  if (repos.length > 0) {
+    params.repo = repos;
+  }
+  if (reviews.length > 0) {
+    params.review = reviews;
+  }
+  if (search.author !== undefined) {
+    params.author = search.author;
+  }
+  if (installations.length > 0) {
+    params.installation = installations;
+  }
   if (search.archived !== undefined) {
     params.archived = search.archived;
   }
@@ -229,15 +261,21 @@ export function writeInboxSearch(
 ): InboxSearch {
   const merged: Record<string, unknown> = { ...current, ...change };
   const touchesWire = Object.keys(change).some((key) => key !== "page");
-  if (!("page" in change) && touchesWire) delete merged["page"];
+  if (!("page" in change) && touchesWire) {
+    delete merged["page"];
+  }
   return parseInboxSearch(merged);
 }
 
 /** Every filter back to its default; the sort and the layout stay. */
 export function clearInboxFilters(current: InboxSearch): InboxSearch {
   const kept: Record<string, unknown> = {};
-  if (current.sort !== undefined) kept["sort"] = current.sort;
-  if (current.layout !== undefined) kept["layout"] = current.layout;
+  if (current.sort !== undefined) {
+    kept["sort"] = current.sort;
+  }
+  if (current.layout !== undefined) {
+    kept["layout"] = current.layout;
+  }
   return parseInboxSearch(kept);
 }
 
@@ -260,7 +298,9 @@ export function toggleStateValue(
   const next = current.includes(value)
     ? current.filter((item) => item !== value)
     : [...current, value];
-  if (next.length === 0) return current.join(LIST_SEPARATOR);
+  if (next.length === 0) {
+    return current.join(LIST_SEPARATOR);
+  }
   return isDefaultStates(next) ? undefined : next.join(LIST_SEPARATOR);
 }
 

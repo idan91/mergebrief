@@ -30,8 +30,12 @@ export async function reportJobFailure(
   const maxAttempts = job?.max_attempts;
   const failFields: LogFields = { evt: "job.fail", permanent };
 
-  if (attempt !== undefined) failFields["attempt"] = attempt;
-  if (maxAttempts !== undefined) failFields["maxAttempts"] = maxAttempts;
+  if (attempt !== undefined) {
+    failFields["attempt"] = attempt;
+  }
+  if (maxAttempts !== undefined) {
+    failFields["maxAttempts"] = maxAttempts;
+  }
 
   // Message-only: no `err` field, provider cause chains may carry
   // request contents, which the boundary's URL scrub does not cover.

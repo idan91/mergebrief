@@ -20,8 +20,9 @@ export function parseNotionPageId(raw: string): string | undefined {
     return undefined;
   }
   const peeked = url.searchParams.get("p");
-  if (peeked !== null && /^[0-9a-f]{32}$/i.test(peeked))
+  if (peeked !== null && /^[0-9a-f]{32}$/i.test(peeked)) {
     return peeked.toLowerCase();
+  }
   const runs = url.pathname.match(HEX32);
   const last = runs?.at(-1);
   return last?.toLowerCase();
@@ -34,7 +35,9 @@ function collectKeys(
   const hits: ReferenceHit[] = [];
 
   for (const tracker of trackers) {
-    if (tracker.kind !== TicketTrackers.NOTION) continue;
+    if (tracker.kind !== TicketTrackers.NOTION) {
+      continue;
+    }
     hits.push(...collectBoardKeys(text, tracker));
   }
   return hits;
@@ -65,12 +68,16 @@ function collectBoardKeys(
 }
 
 function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
-  if (!enabled) return [];
+  if (!enabled) {
+    return [];
+  }
   const hits: ReferenceHit[] = [];
 
   for (const match of text.matchAll(NOTION_URL)) {
     const pageId = parseNotionPageId(match[0].replace(/[.,;:]+$/, ""));
-    if (pageId === undefined) continue;
+    if (pageId === undefined) {
+      continue;
+    }
     hits.push({
       index: match.index,
       reference: {
@@ -91,7 +98,9 @@ export function collectNotionReferences(
   input: TicketReferenceInput,
 ): ReferenceHit[] {
   const keys = collectKeys(text, input.trackers);
-  if (location === ReferenceLocations.BRANCH) return keys;
+  if (location === ReferenceLocations.BRANCH) {
+    return keys;
+  }
   return [
     ...keys,
     ...collectPageUrls(text, input.readable.includes(TicketTrackers.NOTION)),
@@ -99,7 +108,9 @@ export function collectNotionReferences(
 }
 
 export function canonicalizeNotionUrl(raw: string): string | undefined {
-  if (!new RegExp(`^${NOTION_URL.source}$`, "i").test(raw)) return undefined;
+  if (!new RegExp(`^${NOTION_URL.source}$`, "i").test(raw)) {
+    return undefined;
+  }
   const pageId = parseNotionPageId(raw);
   return pageId === undefined ? undefined : buildNotionUrl(pageId);
 }

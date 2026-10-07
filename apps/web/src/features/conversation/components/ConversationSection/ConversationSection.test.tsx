@@ -146,7 +146,9 @@ function plan(results: ConversationResult[]): ConversationPlan {
     queryFn: async () => {
       const result = results[Math.min(call, results.length - 1)];
       call += 1;
-      if (result === undefined) throw new Error("plan exhausted");
+      if (result === undefined) {
+        throw new Error("plan exhausted");
+      }
       return result;
     },
     staleTime: 0,
@@ -319,7 +321,9 @@ describe("ConversationSection", () => {
   it("leaves the reviewer's own submit out of the count and the chip", async () => {
     const withOwn = conversation();
     const ownThread = withOwn.threads[0];
-    if (ownThread === undefined) throw new Error("fixture");
+    if (ownThread === undefined) {
+      throw new Error("fixture");
+    }
     const ownPayload: PrConversation = {
       ...withOwn,
       threads: [
@@ -401,7 +405,9 @@ describe("ConversationSection", () => {
   it("keeps the collapsed bot-group chip factual for all-outdated groups", async () => {
     const base = conversation();
     const botThread = base.threads[1];
-    if (botThread === undefined) throw new Error("fixture");
+    if (botThread === undefined) {
+      throw new Error("fixture");
+    }
     const payload: PrConversation = {
       ...base,
       threads: [
@@ -536,7 +542,9 @@ describe("ConversationSection", () => {
     };
     const withOwn = conversation();
     const ownThread = withOwn.threads[0];
-    if (ownThread === undefined) throw new Error("fixture");
+    if (ownThread === undefined) {
+      throw new Error("fixture");
+    }
     const ownPayload: PrConversation = {
       ...withOwn,
       threads: [
@@ -626,7 +634,9 @@ describe("quote reply", () => {
     const quoteButton = screen
       .getAllByRole("button", { name: /Quote reply to @/ })
       .at(0);
-    if (quoteButton === undefined) throw new Error("Quote reply not rendered");
+    if (quoteButton === undefined) {
+      throw new Error("Quote reply not rendered");
+    }
     fireEvent.click(quoteButton);
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
     expect((textarea as HTMLTextAreaElement).value).toBe(
@@ -651,11 +661,15 @@ describe("quote reply", () => {
     const commentText = screen
       .getAllByText("This null check looks inverted.")
       .find((element) => element.tagName === "P");
-    if (commentText === undefined) throw new Error("comment body not found");
+    if (commentText === undefined) {
+      throw new Error("comment body not found");
+    }
     const range = document.createRange();
     range.selectNodeContents(commentText);
     const selection = window.getSelection();
-    if (selection === null) throw new Error("jsdom selection unavailable");
+    if (selection === null) {
+      throw new Error("jsdom selection unavailable");
+    }
     selection.removeAllRanges();
     selection.addRange(range);
     fireEvent.keyDown(window, { key: "r" });

@@ -157,11 +157,15 @@ function activeChunkId(): string | undefined {
 
 function viewedCheckboxFor(chunkId: string): HTMLInputElement {
   const article = document.getElementById(chunkId);
-  if (!article) throw new Error(`chunk ${chunkId} not rendered`);
+  if (!article) {
+    throw new Error(`chunk ${chunkId} not rendered`);
+  }
   const checkbox = article.querySelector<HTMLInputElement>(
     'input[type="checkbox"]',
   );
-  if (!checkbox) throw new Error(`no Viewed checkbox on ${chunkId}`);
+  if (!checkbox) {
+    throw new Error(`no Viewed checkbox on ${chunkId}`);
+  }
   return checkbox;
 }
 

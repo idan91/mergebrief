@@ -103,9 +103,15 @@ function threadRow(
     isOwn: ownThreadIds.has(thread.rootCommentId),
   };
 
-  if (anchorLabel !== undefined) row.anchorLabel = anchorLabel;
-  if (briefGeneratedAt !== undefined) row.briefGeneratedAt = briefGeneratedAt;
-  if (ownReviewIds !== undefined) row.ownReviewIds = ownReviewIds;
+  if (anchorLabel !== undefined) {
+    row.anchorLabel = anchorLabel;
+  }
+  if (briefGeneratedAt !== undefined) {
+    row.briefGeneratedAt = briefGeneratedAt;
+  }
+  if (ownReviewIds !== undefined) {
+    row.ownReviewIds = ownReviewIds;
+  }
 
   return row;
 }
@@ -116,7 +122,9 @@ function threadRow(
  * not comparable; the placement already resolved both to a row position.
  */
 function placementRowIndex(row: DigestThreadRow): number {
-  if (row.placement.kind === ThreadPlacementKinds.FILE_HEADER) return -1;
+  if (row.placement.kind === ThreadPlacementKinds.FILE_HEADER) {
+    return -1;
+  }
   if (row.placement.kind !== ThreadPlacementKinds.CHUNK) {
     return Number.MAX_SAFE_INTEGER;
   }
@@ -131,10 +139,14 @@ function compareRows(left: DigestThreadRow, right: DigestThreadRow): number {
   }
   const leftIndex = placementRowIndex(left);
   const rightIndex = placementRowIndex(right);
-  if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+  if (leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
   const leftLine = left.thread.line ?? Number.MAX_SAFE_INTEGER;
   const rightLine = right.thread.line ?? Number.MAX_SAFE_INTEGER;
-  if (leftLine !== rightLine) return leftLine - rightLine;
+  if (leftLine !== rightLine) {
+    return leftLine - rightLine;
+  }
   return left.thread.rootCommentId - right.thread.rootCommentId;
 }
 
@@ -168,7 +180,9 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
       left.kind === DigestRowKinds.THREAD ? left : left.threads[0];
     const rightRow =
       right.kind === DigestRowKinds.THREAD ? right : right.threads[0];
-    if (leftRow === undefined || rightRow === undefined) return 0;
+    if (leftRow === undefined || rightRow === undefined) {
+      return 0;
+    }
     const leftOpen =
       left.kind === DigestRowKinds.THREAD
         ? !left.thread.isResolved
@@ -177,7 +191,9 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
       right.kind === DigestRowKinds.THREAD
         ? !right.thread.isResolved
         : right.openCount > 0;
-    if (leftOpen !== rightOpen) return leftOpen ? -1 : 1;
+    if (leftOpen !== rightOpen) {
+      return leftOpen ? -1 : 1;
+    }
     return compareRows(leftRow, rightRow);
   });
   return rowsOut;
@@ -247,7 +263,9 @@ function collectDigestGroups(
   const groups: DigestGroup[] = [];
   for (const chunk of chunks) {
     const rows = byChunk.get(chunk.id);
-    if (rows === undefined || rows.length === 0) continue;
+    if (rows === undefined || rows.length === 0) {
+      continue;
+    }
     groups.push({
       id: `chunk:${chunk.id}`,
       kind: DigestGroupKinds.CHUNK,
@@ -303,11 +321,19 @@ export function buildThreadsOutsideChunks(
   const byFile = new Map<string, DigestThreadRow[]>();
 
   for (const thread of input.conversation.threads) {
-    if (thread.line === undefined) continue;
-    if ((thread.side ?? ThreadSides.RIGHT) !== ThreadSides.RIGHT) continue;
+    if (thread.line === undefined) {
+      continue;
+    }
+    if ((thread.side ?? ThreadSides.RIGHT) !== ThreadSides.RIGHT) {
+      continue;
+    }
     const placement = placeThread(thread, input.chunks);
-    if (placement.kind !== ThreadPlacementKinds.UNANCHORED) continue;
-    if (placement.reason !== UnanchoredReasons.LINE_OUTSIDE_CHUNKS) continue;
+    if (placement.kind !== ThreadPlacementKinds.UNANCHORED) {
+      continue;
+    }
+    if (placement.reason !== UnanchoredReasons.LINE_OUTSIDE_CHUNKS) {
+      continue;
+    }
     const rows = byFile.get(thread.path) ?? [];
     rows.push(threadRow(thread, placement, input));
     byFile.set(thread.path, rows);
@@ -329,8 +355,12 @@ export function buildLineThreadsByFile(
   const byFile = new Map<string, DigestThreadRow[]>();
 
   for (const thread of input.conversation.threads) {
-    if (thread.line === undefined || thread.isOutdated) continue;
-    if (thread.comments[0]?.author.isBot) continue;
+    if (thread.line === undefined || thread.isOutdated) {
+      continue;
+    }
+    if (thread.comments[0]?.author.isBot) {
+      continue;
+    }
     const placement = placeThread(thread, input.chunks);
     const rows = byFile.get(thread.path) ?? [];
     rows.push(threadRow(thread, placement, input));
@@ -351,7 +381,9 @@ export function buildInlineThreads(
       continue;
     }
     const rows = selectInlineRows(group.rows);
-    if (rows.length > 0) byChunk.set(group.chunkId, rows);
+    if (rows.length > 0) {
+      byChunk.set(group.chunkId, rows);
+    }
   }
   return byChunk;
 }
@@ -361,7 +393,9 @@ function selectInlineRows(rows: readonly DigestRow[]): DigestRow[] {
   const inline: DigestRow[] = [];
   for (const row of rows) {
     if (row.kind === DigestRowKinds.THREAD) {
-      if (!row.thread.isOutdated) inline.push(row);
+      if (!row.thread.isOutdated) {
+        inline.push(row);
+      }
       continue;
     }
     const openThreads = row.threads.filter(
@@ -407,9 +441,13 @@ export function splitInlineRows(rows: readonly DigestRow[]): InlineRowSplit {
       fileHeader.push(row);
       continue;
     }
-    if (row.placement.kind !== ThreadPlacementKinds.CHUNK) continue;
+    if (row.placement.kind !== ThreadPlacementKinds.CHUNK) {
+      continue;
+    }
     const index = Number(row.placement.rowId.split(":").at(-1));
-    if (Number.isNaN(index)) continue;
+    if (Number.isNaN(index)) {
+      continue;
+    }
     const list = byRow.get(index) ?? [];
     list.push(row);
     byRow.set(index, list);

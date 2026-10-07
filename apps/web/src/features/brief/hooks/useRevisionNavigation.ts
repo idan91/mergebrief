@@ -67,7 +67,9 @@ export function pickRevisionTargetIndex(input: {
 }): number | undefined {
   const { targetCount, mounted, direction, readingLine, fallbackAnchor } =
     input;
-  if (targetCount === 0) return undefined;
+  if (targetCount === 0) {
+    return undefined;
+  }
   const last = targetCount - 1;
   if (direction === 1) {
     const below = mounted
@@ -75,7 +77,9 @@ export function pickRevisionTargetIndex(input: {
       .reduce<
         number | null
       >((min, rail) => (min === null || rail.index < min ? rail.index : min), null);
-    if (below !== null) return below;
+    if (below !== null) {
+      return below;
+    }
     const anchor = mounted
       .filter((rail) => rail.top <= readingLine + 1)
       .reduce<
@@ -89,7 +93,9 @@ export function pickRevisionTargetIndex(input: {
     .reduce<
       number | null
     >((max, rail) => (max === null || rail.index > max ? rail.index : max), null);
-  if (above !== null) return above;
+  if (above !== null) {
+    return above;
+  }
   const anchor = mounted
     .filter((rail) => rail.top >= readingLine - 1)
     .reduce<
@@ -141,11 +147,15 @@ export function useRevisionNavigation(
           `main ${revisionJumpSelector()}`,
         ),
       ].flatMap((element) => {
-        if (element.closest("[hidden]") !== null) return [];
+        if (element.closest("[hidden]") !== null) {
+          return [];
+        }
         const index = keyToIndex.get(
           element.getAttribute(REVISION_JUMP_ATTR) ?? "",
         );
-        if (index === undefined) return [];
+        if (index === undefined) {
+          return [];
+        }
         return [
           {
             index,
@@ -164,10 +174,15 @@ export function useRevisionNavigation(
       if (activeOrdinal >= 0) {
         for (let i = 0; i < targets.length; i += 1) {
           const target = targets[i];
-          if (target === undefined) continue;
+          if (target === undefined) {
+            continue;
+          }
           const ordinal = chunkOrdinals.get(target.chunkId) ?? -1;
-          if (ordinal <= activeOrdinal) fallbackAnchor = i;
-          else break;
+          if (ordinal <= activeOrdinal) {
+            fallbackAnchor = i;
+          } else {
+            break;
+          }
         }
       }
 
@@ -178,9 +193,13 @@ export function useRevisionNavigation(
         readingLine: window.scrollY + 160,
         fallbackAnchor,
       });
-      if (targetIndex === undefined) return;
+      if (targetIndex === undefined) {
+        return;
+      }
       const target = targets[targetIndex];
-      if (target === undefined) return;
+      if (target === undefined) {
+        return;
+      }
 
       const alreadyMounted = mounted.find((rail) => rail.index === targetIndex);
       if (alreadyMounted) {
@@ -188,7 +207,9 @@ export function useRevisionNavigation(
         return;
       }
       ensureChunkOpen(target.chunkId);
-      if (!scrollTowardChunk(target.chunkId)) return;
+      if (!scrollTowardChunk(target.chunkId)) {
+        return;
+      }
       let frames = 0;
       const poll = () => {
         pollFrameRef.current = null;
@@ -200,7 +221,9 @@ export function useRevisionNavigation(
           return;
         }
         frames += 1;
-        if (frames >= RAIL_POLL_FRAMES) return;
+        if (frames >= RAIL_POLL_FRAMES) {
+          return;
+        }
         pollFrameRef.current = window.requestAnimationFrame(poll);
       };
       pollFrameRef.current = window.requestAnimationFrame(poll);

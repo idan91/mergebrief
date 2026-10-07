@@ -80,7 +80,9 @@ function cruiseEdge(source: string, target: string, options: EdgeOptions = {}) {
         timeout: CRUISE_TIMEOUT_MS,
       },
     );
-    if (run.error) throw run.error;
+    if (run.error) {
+      throw run.error;
+    }
     return run;
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -112,7 +114,9 @@ function cruiseFiles(files: Readonly<Record<string, string>>) {
       [CRUISER_BIN, "--config", ".dependency-cruiser.cjs", ...targets],
       { cwd: root, encoding: "utf8", timeout: CRUISE_TIMEOUT_MS },
     );
-    if (run.error) throw run.error;
+    if (run.error) {
+      throw run.error;
+    }
     return run;
   } finally {
     rmSync(root, { recursive: true, force: true });

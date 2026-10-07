@@ -79,7 +79,9 @@ function consumeLiteral(
 ): boolean[] {
   const next = Array.from({ length: filePath.length + 1 }, () => false);
   for (let j = 0; j < filePath.length; j++) {
-    if (reachable[j] === true && filePath[j] === char) next[j + 1] = true;
+    if (reachable[j] === true && filePath[j] === char) {
+      next[j + 1] = true;
+    }
   }
   return next;
 }
@@ -91,7 +93,9 @@ function consumeQuestionMark(
 ): boolean[] {
   const next = Array.from({ length: filePath.length + 1 }, () => false);
   for (let j = 0; j < filePath.length; j++) {
-    if (reachable[j] === true && filePath[j] !== "/") next[j + 1] = true;
+    if (reachable[j] === true && filePath[j] !== "/") {
+      next[j + 1] = true;
+    }
   }
   return next;
 }
@@ -111,7 +115,9 @@ function consumeStar(
   for (let j = 0; j <= filePath.length; j++) {
     active =
       (active && j > 0 && filePath[j - 1] !== "/") || reachable[j] === true;
-    if (active) next[j] = true;
+    if (active) {
+      next[j] = true;
+    }
   }
   return next;
 }
@@ -125,7 +131,9 @@ function consumeGlobstar(
   let seen = false;
   for (let j = 0; j <= filePath.length; j++) {
     seen = seen || reachable[j] === true;
-    if (seen) next[j] = true;
+    if (seen) {
+      next[j] = true;
+    }
   }
   return next;
 }
@@ -140,8 +148,12 @@ function consumeGlobstarSlash(
   const next = Array.from({ length: filePath.length + 1 }, () => false);
   let seenBefore = false;
   for (let j = 0; j <= filePath.length; j++) {
-    if (reachable[j] === true) next[j] = true;
-    if (seenBefore && j > 0 && filePath[j - 1] === "/") next[j] = true;
+    if (reachable[j] === true) {
+      next[j] = true;
+    }
+    if (seenBefore && j > 0 && filePath[j - 1] === "/") {
+      next[j] = true;
+    }
     seenBefore = seenBefore || reachable[j] === true;
   }
   return next;

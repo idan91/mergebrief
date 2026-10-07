@@ -214,7 +214,9 @@ export function useReviewSession<T>(
   selector: (state: ReviewSessionStoreValue) => T,
 ): T {
   const store = useContext(ReviewSessionContext);
-  if (!store) throw new Error("ReviewSessionProvider is missing");
+  if (!store) {
+    throw new Error("ReviewSessionProvider is missing");
+  }
   return useStore(store, selector);
 }
 

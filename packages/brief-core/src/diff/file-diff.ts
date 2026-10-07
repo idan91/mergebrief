@@ -13,7 +13,9 @@ const GIT_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
 /** Best-effort path from a `diff --git a/… b/…` line (prefers the new-side path). */
 function headerPath(line: string): string {
   const match = GIT_HEADER.exec(line);
-  if (match?.[2]) return match[2];
+  if (match?.[2]) {
+    return match[2];
+  }
   return line.replace(/^diff --git /, "").trim();
 }
 

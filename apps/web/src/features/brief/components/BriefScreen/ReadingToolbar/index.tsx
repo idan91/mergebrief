@@ -90,7 +90,9 @@ export function ReadingToolbar({
     let lastHeight = "";
     const apply = () => {
       const next = `${el.offsetHeight}px`;
-      if (next === lastHeight) return;
+      if (next === lastHeight) {
+        return;
+      }
       lastHeight = next;
       setHeight(next);
     };

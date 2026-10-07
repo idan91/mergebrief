@@ -58,7 +58,9 @@ export function countComparisonRuns(
   chunks: BriefChunk[],
   marks: ComparisonMarkFiles | null,
 ): number {
-  if (marks === null) return 0;
+  if (marks === null) {
+    return 0;
+  }
   return chunks.reduce(
     (total, chunk) =>
       total + buildChunkComparisonView(chunk, marks).runs.length,
@@ -76,7 +78,9 @@ export function groupSinceMarkers(
   groups: { id: string; chunks: { file: string }[] }[],
   marks: ComparisonMarkFiles | null,
 ): Map<string, number> | undefined {
-  if (marks === null) return undefined;
+  if (marks === null) {
+    return undefined;
+  }
   const changedFiles = new Set(
     marks.files
       .filter(
@@ -129,8 +133,9 @@ export function conversationGroupIds(
   conversationByChunk: ReadonlyMap<string, unknown> | undefined,
   groups: readonly { id: string; chunks: readonly { id: string }[] }[],
 ): Set<string> | undefined {
-  if (conversationByChunk === undefined || conversationByChunk.size === 0)
+  if (conversationByChunk === undefined || conversationByChunk.size === 0) {
     return undefined;
+  }
   const ids = new Set<string>();
   for (const group of groups) {
     if (group.chunks.some((chunk) => conversationByChunk.has(chunk.id))) {
@@ -215,7 +220,9 @@ export interface DiscriminatedNarrative {
 export function discriminateNarrativeArtifact(
   artifact: RevisionNarrativeArtifact | null,
 ): DiscriminatedNarrative {
-  if (artifact === null) return { narrative: null, skipReason: null };
+  if (artifact === null) {
+    return { narrative: null, skipReason: null };
+  }
   return artifact.artifactKind === "revisionNarrative"
     ? { narrative: artifact, skipReason: null }
     : { narrative: null, skipReason: artifact.skipped };
@@ -270,8 +277,11 @@ export function toggleSetMember(
   member: string,
 ): Set<string> {
   const next = new Set(current);
-  if (next.has(member)) next.delete(member);
-  else next.add(member);
+  if (next.has(member)) {
+    next.delete(member);
+  } else {
+    next.add(member);
+  }
   return next;
 }
 
@@ -285,11 +295,14 @@ export function resolveRiskEvidence(
   note: string | undefined,
   chunkId: string,
 ): RiskEvidence {
-  if (kind === "linked-comment")
+  if (kind === "linked-comment") {
     return commentId
       ? { kind, commentId }
       : { kind: "chunk-reviewed", chunkId };
-  if (kind === "chunk-reviewed") return { kind, chunkId };
+  }
+  if (kind === "chunk-reviewed") {
+    return { kind, chunkId };
+  }
   return note ? { kind, note } : { kind };
 }
 
@@ -300,7 +313,9 @@ export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
 export const STICKY_STACK_HEIGHT_VAR = "--sticky-stack-h";
 
 export function readNumericCssVar(name: string): number {
-  if (typeof window === "undefined") return 0;
+  if (typeof window === "undefined") {
+    return 0;
+  }
   const value = window
     .getComputedStyle(document.documentElement)
     .getPropertyValue(name);
@@ -457,17 +472,23 @@ function parseLinePart(
   part: string,
 ): Omit<LineLinkTarget, "chunkId"> | undefined {
   const match = LINE_PART_PATTERN.exec(part);
-  if (match === null) return undefined;
+  if (match === null) {
+    return undefined;
+  }
   const [, startLetter = "", startDigits = "", endLetter, endDigits] = match;
   const startSide = SIDE_BY_LETTER[startLetter];
   const startLine = Number(startDigits);
-  if (startSide === undefined || startLine < 1) return undefined;
+  if (startSide === undefined || startLine < 1) {
+    return undefined;
+  }
   if (endLetter === undefined || endDigits === undefined) {
     return { side: startSide, startLine, endLine: startLine };
   }
   const side = SIDE_BY_LETTER[endLetter];
   const endLine = Number(endDigits);
-  if (side === undefined || endLine < 1) return undefined;
+  if (side === undefined || endLine < 1) {
+    return undefined;
+  }
   if (side === startSide) {
     return endLine < startLine ? undefined : { side, startLine, endLine };
   }
@@ -536,7 +557,9 @@ export function resolveSidebarLayout(
   band: ViewportBand,
   expanded: boolean,
 ): SidebarLayout {
-  if (band === ViewportBands.NARROW) return SidebarLayouts.BAR;
+  if (band === ViewportBands.NARROW) {
+    return SidebarLayouts.BAR;
+  }
   return expanded ? SidebarLayouts.EXPANDED : SidebarLayouts.COLLAPSED;
 }
 
@@ -546,7 +569,9 @@ export function deriveChunkSizes(chunks: BriefChunk[]): BriefChunkSize[] {
 
   for (const chunk of chunks) {
     const rowCount = chunk.diff?.length ?? 0;
-    if (rowCount === 0) continue;
+    if (rowCount === 0) {
+      continue;
+    }
 
     sizes.push({ file: chunk.file, rowCount });
   }

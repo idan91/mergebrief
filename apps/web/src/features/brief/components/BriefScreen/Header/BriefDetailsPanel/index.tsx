@@ -110,7 +110,9 @@ export function BriefDetailsPanel({
   // so listen at the document while open, capture phase, and consume the key
   // so it never reaches page-level handling.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
@@ -134,7 +136,9 @@ export function BriefDetailsPanel({
           // (touch browsers synthesize mouseenter before click, so a
           // hover-open would be immediately toggled shut). Never clobber an
           // already-open panel's landing state.
-          if (event.pointerType === "mouse" && !open) openPlain();
+          if (event.pointerType === "mouse" && !open) {
+            openPlain();
+          }
         }}
       >
         <IconButton

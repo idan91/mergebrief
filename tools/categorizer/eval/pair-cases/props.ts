@@ -2,19 +2,20 @@ import type { Brief } from "brief-core/types";
 import type { PairEvalProperty, RevisionPair } from "../pairs";
 
 /**
- * Shared pair-property builders (BRIEF-143 PR 5): the six stability ↔
- * completeness property pairs from the spec, expressed as run-stable
- * mechanical facts (files, group relations, attribute names, id carry) —
- * never chunk boundaries or free-form text. Each case's expected.ts composes
- * from these; intent properties keyword-match planted markers per the
- * BRIEF-54 bounded exception.
+ * Shared pair-property builders: the six stability ↔ completeness property
+ * pairs from the spec, expressed as run-stable mechanical facts (files,
+ * group relations, attribute names, id carry), never chunk boundaries or
+ * free-form text. Each case's expected.ts composes from these; intent
+ * properties keyword-match planted markers, a bounded exception.
  */
 
 /** Groups owning at least one chunk in `file`. */
 export function groupsOwning(brief: Brief, file: string): string[] {
   const ids = new Set<string>();
   for (const chunk of brief.chunks) {
-    if (chunk.file === file) ids.add(chunk.changeGroupId);
+    if (chunk.file === file) {
+      ids.add(chunk.changeGroupId);
+    }
   }
   return [...ids];
 }
@@ -41,15 +42,19 @@ function groupSnapshot(brief: Brief, groupId: string): string {
 export function attrsOn(brief: Brief, file: string): Set<string> {
   const attrs = new Set<string>();
   for (const chunk of brief.chunks) {
-    if (chunk.file !== file) continue;
-    for (const attr of chunk.riskSurface) attrs.add(attr);
+    if (chunk.file !== file) {
+      continue;
+    }
+    for (const attr of chunk.riskSurface) {
+      attrs.add(attr);
+    }
   }
   return attrs;
 }
 
 /**
- * Spec pair 1 LEFT (mechanical, hard): the group owning `file` — untouched
- * by the increment — survives byte-identical (definition AND chunks,
+ * Spec pair 1 LEFT (mechanical, hard): the group owning `file`, untouched
+ * by the increment, survives byte-identical (definition AND chunks,
  * ranges correctly remapped, which for an untouched file means identical).
  */
 export function untouchedGroupSurvives(file: string): PairEvalProperty {
@@ -58,9 +63,13 @@ export function untouchedGroupSurvives(file: string): PairEvalProperty {
     description: `the group owning untouched ${file} survives byte-identical`,
     check: (pair: RevisionPair) => {
       const baseOwners = groupsOwning(pair.base, file);
-      if (baseOwners.length !== 1) return false;
+      if (baseOwners.length !== 1) {
+        return false;
+      }
       const owner = baseOwners[0];
-      if (owner === undefined) return false;
+      if (owner === undefined) {
+        return false;
+      }
       return (
         groupSnapshot(pair.base, owner) === groupSnapshot(pair.revised, owner)
       );
@@ -117,7 +126,9 @@ export function anchoredStamp(expectCarried: boolean): PairEvalProperty {
       ? "revised brief is anchored and carried at least one group"
       : "revised brief is anchored with an empty carried set",
     check: (pair: RevisionPair) => {
-      if (pair.revised.anchor?.state !== "anchored") return false;
+      if (pair.revised.anchor?.state !== "anchored") {
+        return false;
+      }
       const carried = pair.revised.anchoring?.carried ?? [];
       return expectCarried ? carried.length > 0 : carried.length === 0;
     },
@@ -130,7 +141,7 @@ function chunkOrderKey(chunk: { file: string; addedRanges: unknown }): string {
 
 /**
  * Spec pair 6 LEFT (mechanical): the surviving (carried) chunks of an
- * untouched file keep their relative order in the revised brief — the
+ * untouched file keep their relative order in the revised brief; the
  * stitch appends carried chunks in previous order.
  */
 export function survivorOrderStable(file: string): PairEvalProperty {

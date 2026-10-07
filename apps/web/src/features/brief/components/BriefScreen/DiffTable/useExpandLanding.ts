@@ -30,14 +30,18 @@ export function useExpandLanding({
 
   useLayoutEffect(() => {
     const landing = landingRef.current;
-    if (landing === null) return;
+    if (landing === null) {
+      return;
+    }
     landingRef.current = null;
     const count = landing.range.end - landing.range.start + 1;
     const row = landing.row;
     const anchored = row !== null && row.isConnected;
     if (anchored) {
       const delta = row.getBoundingClientRect().top - landingTopRef.current;
-      if (delta !== 0) window.scrollBy({ top: delta, behavior: "instant" });
+      if (delta !== 0) {
+        window.scrollBy({ top: delta, behavior: "instant" });
+      }
     }
     // A spent edge unmounts its control while its row stays, so focus is
     // checked against the row, not the row against the document. An
@@ -48,7 +52,9 @@ export function useExpandLanding({
         preventScroll: anchored,
       });
     }
-    if (count > 0) announce(t("brief.diff.expandShown", { count }));
+    if (count > 0) {
+      announce(t("brief.diff.expandShown", { count }));
+    }
   }, [rows, announce, t, tableRef]);
 
   const handleExpanded = (event: ExpandedEvent) => {
@@ -56,7 +62,9 @@ export function useExpandLanding({
     landingRef.current = event;
   };
   const handleAbandoned = (edgeKey: string) => {
-    if (landingRef.current?.edgeKey === edgeKey) landingRef.current = null;
+    if (landingRef.current?.edgeKey === edgeKey) {
+      landingRef.current = null;
+    }
   };
 
   return { handleExpanded, handleAbandoned };

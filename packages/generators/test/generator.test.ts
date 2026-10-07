@@ -11,7 +11,7 @@ import { AnthropicGenerator } from "../src/adapters/anthropic";
  * retry → dump-and-throw) against a stubbed SDK client.
  *
  * DELIBERATE ASYMMETRY: this stays a stub-level SDK-client fake while the
- * API adapters fake at fetch level — it is the characterization anchor, so
+ * API adapters fake at fetch level. It is the characterization anchor, so
  * do not rewrite it alongside implementation changes. Promote to a
  * wire-level fake if a bug escapes through the stubbed surface, or on the
  * next substantive SDK-client change.
@@ -41,7 +41,9 @@ function fakeClient(turns: FakeTurn[]) {
         requests.push(params);
         streamOptions.push(options);
         const turn = turns[requests.length - 1];
-        if (!turn) throw new Error("fakeClient: no scripted turn left");
+        if (!turn) {
+          throw new Error("fakeClient: no scripted turn left");
+        }
         const response = {
           stop_reason: "end_turn",
           usage: { input_tokens: 1, output_tokens: 1 },
@@ -59,7 +61,9 @@ function fakeClient(turns: FakeTurn[]) {
         return {
           on() {},
           async finalMessage() {
-            if (turn.rejectWith !== undefined) throw turn.rejectWith;
+            if (turn.rejectWith !== undefined) {
+              throw turn.rejectWith;
+            }
             return response;
           },
         };
@@ -120,7 +124,9 @@ describe("AnthropicGenerator parse-failure handling", () => {
     expect(requests).toHaveLength(2);
     // The retry carries the failed output and the validation error as feedback.
     const retryMessages = requests[1]?.messages;
-    if (!retryMessages) throw new Error("expected a retry request");
+    if (!retryMessages) {
+      throw new Error("expected a retry request");
+    }
     expect(retryMessages).toHaveLength(3);
     expect(retryMessages[1]).toMatchObject({ role: "assistant", content: bad });
     expect(String(retryMessages[2]?.content)).toContain(
@@ -135,7 +141,9 @@ describe("AnthropicGenerator parse-failure handling", () => {
     const dumps = readdirSync(dir).filter((f) => f.endsWith(".failed.json"));
     expect(dumps.length).toBe(2);
     const firstDump = dumps[0];
-    if (!firstDump) throw new Error("expected a dump file");
+    if (!firstDump) {
+      throw new Error("expected a dump file");
+    }
     const dumped = JSON.parse(readFileSync(join(dir, firstDump), "utf8"));
     expect(dumped.raw).toBe(bad);
     expect(dumped.error).toContain("Failed to parse structured output");
@@ -168,7 +176,7 @@ describe("AnthropicGenerator cooperative cancellation", () => {
     expect(streamOptions[0]?.signal).toBe(controller.signal);
   });
 
-  it("propagates an abort rejection untouched: no feedback retry, no failure dump", async () => {
+  it("propagates an abort rejection untouched, with no retry or failure dump", async () => {
     const abortError = Object.assign(new Error("Request was aborted."), {
       name: "APIUserAbortError",
     });

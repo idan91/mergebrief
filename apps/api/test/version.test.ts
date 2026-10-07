@@ -106,8 +106,9 @@ describe("GET /api/version", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,

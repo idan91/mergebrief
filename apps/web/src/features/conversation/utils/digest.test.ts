@@ -148,7 +148,9 @@ describe("buildConversationDigest", () => {
     });
     const rows = groups[0]?.rows ?? [];
     const botRow = rows.find((row) => row.kind === "bot-group");
-    if (botRow?.kind !== "bot-group") throw new Error("expected a bot group");
+    if (botRow?.kind !== "bot-group") {
+      throw new Error("expected a bot group");
+    }
     expect(botRow.author).toBe("coderabbitai");
     expect(botRow.threads).toHaveLength(2);
     expect(botRow.openCount).toBe(1);
@@ -195,7 +197,9 @@ describe("buildConversationDigest", () => {
     const outdatedGroup = groups.find((group) => group.kind === "outdated");
     expect(outdatedGroup).toBeDefined();
     const row = outdatedGroup?.rows[0];
-    if (row?.kind !== "thread") throw new Error("expected a thread row");
+    if (row?.kind !== "thread") {
+      throw new Error("expected a thread row");
+    }
     expect(row.thread.rootCommentId).toBe(outdated.rootCommentId);
     expect(row.anchorLabel).toBe("bbbbbbb");
   });
@@ -233,7 +237,9 @@ describe("buildConversationDigest", () => {
       ownThreadIds: new Set([own.rootCommentId]),
     });
     const row = groups[0]?.rows[0];
-    if (row?.kind !== "thread") throw new Error("expected thread row");
+    if (row?.kind !== "thread") {
+      throw new Error("expected thread row");
+    }
     expect(row.isOwn).toBe(true);
   });
 
@@ -248,7 +254,9 @@ describe("buildConversationDigest", () => {
       ownThreadIds: new Set(),
     });
     const row = groups[0]?.rows[0];
-    if (row?.kind !== "thread") throw new Error("expected thread row");
+    if (row?.kind !== "thread") {
+      throw new Error("expected thread row");
+    }
     expect(row.digestLine).toBe("Real point here.");
   });
 
@@ -294,7 +302,9 @@ describe("buildInlineThreads", () => {
     });
     const rows = inline.get("c1") ?? [];
     const botRow = rows.find((row) => row.kind === "bot-group");
-    if (botRow?.kind !== "bot-group") throw new Error("expected bot group");
+    if (botRow?.kind !== "bot-group") {
+      throw new Error("expected bot group");
+    }
     expect(botRow.threads).toHaveLength(1);
     expect(botRow.threads[0]?.thread.rootCommentId).toBe(botOpen.rootCommentId);
   });

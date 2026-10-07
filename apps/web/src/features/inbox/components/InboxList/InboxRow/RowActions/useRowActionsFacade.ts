@@ -68,7 +68,9 @@ export function useRowActionsFacade(
 
   async function regenerate(): Promise<void> {
     const url = buildGithubPullUrl(item.repoSlug, item.prNumber);
-    if (url === null) return;
+    if (url === null) {
+      return;
+    }
     setRegenerating(true);
     try {
       await generateBriefViaApi(url);

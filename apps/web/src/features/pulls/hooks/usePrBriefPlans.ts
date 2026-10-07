@@ -52,7 +52,9 @@ import type { LastReviewComparison, PrSummary } from "../types";
 function deriveLastReviewKey(
   lastReview: LastReviewComparison | undefined,
 ): string | undefined {
-  if (lastReview === undefined) return undefined;
+  if (lastReview === undefined) {
+    return undefined;
+  }
   if (lastReview.kind === "available") {
     return `available|${lastReview.baselineSha}|${String(lastReview.baselineIndex ?? "")}|${String(lastReview.deltaAvailable)}`;
   }
@@ -238,8 +240,12 @@ export function usePrBriefPlans(
   // past flags the head carries. The STATE itself stays on every revision.
   const ownDraftState = isOwnDraft(meta);
   const ownDraft = useMemo(() => {
-    if (!ownDraftState) return undefined;
-    if (!currentHead) return {};
+    if (!ownDraftState) {
+      return undefined;
+    }
+    if (!currentHead) {
+      return {};
+    }
     return { markReady: markReadyAction, postComment: postCommentAction };
   }, [currentHead, markReadyAction, postCommentAction, ownDraftState]);
 
@@ -278,9 +284,12 @@ export function usePrBriefPlans(
       },
     };
 
-    if (revisionJump !== undefined) plan.revisionJump = revisionJump;
-    if (briefGeneratedAt !== undefined)
+    if (revisionJump !== undefined) {
+      plan.revisionJump = revisionJump;
+    }
+    if (briefGeneratedAt !== undefined) {
       plan.briefGeneratedAt = briefGeneratedAt;
+    }
 
     return plan;
   }, [

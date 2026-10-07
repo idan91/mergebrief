@@ -76,7 +76,9 @@ function renderSurface(
 
 function twoChunkSamePathBrief(): Brief {
   const core = briefFixture.chunks[0];
-  if (core === undefined) throw new Error("fixture missing core chunk");
+  if (core === undefined) {
+    throw new Error("fixture missing core chunk");
+  }
   const second: BriefChunk = {
     ...core,
     id: "chunk-c",
@@ -148,7 +150,9 @@ describe("RiskSurface chooser", () => {
   it("mixed file stays open with dimmed resolved chips", () => {
     const { flags } = requireAttributed(briefFixture);
     const dismissed = flags[0];
-    if (dismissed === undefined) throw new Error("expected a flag");
+    if (dismissed === undefined) {
+      throw new Error("expected a flag");
+    }
     renderSurface(briefFixture, {
       dispositions: { [dismissed.id]: DISMISSED },
     });
@@ -239,7 +243,9 @@ describe("RiskSurface chooser", () => {
   it("resolved files leave the open list into a fold", () => {
     const { flags } = requireAttributed(briefFixture);
     const dispositions: Record<string, Disposition | undefined> = {};
-    for (const flag of flags) dispositions[flag.id] = DISMISSED;
+    for (const flag of flags) {
+      dispositions[flag.id] = DISMISSED;
+    }
     renderSurface(briefFixture, { dispositions });
     expect(screen.queryByRole("button", { name: "src/leak.ts" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
@@ -249,11 +255,15 @@ describe("RiskSurface chooser", () => {
   it("resolved fold chips keep the catalog callout", () => {
     const { flags } = requireAttributed(briefFixture);
     const dispositions: Record<string, Disposition | undefined> = {};
-    for (const flag of flags) dispositions[flag.id] = DISMISSED;
+    for (const flag of flags) {
+      dispositions[flag.id] = DISMISSED;
+    }
     renderSurface(briefFixture, { dispositions });
     fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
     const sample = flags[0];
-    if (sample === undefined) throw new Error("expected a flag");
+    if (sample === undefined) {
+      throw new Error("expected a flag");
+    }
     fireEvent.click(screen.getByRole("button", { name: sample.attr }));
     expect(screen.getByText(appI18n.t("brief.risk.noTests"))).toBeTruthy();
   });

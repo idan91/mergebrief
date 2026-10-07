@@ -46,7 +46,9 @@ export function LiveDiffPreview({
     buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
   const files: FileRows[] = useMemo(() => {
-    if (diff.data === undefined) return [];
+    if (diff.data === undefined) {
+      return [];
+    }
     return [...splitUnifiedDiffByFile(diff.data)].map(([file, patch]) => ({
       file,
       rows: parseUnifiedDiffPatch(patch),

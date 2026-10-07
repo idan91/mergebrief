@@ -44,7 +44,9 @@ export function draftPolicyNotice(
   policy: DraftPolicyNoticeSource | undefined,
   view: OwnDraftSource,
 ): DraftPolicyNotice | null {
-  if (policy === undefined || !isOwnDraft(view)) return null;
+  if (policy === undefined || !isOwnDraft(view)) {
+    return null;
+  }
   if (!policy.generate) {
     return {
       kind: "drafts-off",
@@ -70,7 +72,9 @@ export function draftPolicyNotice(
 
 /** "about a minute" under 2 minutes, else "about N minutes" (rounded). */
 function formatWindow(t: TFunction, seconds: number): string {
-  if (seconds < 120) return t("pulls.ownDraft.windowMinute");
+  if (seconds < 120) {
+    return t("pulls.ownDraft.windowMinute");
+  }
   return t("pulls.ownDraft.windowMinutes", {
     count: Math.round(seconds / 60),
   });

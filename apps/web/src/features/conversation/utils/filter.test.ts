@@ -93,7 +93,9 @@ function thread(
     hasMoreComments: false,
   };
 
-  if (!isOutdated) conversationThread.line = 10;
+  if (!isOutdated) {
+    conversationThread.line = 10;
+  }
 
   return conversationThread;
 }

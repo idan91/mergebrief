@@ -25,7 +25,9 @@ export function useScrollSpy(
   const key = `${resetKey}\n${ids.join("\n")}`;
 
   useEffect(() => {
-    if (typeof window === "undefined" || ids.length === 0) return;
+    if (typeof window === "undefined" || ids.length === 0) {
+      return;
+    }
     let frame: number | null = null;
     let lastId: string | null = null;
     const update = () => {
@@ -34,16 +36,24 @@ export function useScrollSpy(
       const current =
         ids.find((id) => {
           const element = document.getElementById(id);
-          if (!element) return false;
+          if (!element) {
+            return false;
+          }
           const rect = element.getBoundingClientRect();
           return rect.top <= readingLine && rect.bottom > readingLine;
         }) ?? null;
-      if (current === lastId) return;
+      if (current === lastId) {
+        return;
+      }
       lastId = current;
-      if (current !== null) onActiveRef.current(current);
+      if (current !== null) {
+        onActiveRef.current(current);
+      }
     };
     const scheduleUpdate = () => {
-      if (frame !== null) return;
+      if (frame !== null) {
+        return;
+      }
       frame = window.requestAnimationFrame(() => {
         frame = null;
         update();
@@ -53,7 +63,9 @@ export function useScrollSpy(
     update();
     return () => {
       window.removeEventListener("scroll", scheduleUpdate);
-      if (frame !== null) window.cancelAnimationFrame(frame);
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
     };
     // `key` captures the id list identity without re-running on every render.
     // oxlint-disable-next-line react-hooks/exhaustive-deps

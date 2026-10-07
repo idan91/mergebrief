@@ -25,7 +25,9 @@ function sameMembers(
   left: readonly PrStackMember[],
   right: readonly PrStackMember[],
 ): boolean {
-  if (left.length !== right.length) return false;
+  if (left.length !== right.length) {
+    return false;
+  }
   return left.every((member, index) => member.number === right[index]?.number);
 }
 
@@ -36,7 +38,9 @@ export function isSameStack(left: PrStack, right: PrStack): boolean {
       left.index === right.index && sameMembers(left.members, right.members)
     );
   }
-  if (isLinearPrStack(left) || isLinearPrStack(right)) return false;
+  if (isLinearPrStack(left) || isLinearPrStack(right)) {
+    return false;
+  }
   const sameParent = left.parent?.number === right.parent?.number;
   return sameParent && sameMembers(left.children, right.children);
 }
@@ -89,7 +93,9 @@ export function rewritePullUrl(
 ): string | undefined {
   try {
     const parsed = new URL(url);
-    if (!/\/pull\/\d+(?:\/|$)/.test(parsed.pathname)) return undefined;
+    if (!/\/pull\/\d+(?:\/|$)/.test(parsed.pathname)) {
+      return undefined;
+    }
     parsed.pathname = parsed.pathname.replace(
       /\/pull\/\d+/,
       `/pull/${String(number)}`,

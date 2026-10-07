@@ -29,7 +29,7 @@ export interface MentionAutocomplete {
   /** Close the popup when the textarea loses focus. */
   onBlur: () => void;
   /**
-   * Popup keyboard handling; returns true when the event was consumed —
+   * Popup keyboard handling; returns true when the event was consumed;
    * callers must then skip their own keydown handling.
    */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean;
@@ -40,7 +40,7 @@ export interface MentionAutocompleteArgs {
   value: string;
   onChange: (value: string) => void;
   candidates: readonly MentionCandidate[];
-  /** A read-only surface is inert — the popup must not open or insert. */
+  /** A read-only surface is inert: the popup must not open or insert. */
   readOnly: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   baseId: string;
@@ -48,7 +48,7 @@ export interface MentionAutocompleteArgs {
 
 /**
  * `@`-mention autocomplete over an injected candidate pool. Filtering is
- * prefix-on-login in POOL ORDER — the caller's ordering IS the ranking.
+ * prefix-on-login in POOL ORDER; the caller's ordering IS the ranking.
  * Combobox-with-listbox keyboard contract; suppressed inside code fences.
  */
 export function useMentionAutocomplete({
@@ -93,17 +93,21 @@ export function useMentionAutocomplete({
     setActiveIndex(0);
   }, [query]);
   // An Escape dismissal lasts for the mention's continuous life: once no
-  // mention is being typed, forget it — the same position typed fresh
+  // mention is being typed, forget it, so the same position typed fresh
   // must reopen.
   useEffect(() => {
-    if (mention === null && dismissedAt !== null) setDismissedAt(null);
+    if (mention === null && dismissedAt !== null) {
+      setDismissedAt(null);
+    }
   }, [mention, dismissedAt]);
 
   const listId = `${baseId}-mentions`;
   const optionId = (index: number) => `${listId}-${index}`;
 
   const select = (login: string) => {
-    if (mention === null) return;
+    if (mention === null) {
+      return;
+    }
     const next = insertMention(value, mention.start, caret, login);
     onChange(next.text);
     setCaret(next.selectionStart);
@@ -129,11 +133,15 @@ export function useMentionAutocomplete({
     },
     onBlur: () => setBlurred(true),
     onKeyDown: (event) => {
-      if (!open) return false;
+      if (!open) {
+        return false;
+      }
       // IME candidate-list keys are never popup commands.
-      if (event.nativeEvent.isComposing) return false;
+      if (event.nativeEvent.isComposing) {
+        return false;
+      }
       // Modified Enter belongs to the editor (Cmd+Enter submits WHAT THE
-      // USER SEES; Shift+Enter is the plain-newline escape hatch) — the
+      // USER SEES; Shift+Enter is the plain-newline escape hatch). The
       // popup must neither insert nor swallow it.
       if (
         event.key === "Enter" &&
@@ -151,13 +159,15 @@ export function useMentionAutocomplete({
       }
       if (event.key === "Enter" || event.key === "Tab") {
         const candidate = options[clampedIndex];
-        if (candidate === undefined) return false;
+        if (candidate === undefined) {
+          return false;
+        }
         event.preventDefault();
         select(candidate.login);
         return true;
       }
       if (event.key === "Escape") {
-        // Dismiss the popup only — the editor's own Escape semantics
+        // Dismiss the popup only: the editor's own Escape semantics
         // (cancel edit, blur reply) must not fire on the same keystroke.
         event.preventDefault();
         event.stopPropagation();

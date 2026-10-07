@@ -1,8 +1,14 @@
 /** @param {import("../types").RuleNode | undefined} typeAnnotation */
 function isConstKeyword(typeAnnotation) {
-  if (typeAnnotation === undefined) return false;
-  if (typeAnnotation.type === "TSConstKeyword") return true;
-  if (typeAnnotation.name === "const") return true;
+  if (typeAnnotation === undefined) {
+    return false;
+  }
+  if (typeAnnotation.type === "TSConstKeyword") {
+    return true;
+  }
+  if (typeAnnotation.name === "const") {
+    return true;
+  }
   return (
     typeAnnotation.type === "TSTypeReference" &&
     typeAnnotation.typeName?.name === "const"
@@ -11,12 +17,18 @@ function isConstKeyword(typeAnnotation) {
 
 /** @param {import("../types").RuleNode | undefined} node */
 function isAsConstMap(node) {
-  if (node === undefined) return false;
+  if (node === undefined) {
+    return false;
+  }
   if (node.type === "TSSatisfiesExpression") {
     return isAsConstMap(node.expression);
   }
-  if (node.type !== "TSAsExpression") return false;
-  if (!isConstKeyword(node.typeAnnotation)) return false;
+  if (node.type !== "TSAsExpression") {
+    return false;
+  }
+  if (!isConstKeyword(node.typeAnnotation)) {
+    return false;
+  }
   return node.expression?.type === "ObjectExpression";
 }
 
@@ -45,7 +57,9 @@ export const typesConstMaps = {
     },
   },
   create(context) {
-    if (!isTypesSurface(context.filename)) return {};
+    if (!isTypesSurface(context.filename)) {
+      return {};
+    }
     return {
       FunctionDeclaration(node) {
         context.report({ node, messageId: "helper" });

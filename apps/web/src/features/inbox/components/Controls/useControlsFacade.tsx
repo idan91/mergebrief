@@ -59,7 +59,9 @@ export function useControlsFacade(
       ),
       onChoose: (value) => {
         const status = readKnown(value, InboxStatuses);
-        if (status === undefined) return;
+        if (status === undefined) {
+          return;
+        }
         write((live) => ({ state: toggleStateValue(live.states, status) }));
       },
     },

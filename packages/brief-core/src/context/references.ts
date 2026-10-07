@@ -25,7 +25,9 @@ const CLOSING_WINDOW = 16;
 function deriveIdentity(
   reference: Omit<TicketReference, "foundIn" | "closing">,
 ): string {
-  if (reference.key !== "") return `${reference.tracker}:${reference.key}`;
+  if (reference.key !== "") {
+    return `${reference.tracker}:${reference.key}`;
+  }
   return reference.url;
 }
 
@@ -88,7 +90,9 @@ export function collectTicketReferences(
 export function canonicalizeTicketUrl(raw: string): string {
   for (const tracker of TRACKERS) {
     const canonical = tracker.canonicalizeUrl(raw);
-    if (canonical !== undefined) return canonical;
+    if (canonical !== undefined) {
+      return canonical;
+    }
   }
   return raw;
 }

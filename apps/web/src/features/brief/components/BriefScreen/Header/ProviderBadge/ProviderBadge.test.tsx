@@ -8,7 +8,9 @@ afterEach(cleanup);
 
 function badge() {
   const el = document.querySelector("[data-provider-badge]");
-  if (!el) throw new Error("badge not rendered");
+  if (!el) {
+    throw new Error("badge not rendered");
+  }
   return el;
 }
 

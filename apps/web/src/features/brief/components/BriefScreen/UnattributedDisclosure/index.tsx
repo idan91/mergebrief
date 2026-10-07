@@ -53,15 +53,21 @@ export function UnattributedDisclosure({
     // Escape must dismiss a hover-opened panel too: focus may be anywhere,
     // so listen at the document while open, capture phase, and consume the
     // key so it never reaches page-level shortcut handling.
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape") {
+        return;
+      }
       event.stopPropagation();
       const active = document.activeElement;
       const heldInPanel =
         active instanceof Node && (panelRef.current?.contains(active) ?? false);
       setAnchor(null);
-      if (!heldInPanel) return;
+      if (!heldInPanel) {
+        return;
+      }
       ignoreFocusOpenRef.current = true;
       triggerRef.current?.focus();
     };
@@ -71,7 +77,9 @@ export function UnattributedDisclosure({
 
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
-    if (anchor === null) return;
+    if (anchor === null) {
+      return;
+    }
     const close = () => setAnchor(null);
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
@@ -79,13 +87,19 @@ export function UnattributedDisclosure({
 
   const closeUnlessInside = (event: FocusEvent<HTMLElement>) => {
     const next = event.relatedTarget;
-    if (next instanceof Node && isInsideDisclosure(next)) return;
+    if (next instanceof Node && isInsideDisclosure(next)) {
+      return;
+    }
     setAnchor(null);
   };
 
   const isInsideDisclosure = (node: Node) => {
-    if (triggerRef.current?.contains(node)) return true;
-    if (panelRef.current?.contains(node)) return true;
+    if (triggerRef.current?.contains(node)) {
+      return true;
+    }
+    if (panelRef.current?.contains(node)) {
+      return true;
+    }
     return (
       node instanceof Element &&
       node.hasAttribute("data-floating-ui-focus-guard")
@@ -109,7 +123,9 @@ export function UnattributedDisclosure({
       onPointerEnter={(event) => {
         // Touch browsers synthesize mouseenter before click: hover preview
         // is a MOUSE affordance; touch/pen go through click.
-        if (event.pointerType === "mouse") setAnchor(triggerRef.current);
+        if (event.pointerType === "mouse") {
+          setAnchor(triggerRef.current);
+        }
       }}
     >
       {/* oxlint-disable-next-line house/no-raw-button -- headless zero-specificity trigger wrapper: the stat cell carries the visuals */}

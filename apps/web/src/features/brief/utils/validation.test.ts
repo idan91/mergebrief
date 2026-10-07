@@ -49,7 +49,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.changeGroups[0]?.id).toBe("g1");
     expect(parsed.value.chunks[0]?.changeGroupId).toBe("g1");
   });
@@ -64,7 +66,9 @@ describe("parseBrief", () => {
       generationWarnings: ["⚠ salvaged brief: dropped 1 entry", 42, null],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.generationWarnings).toEqual([
       "⚠ salvaged brief: dropped 1 entry",
     ]);
@@ -80,7 +84,9 @@ describe("parseBrief", () => {
       generationWarnings: [],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("generationWarnings" in parsed.value).toBe(false);
   });
   it("carries lengthViolations through, dropping malformed entries", () => {
@@ -102,7 +108,9 @@ describe("parseBrief", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.lengthViolations).toEqual([
       {
         surface: "group-summary",
@@ -128,7 +136,9 @@ describe("parseBrief", () => {
     ]) {
       const parsed = parseBrief(variant);
       expect(parsed.ok).toBe(true);
-      if (!parsed.ok) return;
+      if (!parsed.ok) {
+        return;
+      }
       expect("lengthViolations" in parsed.value).toBe(false);
     }
   });
@@ -143,7 +153,9 @@ describe("parseBrief", () => {
       anchor: { state: "fresh-restart", reason: "model-swap" },
     });
     expect(restart.ok).toBe(true);
-    if (!restart.ok) return;
+    if (!restart.ok) {
+      return;
+    }
     expect(restart.value.anchor).toEqual({
       state: "fresh-restart",
       reason: "model-swap",
@@ -170,7 +182,9 @@ describe("parseBrief", () => {
       anchor: { state: 42 },
     });
     expect(malformed.ok).toBe(true);
-    if (!malformed.ok) return;
+    if (!malformed.ok) {
+      return;
+    }
     expect("anchor" in malformed.value).toBe(false);
 
     const absent = parseBrief({
@@ -181,7 +195,9 @@ describe("parseBrief", () => {
       concernView: [],
     });
     expect(absent.ok).toBe(true);
-    if (!absent.ok) return;
+    if (!absent.ok) {
+      return;
+    }
     expect("anchor" in absent.value).toBe(false);
   });
 
@@ -194,7 +210,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.pr.state).toBe("closed");
     expect(parsed.value.pr.draft).toBe(false);
     expect(parsed.value.pr.merged).toBe(true);
@@ -209,7 +227,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("state" in parsed.value.pr).toBe(false);
     expect("draft" in parsed.value.pr).toBe(false);
     expect("merged" in parsed.value.pr).toBe(false);
@@ -224,7 +244,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("state" in parsed.value.pr).toBe(false);
     expect("draft" in parsed.value.pr).toBe(false);
     expect("merged" in parsed.value.pr).toBe(false);
@@ -239,7 +261,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.pr.headRef).toBe("feature/thing");
     expect(parsed.value.pr.baseRef).toBe("main");
   });
@@ -253,7 +277,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("headRef" in parsed.value.pr).toBe(false);
     expect("baseRef" in parsed.value.pr).toBe(false);
   });
@@ -274,7 +300,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.pr.stack).toEqual(stack);
   });
 
@@ -292,7 +320,9 @@ describe("parseBrief", () => {
       concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.pr.headRef).toBe("feature/thing");
     expect(parsed.value.pr.baseRef).toBe("main");
     expect("stack" in parsed.value.pr).toBe(false);
@@ -331,7 +361,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.changeGroups[0]?.id).toBe("g1");
     expect(parsed.value.chunks[0]?.changeGroupId).toBe("g1");
   });
@@ -364,7 +396,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toEqual([
       { groupId: "g2", why: "establishes the schema the rest builds on" },
       { groupId: "g1", why: "wires the schema into call sites" },
@@ -380,7 +414,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
@@ -394,7 +430,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
@@ -408,7 +446,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
@@ -419,7 +459,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
@@ -427,7 +469,9 @@ describe("parseBrief", () => {
     const parsed = parseBrief(twoGroupBriefInput);
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
@@ -504,7 +548,9 @@ describe("parseBrief", () => {
       intentCheck: { ...preciseIntentCheck, primaryTicket },
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.primaryTicket).toEqual(primaryTicket);
   });
 
@@ -559,7 +605,9 @@ describe("parseBrief", () => {
         warnings,
       );
       expect(parsed.ok).toBe(true);
-      if (!parsed.ok) return;
+      if (!parsed.ok) {
+        return;
+      }
       expect(parsed.value.intentCheck?.specificity).toBe("precise");
       expect(parsed.value.intentCheck?.primaryTicket).toBeUndefined();
       expect(warnings.warn).toHaveBeenCalledWith(
@@ -575,7 +623,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.specificity).toBe("precise");
     expect(parsed.value.intentCheck?.accomplished[0]?.groupIds).toEqual(["g1"]);
     expect(parsed.value.intentCheck?.doneButUnstated[0]?.sourceUrl).toBe("");
@@ -595,7 +645,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.specificity).toBe("broad");
   });
 
@@ -609,7 +661,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     // Absent arrays must NOT drop the whole check - the bar still renders.
     expect(parsed.value.intentCheck?.deviations).toEqual([]);
     expect(parsed.value.intentCheck?.claimedButUnachieved).toEqual([]);
@@ -622,7 +676,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     // One "" per URL - the renderer's id-only fallback, never a dropped check.
     expect(parsed.value.intentCheck?.ticketTitles).toEqual([""]);
   });
@@ -637,7 +693,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.ticketTitles).toEqual(["Widget endpoint"]);
   });
 
@@ -648,7 +706,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
@@ -659,7 +719,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.accomplished[0]?.acknowledged).toBe(false);
     expect(parsed.value.intentCheck?.statedButMissing[0]?.acknowledged).toBe(
       false,
@@ -684,7 +746,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(true);
   });
 
@@ -706,7 +770,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     // Only `true` is critical; anything else is safely the alarm register.
     expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(false);
   });
@@ -734,7 +800,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     const check = parsed.value.intentCheck;
     // Only `deviations` keeps it.
     expect(check?.deviations[0]?.acknowledged).toBe(true);
@@ -751,7 +819,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     // Absent is lenient; present-but-wrong is not - same posture as the four
     // required buckets.
     expect(parsed.value.intentCheck).toBeUndefined();
@@ -764,7 +834,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
@@ -778,7 +850,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
@@ -786,7 +860,9 @@ describe("parseBrief", () => {
     const parsed = parseBrief(twoGroupBriefInput);
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
@@ -806,7 +882,9 @@ describe("parseBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
@@ -822,7 +900,9 @@ describe("parseBrief", () => {
     );
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.readingOrder).toBeUndefined();
     expect(parsed.value.intentCheck).toBeUndefined();
     const messages = warn.mock.calls.map(([msg]) => msg);
@@ -864,7 +944,9 @@ describe("parseRevisionNarrativeArtifact reason narrowing", () => {
       skipped: "span too large",
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value).toMatchObject({ skipped: "span too large" });
   });
 });
@@ -888,7 +970,9 @@ describe("parseRevisionNarrativeArtifact", () => {
       generationWarnings: ["⚠ revision narrative coverage issues: …", 7],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     if (parsed.value.artifactKind !== "revisionNarrative") {
       throw new Error("expected a narrative");
     }
@@ -900,7 +984,9 @@ describe("parseRevisionNarrativeArtifact", () => {
   it("omits generationWarnings when absent", () => {
     const parsed = parseRevisionNarrativeArtifact(narrativeWire);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("generationWarnings" in parsed.value).toBe(false);
   });
 });
@@ -946,7 +1032,9 @@ describe("parseDeltaBrief", () => {
     });
 
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.artifactKind).toBe("delta");
     expect(parsed.value.baselineSha?.slice(0, 8)).toBe("35788079");
     expect(parsed.value.concernView).toEqual([
@@ -1041,7 +1129,9 @@ describe("parseBrief unattributed", () => {
       ],
     });
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect(parsed.value.unattributed).toEqual([
       {
         file: "src/extra.ts",
@@ -1054,12 +1144,16 @@ describe("parseBrief unattributed", () => {
   it("keeps an empty unattributed array distinct from absent", () => {
     const withEmpty = parseBrief({ ...base, unattributed: [] });
     expect(withEmpty.ok).toBe(true);
-    if (!withEmpty.ok) return;
+    if (!withEmpty.ok) {
+      return;
+    }
     expect(withEmpty.value.unattributed).toEqual([]);
 
     const absent = parseBrief(base);
     expect(absent.ok).toBe(true);
-    if (!absent.ok) return;
+    if (!absent.ok) {
+      return;
+    }
     expect("unattributed" in absent.value).toBe(false);
   });
 
@@ -1070,7 +1164,9 @@ describe("parseBrief unattributed", () => {
       { warn: (msg) => warnings.push(msg) },
     );
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("unattributed" in parsed.value).toBe(false);
     expect(warnings.some((w) => w.includes("unattributed"))).toBe(true);
   });
@@ -1101,7 +1197,9 @@ describe("parseBrief unattributed canonical-range guard", () => {
       { warn: (msg) => warnings.push(msg) },
     );
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("unattributed" in parsed.value).toBe(false);
     expect(warnings.some((w) => w.includes("unattributed"))).toBe(true);
   });
@@ -1125,7 +1223,9 @@ describe("parseBrief unattributed canonical-range guard", () => {
       { warn: (msg) => warnings.push(msg) },
     );
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("unattributed" in parsed.value).toBe(false);
     expect(warnings.length).toBeGreaterThan(0);
   });
@@ -1145,7 +1245,9 @@ describe("parseBrief unattributed canonical-range guard", () => {
       { warn: () => {} },
     );
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
+    if (!parsed.ok) {
+      return;
+    }
     expect("unattributed" in parsed.value).toBe(false);
   });
 });
@@ -1162,12 +1264,16 @@ describe("parseBrief diffTotals", () => {
   it("carries valid totals and drops malformed ones", () => {
     const good = parseBrief({ ...base, diffTotals: { added: 9, deleted: 2 } });
     expect(good.ok).toBe(true);
-    if (!good.ok) return;
+    if (!good.ok) {
+      return;
+    }
     expect(good.value.diffTotals).toEqual({ added: 9, deleted: 2 });
 
     const bad = parseBrief({ ...base, diffTotals: { added: "9" } });
     expect(bad.ok).toBe(true);
-    if (!bad.ok) return;
+    if (!bad.ok) {
+      return;
+    }
     expect("diffTotals" in bad.value).toBe(false);
   });
 });

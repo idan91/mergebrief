@@ -97,17 +97,25 @@ function resolveValuedFlag(
   flag: "--case" | "--runs" | "--prices",
   value: string,
 ): Result<Partial<EvalArgs>, string> {
-  if (flag === "--case") return { ok: true, value: { caseId: value } };
-  if (flag === "--prices") return { ok: true, value: { pricesPath: value } };
+  if (flag === "--case") {
+    return { ok: true, value: { caseId: value } };
+  }
+  if (flag === "--prices") {
+    return { ok: true, value: { pricesPath: value } };
+  }
 
   const runs = parseRunsValue(value);
-  if (!runs.ok) return runs;
+  if (!runs.ok) {
+    return runs;
+  }
   return { ok: true, value: { runs: runs.value } };
 }
 
 export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
   const flagged = extractConfigFlag(argv);
-  if (!flagged) return { ok: false, error: "--config needs a path value" };
+  if (!flagged) {
+    return { ok: false, error: "--config needs a path value" };
+  }
   const rest = [...flagged.rest];
   const args: EvalArgs = {
     configPath: flagged.configPath,
@@ -131,7 +139,9 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
         return { ok: false, error: `${flag} needs a value` };
       }
       const valued = resolveValuedFlag(flag, value);
-      if (!valued.ok) return valued;
+      if (!valued.ok) {
+        return valued;
+      }
       Object.assign(args, valued.value);
     } else {
       return { ok: false, error: `unknown argument "${flag}"` };
@@ -168,7 +178,9 @@ async function buildGenerator(
     configPath !== null
       ? loadGeneratorConfigFile(configPath)
       : { ok: true as const, value: { generator: defaultGeneratorConfig } };
-  if (!loaded.ok) return { ok: false, error: loaded.error.issues.join("; ") };
+  if (!loaded.ok) {
+    return { ok: false, error: loaded.error.issues.join("; ") };
+  }
   const constructed = await createGenerator(loaded.value.generator, {
     env: process.env,
     failureDir: OUT_DIR,
@@ -223,7 +235,9 @@ async function evaluateCase(
   let rebaselined = false;
   if (baselineMode === BaselineModes.COMPARE) {
     const loaded = loadBaseline(baselinePath, key);
-    if (!loaded.ok) return loaded;
+    if (!loaded.ok) {
+      return loaded;
+    }
     baseline = loaded.value;
   } else if (baselineMode === BaselineModes.REBASELINE) {
     if (result.generationFailures > 0) {
@@ -314,8 +328,11 @@ async function main(): Promise<void> {
   }
 
   let baselineMode: BaselineMode = BaselineModes.COMPARE;
-  if (args.rebaseline) baselineMode = BaselineModes.REBASELINE;
-  else if (args.noBaseline) baselineMode = BaselineModes.NONE;
+  if (args.rebaseline) {
+    baselineMode = BaselineModes.REBASELINE;
+  } else if (args.noBaseline) {
+    baselineMode = BaselineModes.NONE;
+  }
 
   // Refuse cross-key runs before the first generation spends money.
   // --rebaseline intends to overwrite keys and --no-baseline compares

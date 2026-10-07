@@ -219,7 +219,9 @@ describe("comparison existence seams", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!brief.ok) throw new Error("brief write failed");
+    if (!brief.ok) {
+      throw new Error("brief write failed");
+    }
 
     expect(
       await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2"),
@@ -238,7 +240,9 @@ describe("comparison existence seams", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
     expect(
       await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2"),
     ).toBe(true);
@@ -254,7 +258,9 @@ describe("comparison existence seams", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!narrative.ok) throw new Error("narrative write failed");
+    if (!narrative.ok) {
+      throw new Error("narrative write failed");
+    }
     expect(
       await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2"),
     ).toBe(true);
@@ -280,7 +286,9 @@ describe("comparison existence seams", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!written.ok) throw new Error("delta write failed");
+    if (!written.ok) {
+      throw new Error("delta write failed");
+    }
     expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
       true,
     );
@@ -313,7 +321,9 @@ describe("comparison existence seams", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
     const bDelta = await bStore.deltas.write({
       pullRequestId: bPr.id,
       baselineSha: "head-1",
@@ -321,7 +331,9 @@ describe("comparison existence seams", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!bDelta.ok) throw new Error("delta write failed");
+    if (!bDelta.ok) {
+      throw new Error("delta write failed");
+    }
 
     const aStore = createArtifactStore(handle, CTX_A);
     expect(
@@ -393,7 +405,9 @@ describe("batched span listings and per-revision joins", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!brief.ok) throw new Error("brief write failed");
+    if (!brief.ok) {
+      throw new Error("brief write failed");
+    }
 
     await store.comparisonMarks.write({
       pullRequestId: pr.id,

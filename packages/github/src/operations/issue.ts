@@ -28,7 +28,9 @@ export interface IssueInfo {
 type IssueLabel = string | { readonly name?: string | null | undefined };
 
 function readLabelName(label: IssueLabel): string {
-  if (typeof label === "string") return label;
+  if (typeof label === "string") {
+    return label;
+  }
   return label.name ?? "";
 }
 

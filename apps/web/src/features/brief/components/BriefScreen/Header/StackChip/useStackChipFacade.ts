@@ -39,7 +39,9 @@ export function useStackChipFacade({ stack }: StackChipFacadeParams) {
     setOpen(false);
     landedRef.current = false;
     openerRef.current = null;
-    if (focusWasInside) triggerEl?.focus();
+    if (focusWasInside) {
+      triggerEl?.focus();
+    }
   }, [detailId, triggerEl]);
 
   const openPreview = () => {
@@ -68,7 +70,9 @@ export function useStackChipFacade({ stack }: StackChipFacadeParams) {
   };
 
   const handlePointerEnter = (pointerType: string) => {
-    if (pointerType === "mouse" && !open) openPreview();
+    if (pointerType === "mouse" && !open) {
+      openPreview();
+    }
   };
 
   const landOnPanel = (node: HTMLSpanElement | null) => {
@@ -84,9 +88,13 @@ export function useStackChipFacade({ stack }: StackChipFacadeParams) {
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape") {
+        return;
+      }
       event.stopPropagation();
       close();
     };

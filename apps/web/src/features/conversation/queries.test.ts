@@ -22,7 +22,9 @@ const apiFetchMock = vi.mocked(apiFetch);
 function run(): Promise<unknown> {
   const options = buildConversationQueryOptions("42", 7);
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 
@@ -104,7 +106,9 @@ describe("buildConversationQueryOptions queryFn", () => {
 function runCollaborators(): Promise<unknown> {
   const options = buildCollaboratorsQueryOptions("42");
   const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
   return (queryFn as () => Promise<unknown>)();
 }
 

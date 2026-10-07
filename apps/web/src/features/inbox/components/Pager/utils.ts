@@ -13,9 +13,12 @@ export function listPageSteps(
   const steps: PagerStep[] = [];
   for (const page of wanted) {
     const previous = steps.at(-1);
-    if (previous === page) continue;
-    if (typeof previous === "number" && page - previous > 1)
+    if (previous === page) {
+      continue;
+    }
+    if (typeof previous === "number" && page - previous > 1) {
       steps.push(PAGE_GAP);
+    }
     steps.push(page);
   }
   return steps;

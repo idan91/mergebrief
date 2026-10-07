@@ -159,7 +159,9 @@ describe("the Review Session writes", () => {
       },
     };
 
-    if (body !== undefined) init.body = JSON.stringify(body);
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
 
     return app.request(pathFor(suffix, head), init);
   }
@@ -928,7 +930,9 @@ describe("the Review Session writes", () => {
         },
       };
 
-      if (body !== undefined) init.body = JSON.stringify(body);
+      if (body !== undefined) {
+        init.body = JSON.stringify(body);
+      }
 
       return app.request(pathFor(suffix, "head-1"), init);
     }

@@ -45,7 +45,9 @@ export function loadBaseline(
   path: string,
   expectedKey: string,
 ): Result<CaseBaseline | null, string> {
-  if (!existsSync(path)) return { ok: true, value: null };
+  if (!existsSync(path)) {
+    return { ok: true, value: null };
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(path, "utf8"));
@@ -86,7 +88,9 @@ export function preflightBaselineKeys(
       join(evalCase.dir, "baseline.json"),
       expectedKey,
     );
-    if (!loaded.ok) return loaded;
+    if (!loaded.ok) {
+      return loaded;
+    }
   }
   return { ok: true, value: undefined };
 }

@@ -39,7 +39,9 @@ export function useConversationRows(
   // The filter reaches the diff too: a reviewer chip that left their inline
   // threads in place would answer "who said what" only halfway.
   const conversationByChunk = useMemo(() => {
-    if (conversationData === undefined) return undefined;
+    if (conversationData === undefined) {
+      return undefined;
+    }
     const filtered = applyConversationFilter(
       conversationData,
       reconcileReviewers(
@@ -70,7 +72,9 @@ export function useConversationRows(
   // Unfiltered on purpose: a hidden thread is hidden whoever wrote it, and
   // an expansion surfaces it the same way.
   const unfilteredInput = useMemo(() => {
-    if (conversationData === undefined) return undefined;
+    if (conversationData === undefined) {
+      return undefined;
+    }
     const { ownThreadIds, ownReviewIds } = reconcileOwnComments(
       NO_LOCAL_COMMENTS,
       conversationData.threads,
@@ -111,7 +115,9 @@ export function useConversationRows(
   // first, so the counts describe the same conversation the section and the
   // diff render.
   const conversationFilterFacets = useMemo(() => {
-    if (conversationData === undefined) return undefined;
+    if (conversationData === undefined) {
+      return undefined;
+    }
     const applied = reconcileReviewers(
       conversationFilter ?? DEFAULT_CONVERSATION_FILTER,
       conversationData,

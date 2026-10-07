@@ -26,10 +26,10 @@ export const CHUNK_WINDOW_INDEX_ATTR = "data-index";
 export interface GroupWindowOptions {
   /** Ordered file-qualified chunk keys (`file#chunkId`) of this group. */
   chunkKeys: readonly string[];
-  /** Estimated card height by index — the shared chunk height model. */
+  /** Estimated card height by index, from the shared chunk height model. */
   estimateChunk: (index: number) => number;
   /**
-   * Chunk keys that must stay mounted regardless of the window — the card
+   * Chunk keys that must stay mounted regardless of the window: the card
    * holding focus or an open composer. Undefined = none.
    */
   pinnedKeys?: ReadonlySet<string> | undefined;
@@ -88,9 +88,11 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   }, [chunkKeys]);
 
   // Hidden watch. The snapshot must happen HERE, before the disabling
-  // render commits — after it the cache is already wiped.
+  // render commits; after it the cache is already wiped.
   useEffect(() => {
-    if (!listEl) return;
+    if (!listEl) {
+      return;
+    }
 
     const update = () => {
       const visible = listEl.closest("[hidden]") === null;
@@ -116,10 +118,12 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   }, [listEl]);
 
   // This list's document offset, re-read when body height changes (content
-  // above resizing moves every later group). Skipped while hidden — a
+  // above resizing moves every later group). Skipped while hidden: a
   // hidden list measures rect 0.
   useEffect(() => {
-    if (!listEl || !active) return;
+    if (!listEl || !active) {
+      return;
+    }
 
     const update = () => {
       const next = Math.round(
@@ -151,11 +155,15 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   const rangeExtractor = useCallback(
     (range: Range) => {
       const base = defaultRangeExtractor(range);
-      if (!pinnedKeys || pinnedKeys.size === 0) return base;
+      if (!pinnedKeys || pinnedKeys.size === 0) {
+        return base;
+      }
       const merged = new Set(base);
       for (const key of pinnedKeys) {
         const index = keyIndex.get(key);
-        if (index !== undefined) merged.add(index);
+        if (index !== undefined) {
+          merged.add(index);
+        }
       }
       return [...merged].toSorted((a, b) => a - b);
     },
@@ -187,8 +195,10 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   const measureElement = useCallback(
     (node: Element | null) => {
       // A null detach must reach the core (it prunes its element cache);
-      // only hidden LIVE nodes are refused — their offsetHeight is 0.
-      if (node !== null && node.closest("[hidden]") !== null) return;
+      // only hidden LIVE nodes are refused, since their offsetHeight is 0.
+      if (node !== null && node.closest("[hidden]") !== null) {
+        return;
+      }
       virtualizer.measureElement(node);
     },
     [virtualizer],
@@ -201,11 +211,15 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
 
   const scrollToKey = useCallback(
     (key: string) => {
-      // Live ref, not state: after an unhide the state is one render stale
-      // — a jump from the same gesture would read false and die.
-      if (!live.current.active) return false;
+      // Live ref, not state: after an unhide the state is one render stale,
+      // so a jump from the same gesture would read false and die.
+      if (!live.current.active) {
+        return false;
+      }
       const index = keyIndex.get(key);
-      if (index === undefined) return false;
+      if (index === undefined) {
+        return false;
+      }
       // "instant": measurement adjustments cancel in-flight smooth scrolls,
       // and "auto" would defer to the page's smooth CSS.
       virtualizer.scrollToIndex(index, { align: "start", behavior: "instant" });

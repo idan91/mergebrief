@@ -195,7 +195,9 @@ export function useDiffTableFacade({
     line: DiffLine,
     index: number,
   ): DiffRowView | undefined {
-    if (isFullWidthDiffRow(line)) return undefined;
+    if (isFullWidthDiffRow(line)) {
+      return undefined;
+    }
     if (model.isGuest) {
       return buildGuestRowView({
         line,

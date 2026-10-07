@@ -154,7 +154,9 @@ function resolveHost(
   anchor: CommentAnchor,
   host: string | undefined,
 ): string | null {
-  if (host !== undefined) return host;
+  if (host !== undefined) {
+    return host;
+  }
   return isLineCommentAnchor(anchor) ? anchor.chunkId : null;
 }
 
@@ -282,7 +284,9 @@ export function createReviewFlowStore(
           // One in-flight save per composer: a disabled control, not a
           // protocol. A second click while the first is unresolved could
           // stage the same draft twice.
-          if (get().composerSaving) return false;
+          if (get().composerSaving) {
+            return false;
+          }
           set({ composerSaving: true });
           try {
             const saved = await session.saveComment({
@@ -333,7 +337,9 @@ export function createReviewFlowStore(
           set({ lineSelection: selection });
         },
         clearLineSelection() {
-          if (get().lineSelection === null) return;
+          if (get().lineSelection === null) {
+            return;
+          }
           set({ lineSelection: null });
         },
         setDismissTarget(target) {
@@ -348,24 +354,33 @@ export function createReviewFlowStore(
           }));
         },
         toggleRiskGroup(flagIds) {
-          if (flagIds.length === 0) return;
+          if (flagIds.length === 0) {
+            return;
+          }
           set((state) => {
             const allSelected = flagIds.every((id) =>
               state.selectedRiskFlags.has(id),
             );
             const next = new Set(state.selectedRiskFlags);
             for (const id of flagIds) {
-              if (allSelected) next.delete(id);
-              else next.add(id);
+              if (allSelected) {
+                next.delete(id);
+              } else {
+                next.add(id);
+              }
             }
             return { selectedRiskFlags: next };
           });
         },
         clearRiskSelection(flagIds) {
-          if (flagIds.length === 0) return;
+          if (flagIds.length === 0) {
+            return;
+          }
           set((state) => {
             const next = new Set(state.selectedRiskFlags);
-            for (const id of flagIds) next.delete(id);
+            for (const id of flagIds) {
+              next.delete(id);
+            }
             return { selectedRiskFlags: next };
           });
         },

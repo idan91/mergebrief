@@ -157,7 +157,9 @@ export function useDiffTableModel({
     const commentable = new Set<number>();
     for (const [index, owner] of spanOwnerByRow) {
       const line = rows[index];
-      if (line === undefined) continue;
+      if (line === undefined) {
+        continue;
+      }
       if (isSpanRowCommentable(line, ownerChunkById.get(owner))) {
         commentable.add(index);
       }

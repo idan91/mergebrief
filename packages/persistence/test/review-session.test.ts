@@ -730,7 +730,9 @@ describe("the draft operations", () => {
       anchor: LINE_ANCHOR,
       body: "first",
     });
-    if (!added.ok) throw new Error("draft seed failed");
+    if (!added.ok) {
+      throw new Error("draft seed failed");
+    }
     const draftId = added.value.id;
     await stampAnchorStatus(client, draftId, AnchorStatuses.MOVED);
 
@@ -755,7 +757,9 @@ describe("the draft operations", () => {
       anchor: LINE_ANCHOR,
       body: "published",
     });
-    if (!added.ok) throw new Error("draft seed failed");
+    if (!added.ok) {
+      throw new Error("draft seed failed");
+    }
     const published = added.value.id;
     await sessions.recordPublishedDrafts(key, { draftIds: [published] });
 
@@ -829,7 +833,9 @@ describe("publish claims", () => {
     now: Date,
   ): Promise<string> {
     const claimed = await sessions.claimDrafts(key, { draftIds, now });
-    if (!claimed.ok) throw new Error(`claim failed: ${claimed.error.code}`);
+    if (!claimed.ok) {
+      throw new Error(`claim failed: ${claimed.error.code}`);
+    }
     return claimed.value.claim;
   }
 
@@ -841,7 +847,9 @@ describe("publish claims", () => {
       now: CLAIMED_AT,
     });
 
-    if (!claimed.ok) throw new Error("claim refused");
+    if (!claimed.ok) {
+      throw new Error("claim refused");
+    }
     expect(claimed.value.drafts.map((row) => row.id)).toEqual([first, second]);
     const drafts = (await sessions.get(key))?.draftComments ?? [];
     expect(drafts.map((row) => row.publishClaim)).toEqual([
@@ -1200,7 +1208,9 @@ describe("the review work operations", () => {
   it("does not count a carried decision against the Brief's flags", async () => {
     const { client, sessions, key } = await openWorld();
     const session = await sessions.setOutcome(key, ReviewOutcomes.COMMENT);
-    if (!session.ok) throw new Error("session seed failed");
+    if (!session.ok) {
+      throw new Error("session seed failed");
+    }
     await client.query(
       `insert into disposition
          (installation_id, review_session_id, file_path, attribute,
@@ -1355,7 +1365,9 @@ describe("reviewSessions tenancy containment", () => {
     );
 
     expect(attempt.ok).toBe(false);
-    if (attempt.ok) return;
+    if (attempt.ok) {
+      return;
+    }
     expect(attempt.error.code).toBe(
       ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
     );

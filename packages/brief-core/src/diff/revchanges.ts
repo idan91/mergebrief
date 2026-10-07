@@ -29,8 +29,11 @@ function coalesce(lines: number[]): LineRange[] {
   const ranges: LineRange[] = [];
   for (const n of lines) {
     const last = ranges.at(-1);
-    if (last && n === last.end + 1) last.end = n;
-    else ranges.push({ start: n, end: n });
+    if (last && n === last.end + 1) {
+      last.end = n;
+    } else {
+      ranges.push({ start: n, end: n });
+    }
   }
   return ranges;
 }
@@ -40,7 +43,9 @@ function parsePatch(patch: string): { added: number[]; removed: number[] } {
   const added: number[] = [];
   const removed: number[] = [];
   for (const row of parsePatchRows(patch)) {
-    if (isAddedRow(row) && row.newLine !== undefined) added.push(row.newLine);
+    if (isAddedRow(row) && row.newLine !== undefined) {
+      added.push(row.newLine);
+    }
     if (isRemovedRow(row) && row.oldLine !== undefined) {
       removed.push(row.oldLine);
     }
@@ -59,7 +64,9 @@ export function changedRangesFromFileDiffs(
 ): RevisionChangeFile[] {
   return fileDiffs.flatMap((fileDiff) => {
     const { added, removed } = parsePatch(fileDiff.patch);
-    if (added.length === 0 && removed.length === 0) return [];
+    if (added.length === 0 && removed.length === 0) {
+      return [];
+    }
     return [
       {
         file: fileDiff.file,

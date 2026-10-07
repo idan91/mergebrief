@@ -64,8 +64,9 @@ function serverThread(overrides: {
     url: `https://example.test/c/${overrides.rootCommentId}`,
   };
 
-  if (overrides.reviewId !== undefined)
+  if (overrides.reviewId !== undefined) {
     rootComment.reviewId = overrides.reviewId;
+  }
 
   return {
     rootCommentId: overrides.rootCommentId,

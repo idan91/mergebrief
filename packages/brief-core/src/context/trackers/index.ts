@@ -38,7 +38,9 @@ export function checkConfiguredTrackerReads(
 ): Result<void, ConfigError> {
   for (const entry of root.contextSources) {
     const read = createTrackerRead(entry.type, root);
-    if (!read.ok) return read;
+    if (!read.ok) {
+      return read;
+    }
   }
   return { ok: true, value: undefined };
 }
@@ -69,11 +71,15 @@ export function resolveTrackerReads(
   const configured = new Set<TicketTracker>(
     trackers.map((tracker) => tracker.kind),
   );
-  if (configured.size === 0) configured.add(TicketTrackers.GITHUB);
+  if (configured.size === 0) {
+    configured.add(TicketTrackers.GITHUB);
+  }
   const reads: { [Kind in TicketTracker]?: PrimaryRead | undefined } = {};
 
   for (const { kind } of TRACKERS) {
-    if (root.transports[kind] === undefined) continue;
+    if (root.transports[kind] === undefined) {
+      continue;
+    }
     const read = createTrackerRead(kind, root);
     if (read.ok) {
       reads[kind] = read.value;

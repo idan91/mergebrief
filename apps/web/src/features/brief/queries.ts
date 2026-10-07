@@ -188,7 +188,9 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
     queryFn: async (): Promise<FileRangeResult> => {
       const path = buildFileRangePath(params);
       const response = await apiFetch(path);
-      if (!response.ok) return await readFileRangeFailure(response, path);
+      if (!response.ok) {
+        return await readFileRangeFailure(response, path);
+      }
 
       const body = await apiJsonFromResponse(response, path);
       const parsed = fileRangeSchema.safeParse(body);
@@ -207,8 +209,12 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
 
 /** Whether this range is one the route will serve at all. */
 export function isFileRangeReadable(params: FileRangeParams): boolean {
-  if (!HEAD_SHA.test(params.ref)) return false;
-  if (params.from < 1 || params.to < params.from) return false;
+  if (!HEAD_SHA.test(params.ref)) {
+    return false;
+  }
+  if (params.from < 1 || params.to < params.from) {
+    return false;
+  }
 
   return params.to - params.from + 1 <= MAX_FILE_RANGE_LINES;
 }

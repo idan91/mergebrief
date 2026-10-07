@@ -160,7 +160,9 @@ export function useOwnDraftFlow(
       // path. In a batch the reason is suppressed (the summary owns it).
       const blocked = postCommentBlockedReason(t, comment);
       if (blocked !== undefined) {
-        if (!batchOwnsMessaging) announce(blocked);
+        if (!batchOwnsMessaging) {
+          announce(blocked);
+        }
         return "rejected";
       }
       // A Submit review in flight already CAPTURED this draft, posting now
@@ -173,9 +175,13 @@ export function useOwnDraftFlow(
       }
       // A duplicate in-flight post's outcome is unknowable from here, and a
       // batch must stop with the indeterminate summary.
-      if (!inFlight.begin(comment.id)) return "indeterminate";
+      if (!inFlight.begin(comment.id)) {
+        return "indeterminate";
+      }
       const say = (key: TranslationKey) => {
-        if (!batchOwnsMessaging) announce(t(key));
+        if (!batchOwnsMessaging) {
+          announce(t(key));
+        }
       };
       try {
         // A session write until the flip below has landed, so a read that

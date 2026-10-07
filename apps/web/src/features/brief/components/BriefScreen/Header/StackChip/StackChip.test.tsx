@@ -237,7 +237,9 @@ describe("StackChip", () => {
       name: "pull request 2 of 3 in the stack",
     });
     const hoverArea = chip.parentElement;
-    if (hoverArea === null) throw new Error("missing hover area");
+    if (hoverArea === null) {
+      throw new Error("missing hover area");
+    }
     fireEvent.pointerEnter(hoverArea, { pointerType: "mouse" });
     expect(chip.getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(chip);

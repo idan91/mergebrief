@@ -53,8 +53,12 @@ export async function createOpenRouterCore(
   const log = options.log ?? (() => {});
   const defaultHeaders: Record<string, string> = {};
 
-  if (options.referer) defaultHeaders["HTTP-Referer"] = options.referer;
-  if (options.title) defaultHeaders["X-Title"] = options.title;
+  if (options.referer) {
+    defaultHeaders["HTTP-Referer"] = options.referer;
+  }
+  if (options.title) {
+    defaultHeaders["X-Title"] = options.title;
+  }
 
   const clientOptions: ClientOptions = {
     apiKey: options.apiKey,
@@ -62,12 +66,16 @@ export async function createOpenRouterCore(
     defaultHeaders,
   };
 
-  if (options.fetch) clientOptions.fetch = options.fetch;
+  if (options.fetch) {
+    clientOptions.fetch = options.fetch;
+  }
 
   const client = new OpenAI(clientOptions);
 
   const listing = await modelListing(client, options.model);
-  if (!listing.ok) return listing;
+  if (!listing.ok) {
+    return listing;
+  }
   if (!listing.value.supportedParameters.includes("structured_outputs")) {
     return configError([
       `model "${options.model}" does not support structured_outputs on OpenRouter — with require_parameters every request would fail`,
@@ -171,7 +179,9 @@ async function* verifyServedModel(
   for await (const chunk of stream) {
     if (!verified && typeof chunk.model === "string" && chunk.model !== "") {
       verified = true;
-      if (chunk.model !== requested) onMismatch(chunk.model);
+      if (chunk.model !== requested) {
+        onMismatch(chunk.model);
+      }
     }
     yield chunk;
   }
@@ -212,8 +222,12 @@ async function modelListing(
     return configError(["OpenRouter /models returned an unrecognized shape"]);
   }
   for (const entry of data) {
-    if (typeof entry !== "object" || entry === null) continue;
-    if (Reflect.get(entry, "id") !== model) continue;
+    if (typeof entry !== "object" || entry === null) {
+      continue;
+    }
+    if (Reflect.get(entry, "id") !== model) {
+      continue;
+    }
     const supported = Reflect.get(entry, "supported_parameters");
     return {
       ok: true,

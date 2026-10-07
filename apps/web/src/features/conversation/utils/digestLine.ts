@@ -82,7 +82,9 @@ export function deriveDigestLine(body: string): string | undefined {
       // Fence-marker-looking content inside an open fence stays content.
       continue;
     }
-    if (fence !== null) continue;
+    if (fence !== null) {
+      continue;
+    }
     if (line === "") {
       inTable = false;
       continue;
@@ -90,12 +92,18 @@ export function deriveDigestLine(body: string): string | undefined {
     // Once a separator row opened a table, EVERY following line is a body
     // row until a blank line breaks the table (GFM continues pipe-less
     // single-cell rows too).
-    if (inTable) continue;
+    if (inTable) {
+      continue;
+    }
     // Indented code blocks are code, not text: plain indent wins over quote
     // reading, and quote markers count after 0-3 spaces.
-    if (indentedCode) continue;
+    if (indentedCode) {
+      continue;
+    }
     // Headings and table rows are structure, not content.
-    if (/^#{1,6}\s/.test(line)) continue;
+    if (/^#{1,6}\s/.test(line)) {
+      continue;
+    }
     // Separator check FIRST: a leading-pipe separator (`|---|---|`) must still
     // enter table mode so pipe-less body rows drop, but only a PIPED separator
     // is a table; a bare `---` is a horizontal rule and must not swallow text.
@@ -114,7 +122,9 @@ export function deriveDigestLine(body: string): string | undefined {
     ) {
       continue;
     }
-    if (line.startsWith("|") && inTable) continue;
+    if (line.startsWith("|") && inTable) {
+      continue;
+    }
     // A pipe-less table header reveals itself by its separator on the NEXT
     // line ("File | Summary" then "--- | ---").
     if (
@@ -130,10 +140,14 @@ export function deriveDigestLine(body: string): string | undefined {
       continue;
     }
     // Horizontal rules, and a bare `=` run (a consumed Setext underline).
-    if (/^(-{3,}|\*{3,}|_{3,}|=+)$/.test(line)) continue;
+    if (/^(-{3,}|\*{3,}|_{3,}|=+)$/.test(line)) {
+      continue;
+    }
     // Quote and list markers unwrap to their content.
     const unwrapped = stripInline(line.replace(/^([-*+]|\d+[.)])\s+/, ""));
-    if (unwrapped === "") continue;
+    if (unwrapped === "") {
+      continue;
+    }
     if (unwrapped.length <= MAX_DIGEST_LINE) {
       return unwrapped;
     }

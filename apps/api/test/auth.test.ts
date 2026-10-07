@@ -135,8 +135,9 @@ async function seedSession(
   const hash = hashSha256Hex(token);
   const sealedAccess = await encryptToken(kp, KEY_REF, input.accessPlaintext);
   const sealedRefresh = await encryptToken(kp, KEY_REF, input.refreshPlaintext);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -205,8 +206,9 @@ describe("reviewer auth routes", () => {
     const token = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -348,7 +350,9 @@ describe("reviewer auth routes", () => {
     const hash = hashSha256Hex(token);
     const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedR = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealed.ok || !sealedR.ok) throw new Error("seed failed");
+    if (!sealed.ok || !sealedR.ok) {
+      throw new Error("seed failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealed.value,
       ghRefreshTokenCiphertext: sealedR.value,
@@ -460,8 +464,9 @@ describe("reviewer auth routes", () => {
     const token = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -509,14 +514,18 @@ describe("reviewer auth routes", () => {
     const beforeCipher = String(before[0]?.["gh_token_ciphertext"]);
 
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
-    if (resolved === undefined) throw new Error("seeded session not found");
+    if (resolved === undefined) {
+      throw new Error("seeded session not found");
+    }
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: buildAuthDeps(kp) },
       derivePrincipalFromSession(resolved),
       testLogger(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.value.accessToken).toBe(ROTATED_ACCESS);
 
     // The rotation lands on the GRANT row; the session row mirrors the
@@ -529,7 +538,9 @@ describe("reviewer auth routes", () => {
     // The rotated access ciphertext decrypts back to the rotated plaintext.
     const decrypted = await decryptToken(kp, KEY_REF, afterAccessCipher);
     expect(decrypted.ok).toBe(true);
-    if (!decrypted.ok) throw new Error("unreachable");
+    if (!decrypted.ok) {
+      throw new Error("unreachable");
+    }
     expect(decrypted.value).toBe(ROTATED_ACCESS);
     // Rotated refresh ciphertext decrypts to the rotated refresh plaintext.
     const decryptedR = await decryptToken(
@@ -537,7 +548,9 @@ describe("reviewer auth routes", () => {
       KEY_REF,
       String(after[0]?.["gh_refresh_token_ciphertext"]),
     );
-    if (!decryptedR.ok) throw new Error("unreachable");
+    if (!decryptedR.ok) {
+      throw new Error("unreachable");
+    }
     expect(decryptedR.value).toBe(ROTATED_REFRESH);
     // Session expiry mirrored forward to the new refresh-token expiry.
     const sessionRow = await harness.raw("select expires_at from auth_session");
@@ -559,7 +572,9 @@ describe("reviewer auth routes", () => {
     });
 
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
-    if (resolved === undefined) throw new Error("seeded session not found");
+    if (resolved === undefined) {
+      throw new Error("seeded session not found");
+    }
     const capture = testLogging();
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: buildAuthDeps(kp) },
@@ -567,7 +582,9 @@ describe("reviewer auth routes", () => {
       capture.logger,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     // Session burned → re-login required; the orphaned grant died with it.
     expect(await countRows(harness, "auth_session")).toBe(0);
     expect(await countRows(harness, "github_grant")).toBe(0);
@@ -594,14 +611,17 @@ describe("reviewer auth routes", () => {
       refreshPlaintext: REFRESH_TOKEN,
     });
     const stale = await createSessionAuth(harness.handle).findSession(hash);
-    if (stale === undefined) throw new Error("seeded session not found");
+    if (stale === undefined) {
+      throw new Error("seeded session not found");
+    }
 
     // Another channel wins the rotation while our principal is in flight.
     const rotatedExpiry = new Date("2027-09-01T00:00:00Z");
     const sealedAccess = await encryptToken(kp, KEY_REF, ROTATED_ACCESS);
     const sealedRefresh = await encryptToken(kp, KEY_REF, ROTATED_REFRESH);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const rotated = await createGrantAuth(harness.handle).refreshGrant(
       stale.grant.id,
       stale.grant.ghTokenCiphertext,
@@ -616,7 +636,9 @@ describe("reviewer auth routes", () => {
           },
         }),
     );
-    if (!rotated.ok) throw new Error("out-of-band rotation failed");
+    if (!rotated.ok) {
+      throw new Error("out-of-band rotation failed");
+    }
 
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: buildAuthDeps(kp) },
@@ -624,7 +646,9 @@ describe("reviewer auth routes", () => {
       testLogger(),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
     // The stored (fresh) token comes back decrypted, no second exchange.
     expect(result.value.accessToken).toBe(ROTATED_ACCESS);
     // The mirror runs on the short-circuit path too, the rotation may have
@@ -643,7 +667,9 @@ describe("reviewer auth routes", () => {
       refreshPlaintext: REFRESH_TOKEN,
     });
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
-    if (resolved === undefined) throw new Error("seeded session not found");
+    if (resolved === undefined) {
+      throw new Error("seeded session not found");
+    }
     // A minted token shares the grant, so the grant SURVIVES the logout and
     // the rotation proceeds, only the session-expiry mirror can notice.
     await createTokenAuth(harness.handle).mintToken({
@@ -663,7 +689,9 @@ describe("reviewer auth routes", () => {
       testLogger(),
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe("not-found");
     // The rotation itself stood, it benefits the surviving token referent.
     const grantRow = await harness.raw(
@@ -674,7 +702,9 @@ describe("reviewer auth routes", () => {
       KEY_REF,
       String(grantRow[0]?.["gh_token_ciphertext"]),
     );
-    if (!decrypted.ok) throw new Error("unreachable");
+    if (!decrypted.ok) {
+      throw new Error("unreachable");
+    }
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
 
@@ -682,8 +712,9 @@ describe("reviewer auth routes", () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok)
+    if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
+    }
     const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -703,7 +734,9 @@ describe("reviewer auth routes", () => {
       bearerHash,
       new Date(),
     );
-    if (!live.ok) throw new Error("seeded token did not resolve");
+    if (!live.ok) {
+      throw new Error("seeded token did not resolve");
+    }
     const principal = derivePrincipalFromApiToken(live.value);
     // The owner revokes while the request is in flight.
     const revoked = await createTokenAuth(harness.handle).revokeToken(
@@ -711,7 +744,9 @@ describe("reviewer auth routes", () => {
       minted.id,
       new Date(),
     );
-    if (!revoked.ok) throw new Error("revoke failed");
+    if (!revoked.ok) {
+      throw new Error("revoke failed");
+    }
 
     const capture = testLogging();
     const result = await refreshSessionToken(
@@ -720,7 +755,9 @@ describe("reviewer auth routes", () => {
       capture.logger,
     );
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe("refresh-failed");
     // Bearer posture: the row is NEVER deleted, its owner sees and revokes.
     const rows = await harness.raw("select revoked_at from api_token");
@@ -736,8 +773,12 @@ describe("reviewer auth routes", () => {
 // ---------------------------------------------------------------------------
 
 function epochMs(cell: unknown): number {
-  if (cell instanceof Date) return cell.getTime();
-  if (typeof cell === "string") return new Date(cell).getTime();
+  if (cell instanceof Date) {
+    return cell.getTime();
+  }
+  if (typeof cell === "string") {
+    return new Date(cell).getTime();
+  }
   throw new Error(`expected a timestamp cell, got ${typeof cell}`);
 }
 
@@ -747,7 +788,8 @@ async function countRows(
 ): Promise<number> {
   const rows = await harness.raw(`select count(*)::int as n from ${table}`);
   const n = rows[0]?.["n"];
-  if (typeof n !== "number")
+  if (typeof n !== "number") {
     throw new Error(`unexpected count result for ${table}`);
+  }
   return n;
 }

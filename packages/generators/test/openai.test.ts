@@ -62,8 +62,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string")
+  if (typeof body !== "string") {
     throw new Error("expected a string request body");
+  }
   return body;
 }
 
@@ -95,7 +96,9 @@ async function coreWith(
   const recorded: Recorded = { bodies: [] };
   const fixtureFetch: typeof fetch = async (input, init) => {
     const models = modelsOk(getRequestUrl(input));
-    if (models) return models;
+    if (models) {
+      return models;
+    }
     const parsed: unknown = JSON.parse(getRequestBody(init));
     if (!isRecord(parsed)) {
       throw new Error("unexpected request body");
@@ -115,7 +118,9 @@ async function mustCore(fixtureFetch: typeof fetch) {
     provider: "openai",
     fetch: fixtureFetch,
   });
-  if (!core.ok) throw new Error(core.error.issues.join("; "));
+  if (!core.ok) {
+    throw new Error(core.error.issues.join("; "));
+  }
   return core.value;
 }
 
@@ -134,7 +139,9 @@ describe("OpenAiCompatibleCore request construction", () => {
     const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     const body = recorded.bodies[0];
-    if (!body) throw new Error("no request recorded");
+    if (!body) {
+      throw new Error("no request recorded");
+    }
     expect(body["model"]).toBe("gpt-test-1");
     expect(body["reasoning_effort"]).toBe("high");
     expect(body["stream"]).toBe(true);
@@ -265,7 +272,9 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
     const controller = new AbortController();
     const fixtureFetch: typeof fetch = async (input) => {
       const models = modelsOk(getRequestUrl(input));
-      if (models) return models;
+      if (models) {
+        return models;
+      }
       let pulls = 0;
       const stream = new ReadableStream<Uint8Array>({
         pull(streamController) {
@@ -329,7 +338,9 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     let calls = 0;
     const fixtureFetch: typeof fetch = async (input) => {
       const models = modelsOk(getRequestUrl(input));
-      if (models) return models;
+      if (models) {
+        return models;
+      }
       calls += 1;
       if (calls === 1) {
         const truncated = `data: ${JSON.stringify({
@@ -364,7 +375,9 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     let calls = 0;
     const fixtureFetch: typeof fetch = async (input) => {
       const models = modelsOk(getRequestUrl(input));
-      if (models) return models;
+      if (models) {
+        return models;
+      }
       calls += 1;
       const payload =
         calls === 1
@@ -409,7 +422,9 @@ describe("OpenAiCompatibleCore truncated streams", () => {
       let calls = 0;
       const fixtureFetch: typeof fetch = async (input) => {
         const models = modelsOk(getRequestUrl(input));
-        if (models) return models;
+        if (models) {
+          return models;
+        }
         calls += 1;
         if (calls === 1) {
           const events = [
@@ -457,7 +472,9 @@ describe("OpenAiCompatibleCore message hygiene", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.kind).toBe(GeneratorErrorKinds.AUTH);
     expect(caught.message).not.toContain("SENTINELSECRETVALUE");
     // The WHOLE cause chain must be clean too: console.error prints cause
@@ -482,7 +499,9 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
     );
     const fixtureFetch: typeof fetch = async (input) => {
       const models = modelsOk(getRequestUrl(input));
-      if (models) return models;
+      if (models) {
+        return models;
+      }
       throw Object.assign(new TypeError("fetch failed"), { cause: nested });
     };
     const generator = await mustCore(fixtureFetch);
@@ -492,7 +511,9 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
       },
       (error: unknown) => error,
     );
-    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    if (!(caught instanceof GeneratorError)) {
+      throw new Error("wrong rejection");
+    }
     expect(caught.kind).toBe(GeneratorErrorKinds.PROVIDER_TRANSIENT);
     const chain: string[] = [];
     let node: unknown = caught;
@@ -565,7 +586,9 @@ describe("openai preflight and registry entry", () => {
       fetch: fetchWith(() => jsonError(401, "Incorrect API key provided")),
     });
     expect(direct.ok).toBe(false);
-    if (direct.ok) return;
+    if (direct.ok) {
+      return;
+    }
     const text = direct.error.issues.join("; ");
     expect(text).toContain("rejected");
     expect(text).not.toContain("SENTINEL");
@@ -582,7 +605,9 @@ describe("openai preflight and registry entry", () => {
       fetch: fetchWith(() => jsonError(503, "upstream overloaded")),
     });
     expect(on503.ok).toBe(false);
-    if (on503.ok) return;
+    if (on503.ok) {
+      return;
+    }
     expect(on503.error.transient).toBe(true);
 
     const onNetwork = await createOpenAiCore({
@@ -595,7 +620,9 @@ describe("openai preflight and registry entry", () => {
       }),
     });
     expect(onNetwork.ok).toBe(false);
-    if (onNetwork.ok) return;
+    if (onNetwork.ok) {
+      return;
+    }
     expect(onNetwork.error.transient).toBe(true);
   });
 
@@ -610,7 +637,9 @@ describe("openai preflight and registry entry", () => {
       ),
     });
     expect(direct.ok).toBe(false);
-    if (direct.ok) return;
+    if (direct.ok) {
+      return;
+    }
     expect(direct.error.issues.join("; ")).toContain('"gpt-nope" not found');
     expect(direct.error.transient).toBeUndefined();
   });
@@ -636,7 +665,9 @@ describe("openai preflight and registry entry", () => {
       { env: { ...process.env }, failureDir: tempDir("openai-nomodel-") },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("model");
   });
 
@@ -648,7 +679,9 @@ describe("openai preflight and registry entry", () => {
       { env, failureDir: tempDir("openai-nokey-") },
     );
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.error.issues.join("; ")).toContain("OPENAI_API_KEY");
   });
 });
@@ -663,7 +696,9 @@ describe("OpenAiCompatibleCore strict-mode optionality", () => {
     const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
     await generator.generate({ ...request(), schema: OptionalSchema });
     const body = recorded.bodies[0];
-    if (!body) throw new Error("no request recorded");
+    if (!body) {
+      throw new Error("no request recorded");
+    }
     const wire = JSON.stringify(body["response_format"]);
     expect(wire).toContain('"required":["ok","note"]');
     expect(wire).toContain('{"type":"null"}');

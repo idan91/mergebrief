@@ -64,7 +64,9 @@ export async function startGitHubStub(): Promise<GitHubStub> {
       requested.push(request.url ?? "");
       const answer = answerReachableSet(url) ?? (await handler(url));
       const headers: Record<string, string> = {};
-      for (const [name, value] of answer.headers) headers[name] = value;
+      for (const [name, value] of answer.headers) {
+        headers[name] = value;
+      }
       response.writeHead(answer.status, headers);
       response.end(Buffer.from(await answer.arrayBuffer()));
     })();

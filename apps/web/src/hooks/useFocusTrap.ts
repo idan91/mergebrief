@@ -14,7 +14,9 @@ export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
 ): (event: KeyboardEvent<HTMLElement>) => void {
   return (event) => {
-    if (event.key !== "Tab") return;
+    if (event.key !== "Tab") {
+      return;
+    }
 
     const matches =
       containerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [];

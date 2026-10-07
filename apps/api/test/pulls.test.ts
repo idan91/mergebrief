@@ -56,7 +56,9 @@ function brand<T extends bigint>(
   value: number,
 ): T {
   const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
   return asBigInt;
 }
 
@@ -150,8 +152,9 @@ async function seedSession(
   const hash = createHash("sha256").update(cookie).digest("hex");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok)
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
+  }
   const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -191,9 +194,15 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
     state: PrStates.OPEN,
   };
 
-  if (input.baseSha !== undefined) upsert.baseSha = input.baseSha;
-  if (input.draft !== undefined) upsert.draft = input.draft;
-  if (input.authorLogin !== undefined) upsert.authorLogin = input.authorLogin;
+  if (input.baseSha !== undefined) {
+    upsert.baseSha = input.baseSha;
+  }
+  if (input.draft !== undefined) {
+    upsert.draft = input.draft;
+  }
+  if (input.authorLogin !== undefined) {
+    upsert.authorLogin = input.authorLogin;
+  }
   if (input.liveReadHeadSha !== undefined) {
     upsert.liveRead = { readAt: new Date(), headSha: input.liveReadHeadSha };
   }
@@ -226,7 +235,9 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isRevisionEntry(value: unknown): value is RevisionEntry {
-  if (!isPlainRecord(value)) return false;
+  if (!isPlainRecord(value)) {
+    return false;
+  }
   const comparisons = value["comparisons"];
   return (
     typeof value["headSha"] === "string" &&
@@ -239,10 +250,13 @@ function isRevisionEntry(value: unknown): value is RevisionEntry {
 }
 
 function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
-  if (!isPlainRecord(value) || typeof value["briefAvailable"] !== "boolean")
+  if (!isPlainRecord(value) || typeof value["briefAvailable"] !== "boolean") {
     return false;
+  }
   const comparisons = value["comparisons"];
-  if (comparisons !== undefined && !isPlainRecord(comparisons)) return false;
+  if (comparisons !== undefined && !isPlainRecord(comparisons)) {
+    return false;
+  }
   const revisions = value["revisions"];
   return (
     revisions === undefined ||
@@ -418,7 +432,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-1",
       debounceSeconds,
     });
-    if (!triggered.ok) throw new Error(triggered.error.message);
+    if (!triggered.ok) {
+      throw new Error(triggered.error.message);
+    }
     return triggered.value.pullRequest;
   }
 
@@ -439,7 +455,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       installations: () => installationsOk([]),
       repositories: () => repoOk(true),
     };
-    if (graphql !== undefined) cfg.graphql = graphql;
+    if (graphql !== undefined) {
+      cfg.graphql = graphql;
+    }
     stubGitHub(cfg);
   }
 
@@ -482,7 +500,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!written.ok) throw new Error("brief seed failed");
+    if (!written.ok) {
+      throw new Error("brief seed failed");
+    }
   }
 
   async function readBehind(cookie: string): Promise<unknown> {
@@ -738,7 +758,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         effort: "high",
         body: "{}",
       });
-      if (!result.ok) throw new Error("brief write failed");
+      if (!result.ok) {
+        throw new Error("brief write failed");
+      }
       return result.value;
     };
     await write("head-1", 1);
@@ -766,7 +788,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
     const marked = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const markedBody = (await marked.json()) as {
       comparisons?: { previousBrief?: unknown };
@@ -788,7 +812,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
     });
-    if (!narrative.ok) throw new Error("narrative write failed");
+    if (!narrative.ok) {
+      throw new Error("narrative write failed");
+    }
     const full = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const fullBody = (await full.json()) as {
       comparisons?: { previousBrief?: unknown };
@@ -833,7 +859,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       lastSubmittedSha,
       submittedAt: new Date("2026-07-01T00:00:00Z"),
     });
-    if (!result.ok) throw new Error("checkpoint seed failed");
+    if (!result.ok) {
+      throw new Error("checkpoint seed failed");
+    }
   }
 
   async function seedBriefs(pr: {
@@ -857,7 +885,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         effort: "high",
         body: "{}",
       });
-      if (!result.ok) throw new Error("brief write failed");
+      if (!result.ok) {
+        throw new Error("brief write failed");
+      }
     }
   }
 
@@ -896,7 +926,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     // Marks-only: an OFFER with the delta core absent.
     expect(await metaLastReview(cookie)).toEqual({
@@ -914,7 +946,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!delta.ok) throw new Error("delta write failed");
+    if (!delta.ok) {
+      throw new Error("delta write failed");
+    }
 
     expect(await metaLastReview(cookie)).toEqual({
       deltaAvailable: true,
@@ -943,7 +977,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-2",
       baselineSha: "gone-sha",
     });
-    if (!pending.ok) throw new Error("generation seed failed");
+    if (!pending.ok) {
+      throw new Error("generation seed failed");
+    }
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Terminal failure → back to baseline-unavailable (nothing is coming).
@@ -959,7 +995,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         params: { detail: "span diff unavailable" },
       },
     );
-    if (!failed.ok) throw new Error("generation transition failed");
+    if (!failed.ok) {
+      throw new Error("generation transition failed");
+    }
     expect(await metaLastReview(cookie)).toEqual({
       unavailable: "baseline-unavailable",
     });
@@ -982,7 +1020,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!pending.ok) throw new Error("generation seed failed");
+    if (!pending.ok) {
+      throw new Error("generation seed failed");
+    }
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Brief job finished, still no marks → nothing is coming for this span.
@@ -1028,8 +1068,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
     const raw: unknown = await res.json();
-    if (!isMetaRevisionsBody(raw))
+    if (!isMetaRevisionsBody(raw)) {
       throw new Error("PR-meta body failed the revisions shape guard");
+    }
     return raw;
   }
 
@@ -1053,7 +1094,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!result.ok) throw new Error("brief write failed");
+    if (!result.ok) {
+      throw new Error("brief write failed");
+    }
   }
 
   it("meta: lists revisions by headIndex only once a brief exists", async () => {
@@ -1103,8 +1146,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // later than the artifact write; head-2 has no projection row and falls
     // back to the artifact's own createdAt.
     const [rev1, rev2] = body.revisions ?? [];
-    if (rev1 === undefined || rev2 === undefined)
+    if (rev1 === undefined || rev2 === undefined) {
       throw new Error("revisions missing");
+    }
     expect(Date.parse(rev1.generatedAt)).toBeLessThanOrEqual(
       Date.parse(rev1.createdAt),
     );
@@ -1157,7 +1201,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     const body = await metaBody(cookie);
     const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
@@ -1199,7 +1245,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     const body = await metaBody(cookie);
     const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
@@ -1242,7 +1290,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     const body = await metaBody(cookie);
     const latest = (body.revisions ?? []).find((r) => r.headSha === "head-2");
@@ -1290,7 +1340,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     const body = await metaBody(cookie);
     // Both duplicate-head entries are listed, each with its OWN base.
@@ -1343,7 +1395,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) throw new Error("marks write failed");
+    if (!marks.ok) {
+      throw new Error("marks write failed");
+    }
 
     const body = await metaBody(cookie);
     const expected = {
@@ -1378,7 +1432,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!pending.ok) throw new Error("generation seed failed");
+    if (!pending.ok) {
+      throw new Error("generation seed failed");
+    }
 
     const warming = await metaBody(cookie);
     // Both head-2 entries (idx 1 and idx 3): identical pending state.
@@ -1435,7 +1491,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!otherWrite.ok) throw new Error("other brief write failed");
+    if (!otherWrite.ok) {
+      throw new Error("other brief write failed");
+    }
 
     const body = await metaBody(cookie);
     expect(body.revisions?.map((r) => r.headSha)).toEqual(["head-1"]);

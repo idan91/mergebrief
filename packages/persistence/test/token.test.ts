@@ -167,7 +167,9 @@ describe("createTokenAuth mint / resolve / touch", () => {
 
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);
-    if (!resolved.ok) throw new Error("unreachable");
+    if (!resolved.ok) {
+      throw new Error("unreachable");
+    }
     expect(resolved.value.token.id).toBe(minted.id);
     expect(resolved.value.token.name).toBe("ci-token");
     // The credential material rides on the grant half. LINKED, not copied.
@@ -181,7 +183,9 @@ describe("createTokenAuth mint / resolve / touch", () => {
     const minted = await auth.mintToken(mintInput(grant));
     const listed = await auth.listForUser(USER);
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
-    if (!revoked.ok) throw new Error("expected revocation");
+    if (!revoked.ok) {
+      throw new Error("expected revocation");
+    }
 
     for (const row of [minted, listed[0], revoked.value]) {
       expect(row).toBeDefined();
@@ -209,7 +213,9 @@ describe("createTokenAuth mint / resolve / touch", () => {
       NOW,
     );
     expect(resolved.ok).toBe(false);
-    if (resolved.ok) throw new Error("unreachable");
+    if (resolved.ok) {
+      throw new Error("unreachable");
+    }
     expect(resolved.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
   });
 
@@ -218,7 +224,9 @@ describe("createTokenAuth mint / resolve / touch", () => {
     await auth.mintToken(mintInput(grant, { expiresAt: PAST }));
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
-    if (resolved.ok) throw new Error("unreachable");
+    if (resolved.ok) {
+      throw new Error("unreachable");
+    }
     expect(resolved.error.code).toBe(TokenAuthErrorCodes.EXPIRED);
   });
 
@@ -227,7 +235,9 @@ describe("createTokenAuth mint / resolve / touch", () => {
     await auth.mintToken(mintInput(grant));
     expect(await auth.touchLastUsed(HASH, NOW)).toBe(1);
     const resolved = await auth.resolveByHash(HASH, NOW);
-    if (!resolved.ok) throw new Error("expected resolution");
+    if (!resolved.ok) {
+      throw new Error("expected resolution");
+    }
     expect(resolved.value.token.lastUsedAt).toEqual(NOW);
     // Unknown hash is a clean 0, not an error.
     expect(await auth.touchLastUsed(OTHER_HASH, NOW)).toBe(0);
@@ -273,12 +283,16 @@ describe("createTokenAuth list / revoke", () => {
 
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
     expect(revoked.ok).toBe(true);
-    if (!revoked.ok) throw new Error("unreachable");
+    if (!revoked.ok) {
+      throw new Error("unreachable");
+    }
     expect(revoked.value.revokedAt).toEqual(NOW);
 
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
-    if (resolved.ok) throw new Error("unreachable");
+    if (resolved.ok) {
+      throw new Error("unreachable");
+    }
     expect(resolved.error.code).toBe(TokenAuthErrorCodes.REVOKED);
 
     // Still listable (the settings list stays honest after revocation), and
@@ -295,7 +309,9 @@ describe("createTokenAuth list / revoke", () => {
     await auth.revokeToken(USER, minted.id, PAST);
     const again = await auth.revokeToken(USER, minted.id, NOW);
     expect(again.ok).toBe(true);
-    if (!again.ok) throw new Error("unreachable");
+    if (!again.ok) {
+      throw new Error("unreachable");
+    }
     expect(again.value.revokedAt).toEqual(PAST);
   });
 
@@ -304,7 +320,9 @@ describe("createTokenAuth list / revoke", () => {
     const minted = await auth.mintToken(mintInput(grant));
     const result = await auth.revokeToken(OTHER_USER, minted.id, NOW);
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
     // The row is untouched.
     const resolved = await auth.resolveByHash(HASH, NOW);

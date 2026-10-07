@@ -62,7 +62,9 @@ function firstRun() {
     scenario,
     markComparisonRows(scenario, marks),
   )[0];
-  if (!run) throw new Error("expected a run");
+  if (!run) {
+    throw new Error("expected a run");
+  }
   return run;
 }
 
@@ -328,7 +330,9 @@ describe("bindRevisionNarrativeCallout", () => {
       scenario,
       markComparisonRows(scenario, marks),
     )[1];
-    if (!removedRun) throw new Error("expected the standalone-deletion run");
+    if (!removedRun) {
+      throw new Error("expected the standalone-deletion run");
+    }
     expect(removedRun.kind).toBe("removed");
     const summarized = { ...scenario, summary: "Adds the scroller hook." };
     expect(
@@ -426,7 +430,9 @@ describe("deriveRevisionJumpTargets", () => {
     expect(targets.map((target) => target.railKey)).toEqual(
       runs.map(comparisonRunKey),
     );
-    for (const target of targets) expect(target.chunkId).toBe("c1");
+    for (const target of targets) {
+      expect(target.chunkId).toBe("c1");
+    }
   });
 
   it("returns nothing for null marks or unmarked chunks", () => {
