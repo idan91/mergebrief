@@ -1,6 +1,6 @@
 // Pure anchored planning and stitching shared by the worker and revision-pair evals.
-// Carry frozen groups verbatim, remap ids by descent and enforce coverage without model calls.
-import type { Mutable, Result } from "types/utils";
+// Carry frozen groups verbatim and remap ids by descent without model calls.
+import type { Mutable } from "types/utils";
 import { assignGroupIds } from "../diff/descent";
 import { splitDiffByFile } from "../diff/file-diff";
 import {
@@ -16,15 +16,7 @@ import {
   partitionGroups,
   type CompareFileEntry,
 } from "../diff/touched";
-import {
-  buildConcernView,
-  deriveUnattributed,
-  detectChunkOverlaps,
-  diffLocTotals,
-  unattributedTotals,
-} from "../generation/loc";
-import { validatePartition, validateTextLength } from "../generation/validate";
-import type { Brief } from "../types";
+import type { Brief, IntentCheck, IntentItem } from "../types";
 import type {
   AnchorPlan,
   AnchorPlanArgs,
@@ -35,7 +27,6 @@ import type {
   FrozenCarry,
   ReLookEntry,
   StitchArgs,
-  StitchError,
   StitchResult,
 } from "./types";
 
@@ -273,14 +264,80 @@ function dominantFrozenParent(
   return bestId;
 }
 
+/** A carry may only describe files the PR still changes; an emptied carry goes whole. */
+function dropDepartedCarries(
+  carries: readonly FrozenCarry[],
+  prFiles: ReadonlySet<string>,
+  issues: string[],
+): FrozenCarry[] {
+  return carries.flatMap((carry) => {
+    const chunks = carry.chunks.filter((chunk) => {
+      if (prFiles.has(chunk.file)) {
+        return true;
+      }
+      issues.push(
+        `carried chunk ${chunk.id} on ${chunk.file} dropped, the PR no longer changes it`,
+      );
+      return false;
+    });
+
+    if (chunks.length === 0) {
+      issues.push(
+        `carried group ${carry.group.id} dropped, none of its files remain in the PR`,
+      );
+      return [];
+    }
+    return [{ group: carry.group, chunks }];
+  });
+}
+
+/** Many model ids can name one final group, so the mapped list is a set. */
+function remapGroupIds(
+  ids: readonly string[],
+  referenceMap: ReadonlyMap<string, string>,
+): string[] {
+  return [...new Set(ids.map((id) => referenceMap.get(id) ?? id))];
+}
+
+function remapIntentItems(
+  items: readonly IntentItem[],
+  referenceMap: ReadonlyMap<string, string>,
+): IntentItem[] {
+  return items.map((item) => ({
+    ...item,
+    groupIds: remapGroupIds(item.groupIds, referenceMap),
+  }));
+}
+
+function remapIntentCheck(
+  intentCheck: IntentCheck,
+  referenceMap: ReadonlyMap<string, string>,
+): IntentCheck {
+  return {
+    ...intentCheck,
+    accomplished: remapIntentItems(intentCheck.accomplished, referenceMap),
+    statedButMissing: remapIntentItems(
+      intentCheck.statedButMissing,
+      referenceMap,
+    ),
+    doneButUnstated: remapIntentItems(
+      intentCheck.doneButUnstated,
+      referenceMap,
+    ),
+    deviations: remapIntentItems(intentCheck.deviations, referenceMap),
+    claimedButUnachieved: remapIntentItems(
+      intentCheck.claimedButUnachieved,
+      referenceMap,
+    ),
+  };
+}
+
 /**
- * Carry frozen regions verbatim and recompute rollups after id descent.
- * Every PR file must belong to exactly one group; coverage failure returns a pipeline error,
- * never a salvaged partial brief.
+ * Merge only: carry frozen regions verbatim, judge claims, descend ids and
+ * re-point the model's references to them. Validation, rollups and the
+ * unattributed remainder belong to the final pass over the merged brief.
  */
-export function stitchBrief(
-  args: StitchArgs,
-): Result<StitchResult, StitchError> {
+export function stitchBrief(args: StitchArgs): StitchResult {
   const { plan, prFiles } = args;
   const issues: string[] = [];
 
@@ -355,8 +412,10 @@ export function stitchBrief(
       );
     }
   }
-  const activeFrozen = plan.frozen.filter(
-    (carry) => !claimedIds.has(carry.group.id),
+  const activeFrozen = dropDepartedCarries(
+    plan.frozen.filter((carry) => !claimedIds.has(carry.group.id)),
+    prFileSet,
+    issues,
   );
   const activeFrozenFiles = new Set(
     activeFrozen.flatMap((carry) => carry.chunks.map((chunk) => chunk.file)),
@@ -441,7 +500,6 @@ export function stitchBrief(
       return id === undefined ? group : { ...group, id };
     }),
   ];
-  const mergedGroupIds = new Set(mergedGroups.map((group) => group.id));
 
   const usedChunkIds = new Set<string>();
   const carriedChunks = activeFrozen.flatMap((carry) => carry.chunks);
@@ -470,200 +528,37 @@ export function stitchBrief(
   });
   const mergedChunks: Chunk[] = [...carriedChunks, ...rewrittenChunks];
 
-  // ---- mechanical concern rollup (the model's is stale after a stitch) ----
-  const concernView = buildConcernView(mergedChunks);
-
-  // ---- overlap report over the MERGED chunk set ---------------------------
-  // Replaces categorize()'s lines, which name model tmp chunk ids that the
-  // id re-mint above may have reassigned in the stored artifact.
-  issues.push(...detectChunkOverlaps(mergedChunks));
-
-  // ---- unattributed remainder over the MERGED chunk set -------------------
-  // categorize() skips this on anchored runs; only the stitch sees carried +
-  // regenerated chunks together, so only it can derive an honest remainder.
-  const unattributed = deriveUnattributed(mergedChunks, [...args.changedFiles]);
-  if (unattributed.length > 0) {
-    const gap = unattributedTotals(unattributed);
-    issues.push(
-      `${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
-    );
-  }
-
-  // ---- reading order: rewrite ids, keep only an exact permutation ---------
-  let readingOrder = generated.readingOrder;
-  if (readingOrder !== undefined) {
-    const mapped = readingOrder.map((step) => ({
-      ...step,
-      groupId: referenceMap.get(step.groupId) ?? step.groupId,
-    }));
-    const seen = new Set(mapped.map((step) => step.groupId));
-    const isPermutation =
-      mapped.length === mergedGroups.length &&
-      seen.size === mapped.length &&
-      mergedGroups.every((group) => seen.has(group.id));
-    if (isPermutation) {
-      readingOrder = mapped;
-    } else {
-      readingOrder = undefined;
-      issues.push(
-        "reading order dropped — not a permutation of the merged groups",
-      );
-    }
-  }
-
-  // ---- intent check: re-point group references, drop danglers -------------
-  let intentCheck = generated.intentCheck;
-  if (intentCheck !== undefined) {
-    const rewriteIds = (ids: readonly string[]): string[] => {
-      const mapped: string[] = [];
-      for (const id of ids) {
-        const finalId = referenceMap.get(id) ?? id;
-        if (mergedGroupIds.has(finalId) && !mapped.includes(finalId)) {
-          mapped.push(finalId);
-        }
-      }
-      return mapped;
-    };
-    const scrubBucket = <T extends { groupIds: string[]; intent: string }>(
-      items: readonly T[],
-      requiresAnchor: boolean,
-    ): T[] =>
-      items.flatMap((item) => {
-        const groupIds = rewriteIds(item.groupIds);
-        if (requiresAnchor && groupIds.length === 0) {
-          issues.push(
-            `intent item dropped (dangling group anchor) — ${item.intent}`,
-          );
-          return [];
-        }
-        return [{ ...item, groupIds }];
-      });
-    intentCheck = {
-      ...intentCheck,
-      accomplished: scrubBucket(intentCheck.accomplished, true),
-      statedButMissing: scrubBucket(intentCheck.statedButMissing, false),
-      doneButUnstated: scrubBucket(intentCheck.doneButUnstated, true),
-      deviations: scrubBucket(intentCheck.deviations, true),
-      claimedButUnachieved: scrubBucket(intentCheck.claimedButUnachieved, true),
-    };
-  }
-
-  // ---- coverage over the merged chunk set ---------------------------------
-  // Two different conditions, and only one of them is incoherent.
-  //
-  // A file in TWO groups is a contradiction the reader cannot resolve, so it
-  // stays hard. A file in NO group is the Unattributed remainder, which this
-  // brief already carries as a first-class field: failing the whole
-  // generation for it throws away an honest partial brief and, on a large
-  // PR, means no brief at all. It warns and is named instead.
-  const ownersByFile = new Map<string, Set<string>>();
-  for (const chunk of mergedChunks) {
-    const owners = ownersByFile.get(chunk.file) ?? new Set<string>();
-    owners.add(chunk.changeGroupId);
-    ownersByFile.set(chunk.file, owners);
-  }
-  const coverageIssues: string[] = [];
-  const ungrouped: string[] = [];
-  for (const file of prFiles) {
-    const owners = ownersByFile.get(file);
-    if (owners === undefined || owners.size === 0) {
-      ungrouped.push(file);
-    } else if (owners.size > 1) {
-      coverageIssues.push(
-        `${file}: in ${owners.size} groups (${[...owners].toSorted().join(", ")})`,
-      );
-    }
-  }
-  if (ungrouped.length > 0) {
-    // Named, not counted: a file with no parsed ranges never reaches the
-    // remainder above, so this line is the only place it is reported.
-    issues.push(
-      `${String(ungrouped.length)} file(s) in no group — ${ungrouped.toSorted().join(", ")}`,
-    );
-  }
-  // Backstop for the mechanical guarantee: a carried group may only describe
-  // files the PR still changes, a stale carry (e.g. an undetected history
-  // rewrite dropping a file) must fail here, never persist.
-  for (const carry of activeFrozen) {
-    for (const chunk of carry.chunks) {
-      if (!prFileSet.has(chunk.file)) {
-        coverageIssues.push(
-          `${chunk.file}: carried by ${carry.group.id} but no longer in the PR`,
-        );
-      }
-    }
-  }
-  if (coverageIssues.length > 0) {
-    return {
-      ok: false,
-      error: {
-        message: `anchored coverage check failed — ${coverageIssues.join("; ")}`,
-      },
-    };
-  }
-
-  // Full structural validators on the artifact actually persisted,
-  // warn-register, matching their fresh-path posture.
-  issues.push(...validatePartition(mergedGroups, mergedChunks));
-  // Length floor over the MERGED artifact, carried groups included, so a
-  // pre-cap carry is measured too; replaces the partial stamp `categorize()`
-  // computed on the re-emitted regions alone.
-  const textLength = validateTextLength(mergedGroups, mergedChunks);
-  issues.push(...textLength.issues);
-
   const carriedGroupIds = carriedIds;
   const regeneratedGroupIds = keptGroups.flatMap((group) => {
     if (claimedIds.has(group.id)) return [group.id];
     const id = descended.get(group.id);
     return id === undefined ? [] : [id];
   });
-  // The stitch's recomputed text-length and overlap lines REPLACE
-  // categorize()'s, those name the model's tmp ids, which don't exist in
-  // the stored artifact (same replacement discipline as lengthViolations).
-  const priorWarnings = (generated.generationWarnings ?? []).filter(
-    (line) =>
-      !line.includes("text length issues") && !line.includes("loc overlap"),
-  );
-  const stitchWarnings = issues.map((issue) => `anchored stitch: ${issue}`);
-  const mergedWarnings = [...priorWarnings, ...stitchWarnings];
   const brief: Brief = {
     ...generated,
     changeGroups: mergedGroups,
     chunks: mergedChunks,
-    concernView,
-    unattributed,
-    diffTotals: diffLocTotals([...args.changedFiles]),
-    // Always overwritten below: an empty merged set must DELETE the field,
-    // or the filtered-out originals survive via the `...generated` spread.
     anchoring: {
       carried: [...carriedGroupIds],
       regenerated: [...regeneratedGroupIds],
     },
   };
-  if (readingOrder === undefined) {
-    delete brief.readingOrder;
-  } else {
-    brief.readingOrder = readingOrder;
+
+  if (generated.readingOrder !== undefined) {
+    brief.readingOrder = generated.readingOrder.map((step) => ({
+      ...step,
+      groupId: referenceMap.get(step.groupId) ?? step.groupId,
+    }));
   }
-  if (intentCheck !== undefined) brief.intentCheck = intentCheck;
-  if (mergedWarnings.length > 0) {
-    brief.generationWarnings = mergedWarnings;
-  } else {
-    delete brief.generationWarnings;
+  if (generated.intentCheck !== undefined) {
+    brief.intentCheck = remapIntentCheck(generated.intentCheck, referenceMap);
   }
-  if (textLength.violations.length > 0) {
-    brief.lengthViolations = textLength.violations;
-  } else {
-    delete brief.lengthViolations;
-  }
+
   return {
-    ok: true,
-    value: {
-      brief,
-      carriedGroupIds,
-      carriedChunkIds: carriedChunks.map((chunk) => chunk.id),
-      regeneratedGroupIds,
-      issues,
-    },
+    brief,
+    carriedGroupIds,
+    carriedChunkIds: carriedChunks.map((chunk) => chunk.id),
+    regeneratedGroupIds,
+    issues,
   };
 }

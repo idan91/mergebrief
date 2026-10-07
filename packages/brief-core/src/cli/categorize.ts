@@ -319,7 +319,7 @@ export async function generateAndWrite(
   );
 
   const previous = buildPreviousInput(prior, commitRange);
-  const generated = await generateBrief({
+  const { brief } = await generateBrief({
     pr,
     headIndex: index,
     commitRange,
@@ -328,10 +328,6 @@ export async function generateAndWrite(
     log,
     previous,
   });
-  if (!generated.ok) {
-    throw new Error(generated.error.message);
-  }
-  const { brief } = generated.value;
   if (previous !== undefined) {
     brief.anchor = { state: AnchorStates.ANCHORED };
   }

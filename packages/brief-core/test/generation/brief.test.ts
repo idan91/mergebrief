@@ -10,13 +10,17 @@ import type { CompareFiles } from "../../src/anchoring/types";
 import { generateBrief } from "../../src/generation/brief";
 import type {
   GenerateBriefOptions,
+  GenerateBriefOutput,
   PreviousBriefInput,
 } from "../../src/generation/brief/types";
-import { categorize } from "../../src/generation/categorize";
+import type { RepoContext } from "../../src/generation/repo-context";
+import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github";
 import type { Brief } from "../../src/types";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
+const BILLING_ATTRIBUTE = "touches-billing";
+const LEDGER_ATTRIBUTE = "touches-ledger";
 
 /** Answers each request with the next queued output, recording the request. */
 class QueuedGenerator implements Generator {
@@ -105,16 +109,22 @@ function makeGroup(id: string, summary = "group summary"): unknown {
   };
 }
 
-function makeChunk(id: string, groupId: string, file: string, end: number) {
+function makeChunk(
+  id: string,
+  groupId: string,
+  file: string,
+  end: number,
+  start = 1,
+) {
   return {
     id,
     changeGroupId: groupId,
     file,
     concern: "implementation",
     role: "core",
-    addedRanges: [{ start: 1, end }],
+    addedRanges: [{ start, end }],
     removedRanges: [],
-    riskSurface: [],
+    riskSurface: [] as string[],
   };
 }
 
@@ -135,34 +145,70 @@ const revisedOutput = {
   chunks: [makeChunk("c9", "t1", "src/b.ts", 3)],
 };
 
-async function makePreviousBrief(): Promise<Brief> {
-  return categorize(pr, 1, commitRange, new QueuedGenerator([baseOutput]));
+function makeRepoContext(name: string, paths?: string[]): RepoContext {
+  const attribute: { name: string; criteria: string; paths?: string[] } = {
+    name,
+    criteria: `fires on ${name}`,
+  };
+  if (paths !== undefined) {
+    attribute.paths = paths;
+  }
+
+  return { customAttributes: [attribute] };
+}
+
+async function makePreviousBrief(
+  output: unknown = baseOutput,
+  repoContext?: RepoContext,
+): Promise<Brief> {
+  const options: GenerateBriefOptions = {
+    pr,
+    headIndex: 1,
+    commitRange,
+    generator: new QueuedGenerator([output]),
+    repoContext,
+  };
+
+  return (await generateBrief(options)).brief;
 }
 
 function makePrevious(brief: Brief): PreviousBriefInput {
   return { brief, incrementalDiff, compareFiles, baseShaMoved: false };
 }
 
-describe("generateBrief, a fresh run", () => {
-  it("returns the brief categorize produces", async () => {
-    const generator = new QueuedGenerator([baseOutput]);
-
-    const result = await generateBrief({
-      pr,
-      headIndex: 1,
-      commitRange,
-      generator,
-    });
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.brief).toEqual(await makePreviousBrief());
-    expect(result.value.anchoring).toBeUndefined();
+async function runAnchored(
+  output: unknown,
+  previousBrief?: Brief,
+  overrides: Partial<GenerateBriefOptions> = {},
+): Promise<GenerateBriefOutput> {
+  return generateBrief({
+    pr,
+    headIndex: 2,
+    commitRange,
+    generator: new QueuedGenerator([output]),
+    previous: makePrevious(previousBrief ?? (await makePreviousBrief())),
+    ...overrides,
   });
+}
 
-  it("returns the typed warnings behind the stored lines", async () => {
+function listChecks(warnings: readonly GenerationWarning[]): string[] {
+  return warnings.flatMap((warning) =>
+    warning.kind === "validation" ? [warning.check] : [],
+  );
+}
+
+function findIssues(
+  warnings: readonly GenerationWarning[],
+  check: string,
+): readonly string[] {
+  const found = warnings.find(
+    (warning) => warning.kind === "validation" && warning.check === check,
+  );
+  return found?.kind === "validation" ? found.issues : [];
+}
+
+describe("generateBrief, a fresh run", () => {
+  it("stamps the stored lines from the typed warnings", async () => {
     const result = await generateBrief({
       pr,
       headIndex: 1,
@@ -170,8 +216,67 @@ describe("generateBrief, a fresh run", () => {
       generator: new QueuedGenerator([baseOutput]),
     });
 
-    expect(result.ok && result.value.warnings).toContainEqual(
-      expect.objectContaining({ kind: "validation", check: "text length" }),
+    expect(listChecks(result.warnings)).toContain("text length");
+    expect(result.brief.generationWarnings).toHaveLength(
+      result.warnings.length,
+    );
+    expect(result.anchoring).toBeUndefined();
+  });
+
+  it("drops a chunk naming an unknown group into the unattributed remainder", async () => {
+    const ghostOutput = {
+      ...baseOutput,
+      chunks: [
+        makeChunk("c1", "g1", "src/a.ts", 2),
+        makeChunk("c2", "g2", "src/b.ts", 2),
+        makeChunk("c3", "ghost", "src/b.ts", 3, 3),
+      ],
+    };
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 1,
+      commitRange,
+      generator: new QueuedGenerator([ghostOutput]),
+    });
+
+    expect(result.brief.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c2"]);
+    expect(result.brief.unattributed).toEqual([
+      {
+        file: "src/b.ts",
+        addedRanges: [{ start: 3, end: 3 }],
+        removedRanges: [],
+      },
+    ]);
+    expect(findIssues(result.warnings, "unknown group")).toEqual([
+      expect.stringContaining(
+        'chunk c3 (src/b.ts) names unknown group "ghost"',
+      ),
+    ]);
+    expect(findIssues(result.warnings, "partition")).toEqual([]);
+  });
+
+  it("names a PR file no chunk covers, ranges or not", async () => {
+    const withBinary: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [
+          ...pr.meta.files,
+          { path: "logo.png", additions: 0, deletions: 0 },
+        ],
+      },
+    };
+
+    const result = await generateBrief({
+      pr: withBinary,
+      headIndex: 1,
+      commitRange,
+      generator: new QueuedGenerator([baseOutput]),
+    });
+
+    expect(findIssues(result.warnings, "loc coverage")).toContainEqual(
+      expect.stringContaining("file(s) in no group — logo.png"),
     );
   });
 
@@ -194,16 +299,22 @@ describe("generateBrief, an anchored run", () => {
       previous: makePrevious(await makePreviousBrief()),
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    const { brief, anchoring } = result.value;
+    const { brief, anchoring } = result;
     expect(brief.changeGroups.map((group) => group.id)).toEqual(["g1", "g2"]);
     expect(anchoring?.carriedGroupIds).toEqual(["g1"]);
     expect(anchoring?.carriedChunkIds).toEqual(["c1"]);
     expect(anchoring?.regeneratedGroupIds).toEqual(["g2"]);
     expect(generator.requests[0]?.user).toContain("<anchor_brief");
+  });
+
+  it("rolls concerns and totals up over carried and regenerated chunks", async () => {
+    const result = await runAnchored(revisedOutput);
+
+    expect(result.brief.concernView).toEqual([
+      { concern: "implementation", added: 5, deleted: 0 },
+    ]);
+    expect(result.brief.diffTotals).toEqual({ added: 5, deleted: 0 });
+    expect(result.brief.unattributed).toEqual([]);
   });
 
   it("hands the plan to the hook before the model call", async () => {
@@ -236,15 +347,9 @@ describe("generateBrief, an anchored run", () => {
       chunks: [...revisedOutput.chunks, makeChunk("c8", "g1", "src/a.ts", 2)],
     };
 
-    const result = await generateBrief({
-      pr,
-      headIndex: 2,
-      commitRange,
-      generator: new QueuedGenerator([reEmitted]),
-      previous: makePrevious(await makePreviousBrief()),
-    });
+    const result = await runAnchored(reEmitted);
 
-    expect(result.ok && result.value.warnings).toContainEqual({
+    expect(result.warnings).toContainEqual({
       kind: "validation",
       check: "anchored stitch",
       issues: expect.arrayContaining([
@@ -253,24 +358,148 @@ describe("generateBrief, an anchored run", () => {
     });
   });
 
-  it("returns a coverage failure instead of throwing", async () => {
+  it("keeps a file split across two groups instead of failing", async () => {
     const split = {
       ...revisedOutput,
       changeGroups: [makeGroup("t1"), makeGroup("t2")],
-      chunks: [...revisedOutput.chunks, makeChunk("c7", "t2", "src/b.ts", 1)],
+      chunks: [
+        makeChunk("c9", "t1", "src/b.ts", 2),
+        makeChunk("c7", "t2", "src/b.ts", 3, 3),
+      ],
     };
 
-    const result = await generateBrief({
-      pr,
-      headIndex: 2,
-      commitRange,
-      generator: new QueuedGenerator([split]),
-      previous: makePrevious(await makePreviousBrief()),
+    const result = await runAnchored(split);
+
+    const owners = result.brief.chunks
+      .filter((chunk) => chunk.file === "src/b.ts")
+      .map((chunk) => chunk.changeGroupId);
+    expect(new Set(owners).size).toBe(2);
+    expect(result.brief.unattributed).toEqual([]);
+  });
+
+  it("drops a chunk naming an unknown group into the unattributed remainder", async () => {
+    const ghostOutput = {
+      ...revisedOutput,
+      chunks: [
+        makeChunk("c9", "t1", "src/b.ts", 2),
+        makeChunk("c6", "ghost", "src/b.ts", 3, 3),
+      ],
+    };
+
+    const result = await runAnchored(ghostOutput);
+
+    expect(result.brief.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c9"]);
+    expect(result.brief.unattributed).toEqual([
+      {
+        file: "src/b.ts",
+        addedRanges: [{ start: 3, end: 3 }],
+        removedRanges: [],
+      },
+    ]);
+    expect(findIssues(result.warnings, "unknown group")).toEqual([
+      expect.stringContaining(
+        'chunk c6 (src/b.ts) names unknown group "ghost"',
+      ),
+    ]);
+  });
+
+  it("measures text length once over the merged set under final ids", async () => {
+    const verbose = {
+      ...revisedOutput,
+      changeGroups: [makeGroup("t1", OVER_CAP_SUMMARY)],
+    };
+
+    const result = await runAnchored(verbose);
+
+    expect(
+      listChecks(result.warnings).filter((check) => check === "text length"),
+    ).toHaveLength(1);
+    expect(result.brief.lengthViolations?.map((found) => found.field)).toEqual([
+      "group g1 summary",
+      "group g2 summary",
+    ]);
+    const stored = result.brief.generationWarnings ?? [];
+    expect(stored.filter((line) => line.includes("text length"))).toHaveLength(
+      1,
+    );
+    expect(stored.join("\n")).not.toContain("t1");
+  });
+
+  it("reports a chunk overlap once under the final chunk ids", async () => {
+    const overlapping = {
+      ...revisedOutput,
+      chunks: [
+        makeChunk("c9", "t1", "src/b.ts", 3),
+        makeChunk("c1", "t1", "src/b.ts", 3, 2),
+      ],
+    };
+
+    const result = await runAnchored(overlapping);
+
+    expect(findIssues(result.warnings, "loc overlap")).toEqual([
+      expect.stringContaining("c2"),
+    ]);
+    const stored = result.brief.generationWarnings ?? [];
+    expect(stored.filter((line) => line.includes("overlap"))).toHaveLength(1);
+  });
+
+  it("keeps a carried chunk's attribute token this run no longer defines", async () => {
+    const firing = {
+      ...baseOutput,
+      chunks: [
+        {
+          ...makeChunk("c1", "g1", "src/a.ts", 2),
+          riskSurface: [BILLING_ATTRIBUTE],
+        },
+        makeChunk("c2", "g2", "src/b.ts", 2),
+      ],
+    };
+    const previousBrief = await makePreviousBrief(
+      firing,
+      makeRepoContext(BILLING_ATTRIBUTE),
+    );
+    const outOfScope = {
+      ...revisedOutput,
+      chunks: [
+        {
+          ...makeChunk("c9", "t1", "src/b.ts", 3),
+          riskSurface: [LEDGER_ATTRIBUTE],
+        },
+      ],
+    };
+
+    const result = await runAnchored(outOfScope, previousBrief, {
+      repoContext: makeRepoContext(LEDGER_ATTRIBUTE, ["src/a.ts"]),
     });
 
-    expect(result.ok).toBe(false);
-    expect(!result.ok && result.error.message).toContain(
-      "anchored coverage check failed",
+    const byId = new Map(result.brief.chunks.map((chunk) => [chunk.id, chunk]));
+    expect(byId.get("c1")?.riskSurface).toEqual([BILLING_ATTRIBUTE]);
+    expect(byId.get("c9")?.riskSurface).toEqual([]);
+    expect(findIssues(result.warnings, "repo attrs")).toEqual([
+      expect.stringContaining("chunk c9 (src/b.ts)"),
+    ]);
+  });
+
+  it("drops a carried chunk on a file the PR no longer changes", async () => {
+    const departedPr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [{ path: "src/b.ts", additions: 3, deletions: 0 }],
+      },
+      diff: wholeDiff.slice(wholeDiff.indexOf("diff --git a/src/b.ts")),
+    };
+
+    const result = await runAnchored(revisedOutput, undefined, {
+      pr: departedPr,
+    });
+
+    expect(result.brief.chunks.map((chunk) => chunk.file)).toEqual([
+      "src/b.ts",
+    ]);
+    expect(result.brief.changeGroups.map((group) => group.id)).toEqual(["g2"]);
+    expect(findIssues(result.warnings, "anchored stitch")).toContainEqual(
+      expect.stringContaining("carried chunk c1 on src/a.ts dropped"),
     );
   });
 });

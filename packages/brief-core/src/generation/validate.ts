@@ -52,6 +52,37 @@ export function validatePartition(
   return issues;
 }
 
+export interface CheckedChunks<C> {
+  chunks: C[];
+  issues: string[];
+}
+
+/**
+ * A chunk naming no group in the final set has no owner to render under, so
+ * it leaves the chunk set and its lines fall into the unattributed remainder.
+ */
+export function dropUnknownGroupChunks<
+  C extends Pick<Chunk, "id" | "file" | "changeGroupId">,
+>(
+  groups: readonly Pick<ChangeGroup, "id">[],
+  chunks: readonly C[],
+): CheckedChunks<C> {
+  const groupIds = new Set(groups.map((group) => group.id));
+  const issues: string[] = [];
+
+  const known = chunks.filter((chunk) => {
+    if (groupIds.has(chunk.changeGroupId)) {
+      return true;
+    }
+    issues.push(
+      `chunk ${chunk.id} (${chunk.file}) names unknown group "${chunk.changeGroupId}", dropped to the unattributed remainder`,
+    );
+    return false;
+  });
+
+  return { chunks: known, issues };
+}
+
 /**
  * Narrative and brief are independent model outputs, so references may dangle.
  * Warn rather than fail: only schema validity hard-fails a narrative.

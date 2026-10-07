@@ -1,24 +1,22 @@
 import type { Mutable } from "types/utils";
 import { planAnchoredGeneration, stitchBrief } from "../../anchoring";
 import type { AnchorPlanArgs } from "../../anchoring/types";
-import { parseChangedRanges } from "../../diff/revchanges";
-import { categorizeWithWarnings, DEFAULT_EFFORT } from "../categorize";
+import type { Brief } from "../../types";
 import {
-  GenerationWarningKinds,
-  type GenerationWarning,
-} from "../warnings/types";
+  DEFAULT_EFFORT,
+  generateDraftBrief,
+  type DraftBriefOptions,
+} from "../categorize";
+import { validateFinalBrief } from "../final-validation";
+import { createWarningCollector, formatGenerationWarnings } from "../warnings";
+import type { GenerationWarning } from "../warnings/types";
 import type {
   GenerateBriefOptions,
-  GenerateBriefResult,
+  GenerateBriefOutput,
   PreviousBriefInput,
 } from "./types";
 
 const STITCH_CHECK = "anchored stitch";
-/** Checks the stitch recomputes over the merged artifact. */
-const STITCH_REPLACED_CHECKS: ReadonlySet<string> = new Set([
-  "text length",
-  "loc overlap",
-]);
 
 function discardLog(): void {}
 
@@ -41,77 +39,81 @@ function buildPlanArgs(previous: PreviousBriefInput): AnchorPlanArgs {
   return args;
 }
 
-function isKeptByStitch(warning: GenerationWarning): boolean {
-  if (warning.kind !== GenerationWarningKinds.VALIDATION) {
-    return true;
+function stampWarnings(
+  brief: Brief,
+  warnings: readonly GenerationWarning[],
+): Brief {
+  if (warnings.length === 0) {
+    return brief;
   }
-  return !STITCH_REPLACED_CHECKS.has(warning.check);
+  return { ...brief, generationWarnings: formatGenerationWarnings(warnings) };
 }
 
 /**
  * Generate one Brief: fresh without `previous`, else plan the carry, generate
- * against the anchor view and stitch. A stitch coverage failure is the error.
+ * against the anchor view and stitch. Validation runs once, over the final
+ * chunk set; nothing after the model call fails the generation.
  */
 export async function generateBrief(
   options: GenerateBriefOptions,
-): Promise<GenerateBriefResult> {
-  const { pr, headIndex, commitRange, generator, previous } = options;
-  const effort = options.effort ?? DEFAULT_EFFORT;
+): Promise<GenerateBriefOutput> {
+  const { pr, previous } = options;
   const log = options.log ?? discardLog;
+  const warnings = createWarningCollector(log);
+  const draftOptions: DraftBriefOptions = {
+    pr,
+    headIndex: options.headIndex,
+    commitRange: options.commitRange,
+    generator: options.generator,
+    log,
+    repoContext: options.repoContext,
+    effort: options.effort ?? DEFAULT_EFFORT,
+    anchor: undefined,
+    warnings,
+  };
 
   if (previous === undefined) {
-    const fresh = await categorizeWithWarnings(
-      pr,
-      headIndex,
-      commitRange,
-      generator,
-      log,
-      options.repoContext,
-      effort,
-      undefined,
-    );
-    return { ok: true, value: fresh };
+    const draft = await generateDraftBrief(draftOptions);
+    const brief = validateFinalBrief({
+      ...draft,
+      carriedChunkIds: [],
+      warnings,
+    });
+    const listed = warnings.listWarnings();
+    return { brief: stampWarnings(brief, listed), warnings: listed };
   }
 
   const plan = planAnchoredGeneration(buildPlanArgs(previous));
   await previous.onPlan?.(plan);
-  const anchorView = {
-    previousBrief: previous.brief,
-    frozenGroupIds: plan.frozen.map((carry) => carry.group.id),
-  };
-  const generated = await categorizeWithWarnings(
-    pr,
-    headIndex,
-    commitRange,
-    generator,
-    log,
-    options.repoContext,
-    effort,
-    anchorView,
-  );
+  const draft = await generateDraftBrief({
+    ...draftOptions,
+    anchor: {
+      previousBrief: previous.brief,
+      frozenGroupIds: plan.frozen.map((carry) => carry.group.id),
+    },
+  });
 
-  const stitched = stitchBrief({
-    generated: generated.brief,
+  const {
+    brief: stitched,
+    issues,
+    ...anchoring
+  } = stitchBrief({
+    generated: draft.brief,
     plan,
     prFiles: pr.meta.files.map((file) => file.path),
-    changedFiles: parseChangedRanges(pr.diff),
   });
-  if (!stitched.ok) {
-    return stitched;
-  }
+  warnings.reportIssues(STITCH_CHECK, issues);
+  const brief = validateFinalBrief({
+    brief: stitched,
+    context: draft.context,
+    carriedChunkIds: anchoring.carriedChunkIds,
+    warnings,
+  });
 
-  const { brief, issues, ...anchoring } = stitched.value;
-  const warnings = generated.warnings.filter(isKeptByStitch);
-  if (issues.length > 0) {
-    warnings.push({
-      kind: GenerationWarningKinds.VALIDATION,
-      check: STITCH_CHECK,
-      issues,
-    });
-  }
-
+  const listed = warnings.listWarnings();
   return {
-    ok: true,
-    value: { brief, warnings, anchoring: { plan, ...anchoring } },
+    brief: stampWarnings(brief, listed),
+    warnings: listed,
+    anchoring: { plan, ...anchoring },
   };
 }

@@ -1,9 +1,11 @@
 // The anchored prompt contract: renderAnchorView (the trimmed previous-brief
-// block) and the anchored system-prompt section, plus categorize() threading
-// both only when an anchor context is passed.
+// block) and the anchored system-prompt section, plus generateBrief threading
+// both only when a previous brief is passed.
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
-import { categorize } from "../../src/generation/categorize";
+import type { CompareFiles } from "../../src/anchoring/types";
+import { generateBrief } from "../../src/generation/brief";
+import type { PreviousBriefInput } from "../../src/generation/brief/types";
 import {
   buildSystemPrompt,
   renderAnchorView,
@@ -14,7 +16,6 @@ import type {
   GenerateRequest,
   Generation,
   Generator,
-  Logger,
 } from "generators";
 import type { Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github";
@@ -217,7 +218,7 @@ describe("anchored system prompt", () => {
 });
 
 // ---------------------------------------------------------------------------
-// categorize() threading.
+// generateBrief threading.
 // ---------------------------------------------------------------------------
 
 class RecordingGenerator implements Generator {
@@ -245,10 +246,27 @@ const pr: FetchedPr = {
     sha: "deadbeef00000000",
     baseSha: "base0000000000000",
     commitCount: 1,
-    files: [{ path: "src/a.ts", additions: 5, deletions: 0 }],
+    files: [
+      { path: "src/a.ts", additions: 2, deletions: 0 },
+      { path: "src/b.ts", additions: 2, deletions: 0 },
+    ],
   },
-  diff: "diff --git a/src/a.ts b/src/a.ts\n",
+  diff: "diff --git a/src/a.ts b/src/a.ts\ndiff --git a/src/b.ts b/src/b.ts\n",
   links: [],
+};
+
+const compareFiles: CompareFiles = {
+  files: [{ filename: "src/b.ts", status: "modified" }],
+  complete: true,
+  status: "ahead",
+};
+
+const previous: PreviousBriefInput = {
+  brief: previousBrief,
+  incrementalDiff:
+    "diff --git a/src/b.ts b/src/b.ts\n@@ -1,1 +1,2 @@\n b1\n+b2\n",
+  compareFiles,
+  baseShaMoved: false,
 };
 
 const commitRange = {
@@ -278,35 +296,24 @@ const minimalGen = {
       uncertainBetween: [],
     },
   ],
-  chunks: [chunk("c1", "g1", "src/a.ts")],
+  chunks: [chunk("c1", "g1", "src/b.ts")],
   concernView: [{ concern: "implementation", added: 2, deleted: 0 }],
 };
 
-const noopLog: Logger = () => {};
-
-describe("categorize anchored threading", () => {
+describe("generateBrief anchored threading", () => {
   it("includes the anchor view and anchored section when an anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
-    await categorize(
-      pr,
-      2,
-      commitRange,
-      generator,
-      noopLog,
-      undefined,
-      undefined,
-      anchorInput,
-    );
+    await generateBrief({ pr, headIndex: 2, commitRange, generator, previous });
     const request = generator.requests[0];
     expect(request?.system.toLowerCase()).toContain("anchored regeneration");
     expect(request?.user).toContain("gA");
     expect(request?.user).toContain("Previous lede.");
   });
 
-  it("keeps frozen-id anchors alive through the in-categorize validators", async () => {
+  it("keeps frozen-id anchors alive through the final validation", async () => {
     // The anchored contract TELLS the model to reference frozen ids (whole
-    // orderings; intent verdicts over the whole source). The validators must
-    // treat the frozen ids as live anchors, not prune them as unknown.
+    // orderings; intent verdicts over the whole source). The final pass sees
+    // the carried groups, so the frozen ids stay live anchors.
     const fixture = {
       ...minimalGen,
       readingOrder: [
@@ -332,18 +339,15 @@ describe("categorize anchored threading", () => {
       },
     };
     const generator = new RecordingGenerator(fixture);
-    const brief = await categorize(
+    const { brief } = await generateBrief({
       pr,
-      2,
+      headIndex: 2,
       commitRange,
       generator,
-      noopLog,
-      undefined,
-      undefined,
-      anchorInput,
-    );
-    // Reading order survives, frozen id included.
-    expect(brief.readingOrder?.map((s) => s.groupId)).toEqual(["gA", "g1"]);
+      previous,
+    });
+    // Reading order survives, frozen id included, g1 descended onto gB.
+    expect(brief.readingOrder?.map((s) => s.groupId)).toEqual(["gA", "gB"]);
     // The frozen-anchored accomplished item keeps its anchor.
     expect(brief.intentCheck?.accomplished[0]?.groupIds).toEqual(["gA"]);
     expect((brief.generationWarnings ?? []).join(" ")).not.toContain(
@@ -353,7 +357,7 @@ describe("categorize anchored threading", () => {
 
   it("keeps the fresh path byte-free of anchoring when no anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
-    await categorize(pr, 1, commitRange, generator, noopLog);
+    await generateBrief({ pr, headIndex: 1, commitRange, generator });
     const request = generator.requests[0];
     expect(request?.system.toLowerCase()).not.toContain(
       "anchored regeneration",

@@ -205,7 +205,7 @@ async function evaluateCase(
   const generate = async () => {
     run += 1;
     progress(`  ${evalCase.id}: run ${run}/${runs}…`);
-    const result = await generateBrief({
+    const generated = await generateBrief({
       pr: fixture.pr,
       headIndex: 1,
       commitRange: fixture.commitRange,
@@ -213,10 +213,7 @@ async function evaluateCase(
       effort,
       repoContext: fixture.repoContext,
     });
-    if (!result.ok) {
-      throw new Error(result.error.message);
-    }
-    return result.value.brief;
+    return generated.brief;
   };
   const result = await runCase(generate, runs);
   persistRunBriefs(join(OUT_DIR, "eval-runs", evalCase.id), result);

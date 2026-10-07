@@ -8,7 +8,6 @@ import {
   type PrRef,
   type ReviewComment,
   type RevisionNarrative,
-  type UnattributedFile,
 } from "../types";
 import {
   inAttributeScope,
@@ -32,35 +31,30 @@ import {
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
 } from "./prompt";
-import { splitDiffByFile } from "../diff/file-diff";
+import { splitDiffByFile, type FileDiff } from "../diff/file-diff";
 import {
   changedRangesFromFileDiffs,
   type RevisionChangeFile,
 } from "../diff/revchanges";
 import {
   buildConcernView,
-  crossCheckFileTotals,
   diffLocTotals,
   deriveChunkLoc,
-  deriveUnattributed,
   detectChunkOverlaps,
-  unattributedTotals,
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
 import {
   fanOutIntentCheck,
-  validateIntentCheck,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
   validateNarrativeTextLength,
   validatePartition,
   validateTextLength,
-  validateReadingOrder,
-  validateRepoAttributeTokens,
   validateRiskAttributes,
   type PrimaryTicketFacts,
 } from "./validate";
+import type { BriefValidationContext } from "./final-validation/types";
 import type { FetchedPr, PrLocator, PrMetadata } from "../github";
 import {
   isLinearPrStack,
@@ -79,7 +73,6 @@ import { attributeSafe, stripKnownFences } from "./fences";
 import { createWarningCollector, formatGenerationWarnings } from "./warnings";
 import {
   GenerationWarningKinds,
-  type GenerationWarning,
   type WarningCollector,
 } from "./warnings/types";
 
@@ -345,38 +338,98 @@ ${fileList || "(none reported)"}
 ${clean(pr.diff)}`;
 }
 
-export interface CategorizedBrief {
-  brief: Brief;
-  warnings: GenerationWarning[];
+export interface DraftBriefOptions {
+  readonly pr: FetchedPr;
+  readonly headIndex: number;
+  readonly commitRange: CommitRange;
+  readonly generator: Generator;
+  readonly log: Logger;
+  readonly repoContext: RepoContext | undefined;
+  readonly effort: Effort;
+  readonly anchor: AnchorViewInput | undefined;
+  readonly warnings: WarningCollector;
 }
 
-/** `categorize` plus the typed warnings its stored lines were formatted from. */
-export async function categorizeWithWarnings(
+/** The model's brief before any validation, and what validation checks it against. */
+export interface DraftBrief {
+  readonly brief: Brief;
+  readonly context: BriefValidationContext;
+}
+
+/** The fetched texts the prompt rendered, as the quote checks must see them. */
+function buildIntentSources(
   pr: FetchedPr,
-  index: number,
-  commitRange: CommitRange,
-  generator: Generator,
-  log: Logger,
-  repoContext: RepoContext | undefined,
-  effort: Effort,
-  anchor: AnchorViewInput | undefined,
-): Promise<CategorizedBrief> {
-  // The model produces analysis only; pr / index / commitRange / generation are
-  // CLI-owned metadata it cannot know, filled in here.
-  const collector = createWarningCollector(log);
+  defuseForgedFences: boolean,
+  primaryText: string,
+): Pick<BriefValidationContext, "injectedUrls" | "corpus"> {
+  const clean = defuseForgedFences
+    ? stripForgedRepoFences
+    : (text: string) => text;
+  const injectedUrls = pr.links.map((link) => link.source);
+  const corpus = [
+    { url: "", content: clean(`${pr.meta.title}\n\n${pr.meta.body}`) },
+    ...pr.links.map((link) => ({
+      url: link.source,
+      content: clean(stripKnownFences(link.text)),
+    })),
+  ];
+
+  const primary = readPrimary(pr.primaryTicket);
+  if (primary !== undefined) {
+    injectedUrls.push(primary.source);
+    corpus.push({ url: primary.source, content: clean(primaryText) });
+  }
+
+  return { injectedUrls, corpus };
+}
+
+function buildValidationContext(
+  pr: FetchedPr,
+  fileDiffs: FileDiff[],
+  acceptedContext: RepoContext | undefined,
+  primaryText: string,
+): BriefValidationContext {
+  const context: Mutable<BriefValidationContext> = {
+    prFiles: pr.meta.files,
+    fileDiffs,
+    changedFiles: changedRangesFromFileDiffs(fileDiffs),
+    ...buildIntentSources(pr, acceptedContext !== undefined, primaryText),
+  };
+
+  if (acceptedContext !== undefined) {
+    context.customAttributes = acceptedContext.customAttributes;
+  }
+  const primaryFacts = derivePrimaryTicketFacts(pr.primaryTicket);
+  if (primaryFacts !== undefined) {
+    context.primaryFacts = primaryFacts;
+  }
+  if (pr.primaryTicket !== undefined) {
+    context.primaryTicket = toPrimaryTicket(pr.primaryTicket);
+  }
+
+  return context;
+}
+
+/**
+ * One model call and the mechanical shaping a stitch needs to read its output:
+ * snapped ranges, derived loc, the stored intent buckets. Nothing here
+ * validates; `validateFinalBrief` runs once over the final chunk set.
+ */
+export async function generateDraftBrief(
+  options: DraftBriefOptions,
+): Promise<DraftBrief> {
+  const { pr, generator, log, effort, anchor, warnings } = options;
   // One accepted repo-context view: every gate runs BEFORE any name touches the
   // schema enum or any text touches the prompt.
   const accepted = acceptRepoContext(
-    repoContext,
+    options.repoContext,
     pr.meta.files,
     log,
-    collector,
+    warnings,
   );
   const effectiveContext = accepted.context;
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
-  // The anchor view rides the user message as trusted tier-2 reference and the
-  // system prompt gains the anchored section; the fresh path is unchanged.
   const anchorBlock =
     anchor === undefined ? "" : `\n\n${renderAnchorView(anchor)}`;
   // Stripped once: the fence body and the corpus entry are the same string.
@@ -397,171 +450,44 @@ export async function categorizeWithWarnings(
     label: "brief",
     salvageFields: SALVAGE_FIELDS,
     log,
-    onWarning: collector.recordGeneratorWarning,
+    onWarning: warnings.recordGeneratorWarning,
   });
-  // Counts never come from the model: chunk loc = |ranges ∩ changed lines|,
-  // concernView rolls up from that, and the remainder no chunk claims is
-  // stamped as `unattributed`. All discrepancy signals are warn-only.
+
+  // Counts never come from the model: ranges snap over the statement tails
+  // the model left to the remainder, then chunk loc = |ranges ∩ changed lines|.
   const fileDiffs = splitDiffByFile(pr.diff);
-  const changedFiles = changedRangesFromFileDiffs(fileDiffs);
-  // Ranges snap over the statement tails the model left to the remainder
-  // before anything counts them, so the overlap check sees final ranges.
-  const snappedChunks = snapChunkRanges(generated.chunks, fileDiffs);
-  const chunksWithLoc = deriveChunkLoc(snappedChunks, changedFiles);
-  collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
-  collector.reportIssues(
-    "loc cross-check",
-    crossCheckFileTotals(changedFiles, pr.meta.files),
+  const context = buildValidationContext(
+    pr,
+    fileDiffs,
+    effectiveContext,
+    primaryText,
   );
-  // On anchored runs the model deliberately withholds frozen groups' chunks,
-  // so a remainder computed here would mis-claim their lines as unattributed;
-  // the worker stitch derives it over the merged chunk set instead.
-  const unattributed =
-    anchor === undefined
-      ? deriveUnattributed(chunksWithLoc, changedFiles)
-      : undefined;
-  if (unattributed !== undefined) {
-    collector.reportIssues("loc coverage", coverageIssues(unattributed));
-  }
-
-  const { readingOrder, ...rest } = generated;
-  // On anchored runs the model is told to reference frozen group ids, so the
-  // validators must accept them rather than prune them as unknown; the stitch
-  // re-verifies everything against the merged artifact.
-  const carriedGroupIds = anchor?.frozenGroupIds ?? [];
-  const readingOrderIssues = validateReadingOrder(
-    readingOrder,
-    generated.changeGroups,
-    carriedGroupIds,
+  const changedFiles = [...context.changedFiles];
+  const chunks = deriveChunkLoc(
+    snapChunkRanges(generated.chunks, fileDiffs),
+    changedFiles,
   );
-  collector.reportIssues("reading order", readingOrderIssues);
-  const keepReadingOrder =
-    readingOrder !== undefined && readingOrderIssues.length === 0;
 
-  // Quotes must verify against the SAME sanitized view the prompt rendered,
-  // checking raw text would flag a model quote as fabricated when the harness
-  // altered the text it read. Warn-and-drop, same register as readingOrder.
-  const corpusClean =
-    effectiveContext !== undefined
-      ? stripForgedRepoFences
-      : (text: string) => text;
-  // The primary ticket counts as an injected URL: ticketUrls membership and
-  // the quote check work on it unchanged.
-  const injectedUrls = pr.links.map((l) => l.source);
-  const corpus = [
-    { url: "", content: corpusClean(`${pr.meta.title}\n\n${pr.meta.body}`) },
-    ...pr.links.map((l) => ({
-      url: l.source,
-      content: corpusClean(stripKnownFences(l.text)),
-    })),
-  ];
-  if (primary !== undefined) {
-    injectedUrls.push(primary.source);
-    corpus.push({ url: primary.source, content: corpusClean(primaryText) });
-  }
-  // The wire shape is one tagged `items` array; fan it out to the stored five
-  // buckets BEFORE validation so every per-bucket rule applies.
-  const primaryFacts = derivePrimaryTicketFacts(pr.primaryTicket);
-  const intentChecked = validateIntentCheck(
-    fanOutIntentCheck(generated.intentCheck),
-    generated.changeGroups,
-    injectedUrls,
-    corpus,
-    carriedGroupIds,
-    primaryFacts,
-  );
-  collector.reportIssues("intent check", intentChecked.issues);
-  // Harness data, stamped after validation: the model never sees it.
-  const intentCheck =
-    pr.primaryTicket === undefined
-      ? intentChecked.intentCheck
-      : {
-          ...intentChecked.intentCheck,
-          primaryTicket: toPrimaryTicket(pr.primaryTicket),
-        };
-
-  // Repo-attribute floor first (unknown tokens + path scopes), then mechanical
-  // risk validation on the survivors. Skipped entirely without repo context.
-  const repoChecked =
-    effectiveContext === undefined
-      ? { chunks: chunksWithLoc, issues: [] }
-      : validateRepoAttributeTokens(
-          chunksWithLoc,
-          effectiveContext.customAttributes,
-        );
-  collector.reportIssues("repo attrs", repoChecked.issues);
-
-  const trio = validateRiskAttributes(repoChecked.chunks, fileDiffs);
-  collector.reportIssues("risk attrs", trio.issues);
-
-  // Warn-only length floor: the prompt carries the caps; this measures
-  // compliance and stamps the structured violations for the FE.
-  const textLength = validateTextLength(generated.changeGroups, trio.chunks);
-  collector.reportIssues("text length", textLength.issues);
-
+  const { readingOrder, intentCheck, ...rest } = generated;
   const brief: Brief = {
     ...rest,
-    chunks: trio.chunks,
-    concernView: buildConcernView(trio.chunks),
+    chunks,
+    concernView: buildConcernView(chunks),
     // Exact whole-diff totals: per-chunk sums double-count overlap lines
     // (by design), so header totals derive from the diff itself.
     diffTotals: diffLocTotals(changedFiles),
-    intentCheck,
-    pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
-    index,
-    commitRange,
+    intentCheck: fanOutIntentCheck(intentCheck),
+    pr: buildPrRef(pr.locator, pr.meta, options.commitRange.head),
+    index: options.headIndex,
+    commitRange: options.commitRange,
     generation: generator.origin(effort),
   };
 
-  if (unattributed !== undefined) brief.unattributed = unattributed;
-  if (keepReadingOrder) brief.readingOrder = readingOrder;
-
-  collector.reportIssues(
-    "partition",
-    validatePartition(brief.changeGroups, brief.chunks),
-  );
-
-  const warnings = collector.listWarnings();
-  if (warnings.length > 0) {
-    brief.generationWarnings = formatGenerationWarnings(warnings);
-  }
-  if (textLength.violations.length > 0) {
-    brief.lengthViolations = textLength.violations;
+  if (readingOrder !== undefined) {
+    brief.readingOrder = readingOrder;
   }
 
-  return { brief, warnings };
-}
-
-export async function categorize(
-  pr: FetchedPr,
-  index: number,
-  commitRange: CommitRange,
-  generator: Generator = new AnthropicGenerator(),
-  log: Logger = () => {},
-  repoContext?: RepoContext,
-  effort: Effort = DEFAULT_EFFORT,
-  anchor?: AnchorViewInput,
-): Promise<Brief> {
-  const categorized = await categorizeWithWarnings(
-    pr,
-    index,
-    commitRange,
-    generator,
-    log,
-    repoContext,
-    effort,
-    anchor,
-  );
-  return categorized.brief;
-}
-
-/** Warn line for a non-empty unattributed remainder (coverage gap). */
-function coverageIssues(unattributed: UnattributedFile[]): string[] {
-  if (unattributed.length === 0) return [];
-  const gap = unattributedTotals(unattributed);
-  return [
-    `${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
-  ];
+  return { brief, context };
 }
 
 // --- Delta (per-reviewer carry-over is out of scope) ----------------------

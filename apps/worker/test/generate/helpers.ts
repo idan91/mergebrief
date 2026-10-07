@@ -133,8 +133,6 @@ export function stubGenerator(): StubGenerator {
   const calls: string[] = [];
   const requests: { label: string; system: string; user: string }[] = [];
   const outputs: Record<string, unknown> = {
-    // Coverage-valid by default: the anchored path's hard coverage check
-    // requires every PR file (stub default: a.ts) in exactly one group.
     brief: {
       summary: "stub brief",
       intentCheck: {

@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const { fixture } = probeCase;
   console.error("[probe] generating…");
   try {
-    const result = await generateBrief({
+    const { brief } = await generateBrief({
       pr: fixture.pr,
       headIndex: 1,
       commitRange: fixture.commitRange,
@@ -55,10 +55,7 @@ async function main(): Promise<void> {
       repoContext: fixture.repoContext,
       effort: loaded.value.generator.effort,
     });
-    if (!result.ok) {
-      throw new Error(result.error.message);
-    }
-    console.info(JSON.stringify(result.value.brief, null, 2).slice(0, 2000));
+    console.info(JSON.stringify(brief, null, 2).slice(0, 2000));
     console.error("[probe] SUCCESS — full schema accepted");
   } catch (error) {
     console.error("[probe] FAILURE — full error follows:");

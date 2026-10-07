@@ -614,9 +614,7 @@ describe("generate task, anchored generation", () => {
     expect(body.anchoring?.carried).toEqual([]);
   });
 
-  it("a coverage failure is a permanent pipeline error, not salvage", async () => {
-    // b.ts lands in TWO groups, which no reader can resolve. A file in NO
-    // group is the unattributed remainder and warns instead; see below.
+  it("writes a file split across two groups instead of failing", async () => {
     const rev2Output = {
       summary: "stub brief",
       intentCheck: {
@@ -677,15 +675,18 @@ describe("generate task, anchored generation", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_2),
     );
-    expect(row?.status).toBe(GenerationStatuses.FAILED);
-    expect(row?.errorCode).toBe("unknown");
-    expect(row?.errorParams?.detail).toContain("coverage");
-    // No brief row was written for the failed span.
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
     const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_2,
     );
-    expect(brief).toBeUndefined();
+    const body = JSON.parse(brief?.body ?? "{}") as {
+      chunks?: { file: string; changeGroupId: string }[];
+    };
+    const owners = (body.chunks ?? [])
+      .filter((chunk) => chunk.file === "b.ts")
+      .map((chunk) => chunk.changeGroupId);
+    expect(new Set(owners).size).toBe(2);
   });
 });

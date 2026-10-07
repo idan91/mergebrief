@@ -26,7 +26,7 @@ import { throwOnClaimLost } from "./supersession-watch";
 /**
  * The fresh-brief path: anchor decision, the generating Entry, brief-core's
  * generation and the brief write. The anchor decision runs BEFORE the
- * GENERATING phase mark; the stitch's coverage failure is permanent.
+ * GENERATING phase mark.
  */
 export async function writeFreshBrief(
   payload: ParsedGeneratePayload,
@@ -92,17 +92,12 @@ export async function writeFreshBrief(
     log: coreMessageLog,
     previous,
   };
-  const generated = await runGenerator(
+  const { brief, anchoring } = await runGenerator(
     () => generateBrief(options),
     log,
     GenerationKinds.BRIEF,
   );
   await advancePhase(inputs, GenerationPhases.WRITING);
-  // A stitch coverage failure is a pipeline error, permanent, never salvage.
-  if (!generated.ok) {
-    throw new PermanentJobError(generated.error.message);
-  }
-  const { brief, anchoring } = generated.value;
   const carriedChunkIds = anchoring?.carriedChunkIds ?? [];
   const stamped: Brief = { ...brief, anchor };
   const briefWrite: Mutable<BriefWriteInput> = {

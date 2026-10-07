@@ -1,6 +1,5 @@
 // brief-core owns `CompareFiles` so its producer and consumer share one shape.
 import type { Hop } from "../diff/remap";
-import type { RevisionChangeFile } from "../diff/revchanges";
 import type { Brief } from "../types";
 
 export type ChangeGroup = Brief["changeGroups"][number];
@@ -72,8 +71,6 @@ export interface StitchArgs {
   readonly generated: Brief;
   readonly plan: AnchorPlan;
   readonly prFiles: readonly string[];
-  /** The whole-PR changed lines, so the stitch owns the unattributed remainder. */
-  readonly changedFiles: readonly RevisionChangeFile[];
 }
 
 export interface StitchResult {
@@ -82,10 +79,6 @@ export interface StitchResult {
   /** Chunk ids take a collision guard, not descent: marks carry on this set only. */
   readonly carriedChunkIds: readonly string[];
   readonly regeneratedGroupIds: readonly string[];
-  /** Unprefixed; the stored warning lines carry them prefixed. */
+  /** The merge's own findings: departures, claims, numbering slips. */
   readonly issues: readonly string[];
-}
-
-export interface StitchError {
-  readonly message: string;
 }

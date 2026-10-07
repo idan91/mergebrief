@@ -1,10 +1,5 @@
 import type { Effort, Generator, Logger } from "generators";
-import type { Result } from "types/utils";
-import type {
-  AnchorPlan,
-  CompareFiles,
-  StitchError,
-} from "../../anchoring/types";
+import type { AnchorPlan, CompareFiles } from "../../anchoring/types";
 import type { FetchedPr } from "../../github";
 import type { Brief, CommitRange } from "../../types";
 import type { RepoContext } from "../repo-context";
@@ -48,5 +43,3 @@ export interface GenerateBriefOutput {
   /** Present on an anchored run. */
   readonly anchoring?: BriefAnchoring;
 }
-
-export type GenerateBriefResult = Result<GenerateBriefOutput, StitchError>;

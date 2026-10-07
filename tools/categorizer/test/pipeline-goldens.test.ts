@@ -17,19 +17,25 @@ const CASES_DIR = fileURLToPath(new URL("../eval/cases", import.meta.url));
 const PAIRS_DIR = fileURLToPath(new URL("../eval/pair-cases", import.meta.url));
 const EFFORT: Effort = "medium";
 const JSON_INDENT = 2;
-const STITCH_WARNING_PREFIX = "anchored stitch: ";
+const STITCH_WARNING_PREFIX = "⚠ anchored stitch issues: ";
 const STITCH_WARNING_FAMILIES = [
   ["claim", "claimed by the model output"],
   ["re-emit", "re-emitted without a new file"],
   ["slip", "treated as a numbering slip"],
   ["departed", "the PR no longer changes it"],
-  ["overlap", "both claim"],
-  ["ungrouped", "file(s) in no group"],
-  ["unattributed", "unattributed to any chunk"],
-  ["partition", "references unknown group"],
-  ["reading order", "reading order dropped"],
-  ["intent", "intent item dropped (dangling group anchor)"],
 ] as const;
+const VALIDATION_WARNING_FAMILIES = [
+  ["unknown group", "⚠ unknown group issues: ", "names unknown group"],
+  ["overlap", "⚠ loc overlap issues: ", "both claim"],
+  ["ungrouped", "⚠ loc coverage issues: ", "file(s) in no group"],
+  ["unattributed", "⚠ loc coverage issues: ", "unattributed to any chunk"],
+  ["reading order", "⚠ reading order issues: ", "references unknown group"],
+  ["intent", "⚠ intent check issues: ", "has no valid group anchor"],
+] as const;
+const VALIDATION_SUBSTRINGS = VALIDATION_WARNING_FAMILIES.map(
+  ([, , substring]) => substring,
+);
+const CHECK_PREFIX = /^⚠ (.+?) issues: /;
 const RISK_ATTRIBUTE_DROP = "dropped comment-contradicts-code";
 
 interface GoldenRun {
@@ -101,12 +107,9 @@ async function runSingleCase(evalCase: EvalCase): Promise<GoldenRun> {
   const { fixture } = evalCase;
   const generator = makeCannedGenerator();
 
-  const result = await generateBrief(makeOptions(fixture, 1, generator));
-  if (!result.ok) {
-    throw new Error(result.error.message);
-  }
+  const { brief } = await generateBrief(makeOptions(fixture, 1, generator));
 
-  return { requests: generator.requests, output: result.value.brief };
+  return { requests: generator.requests, output: brief };
 }
 
 async function runPair(
@@ -133,27 +136,24 @@ async function runAnchoring(
   const generator = makeCannedGenerator();
 
   const base = await generateBrief(makeOptions(fixture.base, 1, generator));
-  if (!base.ok) {
-    throw new Error(base.error.message);
-  }
   const revised = await generateBrief({
     ...makeOptions(fixture.revised, 2, generator),
-    previous: { brief: base.value.brief, ...fixture.increment, chainGroupIds },
+    previous: { brief: base.brief, ...fixture.increment, chainGroupIds },
   });
-  if (!revised.ok || revised.value.anchoring === undefined) {
+  if (revised.anchoring === undefined) {
     throw new Error(`${pairCase.id}: the anchored run returned no anchoring`);
   }
 
-  const { plan, ...carry } = revised.value.anchoring;
+  const { plan, ...carry } = revised.anchoring;
   return {
-    baseGroupIds: base.value.brief.changeGroups.map((group) => group.id),
+    baseGroupIds: base.brief.changeGroups.map((group) => group.id),
     frozenGroupIds: plan.frozen.map((frozen) => frozen.group.id),
     reLook: plan.reLook.map(({ id, reason }) => ({ id, reason })),
     previousGroupIds: plan.previousGroupIds,
     carriedChunkIds: carry.carriedChunkIds,
     carriedGroupIds: carry.carriedGroupIds,
     regeneratedGroupIds: carry.regeneratedGroupIds,
-    groupIds: revised.value.brief.changeGroups.map((group) => group.id),
+    groupIds: revised.brief.changeGroups.map((group) => group.id),
   };
 }
 
@@ -366,6 +366,40 @@ describe("adversarial stitch goldens", () => {
       );
     },
   );
+
+  it.each(VALIDATION_WARNING_FAMILIES)(
+    "reaches the %s warning from the final validation",
+    (_family, prefix, substring) => {
+      const checkWarnings = collectAdversarialWarnings().filter((line) =>
+        line.startsWith(prefix),
+      );
+
+      expect(checkWarnings.some((line) => line.includes(substring))).toBe(true);
+    },
+  );
+
+  it("keeps validation findings off the stitch line", () => {
+    const stitchWarnings = collectAdversarialWarnings().filter((line) =>
+      line.startsWith(STITCH_WARNING_PREFIX),
+    );
+
+    for (const substring of VALIDATION_SUBSTRINGS) {
+      expect(stitchWarnings.filter((line) => line.includes(substring))).toEqual(
+        [],
+      );
+    }
+  });
+
+  it("reports each check at most once per brief", () => {
+    for (const run of adversarialRuns.values()) {
+      const checks = (run.revised.generationWarnings ?? []).flatMap((line) => {
+        const check = CHECK_PREFIX.exec(line)?.[1];
+        return check === undefined ? [] : [check];
+      });
+
+      expect(checks).toEqual([...new Set(checks)]);
+    }
+  });
 
   it("reaches the risk attribute drop", () => {
     const warnings = collectAdversarialWarnings();

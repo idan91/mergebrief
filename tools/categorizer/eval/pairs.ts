@@ -10,7 +10,6 @@ import {
   type CompareFile,
   type CompareFiles,
   type GenerateBriefOptions,
-  type GenerateBriefResult,
 } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
@@ -297,21 +296,14 @@ function makeFixtureOptions(
   };
 }
 
-function unwrapBrief(result: GenerateBriefResult): Brief {
-  if (!result.ok) {
-    throw new Error(`stitch failed: ${result.error.message}`);
-  }
-  return result.value.brief;
-}
-
 async function runPair(
   fixture: PairFixture,
   generator: Generator,
   effort: Effort,
   mode: PairRunMode,
 ): Promise<RevisionPair> {
-  const base = unwrapBrief(
-    await generateBrief(makeFixtureOptions(fixture.base, 1, generator, effort)),
+  const { brief: base } = await generateBrief(
+    makeFixtureOptions(fixture.base, 1, generator, effort),
   );
   const revisedOptions = makeFixtureOptions(
     fixture.revised,
@@ -327,22 +319,21 @@ async function runPair(
       previousBrief: base,
       ...fixture.increment,
     });
-    const revised = unwrapBrief(await generateBrief(revisedOptions));
+    const { brief: revised } = await generateBrief(revisedOptions);
     return { base, revised, plan };
   }
 
-  const result = await generateBrief({
+  const { brief: revised, anchoring } = await generateBrief({
     ...revisedOptions,
     previous: { brief: base, ...fixture.increment },
   });
-  const revised = unwrapBrief(result);
-  if (!result.ok || result.value.anchoring === undefined) {
+  if (anchoring === undefined) {
     throw new Error("anchored run returned no plan");
   }
   return {
     base,
     revised: { ...revised, anchor: { state: AnchorStates.ANCHORED } },
-    plan: result.value.anchoring.plan,
+    plan: anchoring.plan,
   };
 }
 

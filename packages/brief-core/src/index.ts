@@ -183,7 +183,7 @@ export { generateAndWrite, type Range } from "./cli/categorize";
 export { generateBrief } from "./generation/brief";
 export type {
   GenerateBriefOptions,
-  GenerateBriefResult,
+  GenerateBriefOutput,
   PreviousBriefInput,
 } from "./generation/brief/types";
 export { planAnchoredGeneration } from "./anchoring";
@@ -195,7 +195,6 @@ export type {
   FrozenCarry,
   ReLookEntry,
   StitchArgs,
-  StitchError,
   StitchResult,
 } from "./anchoring/types";
 export {
