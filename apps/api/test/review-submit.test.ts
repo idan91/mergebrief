@@ -9,16 +9,22 @@ import {
   createGrantAuth,
   type AppDatabase,
   type BriefRowId,
+  type DraftAnchor,
   type KeyProvider,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
   DraftCommentSides,
   type AnchorStatus,
 } from "types/comments";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import {
+  createPgliteHarness,
+  stampDraftAnchorStatus,
+  type PgliteHarness,
+} from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp } from "../src/index";
@@ -58,6 +64,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
+const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch), dispatches on method plus URL, counts calls.
@@ -396,37 +403,46 @@ async function seedSessionDrafts(
     body: "{}",
   });
   if (!brief.ok) throw new Error("seed: brief write failed");
-  const anchors = [
+  const anchors: DraftAnchor[] = [
     {
       kind: CommentAnchorKinds.LINE,
-      filePath: "src/a.ts",
+      file: "src/a.ts",
       side: DraftCommentSides.NEW,
       startLine: 12,
       endLine: 12,
     },
     {
       kind: CommentAnchorKinds.LINE,
-      filePath: "src/b.ts",
+      file: "src/b.ts",
       side: DraftCommentSides.OLD,
       startLine: 25,
       endLine: 30,
     },
   ];
-  const written = await repo.reviewSessions.writeToSession(
-    {
-      briefId: brief.value.id,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    },
-    async (writer) => {
-      for (const [index, body] of bodies.entries()) {
-        const anchor = anchors[index % anchors.length];
-        if (anchor === undefined) throw new Error("seed: no anchor");
-        await writer.addDraftComment({ ...anchor, body });
-      }
-    },
-  );
-  if (!written.ok) throw new Error("seed: drafts failed");
+  for (const [index, body] of bodies.entries()) {
+    const anchor = anchors[index % anchors.length];
+    if (anchor === undefined) throw new Error("seed: no anchor");
+    await writeDraft(handle, brief.value.id, anchor, body);
+  }
   return brief.value.id;
+}
+
+/** One draft through the reviewer's own draft action; answers its row id. */
+async function writeDraft(
+  handle: AppDatabase,
+  briefId: BriefRowId,
+  anchor: DraftAnchor,
+  body: string,
+): Promise<bigint> {
+  const written = await createTenantRepository(
+    handle,
+    CTX,
+  ).reviewSessions.addDraft(
+    { briefId, reviewerId: REVIEWER },
+    { anchor, body },
+  );
+  if (!written.ok) throw new Error("seed: draft failed");
+  return written.value.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -495,27 +511,20 @@ async function seedCarriedDraft(
   anchorStatus: AnchorStatus,
   body = "carried note",
 ): Promise<string> {
-  const written = await createTenantRepository(
+  const draftId = await writeDraft(
     handle,
-    CTX,
-  ).reviewSessions.writeToSession(
+    briefId,
     {
-      briefId,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
+      kind: CommentAnchorKinds.LINE,
+      file: "src/c.ts",
+      side: DraftCommentSides.NEW,
+      startLine: 40,
+      endLine: 40,
     },
-    async (writer) =>
-      await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/c.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 40,
-        endLine: 40,
-        body,
-        anchorStatus,
-      }),
+    body,
   );
-  if (!written.ok) throw new Error("seed: carried draft failed");
-  return String(written.value.id);
+  await stampDraftAnchorStatus(handle, draftId, anchorStatus);
+  return String(draftId);
 }
 
 /** One draft whose range starts on the base and ends on the head. */
@@ -524,26 +533,19 @@ async function seedTwoSideDraft(
   briefId: BriefRowId,
   body = "crosses sides",
 ): Promise<void> {
-  const written = await createTenantRepository(
+  await writeDraft(
     handle,
-    CTX,
-  ).reviewSessions.writeToSession(
+    briefId,
     {
-      briefId,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
+      kind: CommentAnchorKinds.LINE,
+      file: "src/c.ts",
+      side: DraftCommentSides.NEW,
+      startSide: DraftCommentSides.OLD,
+      startLine: 10,
+      endLine: 12,
     },
-    async (writer) =>
-      await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/c.ts",
-        side: DraftCommentSides.NEW,
-        startSide: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 12,
-        body,
-      }),
+    body,
   );
-  if (!written.ok) throw new Error("seed: two-side draft failed");
 }
 
 async function seedFileDraft(
@@ -551,22 +553,12 @@ async function seedFileDraft(
   briefId: BriefRowId,
   body = "on the file",
 ): Promise<void> {
-  const written = await createTenantRepository(
+  await writeDraft(
     handle,
-    CTX,
-  ).reviewSessions.writeToSession(
-    {
-      briefId,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    },
-    async (writer) =>
-      await writer.addDraftComment({
-        kind: CommentAnchorKinds.FILE,
-        filePath: "src/app.ts",
-        body,
-      }),
+    briefId,
+    { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+    body,
   );
-  if (!written.ok) throw new Error("seed: file draft failed");
 }
 
 function makeSessionPath(suffix: string): string {
@@ -1045,20 +1037,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     // One draft is already on GitHub: it is not the submit's to post again.
-    await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId,
-        reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      },
-      async (writer) => {
-        const first = (await writer.draftComments())[0];
-        if (first === undefined) throw new Error("no draft to publish");
-        await writer.publishDraftComments([first.id]);
-      },
-    );
+    const sessions = createTenantRepository(harness.handle, CTX).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const held = await sessions.listDrafts(key);
+    const first = held.ok ? held.value[0] : undefined;
+    if (first === undefined) throw new Error("no draft to publish");
+    await sessions.recordPublishedDrafts(key, { draftIds: [first.id] });
 
     const res = await postSubmit(app, cookie, makeValidBody());
     expect(res.status).toBe(201);
@@ -1161,15 +1145,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       body: JSON.stringify({ changeGroups: [], chunks: [] }),
     });
     if (!newer.ok) throw new Error("newer brief write failed");
-    await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: newer.value.id,
-        reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    await createTenantRepository(harness.handle, CTX).reviewSessions.setOutcome(
+      { briefId: newer.value.id, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
 
     const res = await postSubmit(app, cookie, makeValidBody());

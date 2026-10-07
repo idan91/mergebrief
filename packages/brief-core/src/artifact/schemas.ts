@@ -103,7 +103,8 @@ const sessionFactsRangeSchema = z.object({
  * The two top-level lists are required: a body without them would read as
  * zero groups and zero flags, which a carry-over takes for every decision
  * having stopped firing. A chunk missing its ranges is only a chunk with no
- * span. Risk names stay open, a repo's custom names included.
+ * span. Risk names stay open, a repo's custom names included. Only the
+ * unattributed files' count is read, and a broken section counts none.
  */
 export const StoredSessionFactsReadSchema = z.object({
   changeGroups: z.array(z.object({ id: z.string() })),
@@ -116,4 +117,5 @@ export const StoredSessionFactsReadSchema = z.object({
       riskSurface: z.array(z.string()).default([]),
     }),
   ),
+  unattributed: z.array(z.unknown()).catch([]),
 });

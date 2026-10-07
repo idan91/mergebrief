@@ -44,7 +44,7 @@ export const BRIEF_BODY = JSON.stringify({
       file: "src/app.ts",
       addedRanges: [{ start: 5, end: 40 }],
       removedRanges: [],
-      riskSurface: ["no-tests"],
+      riskSurface: ["no-tests", "no-error-path"],
     },
     {
       id: "c2",
@@ -267,17 +267,18 @@ export async function seedOrphanedDraft(
   briefId: BriefRowId,
 ): Promise<void> {
   const repo = createTenantRepository(handle, CTX);
-  const added = await repo.reviewSessions.writeToSession(
+  const added = await repo.reviewSessions.addDraft(
     { briefId, reviewerId: REVIEWER },
-    (writer) =>
-      writer.addDraftComment({
+    {
+      anchor: {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/other.ts",
+        file: "src/other.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
-        body: "and this one too",
-      }),
+      },
+      body: "and this one too",
+    },
   );
   if (!added.ok) throw new Error("second draft comment seed failed");
 }
@@ -291,35 +292,35 @@ export async function seedPreviousWork(
   handle: AppDatabase,
   briefId: BriefRowId,
 ): Promise<void> {
-  const repo = createTenantRepository(handle, CTX);
-  const opened = await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER },
-    async (writer) => {
-      await writer.addDraftComment({
+  const sessions = createTenantRepository(handle, CTX).reviewSessions;
+  const key = { briefId, reviewerId: REVIEWER };
+  const outcomes = [
+    await sessions.addDraft(key, {
+      anchor: {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
-        body: "this allocation is unbounded",
-      });
-      await writer.putReclassification({
-        changeGroupId: "g1",
-        category: ChangeGroupCategories.LOGIC_REFACTOR,
-      });
-    },
-  );
-  if (!opened.ok) throw new Error("previous session seed failed");
-  await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER },
-    (writer) =>
-      writer.putDisposition({
+      },
+      body: "this allocation is unbounded",
+    }),
+    await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.LOGIC_REFACTOR,
+    }),
+    await sessions.decideRisks(key, [
+      {
         filePath: "src/app.ts",
         attribute: "no-tests",
         regionStart: 10,
         regionEnd: 12,
         decision: DispositionDecisions.DISMISSED,
         reason: "covered by the integration suite",
-      }),
-  );
+      },
+    ]),
+  ];
+  if (outcomes.some((outcome) => !outcome.ok)) {
+    throw new Error("previous session seed failed");
+  }
 }

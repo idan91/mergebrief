@@ -132,13 +132,12 @@ async function openSession(
   reviewerId: ReviewerId,
   submit = false,
 ): Promise<void> {
-  const result = await createTenantRepository(
-    handle,
-    ctx,
-  ).reviewSessions.writeToSession({ briefId, reviewerId }, async (writer) => {
-    if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
-    return writer.session;
-  });
+  const sessions = createTenantRepository(handle, ctx).reviewSessions;
+  const key = { briefId, reviewerId };
+  const published = submit
+    ? { draftIds: [], githubReviewId: 77n }
+    : { draftIds: [] };
+  const result = await sessions.recordPublishedDrafts(key, published);
   if (!result.ok) {
     throw new Error(`session seed failed: ${result.error.code}`);
   }

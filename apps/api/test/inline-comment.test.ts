@@ -9,9 +9,11 @@ import {
   createGrantAuth,
   type AppDatabase,
   type BriefRowId,
+  type DraftAnchor,
   type KeyProvider,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
@@ -21,7 +23,11 @@ import {
   type DraftCommentSide,
   type DraftCommentStatus,
 } from "types/comments";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import {
+  createPgliteHarness,
+  stampDraftAnchorStatus,
+  type PgliteHarness,
+} from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
@@ -53,6 +59,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
+const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch): REST /repositories/:id + the comment POST.
@@ -222,26 +229,47 @@ async function seedDraft(
     body: "{}",
   });
   if (!brief.ok) throw new Error("seedDraft: brief write failed");
-  const written = await repo.reviewSessions.writeToSession(
-    {
-      briefId: brief.value.id,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    },
-    (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/index.ts",
-        side: DraftCommentSides.NEW,
-        startSide,
-        startLine: 10,
-        endLine: 12,
-        body,
-        status,
-        anchorStatus,
-      }),
+  const line = {
+    kind: CommentAnchorKinds.LINE,
+    file: "src/index.ts",
+    side: DraftCommentSides.NEW,
+    startLine: 10,
+    endLine: 12,
+  };
+  const anchor: DraftAnchor =
+    startSide === null ? line : { ...line, startSide };
+  const draftId = await writeDraft(handle, brief.value.id, anchor, body);
+  if (status === DraftCommentStatuses.SUBMITTED) {
+    await createTenantRepository(
+      handle,
+      CTX,
+    ).reviewSessions.recordPublishedDrafts(
+      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { draftIds: [draftId] },
+    );
+  }
+  if (anchorStatus !== null) {
+    await stampDraftAnchorStatus(handle, draftId, anchorStatus);
+  }
+  return { briefId: brief.value.id, draftId };
+}
+
+/** One draft through the reviewer's own draft action; answers its row id. */
+async function writeDraft(
+  handle: AppDatabase,
+  briefId: BriefRowId,
+  anchor: DraftAnchor,
+  body: string,
+): Promise<bigint> {
+  const written = await createTenantRepository(
+    handle,
+    CTX,
+  ).reviewSessions.addDraft(
+    { briefId, reviewerId: REVIEWER },
+    { anchor, body },
   );
-  if (!written.ok) throw new Error("seedDraft: draft write failed");
-  return { briefId: brief.value.id, draftId: written.value.id };
+  if (!written.ok) throw new Error("draft seed failed");
+  return written.value.id;
 }
 
 async function seedFileDraft(
@@ -266,20 +294,13 @@ async function seedFileDraft(
     body: "{}",
   });
   if (!brief.ok) throw new Error("seedFileDraft: brief write failed");
-  const written = await repo.reviewSessions.writeToSession(
-    {
-      briefId: brief.value.id,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    },
-    (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.FILE,
-        filePath: "src/app.ts",
-        body,
-      }),
+  const draftId = await writeDraft(
+    handle,
+    brief.value.id,
+    { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+    body,
   );
-  if (!written.ok) throw new Error("seedFileDraft: draft write failed");
-  return { briefId: brief.value.id, draftId: written.value.id };
+  return { briefId: brief.value.id, draftId };
 }
 
 /** The wire code an error response carries. */
@@ -314,12 +335,9 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
   if (!newer.ok) throw new Error("freeze: brief write failed");
-  const opened = await repo.reviewSessions.writeToSession(
-    {
-      briefId: newer.value.id,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    },
-    (writer) => writer.putReadMark({ chunkId: "c1" }),
+  const opened = await repo.reviewSessions.setOutcome(
+    { briefId: newer.value.id, reviewerId: REVIEWER },
+    ReviewOutcomes.COMMENT,
   );
   if (!opened.ok) throw new Error("freeze: newer session failed");
 }

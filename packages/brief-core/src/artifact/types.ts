@@ -136,6 +136,11 @@ export interface BriefSessionFacts {
   readonly flags: readonly FlagKey[];
   /** Deduplicated; a File comment keys on these. */
   readonly filePaths: readonly string[];
+  /**
+   * The most Chunks a reviewer can mark read: the web shows each unattributed
+   * file as one more Chunk, under an id the body does not carry.
+   */
+  readonly markableChunkCount: number;
 }
 
 export type BriefSessionFactsRead = Result<BriefSessionFacts, ArtifactIssue[]>;

@@ -12,6 +12,7 @@ import {
   type KeyProvider,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -377,12 +378,12 @@ async function seedBrief(
   if (!brief.ok) throw new Error("seedBriefSession: brief write failed");
   if (!withSession) return;
 
-  const written = await repo.reviewSessions.writeToSession(
+  const written = await repo.reviewSessions.setOutcome(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     },
-    (writer) => writer.putReadMark({ chunkId: "c1" }),
+    ReviewOutcomes.COMMENT,
   );
   if (!written.ok) throw new Error("seedBriefSession: session seed failed");
 }

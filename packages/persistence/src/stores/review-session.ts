@@ -19,14 +19,7 @@ import {
   type BriefSessionFacts,
 } from "brief-core/artifact";
 import type { Hop } from "brief-core/remap";
-import {
-  CommentAnchorKinds,
-  DraftCommentStatuses,
-  type AnchorStatus,
-  type CommentAnchorKind,
-  type DraftCommentSide,
-  type DraftCommentStatus,
-} from "types/comments";
+import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import { AnchorStates } from "types/generations";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -92,6 +85,13 @@ export const ReviewSessionErrorCodes = {
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
   /** The session already holds `MAX_SESSION_DRAFTS` unposted drafts. */
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
+  /**
+   * A new read mark, reclassification or decision would hold more rows of
+   * its kind than the Brief has Chunks, groups or flags.
+   */
+  SESSION_RECORD_LIMIT_REACHED: "session-record-limit-reached",
+  /** A write meant only for a session that exists found none. */
+  SESSION_NOT_FOUND: "session-not-found",
 } as const;
 export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCodes>;
 
@@ -125,6 +125,12 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 /** A read that works inside a transaction or straight off the handle. */
 type Reader = Tx | AppDrizzle;
 
+/** What an operation does once its session is open and locked. */
+type SessionStep<Value> = (
+  tx: Tx,
+  session: ReviewSessionRow,
+) => Promise<SessionOperationResult<Value>>;
+
 export type ReviewSessionRow = typeof reviewSession.$inferSelect;
 type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;
 export type ReviewDraftCommentRow = Omit<
@@ -144,69 +150,22 @@ export interface ReviewSessionKey {
   readonly reviewerId: ReviewerId;
 }
 
-export interface DraftCommentInputBase {
-  readonly reviewSessionId: ReviewSessionId;
-  readonly filePath: string;
-  readonly body: string;
-  readonly status?: DraftCommentStatus;
-  readonly anchorStatus?: AnchorStatus | null;
-  readonly carriedFromSessionId?: ReviewSessionId | null;
-}
-
-export interface LineDraftCommentInput extends DraftCommentInputBase {
-  readonly kind: typeof CommentAnchorKinds.LINE;
-  readonly side: DraftCommentSide;
-  /** Non-null only when the range genuinely crosses sides. */
-  readonly startSide?: DraftCommentSide | null;
-  readonly startLine: number;
-  readonly endLine: number;
-}
-
-export interface FileDraftCommentInput extends DraftCommentInputBase {
-  readonly kind: typeof CommentAnchorKinds.FILE;
-}
-
-export type DraftCommentInput = LineDraftCommentInput | FileDraftCommentInput;
-
-/** `Omit` on the union would drop arm-only fields; distribute it by hand. */
-type DraftCommentInsert =
-  | Omit<LineDraftCommentInput, "reviewSessionId">
-  | Omit<FileDraftCommentInput, "reviewSessionId">;
-export type DraftCommentWrite =
-  | Omit<LineDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">
-  | Omit<FileDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">;
-
-/**
- * An edit to a stored draft, only the named fields move. A re-anchor names
- * the coordinates AND clears `anchorStatus`: the human placed it, so the
- * carry-over's verdict on it is settled. A File comment clears the line
- * columns; a Line comment writes them.
- */
-export interface DraftCommentPatch {
-  readonly body?: string;
-  readonly kind?: CommentAnchorKind;
-  readonly filePath?: string;
-  readonly side?: DraftCommentSide | null;
-  readonly startSide?: DraftCommentSide | null;
-  readonly startLine?: number | null;
-  readonly endLine?: number | null;
-  readonly anchorStatus?: AnchorStatus | null;
-}
-
-export interface ReadMarkInput {
-  readonly reviewSessionId: ReviewSessionId;
+/** The reviewer marking a Chunk read, or unread with `read: false`. */
+export interface ChunkReadInput {
   readonly chunkId: string;
+  readonly read: boolean;
 }
 
-export interface ReclassificationInput {
-  readonly reviewSessionId: ReviewSessionId;
+/** The reviewer's own category for a change group, overriding the Brief's. */
+export interface GroupReclassificationInput {
   readonly changeGroupId: string;
   readonly category: ChangeGroupCategory;
 }
 
-export interface SubmittedReviewInput {
-  readonly reviewSessionId: ReviewSessionId;
-  readonly githubReviewId: bigint;
+/** Drafts GitHub now holds, and the review that wraps them when it has one. */
+export interface PublishedDraftsInput {
+  readonly draftIds: readonly bigint[];
+  readonly githubReviewId?: bigint;
 }
 
 /** A decision on one risk flag, anchored by content coordinates. */
@@ -277,67 +236,18 @@ export interface ReviewSessionView {
   readonly carriedFrom: CarriedFrom | undefined;
 }
 
-/**
- * The owned writes, bound to one session inside the materialization
- * transaction. They throw rather than return `Result`: the parents are
- * already resolved and the transaction is open, so a failure here is an infra
- * error and must take the whole transaction down with it.
- */
-export interface SessionWriter {
-  readonly session: ReviewSessionRow;
-  /**
-   * The carry-over source is NOT the caller's to name: the copy sets it from
-   * the session it read, which is tenant-filtered. Accepting it here would
-   * take an unchecked `review_session` id inside an open transaction.
-   */
-  addDraftComment(input: DraftCommentWrite): Promise<ReviewDraftCommentRow>;
-  /**
-   * Edit a draft this session holds, its own row, or the copy of a carried
-   * one named by the id it was copied from. `undefined` when it holds neither.
-   */
-  updateDraftComment(
-    id: bigint,
-    patch: DraftCommentPatch,
-  ): Promise<ReviewDraftCommentRow | undefined>;
-  /** Drop such a draft, returning the row that went; `undefined` when none did. */
-  deleteDraftComment(id: bigint): Promise<bigint | undefined>;
-  /** Every draft this session holds, published ones included, oldest first. */
-  draftComments(): Promise<readonly ReviewDraftCommentRow[]>;
-  /** Flip drafts to `submitted`, what publishing them to GitHub records here. */
-  publishDraftComments(ids: readonly bigint[]): Promise<void>;
-  putReadMark(
-    input: Omit<ReadMarkInput, "reviewSessionId">,
-  ): Promise<ReviewReadMarkRow>;
-  /** Drop a Chunk's read mark, if any, the unread half of `set-chunk-read`. */
-  clearReadMark(chunkId: string): Promise<void>;
-  putReclassification(
-    input: Omit<ReclassificationInput, "reviewSessionId">,
-  ): Promise<ReviewGroupReclassificationRow>;
-  recordSubmittedReview(
-    input: Omit<SubmittedReviewInput, "reviewSessionId">,
-  ): Promise<ReviewSubmittedReviewRow>;
-  /** Record a decision on a risk flag; idempotent on its anchor. */
-  putDisposition(input: DispositionInput): Promise<DispositionRow>;
-  /**
-   * Undo a decision, the flag goes back to undecided, which is a row that
-   * does not exist. `false` when this session held none. Idempotent.
-   */
-  deleteDisposition(anchor: DispositionAnchor): Promise<boolean>;
-  /** The provisional submit verdict. Never carried, a new session starts over. */
-  setReviewOutcome(outcome: ReviewOutcome): Promise<ReviewSessionRow>;
-}
-
 /** A draft as the reviewer first writes it: where it sits and what it says. */
 export interface NewDraft {
   readonly anchor: DraftAnchor;
   readonly body: string;
 }
 
+/** What a session operation wrote, or why it refused. */
+export type SessionOperationResult<Value> = Result<Value, ReviewSessionError>;
+
 /** The draft row an operation wrote or removed, or why it refused. */
-export type DraftOperationResult = Result<
-  ReviewDraftCommentRow,
-  ReviewSessionError
->;
+export type DraftOperationResult =
+  SessionOperationResult<ReviewDraftCommentRow>;
 
 /**
  * The reviewer's draft actions. Each is one session write: it materializes
@@ -369,19 +279,63 @@ interface DraftOperations {
   ): Promise<DraftOperationResult>;
 }
 
-export interface ReviewSessionRepository extends DraftOperations {
+/**
+ * The reviewer's work on the Brief itself, written the way the draft actions
+ * are. A new read mark, reclassification or decision refuses with
+ * `sessionRecordLimitReached` once the session's own rows of that kind match
+ * the Brief's Chunks, groups or flags; rewriting a key it holds never does.
+ */
+interface ReviewWorkOperations {
+  setChunkRead(
+    key: ReviewSessionKey,
+    input: ChunkReadInput,
+  ): Promise<SessionOperationResult<ChunkReadInput>>;
+  reclassifyGroup(
+    key: ReviewSessionKey,
+    input: GroupReclassificationInput,
+  ): Promise<SessionOperationResult<ReviewGroupReclassificationRow>>;
+  /** The whole list is one write; answers how many decisions it wrote. */
+  decideRisks(
+    key: ReviewSessionKey,
+    decisions: readonly DispositionInput[],
+  ): Promise<SessionOperationResult<number>>;
+  /** Back to undecided; answers how many decisions it removed. */
+  reopenRisks(
+    key: ReviewSessionKey,
+    anchors: readonly DispositionAnchor[],
+  ): Promise<SessionOperationResult<number>>;
+  /** The provisional submit verdict. Never carried, a new session starts over. */
+  setOutcome(
+    key: ReviewSessionKey,
+    outcome: ReviewOutcome,
+  ): Promise<SessionOperationResult<ReviewSessionRow>>;
+}
+
+/** What publishing to GitHub reads and records on the session. */
+interface PublishOperations {
+  /** Every draft the session holds, published ones included, oldest first. */
+  listDrafts(
+    key: ReviewSessionKey,
+  ): Promise<SessionOperationResult<readonly ReviewDraftCommentRow[]>>;
+  /** Flip the drafts to `submitted`; answers how many it flipped. */
+  recordPublishedDrafts(
+    key: ReviewSessionKey,
+    published: PublishedDraftsInput,
+  ): Promise<SessionOperationResult<number>>;
+  /**
+   * Record a reply's wrapping review on a session that already exists;
+   * `sessionNotFound` rather than a create when none does.
+   */
+  recordReplyReview(
+    key: ReviewSessionKey,
+    githubReviewId: bigint,
+  ): Promise<SessionOperationResult<ReviewSubmittedReviewRow>>;
+}
+
+export interface ReviewSessionRepository
+  extends DraftOperations, ReviewWorkOperations, PublishOperations {
   /** Read by key. Absence is a normal `undefined`, never a create. */
   get(key: ReviewSessionKey): Promise<ReviewSessionSnapshot | undefined>;
-  /**
-   * Run `write` as the session's write, materializing the session and its
-   * carry-over first if this is the first one, all in ONE transaction. Any
-   * write operation can be the one that writes; no read ever is.
-   * `sessionFrozen` when the reviewer already works on a newer Brief.
-   */
-  writeToSession<T>(
-    key: ReviewSessionKey,
-    write: (writer: SessionWriter) => Promise<T>,
-  ): Promise<Result<T, ReviewSessionError>>;
   /**
    * The session as it stands plus, while it does not exist yet, the previous
    * session's work re-placed onto this Brief. Creates NOTHING, the verdicts
@@ -398,6 +352,15 @@ export type ReviewSessionPreview = Result<
 >;
 
 type SessionFactsRead = Result<BriefSessionFacts, ReviewSessionError>;
+
+/** The most rows of each kind a session may hold; an absent one is no limit. */
+interface SessionRecordLimits {
+  readonly chunks?: number;
+  readonly groups?: number;
+  readonly flags?: number;
+}
+
+type RecordLimitsRead = Result<SessionRecordLimits, ReviewSessionError>;
 
 /** `undefined` when nothing is pending, so nothing needs the body. */
 type PendingFactsRead = Result<
@@ -469,18 +432,6 @@ interface PreviousSession {
   readonly headIndex: number;
 }
 
-/**
- * The inserts as the repository itself uses them, it may name a carry-over
- * source because it resolves that session in the same transaction first. The
- * public `SessionWriter` narrows the field away.
- */
-interface SessionInserts extends Omit<
-  SessionWriter,
-  "session" | "addDraftComment"
-> {
-  addDraftComment(input: DraftCommentInsert): Promise<ReviewDraftCommentRow>;
-}
-
 /** The one row a `.returning()` insert owes; its absence is an infra error. */
 function only<TRow>(rows: TRow[], subject: string): TRow {
   const row = rows[0];
@@ -488,33 +439,14 @@ function only<TRow>(rows: TRow[], subject: string): TRow {
   return row;
 }
 
-function isFileDraftCommentInput(
-  input: DraftCommentInsert,
-): input is Omit<FileDraftCommentInput, "reviewSessionId"> {
-  return input.kind === CommentAnchorKinds.FILE;
-}
-
-function draftAnchorFromInsert(input: DraftCommentInsert): DraftAnchor {
-  if (isFileDraftCommentInput(input)) {
-    return { kind: CommentAnchorKinds.FILE, file: input.filePath };
-  }
-  if (input.startSide !== undefined && input.startSide !== null) {
-    return {
-      kind: CommentAnchorKinds.LINE,
-      file: input.filePath,
-      side: input.side,
-      startLine: input.startLine,
-      endLine: input.endLine,
-      startSide: input.startSide,
-    };
-  }
-  return {
-    kind: CommentAnchorKinds.LINE,
-    file: input.filePath,
-    side: input.side,
-    startLine: input.startLine,
-    endLine: input.endLine,
-  };
+/** One disposition anchor as a single comparable key. */
+function deriveAnchorKey(anchor: DispositionAnchor): string {
+  return [
+    anchor.filePath,
+    anchor.attribute,
+    anchor.regionStart,
+    anchor.regionEnd,
+  ].join("\u0000");
 }
 
 function shapeDraftCommentValues(
@@ -540,19 +472,6 @@ function shapeDraftCommentValues(
     startSide: anchor.startSide ?? null,
     startLine: anchor.startLine,
     endLine: anchor.endLine,
-  };
-}
-
-function normalizeDraftCommentPatch(
-  patch: DraftCommentPatch,
-): DraftCommentPatch {
-  if (patch.kind !== CommentAnchorKinds.FILE) return patch;
-  return {
-    ...patch,
-    side: null,
-    startSide: null,
-    startLine: null,
-    endLine: null,
   };
 }
 
@@ -603,6 +522,24 @@ function fail(
   message: string,
 ): Result<never, ReviewSessionError> {
   return { ok: false, error: { code, message } };
+}
+
+/**
+ * Refuses once a session would hold more rows of a kind than the Brief
+ * allows. An absent limit refuses nothing.
+ */
+function checkRecordLimit(
+  held: number,
+  limit: number | undefined,
+  subject: string,
+): SessionOperationResult<undefined> {
+  if (limit !== undefined && held > limit) {
+    return fail(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+      `review_session would hold ${held} ${subject}, the brief has ${limit}`,
+    );
+  }
+  return { ok: true, value: undefined };
 }
 
 function throwIfPreviousChanged(
@@ -666,10 +603,7 @@ export function createReviewSessionRepository(
       .limit(1);
     const row = rows[0];
     if (row === undefined) {
-      return fail(
-        ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-        `brief ${briefId} not in ${scope.label}`,
-      );
+      return failBriefNotInTenant(briefId);
     }
 
     const read = readBriefSessionFacts(row.body);
@@ -680,6 +614,53 @@ export function createReviewSessionRepository(
       );
     }
     return { ok: true, value: read.value };
+  }
+
+  /**
+   * The Brief's stored counts. A row written before them falls back to its
+   * body on the transaction itself; a body that will not parse sets no limit.
+   */
+  async function readRecordLimits(
+    tx: Tx,
+    briefId: BriefRowId,
+  ): Promise<RecordLimitsRead> {
+    const rows = await tx
+      .select({
+        chunks: brief.sessionChunkCount,
+        groups: brief.sessionGroupCount,
+        flags: brief.sessionFlagCount,
+      })
+      .from(brief)
+      .where(
+        and(
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
+          eq(brief.id, briefId),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined) {
+      return failBriefNotInTenant(briefId);
+    }
+    const { chunks, groups, flags } = row;
+    if (chunks !== null && groups !== null && flags !== null) {
+      return { ok: true, value: { chunks, groups, flags } };
+    }
+
+    const read = await readSessionFacts(tx, briefId);
+    if (read.ok) {
+      const facts = read.value;
+      const counted = {
+        chunks: facts.markableChunkCount,
+        groups: facts.groupIds.length,
+        flags: facts.flags.length,
+      };
+      return { ok: true, value: counted };
+    }
+    if (read.error.code === ReviewSessionErrorCodes.BRIEF_UNREADABLE) {
+      return { ok: true, value: {} };
+    }
+    return read;
   }
 
   /** The reviewer's newest session on an OLDER Brief of the same PR. */
@@ -908,213 +889,292 @@ export function createReviewSessionRepository(
     );
   }
 
-  /** The owned writes, bound to one open transaction and one session id. */
-  function insertsForSession(
+  /** The rows of a session-owned table that belong to `sessionId`. */
+  function ownedReadMarks(sessionId: ReviewSessionId) {
+    return and(
+      scope.matchesWorld(reviewReadMark.installationId),
+      eq(reviewReadMark.reviewSessionId, sessionId),
+    );
+  }
+
+  function ownedReclassifications(sessionId: ReviewSessionId) {
+    return and(
+      scope.matchesWorld(reviewGroupReclassification.installationId),
+      eq(reviewGroupReclassification.reviewSessionId, sessionId),
+    );
+  }
+
+  function ownedDispositions(sessionId: ReviewSessionId) {
+    return and(
+      scope.matchesWorld(disposition.installationId),
+      eq(disposition.reviewSessionId, sessionId),
+    );
+  }
+
+  /**
+   * Mark a Chunk read. Carry-over copies read marks only for Chunks of this
+   * Brief, so every row the session holds counts against its Chunks.
+   */
+  async function markChunkRead(
+    tx: Tx,
+    session: ReviewSessionRow,
+    input: ChunkReadInput,
+  ): Promise<SessionOperationResult<ChunkReadInput>> {
+    const inserted = await tx
+      .insert(reviewReadMark)
+      .values({
+        installationId: scope.installationId,
+        reviewSessionId: session.id,
+        chunkId: input.chunkId,
+      })
+      .onConflictDoNothing({
+        target: [reviewReadMark.reviewSessionId, reviewReadMark.chunkId],
+      })
+      .returning({ id: reviewReadMark.id });
+    if (inserted.length === 0) {
+      return { ok: true, value: input };
+    }
+
+    const counted = await tx
+      .select({ held: count() })
+      .from(reviewReadMark)
+      .where(ownedReadMarks(session.id));
+    const held = counted[0]?.held ?? 0;
+    const limits = await readRecordLimits(tx, session.briefId);
+    if (!limits.ok) {
+      return limits;
+    }
+    const limit = checkRecordLimit(held, limits.value.chunks, "read marks");
+    if (!limit.ok) {
+      return limit;
+    }
+    return { ok: true, value: input };
+  }
+
+  async function clearChunkRead(
     tx: Tx,
     sessionId: ReviewSessionId,
-  ): SessionInserts {
-    return {
-      async addDraftComment(input) {
-        const values: typeof reviewDraftComment.$inferInsert = {
-          installationId: scope.installationId,
-          reviewSessionId: sessionId,
-          ...shapeDraftCommentValues(draftAnchorFromInsert(input)),
-          body: input.body,
-          anchorStatus: input.anchorStatus ?? null,
-          carriedFromSessionId: input.carriedFromSessionId ?? null,
-        };
+    chunkId: string,
+  ): Promise<void> {
+    await tx
+      .delete(reviewReadMark)
+      .where(
+        and(ownedReadMarks(sessionId), eq(reviewReadMark.chunkId, chunkId)),
+      );
+  }
 
-        if (input.status !== undefined) values.status = input.status;
-
-        return parseDraftCommentRow(
-          only(
-            await tx.insert(reviewDraftComment).values(values).returning(),
-            "review_draft_comment",
+  /**
+   * Set a group's category. Carry-over copies reclassifications only for
+   * groups of this Brief, so every row counts against its groups.
+   */
+  async function writeReclassification(
+    tx: Tx,
+    session: ReviewSessionRow,
+    input: GroupReclassificationInput,
+  ): Promise<SessionOperationResult<ReviewGroupReclassificationRow>> {
+    const inserted = await tx
+      .insert(reviewGroupReclassification)
+      .values({
+        installationId: scope.installationId,
+        reviewSessionId: session.id,
+        changeGroupId: input.changeGroupId,
+        category: input.category,
+      })
+      .onConflictDoNothing({
+        target: [
+          reviewGroupReclassification.reviewSessionId,
+          reviewGroupReclassification.changeGroupId,
+        ],
+      })
+      .returning();
+    const created = inserted[0];
+    if (created === undefined) {
+      const rows = await tx
+        .update(reviewGroupReclassification)
+        .set({ category: input.category })
+        .where(
+          and(
+            ownedReclassifications(session.id),
+            eq(reviewGroupReclassification.changeGroupId, input.changeGroupId),
           ),
-        );
-      },
-      async updateDraftComment(id, patch) {
-        const rows = await tx
-          .update(reviewDraftComment)
-          .set(normalizeDraftCommentPatch(patch))
-          .where(addressedDraft(sessionId, id))
-          .returning();
-        const row = rows[0];
-        return row === undefined ? undefined : parseDraftCommentRow(row);
-      },
-      async deleteDraftComment(id) {
-        const rows = await tx
-          .delete(reviewDraftComment)
-          .where(addressedDraft(sessionId, id))
-          .returning({ id: reviewDraftComment.id });
-        return rows[0]?.id;
-      },
-      async draftComments() {
-        const rows = await tx
-          .select()
-          .from(reviewDraftComment)
-          .where(ownedBy(sessionId))
-          .orderBy(asc(reviewDraftComment.id));
-        return rows.map(parseDraftCommentRow);
-      },
-      async publishDraftComments(ids) {
-        if (ids.length === 0) return;
-        await tx
-          .update(reviewDraftComment)
-          .set({ status: DraftCommentStatuses.SUBMITTED })
-          .where(
-            and(ownedBy(sessionId), inArray(reviewDraftComment.id, [...ids])),
-          );
-      },
-      async putReadMark(input) {
-        return only(
-          await tx
-            .insert(reviewReadMark)
-            .values({
-              installationId: scope.installationId,
-              reviewSessionId: sessionId,
-              chunkId: input.chunkId,
-            })
-            .onConflictDoUpdate({
-              target: [reviewReadMark.reviewSessionId, reviewReadMark.chunkId],
-              set: { chunkId: input.chunkId },
-            })
-            .returning(),
-          "review_read_mark",
-        );
-      },
-      async clearReadMark(chunkId) {
-        await tx
-          .delete(reviewReadMark)
-          .where(
-            and(
-              eq(reviewReadMark.chunkId, chunkId),
-              and(
-                scope.matchesWorld(reviewReadMark.installationId),
-                eq(reviewReadMark.reviewSessionId, sessionId),
-              ),
-            ),
-          );
-      },
-      async putReclassification(input) {
-        return only(
-          await tx
-            .insert(reviewGroupReclassification)
-            .values({
-              installationId: scope.installationId,
-              reviewSessionId: sessionId,
-              changeGroupId: input.changeGroupId,
-              category: input.category,
-            })
-            .onConflictDoUpdate({
-              target: [
-                reviewGroupReclassification.reviewSessionId,
-                reviewGroupReclassification.changeGroupId,
-              ],
-              set: { category: input.category },
-            })
-            .returning(),
-          "review_group_reclassification",
-        );
-      },
-      async putDisposition(input) {
-        return only(
-          await tx
-            .insert(disposition)
-            .values({
-              installationId: scope.installationId,
-              reviewSessionId: sessionId,
-              filePath: input.filePath,
-              attribute: input.attribute,
-              regionStart: input.regionStart,
-              regionEnd: input.regionEnd,
-              decision: input.decision,
-              reason: input.reason ?? null,
-              evidenceKind: input.evidence?.kind ?? null,
-              evidenceRef: input.evidence?.ref ?? null,
-              decidedAt: new Date(),
-            })
-            .onConflictDoUpdate({
-              target: [
-                disposition.reviewSessionId,
-                disposition.filePath,
-                disposition.attribute,
-                disposition.regionStart,
-                disposition.regionEnd,
-              ],
-              set: {
-                decision: input.decision,
-                reason: input.reason ?? null,
-                evidenceKind: input.evidence?.kind ?? null,
-                evidenceRef: input.evidence?.ref ?? null,
-                // Deciding here settles both questions the carry brought over,
-                // the re-look AND the evidence the old decision lost.
-                carryStatus: null,
-                evidenceStatus: null,
-                decidedAt: new Date(),
-              },
-            })
-            .returning(),
-          "disposition",
-        );
-      },
-      async deleteDisposition(anchor) {
-        const gone = await tx
+        )
+        .returning();
+      return { ok: true, value: only(rows, "review_group_reclassification") };
+    }
+
+    const counted = await tx
+      .select({ held: count() })
+      .from(reviewGroupReclassification)
+      .where(ownedReclassifications(session.id));
+    const held = counted[0]?.held ?? 0;
+    const limits = await readRecordLimits(tx, session.briefId);
+    if (!limits.ok) {
+      return limits;
+    }
+    const limit = checkRecordLimit(held, limits.value.groups, "groups");
+    if (!limit.ok) {
+      return limit;
+    }
+    return { ok: true, value: created };
+  }
+
+  /**
+   * Record decisions on risk flags, idempotent on each anchor. A carried
+   * decision can sit on a flag this Brief no longer fires, so only the
+   * session's own decisions, the ones with no carry verdict, count against
+   * the Brief's flags.
+   */
+  async function decideOnFlags(
+    tx: Tx,
+    session: ReviewSessionRow,
+    decisions: readonly DispositionInput[],
+  ): Promise<SessionOperationResult<number>> {
+    const sessionId = session.id;
+    const held = await tx
+      .select({
+        filePath: disposition.filePath,
+        attribute: disposition.attribute,
+        regionStart: disposition.regionStart,
+        regionEnd: disposition.regionEnd,
+        carryStatus: disposition.carryStatus,
+      })
+      .from(disposition)
+      .where(ownedDispositions(sessionId));
+    const heldKeys = new Set(held.map(deriveAnchorKey));
+    const own = held.filter((row) => row.carryStatus === null).length;
+    const fresh = new Set(
+      decisions.map(deriveAnchorKey).filter((key) => !heldKeys.has(key)),
+    );
+    if (fresh.size > 0) {
+      const limits = await readRecordLimits(tx, session.briefId);
+      if (!limits.ok) {
+        return limits;
+      }
+      const limit = checkRecordLimit(
+        own + fresh.size,
+        limits.value.flags,
+        "dispositions",
+      );
+      if (!limit.ok) {
+        return limit;
+      }
+    }
+
+    await Promise.all(
+      decisions.map((decision) => upsertDisposition(tx, sessionId, decision)),
+    );
+    return { ok: true, value: decisions.length };
+  }
+
+  async function upsertDisposition(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    input: DispositionInput,
+  ): Promise<void> {
+    const decided = {
+      decision: input.decision,
+      reason: input.reason ?? null,
+      evidenceKind: input.evidence?.kind ?? null,
+      evidenceRef: input.evidence?.ref ?? null,
+      decidedAt: new Date(),
+    };
+    await tx
+      .insert(disposition)
+      .values({
+        installationId: scope.installationId,
+        reviewSessionId: sessionId,
+        filePath: input.filePath,
+        attribute: input.attribute,
+        regionStart: input.regionStart,
+        regionEnd: input.regionEnd,
+        ...decided,
+      })
+      .onConflictDoUpdate({
+        target: [
+          disposition.reviewSessionId,
+          disposition.filePath,
+          disposition.attribute,
+          disposition.regionStart,
+          disposition.regionEnd,
+        ],
+        // Deciding here settles both questions the carry brought over, the
+        // re-look AND the evidence the old decision lost.
+        set: { ...decided, carryStatus: null, evidenceStatus: null },
+      });
+  }
+
+  /** Undo decisions; answers how many the session held. */
+  async function removeDispositions(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    anchors: readonly DispositionAnchor[],
+  ): Promise<number> {
+    const removed = await Promise.all(
+      anchors.map((anchor) =>
+        tx
           .delete(disposition)
           .where(
             and(
-              scope.matchesWorld(disposition.installationId),
-              eq(disposition.reviewSessionId, sessionId),
+              ownedDispositions(sessionId),
               eq(disposition.filePath, anchor.filePath),
               eq(disposition.attribute, anchor.attribute),
               eq(disposition.regionStart, anchor.regionStart),
               eq(disposition.regionEnd, anchor.regionEnd),
             ),
           )
-          .returning({ id: disposition.id });
-        return gone.length > 0;
-      },
-      async setReviewOutcome(outcome) {
-        return only(
-          await tx
-            .update(reviewSession)
-            .set({ reviewOutcome: outcome })
-            .where(
-              and(
-                scope.matchesWorld(reviewSession.installationId),
-                eq(reviewSession.id, sessionId),
-              ),
-            )
-            .returning(),
-          "review_session",
-        );
-      },
-      async recordSubmittedReview(input) {
-        return only(
-          await tx
-            .insert(reviewSubmittedReview)
-            .values({
-              installationId: scope.installationId,
-              reviewSessionId: sessionId,
-              githubReviewId: input.githubReviewId,
-            })
-            .onConflictDoUpdate({
-              target: [
-                reviewSubmittedReview.reviewSessionId,
-                reviewSubmittedReview.githubReviewId,
-              ],
-              set: { githubReviewId: input.githubReviewId },
-            })
-            .returning(),
-          "review_submitted_review",
-        );
-      },
-    };
+          .returning({ id: disposition.id }),
+      ),
+    );
+    return removed.filter((rows) => rows.length > 0).length;
   }
 
-  /** The materialization transaction's writer: the inserts plus its session. */
-  function sessionWriter(tx: Tx, session: ReviewSessionRow): SessionWriter {
-    return { session, ...insertsForSession(tx, session.id) };
+  async function upsertSubmittedReview(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    githubReviewId: bigint,
+  ): Promise<ReviewSubmittedReviewRow> {
+    const rows = await tx
+      .insert(reviewSubmittedReview)
+      .values({
+        installationId: scope.installationId,
+        reviewSessionId: sessionId,
+        githubReviewId,
+      })
+      .onConflictDoUpdate({
+        target: [
+          reviewSubmittedReview.reviewSessionId,
+          reviewSubmittedReview.githubReviewId,
+        ],
+        set: { githubReviewId },
+      })
+      .returning();
+    return only(rows, "review_submitted_review");
+  }
+
+  /** Flip published drafts and record their review; answers the flipped count. */
+  async function recordPublished(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    published: PublishedDraftsInput,
+  ): Promise<number> {
+    if (published.githubReviewId !== undefined) {
+      await upsertSubmittedReview(tx, sessionId, published.githubReviewId);
+    }
+    if (published.draftIds.length === 0) {
+      return 0;
+    }
+
+    const flipped = await tx
+      .update(reviewDraftComment)
+      .set({ status: DraftCommentStatuses.SUBMITTED })
+      .where(
+        and(
+          ownedBy(sessionId),
+          inArray(reviewDraftComment.id, [...published.draftIds]),
+        ),
+      )
+      .returning({ id: reviewDraftComment.id });
+    return flipped.length;
   }
 
   /**
@@ -1483,6 +1543,29 @@ export function createReviewSessionRepository(
     };
   }
 
+  function failBriefNotInTenant(
+    briefId: BriefRowId,
+  ): Result<never, ReviewSessionError> {
+    return fail(
+      ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
+      `brief ${briefId} not in ${scope.label}`,
+    );
+  }
+
+  /** The locked session, refused when the reviewer works on a newer Brief. */
+  async function refuseIfFrozen(
+    tx: Tx,
+    facts: BriefFacts,
+    reviewerId: ReviewerId,
+    session: ReviewSessionRow,
+  ): Promise<SessionOperationResult<ReviewSessionRow>> {
+    const frozen = await hasNewerSession(tx, facts, reviewerId);
+    if (frozen) {
+      return failFrozen(facts, reviewerId);
+    }
+    return { ok: true, value: session };
+  }
+
   /**
    * The locked session row a write lands on, materialized first if this is
    * the first write, refused when frozen. A refusal here has written nothing.
@@ -1491,47 +1574,48 @@ export function createReviewSessionRepository(
     tx: Tx,
     key: ReviewSessionKey,
     sessionFacts: BriefSessionFacts | undefined,
-  ): Promise<Result<ReviewSessionRow, ReviewSessionError>> {
+  ): Promise<SessionOperationResult<ReviewSessionRow>> {
     const facts = await readBriefCarrySlice(tx, key.briefId);
     if (facts === undefined) {
-      return fail(
-        ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-        `brief ${key.briefId} not in ${scope.label}`,
-      );
+      return failBriefNotInTenant(key.briefId);
     }
     const existing = await lockSession(tx, key);
     if (existing === undefined) {
       return materializeSession(tx, key, facts, sessionFacts);
     }
+    return refuseIfFrozen(tx, facts, key.reviewerId, existing);
+  }
 
-    const frozen = await hasNewerSession(tx, facts, key.reviewerId);
-    if (frozen) {
-      return failFrozen(facts, key.reviewerId);
+  /** As `openForWrite`, but a session that does not exist stays absent. */
+  async function openExistingForWrite(
+    tx: Tx,
+    key: ReviewSessionKey,
+  ): Promise<SessionOperationResult<ReviewSessionRow>> {
+    const facts = await readBriefCarrySlice(tx, key.briefId);
+    if (facts === undefined) {
+      return failBriefNotInTenant(key.briefId);
     }
-    return { ok: true, value: existing };
+    const existing = await lockSession(tx, key);
+    if (existing === undefined) {
+      return fail(
+        ReviewSessionErrorCodes.SESSION_NOT_FOUND,
+        `reviewer ${key.reviewerId} holds no review_session on brief ${key.briefId}`,
+      );
+    }
+    return refuseIfFrozen(tx, facts, key.reviewerId, existing);
   }
 
   /**
-   * One session write, one transaction: the session locked and judged, then
-   * `operation`. Its refusal rolls the transaction back, a materialization
-   * included.
+   * One transaction: the session opened, then `operation`. Its refusal rolls
+   * the transaction back, a materialization included.
    */
-  async function runSessionOperation<Value>(
-    key: ReviewSessionKey,
-    operation: (
-      tx: Tx,
-      session: ReviewSessionRow,
-    ) => Promise<Result<Value, ReviewSessionError>>,
-  ): Promise<Result<Value, ReviewSessionError>> {
-    // Read before the transaction opens: the outer handle deadlocks inside it.
-    const pending = await readPendingFacts(key);
-    if (!pending.ok) {
-      return pending;
-    }
-
+  async function runInSessionTransaction<Value>(
+    open: (tx: Tx) => Promise<SessionOperationResult<ReviewSessionRow>>,
+    operation: SessionStep<Value>,
+  ): Promise<SessionOperationResult<Value>> {
     try {
       return await db.transaction(async (tx) => {
-        const opened = await openForWrite(tx, key, pending.value);
+        const opened = await open(tx);
         if (!opened.ok) {
           return opened;
         }
@@ -1547,6 +1631,33 @@ export function createReviewSessionRepository(
       }
       throw error;
     }
+  }
+
+  /** One session write: the session locked and judged, then `operation`. */
+  async function runSessionOperation<Value>(
+    key: ReviewSessionKey,
+    operation: SessionStep<Value>,
+  ): Promise<SessionOperationResult<Value>> {
+    // Read before the transaction opens: the outer handle deadlocks inside it.
+    const pending = await readPendingFacts(key);
+    if (!pending.ok) {
+      return pending;
+    }
+    return runInSessionTransaction(
+      (tx) => openForWrite(tx, key, pending.value),
+      operation,
+    );
+  }
+
+  /** A session write that never materializes; `sessionNotFound` instead. */
+  async function runExistingSessionOperation<Value>(
+    key: ReviewSessionKey,
+    operation: SessionStep<Value>,
+  ): Promise<SessionOperationResult<Value>> {
+    return runInSessionTransaction(
+      (tx) => openExistingForWrite(tx, key),
+      operation,
+    );
   }
 
   /** The draft `draftId` names in this session, while it is still a draft. */
@@ -1619,13 +1730,6 @@ export function createReviewSessionRepository(
       return snapshotFor(key);
     },
 
-    async writeToSession(key, write) {
-      return runSessionOperation(key, async (tx, session) => {
-        const written = await write(sessionWriter(tx, session));
-        return { ok: true, value: written };
-      });
-    },
-
     async addDraft(key, draft) {
       return runSessionOperation(
         key,
@@ -1681,6 +1785,78 @@ export function createReviewSessionRepository(
             and(ownedBy(session.id), eq(reviewDraftComment.id, held.value.id)),
           );
         return held;
+      });
+    },
+
+    async setChunkRead(key, input) {
+      if (!input.read) {
+        return runSessionOperation(key, async (tx, session) => {
+          await clearChunkRead(tx, session.id, input.chunkId);
+          return { ok: true, value: input };
+        });
+      }
+      return runSessionOperation(key, (tx, session) =>
+        markChunkRead(tx, session, input),
+      );
+    },
+
+    async reclassifyGroup(key, input) {
+      return runSessionOperation(key, (tx, session) =>
+        writeReclassification(tx, session, input),
+      );
+    },
+
+    async decideRisks(key, decisions) {
+      return runSessionOperation(key, (tx, session) =>
+        decideOnFlags(tx, session, decisions),
+      );
+    },
+
+    async reopenRisks(key, anchors) {
+      return runSessionOperation(key, async (tx, session) => {
+        const removed = await removeDispositions(tx, session.id, anchors);
+        return { ok: true, value: removed };
+      });
+    },
+
+    async setOutcome(key, outcome) {
+      return runSessionOperation(key, async (tx, session) => {
+        const rows = await tx
+          .update(reviewSession)
+          .set({ reviewOutcome: outcome })
+          .where(
+            and(
+              scope.matchesWorld(reviewSession.installationId),
+              eq(reviewSession.id, session.id),
+            ),
+          )
+          .returning();
+        return { ok: true, value: only(rows, "review_session") };
+      });
+    },
+
+    async listDrafts(key) {
+      return runSessionOperation(key, async (tx, session) => {
+        const rows = await tx
+          .select()
+          .from(reviewDraftComment)
+          .where(ownedBy(session.id))
+          .orderBy(asc(reviewDraftComment.id));
+        return { ok: true, value: rows.map(parseDraftCommentRow) };
+      });
+    },
+
+    async recordPublishedDrafts(key, published) {
+      return runSessionOperation(key, async (tx, session) => {
+        const flipped = await recordPublished(tx, session.id, published);
+        return { ok: true, value: flipped };
+      });
+    },
+
+    async recordReplyReview(key, githubReviewId) {
+      return runExistingSessionOperation(key, async (tx, session) => {
+        const row = await upsertSubmittedReview(tx, session.id, githubReviewId);
+        return { ok: true, value: row };
       });
     },
 

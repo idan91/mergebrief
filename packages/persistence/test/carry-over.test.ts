@@ -14,16 +14,19 @@ import type { FlagKey } from "brief-core/artifact";
 import type {
   AppDatabase,
   BriefWriteInput,
+  ReviewDraftCommentRow,
+  ReviewSessionError,
   ReviewSessionRepository,
   ReviewSessionView,
-  SessionWriter,
   TenantContext,
 } from "../src/index";
+import type { Result } from "types/utils";
 import {
   isInstallationId,
   isRepoId,
   isReviewerId,
   type BriefRowId,
+  type DraftAnchor,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
@@ -32,11 +35,7 @@ import {
 } from "../src/types";
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
-import {
-  DraftCommentSides,
-  DraftCommentStatuses,
-  type DraftCommentSide,
-} from "types/comments";
+import { DraftCommentSides, type DraftCommentSide } from "types/comments";
 import { brandWith, freshPglite } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
@@ -148,6 +147,17 @@ async function countRows(client: PGlite, table: string): Promise<number> {
   return result.rows[0]?.n ?? -1;
 }
 
+/** The value of a write these fixtures expect to land. */
+function unwrapWrite<Value>(
+  written: Result<Value, ReviewSessionError>,
+  subject: string,
+): Value {
+  if (!written.ok) {
+    throw new Error(`${subject} seed failed: ${written.error.code}`);
+  }
+  return written.value;
+}
+
 /**
  * A session on `briefId`, created the only way one can be: a materializing
  * write. The fixtures below then write its owned rows through the repository.
@@ -160,28 +170,38 @@ async function openSession(
   const created = await createTenantRepository(
     world.handle,
     CTX,
-  ).reviewSessions.writeToSession(
-    { briefId, reviewerId },
-    async (writer) => writer.session.id,
-  );
-  if (!created.ok)
-    throw new Error(`session seed failed: ${created.error.code}`);
-  return created.value;
+  ).reviewSessions.setOutcome({ briefId, reviewerId }, ReviewOutcomes.COMMENT);
+  return unwrapWrite(created, "session").id;
 }
 
-/** Run one owned write the only way there is: through the session's writer. */
-async function write<T>(
+/** One draft on the session, through the reviewer's own draft action. */
+async function seedDraft(
   world: World,
   briefId: BriefRowId,
-  body: (writer: SessionWriter) => Promise<T>,
+  anchor: DraftAnchor,
+  body: string,
   reviewerId: ReviewerId = REVIEWER,
-): Promise<T> {
-  const written = await createTenantRepository(
+): Promise<ReviewDraftCommentRow> {
+  const added = await createTenantRepository(
     world.handle,
     CTX,
-  ).reviewSessions.writeToSession({ briefId, reviewerId }, body);
-  if (!written.ok) throw new Error(`write failed: ${written.error.code}`);
-  return written.value;
+  ).reviewSessions.addDraft({ briefId, reviewerId }, { anchor, body });
+  return unwrapWrite(added, "draft");
+}
+
+/** A Line anchor on `src/app.ts` over the given new-side lines. */
+function makeLineAnchor(
+  startLine: number,
+  endLine: number,
+  side: DraftCommentSide = DraftCommentSides.NEW,
+): DraftAnchor {
+  return {
+    kind: CommentAnchorKinds.LINE,
+    file: "src/app.ts",
+    side,
+    startLine,
+    endLine,
+  };
 }
 
 /** A previous session holding one draft comment on `src/app.ts:10-12`. */
@@ -190,19 +210,11 @@ async function seedPreviousComment(
   briefId: BriefRowId,
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<void> {
-  await openSession(world, briefId, reviewerId);
-  await write(
+  await seedDraft(
     world,
     briefId,
-    (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 10,
-        endLine: 12,
-        body: "this allocation is unbounded",
-      }),
+    makeLineAnchor(10, 12),
+    "this allocation is unbounded",
     reviewerId,
   );
 }
@@ -244,15 +256,18 @@ async function seedBriefFacts(
   );
 }
 
+/** A raw rewrite stores no counts, so the session limits read this body. */
 async function seedBriefBody(
   world: World,
   briefId: BriefRowId,
   body: string,
 ): Promise<void> {
-  await world.client.query(`update brief set body = $1 where id = $2`, [
-    body,
-    briefId.toString(),
-  ]);
+  await world.client.query(
+    `update brief set body = $1, session_chunk_count = null,
+       session_group_count = null, session_flag_count = null
+     where id = $2`,
+    [body, briefId.toString()],
+  );
 }
 
 async function unwrapPreview(
@@ -269,16 +284,11 @@ async function seedPreviousFileComment(
   briefId: BriefRowId,
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<void> {
-  await openSession(world, briefId, reviewerId);
-  await write(
+  await seedDraft(
     world,
     briefId,
-    (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.FILE,
-        filePath: "src/app.ts",
-        body: "comment on the file",
-      }),
+    { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+    "comment on the file",
     reviewerId,
   );
 }
@@ -518,38 +528,47 @@ async function seedPreviousWork(
   briefId: BriefRowId,
   chunkIds: readonly string[] = ["c5"],
 ): Promise<void> {
-  await openSession(world, briefId);
-  await write(world, briefId, async (writer) => {
-    await writer.setReviewOutcome(ReviewOutcomes.APPROVE);
-    await writer.addDraftComment({
-      kind: CommentAnchorKinds.LINE,
-      filePath: "src/app.ts",
-      side: DraftCommentSides.NEW,
-      startLine: 10,
-      endLine: 12,
-      body: "draft",
-    });
-    await writer.addDraftComment({
-      kind: CommentAnchorKinds.LINE,
-      filePath: "src/app.ts",
-      side: DraftCommentSides.NEW,
-      startLine: 40,
-      endLine: 41,
-      body: "already on GitHub",
-      status: DraftCommentStatuses.SUBMITTED,
-    });
-    for (const chunkId of chunkIds) {
-      await writer.putReadMark({ chunkId });
-    }
-    await writer.putReclassification({
-      changeGroupId: "g1",
-      category: ChangeGroupCategories.BUGFIX,
-    });
-    await writer.putReclassification({
-      changeGroupId: "g9",
-      category: ChangeGroupCategories.BUGFIX,
-    });
-  });
+  const groupIds = ["g1", "g9"];
+  await seedBriefBody(
+    world,
+    briefId,
+    JSON.stringify({
+      changeGroups: groupIds.map((id) => ({ id })),
+      chunks: chunkIds.map((id) => ({ id, file: "src/app.ts" })),
+    }),
+  );
+  const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+  const key = { briefId, reviewerId: REVIEWER };
+  unwrapWrite(
+    await sessions.setOutcome(key, ReviewOutcomes.APPROVE),
+    "outcome",
+  );
+  await seedDraft(world, briefId, makeLineAnchor(10, 12), "draft");
+  const published = await seedDraft(
+    world,
+    briefId,
+    makeLineAnchor(40, 41),
+    "already on GitHub",
+  );
+  unwrapWrite(
+    await sessions.recordPublishedDrafts(key, { draftIds: [published.id] }),
+    "publish",
+  );
+  for (const chunkId of chunkIds) {
+    unwrapWrite(
+      await sessions.setChunkRead(key, { chunkId, read: true }),
+      "read mark",
+    );
+  }
+  for (const changeGroupId of groupIds) {
+    unwrapWrite(
+      await sessions.reclassifyGroup(key, {
+        changeGroupId,
+        category: ChangeGroupCategories.BUGFIX,
+      }),
+      "reclassification",
+    );
+  }
   await seedDisposition(world, briefId, 30, 32);
 }
 
@@ -1008,16 +1027,11 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     const current = await seedBrief(world, 2);
     // No hop row: nothing places anything, whichever side it sits on.
     const repo = createTenantRepository(world.handle, CTX);
-    await openSession(world, previous);
-    await write(world, previous, (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 12,
-        body: "on the removed side",
-      }),
+    await seedDraft(
+      world,
+      previous,
+      makeLineAnchor(10, 12, DraftCommentSides.OLD),
+      "on the removed side",
     );
 
     const view = await unwrapPreview(
@@ -1130,11 +1144,13 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     const key = { briefId: first, reviewerId: REVIEWER };
 
     const firstEver = await repo.reviewSessions.preview(key);
-    const created = await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
+    const created = await repo.reviewSessions.setOutcome(
+      key,
+      ReviewOutcomes.APPROVE,
     );
-    const again = await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c2" }),
+    const again = await repo.reviewSessions.setOutcome(
+      key,
+      ReviewOutcomes.COMMENT,
     );
 
     expect(firstEver.ok).toBe(true);
@@ -1150,18 +1166,22 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     await seedPreviousComment(world, previous);
     const repo = createTenantRepository(world.handle, CTX);
     const key = { briefId: current, reviewerId: REVIEWER };
-    await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
-    );
+    await repo.reviewSessions.setOutcome(key, ReviewOutcomes.APPROVE);
     await seedBriefBody(world, current, UNREADABLE_BODY);
 
     const view = await unwrapPreview(repo.reviewSessions.preview(key));
-    const written = await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c2" }),
+    const written = await repo.reviewSessions.setOutcome(
+      key,
+      ReviewOutcomes.COMMENT,
     );
+    const marked = await repo.reviewSessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
 
     expect(view.session?.draftComments).toHaveLength(1);
     expect(written.ok).toBe(true);
+    expect(marked.ok).toBe(true);
   });
 
   it.each([
@@ -1179,9 +1199,14 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     const before = await countRows(world.client, "review_session");
 
     const previewed = await repo.reviewSessions.preview(key);
-    const written = await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
+    const written = await repo.reviewSessions.setOutcome(
+      key,
+      ReviewOutcomes.APPROVE,
     );
+    const marked = await repo.reviewSessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
 
     const unreadable = {
       ok: false,
@@ -1191,6 +1216,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     };
     expect(previewed).toEqual(unreadable);
     expect(written).toEqual(unreadable);
+    expect(marked).toEqual(unreadable);
     expect(await countRows(world.client, "review_session")).toBe(before);
   });
 });
@@ -1201,16 +1227,11 @@ describe("old-side drafts against the PR base", () => {
     world: World,
     briefId: BriefRowId,
   ): Promise<void> {
-    await openSession(world, briefId);
-    await write(world, briefId, (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 12,
-        body: "on the removed side",
-      }),
+    await seedDraft(
+      world,
+      briefId,
+      makeLineAnchor(10, 12, DraftCommentSides.OLD),
+      "on the removed side",
     );
   }
 
@@ -1280,14 +1301,11 @@ describe("two-side drafts, both legs or orphan", () => {
       endLine: number;
     },
   ): Promise<void> {
-    await openSession(world, briefId);
-    await write(world, briefId, (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        ...anchor,
-        body: "spans both sides",
-      }),
+    await seedDraft(
+      world,
+      briefId,
+      { kind: CommentAnchorKinds.LINE, file: "src/app.ts", ...anchor },
+      "spans both sides",
     );
   }
 
@@ -1464,7 +1482,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 });
 
-describe("writeToSession, the first write, one transaction", () => {
+describe("the first write, one transaction", () => {
   /** Brief 1 carries work; brief 2 is where the reviewer writes next. */
   async function pending(): Promise<{ world: World; current: BriefRowId }> {
     const world = await freshWorld();
@@ -1476,23 +1494,23 @@ describe("writeToSession, the first write, one transaction", () => {
     return { world, current };
   }
 
+  const OTHER_FILE_ANCHOR: DraftAnchor = {
+    kind: CommentAnchorKinds.LINE,
+    file: "src/other.ts",
+    side: DraftCommentSides.NEW,
+    startLine: 1,
+    endLine: 2,
+  };
+
   it("creates the session, copies the carried rows, and applies the write", async () => {
     const { world, current } = await pending();
 
     const written = await createTenantRepository(
       world.handle,
       CTX,
-    ).reviewSessions.writeToSession(
+    ).reviewSessions.addDraft(
       { briefId: current, reviewerId: REVIEWER },
-      (writer) =>
-        writer.addDraftComment({
-          kind: CommentAnchorKinds.LINE,
-          filePath: "src/other.ts",
-          side: DraftCommentSides.NEW,
-          startLine: 1,
-          endLine: 2,
-          body: "the triggering write",
-        }),
+      { anchor: OTHER_FILE_ANCHOR, body: "the triggering write" },
     );
 
     expect(written.ok).toBe(true);
@@ -1528,31 +1546,21 @@ describe("writeToSession, the first write, one transaction", () => {
   it("addresses a carried draft by the row it was copied from", async () => {
     const { world, current } = await pending();
     const repo = createTenantRepository(world.handle, CTX);
-    const previewed = await unwrapPreview(
-      repo.reviewSessions.preview({
-        briefId: current,
-        reviewerId: REVIEWER,
-      }),
-    );
+    const key = { briefId: current, reviewerId: REVIEWER };
+    const previewed = await unwrapPreview(repo.reviewSessions.preview(key));
     const sourceId = previewed.carried.draftComments[0]?.id;
 
     // The id the read handed out, used AFTER a different write materialized,
     // it still names the copy, because the copy points back at its source.
-    await repo.reviewSessions.writeToSession(
-      { briefId: current, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c5" }),
-    );
-    const edited = await repo.reviewSessions.writeToSession(
-      { briefId: current, reviewerId: REVIEWER },
-      (writer) =>
-        writer.updateDraftComment(sourceId ?? 0n, { body: "re-worded" }),
+    await repo.reviewSessions.setOutcome(key, ReviewOutcomes.REQUEST_CHANGES);
+    const edited = await repo.reviewSessions.editDraft(
+      key,
+      sourceId ?? 0n,
+      "re-worded",
     );
 
-    expect(edited.ok && edited.value?.body).toBe("re-worded");
-    const snapshot = await repo.reviewSessions.get({
-      briefId: current,
-      reviewerId: REVIEWER,
-    });
+    expect(edited.ok && edited.value.body).toBe("re-worded");
+    const snapshot = await repo.reviewSessions.get(key);
     expect(snapshot?.draftComments.map((row) => row.body)).toEqual([
       "re-worded",
     ]);
@@ -1593,15 +1601,29 @@ describe("writeToSession, the first write, one transaction", () => {
     );
   });
 
+  it("rolls a refused first capped write back, carry and session too", async () => {
+    const { world, current } = await pending();
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const marksBefore = await countRows(world.client, "review_read_mark");
+
+    const refused = await sessions.reclassifyGroup(
+      { briefId: current, reviewerId: REVIEWER },
+      { changeGroupId: "g2", category: ChangeGroupCategories.BUGFIX },
+    );
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect(await countRows(world.client, "review_session")).toBe(1);
+    expect(await countRows(world.client, "review_read_mark")).toBe(marksBefore);
+  });
+
   it("never carries the review outcome", async () => {
     const { world, current } = await pending();
 
-    await createTenantRepository(
-      world.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
+    await createTenantRepository(world.handle, CTX).reviewSessions.addDraft(
       { briefId: current, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c9" }),
+      { anchor: OTHER_FILE_ANCHOR, body: "the triggering write" },
     );
 
     const snapshot = await createTenantRepository(
@@ -1625,27 +1647,25 @@ describe("writeToSession, the first write, one transaction", () => {
     const key = { briefId: current, reviewerId: REVIEWER };
 
     const [first, second] = await Promise.all([
-      repo.reviewSessions.writeToSession(key, (writer) =>
-        writer.putReadMark({ chunkId: "c8" }),
-      ),
-      repo.reviewSessions.writeToSession(key, (writer) =>
-        writer.putReadMark({ chunkId: "c9" }),
-      ),
+      repo.reviewSessions.addDraft(key, {
+        anchor: OTHER_FILE_ANCHOR,
+        body: "first",
+      }),
+      repo.reviewSessions.addDraft(key, {
+        anchor: OTHER_FILE_ANCHOR,
+        body: "second",
+      }),
     ]);
 
     expect(first.ok && second.ok).toBe(true);
     // Both writes landed; only one of them brought the carried rows.
-    const snapshot = await repo.reviewSessions.get({
-      briefId: current,
-      reviewerId: REVIEWER,
-    });
-    // Only the creating writer copies; the loser goes straight to its write.
-    expect(snapshot?.draftComments).toHaveLength(1);
-    expect(snapshot?.readMarks.map((row) => row.chunkId).toSorted()).toEqual([
-      "c5",
-      "c8",
-      "c9",
+    const snapshot = await repo.reviewSessions.get(key);
+    expect(snapshot?.draftComments.map((row) => row.body).toSorted()).toEqual([
+      "draft",
+      "first",
+      "second",
     ]);
+    expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c5"]);
   });
 
   it("re-reads the previous session inside the transaction", async () => {
@@ -1656,25 +1676,16 @@ describe("writeToSession, the first write, one transaction", () => {
     // The read happened; the reviewer's other tab keeps typing on the old
     // Brief; then the write lands. The late row must still carry.
     await unwrapPreview(repo.reviewSessions.preview(key));
-    await write(world, await briefIdFor(world, 1), (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 20,
-        endLine: 20,
-        body: "typed after the read",
-      }),
+    await seedDraft(
+      world,
+      await briefIdFor(world, 1),
+      makeLineAnchor(20, 20),
+      "typed after the read",
     );
 
-    await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c8" }),
-    );
+    await repo.reviewSessions.setOutcome(key, ReviewOutcomes.REQUEST_CHANGES);
 
-    const snapshot = await repo.reviewSessions.get({
-      briefId: current,
-      reviewerId: REVIEWER,
-    });
+    const snapshot = await repo.reviewSessions.get(key);
     expect(snapshot?.draftComments.map((row) => row.body)).toEqual([
       "draft",
       "typed after the read",
@@ -1688,13 +1699,7 @@ describe("writeToSession, the first write, one transaction", () => {
     // No hop row at all: the chain is untrustworthy, so every anchor orphans.
     await seedPreviousWork(world, previous);
 
-    await createTenantRepository(
-      world.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      { briefId: current, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c8" }),
-    );
+    await openSession(world, current);
 
     const snapshot = await createTenantRepository(
       world.handle,
@@ -1728,45 +1733,53 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
     const written = await createTenantRepository(
       world.handle,
       CTX,
-    ).reviewSessions.writeToSession(
+    ).reviewSessions.setOutcome(
       { briefId: first, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+      ReviewOutcomes.APPROVE,
     );
 
     expect(written.ok).toBe(true);
   });
 
-  it("refuses a write once the reviewer materialized a newer session", async () => {
+  it("refuses every review work operation on a frozen session", async () => {
     const world = await freshWorld();
     const first = await seedBrief(world, 1);
     const second = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
-    const repo = createTenantRepository(world.handle, CTX);
-    const older = {
-      briefId: first,
-      reviewerId: REVIEWER,
+    await seedBriefFacts(world, first, ["g1"], FIRING);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const older = { briefId: first, reviewerId: REVIEWER };
+    await sessions.setOutcome(older, ReviewOutcomes.APPROVE);
+    await openSession(world, second);
+    const flag = {
+      filePath: "src/app.ts",
+      attribute: "sql-injection",
+      regionStart: 30,
+      regionEnd: 40,
     };
 
-    await repo.reviewSessions.writeToSession(older, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
-    );
-    await repo.reviewSessions.writeToSession(
-      { briefId: second, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c2" }),
-    );
+    const refusals = [
+      await sessions.setChunkRead(older, { chunkId: "flag-0", read: true }),
+      await sessions.setChunkRead(older, { chunkId: "flag-0", read: false }),
+      await sessions.reclassifyGroup(older, {
+        changeGroupId: "g1",
+        category: ChangeGroupCategories.BUGFIX,
+      }),
+      await sessions.decideRisks(older, [
+        { ...flag, decision: DispositionDecisions.DISMISSED, reason: "x" },
+      ]),
+      await sessions.reopenRisks(older, [flag]),
+      await sessions.setOutcome(older, ReviewOutcomes.COMMENT),
+      await sessions.listDrafts(older),
+      await sessions.recordPublishedDrafts(older, { draftIds: [] }),
+      await sessions.recordReplyReview(older, 77n),
+    ];
 
-    const refused = await repo.reviewSessions.writeToSession(older, (writer) =>
-      writer.putReadMark({ chunkId: "c3" }),
-    );
-
-    expect(refused.ok).toBe(false);
-    if (refused.ok) return;
-    expect(refused.error.code).toBe(ReviewSessionErrorCodes.SESSION_FROZEN);
-    const snapshot = await repo.reviewSessions.get({
-      briefId: first,
-      reviewerId: REVIEWER,
-    });
-    expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c1"]);
+    expect(
+      refusals.map((refusal) => !refusal.ok && refusal.error.code),
+    ).toEqual(Array(9).fill(ReviewSessionErrorCodes.SESSION_FROZEN));
+    const snapshot = await sessions.get(older);
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcomes.APPROVE);
   });
 
   it("refuses every draft operation on a frozen session", async () => {
@@ -1803,12 +1816,11 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
     const repo = createTenantRepository(world.handle, CTX);
     await openSession(world, second);
 
-    const refused = await repo.reviewSessions.writeToSession(
+    const refused = await repo.reviewSessions.setOutcome(
       { briefId: first, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+      ReviewOutcomes.APPROVE,
     );
 
-    expect(refused.ok).toBe(false);
     expect(!refused.ok && refused.error.code).toBe(
       ReviewSessionErrorCodes.SESSION_FROZEN,
     );
@@ -1822,46 +1834,41 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
     await seedHop(world, 1, 2);
     const repo = createTenantRepository(world.handle, CTX);
 
-    await repo.reviewSessions.writeToSession(
-      { briefId: second, reviewerId: OTHER_REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c2" }),
-    );
-    const written = await repo.reviewSessions.writeToSession(
+    await openSession(world, second, OTHER_REVIEWER);
+    const written = await repo.reviewSessions.setOutcome(
       { briefId: first, reviewerId: REVIEWER },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+      ReviewOutcomes.APPROVE,
     );
 
     expect(written.ok).toBe(true);
   });
 });
 
-describe("the session writer covers every product write", () => {
-  it("records a disposition and sets the outcome inside the transaction", async () => {
+describe("the risk operations on a session", () => {
+  const ANCHOR = {
+    filePath: "src/app.ts",
+    attribute: "sql-injection",
+    regionStart: 10,
+    regionEnd: 20,
+  };
+
+  it("records a disposition with no carry verdict", async () => {
     const world = await freshWorld();
     const briefId = await seedBrief(world, 1);
+    await seedBriefFacts(world, briefId, [], FIRING);
     const repo = createTenantRepository(world.handle, CTX);
+    const key = { briefId, reviewerId: REVIEWER };
 
-    const written = await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER },
-      async (writer) => {
-        await writer.putDisposition({
-          filePath: "src/app.ts",
-          attribute: "sql-injection",
-          regionStart: 10,
-          regionEnd: 20,
-          decision: DispositionDecisions.DISMISSED,
-          reason: "test-only path",
-        });
-        return writer.setReviewOutcome(ReviewOutcomes.APPROVE);
+    const written = await repo.reviewSessions.decideRisks(key, [
+      {
+        ...ANCHOR,
+        decision: DispositionDecisions.DISMISSED,
+        reason: "test-only path",
       },
-    );
+    ]);
 
-    expect(written.ok).toBe(true);
-    const snapshot = await repo.reviewSessions.get({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcomes.APPROVE);
+    expect(written).toEqual({ ok: true, value: 1 });
+    const snapshot = await repo.reviewSessions.get(key);
     expect(snapshot?.dispositions).toEqual([
       expect.objectContaining({
         attribute: "sql-injection",
@@ -1885,25 +1892,21 @@ describe("the session writer covers every product write", () => {
       reviewerId: REVIEWER,
     };
 
-    await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putReadMark({ chunkId: "c8" }),
-    );
+    await repo.reviewSessions.setOutcome(key, ReviewOutcomes.COMMENT);
     // The carried row sits at the remapped anchor; deciding on it again is an
     // upsert, not a second row.
-    await repo.reviewSessions.writeToSession(key, (writer) =>
-      writer.putDisposition({
+    const decided = await repo.reviewSessions.decideRisks(key, [
+      {
         filePath: "src/app.ts",
         attribute: "sql-injection",
         regionStart: 33,
         regionEnd: 35,
         decision: DispositionDecisions.ADDRESSED,
-      }),
-    );
+      },
+    ]);
 
-    const snapshot = await repo.reviewSessions.get({
-      briefId: current,
-      reviewerId: REVIEWER,
-    });
+    expect(decided.ok).toBe(true);
+    const snapshot = await repo.reviewSessions.get(key);
     expect(snapshot?.dispositions).toEqual([
       expect.objectContaining({
         decision: DispositionDecisions.ADDRESSED,
@@ -1912,39 +1915,29 @@ describe("the session writer covers every product write", () => {
     ]);
   });
 
-  it("deletes a disposition by its anchor, and says so when none was held", async () => {
+  it("reopens a disposition by its anchor, and says so when none was held", async () => {
     const world = await freshWorld();
     const briefId = await seedBrief(world, 1);
+    await seedBriefFacts(world, briefId, [], FIRING);
     const repo = createTenantRepository(world.handle, CTX);
-    const anchor = {
-      filePath: "src/app.ts",
-      attribute: "sql-injection",
-      regionStart: 10,
-      regionEnd: 20,
-    };
-
-    const undone = await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER },
-      async (writer) => {
-        await writer.putDisposition({
-          ...anchor,
-          decision: DispositionDecisions.DISMISSED,
-          reason: "test-only path",
-        });
-        // Undoing twice is the same undo: an undecided flag is a row that
-        // does not exist, so the repeat has nothing left to remove.
-        return [
-          await writer.deleteDisposition(anchor),
-          await writer.deleteDisposition(anchor),
-        ];
+    const key = { briefId, reviewerId: REVIEWER };
+    await repo.reviewSessions.decideRisks(key, [
+      {
+        ...ANCHOR,
+        decision: DispositionDecisions.DISMISSED,
+        reason: "test-only path",
       },
-    );
+    ]);
 
-    expect(undone).toEqual({ ok: true, value: [true, false] });
-    const snapshot = await repo.reviewSessions.get({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    expect(snapshot?.dispositions).toEqual([]);
+    // Undoing twice is the same undo: an undecided flag is a row that does
+    // not exist, so the repeat has nothing left to remove.
+    const undone = await repo.reviewSessions.reopenRisks(key, [ANCHOR]);
+    const again = await repo.reviewSessions.reopenRisks(key, [ANCHOR]);
+
+    expect([undone, again]).toEqual([
+      { ok: true, value: 1 },
+      { ok: true, value: 0 },
+    ]);
+    expect((await repo.reviewSessions.get(key))?.dispositions).toEqual([]);
   });
 });

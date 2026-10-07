@@ -2,7 +2,11 @@
 // Pre-materialization draft ids must resolve to copies; frozen sessions refuse all writes.
 // Repeated read marks are idempotent and every write inherits the router scope gate.
 import { createTenantRepository, WriteClassifications } from "persistence";
-import { ChangeGroupCategories } from "types/reviews";
+import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
+import {
+  DispositionDecisions,
+  DispositionEvidenceKinds,
+} from "types/dispositions";
 import type { KeyProvider } from "persistence";
 import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -212,28 +216,44 @@ describe("the Review Session writes", () => {
 
   it("applies the copy and the write together, or neither", async () => {
     const previous = await seedBrief(harness.handle, 1);
-    const current = await seedBrief(harness.handle, 2);
+    await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
     const carriedBefore = await countRows("review_draft_comment");
 
-    // A write that throws takes the whole materialization down with it, the
-    // session and the copied rows go back with the transaction.
-    const failed = createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: current,
-        reviewerId: REVIEWER,
-      },
-      async () => {
-        throw new Error("the write failed after the copy");
-      },
-    );
-    await expect(failed).rejects.toThrow("the write failed after the copy");
+    // The carried `g1` fills the Brief's one group, so a second group is
+    // refused after the copy, and the session and the copied rows go back
+    // with the transaction.
+    const refused = await write("PUT", "/groups/g2/classification", "head-2", {
+      category: ChangeGroupCategories.BUGFIX,
+    });
 
+    expect(refused.status).toBe(409);
+    expect(await readWireCode(refused)).toBe("session-record-limit-reached");
     expect(await countRows("review_session")).toBe(1);
     expect(await countRows("review_draft_comment")).toBe(carriedBefore);
+  });
+
+  it("409s a read mark or a decision past the Brief's own counts", async () => {
+    await seedBrief(harness.handle, 1);
+    const third = { ...FLAG, attribute: "no-docs" };
+
+    const marks = [
+      await write("PUT", "/chunks/c1/read", "head-1", { read: true }),
+      await write("PUT", "/chunks/c2/read", "head-1", { read: true }),
+      await write("PUT", "/chunks/c3/read", "head-1", { read: true }),
+      await write("PUT", "/chunks/c1/read", "head-1", { read: true }),
+    ];
+    const decided = await write("POST", "/risks/dismiss", "head-1", {
+      flags: [FLAG, { ...FLAG, attribute: "no-error-path" }, third],
+      reason: "covered elsewhere",
+    });
+
+    expect(marks.map((res) => res.status)).toEqual([200, 200, 409, 200]);
+    expect(await readWireCode(marks[2]!)).toBe("session-record-limit-reached");
+    expect(decided.status).toBe(409);
+    expect(await readWireCode(decided)).toBe("session-record-limit-reached");
+    expect(await countRows("review_read_mark")).toBe(2);
+    expect(await countRows("disposition")).toBe(0);
   });
 
   it("refuses every write to a frozen session with 409", async () => {
@@ -248,12 +268,9 @@ describe("the Review Session writes", () => {
     const opened = await createTenantRepository(
       harness.handle,
       CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: current,
-        reviewerId: REVIEWER,
-      },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    ).reviewSessions.setOutcome(
+      { briefId: current, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
     expect(opened.ok).toBe(true);
 
@@ -589,9 +606,9 @@ describe("the Review Session writes", () => {
     await createTenantRepository(
       harness.handle,
       CTX,
-    ).reviewSessions.writeToSession(
+    ).reviewSessions.recordPublishedDrafts(
       { briefId, reviewerId: REVIEWER },
-      (writer) => writer.publishDraftComments([BigInt(draftId)]),
+      { draftIds: [BigInt(draftId)] },
     );
 
     const refusals = await Promise.all([
@@ -619,18 +636,19 @@ describe("the Review Session writes", () => {
   it("refuses the 65th unposted draft the session would hold", async () => {
     const briefId = await seedBrief(harness.handle, 1);
     const repo = createTenantRepository(harness.handle, CTX);
-    await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER },
-      async (writer) => {
-        for (let i = 0; i < 64; i++) {
-          await writer.addDraftComment({
-            kind: CommentAnchorKinds.LINE,
-            ...DRAFT,
-            side: DraftCommentSides.NEW,
-          });
-        }
-      },
-    );
+    const key = { briefId, reviewerId: REVIEWER };
+    for (let index = 0; index < 64; index++) {
+      await repo.reviewSessions.addDraft(key, {
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: DRAFT.filePath,
+          side: DraftCommentSides.NEW,
+          startLine: DRAFT.startLine,
+          endLine: DRAFT.endLine,
+        },
+        body: DRAFT.body,
+      });
+    }
 
     const refused = await write("POST", "/comments", "head-1", DRAFT);
     expect(refused.status).toBe(409);
@@ -640,11 +658,9 @@ describe("the Review Session writes", () => {
     const rows = await harness.raw(
       "select id from review_draft_comment order by id limit 1",
     );
-    await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER },
-      (writer) =>
-        writer.publishDraftComments([BigInt(String(rows[0]?.["id"]))]),
-    );
+    await repo.reviewSessions.recordPublishedDrafts(key, {
+      draftIds: [BigInt(String(rows[0]?.["id"]))],
+    });
     expect((await write("POST", "/comments", "head-1", DRAFT)).status).toBe(
       201,
     );
@@ -917,18 +933,13 @@ describe("the Review Session writes", () => {
     await createTenantRepository(
       harness.handle,
       CTX,
-    ).reviewSessions.writeToSession(
+    ).reviewSessions.decideRisks({ briefId: previous, reviewerId: REVIEWER }, [
       {
-        briefId: previous,
-        reviewerId: REVIEWER,
+        ...FLAG,
+        decision: DispositionDecisions.ADDRESSED,
+        evidence: { kind: DispositionEvidenceKinds.CHUNK_REVIEWED, ref: "c9" },
       },
-      (writer) =>
-        writer.putDisposition({
-          ...FLAG,
-          decision: "addressed",
-          evidence: { kind: "chunk-reviewed", ref: "c9" },
-        }),
-    );
+    ]);
     await seedBrief(harness.handle, 2);
     await seedHop(harness.handle, 1, 2);
 

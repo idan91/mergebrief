@@ -2,9 +2,11 @@ import type { Context } from "hono";
 import {
   ReviewSessionErrorCodes,
   createTenantRepository,
+  type PublishedDraftsInput,
   type ScopeContext,
 } from "persistence";
 import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
+import type { Mutable } from "types/utils";
 import { ApiErrorCodes } from "contract";
 import type { InlineReviewCommentResult } from "github";
 import {
@@ -65,15 +67,13 @@ async function resolvePublishableDraft(
   resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
   draftId: bigint,
 ) {
-  const held = await resolved.run(async (writer) =>
-    (await writer.draftComments()).find(
-      (row) => row.id === draftId || row.carriedFromCommentId === draftId,
-    ),
-  );
+  const held = await resolved.publish.listDrafts();
   if (!held.ok) {
     throwSessionWriteFailure(held.error);
   }
-  const draft = held.value;
+  const draft = held.value.find(
+    (row) => row.id === draftId || row.carriedFromCommentId === draftId,
+  );
   if (draft === undefined) {
     throw new NotFound();
   }
@@ -102,13 +102,12 @@ async function recordPublishedDraft(
   posted: InlineReviewCommentResult,
 ) {
   const { commentId, reviewId } = posted;
+  const published: Mutable<PublishedDraftsInput> = { draftIds: [draftRowId] };
+  if (reviewId !== undefined) {
+    published.githubReviewId = reviewId;
+  }
   try {
-    const flipped = await resolved.run(async (writer) => {
-      await writer.publishDraftComments([draftRowId]);
-      if (reviewId !== undefined) {
-        await writer.recordSubmittedReview({ githubReviewId: reviewId });
-      }
-    });
+    const flipped = await resolved.publish.recordPublishedDrafts(published);
     if (!flipped.ok) {
       if (flipped.error.kind === FailureKinds.SESSION_REJECTED) {
         throw new Error(flipped.error.error.code);
@@ -158,7 +157,7 @@ async function recordReplyReview(
 
   const log = c.get("logger");
   try {
-    const recorded = await sessionController.writeToExistingSession(
+    const recorded = await sessionController.recordReplyReview(
       deps,
       {
         ctx: target.ctx,
@@ -168,8 +167,7 @@ async function recordReplyReview(
         reviewerId: c.get("session").reviewerId,
         log,
       },
-      (writer) =>
-        writer.recordSubmittedReview({ githubReviewId: BigInt(reviewId) }),
+      BigInt(reviewId),
     );
     if (recorded.ok) return;
 

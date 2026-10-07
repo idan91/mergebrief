@@ -40,6 +40,7 @@ export type SessionWriteResult<T = void> =
 /** Wire copy per code the session routes can return; the rest is generic. */
 const FAILURE_COPY: Partial<Record<ApiErrorCode, TranslationKey>> = {
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "review.writeError.draftLimit",
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "review.writeError.recordLimit",
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "review.writeError.alreadyPublished",
   [ApiErrorCodes.HUMAN_ONLY]: "review.writeError.humanOnly",
   [ApiErrorCodes.UNAUTHORIZED]: "review.writeError.unauthorized",

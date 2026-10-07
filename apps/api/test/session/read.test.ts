@@ -201,20 +201,17 @@ describe("read-review-session", () => {
     const previous = await seedBrief(harness.handle, 1);
     const current = await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
-    const written = await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: current,
-        reviewerId: REVIEWER,
-      },
-      async (writer) => {
-        await writer.putReadMark({ chunkId: "c1" });
-        await writer.recordSubmittedReview({ githubReviewId: 7700n });
-      },
-    );
-    expect(written.ok).toBe(true);
+    const sessions = createTenantRepository(harness.handle, CTX).reviewSessions;
+    const key = { briefId: current, reviewerId: REVIEWER };
+    const marked = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+    const recorded = await sessions.recordPublishedDrafts(key, {
+      draftIds: [],
+      githubReviewId: 7700n,
+    });
+    expect(marked.ok && recorded.ok).toBe(true);
     const before = await sessionRows();
 
     const res = await read("head-2");
@@ -271,15 +268,10 @@ describe("read-review-session", () => {
     const previous = await seedBrief(harness.handle, 1);
     // `c1` is in the new Brief's persisted carried set, so the mark carries.
     const current = await seedBrief(harness.handle, 2, BRIEF_BODY, ["c1"]);
-    await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: previous,
-        reviewerId: REVIEWER,
-      },
-      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    const sessions = createTenantRepository(harness.handle, CTX).reviewSessions;
+    await sessions.setChunkRead(
+      { briefId: previous, reviewerId: REVIEWER },
+      { chunkId: "c1", read: true },
     );
 
     const pending = await readBody(await read("head-2"));
@@ -288,15 +280,9 @@ describe("read-review-session", () => {
     expect(pending.carriedFrom?.items).toBe(1);
 
     // The write that writes it must not turn the receipt into nothing.
-    await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: current,
-        reviewerId: REVIEWER,
-      },
-      (writer) => writer.setReviewOutcome(ReviewOutcomes.COMMENT),
+    await sessions.setOutcome(
+      { briefId: current, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
 
     const settled = await readBody(await read("head-2"));
@@ -305,15 +291,9 @@ describe("read-review-session", () => {
 
     // And clearing the carried work does not shrink it: the count states what
     // came across, so the receipt survives the reviewer acting on every item.
-    await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).reviewSessions.writeToSession(
-      {
-        briefId: current,
-        reviewerId: REVIEWER,
-      },
-      (writer) => writer.clearReadMark("c1"),
+    await sessions.setChunkRead(
+      { briefId: current, reviewerId: REVIEWER },
+      { chunkId: "c1", read: false },
     );
 
     const cleared = await readBody(await read("head-2"));

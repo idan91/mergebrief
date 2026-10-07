@@ -25,6 +25,7 @@ import { PrStates } from "types/pull-requests";
 import type { PgliteHarness } from "persistence/testing";
 import { CommentAnchorKinds } from "types/comments";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ReviewOutcomes } from "types/reviews";
 import { ExitCodes } from "../src/exit";
 import {
   buildCreateDraftPayload,
@@ -169,15 +170,15 @@ describe("session write commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
-      body: "{}",
+      body: JSON.stringify({
+        changeGroups: [],
+        chunks: [{ id: "chunk-1", file: "src/app.ts" }],
+      }),
     });
     if (!brief.ok) throw new Error("brief seed failed");
-    const session = await repo.reviewSessions.writeToSession(
-      {
-        briefId: brief.value.id,
-        reviewerId: REVIEWER,
-      },
-      () => Promise.resolve(),
+    const session = await repo.reviewSessions.setOutcome(
+      { briefId: brief.value.id, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
     if (!session.ok) throw new Error("session seed failed");
   }

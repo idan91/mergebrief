@@ -36,6 +36,7 @@ describe("readBriefSessionFacts", () => {
       chunkIds: ["c1", "c2"],
       groupIds: ["group-a", "group-b"],
       filePaths: ["src/app.ts"],
+      markableChunkCount: 2,
       flags: [
         {
           filePath: "src/app.ts",
@@ -117,6 +118,24 @@ describe("readBriefSessionFacts", () => {
         regionEnd: 1,
       },
     ]);
+  });
+
+  it("counts each unattributed file as a Chunk a reviewer can mark", () => {
+    const unattributed = [
+      { file: "src/left.ts", addedRanges: [{ start: 1, end: 2 }] },
+      { file: "src/over.ts", removedRanges: [{ start: 3, end: 3 }] },
+    ];
+
+    const facts = readFactsOrThrow({ ...BODY, unattributed });
+
+    expect(facts.chunkIds).toEqual(["c1", "c2"]);
+    expect(facts.markableChunkCount).toBe(4);
+  });
+
+  it("counts no unattributed files from a broken section", () => {
+    const facts = readFactsOrThrow({ ...BODY, unattributed: "lost" });
+
+    expect(facts.markableChunkCount).toBe(2);
   });
 
   it("fails with not-json on a body that is not JSON", () => {

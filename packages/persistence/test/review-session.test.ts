@@ -20,8 +20,8 @@ import {
 } from "../src/index";
 import type {
   AppDatabase,
+  ReviewDraftCommentRow,
   ReviewSessionRow,
-  SessionWriter,
   TenantContext,
 } from "../src/index";
 import {
@@ -29,6 +29,7 @@ import {
   isRepoId,
   isReviewerId,
   type BriefRowId,
+  type DraftAnchor,
   type InstallationId,
   type RepoId,
   type ReviewerId,
@@ -36,6 +37,7 @@ import {
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import {
   DispositionCarryStatuses,
+  DispositionDecisions,
   DispositionEvidenceKinds,
   DispositionEvidenceStatuses,
 } from "types/dispositions";
@@ -60,11 +62,34 @@ const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
+/** Two Chunks, one change group and one flag: the caps these tests meet. */
+const BRIEF_BODY = JSON.stringify({
+  changeGroups: [{ id: "g1" }],
+  chunks: [
+    {
+      id: "c1",
+      file: "src/app.ts",
+      addedRanges: [{ start: 10, end: 20 }],
+      riskSurface: ["sql-injection"],
+    },
+    { id: "c2", file: "src/app.ts" },
+  ],
+});
+
+const LINE_ANCHOR = {
+  kind: CommentAnchorKinds.LINE,
+  file: "src/app.ts",
+  side: DraftCommentSides.NEW,
+  startLine: 1,
+  endLine: 1,
+} as const;
+
 /** A PR + brief in `ctx`'s tenant; returns the brief row id. */
 async function seedBrief(
   handle: AppDatabase,
   ctx: TenantContext,
   prNumber = 7,
+  body = BRIEF_BODY,
 ): Promise<BriefRowId> {
   const repo = createTenantRepository(handle, ctx);
   const pr = await repo.pullRequests.upsert({
@@ -82,15 +107,13 @@ async function seedBrief(
     provider: "anthropic",
     model: "test",
     effort: "high",
-    body: '{"brief":true}',
+    body,
   });
   if (!written.ok) {
     throw new Error(`brief seed failed: ${written.error.message}`);
   }
   return written.value.id;
 }
-
-/** No previous session in these fixtures, so the facts are never consulted. */
 
 /**
  * A materialized session: the ONLY way one is created. The write is the
@@ -105,28 +128,43 @@ async function openSession(
   const created = await createTenantRepository(
     handle,
     ctx,
-  ).reviewSessions.writeToSession(
-    { briefId, reviewerId },
-    async (writer) => writer.session,
-  );
-  if (!created.ok)
+  ).reviewSessions.setOutcome({ briefId, reviewerId }, ReviewOutcomes.COMMENT);
+  if (!created.ok) {
     throw new Error(`session seed failed: ${created.error.code}`);
+  }
   return created.value;
 }
 
-/** Run one owned write the only way there is: through the session's writer. */
-async function write<T>(
+/** One draft on the session, through the reviewer's own draft action. */
+async function seedDraft(
   handle: AppDatabase,
-  ctx: TenantContext,
   briefId: BriefRowId,
-  body: (writer: SessionWriter) => Promise<T>,
-): Promise<T> {
-  const written = await createTenantRepository(
+  anchor: DraftAnchor,
+  body: string,
+): Promise<ReviewDraftCommentRow> {
+  const added = await createTenantRepository(
     handle,
-    ctx,
-  ).reviewSessions.writeToSession({ briefId, reviewerId: REVIEWER }, body);
-  if (!written.ok) throw new Error(`write failed: ${written.error.code}`);
-  return written.value;
+    CTX_A,
+  ).reviewSessions.addDraft(
+    { briefId, reviewerId: REVIEWER },
+    { anchor, body },
+  );
+  if (!added.ok) {
+    throw new Error(`draft seed failed: ${added.error.code}`);
+  }
+  return added.value;
+}
+
+/** A carry-over verdict no reviewer action writes, stamped on a stored draft. */
+async function stampAnchorStatus(
+  client: PGlite,
+  draftId: bigint,
+  anchorStatus: string,
+): Promise<void> {
+  await client.query(
+    "update review_draft_comment set anchor_status = $1 where id = $2",
+    [anchorStatus, draftId.toString()],
+  );
 }
 
 /** The literals a CHECK constraint accepts. */
@@ -188,15 +226,17 @@ describe("review-session vocabularies match CHECK constraints", () => {
 
     // The coordinates ARE the GitHub POST payload: a bad range must not reach
     // publish time, so the DB refuses it.
-    const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
+    const rejection: unknown = await seedDraft(
+      handle,
+      briefId,
+      {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: start,
         endLine: end,
-        body: "bad range",
-      }),
+      },
+      "bad range",
     ).then(
       () => null,
       (error: unknown) => error,
@@ -211,16 +251,18 @@ describe("review-session vocabularies match CHECK constraints", () => {
 
     // new\u2192old across blocks: the start line is higher than the end line,
     // which only the conditional range CHECK permits.
-    const written = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
+    const written = await seedDraft(
+      handle,
+      briefId,
+      {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.OLD,
         startSide: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 20,
-        body: "crosses sides",
-      }),
+      },
+      "crosses sides",
     );
     expect(written.anchor).toEqual(
       expect.objectContaining({
@@ -229,16 +271,18 @@ describe("review-session vocabularies match CHECK constraints", () => {
       }),
     );
 
-    const inverted = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
+    const inverted = await seedDraft(
+      handle,
+      briefId,
+      {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.NEW,
         startSide: DraftCommentSides.OLD,
         startLine: 25,
         endLine: 3,
-        body: "old start after new end",
-      }),
+      },
+      "old start after new end",
     );
     expect(inverted.anchor).toEqual(
       expect.objectContaining({
@@ -253,12 +297,11 @@ describe("review-session vocabularies match CHECK constraints", () => {
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
-    const written = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
-        kind: CommentAnchorKinds.FILE,
-        filePath: "src/app.ts",
-        body: "comment on the file",
-      }),
+    const written = await seedDraft(
+      handle,
+      briefId,
+      { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+      "comment on the file",
     );
 
     expect(written.anchor).toEqual({
@@ -323,15 +366,17 @@ describe("review-session vocabularies match CHECK constraints", () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
-    const written = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
+    const written = await seedDraft(
+      handle,
+      briefId,
+      {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 1,
         endLine: 2,
-        body: "valid line",
-      }),
+      },
+      "valid line",
     );
 
     const rejection: unknown = await client
@@ -372,16 +417,18 @@ describe("review-session vocabularies match CHECK constraints", () => {
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
-    const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
-      writer.addDraftComment({
+    const rejection: unknown = await seedDraft(
+      handle,
+      briefId,
+      {
         kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
+        file: "src/app.ts",
         side: DraftCommentSides.NEW,
         startSide: DraftCommentSides.NEW,
         startLine: 1,
         endLine: 2,
-        body: "not genuinely two-side",
-      }),
+      },
+      "not genuinely two-side",
     ).then(
       () => null,
       (error: unknown) => error,
@@ -488,12 +535,11 @@ describe("reviewSessions session semantics", () => {
       reviewerId: REVIEWER,
     };
 
-    await repo.reviewSessions.writeToSession(query, (writer) =>
-      writer.setReviewOutcome(ReviewOutcomes.REQUEST_CHANGES),
-    );
-    await repo.reviewSessions.writeToSession(query, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
-    );
+    await repo.reviewSessions.setOutcome(query, ReviewOutcomes.REQUEST_CHANGES);
+    await repo.reviewSessions.setChunkRead(query, {
+      chunkId: "c1",
+      read: true,
+    });
 
     const snapshot = await repo.reviewSessions.get({
       briefId,
@@ -517,34 +563,26 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("returns the session with everything it owns", async () => {
-    const { handle } = await freshPair();
+    const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     const created = await openSession(handle, CTX_A, briefId);
     const reviewSessionId = created.id;
+    const key = { briefId, reviewerId: REVIEWER };
 
-    await write(handle, CTX_A, briefId, async (writer) => {
-      await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 10,
-        endLine: 12,
-        body: "this leaks",
-        anchorStatus: AnchorStatuses.MOVED,
-      });
-      await writer.putReadMark({ chunkId: "c1" });
-      await writer.putReclassification({
-        changeGroupId: "g1",
-        category: ChangeGroupCategories.BUGFIX,
-      });
-      await writer.recordSubmittedReview({ githubReviewId: 909n });
+    const draft = await seedDraft(handle, briefId, LINE_ANCHOR, "this leaks");
+    await stampAnchorStatus(client, draft.id, AnchorStatuses.MOVED);
+    await repo.reviewSessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await repo.reviewSessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.BUGFIX,
+    });
+    await repo.reviewSessions.recordPublishedDrafts(key, {
+      draftIds: [],
+      githubReviewId: 909n,
     });
 
-    const snapshot = await repo.reviewSessions.get({
-      briefId,
-      reviewerId: REVIEWER,
-    });
+    const snapshot = await repo.reviewSessions.get(key);
     expect(snapshot?.session.id).toBe(reviewSessionId);
     expect(snapshot?.draftComments).toHaveLength(1);
     expect(snapshot?.draftComments[0]?.status).toBe(DraftCommentStatuses.DRAFT);
@@ -559,21 +597,21 @@ describe("reviewSessions session semantics", () => {
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
+    const key = { briefId, reviewerId: REVIEWER };
+    const sessions = repo.reviewSessions;
 
-    await write(handle, CTX_A, briefId, async (writer) => {
-      await writer.putReadMark({ chunkId: "c1" });
-      await writer.putReadMark({ chunkId: "c1" });
-      await writer.putReclassification({
-        changeGroupId: "g1",
-        category: ChangeGroupCategories.BUGFIX,
-      });
-      await writer.putReclassification({
-        changeGroupId: "g1",
-        category: ChangeGroupCategories.NEW_FEATURE,
-      });
-      await writer.recordSubmittedReview({ githubReviewId: 909n });
-      await writer.recordSubmittedReview({ githubReviewId: 909n });
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.BUGFIX,
     });
+    await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.NEW_FEATURE,
+    });
+    await sessions.recordReplyReview(key, 909n);
+    await sessions.recordReplyReview(key, 909n);
 
     const snapshot = await repo.reviewSessions.get({
       briefId,
@@ -591,44 +629,33 @@ describe("reviewSessions session semantics", () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
-    await openSession(handle, CTX_A, briefId);
+    const key = { briefId, reviewerId: REVIEWER };
 
-    const published = await write(handle, CTX_A, briefId, async (writer) => {
-      const first = await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 1,
-        endLine: 1,
-        body: "publish me",
-      });
-      await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startLine: 2,
-        endLine: 2,
-        body: "leave me",
-      });
-      await writer.publishDraftComments([first.id]);
-      return first.id;
-    });
-
-    const snapshot = await repo.reviewSessions.get({
+    const first = await seedDraft(handle, briefId, LINE_ANCHOR, "publish me");
+    await seedDraft(
+      handle,
       briefId,
-      reviewerId: REVIEWER,
-    });
-    const flipped = snapshot?.draftComments.filter(
-      (row) => row.status === DraftCommentStatuses.SUBMITTED,
+      { ...LINE_ANCHOR, startLine: 2, endLine: 2 },
+      "leave me",
     );
-    expect(flipped?.map((row) => row.id)).toEqual([published]);
+    const flipped = await repo.reviewSessions.recordPublishedDrafts(key, {
+      draftIds: [first.id],
+    });
+
+    expect(flipped).toEqual({ ok: true, value: 1 });
+    const listed = await repo.reviewSessions.listDrafts(key);
+    expect(listed.ok && listed.value.map((row) => row.status)).toEqual([
+      DraftCommentStatuses.SUBMITTED,
+      DraftCommentStatuses.DRAFT,
+    ]);
   });
 
   it("cascades the session and its owned rows away with the brief", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    await write(handle, CTX_A, briefId, (writer) =>
-      writer.putReadMark({ chunkId: "c1" }),
+    await createTenantRepository(handle, CTX_A).reviewSessions.setChunkRead(
+      { briefId, reviewerId: REVIEWER },
+      { chunkId: "c1", read: true },
     );
 
     await client.exec("delete from brief");
@@ -637,14 +664,6 @@ describe("reviewSessions session semantics", () => {
     expect(await countRows(client, "review_read_mark")).toBe(0);
   });
 });
-
-const LINE_ANCHOR = {
-  kind: CommentAnchorKinds.LINE,
-  file: "src/app.ts",
-  side: DraftCommentSides.NEW,
-  startLine: 1,
-  endLine: 1,
-} as const;
 
 describe("the draft operations", () => {
   it("adds a draft as the session's first write", async () => {
@@ -691,9 +710,7 @@ describe("the draft operations", () => {
     );
     expect((await sessions.get(key))?.draftComments).toHaveLength(64);
 
-    await write(handle, CTX_A, briefId, (writer) =>
-      writer.publishDraftComments(held.slice(0, 1)),
-    );
+    await sessions.recordPublishedDrafts(key, { draftIds: held.slice(0, 1) });
     const freed = await sessions.addDraft(key, {
       anchor: LINE_ANCHOR,
       body: "fits again",
@@ -702,7 +719,7 @@ describe("the draft operations", () => {
   });
 
   it("edits, re-anchors and deletes a draft the session holds", async () => {
-    const { handle } = await freshPair();
+    const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -712,11 +729,7 @@ describe("the draft operations", () => {
     });
     if (!added.ok) throw new Error("draft seed failed");
     const draftId = added.value.id;
-    await write(handle, CTX_A, briefId, (writer) =>
-      writer.updateDraftComment(draftId, {
-        anchorStatus: AnchorStatuses.MOVED,
-      }),
-    );
+    await stampAnchorStatus(client, draftId, AnchorStatuses.MOVED);
 
     const edited = await sessions.editDraft(key, draftId, "re-worded");
     const fileAnchor = { kind: CommentAnchorKinds.FILE, file: "src/b.ts" };
@@ -741,9 +754,7 @@ describe("the draft operations", () => {
     });
     if (!added.ok) throw new Error("draft seed failed");
     const published = added.value.id;
-    await write(handle, CTX_A, briefId, (writer) =>
-      writer.publishDraftComments([published]),
-    );
+    await sessions.recordPublishedDrafts(key, { draftIds: [published] });
 
     const refusals = [
       await sessions.editDraft(key, published, "edited"),
@@ -784,6 +795,298 @@ describe("the draft operations", () => {
   });
 });
 
+/** The one flag the default Brief fires, as a dismissal names it. */
+const FLAG = {
+  filePath: "src/app.ts",
+  attribute: "sql-injection",
+  regionStart: 10,
+  regionEnd: 20,
+};
+
+function makeDismissal(anchor: typeof FLAG, reason: string) {
+  return { ...anchor, decision: DispositionDecisions.DISMISSED, reason };
+}
+
+describe("the review work operations", () => {
+  async function openWorld(body = BRIEF_BODY) {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A, 7, body);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    return { client, sessions, key: { briefId, reviewerId: REVIEWER } };
+  }
+
+  it("marks and clears a Chunk read, a repeat changing nothing", async () => {
+    const { client, sessions, key } = await openWorld();
+
+    const marked = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    expect(marked).toEqual({ ok: true, value: { chunkId: "c1", read: true } });
+    expect(await countRows(client, "review_read_mark")).toBe(1);
+
+    await sessions.setChunkRead(key, { chunkId: "c1", read: false });
+    await sessions.setChunkRead(key, { chunkId: "c1", read: false });
+    expect(await countRows(client, "review_read_mark")).toBe(0);
+  });
+
+  it("refuses a read mark past the Brief's Chunk count", async () => {
+    const { client, sessions, key } = await openWorld();
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await sessions.setChunkRead(key, { chunkId: "c2", read: true });
+
+    const refused = await sessions.setChunkRead(key, {
+      chunkId: "c3",
+      read: true,
+    });
+    const again = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect(again.ok).toBe(true);
+    expect(await countRows(client, "review_read_mark")).toBe(2);
+  });
+
+  it.each([true, false])(
+    "marks every Chunk and unattributed file read, stored counts %s",
+    async (stored) => {
+      const withRemainder = JSON.stringify({
+        ...JSON.parse(BRIEF_BODY),
+        unattributed: [
+          { file: "src/left.ts", addedRanges: [{ start: 1, end: 2 }] },
+          { file: "src/over.ts", addedRanges: [{ start: 4, end: 4 }] },
+        ],
+      });
+      const { client, sessions, key } = await openWorld(withRemainder);
+      if (!stored) {
+        await client.query(
+          `update brief set session_chunk_count = null,
+             session_group_count = null, session_flag_count = null
+           where id = $1`,
+          [key.briefId.toString()],
+        );
+      }
+      const marked = [];
+      for (const chunkId of ["u-left", "u-over", "c1", "c2"]) {
+        marked.push(await sessions.setChunkRead(key, { chunkId, read: true }));
+      }
+
+      const refused = await sessions.setChunkRead(key, {
+        chunkId: "c3",
+        read: true,
+      });
+
+      expect(marked.every((mark) => mark.ok)).toBe(true);
+      expect(!refused.ok && refused.error.code).toBe(
+        ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+      );
+    },
+  );
+
+  it("refuses a new group past the Brief's groups, rewrites a held one", async () => {
+    const { sessions, key } = await openWorld();
+    await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.BUGFIX,
+    });
+
+    const rewritten = await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.NEW_FEATURE,
+    });
+    const refused = await sessions.reclassifyGroup(key, {
+      changeGroupId: "g2",
+      category: ChangeGroupCategories.BUGFIX,
+    });
+
+    expect(rewritten.ok && rewritten.value.category).toBe(
+      ChangeGroupCategories.NEW_FEATURE,
+    );
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect((await sessions.get(key))?.reclassifications).toHaveLength(1);
+  });
+
+  it("decides a held flag again at the cap and answers the rows written", async () => {
+    const { sessions, key } = await openWorld();
+    await sessions.decideRisks(key, [makeDismissal(FLAG, "first")]);
+
+    const again = await sessions.decideRisks(key, [
+      makeDismissal(FLAG, "second"),
+    ]);
+
+    expect(again).toEqual({ ok: true, value: 1 });
+    expect((await sessions.get(key))?.dispositions).toEqual([
+      expect.objectContaining({ reason: "second" }),
+    ]);
+  });
+
+  it("refuses a decision list past the flags and leaves no session", async () => {
+    const { client, sessions, key } = await openWorld();
+    const other = { ...FLAG, attribute: "no-tests" };
+
+    const refused = await sessions.decideRisks(key, [
+      makeDismissal(FLAG, "fine"),
+      makeDismissal(other, "fine"),
+    ]);
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect(await countRows(client, "review_session")).toBe(0);
+    expect(await countRows(client, "disposition")).toBe(0);
+  });
+
+  it("does not count a carried decision against the Brief's flags", async () => {
+    const { client, sessions, key } = await openWorld();
+    const session = await sessions.setOutcome(key, ReviewOutcomes.COMMENT);
+    if (!session.ok) throw new Error("session seed failed");
+    await client.query(
+      `insert into disposition
+         (installation_id, review_session_id, file_path, attribute,
+          region_start, region_end, decision, carry_status, decided_at)
+       values ($1, $2, 'src/gone.ts', 'no-tests', 1, 2, 'dismissed', 'dropped', now())`,
+      [TENANT_A.toString(), session.value.id.toString()],
+    );
+
+    const decided = await sessions.decideRisks(key, [
+      makeDismissal(FLAG, "fine"),
+    ]);
+    const refused = await sessions.decideRisks(key, [
+      makeDismissal({ ...FLAG, attribute: "no-tests" }, "fine"),
+    ]);
+
+    expect(decided.ok).toBe(true);
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+  });
+
+  it("reopens decisions and answers how many it removed", async () => {
+    const { sessions, key } = await openWorld();
+    await sessions.decideRisks(key, [makeDismissal(FLAG, "fine")]);
+
+    const reopened = await sessions.reopenRisks(key, [FLAG, FLAG]);
+    const again = await sessions.reopenRisks(key, [FLAG]);
+
+    expect(reopened).toEqual({ ok: true, value: 1 });
+    expect(again).toEqual({ ok: true, value: 0 });
+  });
+
+  it("sets the outcome and reads it back off the row", async () => {
+    const { sessions, key } = await openWorld();
+
+    const set = await sessions.setOutcome(key, ReviewOutcomes.APPROVE);
+
+    expect(set.ok && set.value.reviewOutcome).toBe(ReviewOutcomes.APPROVE);
+  });
+
+  it("refuses a capped first write on an empty Brief without a session", async () => {
+    const { client, sessions, key } = await openWorld(
+      '{"changeGroups":[],"chunks":[]}',
+    );
+
+    const refused = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect(await countRows(client, "review_session")).toBe(0);
+  });
+
+  it("skips the caps when the Brief body cannot be read", async () => {
+    const { client, sessions, key } = await openWorld("{ not json");
+
+    const marked = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+    const reclassified = await sessions.reclassifyGroup(key, {
+      changeGroupId: "g1",
+      category: ChangeGroupCategories.BUGFIX,
+    });
+    const decided = await sessions.decideRisks(key, [
+      makeDismissal(FLAG, "fine"),
+    ]);
+
+    expect(marked.ok).toBe(true);
+    expect(reclassified.ok).toBe(true);
+    expect(decided).toEqual({ ok: true, value: 1 });
+    expect(await countRows(client, "review_session")).toBe(1);
+  });
+
+  it("caps a held session from the stored counts, never the body", async () => {
+    const { client, sessions, key } = await openWorld();
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await client.query("update brief set body = '{ not json' where id = $1", [
+      key.briefId.toString(),
+    ]);
+
+    const marked = await sessions.setChunkRead(key, {
+      chunkId: "c2",
+      read: true,
+    });
+    const refused = await sessions.setChunkRead(key, {
+      chunkId: "c3",
+      read: true,
+    });
+
+    expect(marked.ok).toBe(true);
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+  });
+
+  it("falls back to the body when a Brief predates the stored counts", async () => {
+    const { client, sessions, key } = await openWorld();
+    await client.query(
+      `update brief set session_chunk_count = null,
+         session_group_count = null, session_flag_count = null
+       where id = $1`,
+      [key.briefId.toString()],
+    );
+    await sessions.setChunkRead(key, { chunkId: "c1", read: true });
+    await sessions.setChunkRead(key, { chunkId: "c2", read: true });
+
+    const refused = await sessions.setChunkRead(key, {
+      chunkId: "c3",
+      read: true,
+    });
+    const repeated = await sessions.setChunkRead(key, {
+      chunkId: "c1",
+      read: true,
+    });
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED,
+    );
+    expect(repeated.ok).toBe(true);
+  });
+
+  it("records a reply's review only on a session that exists", async () => {
+    const { client, sessions, key } = await openWorld();
+
+    const absent = await sessions.recordReplyReview(key, 77n);
+    expect(!absent.ok && absent.error.code).toBe(
+      ReviewSessionErrorCodes.SESSION_NOT_FOUND,
+    );
+    expect(await countRows(client, "review_session")).toBe(0);
+
+    await sessions.setOutcome(key, ReviewOutcomes.COMMENT);
+    const recorded = await sessions.recordReplyReview(key, 77n);
+    expect(recorded.ok && recorded.value.githubReviewId).toBe(77n);
+  });
+});
+
 describe("reviewSessions tenancy containment", () => {
   it("B cannot open a session against A's brief", async () => {
     const { client, handle } = await freshPair();
@@ -792,9 +1095,9 @@ describe("reviewSessions tenancy containment", () => {
     const attempt = await createTenantRepository(
       handle,
       CTX_B,
-    ).reviewSessions.writeToSession(
+    ).reviewSessions.setOutcome(
       { briefId, reviewerId: REVIEWER },
-      async (writer) => writer.session,
+      ReviewOutcomes.APPROVE,
     );
 
     expect(attempt.ok).toBe(false);

@@ -31,7 +31,7 @@ export function readBriefSessionFacts(json: string): BriefSessionFactsRead {
     return parsed;
   }
 
-  const { changeGroups, chunks } = parsed.value;
+  const { changeGroups, chunks, unattributed } = parsed.value;
   const flags = chunks.flatMap((chunk) => {
     const region = deriveChunkRegion(chunk);
     return chunk.riskSurface.map((attribute) => ({
@@ -46,6 +46,7 @@ export function readBriefSessionFacts(json: string): BriefSessionFactsRead {
     groupIds: changeGroups.map((group) => group.id),
     flags,
     filePaths: [...new Set(chunks.map((chunk) => chunk.file))],
+    markableChunkCount: chunks.length + unattributed.length,
   };
   return { ok: true, value: facts };
 }

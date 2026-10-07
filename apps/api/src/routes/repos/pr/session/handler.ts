@@ -2,7 +2,7 @@
 // shared write seam, and map refusals onto the wire as throws. Composition
 // stays in `index.ts`.
 import type { Context } from "hono";
-import type { DispositionAnchor, SessionWriter } from "persistence";
+import type { DispositionAnchor, DispositionInput } from "persistence";
 import { DispositionDecisions } from "types/dispositions";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../shared-errors/failures";
@@ -35,24 +35,17 @@ import { HttpStatuses } from "types/http";
 const NO_STORE = { "cache-control": "no-store" };
 
 /**
- * Run one risk operation's whole array as ONE session write, the array is
- * the operation, so a half-applied bulk is not a state the reviewer asked
- * for. The writes go out together; the transaction is what makes them
- * atomic. The reply counts the rows that changed, which an undo can
- * undershoot.
+ * Decide on a risk operation's whole array as ONE session write: the array
+ * is the operation, so a half-applied bulk is not a state the reviewer asked
+ * for. The reply counts the rows that changed, which an undo can undershoot.
  */
 async function decide(
   c: Context<AuthzEnv>,
   deps: AuthRouteDeps,
-  writes: (writer: SessionWriter) => Promise<unknown>[],
+  decisions: readonly DispositionInput[],
 ) {
   const resolved = await resolveSessionWrite(deps, c);
-  const written = await resolved.run(async (writer) => {
-    const applied = await Promise.all(writes(writer));
-    // Rows the call actually changed: an upsert always returns one, an undo
-    // returns nothing when this session held no such decision.
-    return applied.filter(Boolean).length;
-  });
+  const written = await resolved.work.decideRisks(decisions);
   if (!written.ok) {
     throwSessionWriteFailure(written.error);
   }
@@ -189,19 +182,15 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     const resolved = await resolveSessionWrite(deps, c);
     // ONE operation carrying a boolean, not a mark/unmark pair: a retry is
     // the same action again, and both halves are idempotent.
-    const read = parsed.data.read;
-    const written = await resolved.run(async (writer) => {
-      if (read) {
-        await writer.putReadMark({ chunkId: chunkId.data });
-        return;
-      }
-      await writer.clearReadMark(chunkId.data);
+    const written = await resolved.work.setChunkRead({
+      chunkId: chunkId.data,
+      read: parsed.data.read,
     });
     if (!written.ok) {
       throwSessionWriteFailure(written.error);
     }
 
-    return c.json({ chunkId: chunkId.data, read }, HttpStatuses.OK, NO_STORE);
+    return c.json(written.value, HttpStatuses.OK, NO_STORE);
   };
 
   const reclassifyGroup = async (c: Context<AuthzEnv>) => {
@@ -214,12 +203,10 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     const resolved = await resolveSessionWrite(deps, c);
     // Overrides only, the Brief supplies every default, so an unchanged
     // group never reaches this route.
-    const written = await resolved.run((writer) =>
-      writer.putReclassification({
-        changeGroupId: groupId.data,
-        category: parsed.data.category,
-      }),
-    );
+    const written = await resolved.work.reclassifyGroup({
+      changeGroupId: groupId.data,
+      category: parsed.data.category,
+    });
     if (!written.ok) {
       throwSessionWriteFailure(written.error);
     }
@@ -237,16 +224,15 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
       throw new BadRequest();
     }
     assertHuman(c);
-    const flags = parsed.data.flags;
     const reason = parsed.data.reason;
-    return decide(c, deps, (writer) =>
-      flags.map((flag) =>
-        writer.putDisposition({
-          ...flag,
-          decision: DispositionDecisions.DISMISSED,
-          reason,
-        }),
-      ),
+    return decide(
+      c,
+      deps,
+      parsed.data.flags.map((flag) => ({
+        ...flag,
+        decision: DispositionDecisions.DISMISSED,
+        reason,
+      })),
     );
   };
 
@@ -256,17 +242,16 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
       throw new BadRequest();
     }
     assertHuman(c);
-    const flags = parsed.data.flags;
-    return decide(c, deps, (writer) =>
-      flags.map(({ evidence, ...anchor }) =>
-        // Deciding again also settles the evidence question a carry raised:
-        // the reviewer just named what this decision stands on.
-        writer.putDisposition({
-          ...anchor,
-          decision: DispositionDecisions.ADDRESSED,
-          evidence,
-        }),
-      ),
+    // Deciding again also settles the evidence question a carry raised: the
+    // reviewer just named what this decision stands on.
+    return decide(
+      c,
+      deps,
+      parsed.data.flags.map(({ evidence, ...anchor }) => ({
+        ...anchor,
+        decision: DispositionDecisions.ADDRESSED,
+        evidence,
+      })),
     );
   };
 
@@ -277,9 +262,12 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     }
     assertHuman(c);
     const flags: DispositionAnchor[] = parsed.data.flags;
-    return decide(c, deps, (writer) =>
-      flags.map((flag) => writer.deleteDisposition(flag)),
-    );
+    const resolved = await resolveSessionWrite(deps, c);
+    const reopened = await resolved.work.reopenRisks(flags);
+    if (!reopened.ok) {
+      throwSessionWriteFailure(reopened.error);
+    }
+    return c.json({ flags: reopened.value }, HttpStatuses.OK, NO_STORE);
   };
 
   const setReviewOutcome = async (c: Context<AuthzEnv>) => {
@@ -289,10 +277,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     }
 
     const resolved = await resolveSessionWrite(deps, c);
-    const outcome = parsed.data.outcome;
-    const written = await resolved.run((writer) =>
-      writer.setReviewOutcome(outcome),
-    );
+    const written = await resolved.work.setOutcome(parsed.data.outcome);
     if (!written.ok) {
       throwSessionWriteFailure(written.error);
     }

@@ -50,15 +50,13 @@ async function resolveSubmittableDrafts(
   c: Context<AuthzEnv>,
   resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
 ) {
-  const held = await resolved.run(async (writer) =>
-    (await writer.draftComments()).filter(
-      (row) => row.status === DraftCommentStatuses.DRAFT,
-    ),
-  );
+  const held = await resolved.publish.listDrafts();
   if (!held.ok) {
     throwSessionWriteFailure(held.error);
   }
-  const drafts = held.value;
+  const drafts = held.value.filter(
+    (row) => row.status === DraftCommentStatuses.DRAFT,
+  );
   // Posting an orphaned anchor lands the comment on unrelated lines;
   // dropping it reports feedback that never landed. Re-anchoring or
   // deleting the draft clears it.
@@ -106,9 +104,9 @@ async function recordSubmittedDrafts(
   reviewId: bigint,
 ) {
   try {
-    const recorded = await resolved.run(async (writer) => {
-      await writer.publishDraftComments(drafts.map((row) => row.id));
-      await writer.recordSubmittedReview({ githubReviewId: reviewId });
+    const recorded = await resolved.publish.recordPublishedDrafts({
+      draftIds: drafts.map((row) => row.id),
+      githubReviewId: reviewId,
     });
     if (!recorded.ok) {
       if (recorded.error.kind === FailureKinds.SESSION_REJECTED) {

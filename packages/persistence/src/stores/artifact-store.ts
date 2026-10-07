@@ -7,6 +7,7 @@
 // Result error, never a write. `revision_narrative` also resolves its `brief`
 // in (ctx, same PR); `comparison_marks` and `hunk_span` bodies are strict Zod.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { readBriefSessionFacts } from "brief-core/artifact";
 import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -424,6 +425,29 @@ function byteSize(body: string): number {
   return Buffer.byteLength(body, "utf8");
 }
 
+/** The `brief` columns a review session's record limits read. */
+interface SessionRecordCounts {
+  readonly sessionChunkCount: number | null;
+  readonly sessionGroupCount: number | null;
+  readonly sessionFlagCount: number | null;
+}
+
+function deriveSessionRecordCounts(body: string): SessionRecordCounts {
+  const read = readBriefSessionFacts(body);
+  if (!read.ok) {
+    return {
+      sessionChunkCount: null,
+      sessionGroupCount: null,
+      sessionFlagCount: null,
+    };
+  }
+  return {
+    sessionChunkCount: read.value.markableChunkCount,
+    sessionGroupCount: read.value.groupIds.length,
+    sessionFlagCount: read.value.flags.length,
+  };
+}
+
 type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 
 /**
@@ -461,6 +485,7 @@ export function createArtifactStore(
         input.usedGroupIds === undefined
           ? null
           : JSON.stringify(input.usedGroupIds);
+      const recordCounts = deriveSessionRecordCounts(input.body);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
@@ -488,6 +513,7 @@ export function createArtifactStore(
             carriedChunkIds: serializedChunkIds,
             usedGroupIds: serializedGroupIds,
             bodyVersion: input.bodyVersion ?? null,
+            ...recordCounts,
           })
           .onConflictDoUpdate({
             target: [
@@ -510,6 +536,7 @@ export function createArtifactStore(
               carriedChunkIds: serializedChunkIds,
               usedGroupIds: serializedGroupIds,
               bodyVersion: input.bodyVersion ?? null,
+              ...recordCounts,
             },
           })
           .returning();

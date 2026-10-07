@@ -23,6 +23,7 @@ import {
 import { PrStates } from "types/pull-requests";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ReviewOutcomes } from "types/reviews";
 import { ExitCodes } from "../src/exit";
 import { buildSubmitPayload, requireSpan } from "../src/commands/write";
 import {
@@ -218,12 +219,9 @@ describe("write commands over the real api app", () => {
       body: "{}",
     });
     if (!brief.ok) throw new Error("seedPr: brief write failed");
-    const written = await repo.reviewSessions.writeToSession(
-      {
-        briefId: brief.value.id,
-        reviewerId: REVIEWER,
-      },
-      () => Promise.resolve(),
+    const written = await repo.reviewSessions.setOutcome(
+      { briefId: brief.value.id, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
     if (!written.ok) throw new Error("seedPr: session seed failed");
   }

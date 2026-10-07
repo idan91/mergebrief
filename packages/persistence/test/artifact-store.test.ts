@@ -912,3 +912,89 @@ describe("createArtifactStore body version stamp", () => {
     expect(omitted.value.bodyVersion).toBeNull();
   });
 });
+
+describe("createArtifactStore.briefs session record counts", () => {
+  const TWO_CHUNKS = JSON.stringify({
+    changeGroups: [{ id: "g1" }],
+    chunks: [
+      {
+        id: "c1",
+        file: "src/app.ts",
+        addedRanges: [{ start: 10, end: 20 }],
+        riskSurface: ["sql-injection", "no-tests"],
+      },
+      { id: "c2", file: "src/app.ts" },
+    ],
+  });
+  const ONE_CHUNK = JSON.stringify({
+    changeGroups: [],
+    chunks: [{ id: "c1", file: "src/app.ts" }],
+  });
+
+  it("stores the body's counts and recomputes them on a rewrite", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(24);
+    const span = {
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+    };
+
+    const first = await store.briefs.write({ ...span, body: TWO_CHUNKS });
+    const rewritten = await store.briefs.write({ ...span, body: ONE_CHUNK });
+
+    expect(first.ok && first.value).toMatchObject({
+      sessionChunkCount: 2,
+      sessionGroupCount: 1,
+      sessionFlagCount: 2,
+    });
+    expect(rewritten.ok && rewritten.value).toMatchObject({
+      sessionChunkCount: 1,
+      sessionGroupCount: 0,
+      sessionFlagCount: 0,
+    });
+  });
+
+  it("counts unattributed files with the Chunks", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(26);
+    const body = JSON.stringify({
+      ...JSON.parse(ONE_CHUNK),
+      unattributed: [{ file: "src/left.ts", addedRanges: [] }],
+    });
+
+    const written = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body,
+    });
+
+    expect(written.ok && written.value.sessionChunkCount).toBe(2);
+  });
+
+  it("stores no counts for a body it cannot read", async () => {
+    const { store, pr } = await makeOpenPullRequestStore(25);
+    const span = {
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+    };
+    await store.briefs.write({ ...span, body: TWO_CHUNKS });
+
+    const unreadable = await store.briefs.write({ ...span, body: "{ no" });
+
+    expect(unreadable.ok && unreadable.value).toMatchObject({
+      sessionChunkCount: null,
+      sessionGroupCount: null,
+      sessionFlagCount: null,
+    });
+  });
+});

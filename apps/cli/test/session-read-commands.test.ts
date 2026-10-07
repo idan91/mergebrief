@@ -24,6 +24,7 @@ import {
 import { PrStates } from "types/pull-requests";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ReviewOutcomes } from "types/reviews";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import {
@@ -162,12 +163,9 @@ describe("session read commands over the real api app", () => {
       repoConfig: REPO_CONFIG,
     });
     if (!brief.ok) throw new Error("brief seed failed");
-    const session = await repo.reviewSessions.writeToSession(
-      {
-        briefId: brief.value.id,
-        reviewerId: REVIEWER,
-      },
-      () => Promise.resolve(),
+    const session = await repo.reviewSessions.setOutcome(
+      { briefId: brief.value.id, reviewerId: REVIEWER },
+      ReviewOutcomes.COMMENT,
     );
     if (!session.ok) throw new Error("session seed failed");
     const marks = await store.comparisonMarks.write({

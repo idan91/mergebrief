@@ -11,6 +11,7 @@ import {
   type TenantContext,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestUserOctokit } from "../../../../../test/fixtures";
@@ -127,10 +128,8 @@ describe("sessionController.resolveWrite", () => {
       throw new Error("unreachable");
     }
     expect(resolved.value.head).toBe("head1");
-    const written = await resolved.value.run(
-      async (writer) => (await writer.draftComments()).length,
-    );
-    expect(written).toEqual({ ok: true, value: 0 });
+    const listed = await resolved.value.publish.listDrafts();
+    expect(listed).toEqual({ ok: true, value: [] });
   });
 });
 
@@ -187,7 +186,7 @@ describe("sessionController.previewSession", () => {
     if (!earlier.ok) {
       throw new Error("fixture brief missing");
     }
-    await earlier.value.run((writer) => writer.putReadMark({ chunkId: "c1" }));
+    await earlier.value.work.setOutcome(ReviewOutcomes.COMMENT);
 
     const previewed = await sessionController.previewSession(
       deps,

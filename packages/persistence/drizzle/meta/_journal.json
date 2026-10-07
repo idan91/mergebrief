@@ -337,6 +337,13 @@
       "when": 1791132469539,
       "tag": "0048_artifact-body-version",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791243444360,
+      "tag": "0049_brief-session-counts",
+      "breakpoints": true
     }
   ]
 }

@@ -450,7 +450,10 @@ describe("the per-repo gate across two installations", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
-      body: JSON.stringify({ groupIds: ["c1"], flags: [], filePaths: [] }),
+      body: JSON.stringify({
+        changeGroups: [],
+        chunks: [{ id: "c1", file: "src/app.ts" }],
+      }),
       carriedChunkIds: [],
       anchorState: "anchored",
     });

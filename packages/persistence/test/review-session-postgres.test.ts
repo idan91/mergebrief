@@ -1,8 +1,10 @@
 // The session row locks cannot be proven on PGlite, which runs one
 // connection. This suite runs only against a real Postgres named by
 // MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red under CI.
+import { and, eq } from "drizzle-orm";
 import { CommentAnchorKinds } from "types";
 import { describe, expect, it } from "vitest";
+import { internal } from "../src/db/handle";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -11,17 +13,18 @@ import {
 import type {
   AppDatabase,
   ReviewSessionKey,
-  SessionWriter,
   TenantRepository,
 } from "../src/index";
+import { reviewDraftComment } from "../src/schema/review-draft-comment";
+import { reviewSession } from "../src/schema/review-session";
 import {
   isReviewerId,
   type BriefRowId,
   type PullRequestRowId,
   type ReviewerId,
 } from "../src/types";
-import { DraftCommentSides } from "types/comments";
 import { PrStates } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import {
   brandWith,
   connectMigrated,
@@ -38,6 +41,7 @@ const HOLD_MS = 300;
 const DRAFT_CAP = 64;
 
 interface World {
+  readonly handle: AppDatabase;
   readonly sessions: TenantRepository["reviewSessions"];
   readonly older: ReviewSessionKey;
   readonly newer: ReviewSessionKey;
@@ -96,6 +100,7 @@ async function seedWorld(
   const older = await seedBrief(handle, fixture, pr.id, 1);
   const newer = await seedBrief(handle, fixture, pr.id, 2);
   return {
+    handle,
     sessions: repo.reviewSessions,
     older: { briefId: older, reviewerId: REVIEWER },
     newer: { briefId: newer, reviewerId: REVIEWER },
@@ -116,14 +121,50 @@ async function runInWorld(body: (world: World) => Promise<void>) {
   }
 }
 
-function addDraft(writer: SessionWriter, body: string) {
-  return writer.addDraftComment({
-    kind: CommentAnchorKinds.LINE,
-    filePath: "src/app.ts",
-    side: DraftCommentSides.NEW,
-    startLine: 1,
-    endLine: 1,
-    body,
+const FILE_ANCHOR = { kind: CommentAnchorKinds.FILE, file: "src/app.ts" };
+
+async function addDraft(world: World, key: ReviewSessionKey, body: string) {
+  return world.sessions.addDraft(key, { anchor: FILE_ANCHOR, body });
+}
+
+/**
+ * Stand in for a session write in flight: lock the session row the way every
+ * write does, insert a draft under it, then hold the transaction open until
+ * `release` opens.
+ */
+async function holdSessionWrite(
+  world: World,
+  key: ReviewSessionKey,
+  body: string,
+  gates: { readonly entered: Gate; readonly release: Gate },
+): Promise<void> {
+  await internal(world.handle).transaction(async (tx) => {
+    const locked = await tx
+      .select({
+        id: reviewSession.id,
+        installationId: reviewSession.installationId,
+      })
+      .from(reviewSession)
+      .where(
+        and(
+          eq(reviewSession.briefId, key.briefId),
+          eq(reviewSession.reviewerId, key.reviewerId),
+        ),
+      )
+      .for("update");
+    const session = locked[0];
+    if (session === undefined) {
+      throw new Error("no session to hold");
+    }
+    await tx.insert(reviewDraftComment).values({
+      installationId: session.installationId,
+      reviewSessionId: session.id,
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/app.ts",
+      body,
+    });
+    gates.entered.open();
+    await gates.release.opened;
   });
 }
 
@@ -136,67 +177,56 @@ async function readDraftBodies(
 }
 
 describe.skipIf(databaseUrl === undefined)(
-  "writeToSession on real Postgres",
+  "session operations on real Postgres",
   () => {
-    it("a write to the previous session waits for a materialization", async () => {
+    it("a write to the previous session waits behind a materialization", async () => {
       await runInWorld(async (world) => {
-        const entered = makeGate();
-        const release = makeGate();
-        await world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "first"),
-        );
+        const gates = { entered: makeGate(), release: makeGate() };
+        await addDraft(world, world.older, "first");
+        const holding = holdSessionWrite(world, world.older, "held", gates);
+        await gates.entered.opened;
 
-        const materializing = world.sessions.writeToSession(
+        const materializing = world.sessions.setOutcome(
           world.newer,
-          async (writer) => {
-            entered.open();
-            await release.opened;
-            return writer.session.id;
-          },
+          ReviewOutcomes.COMMENT,
         );
-        await Promise.race([entered.opened, materializing]);
-        const late = world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "late"),
-        );
+        await waitMs(HOLD_MS);
+        const late = addDraft(world, world.older, "late");
         const whileHeld = await Promise.race([late, waitMs(HOLD_MS)]);
-        release.open();
+        gates.release.open();
+        await holding;
         await materializing;
         const settled = await late;
 
         expect(whileHeld).toBe("timer");
-        expect(settled.ok).toBe(false);
         expect(!settled.ok && settled.error.code).toBe(
           ReviewSessionErrorCodes.SESSION_FROZEN,
         );
-        expect(await readDraftBodies(world, world.older)).toEqual(["first"]);
-        expect(await readDraftBodies(world, world.newer)).toEqual(["first"]);
+        expect(await readDraftBodies(world, world.older)).toEqual([
+          "first",
+          "held",
+        ]);
+        expect(await readDraftBodies(world, world.newer)).toEqual([
+          "first",
+          "held",
+        ]);
       });
     });
 
     it("a materialization waits for a write to the previous session", async () => {
       await runInWorld(async (world) => {
-        const entered = makeGate();
-        const release = makeGate();
-        await world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "first"),
-        );
+        const gates = { entered: makeGate(), release: makeGate() };
+        await addDraft(world, world.older, "first");
+        const holding = holdSessionWrite(world, world.older, "late", gates);
+        await gates.entered.opened;
 
-        const writing = world.sessions.writeToSession(
-          world.older,
-          async (writer) => {
-            await addDraft(writer, "late");
-            entered.open();
-            await release.opened;
-          },
-        );
-        await Promise.race([entered.opened, writing]);
-        const materializing = world.sessions.writeToSession(
+        const materializing = world.sessions.setOutcome(
           world.newer,
-          async (writer) => writer.session.id,
+          ReviewOutcomes.COMMENT,
         );
         const whileHeld = await Promise.race([materializing, waitMs(HOLD_MS)]);
-        release.open();
-        await writing;
+        gates.release.open();
+        await holding;
         await materializing;
 
         expect(whileHeld).toBe("timer");
@@ -209,27 +239,15 @@ describe.skipIf(databaseUrl === undefined)(
 
     it("a second write to one session waits for the first", async () => {
       await runInWorld(async (world) => {
-        const entered = makeGate();
-        const release = makeGate();
-        await world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "first"),
-        );
+        const gates = { entered: makeGate(), release: makeGate() };
+        await addDraft(world, world.older, "first");
+        const holding = holdSessionWrite(world, world.older, "second", gates);
+        await gates.entered.opened;
 
-        const first = world.sessions.writeToSession(
-          world.older,
-          async (writer) => {
-            entered.open();
-            await release.opened;
-            return addDraft(writer, "second");
-          },
-        );
-        await Promise.race([entered.opened, first]);
-        const second = world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "third"),
-        );
+        const second = addDraft(world, world.older, "third");
         const whileHeld = await Promise.race([second, waitMs(HOLD_MS)]);
-        release.open();
-        await first;
+        gates.release.open();
+        await holding;
         const settled = await second;
 
         expect(whileHeld).toBe("timer");
@@ -244,19 +262,12 @@ describe.skipIf(databaseUrl === undefined)(
 
     it("two parallel adds one under the draft cap add exactly one", async () => {
       await runInWorld(async (world) => {
-        await world.sessions.writeToSession(world.older, async (writer) => {
-          for (let index = 1; index < DRAFT_CAP; index++) {
-            await addDraft(writer, `draft ${index}`);
-          }
-        });
+        for (let index = 1; index < DRAFT_CAP; index++) {
+          await addDraft(world, world.older, `draft ${index}`);
+        }
 
         const outcomes = await Promise.all(
-          [1, 2].map(() =>
-            world.sessions.addDraft(world.older, {
-              anchor: { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
-              body: "under the cap",
-            }),
-          ),
+          [1, 2].map(() => addDraft(world, world.older, "under the cap")),
         );
 
         const refusals = outcomes.flatMap((outcome) =>

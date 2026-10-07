@@ -5,8 +5,11 @@
 // migrations turns the stub off. `raw` is an unscoped SQL surface for TEST
 // ASSERTIONS only, and production never sees this module.
 import type { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { type AppDatabase, fromDrizzle } from "../db/handle";
+import type { AnchorStatus } from "types/comments";
+import { type AppDatabase, fromDrizzle, internal } from "../db/handle";
+import { reviewDraftComment } from "../schema/review-draft-comment";
 import { createMigratedPglite } from "./pglite-snapshot";
 
 // For consumers' vitest `globalSetup`: builds the migrated snapshot once,
@@ -92,4 +95,19 @@ export async function createPgliteHarness(
       await client.close();
     },
   };
+}
+
+/**
+ * Stamp a carry-over verdict on a stored draft: the state a carried copy
+ * holds and no reviewer action writes. Unscoped, for seeding only.
+ */
+export async function stampDraftAnchorStatus(
+  handle: AppDatabase,
+  draftId: bigint,
+  anchorStatus: AnchorStatus,
+): Promise<void> {
+  await internal(handle)
+    .update(reviewDraftComment)
+    .set({ anchorStatus })
+    .where(eq(reviewDraftComment.id, draftId));
 }

@@ -51,6 +51,14 @@ export const brief = pgTable(
      */
     usedGroupIds: text("used_group_ids"),
     bodyVersion: bodyVersionColumn(),
+    /**
+     * The body's Chunk, change-group and risk-flag counts, the most rows of
+     * each a review session may hold. Written together with the body, all
+     * NULL when it cannot be read or was written before the columns.
+     */
+    sessionChunkCount: integer("session_chunk_count"),
+    sessionGroupCount: integer("session_group_count"),
+    sessionFlagCount: integer("session_flag_count"),
     ...artifactColumns(),
   },
   (table) => [

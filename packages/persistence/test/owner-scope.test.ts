@@ -18,6 +18,7 @@ import {
   type TenantContext,
 } from "../src/index";
 import { PrStates, PullRequestSources } from "types/pull-requests";
+import { ReviewOutcomes } from "types/reviews";
 import {
   isInstallationId,
   isRepoId,
@@ -466,9 +467,9 @@ describe("owner-scoped review sessions", () => {
       reviewerId: OWNER_A,
     };
 
-    const created = await a.reviewSessions.writeToSession(
+    const created = await a.reviewSessions.setOutcome(
       key,
-      async (writer) => writer.session,
+      ReviewOutcomes.COMMENT,
     );
     expect(created.ok).toBe(true);
 
@@ -478,9 +479,9 @@ describe("owner-scoped review sessions", () => {
     expect(await t.reviewSessions.get(key)).toBeUndefined();
     expect(await a.reviewSessions.get(key)).toBeDefined();
 
-    const foreignWrite = await b.reviewSessions.writeToSession(
+    const foreignWrite = await b.reviewSessions.setOutcome(
       key,
-      async (writer) => writer.session,
+      ReviewOutcomes.COMMENT,
     );
     expect(foreignWrite.ok).toBe(false);
   });
