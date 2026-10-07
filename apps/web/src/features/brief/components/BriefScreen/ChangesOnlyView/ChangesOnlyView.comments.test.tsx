@@ -16,7 +16,6 @@ import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewSessionPayload,
@@ -38,6 +37,8 @@ import { buildBriefViewModel } from "../../../utils/viewModel";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import type { ChangesReviewWiring } from "./types";
 import { ChangesOnlyView } from ".";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 const { requestSnippetTokens } = vi.hoisted(() => ({
   requestSnippetTokens: vi.fn(),
@@ -274,13 +275,6 @@ function renderChanges(options: RenderOptions = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -318,25 +312,27 @@ function renderChanges(options: RenderOptions = {}) {
               session={next.session}
             >
               <ReviewFlowProvider store={flowStore}>
-                <ChangesOnlyView
-                  brief={FULL_BRIEF}
-                  compare={compare}
-                  delta={
-                    compare === "last-review" ? (next.delta ?? DELTA) : null
-                  }
-                  deltaSpan={next.deltaSpan}
-                  marks={null}
-                  model={model}
-                  narrative={
-                    compare === "previous-brief"
-                      ? (next.narrative ?? NARRATIVE)
-                      : null
-                  }
-                  jumpToChunk={next.jumpToChunk}
-                  narrativeSpanRows={next.narrativeSpanRows}
-                  review={review}
-                  skipReason={null}
-                />
+                <ReviewPostureProvider posture={makeReviewPosture()}>
+                  <ChangesOnlyView
+                    brief={FULL_BRIEF}
+                    compare={compare}
+                    delta={
+                      compare === "last-review" ? (next.delta ?? DELTA) : null
+                    }
+                    deltaSpan={next.deltaSpan}
+                    marks={null}
+                    model={model}
+                    narrative={
+                      compare === "previous-brief"
+                        ? (next.narrative ?? NARRATIVE)
+                        : null
+                    }
+                    jumpToChunk={next.jumpToChunk}
+                    narrativeSpanRows={next.narrativeSpanRows}
+                    review={review}
+                    skipReason={null}
+                  />
+                </ReviewPostureProvider>
               </ReviewFlowProvider>
             </ReviewSessionProvider>
           </FileRowsProvider>
@@ -411,6 +407,7 @@ describe("Previous Brief narrative cards take comments", () => {
         endLine: 11,
         rowIds: ["chunk-a:2"],
       }),
+      undefined,
       "narrative:src/a.ts#rc1",
     );
   });
@@ -559,6 +556,7 @@ describe("Your last review delta cards take comments", () => {
         endLine: 11,
         rowIds: [],
       }),
+      undefined,
       "delta:chunk-a",
     );
   });

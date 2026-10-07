@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 
 import {
   demotedSubmittedCommentIds,
@@ -11,6 +10,7 @@ import {
   useReviewFlow,
 } from "@web/features/review/session";
 import { createFileCommentAnchor } from "@web/features/review/utils";
+import { useReviewPosture } from "../../../../../hooks/useReviewPosture";
 import type { BriefChunk } from "../../../../../types";
 
 const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
@@ -36,10 +36,11 @@ export function useFileCommentBandFacade({
     toggleConversationThread,
   } = useReviewActions();
   const composerSaving = useReviewFlow((state) => state.composerSaving);
-  const postComment = useReviewFlow((state) => state.postComment);
-  const postBlockedExternally = useReviewFlow(
-    (state) => state.postBlockedExternally,
-  );
+  const {
+    postComment,
+    postBlockedExternally,
+    postingCommentIds: postingInBrief,
+  } = useReviewPosture();
   const ownInbound = useMemo(
     () => inboundRows.filter((row) => row.isOwn).map((row) => row.thread),
     [inboundRows],
@@ -50,13 +51,9 @@ export function useFileCommentBandFacade({
     if (demoted.size === 0) return fileComments;
     return fileComments.filter((comment) => !demoted.has(comment.id));
   }, [fileComments, ownInbound]);
-  const postingCommentIds = useReviewFlow(
-    useShallow((state) =>
-      comments
-        .filter((comment) => state.postingCommentIds.has(comment.id))
-        .map((comment) => comment.id),
-    ),
-  );
+  const postingCommentIds = comments
+    .filter((comment) => postingInBrief.has(comment.id))
+    .map((comment) => comment.id);
   const chunkKey = `${chunk.file}#${chunk.id}`;
   const expandedConversation =
     useReviewFlow((state) => state.expandedConversations.get(chunkKey)) ??

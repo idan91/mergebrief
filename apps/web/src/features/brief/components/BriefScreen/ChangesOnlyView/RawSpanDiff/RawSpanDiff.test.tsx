@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowStore,
@@ -46,6 +45,8 @@ import { buildBriefViewModel } from "../../../../utils/viewModel";
 import { DiffTable } from "../../DiffTable";
 import type { ChangesReviewWiring } from "../types";
 import { RawSpanDiff } from ".";
+import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -172,16 +173,6 @@ function stubThread(
   };
 }
 
-function stubPosture(composerDisabledReason: string | undefined) {
-  return initialReviewFlowState({
-    composerDisabledReason,
-    flagsReadOnly: false,
-    postingCommentIds: new Set(),
-    postBlockedExternally: undefined,
-    postComment: undefined,
-  });
-}
-
 interface LiveFlowProps {
   onStore: (store: ReviewFlowStore) => void;
   children: ReactNode;
@@ -191,11 +182,7 @@ interface LiveFlowProps {
 function LiveFlow({ onStore, children }: LiveFlowProps) {
   const actions = useReviewSessionActions();
   const [store] = useState(() => {
-    const created = createReviewFlowStore(
-      actions,
-      stubPosture(undefined),
-      appI18n.t,
-    );
+    const created = createReviewFlowStore(actions, appI18n.t);
     onStore(created);
     return created;
   });
@@ -226,7 +213,7 @@ interface RenderOptions {
   session?: ReviewSessionPayload;
   /** Render the owner's own table beside the span, as Full would. */
   withOwnerTable?: boolean;
-  /** The flow store's read-only posture. */
+  /** The screen's read-only reason for comments. */
   composerDisabledReason?: string;
   /** The PR diff rows; defaults to the loaded file. */
   cache?: FileRowsCache;
@@ -250,7 +237,6 @@ function renderRaw(
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    stubPosture(options.composerDisabledReason),
     appI18n.t,
   );
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -269,6 +255,9 @@ function renderRaw(
         : new Map([["src/a.ts", options.fileThreads]]),
     conversationComposer: THREAD_COMPOSER,
   };
+  const posture = makeReviewPosture({
+    composerDisabledReason: options.composerDisabledReason,
+  });
   const tables = (
     <>
       <RawSpanDiff query={query} review={review}>
@@ -300,17 +289,21 @@ function renderRaw(
           model={model}
           session={options.session}
         >
-          {options.liveSession === true ? (
-            <LiveFlow
-              onStore={(store) => {
-                flowStore = store;
-              }}
-            >
-              {tables}
-            </LiveFlow>
-          ) : (
-            <ReviewFlowProvider store={flowStore}>{tables}</ReviewFlowProvider>
-          )}
+          <ReviewPostureProvider posture={posture}>
+            {options.liveSession === true ? (
+              <LiveFlow
+                onStore={(store) => {
+                  flowStore = store;
+                }}
+              >
+                {tables}
+              </LiveFlow>
+            ) : (
+              <ReviewFlowProvider store={flowStore}>
+                {tables}
+              </ReviewFlowProvider>
+            )}
+          </ReviewPostureProvider>
         </ReviewSessionProvider>
       </FileRowsProvider>
     </QueryClientProvider>,
@@ -380,6 +373,7 @@ describe("RawSpanDiff toggle", () => {
         startLine: 2,
         endLine: 2,
       }),
+      undefined,
       "raw:src/a.ts",
     );
     expect(screen.getByText("1 line")).toBeTruthy();

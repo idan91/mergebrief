@@ -25,6 +25,8 @@ import {
   ReadingPositionProvider,
 } from "../../readingPosition";
 import { ChunkCard, type ChunkCardProps } from ".";
+import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../../utils/review-posture";
 
 afterEach(cleanup);
 afterEach(() => {
@@ -89,13 +91,6 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const props: ChunkCardProps = {
@@ -115,9 +110,11 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
         model={buildBriefViewModel(brief)}
       >
         <ReviewFlowProvider store={flowStore}>
-          <ReadingPositionProvider store={positionStore}>
-            <ChunkCard {...props} />
-          </ReadingPositionProvider>
+          <ReviewPostureProvider posture={makeReviewPosture()}>
+            <ReadingPositionProvider store={positionStore}>
+              <ChunkCard {...props} />
+            </ReadingPositionProvider>
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,

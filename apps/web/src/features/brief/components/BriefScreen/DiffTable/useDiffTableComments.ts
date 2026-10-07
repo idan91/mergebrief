@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { useShallow } from "zustand/react/shallow";
 
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
   findDraftComment,
   isLineCommentAnchor,
+  type LineCommentAnchor,
 } from "@web/features/review/utils";
 import {
   useChunkReviewComments,
@@ -13,6 +13,7 @@ import {
   useReviewFlow,
   useReviewSession,
 } from "@web/features/review/session";
+import { useReviewPosture } from "../../../hooks/useReviewPosture";
 import type { BriefChunk } from "../../../types";
 import { EMPTY_EXPANDED_THREADS } from "./consts";
 import { demoteSubmitted, isNewSideAnchor } from "./utils";
@@ -43,7 +44,7 @@ export function useDiffTableComments({
   fileThreads,
 }: DiffTableCommentsInput) {
   const {
-    openComposer,
+    openComposer: openComposerAction,
     cancelComposer,
     saveComment,
     deleteComment,
@@ -121,26 +122,19 @@ export function useDiffTableComments({
    * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
    * selection/composer entry is inert.
    */
-  const composerDisabledReason = useReviewFlow(
-    (state) => state.composerDisabledReason,
-  );
-  // Post a staged draft now; undefined hides the Post affordance entirely.
-  const postReviewComment = useReviewFlow((state) => state.postComment);
-  // Wait-shaped reason every Post is blocked right now (submit in flight).
-  const postBlockedExternally = useReviewFlow(
-    (state) => state.postBlockedExternally,
-  );
-  // In-flight post-now ids scoped to the comments THIS table shows, its
-  // own and its owners' (the registry's set covers the whole brief, so an
-  // unscoped read would re-render every expanded table on any post).
-  const postingCommentIds = useReviewFlow(
-    useShallow((state) =>
-      comments
-        .concat(spanComments)
-        .filter((comment) => state.postingCommentIds.has(comment.id))
-        .map((comment) => comment.id),
-    ),
-  );
+  const {
+    composerDisabledReason,
+    postComment: postReviewComment,
+    postBlockedExternally,
+    postingCommentIds: postingInBrief,
+  } = useReviewPosture();
+  const postingCommentIds = comments
+    .concat(spanComments)
+    .filter((comment) => postingInBrief.has(comment.id))
+    .map((comment) => comment.id);
+  function openComposer(anchor: LineCommentAnchor, hostChunkId: string): void {
+    openComposerAction(anchor, composerDisabledReason, hostChunkId);
+  }
   // Store-owned so it survives this card unmounting offscreen.
   const expandedConversation =
     useReviewFlow((state) => state.expandedConversations.get(chunkKey)) ??

@@ -7,7 +7,6 @@ import {
   useCreateReviewFlowStore,
   useDraftCommentCount,
   useReviewSession,
-  useSyncReviewFlowPosture,
   useUnplacedDrafts,
 } from "@web/features/review/session";
 import { useReviewSubmit } from "@web/features/review/hooks";
@@ -37,6 +36,7 @@ import { useChunkDeepLink } from "./useChunkDeepLink";
 import { useFocusAddress } from "./useFocusAddress";
 import { useLineLinkLanding } from "./useLineLinkLanding";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
+import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
 import { useDiffViewPreference } from "./useDiffViewPreference";
@@ -246,13 +246,7 @@ export function useBriefScreenFacade({
   const inFlight = useInFlightDraftPosts();
   const postingCommentIds = inFlight.ids;
 
-  const flowStore = useCreateReviewFlowStore(briefId, {
-    composerDisabledReason,
-    flagsReadOnly: ownDraftActive || writesDisabled,
-    postingCommentIds,
-    postBlockedExternally: undefined,
-    postComment: undefined,
-  });
+  const flowStore = useCreateReviewFlowStore(briefId);
   const flowActions = flowStore.getState().actions;
   // Both panes stay mounted across a scope switch, so a composer hosted by
   // the hidden pane would stay open unseen with the page shortcuts dead
@@ -507,15 +501,28 @@ export function useBriefScreenFacade({
     submitPending,
   });
 
-  useSyncReviewFlowPosture(flowStore, {
-    composerDisabledReason,
-    flagsReadOnly: ownDraftActive || writesDisabled,
-    postingCommentIds,
-    postBlockedExternally: submitPending
-      ? t(POST_COMMENT_COPY_KEYS.postWhileSubmitting)
-      : undefined,
-    postComment: postComment !== undefined ? postDraftComment : undefined,
-  });
+  const flagsReadOnly = ownDraftActive || writesDisabled;
+  const postBlockedExternally = submitPending
+    ? t(POST_COMMENT_COPY_KEYS.postWhileSubmitting)
+    : undefined;
+  const postNow = postComment === undefined ? undefined : postDraftComment;
+  // One identity per real change: every comment table reads this context.
+  const posture = useMemo<ReviewPosture>(
+    () => ({
+      composerDisabledReason,
+      flagsReadOnly,
+      postingCommentIds,
+      postBlockedExternally,
+      postComment: postNow,
+    }),
+    [
+      composerDisabledReason,
+      flagsReadOnly,
+      postingCommentIds,
+      postBlockedExternally,
+      postNow,
+    ],
+  );
 
   const reviewerOverlayOpen = submitOpen || riskModalOpen;
   const closeReviewerOverlays = useCallback(() => {
@@ -688,6 +695,7 @@ export function useBriefScreenFacade({
     markReady,
     intentBarRef,
     flowStore,
+    posture,
     readingPosition,
     openSubmit,
     draftCommentCount,

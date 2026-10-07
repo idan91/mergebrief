@@ -29,6 +29,8 @@ import {
   ReadingPositionProvider,
 } from "../../readingPosition";
 import { GroupCard } from ".";
+import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -79,27 +81,22 @@ function renderCard(writes: SessionWrites, flagsReadOnly = false) {
       toggleComment: () => undefined,
       reanchorComment: () => true,
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   render(
     <ReviewSessionProvider briefId="test-brief" model={model} writes={writes}>
       <ReviewFlowProvider store={flowStore}>
-        <ReadingPositionProvider store={createReadingPositionStore()}>
-          <StoreTap />
-          <GroupCard
-            group={group}
-            brief={briefFixture}
-            model={model}
-            jumpToChunk={() => undefined}
-          />
-        </ReadingPositionProvider>
+        <ReviewPostureProvider posture={makeReviewPosture({ flagsReadOnly })}>
+          <ReadingPositionProvider store={createReadingPositionStore()}>
+            <StoreTap />
+            <GroupCard
+              group={group}
+              brief={briefFixture}
+              model={model}
+              jumpToChunk={() => undefined}
+            />
+          </ReadingPositionProvider>
+        </ReviewPostureProvider>
       </ReviewFlowProvider>
     </ReviewSessionProvider>,
   );

@@ -23,7 +23,6 @@ import type {
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowState,
@@ -35,6 +34,11 @@ import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 import { createCommentAnchor } from "@web/features/review/utils";
+import {
+  ReviewPostureProvider,
+  type ReviewPosture,
+} from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -127,9 +131,13 @@ const providerBrief: Brief = {
   concernView: [],
 };
 
+interface TableState extends Partial<ReviewFlowState> {
+  posture?: Partial<ReviewPosture>;
+}
+
 function renderTable(
   overrides: Partial<DiffTableProps> = {},
-  flowState: Partial<ReviewFlowState> = {},
+  state: TableState = {},
   existingStore?: ReviewFlowStore,
   session?: ReviewSessionPayload,
 ) {
@@ -149,15 +157,9 @@ function renderTable(
         toggleComment: vi.fn(),
         reanchorComment: vi.fn(),
       },
-      initialReviewFlowState({
-        composerDisabledReason: undefined,
-        flagsReadOnly: false,
-        postingCommentIds: new Set(),
-        postBlockedExternally: undefined,
-        postComment: undefined,
-      }),
       appI18n.t,
     );
+  const { posture = {}, ...flowState } = state;
   flowStore.setState(flowState);
   // Call-count observability for composer entry: wrap the real action.
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -186,7 +188,9 @@ function renderTable(
         session={session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <DiffTable {...next} />
+          <ReviewPostureProvider posture={makeReviewPosture(posture)}>
+            <DiffTable {...next} />
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>
@@ -508,7 +512,10 @@ describe("DiffTable read-only comment affordances", () => {
   const REASON = "You're viewing an earlier revision.";
 
   it("rows stay focusable but are aria-disabled with a reachable reason", () => {
-    const { view } = renderTable({}, { composerDisabledReason: REASON });
+    const { view } = renderTable(
+      {},
+      { posture: { composerDisabledReason: REASON } },
+    );
     const row = view.container.querySelector('tr[aria-disabled="true"]');
     expect(row).not.toBeNull();
     // Still keyboard-reachable, so the reason is discoverable BEFORE activation.
@@ -522,7 +529,7 @@ describe("DiffTable read-only comment affordances", () => {
   it("keeps composer entry inert on Enter and on click", () => {
     const { view, openCommentComposer } = renderTable(
       {},
-      { composerDisabledReason: REASON },
+      { posture: { composerDisabledReason: REASON } },
     );
     const row = view.container.querySelector('tr[aria-disabled="true"]');
     if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
@@ -925,7 +932,7 @@ describe("DiffTable line selection", () => {
       [1],
     );
     if (anchor === null) throw new Error("expected an anchor");
-    act(() => flowStore.getState().actions.openComposer(anchor));
+    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
 
     expect(first.hasAttribute("data-selected")).toBe(false);
     expect(second.hasAttribute("data-selected")).toBe(true);
@@ -1053,7 +1060,7 @@ describe("DiffTable line selection", () => {
       [1],
     );
     if (anchor === null) throw new Error("expected an anchor");
-    act(() => flowStore.getState().actions.openComposer(anchor));
+    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
 
     expect(
       container.querySelector('[data-testid="line-link-button"]'),
@@ -1076,7 +1083,7 @@ describe("DiffTable line selection", () => {
     const {
       view: { container },
       flowStore,
-    } = renderTable({}, { composerDisabledReason: "Read-only." });
+    } = renderTable({}, { posture: { composerDisabledReason: "Read-only." } });
     const row = container.querySelector("tr[data-line-kind='add']");
     if (!(row instanceof HTMLElement)) throw new Error("expected a row");
     fireEvent.mouseDown(findNumberCell(row));
@@ -1458,7 +1465,7 @@ describe("DiffTable split selection", () => {
       view: { container },
     } = renderTable(
       { chunk: splitChunk(), view: "split" },
-      { composerDisabledReason: REASON },
+      { posture: { composerDisabledReason: REASON } },
     );
     const left = sideCells(container, "left", "del");
     const leftCtx = sideCells(container, "left", "ctx");

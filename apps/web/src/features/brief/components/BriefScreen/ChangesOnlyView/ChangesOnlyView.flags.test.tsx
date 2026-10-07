@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewSessionActions,
@@ -30,6 +29,8 @@ import {
 } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { ChangesOnlyView } from ".";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -186,13 +187,6 @@ function renderSection(options: RenderOptions = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   const model = buildBriefViewModel(FULL_BRIEF);
@@ -204,24 +198,26 @@ function renderSection(options: RenderOptions = {}) {
       <TokenPlanProvider briefKey="brief-1" chunkSizes={[]}>
         <ReviewSessionProvider briefId="test-brief" model={model}>
           <ReviewFlowProvider store={flowStore}>
-            <SessionProbe
-              onActions={(actions) => {
-                sessionActions = actions;
-              }}
-              onDispositions={(kinds) => {
-                dispositionKinds = kinds;
-              }}
-            />
-            <ChangesOnlyView
-              brief={FULL_BRIEF}
-              compare={compare}
-              delta={compare === "last-review" ? DELTA : null}
-              jumpToChunk={jumpToChunk}
-              marks={null}
-              model={model}
-              narrative={compare === "previous-brief" ? NARRATIVE : null}
-              skipReason={null}
-            />
+            <ReviewPostureProvider posture={makeReviewPosture()}>
+              <SessionProbe
+                onActions={(actions) => {
+                  sessionActions = actions;
+                }}
+                onDispositions={(kinds) => {
+                  dispositionKinds = kinds;
+                }}
+              />
+              <ChangesOnlyView
+                brief={FULL_BRIEF}
+                compare={compare}
+                delta={compare === "last-review" ? DELTA : null}
+                jumpToChunk={jumpToChunk}
+                marks={null}
+                model={model}
+                narrative={compare === "previous-brief" ? NARRATIVE : null}
+                skipReason={null}
+              />
+            </ReviewPostureProvider>
           </ReviewFlowProvider>
         </ReviewSessionProvider>
       </TokenPlanProvider>

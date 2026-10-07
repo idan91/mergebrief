@@ -2,7 +2,7 @@
 // The flow store's in-place brief switch: its ephemeral half (composer
 // anchor, dismiss/evidence targets, submit note, flag selection, toast) is
 // anchored to the old brief's ids and must clear when briefId swaps without
-// a remount. The posture half re-syncs separately and is not under test.
+// a remount.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -67,19 +67,11 @@ function Wrapper({ children }: { children?: ReactNode }) {
   );
 }
 
-const POSTURE = {
-  composerDisabledReason: undefined,
-  flagsReadOnly: false,
-  postingCommentIds: new Set<string>(),
-  postBlockedExternally: undefined,
-  postComment: undefined,
-};
-
 describe("flow store in-place brief switch", () => {
   it("clears the ephemeral half when briefId changes", () => {
     currentBriefId = "brief-a";
     const { result, rerender } = renderHook(
-      () => useCreateReviewFlowStore(currentBriefId, POSTURE),
+      () => useCreateReviewFlowStore(currentBriefId),
       { wrapper: Wrapper },
     );
     const store = result.current;

@@ -38,6 +38,8 @@ import { ChunkCard, type ChunkCardProps } from "..";
 import { CommentAnchorKinds } from "types/comments";
 import { ReviewCommentStatuses } from "@web/features/review/utils";
 import { ThreadSubjectTypes } from "@web/features/conversation/types";
+import { ReviewPostureProvider } from "../../../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../../../utils/review-posture";
 
 afterEach(() => {
   cleanup();
@@ -160,13 +162,6 @@ function renderCard(options: RenderOptions = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    {
-      composerDisabledReason: options.composerDisabledReason,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const props: ChunkCardProps = {
@@ -187,9 +182,15 @@ function renderCard(options: RenderOptions = {}) {
         session={options.session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <ReadingPositionProvider store={createReadingPositionStore()}>
-            <ChunkCard {...props} />
-          </ReadingPositionProvider>
+          <ReviewPostureProvider
+            posture={makeReviewPosture({
+              composerDisabledReason: options.composerDisabledReason,
+            })}
+          >
+            <ReadingPositionProvider store={createReadingPositionStore()}>
+              <ChunkCard {...props} />
+            </ReadingPositionProvider>
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,
@@ -290,13 +291,6 @@ describe("FileCommentBand", () => {
         toggleComment: vi.fn(),
         reanchorComment: vi.fn(),
       },
-      {
-        composerDisabledReason: undefined,
-        flagsReadOnly: false,
-        postingCommentIds: new Set(),
-        postBlockedExternally: undefined,
-        postComment: undefined,
-      },
       appI18n.t,
     );
     const splitBrief: Brief = { ...brief, chunks: [chunk, second] };
@@ -307,24 +301,26 @@ describe("FileCommentBand", () => {
           model={buildBriefViewModel(splitBrief)}
         >
           <ReviewFlowProvider store={flowStore}>
-            <ReadingPositionProvider store={createReadingPositionStore()}>
-              <ChunkCard
-                addressedReviewComments={[]}
-                chunk={chunk}
-                comparison={comparison}
-                markReviewed={vi.fn()}
-                open
-                toggleChunk={toggleChunk}
-              />
-              <ChunkCard
-                addressedReviewComments={[]}
-                chunk={second}
-                comparison={comparison}
-                markReviewed={vi.fn()}
-                open
-                toggleChunk={toggleChunk}
-              />
-            </ReadingPositionProvider>
+            <ReviewPostureProvider posture={makeReviewPosture()}>
+              <ReadingPositionProvider store={createReadingPositionStore()}>
+                <ChunkCard
+                  addressedReviewComments={[]}
+                  chunk={chunk}
+                  comparison={comparison}
+                  markReviewed={vi.fn()}
+                  open
+                  toggleChunk={toggleChunk}
+                />
+                <ChunkCard
+                  addressedReviewComments={[]}
+                  chunk={second}
+                  comparison={comparison}
+                  markReviewed={vi.fn()}
+                  open
+                  toggleChunk={toggleChunk}
+                />
+              </ReadingPositionProvider>
+            </ReviewPostureProvider>
           </ReviewFlowProvider>
         </ReviewSessionProvider>
       </QueryClientProvider>,

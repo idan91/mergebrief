@@ -209,17 +209,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/useInFlightDraftPosts.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/brief/server/legacyRevchangesAlias.server.test.ts": {
     "house/no-em-dash": {
       "count": 1

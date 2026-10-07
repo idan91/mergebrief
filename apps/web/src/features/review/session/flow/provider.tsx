@@ -1,18 +1,11 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
 import { useStore } from "zustand";
 
 import { useReviewSessionActions } from "../provider";
 import {
   createReviewFlowStore,
   type ReviewFlowActions,
-  type ReviewFlowPosture,
   type ReviewFlowStore,
   type ReviewFlowStoreValue,
 } from "./store";
@@ -23,27 +16,19 @@ const ReviewFlowContext = createContext<ReviewFlowStore | null>(null);
  * Creates the screen's ReviewFlow store (once per mount, never a module
  * singleton). Returned to the HOST component: the screen both provides the
  * store (via `ReviewFlowProvider`) and subscribes to it directly with
- * `useStore(store, selector)`, since it sits above its own provider. Creation
- * and posture sync are separate hooks because the full posture (post-now
- * wiring) is only derivable AFTER hooks that need this store's `announce`.
+ * `useStore(store, selector)`, since it sits above its own provider.
  */
-export function useCreateReviewFlowStore(
-  briefId: string,
-  initialPosture: ReviewFlowPosture,
-): ReviewFlowStore {
+export function useCreateReviewFlowStore(briefId: string): ReviewFlowStore {
   const sessionActions = useReviewSessionActions();
   const storeRef = useRef<ReviewFlowStore | null>(null);
-  storeRef.current ??= createReviewFlowStore(
-    sessionActions,
-    initialPosture,
-    (key) => appI18n.t(key),
+  storeRef.current ??= createReviewFlowStore(sessionActions, (key) =>
+    appI18n.t(key),
   );
   const store = storeRef.current;
   // Brief switch without remount: the ephemeral half (open composer, dismiss
   // and evidence targets, submit note, flag selection, toast) is anchored to
   // the OLD brief's ids and must not leak into the new one. Render-phase and
-  // guarded, like the ReviewSessionProvider switch; the posture half re-syncs
-  // via useSyncReviewFlowPosture.
+  // guarded.
   const mountedBriefId = useRef(briefId);
   if (mountedBriefId.current !== briefId) {
     mountedBriefId.current = briefId;
@@ -63,42 +48,6 @@ export function useCreateReviewFlowStore(
     });
   }
   return store;
-}
-
-/**
- * Keeps the store's posture slice in sync with the screen's derived values.
- * Effect-timed (per-field deps): render output reading posture lags the prop
- * by one commit, which only matters within a single frame, because every consumer
- * path is interaction-driven, and the fields that affect first paint
- * (read-only reason, flags mirror) are already correct at creation.
- */
-export function useSyncReviewFlowPosture(
-  store: ReviewFlowStore,
-  posture: ReviewFlowPosture,
-): void {
-  const {
-    composerDisabledReason,
-    flagsReadOnly,
-    postingCommentIds,
-    postBlockedExternally,
-    postComment,
-  } = posture;
-  useEffect(() => {
-    store.setState({
-      composerDisabledReason,
-      flagsReadOnly,
-      postingCommentIds,
-      postBlockedExternally,
-      postComment,
-    });
-  }, [
-    composerDisabledReason,
-    flagsReadOnly,
-    postBlockedExternally,
-    postComment,
-    postingCommentIds,
-    store,
-  ]);
 }
 
 export interface ReviewFlowProviderProps {

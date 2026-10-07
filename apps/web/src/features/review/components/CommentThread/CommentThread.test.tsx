@@ -17,11 +17,7 @@ import {
   ReviewCommentStatuses,
   type ReviewComment,
 } from "../../utils/comments";
-import {
-  createReviewFlowStore,
-  initialReviewFlowState,
-  ReviewFlowProvider,
-} from "../../session";
+import { createReviewFlowStore, ReviewFlowProvider } from "../../session";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { CommentThread } from ".";
 import { CommentAnchorKinds } from "types/comments";
@@ -35,13 +31,6 @@ function makeFlowStore() {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
 }

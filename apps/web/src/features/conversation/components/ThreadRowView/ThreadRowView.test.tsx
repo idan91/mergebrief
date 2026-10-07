@@ -146,13 +146,6 @@ function renderRow(
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const toggle = vi.fn();
@@ -304,13 +297,6 @@ describe("ThreadRowView, slim resolved rows", () => {
         deleteComment: vi.fn(),
         toggleComment: vi.fn(),
         reanchorComment: vi.fn(),
-      },
-      {
-        composerDisabledReason: undefined,
-        flagsReadOnly: false,
-        postingCommentIds: new Set(),
-        postBlockedExternally: undefined,
-        postComment: undefined,
       },
       appI18n.t,
     );

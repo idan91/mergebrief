@@ -10,6 +10,7 @@ import {
   useReviewSessionActions,
 } from "@web/features/review/session";
 import type { RiskFlag } from "../utils/viewModel";
+import { useReviewPosture } from "./useReviewPosture";
 
 /**
  * The store slices one flag surface reads and the actions it fires, scoped
@@ -33,7 +34,7 @@ export function useFlagSurface(flags: RiskFlag[]) {
   const actions = useReviewSessionActions();
   const { announce, setDismissTarget, setEvidenceTarget, toggleRiskGroup } =
     useReviewActions();
-  const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
+  const { flagsReadOnly } = useReviewPosture();
 
   const flagIds = useMemo(() => flags.map((flag) => flag.id), [flags]);
   const selectedRiskFlags = useReviewFlow(

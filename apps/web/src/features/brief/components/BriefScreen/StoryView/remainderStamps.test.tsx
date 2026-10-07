@@ -20,6 +20,8 @@ import {
 } from "../readingPosition";
 import { deriveGroupSectionId } from "../utils";
 import { StoryView } from ".";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -65,13 +67,6 @@ function renderStory(focusMode: boolean) {
       toggleComment: () => undefined,
       reanchorComment: () => true,
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const positionStore = createReadingPositionStore();
@@ -80,20 +75,22 @@ function renderStory(focusMode: boolean) {
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider briefId="test-brief" model={model}>
         <ReviewFlowProvider store={flowStore}>
-          <ReadingPositionProvider store={positionStore}>
-            <StoryView
-              brief={brief}
-              comparison={comparison}
-              focusMode={focusMode}
-              jumpToChunk={() => undefined}
-              lineOwnersByFile={lineOwnersByFile}
-              markReviewed={() => undefined}
-              model={model}
-              openChunks={new Set(remainder.chunks.map((chunk) => chunk.id))}
-              addressedReviewComments={[]}
-              toggleChunk={() => undefined}
-            />
-          </ReadingPositionProvider>
+          <ReviewPostureProvider posture={makeReviewPosture()}>
+            <ReadingPositionProvider store={positionStore}>
+              <StoryView
+                brief={brief}
+                comparison={comparison}
+                focusMode={focusMode}
+                jumpToChunk={() => undefined}
+                lineOwnersByFile={lineOwnersByFile}
+                markReviewed={() => undefined}
+                model={model}
+                openChunks={new Set(remainder.chunks.map((chunk) => chunk.id))}
+                addressedReviewComments={[]}
+                toggleChunk={() => undefined}
+              />
+            </ReadingPositionProvider>
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,

@@ -6,7 +6,6 @@ import { appI18n } from "../../../../../i18n/I18nProvider";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   createReviewFlowStore,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
 } from "@web/features/review/session";
@@ -15,6 +14,8 @@ import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -87,13 +88,6 @@ function renderTable(view: NonNullable<DiffTableProps["view"]>) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   const props: DiffTableProps = {
@@ -116,7 +110,9 @@ function renderTable(view: NonNullable<DiffTableProps["view"]>) {
         model={buildBriefViewModel(providerBrief)}
       >
         <ReviewFlowProvider store={flowStore}>
-          <DiffTable {...props} />
+          <ReviewPostureProvider posture={makeReviewPosture()}>
+            <DiffTable {...props} />
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,

@@ -15,7 +15,6 @@ import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewFlowState,
@@ -27,6 +26,11 @@ import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
+import {
+  ReviewPostureProvider,
+  type ReviewPosture,
+} from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -123,6 +127,7 @@ interface RenderOverrides {
   chunk?: BriefChunk;
   addressedComments?: AddressedReviewComment[];
   flowState?: Partial<ReviewFlowState>;
+  posture?: Partial<ReviewPosture>;
   session?: ReviewSessionPayload;
   comparisonView?: DiffTableProps["comparisonView"];
   view?: DiffTableProps["view"];
@@ -143,13 +148,6 @@ function renderTable(overrides: RenderOverrides = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   if (overrides.flowState) flowStore.setState(overrides.flowState);
@@ -182,7 +180,9 @@ function renderTable(overrides: RenderOverrides = {}) {
         session={overrides.session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <DiffTable {...props} />
+          <ReviewPostureProvider posture={makeReviewPosture(overrides.posture)}>
+            <DiffTable {...props} />
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,
@@ -241,8 +241,8 @@ describe("DiffTable markup", () => {
       flowState: {
         composerAnchor: anchor,
         composerHost: anchor?.chunkId ?? null,
-        composerDisabledReason: "This revision is read-only.",
       },
+      posture: { composerDisabledReason: "This revision is read-only." },
       session,
     });
 

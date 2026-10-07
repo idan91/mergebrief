@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewSessionPayload,
@@ -43,6 +42,8 @@ import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -362,13 +363,6 @@ function renderHarness(
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -389,7 +383,9 @@ function renderHarness(
             session={options.session}
           >
             <ReviewFlowProvider store={flowStore}>
-              <Harness {...props} />
+              <ReviewPostureProvider posture={makeReviewPosture()}>
+                <Harness {...props} />
+              </ReviewPostureProvider>
             </ReviewFlowProvider>
           </ReviewSessionProvider>
         </FileRowsProvider>
@@ -960,7 +956,7 @@ describe("DiffTable sibling spans", () => {
       endLine: 11,
       rowIds: ["c2:3"],
     });
-    expect(openCommentComposer.mock.calls[0]?.[1]).toBe("c1");
+    expect(openCommentComposer.mock.calls[0]?.[2]).toBe("c1");
     expect(row.nextElementSibling?.querySelector("textarea")).not.toBeNull();
   });
 

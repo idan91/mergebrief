@@ -175,13 +175,6 @@ function renderDetail(options: RenderOptions = {}) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const announce = vi.fn(flowStore.getState().actions.announce);

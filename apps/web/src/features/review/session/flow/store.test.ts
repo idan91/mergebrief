@@ -11,7 +11,6 @@ import { CommentAnchorKinds } from "types/comments";
 import {
   createReviewFlowStore,
   readExpansion,
-  type ReviewFlowPosture,
   type ReviewFlowSessionActions,
   type ReviewFlowStore,
 } from "./store";
@@ -26,16 +25,6 @@ const anchor: CommentAnchor = {
   rowIds: ["row-1"],
   selectedText: "validate(a);",
 };
-
-function writablePosture(): ReviewFlowPosture {
-  return {
-    composerDisabledReason: undefined,
-    flagsReadOnly: false,
-    postingCommentIds: new Set(),
-    postBlockedExternally: undefined,
-    postComment: undefined,
-  };
-}
 
 function sessionMock(): ReviewFlowSessionActions {
   return {
@@ -58,7 +47,7 @@ describe("ReviewFlow store", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     session = sessionMock();
-    store = createReviewFlowStore(session, writablePosture(), appI18n.t);
+    store = createReviewFlowStore(session, appI18n.t);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -130,28 +119,27 @@ describe("ReviewFlow store", () => {
 
   describe("composer", () => {
     it("opens at the anchor when writable", () => {
-      store.getState().actions.openComposer(anchor);
+      store.getState().actions.openComposer(anchor, undefined);
       expect(store.getState().composerAnchor).toEqual(anchor);
       expect(store.getState().composerHost).toBe(anchor.chunkId);
     });
 
     it("opens in the card that picked the rows when it is not the owner", () => {
-      store.getState().actions.openComposer(anchor, "chunk-b");
+      store.getState().actions.openComposer(anchor, undefined, "chunk-b");
       expect(store.getState().composerHost).toBe("chunk-b");
       store.getState().actions.cancelComposer();
       expect(store.getState().composerHost).toBeNull();
     });
 
     it("announces the read-only reason instead of opening", () => {
-      store.setState({ composerDisabledReason: "Historical revision." });
-      store.getState().actions.openComposer(anchor);
+      store.getState().actions.openComposer(anchor, "Historical revision.");
       expect(store.getState().composerAnchor).toBeNull();
       flushAnnounce();
       expect(store.getState().toast).toBe("Historical revision.");
     });
 
     it("closes the composer on write SUCCESS, not on click", async () => {
-      store.getState().actions.openComposer(anchor);
+      store.getState().actions.openComposer(anchor, undefined);
       void store.getState().actions.saveComment(anchor, "  looks wrong  ");
       expect(session.saveComment).toHaveBeenCalledWith({
         anchor,
@@ -173,8 +161,8 @@ describe("ReviewFlow store", () => {
 
     it("leaves the composer open when the write fails", async () => {
       session.saveComment = vi.fn(() => Promise.resolve(false));
-      store = createReviewFlowStore(session, writablePosture(), appI18n.t);
-      store.getState().actions.openComposer(anchor);
+      store = createReviewFlowStore(session, appI18n.t);
+      store.getState().actions.openComposer(anchor, undefined);
       void store.getState().actions.saveComment(anchor, "looks wrong");
       await vi.runAllTimersAsync();
       expect(store.getState().composerAnchor).toEqual(anchor);
@@ -182,7 +170,7 @@ describe("ReviewFlow store", () => {
     });
 
     it("refuses a second save while one is in flight", async () => {
-      store.getState().actions.openComposer(anchor);
+      store.getState().actions.openComposer(anchor, undefined);
       void store.getState().actions.saveComment(anchor, "one");
       void store.getState().actions.saveComment(anchor, "two");
       expect(session.saveComment).toHaveBeenCalledTimes(1);
@@ -190,7 +178,7 @@ describe("ReviewFlow store", () => {
     });
 
     it("rejects an empty body and keeps the composer open", () => {
-      store.getState().actions.openComposer(anchor);
+      store.getState().actions.openComposer(anchor, undefined);
       void store.getState().actions.saveComment(anchor, "   ");
       expect(session.saveComment).not.toHaveBeenCalled();
       expect(store.getState().composerAnchor).toEqual(anchor);
@@ -218,7 +206,7 @@ describe("ReviewFlow store", () => {
 
   describe("re-anchor mode", () => {
     it("arms quietly: the banner shows it, the toast stays empty", () => {
-      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.startReanchor("draft-1", undefined);
       flushAnnounce();
       expect(store.getState().reanchorDraftId).toBe("draft-1");
       expect(store.getState().toast).toBe("");
@@ -228,7 +216,7 @@ describe("ReviewFlow store", () => {
     });
 
     it("cancels and announces the cancel", () => {
-      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.startReanchor("draft-1", undefined);
       store.getState().actions.cancelReanchor();
       flushAnnounce();
       expect(store.getState().reanchorDraftId).toBeNull();
@@ -246,13 +234,20 @@ describe("ReviewFlow store", () => {
           rowIds: ["row-1"],
         },
       });
-      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.startReanchor("draft-1", undefined);
       expect(store.getState().lineSelection).toBeNull();
     });
 
+    it("announces the read-only reason instead of arming", () => {
+      store.getState().actions.startReanchor("draft-1", "Historical revision.");
+      flushAnnounce();
+      expect(store.getState().reanchorDraftId).toBeNull();
+      expect(store.getState().toast).toBe("Historical revision.");
+    });
+
     it("pressing the same draft's control again cancels", () => {
-      store.getState().actions.startReanchor("draft-1");
-      store.getState().actions.startReanchor("draft-1");
+      store.getState().actions.startReanchor("draft-1", undefined);
+      store.getState().actions.startReanchor("draft-1", undefined);
       expect(store.getState().reanchorDraftId).toBeNull();
     });
 
@@ -294,7 +289,7 @@ describe("ReviewFlow store", () => {
     it("clears on request and survives the composer closing", () => {
       const { actions } = store.getState();
       actions.selectLines(picked);
-      actions.openComposer(anchor);
+      actions.openComposer(anchor, undefined);
       actions.cancelComposer();
       expect(store.getState().lineSelection).toEqual(picked);
       actions.clearLineSelection();

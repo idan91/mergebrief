@@ -8,7 +8,6 @@ import type { ReactNode } from "react";
 
 import {
   createReviewFlowStore,
-  initialReviewFlowState,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import { buildFileRangeQueryKey } from "../queries";
@@ -38,13 +37,6 @@ function setup(source: ExpansionSource | undefined, fileRows?: FileRowsCache) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   function wrapper({ children }: { children: ReactNode }) {

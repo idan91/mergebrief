@@ -23,7 +23,6 @@ import {
 import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   createReviewFlowStore,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewSessionPayload,
@@ -110,13 +109,6 @@ function makeFlowStore() {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
 }

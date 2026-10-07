@@ -9,7 +9,6 @@ import {
   ReviewCommentStatuses,
   type CommentAnchor,
   type LineSelection,
-  type ReviewComment,
 } from "../../utils/comments";
 import type { DismissTarget, EvidenceTarget } from "../../utils/state";
 import type { ReviewSessionActions } from "../store";
@@ -20,31 +19,12 @@ import type { ReviewSessionActions } from "../store";
 const ANNOUNCE_CLEAR_MS = 30;
 
 /**
- * @description Posture the screen syncs in every render-relevant change:
- * read-only reasons, own-draft mirror, and the post-now family. None of it is
- * owned here; the screen derives it from route plans and its own in-flight
- * gate; the store is its distribution channel to the card tree.
- */
-export interface ReviewFlowPosture {
-  /** Read-only reason for the comment affordances; undefined = writable. */
-  composerDisabledReason: string | undefined;
-  /** Own-draft state: risk flags render as a read-only mirror. */
-  flagsReadOnly: boolean;
-  /** Comment ids with a post-now request in flight (registry-subscribed). */
-  postingCommentIds: ReadonlySet<string>;
-  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
-  postBlockedExternally: string | undefined;
-  /** Post a staged draft NOW against the current head; undefined hides Post. */
-  postComment: ((comment: ReviewComment) => void) | undefined;
-}
-
-/**
  * @description Ephemeral review-flow UI state: composer anchoring,
  * risk-disposition targets/selection, and the page toast. Deliberately
  * OUTSIDE the persisted Review Session snapshot; none of this survives a
  * reload.
  */
-export interface ReviewFlowState extends ReviewFlowPosture {
+export interface ReviewFlowState {
   composerAnchor: CommentAnchor | null;
   /**
    * The chunk whose table shows the composer. Usually the anchor's own
@@ -101,14 +81,21 @@ export interface ReviewFlowState extends ReviewFlowPosture {
  */
 export interface ReviewFlowActions {
   /**
-   * @description Opens the composer at the anchor, unless the read-only
-   * posture blocks composition, in which case the reason is announced instead
-   * (surface WHY through the live region, never a dead control).
+   * @description Opens the composer at the anchor, unless the caller passes
+   * the reason composition is read-only, in which case the reason is announced
+   * instead (surface WHY through the live region, never a dead control).
    */
-  openComposer: (anchor: CommentAnchor, host?: string) => void;
+  openComposer: (
+    anchor: CommentAnchor,
+    disabledReason: string | undefined,
+    host?: string,
+  ) => void;
   cancelComposer: () => void;
-  /** Arms re-anchoring for a carried draft; the next picked row places it. */
-  startReanchor: (draftId: string) => void;
+  /**
+   * Arms re-anchoring for a carried draft; the next picked row places it. A
+   * read-only reason from the caller is announced instead of arming.
+   */
+  startReanchor: (draftId: string, disabledReason: string | undefined) => void;
   /** Disarms re-anchoring; a no-op when nothing is armed. */
   cancelReanchor: () => void;
   /**
@@ -200,11 +187,8 @@ export function readExpansion(
   return state.expandedEdges.get(edgeKey);
 }
 
-export function initialReviewFlowState(
-  posture: ReviewFlowPosture,
-): ReviewFlowState {
+function initialReviewFlowState(): ReviewFlowState {
   return {
-    ...posture,
     composerAnchor: null,
     composerHost: null,
     composerSaving: false,
@@ -231,7 +215,6 @@ export function initialReviewFlowState(
  */
 export function createReviewFlowStore(
   session: ReviewFlowSessionActions,
-  posture: ReviewFlowPosture,
   /**
    * Resolver called at ANNOUNCE time, never captured copy: `useTranslation`'s
    * `t` is pinned to the mount-time language (`getFixedT`), so holding one
@@ -260,12 +243,11 @@ export function createReviewFlowStore(
       );
     };
     return {
-      ...initialReviewFlowState(posture),
+      ...initialReviewFlowState(),
       actions: {
-        openComposer(anchor, host) {
-          const reason = get().composerDisabledReason;
-          if (reason !== undefined) {
-            announce(reason);
+        openComposer(anchor, disabledReason, host) {
+          if (disabledReason !== undefined) {
+            announce(disabledReason);
             return;
           }
           // Placement branches HERE, not at the call sites: every gesture that
@@ -294,7 +276,7 @@ export function createReviewFlowStore(
             reanchorDraftId: null,
           });
         },
-        startReanchor(draftId) {
+        startReanchor(draftId, disabledReason) {
           // Armed twice on the same draft = disarmed, so an armed state the
           // reviewer changed their mind about has a way out that is not
           // "pick a row you did not mean".
@@ -302,9 +284,8 @@ export function createReviewFlowStore(
             get().actions.cancelReanchor();
             return;
           }
-          const reason = get().composerDisabledReason;
-          if (reason !== undefined) {
-            announce(reason);
+          if (disabledReason !== undefined) {
+            announce(disabledReason);
             return;
           }
           set({

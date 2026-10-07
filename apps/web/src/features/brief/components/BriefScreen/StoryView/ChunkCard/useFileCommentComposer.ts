@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 
-import { useReviewActions, useReviewFlow } from "@web/features/review/session";
+import { useReviewActions } from "@web/features/review/session";
 import { createFileCommentAnchor } from "@web/features/review/utils";
+import { useReviewPosture } from "../../../../hooks/useReviewPosture";
 import type { BriefChunk } from "../../../../types";
 
 export interface UseFileCommentComposerInput {
@@ -17,15 +18,13 @@ export function useFileCommentComposer({
 }: UseFileCommentComposerInput) {
   const [composerOpen, setComposerOpen] = useState(false);
   const { openComposer } = useReviewActions();
-  const composerDisabledReason = useReviewFlow(
-    (state) => state.composerDisabledReason,
-  );
+  const { composerDisabledReason } = useReviewPosture();
 
   const cancelComposer = useCallback(() => setComposerOpen(false), []);
 
   const requestComposer = useCallback(() => {
     if (composerDisabledReason !== undefined) {
-      openComposer(createFileCommentAnchor(chunk.file));
+      openComposer(createFileCommentAnchor(chunk.file), composerDisabledReason);
       return;
     }
     if (composerOpen) {

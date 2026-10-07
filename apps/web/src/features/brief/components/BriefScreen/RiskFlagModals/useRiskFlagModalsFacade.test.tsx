@@ -29,13 +29,6 @@ function setup() {
       toggleComment: () => undefined,
       reanchorComment: () => true,
     },
-    {
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    },
     appI18n.t,
   );
   const wrapper = ({ children }: { children: ReactNode }) => (

@@ -13,6 +13,7 @@ import {
   deriveCarriedItems,
   type CarriedItem,
 } from "@web/features/review/utils";
+import { useReviewPosture } from "../../../hooks/useReviewPosture";
 import type { AttentionActionId } from "./AttentionList/utils";
 
 export interface CarryOverParams {
@@ -45,6 +46,7 @@ export function useCarryOver({
     (state) => state.deletedMissingDrafts,
   );
   const armedDraftId = useReviewFlow((state) => state.reanchorDraftId);
+  const { composerDisabledReason } = useReviewPosture();
   const carriedFrom = useReviewSession((state) => state.carriedFrom);
   const attention = useReviewSession((state) => state.attention);
 
@@ -84,7 +86,7 @@ export function useCarryOver({
       sessionActions.deleteComment(item.actionTargetId);
     },
     "reanchor-draft-comment": (item) => {
-      flowActions.startReanchor(item.actionTargetId);
+      flowActions.startReanchor(item.actionTargetId, composerDisabledReason);
       if (armedDraftId !== item.actionTargetId) jumpToItem(item);
     },
     "address-risk": (item) => {

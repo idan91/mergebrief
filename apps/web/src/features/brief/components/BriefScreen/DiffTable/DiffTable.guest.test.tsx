@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createReviewFlowStore,
   emptySessionPayload,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
   type ReviewSessionPayload,
@@ -30,6 +29,8 @@ import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { FileLineOwners } from "../../../utils/lineOwner";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from ".";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
 
 afterEach(cleanup);
 
@@ -279,13 +280,6 @@ function renderGuestTable({
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(posting),
-      postBlockedExternally: undefined,
-      postComment: posting.length > 0 ? vi.fn() : undefined,
-    }),
     appI18n.t,
   );
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -294,6 +288,11 @@ function renderGuestTable({
       ...flowStore.getState().actions,
       openComposer: openCommentComposer,
     },
+  });
+  const posture = makeReviewPosture({
+    composerDisabledReason,
+    postingCommentIds: new Set(posting),
+    postComment: posting.length > 0 ? vi.fn() : undefined,
   });
   const guest: GuestRowsInput = {
     file: "src/a.ts",
@@ -309,20 +308,26 @@ function renderGuestTable({
         session={session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <DiffTable
-            addressedComments={[]}
-            chunk={stubHost()}
-            comparisonSkipReason={null}
-            comparisonSource={{ kind: "last-review", delta: null }}
-            comparisonView={{ marks: new Map(), runs: [], runByRow: new Map() }}
-            conversationComposer={THREAD_COMPOSER}
-            expansion={expansion}
-            fileThreads={fileThreads}
-            guest={guest}
-            lineOwners={lineOwners}
-            reviewCommentLabel="review comment"
-            view={diffView}
-          />
+          <ReviewPostureProvider posture={posture}>
+            <DiffTable
+              addressedComments={[]}
+              chunk={stubHost()}
+              comparisonSkipReason={null}
+              comparisonSource={{ kind: "last-review", delta: null }}
+              comparisonView={{
+                marks: new Map(),
+                runs: [],
+                runByRow: new Map(),
+              }}
+              conversationComposer={THREAD_COMPOSER}
+              expansion={expansion}
+              fileThreads={fileThreads}
+              guest={guest}
+              lineOwners={lineOwners}
+              reviewCommentLabel="review comment"
+              view={diffView}
+            />
+          </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,
@@ -395,6 +400,7 @@ describe("DiffTable guest rows", () => {
         endLine: 40,
         rowIds: [],
       }),
+      undefined,
       "raw:src/a.ts",
     );
   });
@@ -406,6 +412,7 @@ describe("DiffTable guest rows", () => {
 
     expect(openCommentComposer).toHaveBeenCalledWith(
       expect.objectContaining({ chunkId: "c1", startLine: 11 }),
+      undefined,
       "raw:src/a.ts",
     );
   });
@@ -518,6 +525,7 @@ describe("DiffTable guest rows", () => {
         endLine: 11,
         rowIds: [],
       }),
+      undefined,
       "raw:src/a.ts",
     );
   });

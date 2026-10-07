@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   createReviewFlowStore,
-  initialReviewFlowState,
   ReviewFlowProvider,
   ReviewSessionProvider,
 } from "@web/features/review/session";
@@ -26,6 +25,8 @@ import type {
 import { buildBriefViewModel } from "../../utils/viewModel";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ComparisonCallout } from "./DiffTable/ComparisonCallout";
+import { ReviewPostureProvider } from "../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../utils/review-posture";
 
 const PR = {
   repo: "acme/widgets",
@@ -578,13 +579,6 @@ function withClient(node: ReactNode) {
       toggleComment: vi.fn(),
       reanchorComment: vi.fn(),
     },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
     appI18n.t,
   );
   return (
@@ -597,7 +591,11 @@ function withClient(node: ReactNode) {
         briefId="test-brief"
         model={buildBriefViewModel(fullBrief)}
       >
-        <ReviewFlowProvider store={flowStore}>{node}</ReviewFlowProvider>
+        <ReviewFlowProvider store={flowStore}>
+          <ReviewPostureProvider posture={makeReviewPosture()}>
+            {node}
+          </ReviewPostureProvider>
+        </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>
   );

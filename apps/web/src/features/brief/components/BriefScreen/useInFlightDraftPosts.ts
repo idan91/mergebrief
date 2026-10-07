@@ -1,13 +1,8 @@
-// One in-flight post-now request per draft — a disabled button, not a
-// protocol. The screen owns the set: the server holds the drafts, so a
-// remount reads the truth back rather than needing the window to outlive it.
-//
-// Keyed by DRAFT id and never cleared on a brief switch. A draft id is the
-// server's and carries across spans, so a post opened on one revision is
-// still that same draft's post on the next — clearing the gate there would
-// re-enable the button under a live request and double-post it. The cost is
-// the mirror image: a post still open on a brief left behind holds this
-// screen's submit until it settles, which it always does.
+// One in-flight post-now request per draft: a disabled button, not a
+// protocol. Keyed by draft id and never cleared on a brief switch: a draft id
+// carries across revisions, so clearing the gate there would re-enable Post
+// under a live request and double-post it. A post still open on a brief left
+// behind holds this screen's submit until it settles.
 import { useCallback, useMemo, useRef, useState } from "react";
 
 const NO_POSTS: ReadonlySet<string> = new Set();
@@ -17,7 +12,7 @@ export interface InFlightDraftPosts {
   ids: ReadonlySet<string>;
   /** `false` = this draft already has one in flight; the caller must not send. */
   begin: (commentId: string) => boolean;
-  /** Settle (success or failure) — always from the request's `finally`. */
+  /** Settles a post, success or failure; call it from the request's `finally`. */
   end: (commentId: string) => void;
 }
 
@@ -39,8 +34,7 @@ export function useInFlightDraftPosts(): InFlightDraftPosts {
     setIds(new Set(active.current));
   }, []);
 
-  // Memoized: this object rides `postDraftComment`'s dep array all the way
-  // into the flow store's posture, and a fresh identity per render would
-  // re-render every expanded DiffTable on unrelated screen state.
+  // Memoized: this object rides `postDraftComment`'s deps into the review
+  // posture, which every expanded DiffTable reads.
   return useMemo(() => ({ begin, end, ids }), [begin, end, ids]);
 }
