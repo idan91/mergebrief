@@ -62,3 +62,12 @@ history from here on.
   reaches the package through an isomorphic module.
 - `api` now has the process entry, Dockerfile and start script this ADR said it
   lacked.
+
+## Update, 2026-10-05
+
+BRIEF-337 narrows the Tool definition to what holds. A tool is never deployed
+and never imported by app or package source; it runs by hand or by CI and lint
+(`tools/release` runs in the release workflow, the house plugin in `pnpm
+lint`). `no-source-imports-a-tool` holds the import ban at error. Its scope is
+`src/` because `apps/web/e2e/harness` imports `ingest-briefs` to seed its
+database, and the e2e tree is not shipped source.

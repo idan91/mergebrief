@@ -182,6 +182,30 @@ describe("workspace kinds", () => {
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("no-package-imports-an-app");
   });
+
+  it("rejects app and package source importing a tool", () => {
+    const run = cruiseFiles({
+      "apps/api/src/a.ts":
+        'export { value } from "../../../tools/release/src/b";\n',
+      "packages/brief-core/src/c.ts":
+        'export { value } from "../../../tools/release/src/b";\n',
+      "tools/release/src/b.ts": "export const value = 1;\n",
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toContain("no-source-imports-a-tool");
+    expect(run.stdout).toContain("apps/api/src/a.ts");
+    expect(run.stdout).toContain("packages/brief-core/src/c.ts");
+  });
+
+  it("allows a tool to import package source", () => {
+    const run = cruiseFiles({
+      "tools/release/src/a.ts":
+        'export { value } from "../../../packages/types/src/b";\n',
+      "packages/types/src/b.ts": "export const value = 1;\n",
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("no dependency violations found");
+  });
 });
 
 describe("apps/web feature boundaries", () => {

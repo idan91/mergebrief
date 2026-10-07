@@ -381,7 +381,7 @@ A workspace member Apps share by importing it. Lives under `packages/`.
 _Avoid_: library, module (for a workspace member)
 
 **Tool**:
-A repo-local script run by hand, never deployed, never imported. Lives under `tools/`.
+A repo-local script, never deployed, never imported by app or package source; run by hand or by CI/lint. Lives under `tools/`.
 _Avoid_: script (bare), dev package
 
 ### Releases and upgrades

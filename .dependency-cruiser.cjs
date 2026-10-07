@@ -259,6 +259,14 @@ module.exports = {
       to: { path: `^(${appDirs.join("|")})/` },
     },
     {
+      name: "no-source-imports-a-tool",
+      comment:
+        "Tools are run by hand or by CI and lint; app and package source never imports one.",
+      severity: "error",
+      from: { path: "^(?:apps|packages)/[^/]+/src/" },
+      to: { path: "^tools/" },
+    },
+    {
       name: "web-feature-imports-through-index",
       comment:
         "Another feature is imported through its index or one segment below it.",
