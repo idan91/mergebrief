@@ -80,6 +80,17 @@ export const UncoveredWorks = {
 } as const;
 export type UncoveredWork = ValueOf<typeof UncoveredWorks>;
 
+/**
+ * Where a draft stands with a publish attempt. `in-doubt` is a claim older
+ * than the lease: the attempt may or may not have reached GitHub.
+ */
+export const ClaimStates = {
+  UNCLAIMED: "unclaimed",
+  PENDING: "pending",
+  IN_DOUBT: "in-doubt",
+} as const;
+export type ClaimState = ValueOf<typeof ClaimStates>;
+
 /** `generation.kind`. */
 export const GenerationKinds = {
   BRIEF: "brief",

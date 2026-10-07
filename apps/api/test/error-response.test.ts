@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(34);
+    expect(codes).toHaveLength(36);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -78,6 +78,8 @@ describe("errorJson", () => {
       "draft-anchor-orphaned": 409,
       "draft-limit-reached": 409,
       "session-record-limit-reached": 409,
+      "draft-publish-pending": 409,
+      "draft-publish-in-doubt": 409,
       "attachment-limit-reached": 429,
       "pending-review-held": 409,
       "pr-changed-since-read": 409,

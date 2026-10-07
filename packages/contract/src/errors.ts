@@ -31,6 +31,8 @@ export const ApiErrorCodes = {
   DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
   SESSION_RECORD_LIMIT_REACHED: "session-record-limit-reached",
+  DRAFT_PUBLISH_PENDING: "draft-publish-pending",
+  DRAFT_PUBLISH_IN_DOUBT: "draft-publish-in-doubt",
   ATTACHMENT_LIMIT_REACHED: "attachment-limit-reached",
   PENDING_REVIEW_HELD: "pending-review-held",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
@@ -95,6 +97,8 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: HttpStatuses.TOO_MANY_REQUESTS,
   [ApiErrorCodes.PENDING_REVIEW_HELD]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: HttpStatuses.CONFLICT,
@@ -147,6 +151,10 @@ export const ApiErrorEnglishByCode = {
     "this review already holds as many unposted comments as it can carry",
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]:
     "this review already holds a record for every item in the brief",
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]:
+    "this comment is being posted to github",
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]:
+    "this comment may have reached github, which could not be confirmed",
   [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]:
     "attachment limit reached, try again later",
   [ApiErrorCodes.PENDING_REVIEW_HELD]:

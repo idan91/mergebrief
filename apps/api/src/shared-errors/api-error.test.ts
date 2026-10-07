@@ -36,6 +36,8 @@ describe("ApiError classes", () => {
     new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED),
     new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED),
     new Conflict(ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED),
+    new Conflict(ApiErrorCodes.DRAFT_PUBLISH_PENDING),
+    new Conflict(ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT),
     new Conflict(ApiErrorCodes.PENDING_REVIEW_HELD),
     new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ),
     new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ),

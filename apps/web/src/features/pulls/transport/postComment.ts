@@ -67,6 +67,8 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "upstream",
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "upstream",
   [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "stale",

@@ -344,6 +344,13 @@
       "when": 1791243444360,
       "tag": "0049_brief-session-counts",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791244227622,
+      "tag": "0050_publish-claims",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,11 @@
 // Any session write may materialize carried state atomically before applying its action.
 // Pre-materialization draft ids must resolve to copies; frozen sessions refuse all writes.
 // Repeated read marks are idempotent and every write inherits the router scope gate.
-import { createTenantRepository, WriteClassifications } from "persistence";
+import {
+  createTenantRepository,
+  PUBLISH_CLAIM_LEASE_MS,
+  WriteClassifications,
+} from "persistence";
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import {
   DispositionDecisions,
@@ -631,6 +635,62 @@ describe("the Review Session writes", () => {
       "select body from review_draft_comment order by id",
     );
     expect(rows[0]?.["body"]).toBe(DRAFT.body);
+  });
+
+  it("409s an edit of a draft a publish attempt holds", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const draftId = await readDraftId(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.claimDrafts(
+      { briefId, reviewerId: REVIEWER },
+      { draftIds: [BigInt(draftId)] },
+    );
+
+    const refusals = [
+      await write("PATCH", `/comments/${draftId}`, "head-1", {
+        body: "edited",
+      }),
+      await write("DELETE", `/comments/${draftId}`, "head-1"),
+    ];
+
+    expect(refusals.map((res) => res.status)).toEqual([409, 409]);
+    for (const res of refusals) {
+      expect(await readWireCode(res)).toBe("draft-publish-pending");
+    }
+  });
+
+  it("409s an edit of an in-doubt draft and lets the reviewer delete it", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const draftId = await readDraftId(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.claimDrafts(
+      { briefId, reviewerId: REVIEWER },
+      {
+        draftIds: [BigInt(draftId)],
+        now: new Date(Date.now() - PUBLISH_CLAIM_LEASE_MS),
+      },
+    );
+
+    const edited = await write("PUT", `/comments/${draftId}/anchor`, "head-1", {
+      filePath: "src/app.ts",
+      side: "new",
+      startLine: 40,
+      endLine: 41,
+    });
+    const deleted = await write("DELETE", `/comments/${draftId}`, "head-1");
+
+    expect(edited.status).toBe(409);
+    expect(await readWireCode(edited)).toBe("draft-publish-in-doubt");
+    expect(deleted.ok).toBe(true);
+    expect(await countRows("review_draft_comment")).toBe(0);
   });
 
   it("refuses the 65th unposted draft the session would hold", async () => {

@@ -14,8 +14,11 @@ import {
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import {
+  ClaimStates,
   createArtifactStore,
   createTenantRepository,
+  deriveClaimState,
+  PUBLISH_CLAIM_LEASE_MS,
   ReviewSessionErrorCodes,
 } from "../src/index";
 import type {
@@ -792,6 +795,257 @@ describe("the draft operations", () => {
       ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
     );
     expect(await countRows(client, "review_session")).toBe(0);
+  });
+});
+
+describe("publish claims", () => {
+  const CLAIMED_AT = new Date("2026-10-06T12:00:00.000Z");
+
+  function shiftClock(by: number): Date {
+    return new Date(CLAIMED_AT.getTime() + by);
+  }
+
+  async function openWorld() {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const first = await seedDraft(handle, briefId, LINE_ANCHOR, "first");
+    const second = await seedDraft(handle, briefId, LINE_ANCHOR, "second");
+    return {
+      client,
+      handle,
+      sessions,
+      key,
+      first: first.id,
+      second: second.id,
+    };
+  }
+
+  async function claimOrThrow(
+    sessions: ReturnType<typeof createTenantRepository>["reviewSessions"],
+    key: { briefId: BriefRowId; reviewerId: ReviewerId },
+    draftIds: readonly bigint[],
+    now: Date,
+  ): Promise<string> {
+    const claimed = await sessions.claimDrafts(key, { draftIds, now });
+    if (!claimed.ok) throw new Error(`claim failed: ${claimed.error.code}`);
+    return claimed.value.claim;
+  }
+
+  it("claims the drafts under one token and keeps them drafts", async () => {
+    const { sessions, key, first, second } = await openWorld();
+
+    const claimed = await sessions.claimDrafts(key, {
+      draftIds: [first, second],
+      now: CLAIMED_AT,
+    });
+
+    if (!claimed.ok) throw new Error("claim refused");
+    expect(claimed.value.drafts.map((row) => row.id)).toEqual([first, second]);
+    const drafts = (await sessions.get(key))?.draftComments ?? [];
+    expect(drafts.map((row) => row.publishClaim)).toEqual([
+      claimed.value.claim,
+      claimed.value.claim,
+    ]);
+    expect(drafts.map((row) => row.publishClaimedAt)).toEqual([
+      CLAIMED_AT,
+      CLAIMED_AT,
+    ]);
+    expect(drafts.map((row) => row.status)).toEqual([
+      DraftCommentStatuses.DRAFT,
+      DraftCommentStatuses.DRAFT,
+    ]);
+  });
+
+  it("tells a pending claim from one in doubt at the lease", () => {
+    const claimed = { publishClaimedAt: CLAIMED_AT };
+
+    expect(deriveClaimState({ publishClaimedAt: null }, CLAIMED_AT)).toBe(
+      ClaimStates.UNCLAIMED,
+    );
+    expect(
+      deriveClaimState(claimed, shiftClock(PUBLISH_CLAIM_LEASE_MS - 1)),
+    ).toBe(ClaimStates.PENDING);
+    expect(deriveClaimState(claimed, shiftClock(PUBLISH_CLAIM_LEASE_MS))).toBe(
+      ClaimStates.IN_DOUBT,
+    );
+  });
+
+  it("refuses a second claim as pending inside the lease, in doubt after", async () => {
+    const { sessions, key, first } = await openWorld();
+    await claimOrThrow(sessions, key, [first], CLAIMED_AT);
+
+    const inside = await sessions.claimDrafts(key, {
+      draftIds: [first],
+      now: shiftClock(PUBLISH_CLAIM_LEASE_MS - 1),
+    });
+    const after = await sessions.claimDrafts(key, {
+      draftIds: [first],
+      now: shiftClock(PUBLISH_CLAIM_LEASE_MS),
+    });
+
+    expect(!inside.ok && inside.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+    );
+    expect(!after.ok && after.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT,
+    );
+  });
+
+  it("refuses an unknown, published or orphaned draft and claims none", async () => {
+    const { client, handle, sessions, key, first, second } = await openWorld();
+    const orphaned = await seedDraft(handle, key.briefId, LINE_ANCHOR, "x");
+    await stampAnchorStatus(client, orphaned.id, AnchorStatuses.ORPHANED);
+    await sessions.recordPublishedDrafts(key, { draftIds: [second] });
+
+    const refusals = [
+      await sessions.claimDrafts(key, { draftIds: [first, 987654321n] }),
+      await sessions.claimDrafts(key, { draftIds: [first, second] }),
+      await sessions.claimDrafts(key, { draftIds: [first, orphaned.id] }),
+    ];
+
+    expect(
+      refusals.map((refusal) => !refusal.ok && refusal.error.code),
+    ).toEqual([
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+      ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+      ReviewSessionErrorCodes.DRAFT_ANCHOR_ORPHANED,
+    ]);
+    const drafts = (await sessions.get(key))?.draftComments ?? [];
+    expect(drafts.map((row) => row.publishClaim)).toEqual([null, null, null]);
+  });
+
+  it("leaves no session row behind a refused first claim", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+
+    const refused = await sessions.claimDrafts(
+      { briefId, reviewerId: REVIEWER },
+      { draftIds: [987654321n] },
+    );
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+    );
+    expect(await countRows(client, "review_session")).toBe(0);
+  });
+
+  it("refuses edit and re-anchor on a claimed draft, pending or in doubt", async () => {
+    const { sessions, key, first, second } = await openWorld();
+    await claimOrThrow(sessions, key, [first], new Date());
+    const stale = new Date(Date.now() - PUBLISH_CLAIM_LEASE_MS);
+    await claimOrThrow(sessions, key, [second], stale);
+
+    const refusals = [
+      await sessions.editDraft(key, first, "edited"),
+      await sessions.reanchorDraft(key, first, LINE_ANCHOR),
+      await sessions.editDraft(key, second, "edited"),
+      await sessions.reanchorDraft(key, second, LINE_ANCHOR),
+    ];
+
+    expect(
+      refusals.map((refusal) => !refusal.ok && refusal.error.code),
+    ).toEqual([
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT,
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT,
+    ]);
+    const drafts = (await sessions.get(key))?.draftComments ?? [];
+    expect(drafts.map((row) => row.body)).toEqual(["first", "second"]);
+  });
+
+  it("refuses to delete a pending claim and deletes one in doubt", async () => {
+    const { sessions, key, first, second } = await openWorld();
+    await claimOrThrow(sessions, key, [first], new Date());
+    const stale = new Date(Date.now() - PUBLISH_CLAIM_LEASE_MS);
+    await claimOrThrow(sessions, key, [second], stale);
+
+    const pending = await sessions.deleteDraft(key, first);
+    const inDoubt = await sessions.deleteDraft(key, second);
+
+    expect(!pending.ok && pending.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+    );
+    expect(inDoubt.ok && inDoubt.value.id).toBe(second);
+    const drafts = (await sessions.get(key))?.draftComments ?? [];
+    expect(drafts.map((row) => row.id)).toEqual([first]);
+  });
+
+  it("settles the claim's drafts and records the review", async () => {
+    const { sessions, key, first, second } = await openWorld();
+    const claim = await claimOrThrow(sessions, key, [first], CLAIMED_AT);
+
+    const settled = await sessions.settleClaim(key, {
+      claim,
+      githubReviewId: 4242n,
+    });
+
+    expect(settled).toEqual({ ok: true, value: 1 });
+    const snapshot = await sessions.get(key);
+    expect(
+      snapshot?.draftComments.map((row) => [
+        row.id,
+        row.status,
+        row.publishClaim,
+        row.publishClaimedAt,
+      ]),
+    ).toEqual([
+      [first, DraftCommentStatuses.SUBMITTED, null, null],
+      [second, DraftCommentStatuses.DRAFT, null, null],
+    ]);
+    expect(snapshot?.submittedReviews.map((row) => row.githubReviewId)).toEqual(
+      [4242n],
+    );
+  });
+
+  it("releases the claim and leaves the drafts editable", async () => {
+    const { sessions, key, first } = await openWorld();
+    const claim = await claimOrThrow(sessions, key, [first], new Date());
+
+    const released = await sessions.releaseClaim(key, { claim });
+    const edited = await sessions.editDraft(key, first, "edited");
+
+    expect(released).toEqual({ ok: true, value: 1 });
+    expect(edited.ok && edited.value.status).toBe(DraftCommentStatuses.DRAFT);
+    expect(edited.ok && edited.value.publishClaim).toBeNull();
+  });
+
+  it("answers not found to settle or release without a session", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const claim = "00000000-0000-4000-8000-000000000000";
+
+    const settled = await sessions.settleClaim(key, { claim });
+    const released = await sessions.releaseClaim(key, { claim });
+
+    expect(
+      [settled, released].map((done) => !done.ok && done.error.code),
+    ).toEqual([
+      ReviewSessionErrorCodes.SESSION_NOT_FOUND,
+      ReviewSessionErrorCodes.SESSION_NOT_FOUND,
+    ]);
+    expect(await countRows(client, "review_session")).toBe(0);
+  });
+
+  it("rejects a claim token stored without its time", async () => {
+    const { client, first } = await openWorld();
+
+    const rejection: unknown = await client
+      .query(
+        "update review_draft_comment set publish_claim = gen_random_uuid() where id = $1",
+        [first.toString()],
+      )
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+    expect(rejection).not.toBeNull();
   });
 });
 

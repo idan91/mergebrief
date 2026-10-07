@@ -42,6 +42,8 @@ const FAILURE_COPY: Partial<Record<ApiErrorCode, TranslationKey>> = {
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "review.writeError.draftLimit",
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "review.writeError.recordLimit",
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "review.writeError.alreadyPublished",
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "review.writeError.publishPending",
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "review.writeError.publishInDoubt",
   [ApiErrorCodes.HUMAN_ONLY]: "review.writeError.humanOnly",
   [ApiErrorCodes.UNAUTHORIZED]: "review.writeError.unauthorized",
 };

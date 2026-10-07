@@ -92,6 +92,8 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "failed",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "failed",
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "failed",
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "failed",
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "failed",
   [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "failed",
   [ApiErrorCodes.PENDING_REVIEW_HELD]: "failed",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "failed",

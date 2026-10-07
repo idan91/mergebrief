@@ -86,6 +86,8 @@ describe("createSessionWrites", () => {
       [409, "draft-limit-reached", "review.writeError.draftLimit"],
       [409, "session-record-limit-reached", "review.writeError.recordLimit"],
       [409, "draft-already-published", "review.writeError.alreadyPublished"],
+      [409, "draft-publish-pending", "review.writeError.publishPending"],
+      [409, "draft-publish-in-doubt", "review.writeError.publishInDoubt"],
       [403, "human-only", "review.writeError.humanOnly"],
       [401, "unauthorized", "review.writeError.unauthorized"],
     ] as const) {

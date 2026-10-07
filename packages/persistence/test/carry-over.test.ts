@@ -1723,6 +1723,157 @@ describe("the first write, one transaction", () => {
   });
 });
 
+describe("publish claims across a carry-over", () => {
+  /** A claimed draft on brief 1, then the reviewer's first write on brief 2. */
+  async function claimedThenCarried() {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const older = { briefId: previous, reviewerId: REVIEWER };
+    const newer = { briefId: current, reviewerId: REVIEWER };
+    const source = await seedDraft(
+      world,
+      previous,
+      makeLineAnchor(10, 12),
+      "x",
+    );
+    const claimed = unwrapWrite(
+      await sessions.claimDrafts(older, { draftIds: [source.id] }),
+      "claim",
+    );
+    await openSession(world, current);
+    return { sessions, older, newer, source, claim: claimed.claim };
+  }
+
+  async function readClaimColumns(world: World) {
+    const result = await world.client.query<{
+      status: string;
+      publish_claim: string | null;
+    }>("select status, publish_claim from review_draft_comment order by id");
+    return result.rows.map((row) => [row.status, row.publish_claim]);
+  }
+
+  it("copies the source's claim onto the carried draft", async () => {
+    const { sessions, older, newer, source, claim } =
+      await claimedThenCarried();
+
+    const copy = (await sessions.get(newer))?.draftComments[0];
+    const held = (await sessions.get(older))?.draftComments[0];
+
+    expect(copy?.carriedFromCommentId).toBe(source.id);
+    expect(copy?.publishClaim).toBe(claim);
+    expect(held?.publishClaimedAt).toBeInstanceOf(Date);
+    expect(copy?.publishClaimedAt).toEqual(held?.publishClaimedAt);
+  });
+
+  it("refuses an edit of the carried copy while the claim is pending", async () => {
+    const { sessions, newer, source } = await claimedThenCarried();
+
+    const refused = await sessions.editDraft(newer, source.id, "edited");
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+    );
+  });
+
+  it("settles both rows through the frozen source session", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const older = { briefId: previous, reviewerId: REVIEWER };
+    const source = await seedDraft(
+      world,
+      previous,
+      makeLineAnchor(10, 12),
+      "x",
+    );
+    const { claim } = unwrapWrite(
+      await sessions.claimDrafts(older, { draftIds: [source.id] }),
+      "claim",
+    );
+    await openSession(world, current);
+
+    const settled = await sessions.settleClaim(older, {
+      claim,
+      githubReviewId: 77n,
+    });
+
+    expect(settled).toEqual({ ok: true, value: 2 });
+    expect(await readClaimColumns(world)).toEqual([
+      ["submitted", null],
+      ["submitted", null],
+    ]);
+    const snapshot = await sessions.get(older);
+    expect(snapshot?.submittedReviews.map((row) => row.githubReviewId)).toEqual(
+      [77n],
+    );
+  });
+
+  it("releases both rows through the frozen source session", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const older = { briefId: previous, reviewerId: REVIEWER };
+    const source = await seedDraft(
+      world,
+      previous,
+      makeLineAnchor(10, 12),
+      "x",
+    );
+    const { claim } = unwrapWrite(
+      await sessions.claimDrafts(older, { draftIds: [source.id] }),
+      "claim",
+    );
+    await openSession(world, current);
+
+    const released = await sessions.releaseClaim(older, { claim });
+
+    expect(released).toEqual({ ok: true, value: 2 });
+    expect(await readClaimColumns(world)).toEqual([
+      ["draft", null],
+      ["draft", null],
+    ]);
+  });
+
+  it("leaves another reviewer's rows alone on settle", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const mine = { briefId: previous, reviewerId: REVIEWER };
+    const theirs = { briefId: previous, reviewerId: OTHER_REVIEWER };
+    const anchor = makeLineAnchor(10, 12);
+    const own = await seedDraft(world, previous, anchor, "mine");
+    const other = await seedDraft(
+      world,
+      previous,
+      anchor,
+      "theirs",
+      OTHER_REVIEWER,
+    );
+    const { claim } = unwrapWrite(
+      await sessions.claimDrafts(mine, { draftIds: [own.id] }),
+      "claim",
+    );
+    unwrapWrite(
+      await sessions.claimDrafts(theirs, { draftIds: [other.id] }),
+      "their claim",
+    );
+
+    const settled = await sessions.settleClaim(theirs, { claim });
+
+    expect(settled).toEqual({ ok: true, value: 0 });
+    const held = (await sessions.get(mine))?.draftComments[0];
+    expect(held?.status).toBe("draft");
+    expect(held?.publishClaim).toBe(claim);
+  });
+});
+
 describe("freeze, a session freezes only when a newer one is materialized", () => {
   it("accepts a write while a newer Brief merely exists", async () => {
     const world = await freshWorld();

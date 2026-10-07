@@ -1,0 +1,3 @@
+ALTER TABLE "review_draft_comment" ADD COLUMN "publish_claim" uuid;--> statement-breakpoint
+ALTER TABLE "review_draft_comment" ADD COLUMN "publish_claimed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "review_draft_comment" ADD CONSTRAINT "review_draft_comment_publish_claim_pair_check" CHECK (("review_draft_comment"."publish_claim" is null) = ("review_draft_comment"."publish_claimed_at" is null));

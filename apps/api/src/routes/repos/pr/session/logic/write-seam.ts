@@ -66,6 +66,12 @@ export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
       throw new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED);
     case ReviewSessionErrorCodes.SESSION_RECORD_LIMIT_REACHED:
       throw new Conflict(ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED);
+    case ReviewSessionErrorCodes.DRAFT_ANCHOR_ORPHANED:
+      throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
+    case ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING:
+      throw new Conflict(ApiErrorCodes.DRAFT_PUBLISH_PENDING);
+    case ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT:
+      throw new Conflict(ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT);
     case ReviewSessionErrorCodes.DRAFT_NOT_FOUND:
     case ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT:
     case ReviewSessionErrorCodes.SESSION_NOT_FOUND:

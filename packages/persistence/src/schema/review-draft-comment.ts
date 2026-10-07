@@ -2,7 +2,17 @@
 // coordinate, and a line range when `kind` is line: that is the GitHub POST
 // payload and what `remapRanges` consumes at carry-over. `anchor_status` is
 // NULL while the anchor still holds exactly.
-import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  bigint,
+  check,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import {
   CommentAnchorKinds,
   DraftCommentStatuses,
@@ -53,10 +63,17 @@ export const reviewDraftComment = pgTable(
     carriedFromCommentId: bigint("carried_from_comment_id", {
       mode: "bigint",
     }),
+    /** The publish attempt holding this draft; set with its time or not at all. */
+    publishClaim: uuid("publish_claim"),
+    publishClaimedAt: timestamp("publish_claimed_at", { withTimezone: true }),
     ...stampColumns(),
   },
   (table) => [
     index("review_draft_comment_session_idx").on(table.reviewSessionId),
+    check(
+      "review_draft_comment_publish_claim_pair_check",
+      sql`(${table.publishClaim} is null) = (${table.publishClaimedAt} is null)`,
+    ),
   ],
 );
 

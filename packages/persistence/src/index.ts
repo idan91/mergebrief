@@ -23,6 +23,7 @@ export {
   AuditActorTypes,
   AuditChannels,
   AuditOutcomes,
+  ClaimStates,
 } from "./types";
 export type {
   InstallationId,
@@ -39,6 +40,7 @@ export type {
   GenerationFailure,
   AuditChannel,
   AuditOutcome,
+  ClaimState,
   DraftAnchor,
 } from "./types";
 
@@ -169,8 +171,17 @@ export type {
 // The Review Session surface. The factory itself is NOT exported; it is
 // reachable only as `createTenantRepository(...).reviewSessions`, so a caller cannot hold
 // one without a ctx.
-export { ReviewSessionErrorCodes } from "./stores/review-session";
+export {
+  deriveClaimState,
+  PUBLISH_CLAIM_LEASE_MS,
+  ReviewSessionErrorCodes,
+} from "./stores/review-session";
 export type {
+  ClaimDraftsInput,
+  ClaimStamp,
+  DraftClaim,
+  ReleaseClaimInput,
+  SettleClaimInput,
   ReviewSessionRepository,
   ReviewSessionError,
   ReviewSessionErrorCode,

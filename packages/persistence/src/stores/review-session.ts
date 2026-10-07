@@ -10,6 +10,7 @@ import {
   gt,
   gte,
   inArray,
+  isNotNull,
   lt,
   lte,
   or,
@@ -19,7 +20,12 @@ import {
   type BriefSessionFacts,
 } from "brief-core/artifact";
 import type { Hop } from "brief-core/remap";
-import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
+import { randomUUID } from "node:crypto";
+import {
+  AnchorStatuses,
+  CommentAnchorKinds,
+  DraftCommentStatuses,
+} from "types/comments";
 import { AnchorStates } from "types/generations";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -44,13 +50,15 @@ import {
 } from "./carry-over";
 import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
-import type {
-  BriefRowId,
-  DraftAnchor,
-  LineDraftAnchor,
-  PullRequestRowId,
-  ReviewSessionId,
-  ReviewerId,
+import {
+  ClaimStates,
+  type BriefRowId,
+  type ClaimState,
+  type DraftAnchor,
+  type LineDraftAnchor,
+  type PullRequestRowId,
+  type ReviewSessionId,
+  type ReviewerId,
 } from "../types";
 import type { ChangeGroupCategory, ReviewOutcome } from "types/reviews";
 import type {
@@ -83,6 +91,12 @@ export const ReviewSessionErrorCodes = {
   DRAFT_NOT_FOUND: "draft-not-found",
   /** The draft is already on GitHub, so it no longer moves. */
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
+  /** The draft's anchor points at no code in this Brief, so it cannot post. */
+  DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
+  /** A publish attempt holds the draft and is still inside its lease. */
+  DRAFT_PUBLISH_PENDING: "draft-publish-pending",
+  /** A publish attempt held the draft past its lease without settling. */
+  DRAFT_PUBLISH_IN_DOUBT: "draft-publish-in-doubt",
   /** The session already holds `MAX_SESSION_DRAFTS` unposted drafts. */
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
   /**
@@ -106,6 +120,42 @@ export interface ReviewSessionError {
  * submit, where the reviewer would have nowhere to put it.
  */
 const MAX_SESSION_DRAFTS = 64;
+
+/**
+ * How long a publish attempt holds its drafts before the claim is in doubt.
+ * Longer than the slowest Submit, so a live attempt is never judged lost.
+ */
+export const PUBLISH_CLAIM_LEASE_MS = 3 * 60 * 1000;
+
+/** The claim columns a lease judgement reads. */
+export interface ClaimStamp {
+  readonly publishClaimedAt: Date | null;
+}
+
+/** Whether a draft is held by a publish attempt, and for how long. */
+export function deriveClaimState(stamp: ClaimStamp, now: Date): ClaimState {
+  if (stamp.publishClaimedAt === null) {
+    return ClaimStates.UNCLAIMED;
+  }
+  const held = now.getTime() - stamp.publishClaimedAt.getTime();
+  if (held < PUBLISH_CLAIM_LEASE_MS) {
+    return ClaimStates.PENDING;
+  }
+  return ClaimStates.IN_DOUBT;
+}
+
+/** The refusal each claim state earns from a write; absent means it passes. */
+type ClaimRefusals = Partial<Record<ClaimState, ReviewSessionErrorCode>>;
+
+const CLAIMED_DRAFT_REFUSALS: ClaimRefusals = {
+  [ClaimStates.PENDING]: ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+  [ClaimStates.IN_DOUBT]: ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT,
+};
+
+/** Deleting an in-doubt draft is the reviewer saying it is on GitHub. */
+const DELETE_CLAIM_REFUSALS: ClaimRefusals = {
+  [ClaimStates.PENDING]: ReviewSessionErrorCodes.DRAFT_PUBLISH_PENDING,
+};
 
 /**
  * Carries a refusal out of a transaction callback, so the transaction rolls
@@ -133,6 +183,7 @@ type SessionStep<Value> = (
 
 export type ReviewSessionRow = typeof reviewSession.$inferSelect;
 type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;
+type HeldClaim = Pick<DraftCommentSqlRow, "publishClaim" | "publishClaimedAt">;
 export type ReviewDraftCommentRow = Omit<
   DraftCommentSqlRow,
   "kind" | "filePath" | "side" | "startSide" | "startLine" | "endLine"
@@ -166,6 +217,30 @@ export interface GroupReclassificationInput {
 export interface PublishedDraftsInput {
   readonly draftIds: readonly bigint[];
   readonly githubReviewId?: bigint;
+}
+
+/** The drafts a publish attempt takes, each by its own or its source's id. */
+export interface ClaimDraftsInput {
+  readonly draftIds: readonly bigint[];
+  /** The claim's time and the lease judgement's clock; defaults to now. */
+  readonly now?: Date;
+}
+
+/** The claim token a publish attempt holds, and the rows it holds. */
+export interface DraftClaim {
+  readonly claim: string;
+  readonly drafts: readonly ReviewDraftCommentRow[];
+}
+
+/** A claim whose drafts reached GitHub, and the review that wraps them. */
+export interface SettleClaimInput {
+  readonly claim: string;
+  readonly githubReviewId?: bigint;
+}
+
+/** A claim whose drafts did not reach GitHub. */
+export interface ReleaseClaimInput {
+  readonly claim: string;
 }
 
 /** A decision on one risk flag, anchored by content coordinates. */
@@ -330,6 +405,30 @@ interface PublishOperations {
     key: ReviewSessionKey,
     githubReviewId: bigint,
   ): Promise<SessionOperationResult<ReviewSubmittedReviewRow>>;
+  /**
+   * Hold drafts for one publish attempt, saved before GitHub is called, so
+   * it materializes the session. All or nothing: one draft that is unknown,
+   * published, orphaned or already claimed refuses the whole claim.
+   */
+  claimDrafts(
+    key: ReviewSessionKey,
+    input: ClaimDraftsInput,
+  ): Promise<SessionOperationResult<DraftClaim>>;
+  /**
+   * The claim's drafts reached GitHub: they become `submitted`. Lands on
+   * every row holding the claim across the reviewer's sessions on the PR, a
+   * carried copy included, and passes a frozen session. Never materializes;
+   * answers how many rows it settled.
+   */
+  settleClaim(
+    key: ReviewSessionKey,
+    input: SettleClaimInput,
+  ): Promise<SessionOperationResult<number>>;
+  /** As `settleClaim`, but the drafts stay drafts with the claim cleared. */
+  releaseClaim(
+    key: ReviewSessionKey,
+    input: ReleaseClaimInput,
+  ): Promise<SessionOperationResult<number>>;
 }
 
 export interface ReviewSessionRepository
@@ -513,8 +612,43 @@ function parseDraftCommentRow(row: DraftCommentSqlRow): ReviewDraftCommentRow {
     anchorStatus: row.anchorStatus,
     carriedFromSessionId: row.carriedFromSessionId,
     carriedFromCommentId: row.carriedFromCommentId,
+    publishClaim: row.publishClaim,
+    publishClaimedAt: row.publishClaimedAt,
     createdAt: row.createdAt,
   };
+}
+
+/** Refuses a claimed draft the way `refusals` says its claim state earns. */
+function checkClaim(
+  row: DraftCommentSqlRow,
+  now: Date,
+  refusals: ClaimRefusals,
+): SessionOperationResult<undefined> {
+  const refusal = refusals[deriveClaimState(row, now)];
+  if (refusal !== undefined) {
+    return fail(refusal, `draft ${row.id} is held by a publish attempt`);
+  }
+  return { ok: true, value: undefined };
+}
+
+/** A draft a publish attempt may take: still a draft, placed, unclaimed. */
+function checkClaimable(
+  row: DraftCommentSqlRow,
+  now: Date,
+): SessionOperationResult<undefined> {
+  if (row.status === DraftCommentStatuses.SUBMITTED) {
+    return fail(
+      ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+      `draft ${row.id} is already published`,
+    );
+  }
+  if (row.anchorStatus === AnchorStatuses.ORPHANED) {
+    return fail(
+      ReviewSessionErrorCodes.DRAFT_ANCHOR_ORPHANED,
+      `draft ${row.id} points at no code in this brief`,
+    );
+  }
+  return checkClaim(row, now, CLAIMED_DRAFT_REFUSALS);
 }
 
 function fail(
@@ -1178,6 +1312,76 @@ export function createReviewSessionRepository(
   }
 
   /**
+   * The claims a session's drafts hold, by row id. A copy inherits its
+   * source's claim, so the attempt's settle or release reaches both rows.
+   */
+  async function readHeldClaims(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+  ): Promise<Map<bigint, HeldClaim>> {
+    const rows = await tx
+      .select({
+        id: reviewDraftComment.id,
+        publishClaim: reviewDraftComment.publishClaim,
+        publishClaimedAt: reviewDraftComment.publishClaimedAt,
+      })
+      .from(reviewDraftComment)
+      .where(
+        and(ownedBy(sessionId), isNotNull(reviewDraftComment.publishClaim)),
+      );
+    return new Map(rows.map((row) => [row.id, row]));
+  }
+
+  /**
+   * Every draft row holding `claim` across the reviewer's sessions on this
+   * Brief's PR. A claim token is fresh per attempt, so the match is exact;
+   * the PR and reviewer bound it to rows the claim could have reached.
+   */
+  async function matchClaimHolders(
+    tx: Tx,
+    session: ReviewSessionRow,
+    claim: string,
+  ) {
+    const facts = await readBriefCarrySlice(tx, session.briefId);
+    if (facts === undefined) {
+      throw new Error("review_session brief vanished inside its transaction");
+    }
+    const reviewerSessions = tx
+      .select({ id: reviewSession.id })
+      .from(reviewSession)
+      .innerJoin(brief, eq(reviewSession.briefId, brief.id))
+      .where(
+        and(
+          scope.matchesWorld(reviewSession.installationId),
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
+          eq(reviewSession.reviewerId, session.reviewerId),
+          eq(brief.pullRequestId, facts.pullRequestId),
+        ),
+      );
+    return and(
+      scope.matchesWorld(reviewDraftComment.installationId),
+      eq(reviewDraftComment.publishClaim, claim),
+      inArray(reviewDraftComment.reviewSessionId, reviewerSessions),
+    );
+  }
+
+  /** Clear `claim` off every row holding it; answers how many it touched. */
+  async function clearClaim(
+    tx: Tx,
+    session: ReviewSessionRow,
+    claim: string,
+    values: Partial<typeof reviewDraftComment.$inferInsert>,
+  ): Promise<number> {
+    const holders = await matchClaimHolders(tx, session, claim);
+    const rows = await tx
+      .update(reviewDraftComment)
+      .set({ ...values, publishClaim: null, publishClaimedAt: null })
+      .where(holders)
+      .returning({ id: reviewDraftComment.id });
+    return rows.length;
+  }
+
+  /**
    * Copy the evaluated work onto the new session, one statement per table.
    * Carry-over COPIES; it never points at the old rows. An orphan keeps its
    * last known file and line: the CHECK leaves no sentinel to write, and a
@@ -1195,6 +1399,7 @@ export function createReviewSessionRepository(
     };
     const writes: Promise<unknown>[] = [];
     if (carried.draftComments.length > 0) {
+      const claims = await readHeldClaims(tx, carriedFromSessionId);
       writes.push(
         tx.insert(reviewDraftComment).values(
           carried.draftComments.map((row) => ({
@@ -1206,6 +1411,8 @@ export function createReviewSessionRepository(
             // The source row, so a write naming the id the read handed out
             // reaches this copy on every write, not just the first.
             carriedFromCommentId: row.id,
+            publishClaim: claims.get(row.id)?.publishClaim ?? null,
+            publishClaimedAt: claims.get(row.id)?.publishClaimedAt ?? null,
           })),
         ),
       );
@@ -1595,6 +1802,32 @@ export function createReviewSessionRepository(
     if (facts === undefined) {
       return failBriefNotInTenant(key.briefId);
     }
+    const existing = await lockExistingSession(tx, key);
+    if (!existing.ok) {
+      return existing;
+    }
+    return refuseIfFrozen(tx, facts, key.reviewerId, existing.value);
+  }
+
+  /**
+   * The locked session publish bookkeeping lands on. A frozen session still
+   * records what reached GitHub; an absent one stays absent.
+   */
+  async function openForPublishRecord(
+    tx: Tx,
+    key: ReviewSessionKey,
+  ): Promise<SessionOperationResult<ReviewSessionRow>> {
+    const facts = await readBriefCarrySlice(tx, key.briefId);
+    if (facts === undefined) {
+      return failBriefNotInTenant(key.briefId);
+    }
+    return lockExistingSession(tx, key);
+  }
+
+  async function lockExistingSession(
+    tx: Tx,
+    key: ReviewSessionKey,
+  ): Promise<SessionOperationResult<ReviewSessionRow>> {
     const existing = await lockSession(tx, key);
     if (existing === undefined) {
       return fail(
@@ -1602,7 +1835,7 @@ export function createReviewSessionRepository(
         `reviewer ${key.reviewerId} holds no review_session on brief ${key.briefId}`,
       );
     }
-    return refuseIfFrozen(tx, facts, key.reviewerId, existing);
+    return { ok: true, value: existing };
   }
 
   /**
@@ -1660,11 +1893,15 @@ export function createReviewSessionRepository(
     );
   }
 
-  /** The draft `draftId` names in this session, while it is still a draft. */
+  /**
+   * The draft `draftId` names in this session, while it is still a draft and
+   * no publish attempt holds it in a way `claimRefusals` refuses.
+   */
   async function findWritableDraft(
     tx: Tx,
     sessionId: ReviewSessionId,
     draftId: bigint,
+    claimRefusals: ClaimRefusals = CLAIMED_DRAFT_REFUSALS,
   ): Promise<DraftOperationResult> {
     const rows = await tx
       .select()
@@ -1684,7 +1921,79 @@ export function createReviewSessionRepository(
         `draft ${row.id} is already published`,
       );
     }
+    const claimed = checkClaim(row, new Date(), claimRefusals);
+    if (!claimed.ok) {
+      return claimed;
+    }
     return { ok: true, value: parseDraftCommentRow(row) };
+  }
+
+  /**
+   * The rows `draftIds` name in this session, one per id, judged claimable
+   * at `now`; the first id that fails refuses the lot.
+   */
+  async function findClaimableDrafts(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    draftIds: readonly bigint[],
+    now: Date,
+  ): Promise<SessionOperationResult<readonly bigint[]>> {
+    const ids = [...draftIds];
+    const rows = await tx
+      .select()
+      .from(reviewDraftComment)
+      .where(
+        and(
+          ownedBy(sessionId),
+          or(
+            inArray(reviewDraftComment.id, ids),
+            inArray(reviewDraftComment.carriedFromCommentId, ids),
+          ),
+        ),
+      );
+    const claimable = new Set<bigint>();
+    for (const draftId of ids) {
+      const row = rows.find(
+        (held) => held.id === draftId || held.carriedFromCommentId === draftId,
+      );
+      if (row === undefined) {
+        return fail(
+          ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+          `review_session ${sessionId} holds no draft ${draftId}`,
+        );
+      }
+      const judged = checkClaimable(row, now);
+      if (!judged.ok) {
+        return judged;
+      }
+      claimable.add(row.id);
+    }
+    return { ok: true, value: [...claimable] };
+  }
+
+  /** Stamp one fresh claim on the rows; answers them oldest first. */
+  async function stampClaim(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    rowIds: readonly bigint[],
+    now: Date,
+  ): Promise<DraftClaim> {
+    const claim = randomUUID();
+    if (rowIds.length === 0) {
+      return { claim, drafts: [] };
+    }
+
+    const rows = await tx
+      .update(reviewDraftComment)
+      .set({ publishClaim: claim, publishClaimedAt: now })
+      .where(
+        and(ownedBy(sessionId), inArray(reviewDraftComment.id, [...rowIds])),
+      )
+      .returning();
+    const oldestFirst = rows.toSorted((left, right) =>
+      Number(left.id - right.id),
+    );
+    return { claim, drafts: oldestFirst.map(parseDraftCommentRow) };
   }
 
   /** Move the fields of a writable draft, refusing as `findWritableDraft` does. */
@@ -1774,7 +2083,12 @@ export function createReviewSessionRepository(
 
     async deleteDraft(key, draftId) {
       return runSessionOperation(key, async (tx, session) => {
-        const held = await findWritableDraft(tx, session.id, draftId);
+        const held = await findWritableDraft(
+          tx,
+          session.id,
+          draftId,
+          DELETE_CLAIM_REFUSALS,
+        );
         if (!held.ok) {
           return held;
         }
@@ -1858,6 +2172,48 @@ export function createReviewSessionRepository(
         const row = await upsertSubmittedReview(tx, session.id, githubReviewId);
         return { ok: true, value: row };
       });
+    },
+
+    async claimDrafts(key, input) {
+      const now = input.now ?? new Date();
+      return runSessionOperation(key, async (tx, session) => {
+        const claimable = await findClaimableDrafts(
+          tx,
+          session.id,
+          input.draftIds,
+          now,
+        );
+        if (!claimable.ok) {
+          return claimable;
+        }
+        const claimed = await stampClaim(tx, session.id, claimable.value, now);
+        return { ok: true, value: claimed };
+      });
+    },
+
+    async settleClaim(key, input) {
+      return runInSessionTransaction(
+        (tx) => openForPublishRecord(tx, key),
+        async (tx, session) => {
+          const settled = await clearClaim(tx, session, input.claim, {
+            status: DraftCommentStatuses.SUBMITTED,
+          });
+          if (input.githubReviewId !== undefined) {
+            await upsertSubmittedReview(tx, session.id, input.githubReviewId);
+          }
+          return { ok: true, value: settled };
+        },
+      );
+    },
+
+    async releaseClaim(key, input) {
+      return runInSessionTransaction(
+        (tx) => openForPublishRecord(tx, key),
+        async (tx, session) => {
+          const released = await clearClaim(tx, session, input.claim, {});
+          return { ok: true, value: released };
+        },
+      );
     },
 
     async preview(key) {
