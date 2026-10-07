@@ -12,7 +12,8 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result } from "types/utils";
+import type { Mutable, Result, ValueOf } from "types/utils";
+import { ReviewVerdictStates } from "./conversation";
 import type { PendingReview } from "./review";
 import { HttpStatuses } from "types/http";
 
@@ -26,7 +27,13 @@ export interface DeletePendingPullRequestReviewInput extends PullRequestReviewRe
   readonly reviewId: bigint;
 }
 
-const PENDING_STATE = "PENDING";
+/** GitHub wire values for a review's state, the unsubmitted one included. */
+export const PullRequestReviewStates = {
+  PENDING: "PENDING",
+  ...ReviewVerdictStates,
+} as const;
+export type PullRequestReviewState = ValueOf<typeof PullRequestReviewStates>;
+
 const REVIEWS_PER_PAGE = 100;
 
 const reviewListEntrySchema = z.object({
@@ -70,7 +77,10 @@ export async function findPendingPullRequestReview(
 
   for (const entry of listed.value) {
     const parsed = reviewListEntrySchema.safeParse(entry);
-    if (!parsed.success || parsed.data.state !== PENDING_STATE) {
+    if (
+      !parsed.success ||
+      parsed.data.state !== PullRequestReviewStates.PENDING
+    ) {
       continue;
     }
     // JSON.parse rounds ints past 2^53 before we see them.
@@ -109,10 +119,73 @@ export async function hasPullRequestReviewPublished(
     return (
       parsed.success &&
       parsed.data.id === reviewId &&
-      parsed.data.state !== PENDING_STATE
+      parsed.data.state !== PullRequestReviewStates.PENDING
     );
   });
   return { ok: true, value: published };
+}
+
+export interface ListReviewsByAuthorInput extends PullRequestReviewRef {
+  readonly authorId: bigint;
+}
+
+/** One of the author's reviews; a pending one carries no `submittedAt`. */
+export interface AuthoredReview {
+  readonly reviewId: bigint;
+  readonly state: PullRequestReviewState;
+  readonly body: string;
+  readonly submittedAt?: Date;
+}
+
+const authoredReviewListSchema = z.array(
+  z.object({
+    id: z.number().refine(Number.isSafeInteger),
+    state: z.enum(PullRequestReviewStates),
+    body: z.string().nullish(),
+    user: z.object({ id: z.number().refine(Number.isSafeInteger) }).nullish(),
+    submitted_at: z.iso.datetime({ offset: true }).nullish(),
+  }),
+);
+
+type AuthoredReviewEntry = z.infer<typeof authoredReviewListSchema>[number];
+
+function shapeAuthoredReview(entry: AuthoredReviewEntry): AuthoredReview {
+  const review: Mutable<AuthoredReview> = {
+    reviewId: BigInt(entry.id),
+    state: entry.state,
+    body: entry.body ?? "",
+  };
+  if (typeof entry.submitted_at === "string") {
+    review.submittedAt = new Date(entry.submitted_at);
+  }
+  return review;
+}
+
+/**
+ * Every review `authorId` holds on the PR, pending ones included. The whole
+ * list is read, and an entry that will not parse fails the answer: a
+ * skipped entry could be the review the caller asks about.
+ */
+export async function listReviewsByAuthor(
+  octokit: Octokit,
+  input: ListReviewsByAuthorInput,
+): Promise<Result<readonly AuthoredReview[], GitHubApiError>> {
+  const context = "list reviews by author";
+  const listed = await readReviewList(octokit, input, context);
+  if (!listed.ok) {
+    return listed;
+  }
+
+  const parsed = authoredReviewListSchema.safeParse(listed.value);
+  if (!parsed.success) {
+    return { ok: false, error: unexpectedResponseError(context) };
+  }
+  const authored = parsed.data.filter(
+    (entry) =>
+      typeof entry.user?.id === "number" &&
+      BigInt(entry.user.id) === input.authorId,
+  );
+  return { ok: true, value: authored.map(shapeAuthoredReview) };
 }
 
 const REVIEW_COMMENT_COUNT_QUERY = `

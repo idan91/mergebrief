@@ -131,6 +131,20 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "orphaned-draft" });
   });
 
+  it("maps the claim refusals to their own kinds, never upstream", async () => {
+    for (const [code, kind] of [
+      ["draft-publish-pending", "publish-pending"],
+      ["draft-publish-in-doubt", "publish-in-doubt"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "conflict", code }), {
+          status: 409,
+        }),
+      );
+      await expect(run()).resolves.toEqual({ kind });
+    }
+  });
+
   it("maps 401 to unauthorized for a clean re-login", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "unauthorized" });
@@ -164,7 +178,7 @@ describe("submitReview", () => {
       // Deterministic 413: an over-long review body; retry-as-is never clears.
       ["request-too-large", "invalid"],
       ["forbidden", "upstream"],
-      ["github-permission", "upstream"],
+      ["github-permission", "github-permission"],
       ["scope-exceeded", "upstream"],
       ["human-only", "upstream"],
       ["draft-already-published", "upstream"],

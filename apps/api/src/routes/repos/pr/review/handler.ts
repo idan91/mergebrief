@@ -1,8 +1,5 @@
 import type { Context } from "hono";
-import {
-  createTenantRepository,
-  type ReviewDraftCommentRow,
-} from "persistence";
+import { createTenantRepository, type DraftClaim } from "persistence";
 import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
 import { ApiErrorCodes } from "contract";
 import {
@@ -32,22 +29,30 @@ import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
 import { resolvePrScopeFrom } from "../scope";
-import { foldEveryDraftIntoBody, publishReview } from "../publish";
+import {
+  deriveWriteDeadline,
+  foldEveryDraftIntoBody,
+  isReviewUnsent,
+  publishReview,
+  releaseUnsentClaim,
+} from "../publish";
+import type { ResolvedSessionWrite } from "../session/controller";
+import type { HeldDraft } from "../session/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 /**
- * The session's unposted drafts, refused before any GitHub call is spent:
- * an orphaned anchor is the same 409 the publish path uses; a session-store
- * refusal maps through `throwSessionWriteFailure`.
+ * The session's unposted drafts, read without creating the session and
+ * refused before any GitHub call is spent: an orphaned anchor is the same
+ * 409 the publish path uses; a session-store refusal maps through
+ * `throwSessionWriteFailure`.
  */
 async function resolveSubmittableDrafts(
-  c: Context<AuthzEnv>,
-  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
-) {
-  const held = await resolved.publish.listDrafts();
+  resolved: ResolvedSessionWrite,
+): Promise<readonly HeldDraft[]> {
+  const held = await resolved.publish.readDrafts();
   if (!held.ok) {
     throwSessionWriteFailure(held.error);
   }
@@ -64,13 +69,29 @@ async function resolveSubmittableDrafts(
 }
 
 /**
+ * Hold the drafts for this submit, saved before GitHub is called. A pending
+ * or in-doubt draft refuses the whole submit; the reviewer settles an
+ * in-doubt one by posting it on its own or deleting it.
+ */
+async function claimSubmittableDrafts(
+  resolved: ResolvedSessionWrite,
+  drafts: readonly HeldDraft[],
+): Promise<DraftClaim> {
+  const claimed = await resolved.publish.claim(drafts.map((row) => row.id));
+  if (!claimed.ok) {
+    throwSessionWriteFailure(claimed.error);
+  }
+  return claimed.value;
+}
+
+/**
  * The two deterministic 400s an accepted submit must clear: a neutral
  * review that says nothing, and a fold that would blow GitHub's body cap
  * if GitHub rejects every anchor and every comment moves into the body.
  */
 function assertSubmitRepresentable(
   submitBody: { outcome: ReviewOutcome; body?: string | undefined },
-  drafts: readonly ReviewDraftCommentRow[],
+  drafts: readonly HeldDraft[],
 ): void {
   if (
     submitBody.outcome === ReviewOutcomes.COMMENT &&
@@ -92,13 +113,13 @@ function assertSubmitRepresentable(
  */
 async function recordSubmittedDrafts(
   c: Context<AuthzEnv>,
-  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
-  drafts: readonly { id: bigint }[],
+  resolved: ResolvedSessionWrite,
+  claim: DraftClaim,
   reviewId: bigint,
 ) {
   try {
-    const recorded = await resolved.publish.recordPublishedDrafts({
-      draftIds: drafts.map((row) => row.id),
+    const recorded = await resolved.publish.settle({
+      claim: claim.claim,
       githubReviewId: reviewId,
     });
     if (!recorded.ok) {
@@ -106,6 +127,12 @@ async function recordSubmittedDrafts(
         throw new Error(recorded.error.error.code);
       }
       throw new Error(recorded.error.kind);
+    }
+    const claimLost = recorded.value === 0 && claim.drafts.length > 0;
+    if (claimLost) {
+      c.get("logger").error("publish claim was gone when its review landed", {
+        reviewId: String(reviewId),
+      });
     }
   } catch (bookkeepingError) {
     // NOT `audit.fail`: the audit row is the choke point's to write, and
@@ -141,30 +168,30 @@ export function createReviewHandlers(
       throw new NotFound();
     }
 
-    // The session answers before a GitHub call is spent: a frozen tab is
-    // refused here, and the drafts to publish are read off its rows.
+    // The session answers before a GitHub call is spent: the drafts are read
+    // without writing, so a refused submit leaves no session, and the claim
+    // refuses a frozen tab or a draft another attempt holds.
     const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
       throw new BadRequest();
     }
-    const drafts = await resolveSubmittableDrafts(c, resolved);
+    const drafts = await resolveSubmittableDrafts(resolved);
     assertSubmitRepresentable(submitBody, drafts);
+    const claim = await claimSubmittableDrafts(resolved, drafts);
 
     // One refresh-once budget for the WHOLE request, shared across the fresh
     // slug resolve, the pending review, every thread and the submit.
-    const github = createReviewerGitHubClient(
-      deps,
-      c.get("session"),
-      c.get("logger"),
-    );
+    const log = c.get("logger");
+    const github = createReviewerGitHubClient(deps, c.get("session"), log);
     const target = await resolveRepoOwnerAndName({ github }, c.get("repoId"));
     if (!target.ok) {
+      await releaseUnsentClaim(resolved.publish, log, claim.claim);
       throwRepoResolveFailure(target.error, c.get("urlBoxOnly") === true);
     }
 
     const created = await publishReview(
-      { github, log: c.get("logger") },
+      { github, log },
       {
         target: {
           owner: target.value.owner,
@@ -174,10 +201,14 @@ export function createReviewHandlers(
         },
         outcome: submitBody.outcome,
         body: submitBody.body,
-        drafts,
+        drafts: claim.drafts,
+        writeDeadline: deriveWriteDeadline(claim.drafts),
       },
     );
     if (!created.ok) {
+      if (isReviewUnsent(created.error)) {
+        await releaseUnsentClaim(resolved.publish, log, claim.claim);
+      }
       throwSubmitFailure(created.error);
     }
 
@@ -188,7 +219,7 @@ export function createReviewHandlers(
     // Nothing past this line may reach the error path: the review is live,
     // and an error response would invite a retry that posts it twice.
     stampAuditTarget(c, "pull_request", pr.id);
-    await recordSubmittedDrafts(c, resolved, drafts, created.value.reviewId);
+    await recordSubmittedDrafts(c, resolved, claim, created.value.reviewId);
 
     // A submitted review is a conversation write, the cached conversation
     // is stale the moment it lands.

@@ -58,6 +58,10 @@ function makeFailedResult(): PostResult {
   };
 }
 
+function hasNotExpired(): boolean {
+  return false;
+}
+
 function stubPost(results: readonly PostResult[]): PostThread {
   const queue = [...results];
   return vi.fn(async (_input: AddReviewThreadInput) => {
@@ -74,11 +78,12 @@ describe("postReviewThreads", () => {
       makeLandedResult(),
       makeLandedResult(),
     ]);
-    const result = await postReviewThreads(post, "PRR_node", [
-      LINE_COMMENT,
-      FILE_COMMENT,
-      RANGE_COMMENT,
-    ]);
+    const result = await postReviewThreads(
+      post,
+      "PRR_node",
+      [LINE_COMMENT, FILE_COMMENT, RANGE_COMMENT],
+      hasNotExpired,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -103,11 +108,12 @@ describe("postReviewThreads", () => {
       makeRejectedResult(),
       makeLandedResult(),
     ]);
-    const result = await postReviewThreads(post, "PRR_node", [
-      LINE_COMMENT,
-      FILE_COMMENT,
-      RANGE_COMMENT,
-    ]);
+    const result = await postReviewThreads(
+      post,
+      "PRR_node",
+      [LINE_COMMENT, FILE_COMMENT, RANGE_COMMENT],
+      hasNotExpired,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -118,11 +124,12 @@ describe("postReviewThreads", () => {
 
   it("stops at a transport failure and returns it whole", async () => {
     const post = stubPost([makeLandedResult(), makeFailedResult()]);
-    const result = await postReviewThreads(post, "PRR_node", [
-      LINE_COMMENT,
-      FILE_COMMENT,
-      RANGE_COMMENT,
-    ]);
+    const result = await postReviewThreads(
+      post,
+      "PRR_node",
+      [LINE_COMMENT, FILE_COMMENT, RANGE_COMMENT],
+      hasNotExpired,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -135,7 +142,12 @@ describe("postReviewThreads", () => {
 
   it("passes a token-unreadable refusal through untouched", async () => {
     const post = stubPost([{ ok: false, error: { kind: "token-unreadable" } }]);
-    const result = await postReviewThreads(post, "PRR_node", [LINE_COMMENT]);
+    const result = await postReviewThreads(
+      post,
+      "PRR_node",
+      [LINE_COMMENT],
+      hasNotExpired,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -144,11 +156,29 @@ describe("postReviewThreads", () => {
 
   it("lands nothing and posts nothing for an empty review", async () => {
     const post = stubPost([]);
-    const result = await postReviewThreads(post, "PRR_node", []);
+    const result = await postReviewThreads(post, "PRR_node", [], hasNotExpired);
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual({ landed: [], rejected: [] });
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("stops before the next thread once the deadline has passed", async () => {
+    const post = stubPost([makeLandedResult(), makeLandedResult()]);
+    const hasExpired = vi
+      .fn<() => boolean>()
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true);
+
+    const result = await postReviewThreads(
+      post,
+      "PRR_node",
+      [LINE_COMMENT, FILE_COMMENT, RANGE_COMMENT],
+      hasExpired,
+    );
+
+    expect(result).toEqual({ ok: false, error: { kind: "publish-expired" } });
+    expect(post).toHaveBeenCalledTimes(1);
   });
 });

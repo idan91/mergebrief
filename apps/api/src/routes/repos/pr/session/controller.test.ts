@@ -128,7 +128,7 @@ describe("sessionController.resolveWrite", () => {
       throw new Error("unreachable");
     }
     expect(resolved.value.head).toBe("head1");
-    const listed = await resolved.value.publish.listDrafts();
+    const listed = await resolved.value.publish.readDrafts();
     expect(listed).toEqual({ ok: true, value: [] });
   });
 });

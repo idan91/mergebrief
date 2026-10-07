@@ -310,6 +310,8 @@ export interface UserOctokitOptions {
   readonly throttle?: boolean;
   /** False on a mutation path: a replayed mutation is a second mutation. */
   readonly retry?: boolean;
+  /** The longest rate-limit wait honoured; a longer one fails the call. */
+  readonly maxRetryAfterSeconds?: number;
   readonly fetch?: typeof fetch;
 }
 
@@ -325,14 +327,15 @@ export function createUserOctokit(
   // viewer shares one queue, with it the global cap of ten concurrent calls
   // is per token too, which is the ceiling GitHub itself meters per user.
   // `throttle` shallow-replaces octokit's defaults, so the handlers ride too.
+  const onLimit = createRateLimitHandler(options.maxRetryAfterSeconds);
   const octokitOptions: OctokitOptions = {
     auth: accessToken,
     retry: options.retry === false ? { enabled: false } : retryOptions(),
     throttle: {
       enabled: options.throttle ?? true,
       id: deriveThrottleKey(accessToken),
-      onRateLimit: retryOnceAfterLimit,
-      onSecondaryRateLimit: retryOnceAfterLimit,
+      onRateLimit: onLimit,
+      onSecondaryRateLimit: onLimit,
     },
   };
   if (options.fetch !== undefined) {
@@ -355,10 +358,24 @@ interface ThrottledRequest {
   readonly request: { readonly retryCount: number };
 }
 
-/** octokit's own default: honour retry-after once, then give up. */
-export function retryOnceAfterLimit(
-  _retryAfter: number,
+export type RateLimitHandler = (
+  retryAfter: number,
   options: ThrottledRequest,
-): boolean {
-  return options.request.retryCount === 0;
+) => boolean;
+
+/**
+ * octokit's own default, honour retry-after once and then give up, except
+ * that a wait past `maxRetryAfterSeconds` is not honoured at all.
+ */
+export function createRateLimitHandler(
+  maxRetryAfterSeconds?: number,
+): RateLimitHandler {
+  return (retryAfter, options) => {
+    const pastCap =
+      maxRetryAfterSeconds !== undefined && retryAfter > maxRetryAfterSeconds;
+    if (pastCap) {
+      return false;
+    }
+    return options.request.retryCount === 0;
+  };
 }

@@ -5,13 +5,13 @@ import {
   type CreateLineInlineReviewCommentInput,
   type LineReviewThreadInput,
 } from "github";
-import type { ReviewDraftCommentRow } from "persistence";
 import { CommentAnchorKinds, type Mutable } from "types";
 import { SideOnGithub } from "../consts";
 import type {
   FileGitHubAnchor,
   GitHubAnchor,
   LineGitHubAnchor,
+  PublishableDraft,
   PublishComment,
   PublishTarget,
 } from "../types";
@@ -25,7 +25,7 @@ export function isFileGitHubAnchor(
 }
 
 /** The one mapping from a stored anchor to GitHub's line and side fields. */
-export function readGitHubAnchor(draft: ReviewDraftCommentRow): GitHubAnchor {
+export function readGitHubAnchor(draft: PublishableDraft): GitHubAnchor {
   const { anchor } = draft;
   if (anchor.kind === CommentAnchorKinds.FILE) {
     return { path: anchor.file, subjectType: ReviewSubjectTypes.FILE };
@@ -46,9 +46,7 @@ export function readGitHubAnchor(draft: ReviewDraftCommentRow): GitHubAnchor {
   return githubAnchor;
 }
 
-export function shapePublishComment(
-  draft: ReviewDraftCommentRow,
-): PublishComment {
+export function shapePublishComment(draft: PublishableDraft): PublishComment {
   return { anchor: readGitHubAnchor(draft), body: draft.body };
 }
 

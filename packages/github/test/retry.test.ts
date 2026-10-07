@@ -5,9 +5,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { Octokit } from "octokit";
 import {
+  createRateLimitHandler,
   createUserOctokit,
   deriveThrottleKey,
-  retryOnceAfterLimit,
 } from "../src/auth/oauth";
 import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/auth/retry";
 import { fetchDiff } from "../src/operations/pull-request";
@@ -78,10 +78,20 @@ describe("deriveThrottleKey", () => {
   });
 });
 
-describe("retryOnceAfterLimit", () => {
+describe("createRateLimitHandler", () => {
   it("retries a rate-limited request once, then gives up", () => {
-    expect(retryOnceAfterLimit(60, { request: { retryCount: 0 } })).toBe(true);
-    expect(retryOnceAfterLimit(60, { request: { retryCount: 1 } })).toBe(false);
+    const retryOnce = createRateLimitHandler();
+
+    expect(retryOnce(60, { request: { retryCount: 0 } })).toBe(true);
+    expect(retryOnce(60, { request: { retryCount: 1 } })).toBe(false);
+  });
+
+  it("retries only a wait within the cap when one is set", () => {
+    const retryWithinCap = createRateLimitHandler(20);
+
+    expect(retryWithinCap(20, { request: { retryCount: 0 } })).toBe(true);
+    expect(retryWithinCap(21, { request: { retryCount: 0 } })).toBe(false);
+    expect(retryWithinCap(5, { request: { retryCount: 1 } })).toBe(false);
   });
 });
 

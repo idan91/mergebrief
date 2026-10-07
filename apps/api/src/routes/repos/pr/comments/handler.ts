@@ -2,27 +2,16 @@ import type { Context } from "hono";
 import {
   ReviewSessionErrorCodes,
   createTenantRepository,
-  type PublishedDraftsInput,
   type ScopeContext,
 } from "persistence";
-import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
-import type { Mutable } from "types/utils";
-import { ApiErrorCodes } from "contract";
 import type { InlineReviewCommentResult } from "github";
-import {
-  BadRequest,
-  Conflict,
-  NotFound,
-} from "../../../../shared-errors/api-error";
+import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthzEnv } from "../../../authz";
 import { commitShaSchema, prNumberSchema } from "../../../wire-bounds";
-import {
-  resolveSessionWrite,
-  throwSessionWriteFailure,
-} from "../session/logic/write-seam";
+import { resolveSessionWrite } from "../session/logic/write-seam";
 import {
   sessionController,
   type ExistingSessionWriteFailure,
@@ -30,10 +19,18 @@ import {
 import { spanQuerySchema } from "../session/schemas";
 import { commentsController } from "./controller";
 import {
-  throwPublishFailure,
   throwReplyFailure,
   throwResolutionFailure,
 } from "./logic/wire-failures";
+import {
+  checkInDoubtDraft,
+  claimDraft,
+  isClaimInDoubt,
+  postClaimedDraft,
+  readHeldDraft,
+  recordPublishedDraft,
+  resolvePublishTarget,
+} from "./logic/post-now";
 import type { EvictConversation } from "./types";
 import {
   publishDraftSchema,
@@ -45,7 +42,8 @@ import {
   throwRepoResolveFailure,
 } from "../../logic/resolve-repo-owner-and-name";
 import { resolvePrScopeFrom } from "../scope";
-import { publishComment } from "../publish";
+import { releaseUnsentClaim } from "../publish";
+import type { PublishTarget } from "../publish/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { HttpStatuses } from "types/http";
 
@@ -54,74 +52,6 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 /** The request body, or `undefined` when it is not JSON at all. */
 async function readJsonBody(c: Context<AuthzEnv>) {
   return c.req.json().catch(() => undefined);
-}
-
-/**
- * The draft this session holds under `draftId`, already proven publishable:
- * unknown -> the subtree's hint-free 404, published -> 409, orphaned anchor
- * -> the distinct 409 the submit path uses. A session refusal renders via
- * a session-store refusal maps through `throwSessionWriteFailure`.
- */
-async function resolvePublishableDraft(
-  c: Context<AuthzEnv>,
-  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
-  draftId: bigint,
-) {
-  const held = await resolved.publish.listDrafts();
-  if (!held.ok) {
-    throwSessionWriteFailure(held.error);
-  }
-  const draft = held.value.find(
-    (row) => row.id === draftId || row.carriedFromCommentId === draftId,
-  );
-  if (draft === undefined) {
-    throw new NotFound();
-  }
-  if (draft.status === DraftCommentStatuses.SUBMITTED) {
-    throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
-  }
-  // Same refusal the submit makes, for the same reason: an orphaned anchor
-  // would land the comment on unrelated lines, and posting one at a time
-  // has no degradation fold to catch it. Re-anchor or delete to clear it.
-  if (draft.anchorStatus === AnchorStatuses.ORPHANED) {
-    throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
-  }
-  return draft;
-}
-
-/**
- * The GitHub write is the commit point; flipping the row is how the session
- * records it, and the wrapping review id is how a later read knows the
- * comment as the reviewer's own. A failure here leaves a draft that is on
- * GitHub, logged, never an error response, which would invite a second post.
- */
-async function recordPublishedDraft(
-  c: Context<AuthzEnv>,
-  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
-  draftRowId: bigint,
-  posted: InlineReviewCommentResult,
-) {
-  const { commentId, reviewId } = posted;
-  const published: Mutable<PublishedDraftsInput> = { draftIds: [draftRowId] };
-  if (reviewId !== undefined) {
-    published.githubReviewId = reviewId;
-  }
-  try {
-    const flipped = await resolved.publish.recordPublishedDrafts(published);
-    if (!flipped.ok) {
-      if (flipped.error.kind === FailureKinds.SESSION_REJECTED) {
-        throw new Error(flipped.error.error.code);
-      }
-      throw new Error(flipped.error.kind);
-    }
-  } catch (flipError) {
-    // NOT `audit.fail`: that name is the audit ROW failing to persist,
-    // and this is the session's own publication flip.
-    c.get("logger").error("draft stayed unpublished after a posted comment", {
-      commentId: String(commentId),
-      err: flipError,
-    });
-  }
 }
 
 /** Refusals a reply meets in ordinary use: nothing is wrong, nothing to alert on. */
@@ -189,6 +119,29 @@ async function recordReplyReview(
   }
 }
 
+/** A comment on GitHub: the cached conversation goes stale, the row is audited. */
+function answerPosted(
+  c: Context<AuthzEnv>,
+  evict: () => void,
+  posted: InlineReviewCommentResult,
+) {
+  evict();
+  stampAuditTarget(c, "review_comment", posted.commentId);
+
+  if (posted.reviewId === undefined) {
+    return c.json(
+      { commentId: Number(posted.commentId) },
+      HttpStatuses.CREATED,
+      NO_STORE,
+    );
+  }
+  return c.json(
+    { commentId: Number(posted.commentId), reviewId: Number(posted.reviewId) },
+    HttpStatuses.CREATED,
+    NO_STORE,
+  );
+}
+
 export function createCommentsHandlers(
   deps: AuthRouteDeps,
   evictConversation: EvictConversation,
@@ -213,60 +166,54 @@ export function createCommentsHandlers(
     }
 
     // The session answers first, and it answers with no GitHub call spent:
-    // a frozen tab, an unknown draft and one already published are all
-    // decided off rows this server holds.
+    // a frozen tab, an unknown draft and one already published or held by
+    // another attempt are all decided off rows this server holds.
     const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
       throw new BadRequest();
     }
-    const draft = await resolvePublishableDraft(c, resolved, draftId);
+    const held = await readHeldDraft(resolved, draftId);
 
-    // ONE client instance: the refresh budget spans the fresh slug resolve
-    // AND the write.
-    const github = createReviewerGitHubClient(
-      deps,
-      c.get("session"),
-      c.get("logger"),
-    );
-    const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
-    if (!resolvedName.ok) {
-      throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
-    }
+    // ONE client instance: the refresh budget spans the fresh slug resolve,
+    // the in-doubt check AND the write.
+    const log = c.get("logger");
+    const github = createReviewerGitHubClient(deps, c.get("session"), log);
+    const publishDeps = { github, log };
+    const pin = { repoId, prNumber: pr.prNumber, commitId: commitId.data };
+    const evict = () => evictConversation(ctx, repoId, pr.prNumber);
 
-    const posted = await publishComment(
-      { github, log: c.get("logger") },
-      {
-        owner: resolvedName.value.owner,
-        repo: resolvedName.value.repo,
-        prNumber: pr.prNumber,
-        commitId: commitId.data,
-      },
-      draft,
-    );
-    if (!posted.ok) {
-      throwPublishFailure(posted.error);
-    }
-
-    await recordPublishedDraft(c, resolved, draft.id, posted.value);
-    evictConversation(ctx, repoId, pr.prNumber);
-    stampAuditTarget(c, "review_comment", posted.value.commentId);
-
-    if (posted.value.reviewId === undefined) {
-      return c.json(
-        { commentId: Number(posted.value.commentId) },
-        HttpStatuses.CREATED,
-        NO_STORE,
+    let target: PublishTarget | undefined;
+    const heldInDoubt = held !== undefined && isClaimInDoubt(held);
+    if (heldInDoubt) {
+      target = await resolvePublishTarget(c, github, pin);
+      const found = await checkInDoubtDraft(
+        c,
+        resolved,
+        publishDeps,
+        target,
+        held,
       );
+      if (found !== undefined) {
+        return answerPosted(c, evict, found);
+      }
     }
-    return c.json(
-      {
-        commentId: Number(posted.value.commentId),
-        reviewId: Number(posted.value.reviewId),
+
+    const claim = await claimDraft(resolved, draftId);
+    target ??= await resolvePublishTarget(c, github, pin).catch(
+      async (refusal: unknown) => {
+        await releaseUnsentClaim(resolved.publish, log, claim.claim);
+        throw refusal;
       },
-      HttpStatuses.CREATED,
-      NO_STORE,
     );
+    const posted = await postClaimedDraft(
+      publishDeps,
+      resolved.publish,
+      target,
+      claim,
+    );
+    await recordPublishedDraft(c, resolved, claim.claim, posted);
+    return answerPosted(c, evict, posted);
   };
 
   /** Reply to a review comment with the VIEWER's token. */

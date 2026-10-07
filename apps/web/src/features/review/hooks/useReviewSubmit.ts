@@ -77,19 +77,22 @@ export function useReviewSubmit(
   const { t } = useTranslation();
   const COPY = useMemo(
     () => ({
-      posted: t("review.submitResult.posted"),
-      rewritten: t("review.submitResult.rewritten"),
-      orphanedDraft: t("review.submitResult.orphanedDraft"),
-      unauthorized: t("review.submitResult.unauthorized"),
-      notFound: t("review.submitResult.notFound"),
-      noWriteAccess: t("pulls.briefError.no-repo-write-access"),
-      invalid: t("review.submitResult.invalid"),
-      upstreamNeutral: t("review.submitResult.upstream"),
-      upstreamVerdict: t("review.submitResult.ownPr"),
+      POSTED: t("review.submitResult.posted"),
+      REWRITTEN: t("review.submitResult.rewritten"),
+      ORPHANED_DRAFT: t("review.submitResult.orphanedDraft"),
+      UNAUTHORIZED: t("review.submitResult.unauthorized"),
+      NOT_FOUND: t("review.submitResult.notFound"),
+      NO_WRITE_ACCESS: t("pulls.briefError.no-repo-write-access"),
+      GITHUB_PERMISSION: t("review.submitResult.githubPermission"),
+      INVALID: t("review.submitResult.invalid"),
+      UPSTREAM_NEUTRAL: t("review.submitResult.upstream"),
+      UPSTREAM_VERDICT: t("review.submitResult.ownPr"),
       // Deliberately INDETERMINATE: a throw can land after the POST reached
       // GitHub, so this copy must not claim "nothing was posted".
-      failed: t("review.submitResult.indeterminate"),
-      pendingReviewHeld: t("review.submitResult.pendingReviewHeld"),
+      FAILED: t("review.submitResult.indeterminate"),
+      PENDING_REVIEW_HELD: t("review.submitResult.pendingReviewHeld"),
+      PUBLISH_PENDING: t("review.submitResult.publishPending"),
+      PUBLISH_IN_DOUBT: t("review.submitResult.publishInDoubt"),
     }),
     [t],
   );
@@ -205,7 +208,7 @@ export function useReviewSubmit(
         }
         announce(t("review.submitResult.postedDegraded", counts));
       } else {
-        announce(COPY.posted);
+        announce(COPY.POSTED);
       }
     };
     void (async () => {
@@ -216,7 +219,7 @@ export function useReviewSubmit(
         try {
           result = await action({ outcome, body: reviewBody });
         } catch {
-          fail(COPY.failed);
+          fail(COPY.FAILED);
           return;
         }
         switch (result.kind) {
@@ -225,43 +228,55 @@ export function useReviewSubmit(
             break;
           }
           case "rewritten": {
-            fail(COPY.rewritten);
+            fail(COPY.REWRITTEN);
             break;
           }
           case "orphaned-draft": {
-            fail(COPY.orphanedDraft);
+            fail(COPY.ORPHANED_DRAFT);
             break;
           }
           case "unauthorized": {
-            fail(COPY.unauthorized);
+            fail(COPY.UNAUTHORIZED);
             break;
           }
           case "not-found": {
-            fail(COPY.notFound);
+            fail(COPY.NOT_FOUND);
             break;
           }
           case "no-write-access": {
-            fail(COPY.noWriteAccess);
+            fail(COPY.NO_WRITE_ACCESS);
+            break;
+          }
+          case "github-permission": {
+            fail(COPY.GITHUB_PERMISSION);
             break;
           }
           case "invalid": {
-            fail(COPY.invalid);
+            fail(COPY.INVALID);
             break;
           }
           case "upstream": {
             fail(
               outcome === "comment"
-                ? COPY.upstreamNeutral
-                : COPY.upstreamVerdict,
+                ? COPY.UPSTREAM_NEUTRAL
+                : COPY.UPSTREAM_VERDICT,
             );
             break;
           }
           case "indeterminate": {
-            fail(COPY.failed);
+            fail(COPY.FAILED);
             break;
           }
           case "pending-review-held": {
-            fail(COPY.pendingReviewHeld);
+            fail(COPY.PENDING_REVIEW_HELD);
+            break;
+          }
+          case "publish-pending": {
+            fail(COPY.PUBLISH_PENDING);
+            break;
+          }
+          case "publish-in-doubt": {
+            fail(COPY.PUBLISH_IN_DOUBT);
             break;
           }
         }

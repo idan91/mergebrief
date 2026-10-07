@@ -81,12 +81,14 @@ export type SubmitReviewResult =
   | { kind: "orphaned-draft" }
   /** 400 (shape; programmer error) or deterministic 413, edit the body, retry-as-is never clears. */
   | { kind: "invalid" }
-  /** 502/anything else, GitHub rejected or is unreachable. */
   /**
    * 403, a url-box brief for a repo the reader's own GitHub account cannot
    * write to. Never a retry: it clears by installing the App there.
    */
   | { kind: "no-write-access" }
+  /** 403, GitHub refused the viewer's review on this pull request; not a retry. */
+  | { kind: "github-permission" }
+  /** 502/anything else, GitHub rejected or is unreachable. */
   | { kind: "upstream" }
   /**
    * 504 from the web proxy: its budget ran out while the API was still
@@ -95,7 +97,11 @@ export type SubmitReviewResult =
    */
   | { kind: "indeterminate" }
   /** 409, the reader holds an unsubmitted review on GitHub; finish it there. */
-  | { kind: "pending-review-held" };
+  | { kind: "pending-review-held" }
+  /** 409, a comment in the review is still being posted by another attempt. */
+  | { kind: "publish-pending" }
+  /** 409, a comment in the review may already be on GitHub; settle it first. */
+  | { kind: "publish-in-doubt" };
 
 /** What the review screen hands the transport. The drafts are already saved. */
 export interface SubmitDraftInput {

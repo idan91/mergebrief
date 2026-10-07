@@ -3,7 +3,8 @@
 import type { PublishComment } from "../types";
 import { isFileGitHubAnchor } from "./anchor";
 
-function shapeFoldedCommentBlock(comment: PublishComment): string {
+/** One rejected comment as the fold writes it: its anchor in bold, then its body. */
+export function shapeFoldedCommentBlock(comment: PublishComment): string {
   const { anchor } = comment;
   if (isFileGitHubAnchor(anchor)) {
     return [`**\`${anchor.path}\`**`, "", comment.body].join("\n");

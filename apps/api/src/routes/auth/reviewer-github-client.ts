@@ -75,6 +75,12 @@ function isUnauthorizedCode(error: unknown): boolean {
   );
 }
 
+/**
+ * The longest rate-limit wait a write honours. A longer one could carry the
+ * write past its claim's lease, when another attempt may already have sent it.
+ */
+const MUTATION_MAX_RETRY_AFTER_SECONDS = 20;
+
 const TOKEN_UNREADABLE: Result<never, TokenUnreadableFailure> = {
   ok: false,
   error: { kind: FailureKinds.TOKEN_UNREADABLE },
@@ -167,7 +173,10 @@ export function createReviewerGitHubClient(
       return deps.auth.createUserOctokit(token);
     },
     createMutationOctokit(token: string): UserOctokit {
-      return deps.auth.createUserOctokit(token, { retry: false });
+      return deps.auth.createUserOctokit(token, {
+        retry: false,
+        maxRetryAfterSeconds: MUTATION_MAX_RETRY_AFTER_SECONDS,
+      });
     },
     session(): ViewerPrincipal {
       return currentSession;

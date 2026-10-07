@@ -1,6 +1,7 @@
 // One thread mutation per comment, in order. Sequential by design: GitHub's
 // secondary rate limit punishes concurrent mutations, and the loop must stop
-// at the first transport failure so the caller can delete the pending review.
+// at the first transport failure or past the write deadline so the caller
+// can delete the pending review.
 // octokit paces every mutation, GraphQL included, at one per second per
 // viewer, so a submit costs about N+2 seconds of wall clock.
 import { ReviewThreadFailureKinds } from "github";
@@ -16,17 +17,21 @@ import { shapeThreadInput } from "./anchor";
 /**
  * Post every comment as a thread on the pending review. A rejected anchor is
  * collected and the loop goes on; anything else stops it and comes back
- * whole for the caller to judge.
+ * whole for the caller to judge. No thread leaves once `hasExpired` says so.
  */
 export async function postReviewThreads(
   post: PostThread,
   reviewNodeId: string,
   comments: readonly PublishComment[],
+  hasExpired: () => boolean,
 ): Promise<Result<PostedThreads, PostThreadsFailure>> {
   const landed: PublishComment[] = [];
   const rejected: PublishComment[] = [];
 
   for (const comment of comments) {
+    if (hasExpired()) {
+      return { ok: false, error: { kind: "publish-expired" } };
+    }
     const posted = await post(shapeThreadInput(reviewNodeId, comment));
     if (posted.ok) {
       landed.push(comment);

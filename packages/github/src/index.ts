@@ -176,11 +176,22 @@ export {
   hasPullRequestReviewPublished,
   findPendingPullRequestReview,
   deletePendingPullRequestReview,
+  listReviewsByAuthor,
+  PullRequestReviewStates,
 } from "./operations/review-pending";
 export type {
   PullRequestReviewRef,
   DeletePendingPullRequestReviewInput,
+  ListReviewsByAuthorInput,
+  AuthoredReview,
+  PullRequestReviewState,
 } from "./operations/review-pending";
+export { listReviewCommentsSince } from "./operations/review-comment-list";
+export type {
+  ListedReviewComment,
+  ListReviewCommentsSinceInput,
+  ReviewCommentListing,
+} from "./operations/review-comment-list";
 export {
   submitPullRequestReview,
   ReviewEvents,

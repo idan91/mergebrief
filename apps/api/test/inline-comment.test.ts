@@ -11,6 +11,7 @@ import {
   type BriefRowId,
   type DraftAnchor,
   type KeyProvider,
+  PUBLISH_CLAIM_LEASE_MS,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { ReviewOutcomes } from "types/reviews";
@@ -30,6 +31,7 @@ import {
 } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
+import { IN_DOUBT_LOOKUP_MARGIN_MS } from "../src/routes/repos/pr/publish/consts";
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
@@ -99,25 +101,43 @@ function tokenSuccess(): Response {
 
 interface StubConfig {
   readonly repositories?: (call: number) => Response;
-  readonly comments?: (call: number) => Response;
+  readonly comments?: (call: number) => Response | Promise<Response>;
+  readonly listComments?: (call: number) => Response;
+  readonly listReviews?: (call: number) => Response;
   readonly token?: (call: number) => Response;
 }
 interface StubCounts {
   repositories: number;
   comments: number;
+  listComments: number;
+  listReviews: number;
   token: number;
   readonly commentBodies: Array<Record<string, unknown>>;
   /** Full URL of each comment POST, in order, pins the fresh-slug target. */
   readonly commentUrls: string[];
+  /** Full URL of each review-comment list GET, in order. */
+  readonly listUrls: string[];
+}
+
+const COMMENT_LIST_PATH = /\/pulls\/\d+\/comments(\?|$)/;
+const REVIEW_LIST_PATH = /\/pulls\/\d+\/reviews(\?|$)/;
+
+function readMethod(input: string | URL | Request, init?: RequestInit): string {
+  if (init?.method !== undefined) return init.method.toUpperCase();
+  if (input instanceof Request) return input.method.toUpperCase();
+  return "GET";
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = {
     repositories: 0,
     comments: 0,
+    listComments: 0,
+    listReviews: 0,
     token: 0,
     commentBodies: [],
     commentUrls: [],
+    listUrls: [],
   };
   const fetchFn = vi.fn(
     async (
@@ -138,6 +158,19 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;
         return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (COMMENT_LIST_PATH.test(url) && readMethod(input, init) === "GET") {
+        const i = counts.listComments++;
+        counts.listUrls.push(url);
+        return cfg.listComments
+          ? cfg.listComments(i)
+          : jsonResponse({ message: "unexpected" }, 500);
+      }
+      if (REVIEW_LIST_PATH.test(url) && readMethod(input, init) === "GET") {
+        const i = counts.listReviews++;
+        return cfg.listReviews
+          ? cfg.listReviews(i)
+          : jsonResponse({ message: "unexpected" }, 500);
       }
       if (/\/pulls\/\d+\/comments$/.test(url)) {
         const i = counts.comments++;
@@ -901,6 +934,465 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       await harness.raw(
         "alter table review_draft_comment drop constraint no_publish",
       );
+    });
+  });
+
+  describe("the claim a post-now holds", () => {
+    const IN_DOUBT_AGE_MS = PUBLISH_CLAIM_LEASE_MS + 60_000;
+
+    async function readDraftRow(): Promise<{
+      status: unknown;
+      claim: unknown;
+    }> {
+      const rows = await harness.raw(
+        "select status, publish_claim from review_draft_comment order by id",
+      );
+      return { status: rows[0]?.["status"], claim: rows[0]?.["publish_claim"] };
+    }
+
+    /** A publish attempt on `draftId` that started `ageMs` ago. */
+    async function stubClaim(
+      briefId: BriefRowId,
+      draftId: bigint,
+      ageMs: number,
+    ): Promise<Date> {
+      const now = new Date(Date.now() - ageMs);
+      const claimed = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).reviewSessions.claimDrafts(
+        { briefId, reviewerId: REVIEWER },
+        { draftIds: [draftId], now },
+      );
+      if (!claimed.ok) throw new Error("claim seed failed");
+      return now;
+    }
+
+    async function readDraftRows(): Promise<
+      Array<{ status: unknown; claim: unknown }>
+    > {
+      const rows = await harness.raw(
+        "select status, publish_claim from review_draft_comment order by id",
+      );
+      return rows.map((row) => ({
+        status: row["status"],
+        claim: row["publish_claim"],
+      }));
+    }
+
+    /** A Submit that claimed every one of `draftIds` and never reported back. */
+    async function stubSubmitClaim(
+      briefId: BriefRowId,
+      draftIds: readonly bigint[],
+    ): Promise<void> {
+      const claimed = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).reviewSessions.claimDrafts(
+        { briefId, reviewerId: REVIEWER },
+        { draftIds, now: new Date(Date.now() - IN_DOUBT_AGE_MS) },
+      );
+      if (!claimed.ok) throw new Error("claim seed failed");
+    }
+
+    /** A review the viewer submitted just now, as GitHub lists it. */
+    function makeSubmittedReview(body = ""): unknown {
+      return {
+        id: 778,
+        node_id: "PRR_submitted",
+        state: "COMMENTED",
+        body,
+        user: { id: REVIEWER_ID },
+        submitted_at: new Date().toISOString(),
+      };
+    }
+
+    /** The viewer's pending review holding comment 777, as GitHub lists it. */
+    function makePendingReview(): unknown {
+      return {
+        id: 778,
+        node_id: "PRR_pending",
+        state: "PENDING",
+        body: "",
+        user: { id: REVIEWER_ID },
+      };
+    }
+
+    /** The posted draft as GitHub lists it, by `authorId`. */
+    function makeListedComment(
+      authorId = REVIEWER_ID,
+    ): Record<string, unknown> {
+      return {
+        id: 777,
+        pull_request_review_id: 778,
+        user: { id: authorId },
+        path: "src/index.ts",
+        body: "post now",
+        subject_type: "line",
+        line: 12,
+        side: "RIGHT",
+        start_line: 10,
+        start_side: "RIGHT",
+      };
+    }
+
+    async function editDraft(cookie: string, draftId: bigint) {
+      return app.request(
+        `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/comments/${String(draftId)}?base=${BASE_SHA}&head=${COMMIT_ID}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            "content-type": "application/json",
+            cookie: `__Host-mergebrief_session=${cookie}`,
+          },
+          body: JSON.stringify({ body: "edited" }),
+        },
+      );
+    }
+
+    async function deleteDraft(cookie: string, draftId: bigint) {
+      return app.request(
+        `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/comments/${String(draftId)}?base=${BASE_SHA}&head=${COMMIT_ID}`,
+        {
+          method: "DELETE",
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            cookie: `__Host-mergebrief_session=${cookie}`,
+          },
+        },
+      );
+    }
+
+    it("saves the claim before GitHub is called", async () => {
+      let claimedAtCall: unknown;
+      stubGitHub({
+        repositories: () => repoOk(),
+        comments: async () => {
+          claimedAtCall = (await readDraftRow()).claim;
+          return commentOk();
+        },
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+
+      expect(typeof claimedAtCall).toBe("string");
+    });
+
+    it("settles a posted draft: submitted, claim cleared", async () => {
+      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.SUBMITTED,
+        claim: null,
+      });
+    });
+
+    it("releases the claim when GitHub refuses the comment", async () => {
+      stubGitHub({
+        repositories: () => repoOk(),
+        comments: () => commentStatus(422),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(409);
+
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.DRAFT,
+        claim: null,
+      });
+      expect((await editDraft(cookie, draftId)).status).toBe(200);
+    });
+
+    it("keeps the claim when GitHub's answer is unknown", async () => {
+      stubGitHub({
+        repositories: () => repoOk(),
+        comments: () => commentStatus(504),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(502);
+
+      const row = await readDraftRow();
+      expect(row.status).toBe(DraftCommentStatuses.DRAFT);
+      expect(typeof row.claim).toBe("string");
+      const edited = await editDraft(cookie, draftId);
+      expect(edited.status).toBe(409);
+      expect(await readWireCode(edited)).toBe("draft-publish-pending");
+    });
+
+    it("409s a second post-now while the first is pending", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, 0);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-pending");
+      expect(counts.comments).toBe(0);
+      expect(counts.repositories).toBe(1);
+    });
+
+    it("settles an in-doubt draft GitHub already holds, posting nothing", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([makeListedComment()]),
+        listReviews: () => jsonResponse([]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      const claimedAt = await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ commentId: 777, reviewId: 778 });
+      expect(counts.comments).toBe(0);
+      const since = new URL(counts.listUrls[0] ?? "").searchParams.get("since");
+      expect(Date.parse(since ?? "")).toBeLessThanOrEqual(
+        claimedAt.getTime() - IN_DOUBT_LOOKUP_MARGIN_MS,
+      );
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.SUBMITTED,
+        claim: null,
+      });
+    });
+
+    it("settles an in-doubt draft whose comment a later push moved", async () => {
+      const moved = {
+        ...makeListedComment(),
+        line: 15,
+        start_line: 13,
+        original_line: 12,
+        original_start_line: 10,
+      };
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([moved]),
+        listReviews: () => jsonResponse([]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ commentId: 777, reviewId: 778 });
+      expect(counts.comments).toBe(0);
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.SUBMITTED,
+        claim: null,
+      });
+    });
+
+    it("409s already-published when a claim sibling is on GitHub", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([makeListedComment()]),
+        listReviews: () => jsonResponse([]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId: landed } = await seedDraft(harness.handle);
+      const folded = await writeDraft(
+        harness.handle,
+        briefId,
+        {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/other.ts",
+          side: DraftCommentSides.NEW,
+          startLine: 3,
+          endLine: 3,
+        },
+        "folded into the review body",
+      );
+      await stubSubmitClaim(briefId, [landed, folded]);
+
+      const res = await post(app, cookie, named(folded));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-already-published");
+      expect(counts.comments).toBe(0);
+      expect(await readDraftRows()).toEqual([
+        { status: DraftCommentStatuses.SUBMITTED, claim: null },
+        { status: DraftCommentStatuses.SUBMITTED, claim: null },
+      ]);
+    });
+
+    it("409s in-doubt when a review since holds the draft folded", async () => {
+      const folded = [
+        "1 of 2 comments could not be anchored to the diff:",
+        "**`src/index.ts:10-12`**",
+        "first line\r\nsecond line",
+      ].join("\r\n\r\n");
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([]),
+        listReviews: () => jsonResponse([makeSubmittedReview(folded)]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(
+        harness.handle,
+        "first line\nsecond line",
+      );
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
+      expect(counts.comments).toBe(0);
+      expect(typeof (await readDraftRow()).claim).toBe("string");
+    });
+
+    it("posts once when the only review since is a post-now's wrapper", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([]),
+        listReviews: () => jsonResponse([makeSubmittedReview()]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(201);
+      expect(counts.comments).toBe(1);
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.SUBMITTED,
+        claim: null,
+      });
+    });
+
+    it("409s in-doubt when the draft sits in the viewer's pending review", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([makeListedComment()]),
+        listReviews: () => jsonResponse([makePendingReview()]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
+      expect(counts.comments).toBe(0);
+      const row = await readDraftRow();
+      expect(row.status).toBe(DraftCommentStatuses.DRAFT);
+      expect(typeof row.claim).toBe("string");
+      const edited = await editDraft(cookie, draftId);
+      expect(edited.status).toBe(409);
+      expect(await readWireCode(edited)).toBe("draft-publish-in-doubt");
+    });
+
+    it("409s in-doubt when nothing is listed and reviews cannot be read", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse([]),
+        listReviews: () => jsonResponse({ message: "denied" }, 403),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
+      expect(counts.comments).toBe(0);
+      expect(typeof (await readDraftRow()).claim).toBe("string");
+    });
+
+    it("posts an in-doubt draft once when GitHub does not hold it", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        // The same words on the same lines, but another reviewer's comment.
+        listComments: () => jsonResponse([makeListedComment(REVIEWER_ID + 1)]),
+        listReviews: () => jsonResponse([]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ commentId: 999, reviewId: 555 });
+      expect(counts.comments).toBe(1);
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.SUBMITTED,
+        claim: null,
+      });
+    });
+
+    it("409s draft-publish-in-doubt when the check cannot list comments", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        listComments: () => jsonResponse({ message: "denied" }, 403),
+        listReviews: () => jsonResponse([]),
+        comments: () => commentOk(),
+      });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      const res = await post(app, cookie, named(draftId));
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
+      expect(counts.comments).toBe(0);
+      expect(typeof (await readDraftRow()).claim).toBe("string");
+    });
+
+    it("deletes an in-doubt draft on the reviewer's word", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      expect((await deleteDraft(cookie, draftId)).status).toBe(200);
+
+      const rows = await harness.raw("select id from review_draft_comment");
+      expect(rows).toEqual([]);
     });
   });
 });

@@ -19,6 +19,13 @@ export type ResolutionFailure =
   | TokenUnreadableFailure
   | GitHubDeniedFailure<GitHubApiError>;
 
+/** The repo, PR and reviewed head a post-now comment is pinned to. */
+export interface PublishPin {
+  readonly repoId: RepoId;
+  readonly prNumber: number;
+  readonly commitId: string;
+}
+
 export type EvictConversation = (
   ctx: ScopeContext,
   repoId: RepoId,

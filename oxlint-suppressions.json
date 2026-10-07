@@ -326,14 +326,6 @@
       "count": 8
     }
   },
-  "apps/web/src/features/pulls/transport/postComment.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/pulls/utils/ownDraft.test.ts": {
     "house/no-em-dash": {
       "count": 1

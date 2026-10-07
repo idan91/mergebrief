@@ -13,6 +13,7 @@ import {
   ReviewValidationClasses,
   submitPullRequestReview,
   type CreateReviewError,
+  type GitHubApiError,
   type PendingReview,
   type ReviewEvent,
   type ReviewThreadFailure,
@@ -165,20 +166,20 @@ export async function submitPendingReview(
  * A submit whose acknowledgement was lost may still have published the
  * review; the review this request created being listed in a non-pending
  * state is the proof. Reporting that as a retryable failure would post the
- * whole review a second time. A review missing from the list was deleted.
+ * whole review a second time. A review missing from the list was deleted;
+ * a list that cannot be read leaves the answer unknown.
  */
-export async function hasSubmitLanded(
+export async function readSubmitLanded(
   deps: PublishDeps,
   target: PublishTarget,
   pending: PendingReview,
-): Promise<boolean> {
-  const probe = await deps.github.run((token) =>
+): Promise<Result<boolean, GitHubApiError | TokenUnreadableFailure>> {
+  return deps.github.run((token) =>
     hasPullRequestReviewPublished(deps.github.createOctokit(token), {
       ...target,
       reviewId: pending.reviewId,
     }),
   );
-  return probe.ok && probe.value;
 }
 
 /**

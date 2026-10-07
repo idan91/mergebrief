@@ -80,6 +80,15 @@ const POST_FAILURES = {
     copy: "pulls.briefError.no-repo-write-access",
     outcome: "rejected",
   },
+  // Indeterminate: an earlier attempt may have posted it, or still may.
+  "publish-pending": {
+    copy: "pulls.briefError.draft-publish-pending",
+    outcome: "indeterminate",
+  },
+  "publish-in-doubt": {
+    copy: "pulls.briefError.draft-publish-in-doubt",
+    outcome: "indeterminate",
+  },
   // Indeterminate, not rejected: GitHub may have taken it before failing.
   upstream: { copy: POST_COMMENT_COPY_KEYS.upstream, outcome: "indeterminate" },
 } as const satisfies Record<

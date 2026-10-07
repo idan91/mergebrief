@@ -131,7 +131,7 @@ Chunk-specific factual evidence for why a **Risk Surface** attribute fired on th
 _Avoid_: description (ambiguous with the catalog implication), reason (collides with Dismissal)
 
 **Disposition**:
-A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews. Frozen into the **Receipt** on **Submit**.
+A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews. The **Receipt** shows it as it stands at **Submit**; nothing freezes it, so the reviewer can still change it afterwards and a later Submit shows the change.
 _Avoid_: resolution (informal), flag status, decision (bare)
 
 **Dismissal**:
@@ -143,7 +143,7 @@ The AI's explicit label on categorization or flag output when its confidence is 
 _Avoid_: low confidence (informal only), unknown, maybe
 
 **Receipt**:
-The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation origin** of the analysis. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
+The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation origin** of the analysis. A view of the **Dispositions** as they stand at **Submit**, not a copy kept apart from them. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
 _Avoid_: AI approval, stamp, attestation
 
 **Generation origin**:
@@ -283,7 +283,7 @@ The reviewer's human judgment ("approve / request changes / comment") submitted 
 _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 
 **Submit**:
-A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint**, freezes their **Dispositions** into the **Receipt**, and produces the static **Review Summary** — mere viewing never does.
+A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint** and produces the static **Review Summary**, whose **Receipt** shows the **Dispositions** as they stand at that moment; mere viewing never does. Each **Comment** it carries reaches GitHub once.
 _Avoid_: send, post, finish (informal)
 
 **Repo instructions**:

@@ -8,9 +8,10 @@ import {
   type DispositionAnchor,
   type DispositionInput,
   type DraftAnchor,
+  type DraftClaim,
   type GroupReclassificationInput,
   type NewDraft,
-  type PublishedDraftsInput,
+  type ReleaseClaimInput,
   type RepoId,
   type ReviewDraftCommentRow,
   type ReviewerId,
@@ -18,9 +19,11 @@ import {
   type ReviewSessionError,
   type ReviewSessionKey,
   type ReviewSessionRow,
+  type ReviewSessionView,
   type ReviewSubmittedReviewRow,
   type ScopeContext,
   type SessionOperationResult,
+  type SettleClaimInput,
 } from "persistence";
 import type { Logger } from "logging";
 import type { ReviewOutcome } from "types/reviews";
@@ -30,7 +33,7 @@ import type { BriefSpan } from "./schemas";
 import { resolveSessionTarget, type SessionTarget } from "./logic/brief-target";
 import type { SessionPayload } from "contract";
 import { buildSessionPayload } from "./logic/payload";
-import type { SessionWriteFailure } from "./types";
+import type { HeldDraft, SessionWriteFailure } from "./types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 
 /** A store operation's outcome with its refusal wrapped for the handler. */
@@ -67,10 +70,12 @@ export interface SessionWorkWrites {
 
 /** What publishing reads and records on the session, bound the same way. */
 export interface SessionPublishWrites {
-  listDrafts(): Promise<SessionWriteResult<readonly ReviewDraftCommentRow[]>>;
-  recordPublishedDrafts(
-    published: PublishedDraftsInput,
-  ): Promise<SessionWriteResult<number>>;
+  /** The drafts a publish would take, read without creating the session. */
+  readDrafts(): Promise<SessionWriteResult<readonly HeldDraft[]>>;
+  /** Saved before GitHub is called; a refusal leaves no session behind. */
+  claim(draftIds: readonly bigint[]): Promise<SessionWriteResult<DraftClaim>>;
+  settle(input: SettleClaimInput): Promise<SessionWriteResult<number>>;
+  release(input: ReleaseClaimInput): Promise<SessionWriteResult<number>>;
 }
 
 export interface ResolvedSessionWrite {
@@ -191,15 +196,35 @@ function bindWorkWrites({
   };
 }
 
+/** The session's own drafts, or before it exists, the ones it would carry. */
+function readHeldDrafts(view: ReviewSessionView): readonly HeldDraft[] {
+  if (view.session !== undefined) {
+    return view.session.draftComments;
+  }
+  return view.carried.draftComments.map((draft) => ({
+    ...draft,
+    publishClaim: null,
+    publishClaimedAt: null,
+  }));
+}
+
 function bindPublishWrites({
   sessions,
   key,
   settle,
 }: SessionBinding): SessionPublishWrites {
   return {
-    listDrafts: async () => settle(await sessions.listDrafts(key)),
-    recordPublishedDrafts: async (published) =>
-      settle(await sessions.recordPublishedDrafts(key, published)),
+    readDrafts: async () => {
+      const view = settle(await sessions.preview(key));
+      if (!view.ok) {
+        return view;
+      }
+      return { ok: true, value: readHeldDrafts(view.value) };
+    },
+    claim: async (draftIds) =>
+      settle(await sessions.claimDrafts(key, { draftIds })),
+    settle: async (input) => settle(await sessions.settleClaim(key, input)),
+    release: async (input) => settle(await sessions.releaseClaim(key, input)),
   };
 }
 

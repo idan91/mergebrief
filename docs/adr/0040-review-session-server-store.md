@@ -137,6 +137,7 @@ agent is involved.
    outcome, body}`), moving the 100-comment cap to the session; a repeat
    naming an already-published draft is refused with `draft-already-published`
    (409). The per-tab in-flight registry in `postComment.ts` is deleted.
+   *Reversed by the amendment below (BRIEF-327 D3, BRIEF-331).*
 10. **The audit trail records every action plus denials, never a read**, from
     the single router choke point. `action`'s eight values are replaced by the
     descriptor's `operation` id, alongside `classification`, `channel`,
@@ -222,3 +223,57 @@ way nine hand-placed emits did.
   `generate-brief` and spend model money; a GitHub write that succeeds after
   our call times out can double-post; a tab left open across the deploy loses
   its marks; file-backed briefs carry no session until BRIEF-98 ingests them.
+  The double post is no longer accepted: see the amendment below.
+
+## Amendment (2026-10-06, BRIEF-327 D3, D4, D12; BRIEF-331)
+
+Decision 9 is reversed. A Comment reaches GitHub once.
+
+- **Publishing is claim, settle, release.** Post-now and Submit read the drafts
+  without writing, refuse what they can before any GitHub call (an empty or
+  over-budget Submit, an orphaned anchor), then claim the drafts. The claim is
+  saved before GitHub is called, so it materializes the session; a refusal
+  before that point leaves no session behind. GitHub accepting the write
+  settles the claim (the drafts become `submitted` and the wrapping review is
+  recorded). A failure known not to have reached GitHub releases it: for a
+  post-now, nothing was sent or GitHub answered with a 4xx; for a Submit, any
+  failure before the submit mutation, or a review GitHub then lists as still
+  pending or gone. Any other failure (a post-now 5xx or lost answer, a Submit
+  whose review list cannot be read) leaves the claim in place.
+- **A claim is in doubt after a lease** longer than the slowest Submit
+  (`PUBLISH_CLAIM_LEASE_MS`, three minutes). Before then, publishing, editing,
+  re-anchoring and deleting the draft are refused with `draft-publish-pending`
+  (409). After it, editing and re-anchoring are refused with
+  `draft-publish-in-doubt` (409) and deleting is allowed: it is the reviewer
+  saying the comment is on GitHub.
+- **No write leaves after the lease.** An attempt sends no GitHub write later
+  than 30 seconds before its claim's lease runs out. Past that, a post-now
+  releases the claim without posting, and a Submit posts no further thread
+  and deletes its pending review instead of submitting it; both answer
+  `github-unavailable` (502). A write honours a rate-limit wait of at most 20
+  seconds; a longer one fails it.
+- **An in-doubt post-now checks GitHub first.** It reads the reviewer's
+  reviews on the PR, then lists the PR's review comments since five minutes
+  before the claim was taken (GitHub stamps whole seconds on its own clock)
+  and looks for the reviewer's own comment on the same path, anchor and body,
+  for this draft and for every other draft the same claim holds. The anchor
+  matches on the line the comment was posted at or the line a later push
+  moved it to. This draft found published: the claim settles and the route
+  answers as if it had just posted. Another draft of the claim found
+  published: that Submit landed with this draft folded into its body, so the
+  claim settles and the route answers `draft-already-published` (409). A
+  draft found only in one of the reviewer's pending reviews was never
+  published, but submitting that review on GitHub would post it:
+  `draft-publish-in-doubt`, the claim stays. Nothing found: it looks for a
+  review the reviewer submitted since that same moment whose body holds this
+  draft's folded block, its bolded anchor line then its body, line endings
+  aside, which is what a fold writes. None: the claim is released and the
+  draft is posted. One, or a review list that cannot be read:
+  `draft-publish-in-doubt`, the claim stays, and the reviewer decides (D4).
+  No hidden marker rides in the Comment body.
+- **A Submit holding an in-doubt draft is refused** with
+  `draft-publish-in-doubt`. The reviewer resolves the draft by posting it on
+  its own, which runs the check, or by deleting it.
+- **The draft cap is 64**, not 100, counted over the session's unposted drafts.
+- **A Submit GitHub refuses as forbidden answers an honest 403**
+  `github-permission` (D12); a 401 after a good token refresh stays 401.

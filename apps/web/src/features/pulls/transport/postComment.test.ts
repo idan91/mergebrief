@@ -1,6 +1,6 @@
 // Inline post-now transport: expected failure statuses are result kinds the
-// own-draft flow renders — never throws for those; a malformed 2xx throws typed
-// (contract violation).
+// own-draft flow renders, never throws for those; a malformed 2xx throws typed
+// as a contract violation.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -48,7 +48,7 @@ describe("postInlineComment", () => {
     });
   });
 
-  it("maps expected failures to result kinds (incl. 409 stale)", async () => {
+  it("maps expected failures to result kinds, 409 stale included", async () => {
     for (const [status, kind] of [
       [401, "unauthorized"],
       [404, "not-found"],
@@ -79,7 +79,7 @@ describe("postInlineComment", () => {
     }
   });
 
-  it("maps both wire 409 codes to stale (the production path)", async () => {
+  it("maps both wire 409 codes to stale on the production path", async () => {
     for (const code of ["pr-changed-since-read", "pr-rewritten-since-read"]) {
       apiFetchMock.mockResolvedValue(
         new Response(JSON.stringify({ error: "conflict", code }), {
@@ -95,7 +95,7 @@ describe("postInlineComment", () => {
   it("maps every previously-swallowed coded failure deliberately", async () => {
     for (const [code, kind] of [
       // Deterministic 413: the body is too long; retrying as-is never clears
-      // it. `invalid` copy says edit the draft — the only honest advice.
+      // it. `invalid` copy says edit the draft, the only honest advice.
       ["request-too-large", "invalid"],
       ["forbidden", "upstream"],
       ["github-permission", "upstream"],
@@ -109,6 +109,22 @@ describe("postInlineComment", () => {
       apiFetchMock.mockResolvedValue(
         new Response(JSON.stringify({ error: "refused", code }), {
           status: 502,
+        }),
+      );
+      await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+        kind,
+      });
+    }
+  });
+
+  it("maps the claim refusals to their own kinds, never upstream", async () => {
+    for (const [code, kind] of [
+      ["draft-publish-pending", "publish-pending"],
+      ["draft-publish-in-doubt", "publish-in-doubt"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "conflict", code }), {
+          status: 409,
         }),
       );
       await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({

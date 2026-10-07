@@ -11,6 +11,7 @@ import {
   type BriefRowId,
   type DraftAnchor,
   type KeyProvider,
+  PUBLISH_CLAIM_LEASE_MS,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { ReviewOutcomes } from "types/reviews";
@@ -29,6 +30,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import { BRIEF_BODY } from "./session/fixtures";
 import {
   INSTALLATION_ID,
   KEY_REF,
@@ -176,7 +178,7 @@ function makeTokenSuccess(): Response {
 
 interface StubConfig {
   readonly repositories?: (call: number) => Response;
-  readonly createReview?: (call: number) => Response;
+  readonly createReview?: (call: number) => Response | Promise<Response>;
   readonly listReviews?: (call: number) => Response;
   readonly reviewCommentCount?: (call: number) => Response;
   readonly deleteReview?: (call: number) => Response;
@@ -1089,8 +1091,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
+    // Reads still work; only recording the review is refused.
     await harness.raw(
-      "alter table review_submitted_review rename to review_submitted_review_poisoned",
+      "alter table review_submitted_review add constraint no_record " +
+        "check (github_review_id < 0)",
     );
 
     const res = await postSubmit(captureApp, cookie, makeValidBody());
@@ -1386,7 +1390,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(await readSubmitAuditCount(harness)).toBe(0);
   });
 
-  it("allows two reviews from repeated submissions", async () => {
+  it("allows a second review that carries only the verdict", async () => {
     const counts = stubSubmitHappyPath({
       createReview: (call) => makePendingReview(REVIEW_ID + call),
     });
@@ -1399,6 +1403,280 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(counts.createReview).toBe(2);
+    // The drafts went out with the first review; the second posts none again.
+    expect(counts.thread).toBe(2);
     expect(await readSubmitAuditCount(harness)).toBe(2);
+  });
+
+  describe("the claim a submit holds", () => {
+    const PREVIOUS_HEAD = "e".repeat(40);
+
+    async function countRows(table: string): Promise<number> {
+      const rows = await harness.raw(`select count(*)::int as n from ${table}`);
+      return Number(rows[0]?.["n"]);
+    }
+
+    async function readClaims(): Promise<unknown[]> {
+      const rows = await harness.raw(
+        "select publish_claim from review_draft_comment order by id",
+      );
+      return rows.map((row) => row["publish_claim"]);
+    }
+
+    async function writeBrief(
+      headSha: string,
+      headIndex: number,
+    ): Promise<BriefRowId> {
+      const pr = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
+      if (pr === undefined) throw new Error("seed: pr missing");
+      const written = await createArtifactStore(
+        harness.handle,
+        CTX,
+      ).briefs.write({
+        pullRequestId: pr.id,
+        baseSha: BASE_SHA,
+        headSha,
+        headIndex,
+        commitCount: headIndex,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+        body: BRIEF_BODY,
+        anchorState: "anchored",
+      });
+      if (!written.ok) throw new Error("seed: brief write failed");
+      return written.value.id;
+    }
+
+    /**
+     * Drafts on a session one Brief back, so the Brief the submit names has
+     * no session yet. `linked` writes the hop that lets them carry in place;
+     * without it every carried anchor orphans.
+     */
+    async function seedPreviousDrafts(
+      bodies: readonly string[],
+      linked: boolean,
+    ): Promise<void> {
+      const previous = await writeBrief(PREVIOUS_HEAD, 1);
+      await writeBrief(COMMIT_ID, 2);
+      for (const body of bodies) {
+        await writeDraft(
+          harness.handle,
+          previous,
+          {
+            kind: CommentAnchorKinds.LINE,
+            file: "src/a.ts",
+            side: DraftCommentSides.NEW,
+            startLine: 12,
+            endLine: 12,
+          },
+          body,
+        );
+      }
+      if (!linked) return;
+      const pr = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
+      if (pr === undefined) throw new Error("seed: pr missing");
+      const hop = await createArtifactStore(
+        harness.handle,
+        CTX,
+      ).hunkSpans.write({
+        pullRequestId: pr.id,
+        baselineSha: PREVIOUS_HEAD,
+        headSha: COMMIT_ID,
+        spans: [
+          {
+            file: "src/app.ts",
+            hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1 }],
+          },
+        ],
+      });
+      if (!hop.ok) throw new Error("seed: hop write failed");
+    }
+
+    async function editDraft(cookie: string, draftId: string) {
+      return app.request(makeSessionPath(`/comments/${draftId}`), {
+        method: "PATCH",
+        headers: {
+          ...SAME_ORIGIN_HEADERS,
+          "content-type": "application/json",
+          cookie: `__Host-mergebrief_session=${cookie}`,
+        },
+        body: JSON.stringify({ body: "edited" }),
+      });
+    }
+
+    async function readFirstDraftId(): Promise<string> {
+      const rows = await harness.raw(
+        "select id from review_draft_comment order by id",
+      );
+      return String(rows[0]?.["id"]);
+    }
+
+    it("creates no session for a submit with nothing to say", async () => {
+      const counts = stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle, []);
+
+      const res = await postSubmit(app, cookie, { outcome: "comment" });
+
+      expect(res.status).toBe(400);
+      expect(counts.createReview).toBe(0);
+      expect(await countRows("review_session")).toBe(0);
+    });
+
+    it("creates no session for a submit refused on an orphaned draft", async () => {
+      const counts = stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPreviousDrafts(["lost its place"], false);
+
+      const res = await postSubmit(app, cookie, makeValidBody());
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-anchor-orphaned");
+      expect(counts.createReview).toBe(0);
+      expect(await countRows("review_session")).toBe(1);
+    });
+
+    it("creates no session for a submit over the fold budget", async () => {
+      const counts = stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPreviousDrafts(["x".repeat(40_000), "y".repeat(40_000)], true);
+
+      const res = await postSubmit(app, cookie, { outcome: "comment" });
+
+      expect(res.status).toBe(400);
+      expect(counts.createReview).toBe(0);
+      expect(await countRows("review_session")).toBe(1);
+    });
+
+    it("posts the carried drafts once the claim saves the session", async () => {
+      const counts = stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPreviousDrafts(["carried across"], true);
+
+      const res = await postSubmit(app, cookie, makeValidBody());
+
+      expect(res.status).toBe(201);
+      expect(counts.threadInputs.map((input) => input["body"])).toEqual([
+        "carried across",
+      ]);
+      expect(await countRows("review_session")).toBe(2);
+    });
+
+    it("saves the claim before GitHub is called", async () => {
+      let claimsAtCall: unknown[] = [];
+      stubSubmitHappyPath({
+        createReview: async () => {
+          claimsAtCall = await readClaims();
+          return makePendingReview();
+        },
+      });
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle);
+
+      expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(201);
+
+      expect(claimsAtCall).toHaveLength(2);
+      expect(claimsAtCall.every((claim) => typeof claim === "string")).toBe(
+        true,
+      );
+    });
+
+    it("settles the submitted drafts and clears their claim", async () => {
+      stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle);
+
+      expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(201);
+
+      expect(await readDraftStatuses(harness)).toEqual([
+        "submitted",
+        "submitted",
+      ]);
+      expect(await readClaims()).toEqual([null, null]);
+    });
+
+    it("releases the claim when the review never went out", async () => {
+      stubSubmitHappyPath({ thread: () => makeGraphqlFailure() });
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle);
+
+      expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(502);
+
+      expect(await readDraftStatuses(harness)).toEqual(["draft", "draft"]);
+      expect(await readClaims()).toEqual([null, null]);
+      const edited = await editDraft(cookie, await readFirstDraftId());
+      expect(edited.status).toBe(200);
+    });
+
+    it("keeps the claim when the submit cannot be confirmed", async () => {
+      stubSubmitHappyPath({
+        submitReview: () => makeGraphqlFailure(),
+        listReviews: () => makeReviewStatus(403),
+      });
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle);
+
+      const res = await postSubmit(app, cookie, makeValidBody());
+
+      expect(res.status).toBe(502);
+      expect(await readDraftStatuses(harness)).toEqual(["draft", "draft"]);
+      const claims = await readClaims();
+      expect(claims.every((claim) => typeof claim === "string")).toBe(true);
+      const edited = await editDraft(cookie, await readFirstDraftId());
+      expect(edited.status).toBe(409);
+      expect(await readWireCode(edited)).toBe("draft-publish-pending");
+    });
+
+    it("409s draft-publish-in-doubt while a held draft is in doubt", async () => {
+      const counts = stubSubmitHappyPath();
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const briefId = await seedSessionDrafts(harness.handle);
+      const claimed = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).reviewSessions.claimDrafts(
+        { briefId, reviewerId: REVIEWER },
+        {
+          draftIds: [BigInt(await readFirstDraftId())],
+          now: new Date(Date.now() - PUBLISH_CLAIM_LEASE_MS - 60_000),
+        },
+      );
+      if (!claimed.ok) throw new Error("claim seed failed");
+
+      const res = await postSubmit(app, cookie, makeValidBody());
+
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
+      expect(counts.createReview).toBe(0);
+    });
+
+    it("answers an honest 403 when GitHub forbids the review", async () => {
+      stubSubmitHappyPath({ createReview: () => makeReviewStatus(403) });
+      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedSessionDrafts(harness.handle);
+
+      const res = await postSubmit(app, cookie, makeValidBody());
+
+      expect(res.status).toBe(403);
+      expect(await readWireCode(res)).toBe("github-permission");
+      expect(await readClaims()).toEqual([null, null]);
+    });
   });
 });

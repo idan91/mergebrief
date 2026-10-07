@@ -26,6 +26,10 @@ export type PostCommentResult =
   | { readonly kind: "orphaned-anchor" }
   /** 409, the draft is already on GitHub; nothing posted twice. */
   | { readonly kind: "already-published" }
+  /** 409, an earlier attempt on this draft is still running. */
+  | { readonly kind: "publish-pending" }
+  /** 409, an earlier attempt may have posted it and GitHub could not say. */
+  | { readonly kind: "publish-in-doubt" }
   /** 400 (shape; mirrored client-side) or deterministic 413, edit the body, retry-as-is never clears. */
   | { readonly kind: "invalid" }
   /** 502/anything else, GitHub rejected or is unreachable. */
@@ -67,8 +71,8 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "upstream",
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "publish-pending",
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "publish-in-doubt",
   [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
   [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "stale",

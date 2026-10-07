@@ -9,6 +9,7 @@ import {
   hasPullRequestReviewPublished,
   deletePendingPullRequestReview,
   findPendingPullRequestReview,
+  listReviewsByAuthor,
 } from "../src/operations/review-pending";
 import { LEAKED_TOKEN } from "./fixtures/graphql-error";
 
@@ -149,6 +150,94 @@ describe("hasPullRequestReviewPublished", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.status).toBe(502);
+  });
+});
+
+describe("listReviewsByAuthor", () => {
+  const INPUT = { ...REF, authorId: 42n };
+
+  function makeReviewEntry(extra: Record<string, unknown> = {}) {
+    return {
+      id: 12,
+      node_id: "PRR_a",
+      state: "COMMENTED",
+      body: "looks good",
+      user: { id: 42 },
+      submitted_at: "2026-10-06T10:00:00Z",
+      ...extra,
+    };
+  }
+
+  it("returns the author's reviews with id, state, body and submit time", async () => {
+    const paginate = vi.fn().mockResolvedValue([makeReviewEntry()]);
+
+    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
+
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        {
+          reviewId: 12n,
+          state: "COMMENTED",
+          body: "looks good",
+          submittedAt: new Date("2026-10-06T10:00:00Z"),
+        },
+      ],
+    });
+    const [, params] = paginate.mock.calls[0] ?? [];
+    expect(params).toMatchObject({ owner: "o", repo: "r", pull_number: 7 });
+  });
+
+  it("ignores another user's review and one with no user", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        makeReviewEntry({ user: { id: 7 } }),
+        makeReviewEntry({ user: null }),
+      ]);
+
+    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
+
+    expect(result).toEqual({ ok: true, value: [] });
+  });
+
+  it("keeps a pending review with its state and no submit time", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        makeReviewEntry({ state: "PENDING", body: null, submitted_at: null }),
+      ]);
+
+    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
+
+    expect(result).toEqual({
+      ok: true,
+      value: [{ reviewId: 12n, state: "PENDING", body: "" }],
+    });
+  });
+
+  it("fails rather than skip an entry it cannot read", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        makeReviewEntry(),
+        makeReviewEntry({ user: { id: "x" } }),
+      ]);
+
+    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("maps a list failure to a sanitized error", async () => {
+    const paginate = vi.fn().mockRejectedValue(makeRequestError(502));
+
+    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.status).toBe(502);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 });
 
