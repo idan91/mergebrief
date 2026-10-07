@@ -1,6 +1,6 @@
 // The DB-brief route's wait-UX state machine, kept PURE so the whole map is
 // unit-testable. Render trigger = brief artifact EXISTS for the resolved span
-// and NEVER `status === "succeeded"` (markSucceeded fires only after delta
+// and NEVER `status === "succeeded"` (the run finishes only after delta
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
 import type { WaitReason } from "contract";

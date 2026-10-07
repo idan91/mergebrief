@@ -109,8 +109,28 @@ export const ClaimOutcomes = {
   CAPPED: "capped",
   /** The row already succeeded; there is nothing to claim. */
   FINISHED: "finished",
+  /** The head's paid attempts since its last trigger are spent; nothing was written. */
+  EXHAUSTED: "exhausted",
 } as const;
 export type ClaimOutcome = ValueOf<typeof ClaimOutcomes>;
+
+/** graphile's `job_key_mode` for an `add_job` on a key that already has a job. */
+export const JobKeyModes = {
+  /** Replace the waiting job's payload and `run_at`. */
+  REPLACE: "replace",
+  /** Replace the payload and keep the waiting job's `run_at`. */
+  PRESERVE_RUN_AT: "preserve_run_at",
+} as const;
+export type JobKeyMode = ValueOf<typeof JobKeyModes>;
+
+/** What charging a paid run that holds no claim to the day's cap found. */
+export const ChargeOutcomes = {
+  /** One attempt row was written under the cap. */
+  CHARGED: "charged",
+  /** The day's attempts reached the cap; nothing was written. */
+  CAPPED: "capped",
+} as const;
+export type ChargeOutcome = ValueOf<typeof ChargeOutcomes>;
 
 /** Codes that carry interpolation params, typed per code. */
 export interface GenerationFailureParamMap {

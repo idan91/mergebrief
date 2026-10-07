@@ -21,6 +21,7 @@ export {
   UncoveredWorks,
   GenerationKinds,
   ClaimOutcomes,
+  ChargeOutcomes,
   AuditActorTypes,
   AuditChannels,
   AuditOutcomes,
@@ -40,6 +41,7 @@ export type {
   GenerationKind,
   GenerationFailure,
   ClaimOutcome,
+  ChargeOutcome,
   AuditChannel,
   AuditOutcome,
   ClaimState,
@@ -263,17 +265,19 @@ export {
   GenerationErrorCodes,
 } from "./stores/generation";
 export type {
+  ChargeRunInput,
+  ChargeRunOutcome,
   ClaimRunInput,
   ClaimRunOutcome,
   GenerateJobTiming,
+  GenerationClaim,
+  RecoveryJobInput,
   GenerationProjection,
   GenerationError,
   GenerationErrorCode,
   GenerationTarget,
   GenerationRow,
   RunOutcome,
-  StartRunInput,
-  StartRunOutcome,
 } from "./stores/generation";
 
 // The append-only audit emit. `AuditMetadataSchema` is the value enforcement
@@ -301,12 +305,19 @@ export type {
 // transaction. Calls `graphile_worker.add_job` by name; no graphile-worker
 // npm dependency here.
 export { createIngestRoutines, IngestErrorCodes } from "./stores/ingest";
+// The recovery job's task name, which the worker registers, and the claims a head takes between triggers.
+export {
+  MAX_GENERATION_ATTEMPTS,
+  RECOVER_GENERATION_TASK,
+} from "./stores/queue";
 export type {
   IngestRoutines,
   IngestError,
   IngestErrorCode,
   IngestOutcome,
   RecordStateOptions,
+  RequeueGenerateJobInput,
+  RequeueOutcome,
   TriggerGenerationInput,
 } from "./stores/ingest";
 

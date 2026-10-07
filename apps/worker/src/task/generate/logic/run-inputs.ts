@@ -14,6 +14,7 @@ import { getPrLocator } from "../utils";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
 import { throwOnGitHubFailure } from "./errors";
 import { buildPrMetadata, recordResolvedStack } from "./pr-metadata";
+import { throwOnClaimLost } from "./supersession-watch";
 import { createTicketContextLoader } from "./ticket-context";
 
 /**
@@ -89,11 +90,13 @@ async function acquireRunRepoConfig(
   }
 
   const repoConfig = await acquireRepoConfig(context.source, context.log);
-  if (fresh) {
-    await context.projection.recordRepoConfig(
+  if (decision.kind === RunDecisionKinds.FRESH) {
+    const recorded = await context.projection.recordRepoConfig(
       context.target,
+      decision.runId,
       buildRepoConfigOrigin(repoConfig),
     );
+    throwOnClaimLost(recorded);
   }
   return repoConfig;
 }

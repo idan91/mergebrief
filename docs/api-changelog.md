@@ -13,6 +13,15 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-06)
+
+- **Added** `attempts-exhausted` to the generation failure codes a
+  generation's `errorCode` carries: the head used all its claims since its
+  last trigger and will not retry until a new trigger arrives. It carries no
+  `detail`. A client that predates it renders the generic failed line.
+- **Added** `maxAttempts` to the worker log event `job.retries.exhausted`,
+  which now also fires when a head's claims are spent.
+
 ## dev (2026-10-04)
 
 - **Added** `429 attachment-limit-reached` on

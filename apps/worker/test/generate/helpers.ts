@@ -35,6 +35,7 @@ import type {
 } from "github";
 import {
   createGenerateTask,
+  createRecoverGenerationTask,
   type GenerateTaskDeps,
 } from "../../src/task/generate";
 import type { GenerateTask } from "../../src/task/generate/types";
@@ -91,6 +92,40 @@ export function makeConnectionError(): GeneratorError {
     "Connection error.",
     { cause: new Error("socket hang up") },
   );
+}
+
+function makeAbortError(): Error {
+  return Object.assign(new Error("Request was aborted."), {
+    name: "APIUserAbortError",
+  });
+}
+
+/**
+ * Every call runs `onCall`, then waits for the request's abort and rejects
+ * with the SDK's abort shape, as a stream cut short does.
+ */
+export function stubHangingGenerator(
+  onCall: () => Promise<void> = async () => {},
+): Generator {
+  return {
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      await onCall();
+      return new Promise<never>((_, reject) => {
+        if (req.signal?.aborted === true) {
+          reject(makeAbortError());
+          return;
+        }
+        req.signal?.addEventListener("abort", () => reject(makeAbortError()));
+      });
+    },
+    origin: (effort: Effort) => ({
+      provider: "stub",
+      model: "stub-model",
+      effort,
+    }),
+  };
 }
 
 /** Dispatches canned, schema-minimal outputs by label. */
@@ -466,15 +501,26 @@ export function makeTarget(
   };
 }
 
-/** The task over this test's harness, a fresh stub generator and a HEAD_1 GitHub stub. */
-export function makeTask(
-  overrides: Partial<GenerateTaskDeps> = {},
-): GenerateTask {
-  return createGenerateTask({
+function makeTaskDeps(overrides: Partial<GenerateTaskDeps>): GenerateTaskDeps {
+  return {
     handle: harness.handle,
     publicBaseUrl: PUBLIC_URL,
     generator: stubGenerator(),
     github: stubGitHub(HEAD_1),
     ...overrides,
-  });
+  };
+}
+
+/** The task over this test's harness, a fresh stub generator and a HEAD_1 GitHub stub. */
+export function makeTask(
+  overrides: Partial<GenerateTaskDeps> = {},
+): GenerateTask {
+  return createGenerateTask(makeTaskDeps(overrides));
+}
+
+/** The recovery task over the same defaults as `makeTask`. */
+export function makeRecoveryTask(
+  overrides: Partial<GenerateTaskDeps> = {},
+): GenerateTask {
+  return createRecoverGenerationTask(makeTaskDeps(overrides));
 }

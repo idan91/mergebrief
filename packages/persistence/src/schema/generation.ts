@@ -53,6 +53,8 @@ export const generation = pgTable(
      */
     repoConfig: text("repo_config"),
     attempts: integer("attempts").notNull().default(0),
+    /** Runs that claimed the row since a trigger last projected it pending. */
+    claims: integer("claims").notNull().default(0),
     /** The claim holder's run; null while nobody holds the row. */
     runId: uuid("run_id"),
     /** The claim lapses at this database time unless its holder renews it. */

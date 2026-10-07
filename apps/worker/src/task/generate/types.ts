@@ -103,9 +103,18 @@ export interface GenerateTaskHelpers {
   };
 }
 
+/** Renews the run's claim, if it holds one; false once another run holds the row. */
+export type ClaimRenewer = () => Promise<boolean>;
+
+/**
+ * Charges the run to the daily cap before a paid call; throws
+ * `SpendCappedSignal` at the cap. A no-op once charged, or for a claimed run.
+ */
+export type SpendCharge = () => Promise<void>;
+
 /**
  * Share one controller between pre-call head checks and streaming head polls.
- * Abort only on confirmed supersession to stop output spend; failed polls are best-effort.
+ * Abort only on confirmed supersession or a lost claim; failed polls are best-effort.
  */
 export interface SupersessionWatch {
   readonly signal: AbortSignal;
@@ -148,6 +157,7 @@ export interface RevisionArtifactInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
+  readonly chargeSpend: SpendCharge;
   /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
@@ -169,6 +179,7 @@ export interface CheckpointDeltasInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
+  readonly chargeSpend: SpendCharge;
   /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
@@ -229,6 +240,12 @@ export interface EntryCommentManager {
  */
 export interface RunState {
   leaveRow: boolean;
+  /** The claim's run id once the run holds the row; every later row write names it. */
+  runId?: string;
+  /** Which of the head's claims this run holds, set with `runId`. */
+  attempt?: number;
+  /** Model calls this run made through its generator. */
+  providerCalls: number;
 }
 
 /** The audit row's world: an owner-world row carries no installation. */
@@ -245,6 +262,12 @@ export interface RunStart {
   /** graphile's job row slice; absent on direct test invocations. */
   readonly job: GenerateTaskHelpers["job"];
   readonly shutdownSignal: AbortSignal | undefined;
+  /**
+   * A recovery job's run: it claims the row even over a stored brief, follows
+   * a live holder by moving its own job, and its claim queues no further
+   * recovery, whose key would end its own retries.
+   */
+  readonly recovering: boolean;
 }
 
 /** The run once its row passed the guards and its source opened. */
@@ -278,11 +301,13 @@ export const RunDecisionKinds = {
   STORED_BRIEF: "stored-brief",
   FRESH: "fresh",
   CAPPED: "capped",
+  STAND_DOWN: "stand-down",
 } as const;
 
 /** No stored brief: the run claimed the row and started under the cap. */
 export interface FreshRun {
   readonly kind: typeof RunDecisionKinds.FRESH;
+  readonly runId: string;
 }
 
 /** The pair's brief is stored: no brief generation, the row stays as found. */
@@ -297,8 +322,13 @@ export interface CappedRun {
   readonly storedBrief: BriefSpanRow | undefined;
 }
 
+/** Another run holds the row or already finished it; this one leaves it as found. */
+export interface StandDownRun {
+  readonly kind: typeof RunDecisionKinds.STAND_DOWN;
+}
+
 export type GeneratingRun = FreshRun | StoredBriefRun;
-export type RunDecision = GeneratingRun | CappedRun;
+export type RunDecision = GeneratingRun | CappedRun | StandDownRun;
 
 /** What every artifact this run writes is built from, read before the brief. */
 export interface RunInputs {
@@ -326,6 +356,8 @@ export interface JobFailureInputs {
   readonly target: GenerationTarget;
   /** Leave the generation row untouched: the run was over a stored brief. */
   readonly leaveRow: boolean;
+  /** The claim's run id; absent before the claim, when unclaimed marks apply. */
+  readonly runId: string | undefined;
   /** graphile's job row slice; absent on direct test invocations. */
   readonly job: GenerateTaskHelpers["job"];
   readonly log: Logger;
@@ -335,6 +367,10 @@ export interface SpendGateInputs {
   readonly deps: GenerateTaskDeps;
   readonly projection: GenerationProjection;
   readonly target: GenerationTarget;
+  readonly recovering: boolean;
+  /** The pair's stored brief, when a claimed run stands on one. */
+  readonly existingBrief: BriefSpanRow | undefined;
+  readonly pickedUpAt: Date;
   readonly prRow: PullRequestRow;
   /** The row's slug after the usable-slug guard narrowed it. */
   readonly repoSlug: string;
@@ -392,6 +428,7 @@ export interface BriefGenerationInputs {
   readonly source: PullRequestSource;
   readonly projection: GenerationProjection;
   readonly target: GenerationTarget;
+  readonly runId: string;
   readonly entryCommentManager: EntryCommentManager;
   readonly entryCommentAllowed: boolean;
   readonly priorBriefs: readonly BriefSpanRow[];

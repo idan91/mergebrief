@@ -31,11 +31,21 @@ import { generationAttempt } from "../schema/generation-attempt";
 import { pullRequest } from "../schema/pull-request";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
+import {
+  addQueueJob,
+  buildJobPayload,
+  getRecoveryJobKey,
+  MAX_GENERATION_ATTEMPTS,
+  RECOVER_GENERATION_TASK,
+} from "./queue";
 import { sanitizeErrorDetail } from "logging";
 import {
+  ChargeOutcomes,
   ClaimOutcomes,
   GenerationKinds,
+  JobKeyModes,
   type GenerationFailure,
+  type GrantRowId,
   type PullRequestRowId,
 } from "../types";
 import type { Result, ValueOf } from "types/utils";
@@ -66,23 +76,51 @@ interface TransitionOptions {
   /** Narrows the write; a row the key finds but the guard refuses is `claim-lost`. */
   readonly guard?: SQL;
   readonly executor?: GenerationExecutor;
+  /** `updated_at` orders the latest brief and bounds the stale sweep; a heartbeat must not move it. */
+  readonly keepUpdatedAt?: boolean;
 }
 
-export interface StartRunInput {
-  readonly target: GenerationTarget;
-  readonly phase?: GenerationPhase;
-  /** Absent skips the count and the lock: the run is marked outright. */
+/** The day's cap window a started run is counted in. */
+interface CapWindow {
+  /** Absent skips the count and the lock. */
   readonly cap?: number;
   readonly from: Date;
   readonly to: Date;
 }
 
-export type StartRunOutcome =
-  | { readonly started: true; readonly createdAt: Date }
-  | { readonly started: false; readonly startedRuns: number };
-
-export interface ClaimRunInput extends StartRunInput {
+export interface ClaimRunInput extends CapWindow {
+  readonly target: GenerationTarget;
+  readonly phase?: GenerationPhase;
   readonly leaseMs: number;
+  /** Queue the head's recovery job in the claim's transaction. */
+  readonly recovery?: RecoveryJobInput;
+}
+
+export interface RecoveryJobInput {
+  /** After the lease, by the same database clock. */
+  readonly delaySeconds: number;
+  /** The url-box job's credential reference, as the claiming job carries it. */
+  readonly grantId?: GrantRowId;
+}
+
+export interface ChargeRunInput extends CapWindow {
+  readonly target: GenerationTarget;
+}
+
+export type ChargeRunOutcome =
+  | { readonly kind: typeof ChargeOutcomes.CHARGED; readonly runId: string }
+  | {
+      readonly kind: typeof ChargeOutcomes.CAPPED;
+      readonly startedRuns: number;
+    };
+
+/** The row's claim as the database clock judges it. */
+export interface GenerationClaim {
+  /** A run id is set, live or lapsed. */
+  readonly claimed: boolean;
+  readonly leaseLive: boolean;
+  /** Zero once lapsed or unset. */
+  readonly leaseRemainingMs: number;
 }
 
 export type ClaimRunOutcome =
@@ -91,10 +129,17 @@ export type ClaimRunOutcome =
       readonly runId: string;
       /** The row's first enqueue, the queue-wait fallback for a job-less run. */
       readonly createdAt: Date;
+      /** Claims since a trigger projected the row, this one included. */
+      readonly claims: number;
     }
-  | { readonly kind: typeof ClaimOutcomes.HELD }
+  | {
+      readonly kind: typeof ClaimOutcomes.HELD;
+      /** Until the holder's lease lapses, by the database clock. */
+      readonly leaseRemainingMs: number;
+    }
   | { readonly kind: typeof ClaimOutcomes.CAPPED; readonly startedRuns: number }
-  | { readonly kind: typeof ClaimOutcomes.FINISHED };
+  | { readonly kind: typeof ClaimOutcomes.FINISHED }
+  | { readonly kind: typeof ClaimOutcomes.EXHAUSTED; readonly claims: number };
 
 /** How a claimed run ends. */
 export type RunOutcome =
@@ -182,20 +227,11 @@ export interface GenerationProjection {
   upsertPending(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
-  /** Reflect `running`, optionally with a determinate `phase`. */
-  markRunning(
-    target: GenerationTarget,
-    phase?: GenerationPhase,
-  ): Promise<Result<GenerationRow, GenerationError>>;
-  /** Reflect `succeeded`; clears `phase` and the error columns (terminal rows carry neither). */
-  markSucceeded(
-    target: GenerationTarget,
-  ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `superseded`, a terminal mid-call abort because the PR head
    * advanced. An abort is NOT a failure: it leaves `attempts`
    * untouched (unlike a re-queue) and clears `phase` + error columns (like
-   * `markSucceeded`), so a superseded job never consumes a retry. Like every
+   * a finished run), so a superseded job never consumes a retry. Like every
    * unclaimed transition it writes only a row no live lease holds, and
    * otherwise returns `claim-lost`.
    */
@@ -221,13 +257,14 @@ export interface GenerationProjection {
     failure: GenerationFailure,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Attach the repo-config per-file outcome table, written right after
-   * acquisition, BEFORE generation, so failed and superseded
+   * The holder attaches the repo-config per-file outcome table, written right
+   * after acquisition, BEFORE generation, so failed and superseded
    * runs still carry `invalid`/`over-budget`/`fetch-failed` outcomes. A
    * re-queue clears it (the fresh attempt re-acquires).
    */
   recordRepoConfig(
     target: GenerationTarget,
+    runId: string,
     repoConfig: string,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
@@ -244,35 +281,34 @@ export interface GenerationProjection {
     readonly to: Date;
   }): Promise<number>;
   /**
-   * Start a run under the daily cap: count started runs and, while
-   * `started < cap`, mark the target `running` and record its attempt in the
-   * SAME transaction under `pg_advisory_xact_lock(hashtext('generation-cap'))`.
-   * The one lock serializes every start on the instance across every slot
-   * and every worker process, so the cap is exact rather than
-   * `cap + slots - 1`; a busy repo can spend the day for the others, a
-   * ceiling, not fair share. Refusal leaves the row untouched and reports the
-   * count that refused it. Takes no claim.
-   */
-  startRun(
-    input: StartRunInput,
-  ): Promise<Result<StartRunOutcome, GenerationError>>;
-  /**
-   * Claim the row for one run, in one transaction that reads it `FOR UPDATE`
-   * (under the instance cap lock when `cap` is set). `finished` on a
-   * succeeded row, `held` while another run's lease is live, `capped` with
-   * the count at the cap; otherwise a fresh run id, a lease of `leaseMs` on
-   * the database clock, status `running` and one attempt row.
+   * Claim the row in one transaction that reads it `FOR UPDATE`; with `cap`
+   * set, under the instance advisory lock, so the cap is exact across slots
+   * and processes (a ceiling, not fair share). `finished` on a succeeded row,
+   * `held` under a live lease, `exhausted` after `MAX_GENERATION_ATTEMPTS`
+   * claims since a trigger projected it, `capped` at the cap; otherwise a run
+   * id, a lease of `leaseMs` on the database clock, `running`, one more claim,
+   * one attempt row and, with `recovery`, the head's recovery job.
    */
   claimRun(
     input: ClaimRunInput,
   ): Promise<Result<ClaimRunOutcome, GenerationError>>;
+  /**
+   * Charge a paid run that takes no claim (one over a stored brief) to the
+   * day's cap: the count and one attempt row in one transaction, under the
+   * same lock as `claimRun`. The row is left as found.
+   */
+  chargeRun(
+    input: ChargeRunInput,
+  ): Promise<Result<ChargeRunOutcome, GenerationError>>;
+  /** The row's claim, judged by the database clock; `undefined` when absent. */
+  readClaim(target: GenerationTarget): Promise<GenerationClaim | undefined>;
   /** The holder moves its phase; `claim-lost` for any other run id. */
   advanceRun(
     target: GenerationTarget,
     runId: string,
     phase: GenerationPhase,
   ): Promise<Result<GenerationRow, GenerationError>>;
-  /** The holder pushes its lease to `now() + leaseMs`. */
+  /** The holder pushes its lease to `now() + leaseMs`; `updated_at` stays. */
   renewLease(
     target: GenerationTarget,
     runId: string,
@@ -290,12 +326,15 @@ export interface GenerationProjection {
     runId: string,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * A rerun found the Brief already stored: a `failed` row no live lease
-   * holds becomes `succeeded`. Takes no claim; any other row is left alone
-   * and `undefined` comes back.
+   * A rerun found the Brief already stored: a row no run holds that has not
+   * succeeded becomes `succeeded` (a failed retry, a claim released at
+   * shutdown). Only a row last written at or before `pickedUpAt` settles: a
+   * row re-projected after the rerun was picked up is a fresh run's. Takes no
+   * claim; any other row is left alone and `undefined` comes back.
    */
   settleStoredBrief(
     target: GenerationTarget,
+    pickedUpAt: Date,
   ): Promise<GenerationRow | undefined>;
   /**
    * The NEWEST brief-kind projection per PR (by `updated_at`), batched for the
@@ -379,6 +418,21 @@ async function recordAttempt(
   });
 }
 
+/** The day's started count when the cap refuses one more run; `undefined` under it or uncapped. */
+async function findCapReached(
+  executor: GenerationExecutor,
+  window: CapWindow,
+): Promise<number | undefined> {
+  if (window.cap === undefined) {
+    return undefined;
+  }
+  const started = await countStartedRuns(executor, window);
+  if (started < window.cap) {
+    return undefined;
+  }
+  return started;
+}
+
 /** Serializes every start on the instance, so the cap count cannot race. */
 async function lockInstanceCap(executor: GenerationExecutor): Promise<void> {
   await executor.execute(
@@ -395,10 +449,17 @@ function isLeaseLive(): SQL {
   return sql`(${generation.runId} is not null and ${generation.leaseExpiresAt} > now())`;
 }
 
+/** Milliseconds until the lease lapses, zero once lapsed or unset. */
+function computeLeaseRemainingMs(): SQL<number> {
+  const remainingSeconds = sql`extract(epoch from (${generation.leaseExpiresAt} - now()))`;
+  return sql<number>`greatest(0, ceil(${remainingSeconds} * 1000))::int`.mapWith(
+    Number,
+  );
+}
+
 /**
  * What the projection keeps as it is: a live lease, or a `running` row with no
- * claim, which a run started through `startRun` (or by the previous release's
- * worker) leaves behind.
+ * claim, which the previous release's worker leaves behind while it runs.
  */
 function isProjectionHeld(): SQL {
   return sql`(${isLeaseLive()} or (${generation.runId} is null and ${generation.status} = ${GenerationStatuses.RUNNING}))`;
@@ -460,6 +521,7 @@ export async function projectPendingGeneration(
         repoConfig: keepWhileHeld(generation.repoConfig, null),
         runId: keepWhileHeld(generation.runId, null),
         leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
+        claims: keepWhileHeld(generation.claims, sql`0`),
         updatedAt: new Date(),
       },
     })
@@ -523,9 +585,13 @@ export function createGenerationProjection(
     options: TransitionOptions = {},
   ): Promise<Result<GenerationRow, GenerationError>> {
     const executor = options.executor ?? db;
+    const write: GenerationSet = { ...set };
+    if (options.keepUpdatedAt !== true) {
+      write.updatedAt = new Date();
+    }
     const rows = await executor
       .update(generation)
-      .set({ ...set, updatedAt: new Date() })
+      .set(write)
       .where(and(keyWhere(target), options.guard))
       .returning();
     const row = rows[0];
@@ -563,8 +629,12 @@ export function createGenerationProjection(
     target: GenerationTarget,
     runId: string,
     set: GenerationSet,
+    options: Pick<TransitionOptions, "keepUpdatedAt"> = {},
   ): Promise<Result<GenerationRow, GenerationError>> {
-    return transition(target, set, { guard: eq(generation.runId, runId) });
+    return transition(target, set, {
+      ...options,
+      guard: eq(generation.runId, runId),
+    });
   }
 
   /** A transition on a row nobody holds: no claim, or one whose lease lapsed. */
@@ -579,11 +649,13 @@ export function createGenerationProjection(
     executor: GenerationExecutor,
     input: ClaimRunInput,
   ): Promise<Result<ClaimRunOutcome, GenerationError>> {
-    const { target, phase, cap, from, to, leaseMs } = input;
+    const { target, phase, leaseMs } = input;
     const found = await executor
       .select({
         status: generation.status,
+        claims: generation.claims,
         leaseLive: sql<boolean>`${isLeaseLive()}`,
+        leaseRemainingMs: computeLeaseRemainingMs(),
       })
       .from(generation)
       .where(keyWhere(target))
@@ -597,16 +669,23 @@ export function createGenerationProjection(
       return { ok: true, value: { kind: ClaimOutcomes.FINISHED } };
     }
     if (current.leaseLive) {
-      return { ok: true, value: { kind: ClaimOutcomes.HELD } };
+      return {
+        ok: true,
+        value: {
+          kind: ClaimOutcomes.HELD,
+          leaseRemainingMs: current.leaseRemainingMs,
+        },
+      };
     }
-    if (cap !== undefined) {
-      const started = await countStartedRuns(executor, { from, to });
-      if (started >= cap) {
-        return {
-          ok: true,
-          value: { kind: ClaimOutcomes.CAPPED, startedRuns: started },
-        };
-      }
+    if (current.claims >= MAX_GENERATION_ATTEMPTS) {
+      return {
+        ok: true,
+        value: { kind: ClaimOutcomes.EXHAUSTED, claims: current.claims },
+      };
+    }
+    const startedRuns = await findCapReached(executor, input);
+    if (startedRuns !== undefined) {
+      return { ok: true, value: { kind: ClaimOutcomes.CAPPED, startedRuns } };
     }
 
     const runId = randomUUID();
@@ -619,6 +698,7 @@ export function createGenerationProjection(
         errorParams: null,
         runId,
         leaseExpiresAt: computeLeaseEnd(leaseMs),
+        claims: sql`${generation.claims} + 1`,
       },
       { executor },
     );
@@ -626,14 +706,52 @@ export function createGenerationProjection(
       return claimed;
     }
     await recordAttempt(executor, scope, claimed.value.id, runId);
+    if (input.recovery !== undefined) {
+      await addQueueJob(executor, {
+        identifier: RECOVER_GENERATION_TASK,
+        payload: buildJobPayload(
+          scope,
+          input.recovery.grantId,
+          target.pullRequestId,
+          target.headSha,
+        ),
+        key: getRecoveryJobKey(target.pullRequestId, target.headSha),
+        delaySeconds: input.recovery.delaySeconds,
+        keyMode: JobKeyModes.REPLACE,
+      });
+    }
     return {
       ok: true,
       value: {
         kind: ClaimOutcomes.CLAIMED,
         runId,
         createdAt: claimed.value.createdAt,
+        claims: claimed.value.claims,
       },
     };
+  }
+
+  async function chargeRow(
+    executor: GenerationExecutor,
+    input: ChargeRunInput,
+  ): Promise<Result<ChargeRunOutcome, GenerationError>> {
+    const startedRuns = await findCapReached(executor, input);
+    if (startedRuns !== undefined) {
+      return { ok: true, value: { kind: ChargeOutcomes.CAPPED, startedRuns } };
+    }
+
+    const found = await executor
+      .select({ id: generation.id })
+      .from(generation)
+      .where(keyWhere(input.target))
+      .limit(1);
+    const row = found[0];
+    if (row === undefined) {
+      return failNotFound(input.target);
+    }
+    const runId = randomUUID();
+    await recordAttempt(executor, scope, row.id, runId);
+    return { ok: true, value: { kind: ChargeOutcomes.CHARGED, runId } };
   }
 
   return {
@@ -662,24 +780,6 @@ export function createGenerationProjection(
       });
     },
 
-    async markRunning(target, phase) {
-      return transition(target, {
-        status: GenerationStatuses.RUNNING,
-        phase: phase ?? null,
-      });
-    },
-
-    async markSucceeded(target) {
-      // Terminal rows carry no `phase`, since a determinate phase only describes a
-      // RUNNING job; leaving the last mid-run value would misreport the row.
-      return transition(target, {
-        status: GenerationStatuses.SUCCEEDED,
-        phase: null,
-        errorCode: null,
-        errorParams: null,
-      });
-    },
-
     async markSuperseded(target) {
       // Not a failure, so `attempts` is deliberately left untouched.
       return unclaimedTransition(target, {
@@ -704,8 +804,8 @@ export function createGenerationProjection(
       });
     },
 
-    async recordRepoConfig(target, repoConfig) {
-      return transition(target, { repoConfig });
+    async recordRepoConfig(target, runId, repoConfig) {
+      return fencedTransition(target, runId, { repoConfig });
     },
 
     async get(target) {
@@ -721,35 +821,6 @@ export function createGenerationProjection(
       return countStartedRuns(db, input);
     },
 
-    async startRun({ target, phase, cap, from, to }) {
-      return db.transaction(async (tx) => {
-        if (cap !== undefined) {
-          await lockInstanceCap(tx);
-          const started = await countStartedRuns(tx, { from, to });
-          if (started >= cap) {
-            return {
-              ok: true,
-              value: { started: false, startedRuns: started },
-            };
-          }
-        }
-
-        const marked = await transition(
-          target,
-          { status: GenerationStatuses.RUNNING, phase: phase ?? null },
-          { executor: tx },
-        );
-        if (!marked.ok) {
-          return marked;
-        }
-        await recordAttempt(tx, scope, marked.value.id, randomUUID());
-        return {
-          ok: true,
-          value: { started: true, createdAt: marked.value.createdAt },
-        };
-      });
-    },
-
     async claimRun(input) {
       return db.transaction(async (tx) => {
         if (input.cap !== undefined) {
@@ -757,6 +828,28 @@ export function createGenerationProjection(
         }
         return claimRow(tx, input);
       });
+    },
+
+    async chargeRun(input) {
+      return db.transaction(async (tx) => {
+        if (input.cap !== undefined) {
+          await lockInstanceCap(tx);
+        }
+        return chargeRow(tx, input);
+      });
+    },
+
+    async readClaim(target) {
+      const rows = await db
+        .select({
+          claimed: sql<boolean>`${generation.runId} is not null`,
+          leaseLive: sql<boolean>`${isLeaseLive()}`,
+          leaseRemainingMs: computeLeaseRemainingMs(),
+        })
+        .from(generation)
+        .where(keyWhere(target))
+        .limit(1);
+      return rows[0];
     },
 
     async advanceRun(target, runId, phase) {
@@ -767,9 +860,12 @@ export function createGenerationProjection(
     },
 
     async renewLease(target, runId, leaseMs) {
-      return fencedTransition(target, runId, {
-        leaseExpiresAt: computeLeaseEnd(leaseMs),
-      });
+      return fencedTransition(
+        target,
+        runId,
+        { leaseExpiresAt: computeLeaseEnd(leaseMs) },
+        { keepUpdatedAt: true },
+      );
     },
 
     async finishRun(target, runId, outcome) {
@@ -784,7 +880,7 @@ export function createGenerationProjection(
       });
     },
 
-    async settleStoredBrief(target) {
+    async settleStoredBrief(target, pickedUpAt) {
       const rows = await db
         .update(generation)
         .set({
@@ -795,8 +891,9 @@ export function createGenerationProjection(
         .where(
           and(
             keyWhere(target),
-            eq(generation.status, GenerationStatuses.FAILED),
-            not(isLeaseLive()),
+            ne(generation.status, GenerationStatuses.SUCCEEDED),
+            not(isProjectionHeld()),
+            lte(generation.updatedAt, pickedUpAt),
           ),
         )
         .returning();

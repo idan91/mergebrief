@@ -1,68 +1,91 @@
 import type { LogFields } from "logging";
-import type { StartRunInput } from "persistence";
+import {
+  ChargeOutcomes,
+  ClaimOutcomes,
+  type ChargeRunInput,
+  type ClaimRunInput,
+  type ClaimRunOutcome,
+  type RecoveryJobInput,
+} from "persistence";
 import { GenerationPhases, GenerationStatuses } from "types/generations";
 import type { Mutable } from "types/utils";
 import { entryCommentCappedBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { utcDayBounds } from "../../spend";
-import type { SpendGateInputs } from "../types";
+import { CLAIM_LEASE_MS } from "../consts";
+import type { RunContext, SpendCharge, SpendGateInputs } from "../types";
+import { getAfterLeaseDelaySeconds } from "./claim-recovery";
+
+/** Control-flow signal: the cap refused a stored-brief run's first paid call. */
+export class SpendCappedSignal extends Error {}
 
 /**
- * The daily generation cap, one number for the whole instance. The start and
- * the `running` mark happen in one store transaction under the instance
- * advisory lock, so a run never counts itself and N slots or processes cannot
- * start past the cap together. Returns true when the run is capped: the
- * projection is terminal `capped` (or left `failed`) and the caller stops.
+ * The daily generation cap, one number for the whole instance. The count and
+ * the claim happen in one store transaction under the instance advisory lock,
+ * so a run never counts itself and N slots or processes cannot start past the
+ * cap together. The claim queues the head's recovery job in the same
+ * transaction, unless this run is one. A capped run leaves the projection
+ * terminal `capped` (or `failed`); a held or finished row is reported untouched.
  */
 export async function applySpendGate(
   payload: ParsedGeneratePayload,
   inputs: SpendGateInputs,
-): Promise<boolean> {
+): Promise<ClaimRunOutcome> {
   const { deps, projection, target, job, log } = inputs;
 
   const cap = deps.spend?.maxGenerationsPerDay ?? null;
   const day = utcDayBounds(new Date());
-  const startInput: Mutable<StartRunInput> = {
+  const claimInput: Mutable<ClaimRunInput> = {
     target,
     phase: GenerationPhases.FETCHING,
     from: day.from,
     to: day.to,
+    leaseMs: CLAIM_LEASE_MS,
   };
   if (cap !== null) {
-    startInput.cap = cap;
+    claimInput.cap = cap;
   }
-  const start = await projection.startRun(startInput);
-  if (!start.ok) {
-    return false;
+  if (!inputs.recovering) {
+    const recovery: Mutable<RecoveryJobInput> = {
+      delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
+    };
+    if (payload.grantId !== undefined) {
+      recovery.grantId = payload.grantId;
+    }
+    claimInput.recovery = recovery;
+  }
+  const claim = await projection.claimRun(claimInput);
+  if (!claim.ok) {
+    throw new Error(`generate: could not claim the run: ${claim.error.code}`);
   }
 
-  if (!start.value.started) {
+  if (claim.value.kind === ClaimOutcomes.CAPPED) {
     if (cap === null) {
-      throw new Error("generate: startRun refused a run with no cap");
+      throw new Error("generate: claimRun capped a run with no cap");
     }
     await recordCappedRun(payload, inputs, {
       cap,
       resetsAt: day.to,
       dayUtc: day.label,
     });
-    return true;
   }
-
-  const startFields: LogFields = {
-    evt: "generation.start",
-    waitMs: measureQueueWait(job, start.value.createdAt),
-  };
-  if (job !== undefined) startFields["attempt"] = job.attempts;
-  log.info("generate: run started", startFields);
-  return false;
+  if (claim.value.kind === ClaimOutcomes.CLAIMED) {
+    const startFields: LogFields = {
+      evt: "generation.start",
+      waitMs: measureQueueWait(job, claim.value.createdAt),
+    };
+    if (job !== undefined) startFields["attempt"] = job.attempts;
+    log.info("generate: run started", startFields);
+  }
+  return claim.value;
 }
 
 /**
- * The cap as a ceiling only, for a run over a stored brief: it produces no
- * brief generation and adds no attempt, but it may still owe a checkpoint
- * delta or a narrative, so at the cap it is refused before any provider
- * call. The caller still posts the ready Entry the run owes, which reaches
- * no model. Count only, no lock and no row transition; the row stays as found.
+ * The cap as a ceiling first, for a run over a stored brief: it produces no
+ * brief generation, but it may still owe a checkpoint delta or a narrative,
+ * so at the cap it is refused before any work. The caller still posts the
+ * ready Entry the run owes, which reaches no model. Count only, no lock and
+ * no row transition; a run that goes on to pay is charged by `createSpendCharge`.
  */
 export async function refuseAtCap(
   payload: ParsedGeneratePayload,
@@ -87,6 +110,56 @@ export async function refuseAtCap(
     headSha: payload.headSha,
   });
   return true;
+}
+
+/**
+ * A run over a stored brief that holds no claim is charged at its first paid
+ * call rather than at the gate: the count and its attempt row in one store
+ * transaction under the cap lock, as a claim is. A provider-free run is never
+ * charged; a claimed run was charged by its claim.
+ */
+export function createSpendCharge(context: RunContext): SpendCharge {
+  if (context.run.runId !== undefined) {
+    return async () => {};
+  }
+
+  let charged: Promise<void> | undefined;
+  return async () => {
+    charged ??= chargeStoredBriefRun(context);
+    await charged;
+  };
+}
+
+async function chargeStoredBriefRun(context: RunContext): Promise<void> {
+  const { deps, payload, projection, target, repoSlug, log } = context;
+
+  const cap = deps.spend?.maxGenerationsPerDay ?? null;
+  const day = utcDayBounds(new Date());
+  const chargeInput: Mutable<ChargeRunInput> = {
+    target,
+    from: day.from,
+    to: day.to,
+  };
+  if (cap !== null) {
+    chargeInput.cap = cap;
+  }
+  const charge = await projection.chargeRun(chargeInput);
+  if (!charge.ok) {
+    throw new Error(`generate: could not charge the run: ${charge.error.code}`);
+  }
+  if (charge.value.kind === ChargeOutcomes.CHARGED) {
+    log.info("generate: stored-brief run charged to the daily cap");
+    return;
+  }
+
+  log.warn("generate: daily generation cap reached, stored-brief run refused", {
+    evt: "spend.cap.trip",
+    repo: repoSlug,
+    cap,
+    dayUtc: day.label,
+    headSha: payload.headSha,
+  });
+  throw new SpendCappedSignal("daily generation cap reached");
 }
 
 /**
@@ -122,6 +195,8 @@ async function recordCappedRun(
     prRow,
     repoSlug,
     entryCommentManager,
+    existingBrief,
+    pickedUpAt,
     log,
   } = inputs;
   const { headSha } = payload;
@@ -132,10 +207,12 @@ async function recordCappedRun(
     cap: facts.cap,
     dayUtc: facts.dayUtc,
   });
-  if (
+  // A stored brief still owes its ready Entry, which the caller posts.
+  const showsCapped =
     entryCommentManager.getCurrentId() !== null &&
-    payload.grantId === undefined
-  ) {
+    payload.grantId === undefined &&
+    existingBrief === undefined;
+  if (showsCapped) {
     // UPDATE ONLY: a capped PR never gets an Entry comment created for it,
     // the cap must not make MergeBrief louder on a thread than it was.
     await entryCommentManager.refresh(
@@ -149,6 +226,12 @@ async function recordCappedRun(
     );
   }
 
+  // A claimed run over a stored brief: the brief stands, only its follow-on
+  // work was capped.
+  if (existingBrief !== undefined) {
+    await projection.settleStoredBrief(target, pickedUpAt);
+    return;
+  }
   // Do NOT overwrite a `failed` row: an at-cap graphile retry lands here
   // with the previous attempt's real failure recorded, and stamping
   // `capped` over it would erase why the job actually broke.

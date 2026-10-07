@@ -29,6 +29,7 @@ import {
   setUpHarness,
   stubGenerator,
   stubGitHub,
+  stubHangingGenerator,
   trigger,
   type StubGitHub,
 } from "./helpers";
@@ -1098,31 +1099,8 @@ describe("generate task", () => {
 
     // The brief call hangs until the threaded signal aborts, the SDK-abort
     // shape (APIUserAbortError) the worker must map to superseded.
-    const calls: string[] = [];
-    const hangingGenerator: Generator = {
-      async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        calls.push(req.label);
-        return new Promise<never>((_, reject) => {
-          req.signal?.addEventListener("abort", () => {
-            reject(
-              Object.assign(new Error("Request was aborted."), {
-                name: "APIUserAbortError",
-              }),
-            );
-          });
-        });
-      },
-      origin: (effort: Effort) => ({
-        provider: "stub",
-        model: "stub-model",
-        effort,
-      }),
-    };
-
     const task = makeTask({
-      generator: hangingGenerator,
+      generator: stubHangingGenerator(),
       github,
       headPollIntervalMs: 5,
     });
@@ -1197,34 +1175,15 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
-  it("requeues on shutdown without failed or superseded projection state", async () => {
+  it("requeues on shutdown and releases the claim without a failure", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const shutdown = new AbortController();
-    const calls: string[] = [];
-    const hangingGenerator: Generator = {
-      async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        calls.push(req.label);
-        // Abort the "worker process" once the stream is in flight.
-        queueMicrotask(() => shutdown.abort());
-        return new Promise<never>((_, reject) => {
-          req.signal?.addEventListener("abort", () => {
-            reject(
-              Object.assign(new Error("Request was aborted."), {
-                name: "APIUserAbortError",
-              }),
-            );
-          });
-        });
-      },
-      origin: (effort: Effort) => ({
-        provider: "stub",
-        model: "stub-model",
-        effort,
-      }),
-    };
-    const task = makeTask({ generator: hangingGenerator });
+    const { logger, readLines } = captureLogger();
+    // Abort the "worker process" once the stream is in flight.
+    const task = makeTask({
+      generator: stubHangingGenerator(async () => shutdown.abort()),
+      log: logger,
+    });
 
     // Rethrows (graphile requeues) but writes NO terminal/failed status.
     await expect(
@@ -1234,8 +1193,17 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatuses.RUNNING);
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
+    expect(row?.runId).toBeNull();
+    expect(row?.leaseExpiresAt).toBeNull();
     expect(row?.errorCode).toBeNull();
+    expect(row?.claims).toBe(1);
+    const released = readLines().find((line) =>
+      String(line["msg"]).includes("claim released on shutdown"),
+    );
+    expect(released?.["level"]).toBe("warn");
+    expect(released?.["attempt"]).toBe(1);
+    expect(released?.["maxAttempts"]).toBe(3);
   });
 
   it("recovers a missing narrative while reusing the stored brief", async () => {

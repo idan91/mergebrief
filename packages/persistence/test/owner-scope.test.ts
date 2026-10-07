@@ -29,6 +29,7 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { internal } from "../src/db/handle";
+import { succeedTestRun } from "../src/testing";
 import { auditLog } from "../src/schema/audit-log";
 import { pullRequest } from "../src/schema/pull-request";
 import {
@@ -259,11 +260,8 @@ describe("owner-scoped generation projection", () => {
     } as const;
     const pending = await projection.upsertPending(target);
     expect(pending.ok).toBe(true);
-    expect((await projection.markRunning(target)).ok).toBe(true);
-    const done = await projection.markSucceeded(target);
-    expect(done.ok).toBe(true);
-    if (!done.ok) throw new Error("expected success");
-    expect(done.value.installationId).toBeNull();
+    const done = await succeedTestRun(projection, target);
+    expect(done.installationId).toBeNull();
   });
 
   it("spend counting is one shared instance pool across worlds", async () => {

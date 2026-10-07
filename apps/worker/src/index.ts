@@ -17,7 +17,10 @@ export type { StartWorkerOptions } from "./runner";
 // --- task/: the `generate` task + its collaborators -------------------------
 
 // The `generate` task: the drain side of the ingest→queue→worker pipeline.
-export { createGenerateTask } from "./task/generate";
+export {
+  createGenerateTask,
+  createRecoverGenerationTask,
+} from "./task/generate";
 export type { GenerateTaskDeps } from "./task/generate";
 
 // The audit-retention sweep: the one scheduled job (graphile cron).

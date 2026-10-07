@@ -1,24 +1,29 @@
 import type { LogFields } from "logging";
+import { GenerationErrorCodes } from "persistence";
+import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
 import type { JobFailureInputs } from "../types";
 import { emitProviderError } from "./errors";
 
 /**
  * Mark the run failed, unless the row is to be left alone, and emit its
- * events. Returns whether the failure is permanent: the caller returns
- * normally on permanent so graphile does not retry, and rethrows otherwise
- * so graphile owns the backoff.
+ * events. Returns whether the job ends here: the caller returns normally on
+ * a permanent failure, or on a claim another run took over, whose retry would
+ * only meet `held`; it rethrows otherwise so graphile owns the backoff.
  */
 export async function reportJobFailure(
   error: unknown,
   inputs: JobFailureInputs,
 ): Promise<boolean> {
-  const { deps, projection, target, leaveRow, job, log } = inputs;
+  const { deps, job, log } = inputs;
+
+  const claimKept = await recordFailure(error, inputs);
+  if (!claimKept) {
+    log.warn("generate: another run holds the generation row, standing down");
+    return true;
+  }
 
   const message = error instanceof Error ? error.message : String(error);
-  if (!leaveRow) {
-    await projection.markFailed(target, classifyFailure(error));
-  }
   emitProviderError(log, deps, error);
   const permanent = error instanceof PermanentJobError;
   const attempt = job?.attempts;
@@ -44,7 +49,33 @@ export async function reportJobFailure(
     log.error("generate: retries exhausted", {
       evt: "job.retries.exhausted",
       attempt,
+      maxAttempts,
     });
   }
   return permanent;
+}
+
+/**
+ * A claimed run fails through its claim; before the claim, an unclaimed mark.
+ * False when the fenced write found the claim lost.
+ */
+async function recordFailure(
+  error: unknown,
+  inputs: JobFailureInputs,
+): Promise<boolean> {
+  const { projection, target, leaveRow, runId } = inputs;
+  const failure = classifyFailure(error);
+  if (runId !== undefined) {
+    const finished = await projection.finishRun(target, runId, {
+      status: GenerationStatuses.FAILED,
+      failure,
+    });
+    return (
+      finished.ok || finished.error.code !== GenerationErrorCodes.CLAIM_LOST
+    );
+  }
+  if (!leaveRow) {
+    await projection.markFailed(target, failure);
+  }
+  return true;
 }

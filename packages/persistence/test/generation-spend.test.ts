@@ -229,16 +229,20 @@ describe("markCapped", () => {
   });
 });
 
-describe("startRun", () => {
-  const WINDOW = { from: DAY_START, to: new Date("2100-01-01T00:00:00.000Z") };
+describe("claimRun under the cap", () => {
+  const WINDOW = {
+    from: DAY_START,
+    to: new Date("2100-01-01T00:00:00.000Z"),
+    leaseMs: LEASE_MS,
+  };
 
-  it("starts under the cap and marks the row running with its created_at", async () => {
+  it("claims under the cap and marks the row running with its created_at", async () => {
     const { handle, pullRequestId } = await harness();
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "first");
     await projection.upsertPending(target);
 
-    const started = await projection.startRun({
+    const started = await projection.claimRun({
       target,
       phase: GenerationPhases.FETCHING,
       cap: 1,
@@ -246,8 +250,9 @@ describe("startRun", () => {
     });
 
     if (!started.ok) throw new Error(started.error.message);
-    expect(started.value.started).toBe(true);
-    if (!started.value.started) throw new Error("unreachable");
+    if (started.value.kind !== ClaimOutcomes.CLAIMED) {
+      throw new Error(`expected a claim, got ${started.value.kind}`);
+    }
     expect(started.value.createdAt).toBeInstanceOf(Date);
     const row = await projection.get(target);
     expect(row?.status).toBe(GenerationStatuses.RUNNING);
@@ -261,54 +266,46 @@ describe("startRun", () => {
     const second = makeBriefTarget(pullRequestId, "second");
     await projection.upsertPending(first);
     await projection.upsertPending(second);
-    await projection.startRun({
+    await projection.claimRun({
       target: first,
       cap: 1,
       ...WINDOW,
     });
 
-    const refused = await projection.startRun({
+    const refused = await projection.claimRun({
       target: second,
       cap: 1,
       ...WINDOW,
     });
 
     if (!refused.ok) throw new Error(refused.error.message);
-    expect(refused.value).toEqual({ started: false, startedRuns: 1 });
+    expect(refused.value).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
+    });
     const row = await projection.get(second);
     expect(row?.status).toBe(GenerationStatuses.PENDING);
   });
 
-  it("an absent cap starts without counting", async () => {
+  it("an absent cap claims without counting", async () => {
     const { handle, pullRequestId, spend } = await harness();
     await spend(makeBriefTarget(pullRequestId, "spent"), INSIDE);
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "uncapped");
     await projection.upsertPending(target);
 
-    const started = await projection.startRun({
+    const started = await projection.claimRun({
       target,
       ...WINDOW,
     });
 
     if (!started.ok) throw new Error(started.error.message);
-    expect(started.value.started).toBe(true);
+    expect(started.value.kind).toBe(ClaimOutcomes.CLAIMED);
     const row = await projection.get(target);
     expect(row?.status).toBe(GenerationStatuses.RUNNING);
   });
 
-  it("records an attempt the cap counts", async () => {
-    const { handle, pullRequestId, countDay } = await harness();
-    const projection = createGenerationProjection(handle, CTX);
-    const target = makeBriefTarget(pullRequestId, "counted");
-    await projection.upsertPending(target);
-
-    await projection.startRun({ target, ...WINDOW });
-
-    expect(await countDay(WINDOW.from, WINDOW.to)).toBe(1);
-  });
-
-  it("a run started in another repo counts against this start", async () => {
+  it("a run started in another repo counts against this claim", async () => {
     const { handle, pullRequestId, spend } = await harness();
     const sibling = await createTenantRepository(
       handle,
@@ -324,22 +321,12 @@ describe("startRun", () => {
     const target = makeBriefTarget(pullRequestId, "mine");
     await projection.upsertPending(target);
 
-    const refused = await projection.startRun({ target, cap: 1, ...WINDOW });
+    const refused = await projection.claimRun({ target, cap: 1, ...WINDOW });
 
     if (!refused.ok) throw new Error(refused.error.message);
-    expect(refused.value).toEqual({ started: false, startedRuns: 1 });
-  });
-
-  it("a missing projection row returns notFound", async () => {
-    const { handle, pullRequestId } = await harness();
-    const projection = createGenerationProjection(handle, CTX);
-
-    const result = await projection.startRun({
-      target: makeBriefTarget(pullRequestId, "ghost"),
-      cap: 1,
-      ...WINDOW,
+    expect(refused.value).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
     });
-
-    expect(result.ok).toBe(false);
   });
 });

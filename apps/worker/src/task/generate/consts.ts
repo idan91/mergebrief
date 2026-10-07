@@ -4,6 +4,14 @@ export const AUDIT_OPERATION_GENERATE = "generate";
 
 export const DEFAULT_HEAD_POLL_INTERVAL_MS = 20_000;
 
+/** The row claim's lease, renewed on each head-poll tick. */
+export const CLAIM_LEASE_MS = 120_000;
+
+/** A follow-up or recovery job starts this long after the holder's lease ends. */
+export const AFTER_LEASE_MARGIN_SECONDS = 5;
+
+export const MS_PER_SECOND = 1000;
+
 /** GitHub refuses to render the diff (too large); permanent per span. */
 export const HTTP_STATUS_NOT_ACCEPTABLE = 406;
 export const HTTP_STATUS_REQUEST_TIMEOUT = 408;

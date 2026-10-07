@@ -21,7 +21,12 @@ import {
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import {
+  claimTestRun,
+  createPgliteHarness,
+  succeedTestRun,
+  type PgliteHarness,
+} from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -385,7 +390,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    await gen.markSucceeded({
+    await succeedTestRun(gen, {
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
@@ -546,7 +551,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await triggerPendingBrief(0);
-    await createGenerationProjection(harness.handle, CTX).markRunning({
+    await claimTestRun(createGenerationProjection(harness.handle, CTX), {
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
@@ -981,13 +986,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Brief job finished, still no marks → nothing is coming for this span.
-    const done = await gen.markSucceeded({
+    await succeedTestRun(gen, {
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!done.ok) throw new Error("generation transition failed");
     expect(await metaLastReview(cookie)).toEqual({
       unavailable: "baseline-unavailable",
     });
@@ -1390,13 +1394,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     // Warming over, still no marks → all head-2 entries agree on unavailable.
-    const done = await gen.markSucceeded({
+    await succeedTestRun(gen, {
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!done.ok) throw new Error("generation transition failed");
     const settled = await metaBody(cookie);
     expect(settled.revisions?.[0]?.comparisons.lastReview).toEqual({
       unavailable: "baseline-unavailable",

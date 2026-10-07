@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import type { GenerationFailureCode } from "../../../types";
+import {
+  GenerationFailureCodes,
+  type GenerationFailureCode,
+} from "../../../types";
 import { failureLine } from "./utils";
 
 export interface FailedCardProps {
@@ -17,8 +20,11 @@ export function FailedCard({
   attempts,
 }: FailedCardProps) {
   const { t } = useTranslation();
+  const requeueNote = t("pulls.failed.requeueNote");
+  // `attempts` counts triggers, not claims: beside the spent-claims line it would contradict it.
+  const showsAttempts = errorCode !== GenerationFailureCodes.ATTEMPTS_EXHAUSTED;
   const attemptsLine = t("pulls.failed.attempts", { count: attempts + 1 });
-  const note = `${attemptsLine} ${t("pulls.failed.requeueNote")}`;
+  const note = showsAttempts ? `${attemptsLine} ${requeueNote}` : requeueNote;
 
   return (
     <section aria-labelledby="failed-heading">

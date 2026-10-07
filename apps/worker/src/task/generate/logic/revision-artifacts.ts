@@ -125,11 +125,12 @@ export async function writeRevisionArtifacts(
     return;
   }
 
-  // Supersession gate BEFORE spending on the narrative call; deliberately
-  // outside the try, a supersession must propagate, never be swallowed as a
-  // narrative failure.
+  // Supersession gate and spend charge BEFORE the narrative call; deliberately
+  // outside the try, a supersession or a cap refusal must propagate, never be
+  // swallowed as a narrative failure.
   await inputs.watch.assertCurrent();
   const { links, primaryTicket } = await inputs.loadContext();
+  await inputs.chargeSpend();
   try {
     const narrative = await categorizeRevisionNarrative(
       {

@@ -2,6 +2,7 @@ import type { PullRequestInfo } from "github";
 import {
   createArtifactStore,
   createTenantRepository,
+  GenerationErrorCodes,
   isOwnerContext,
   type PullRequestRow,
   type ScopeContext,
@@ -12,7 +13,7 @@ import { PrStates, PullRequestSources } from "types/pull-requests";
 import { PermanentJobError } from "../../failure";
 import { splitRepoSlug, type PullRequestSource } from "../../github-port";
 import { scheduleUrlBoxRegeneration } from "../../url-box-regeneration";
-import { DEFAULT_HEAD_POLL_INTERVAL_MS } from "../consts";
+import { CLAIM_LEASE_MS, DEFAULT_HEAD_POLL_INTERVAL_MS } from "../consts";
 import type { AuditScope, RunContext, RunScope, RunStart } from "../types";
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { throwOnGitHubFailure } from "./errors";
@@ -55,9 +56,25 @@ export async function openRun(
     scope.source,
     payload.headSha,
     deps.headPollIntervalMs ?? DEFAULT_HEAD_POLL_INTERVAL_MS,
+    () => renewRunClaim(start),
   );
 
   return { ...scope, prInfo, priorBriefs, existingBrief, prevBrief, watch };
+}
+
+/** True while the run holds its claim, or holds none to lose. */
+async function renewRunClaim(start: RunStart): Promise<boolean> {
+  const { projection, target, run } = start;
+  if (run.runId === undefined) {
+    return true;
+  }
+
+  const renewed = await projection.renewLease(
+    target,
+    run.runId,
+    CLAIM_LEASE_MS,
+  );
+  return renewed.ok || renewed.error.code !== GenerationErrorCodes.CLAIM_LOST;
 }
 
 async function openRunScope(start: RunStart): Promise<RunScope | undefined> {

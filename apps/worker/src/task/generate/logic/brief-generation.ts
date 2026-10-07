@@ -7,7 +7,7 @@ import {
 } from "brief-core";
 import { checkBriefForWrite, STORED_BODY_VERSION } from "brief-core/artifact";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
-import { GenerationPhases } from "types/generations";
+import { GenerationPhases, type GenerationPhase } from "types/generations";
 import type { Mutable } from "types/utils";
 import { entryCommentGeneratingBody } from "../../entry-comment";
 import { PermanentJobError } from "../../failure";
@@ -22,11 +22,12 @@ import { getAnchorColumns, getGenerationOrigin, recoverBrief } from "../utils";
 import { decideAnchor } from "./anchor-decision";
 import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
+import { throwOnClaimLost } from "./supersession-watch";
 
 /**
  * The fresh-brief path: anchor decision, the generating Entry, the model
  * call, the anchored stitch and the brief write. The anchor decision runs
- * BEFORE markRunning(GENERATING); the stitch's coverage failure is permanent.
+ * BEFORE the GENERATING phase mark; the stitch's coverage failure is permanent.
  */
 export async function generateBrief(
   payload: ParsedGeneratePayload,
@@ -38,8 +39,6 @@ export async function generateBrief(
     effort,
     store,
     source,
-    projection,
-    target,
     entryCommentManager,
     entryCommentAllowed,
     priorBriefs,
@@ -74,7 +73,7 @@ export async function generateBrief(
       log,
     },
   );
-  await projection.markRunning(target, GenerationPhases.GENERATING);
+  await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
     const generatingBody = entryCommentGeneratingBody(
       entryCommentManager.buildDeepLink(headIndex),
@@ -103,7 +102,7 @@ export async function generateBrief(
     log,
     GenerationKinds.BRIEF,
   );
-  await projection.markRunning(target, GenerationPhases.WRITING);
+  await advancePhase(inputs, GenerationPhases.WRITING);
   // Anchored stitch: carry frozen groups verbatim over the model's take,
   // rewrite ids by descent, enforce coverage. A coverage failure is a
   // pipeline error, permanent, never salvage.
@@ -166,6 +165,14 @@ export async function generateBrief(
   const briefRef = { id: written.value.id, headIndex: written.value.headIndex };
 
   return { briefRef, generatedBrief: stamped };
+}
+
+async function advancePhase(
+  inputs: BriefGenerationInputs,
+  phase: GenerationPhase,
+): Promise<void> {
+  const { projection, target, runId } = inputs;
+  throwOnClaimLost(await projection.advanceRun(target, runId, phase));
 }
 
 /**

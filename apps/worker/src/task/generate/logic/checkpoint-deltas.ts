@@ -117,9 +117,11 @@ export async function generateCheckpointDeltas(
       links,
       primaryTicket,
     };
-    // Supersession gate BEFORE each delta spend.
+    // Supersession gate and spend charge BEFORE each delta spend.
     // oxlint-disable-next-line no-await-in-loop
     await inputs.watch.assertCurrent();
+    // oxlint-disable-next-line no-await-in-loop
+    await inputs.chargeSpend();
     // oxlint-disable-next-line no-await-in-loop
     const delta = await runGenerator(
       () =>

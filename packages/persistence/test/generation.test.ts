@@ -1,5 +1,5 @@
 // Generation-projection tests (PGlite): the pending→running→succeeded
-// transitions with attempts/updated_at maintenance, and the
+// transitions with attempts maintenance, and the
 // NULLS-NOT-DISTINCT proof: a brief-kind re-push (null baseline_sha) conflicts
 // on the natural key rather than inserting a second row.
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -23,7 +23,11 @@ import {
   type InstallationId,
   type RepoId,
 } from "../src/types";
-import { createPgliteHarness } from "../src/testing";
+import {
+  claimTestRun,
+  createPgliteHarness,
+  succeedTestRun,
+} from "../src/testing";
 import { drizzle } from "drizzle-orm/pglite";
 import { fromDrizzle } from "../src/db/handle";
 import {
@@ -31,6 +35,7 @@ import {
   freshDatabase,
   freshPglite,
   makeBriefTarget,
+  readCheckValues,
 } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -40,7 +45,7 @@ const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
 describe("createGenerationProjection status transitions", () => {
-  it("pending → running → succeeded, attempts stable, updated_at advances", async () => {
+  it("pending → running → succeeded, attempts stable, one row", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -63,19 +68,21 @@ describe("createGenerationProjection status transitions", () => {
     expect(pending.value.status).toBe(GenerationStatuses.PENDING);
     expect(pending.value.attempts).toBe(0);
 
-    const running = await gen.markRunning(target, GenerationPhases.GENERATING);
-    if (!running.ok) throw new Error("markRunning failed");
-    expect(running.value.status).toBe(GenerationStatuses.RUNNING);
-    expect(running.value.phase).toBe(GenerationPhases.GENERATING);
-    expect(running.value.updatedAt.getTime()).toBeGreaterThanOrEqual(
-      pending.value.updatedAt.getTime(),
-    );
+    const runId = await claimTestRun(gen, target, {
+      phase: GenerationPhases.GENERATING,
+    });
+    const running = await gen.get(target);
+    expect(running?.status).toBe(GenerationStatuses.RUNNING);
+    expect(running?.phase).toBe(GenerationPhases.GENERATING);
 
-    const done = await gen.markSucceeded(target);
-    if (!done.ok) throw new Error("markSucceeded failed");
+    const done = await gen.finishRun(target, runId, {
+      status: GenerationStatuses.SUCCEEDED,
+    });
+    if (!done.ok) throw new Error("finishRun failed");
     expect(done.value.status).toBe(GenerationStatuses.SUCCEEDED);
     // A terminal row must not advertise the phase it was mid-way through.
     expect(done.value.phase).toBeNull();
+    expect(done.value.attempts).toBe(0);
     expect(done.value.id).toBe(pending.value.id); // one row throughout
   });
 
@@ -262,6 +269,19 @@ describe("createGenerationProjection status transitions", () => {
     ).rejects.toThrow(/generation_error_code_check/);
   });
 
+  it("the CHECK constraint accepts exactly the failure vocabulary", async () => {
+    const client = await freshPglite();
+
+    const accepted = await readCheckValues(
+      client,
+      "generation_error_code_check",
+    );
+
+    expect(accepted.toSorted()).toEqual(
+      Object.values(GenerationFailureCodes).toSorted(),
+    );
+  });
+
   it("markSuperseded is terminal, leaves attempts, clears error", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
@@ -281,7 +301,11 @@ describe("createGenerationProjection status transitions", () => {
     await gen.upsertPending(target);
     // A prior failure sets attempts/error; supersession must not disturb either.
     const second = await gen.upsertPending(target); // attempts → 1 (already ran once)
-    await gen.markRunning(target, GenerationPhases.GENERATING); // mid-run abort, phase is set
+    // A mid-run abort of a run whose lease lapsed: the phase is set.
+    await claimTestRun(gen, target, {
+      phase: GenerationPhases.GENERATING,
+      leaseMs: 0,
+    });
     await gen.markFailed(target, {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
@@ -323,9 +347,13 @@ describe("createGenerationProjection status transitions", () => {
     } as const;
 
     await gen.upsertPending(stale);
-    await gen.markRunning(stale, GenerationPhases.GENERATING); // sweep catches it mid-run
+    // The sweep catches it mid-run, its holder's lease lapsed.
+    await claimTestRun(gen, stale, {
+      phase: GenerationPhases.GENERATING,
+      leaseMs: 0,
+    });
     await gen.upsertPending(current);
-    await gen.markSucceeded(current);
+    await succeedTestRun(gen, current);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, "new-head", new Date());
     expect(swept).toBe(1);
@@ -366,8 +394,7 @@ describe("createGenerationProjection status transitions", () => {
 
     await gen.upsertPending(stale);
     await gen.upsertPending(current);
-    await gen.markRunning(current, GenerationPhases.GENERATING);
-    await gen.markSucceeded(current);
+    await succeedTestRun(gen, current);
     // The sweep's updated_at must be strictly newer than the success's.
     await new Promise((resolve) => setTimeout(resolve, 5));
     const pickedUpAt = new Date();
@@ -438,7 +465,7 @@ describe("createGenerationProjection status transitions", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await gen.markRunning({
+    const result = await gen.markSuperseded({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "never-projected",
@@ -487,7 +514,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
   it("the sweep leaves a head triggered after the run was picked up", async () => {
     const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
     await gen.upsertPending(headA);
-    await gen.markSucceeded(headA);
+    await succeedTestRun(gen, headA);
     await gen.upsertPending(headB);
     await stampUpdatedAt(HEAD_B, AFTER_PICKUP);
 
@@ -504,7 +531,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
     const successor = await gen.upsertPending(headB);
     await stampUpdatedAt(HEAD_B, BEFORE_PICKUP);
     const retriggered = await gen.upsertPending(headA);
-    await gen.markSucceeded(headA);
+    await succeedTestRun(gen, headA);
     const allQueued = first.ok && successor.ok && retriggered.ok;
     if (!allQueued) {
       throw new Error("projection failed");
@@ -521,9 +548,9 @@ describe("supersedeStaleBriefs against the pickup time", () => {
   it("the sweep leaves a newer head that is already running", async () => {
     const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
     await gen.upsertPending(headA);
-    await gen.markSucceeded(headA);
+    await succeedTestRun(gen, headA);
     await gen.upsertPending(headB);
-    await gen.markRunning(headB, GenerationPhases.GENERATING);
+    await claimTestRun(gen, headB, { phase: GenerationPhases.GENERATING });
     await stampUpdatedAt(HEAD_B, AFTER_PICKUP);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
@@ -537,7 +564,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
   it("the sweep takes a row updated exactly at the pickup time", async () => {
     const { gen, pr, stampUpdatedAt, headA, headB } = await seedSweepWorld();
     await gen.upsertPending(headA);
-    await gen.markSucceeded(headA);
+    await succeedTestRun(gen, headA);
     await gen.upsertPending(headB);
     await stampUpdatedAt(HEAD_B, PICKED_UP_AT);
 
@@ -576,10 +603,13 @@ describe("repo-config origin on the generation row", () => {
       baselineSha: null,
     } as const;
 
+    const runId = await claimTestRun(projection, target);
     const stamped = await projection.recordRepoConfig(
       target,
+      runId,
       '{"files":[],"collisions":[]}',
     );
+    expect((await projection.releaseClaim(target, runId)).ok).toBe(true);
     expect(stamped.ok).toBe(true);
     expect((await projection.get(target))?.repoConfig).toBe(
       '{"files":[],"collisions":[]}',

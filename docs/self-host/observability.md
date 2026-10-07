@@ -40,7 +40,7 @@ changes get a breaking-change entry in
 | `webhook.verify.fail` | warn | api | `deliveryId`, `reqId` | on **sustained rate** — raw hits are internet scanner noise; a sustained rate after a secret rotation means webhook-secret drift |
 | `webhook.dispatch.fail` | error | api | `deliveryId`, `reqId`, `err` | yes — a signed delivery failed to persist/enqueue |
 | `job.fail` | error | worker | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | yes |
-| `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt` | **THE worker alert** — the queue gave up on this job |
+| `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | **THE worker alert** — the queue gave up on this job, or the head spent its claims and its row ends `failed` as `attempts-exhausted` |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
 | `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |

@@ -14,9 +14,15 @@ import type { PullRequestUpsertInput } from "../src/stores/tenant";
 import type { Mutable, Result } from "types/utils";
 import { createTenantRepository } from "../src/stores/tenant";
 import { parseTenantContext } from "../src/stores/scope-context";
-import { createPgliteHarness, type PgliteHarness } from "../src/testing";
+import {
+  claimTestRun,
+  createPgliteHarness,
+  succeedTestRun,
+  type PgliteHarness,
+} from "../src/testing";
 import {
   GenerationKinds,
+  isGrantRowId,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
@@ -262,12 +268,11 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(delta).toBeLessThan(15_000);
   });
 
-  it("a running head keeps its row and gets no second job", async () => {
-    const first = unwrap(await trigger());
-    const target = briefTarget(first.pullRequest.id);
-    const projection = createGenerationProjection(harness.handle, CTX);
-    await projection.markRunning(target, GenerationPhases.GENERATING);
-    await projection.recordRepoConfig(target, "{}");
+  it("the previous release's running head keeps its row and gets no job", async () => {
+    unwrap(await trigger());
+    await harness.raw(
+      "update generation set status = 'running', phase = 'generating', repo_config = '{}'",
+    );
     await harness.raw("delete from graphile_worker.jobs");
 
     const second = unwrap(await trigger());
@@ -398,16 +403,271 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
   });
 
+  describe("requeueGenerateJob", () => {
+    const DELAY_SECONDS = 125;
+    const DELAY_SLACK_SECONDS = 2;
+
+    async function holdJobs(): Promise<void> {
+      await harness.raw("update graphile_worker.jobs set locked_at = now()");
+    }
+
+    async function readQueuedJobs(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select key, max_attempts, payload::text as payload, extract(epoch from (run_at - now()))::float8 as delay from graphile_worker.jobs where locked_at is null",
+      );
+    }
+
+    it("adds a delayed job beside the locked job that holds the key", async () => {
+      const first = unwrap(await trigger());
+      await holdJobs();
+
+      const requeued = unwrap(
+        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
+          pullRequestId: first.pullRequest.id,
+          headSha: HEAD_SHA,
+          delaySeconds: DELAY_SECONDS,
+        }),
+      );
+
+      expect(requeued.queued).toBe(true);
+      const jobs = await readQueuedJobs();
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
+      expect(jobs[0]?.["max_attempts"]).toBe(3);
+      expect(JSON.parse(String(jobs[0]?.["payload"]))).toEqual({
+        installation_id: "100",
+        pull_request_id: String(first.pullRequest.id),
+        head_sha: HEAD_SHA,
+      });
+      const delay = Number(jobs[0]?.["delay"]);
+      expect(delay).toBeGreaterThan(DELAY_SECONDS - DELAY_SLACK_SECONDS);
+      expect(delay).toBeLessThanOrEqual(DELAY_SECONDS);
+    });
+
+    it("leaves an unlocked queued job's payload and run_at as found", async () => {
+      const first = unwrap(await trigger());
+      const before = await harness.raw(
+        "select id, key, run_at, payload::text as payload from graphile_worker.jobs",
+      );
+
+      const requeued = unwrap(
+        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
+          pullRequestId: first.pullRequest.id,
+          headSha: "b".repeat(40),
+          delaySeconds: DELAY_SECONDS,
+        }),
+      );
+
+      expect(requeued.queued).toBe(false);
+      expect(
+        await harness.raw(
+          "select id, key, run_at, payload::text as payload from graphile_worker.jobs",
+        ),
+      ).toEqual(before);
+    });
+
+    it("revives a job whose attempts are spent instead of skipping it", async () => {
+      const first = unwrap(await trigger());
+      await harness.raw(
+        "update graphile_worker.jobs set attempts = max_attempts",
+      );
+
+      const requeued = unwrap(
+        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
+          pullRequestId: first.pullRequest.id,
+          headSha: HEAD_SHA,
+          delaySeconds: DELAY_SECONDS,
+        }),
+      );
+
+      expect(requeued.queued).toBe(true);
+      const jobs = await harness.raw(
+        "select attempts, max_attempts from graphile_worker.jobs",
+      );
+      expect(jobs).toEqual([{ attempts: 0, max_attempts: 3 }]);
+    });
+
+    it("builds the owner payload in the url-box world", async () => {
+      const ownerCtx = { ownerUserId: brandWith(isReviewerId, 555n) };
+      const ingest = createIngestRoutines(harness.handle, ownerCtx);
+      const recorded = await ingest.recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        state: PrStates.OPEN,
+      });
+      const grantId = brandWith(isGrantRowId, 9n);
+
+      unwrap(
+        await ingest.requeueGenerateJob({
+          pullRequestId: recorded.pullRequest.id,
+          headSha: HEAD_SHA,
+          grantId,
+          delaySeconds: DELAY_SECONDS,
+        }),
+      );
+
+      const jobs = await readQueuedJobs();
+      expect(JSON.parse(String(jobs[0]?.["payload"]))).toEqual({
+        owner_user_id: "555",
+        grant_id: "9",
+        pull_request_id: String(recorded.pullRequest.id),
+        head_sha: HEAD_SHA,
+      });
+    });
+
+    it("queues nothing for a pull request outside the scope", async () => {
+      const first = unwrap(await trigger());
+      await holdJobs();
+      const otherCtx = parseTenantContext({ installationId: 101n });
+
+      const requeued = unwrap(
+        await createIngestRoutines(harness.handle, otherCtx).requeueGenerateJob(
+          {
+            pullRequestId: first.pullRequest.id,
+            headSha: HEAD_SHA,
+            delaySeconds: DELAY_SECONDS,
+          },
+        ),
+      );
+
+      expect(requeued.queued).toBe(false);
+      expect(await readQueuedJobs()).toEqual([]);
+    });
+
+    it("refuses a negative delay", async () => {
+      const first = unwrap(await trigger());
+
+      const requeued = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).requeueGenerateJob({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: -1,
+      });
+
+      expect(requeued.ok).toBe(false);
+    });
+  });
+
+  describe("scheduleClaimRecovery", () => {
+    const FIRST_DELAY_SECONDS = 60;
+    const LATER_DELAY_SECONDS = 125;
+    const DELAY_SLACK_SECONDS = 2;
+
+    async function readRecoveryJobs(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select key, max_attempts, locked_at, payload::text as payload, extract(epoch from (run_at - now()))::float8 as delay from graphile_worker.jobs where task_identifier = 'recover-generation' order by id",
+      );
+    }
+
+    it("keeps one pending recovery job per head at the latest delay", async () => {
+      const first = unwrap(await trigger());
+      const ingest = createIngestRoutines(harness.handle, CTX);
+      const request = {
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: FIRST_DELAY_SECONDS,
+      };
+
+      unwrap(await ingest.scheduleClaimRecovery(request));
+      const scheduled = unwrap(
+        await ingest.scheduleClaimRecovery({
+          ...request,
+          delaySeconds: LATER_DELAY_SECONDS,
+        }),
+      );
+
+      expect(scheduled.queued).toBe(true);
+      const jobs = await readRecoveryJobs();
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0]?.["key"]).toBe(
+        `recover-generation:${first.pullRequest.id}:${HEAD_SHA}`,
+      );
+      expect(jobs[0]?.["max_attempts"]).toBe(3);
+      expect(JSON.parse(String(jobs[0]?.["payload"]))).toEqual({
+        installation_id: "100",
+        pull_request_id: String(first.pullRequest.id),
+        head_sha: HEAD_SHA,
+      });
+      const delay = Number(jobs[0]?.["delay"]);
+      expect(delay).toBeGreaterThan(LATER_DELAY_SECONDS - DELAY_SLACK_SECONDS);
+      expect(delay).toBeLessThanOrEqual(LATER_DELAY_SECONDS);
+    });
+
+    it("adds a job beside a running recovery and leaves the generate job", async () => {
+      const first = unwrap(await trigger());
+      const ingest = createIngestRoutines(harness.handle, CTX);
+      const request = {
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: LATER_DELAY_SECONDS,
+      };
+      unwrap(await ingest.scheduleClaimRecovery(request));
+      await harness.raw(
+        "update graphile_worker.jobs set locked_at = now() where task_identifier = 'recover-generation'",
+      );
+      const generateJobs = await harness.raw(
+        "select id, key, run_at from graphile_worker.jobs where task_identifier = 'generate'",
+      );
+
+      unwrap(await ingest.scheduleClaimRecovery(request));
+
+      const jobs = await readRecoveryJobs();
+      expect(jobs).toHaveLength(2);
+      expect(jobs[0]?.["key"]).toBeNull();
+      expect(jobs[1]?.["locked_at"]).toBeNull();
+      expect(
+        await harness.raw(
+          "select id, key, run_at from graphile_worker.jobs where task_identifier = 'generate'",
+        ),
+      ).toEqual(generateJobs);
+    });
+
+    it("queues nothing for a pull request outside the scope", async () => {
+      const first = unwrap(await trigger());
+      const otherCtx = parseTenantContext({ installationId: 101n });
+
+      const scheduled = unwrap(
+        await createIngestRoutines(
+          harness.handle,
+          otherCtx,
+        ).scheduleClaimRecovery({
+          pullRequestId: first.pullRequest.id,
+          headSha: HEAD_SHA,
+          delaySeconds: LATER_DELAY_SECONDS,
+        }),
+      );
+
+      expect(scheduled.queued).toBe(false);
+      expect(await readRecoveryJobs()).toEqual([]);
+    });
+
+    it("refuses a negative delay", async () => {
+      const first = unwrap(await trigger());
+
+      const scheduled = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).scheduleClaimRecovery({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: -1,
+      });
+
+      expect(scheduled.ok).toBe(false);
+    });
+  });
+
   it("refreshRunAt does not re-enqueue a running head", async () => {
     const first = unwrap(await trigger({ debounceSeconds: 900 }));
     const firstJobs = await harness.raw(
       "select run_at from graphile_worker.jobs",
     );
     const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
-    const projection = createGenerationProjection(harness.handle, CTX);
-    await projection.markRunning(
+    await claimTestRun(
+      createGenerationProjection(harness.handle, CTX),
       briefTarget(first.pullRequest.id),
-      GenerationPhases.GENERATING,
     );
 
     unwrap(await trigger({ debounceSeconds: 10, refreshRunAt: true }));
@@ -420,9 +680,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
   it("a succeeded head is reset to pending and enqueued again", async () => {
     const first = unwrap(await trigger());
     const target = briefTarget(first.pullRequest.id);
-    const projection = createGenerationProjection(harness.handle, CTX);
-    await projection.markRunning(target, GenerationPhases.GENERATING);
-    await projection.markSucceeded(target);
+    await succeedTestRun(
+      createGenerationProjection(harness.handle, CTX),
+      target,
+    );
     await harness.raw("delete from graphile_worker.jobs");
 
     const second = unwrap(await trigger());
@@ -439,7 +700,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const first = unwrap(await trigger());
     const target = briefTarget(first.pullRequest.id);
     const projection = createGenerationProjection(harness.handle, CTX);
-    await projection.markRunning(target, GenerationPhases.GENERATING);
     await projection.markFailed(target, {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },

@@ -7,9 +7,10 @@ import {
   type StoredBrief,
 } from "brief-core/artifact";
 import type { Anchor } from "generators";
-import type { Logger } from "logging";
+import type { LogFields, Logger } from "logging";
 import {
   GenerationKinds,
+  MAX_GENERATION_ATTEMPTS,
   StoredIdsSchema,
   type GenerationTarget,
   type PullRequestRow,
@@ -66,6 +67,11 @@ const UNEXPECTED_SHAPE_WARNING =
   "generate: stored brief body has an unexpected shape — narrative skipped";
 const NOT_JSON_WARNING =
   "generate: stored brief body is not valid JSON — narrative skipped";
+
+/** Which of the head's claims a log line is about, against the budget. */
+export function buildAttemptFields(attempt: number): LogFields {
+  return { attempt, maxAttempts: MAX_GENERATION_ATTEMPTS };
+}
 
 /** Inert boundary logger for direct test invocations that pass no `log`. */
 export function createNoopLogger(): Logger {

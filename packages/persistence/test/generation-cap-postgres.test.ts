@@ -1,4 +1,4 @@
-// The advisory lock behind `startRun` and the row lock behind `claimRun`
+// The advisory lock and the row lock behind `claimRun`
 // cannot be proven on PGlite, which runs one connection. This suite runs only against a real Postgres named by
 // MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red under CI.
 import { Pool } from "pg";
@@ -21,15 +21,16 @@ import {
 } from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
+const LEASE_MS = 120_000;
 const WINDOW = {
   from: new Date("2000-01-01T00:00:00.000Z"),
   to: new Date("2100-01-01T00:00:00.000Z"),
+  leaseMs: LEASE_MS,
 };
 const HOLD_MS = 300;
-const LEASE_MS = 120_000;
 
-describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
-  it("two parallel starts at cap 1 start exactly one", async () => {
+describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
+  it("two parallel claims at cap 1 claim exactly one", async () => {
     if (databaseUrl === undefined) {
       throw new Error("unreachable");
     }
@@ -56,20 +57,19 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
 
       const outcomes = await Promise.all(
         targets.map((target) =>
-          projection.startRun({ target, cap: 1, ...WINDOW }),
+          projection.claimRun({ target, cap: 1, ...WINDOW }),
         ),
       );
 
-      const started = outcomes.filter(
-        (outcome) => outcome.ok && outcome.value.started,
+      const kinds = outcomes.map((outcome) => outcome.ok && outcome.value.kind);
+      expect(
+        kinds.filter((kind) => kind === ClaimOutcomes.CLAIMED),
+      ).toHaveLength(1);
+      const refused = outcomes.find(
+        (outcome) => outcome.ok && outcome.value.kind === ClaimOutcomes.CAPPED,
       );
-      const refused = outcomes.filter(
-        (outcome) => outcome.ok && !outcome.value.started,
-      );
-      expect(started).toHaveLength(1);
-      expect(refused).toHaveLength(1);
-      expect(refused[0]?.ok && refused[0].value).toEqual({
-        started: false,
+      expect(refused?.ok && refused.value).toEqual({
+        kind: ClaimOutcomes.CAPPED,
         startedRuns: 1,
       });
     } finally {
@@ -77,7 +77,7 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
     }
   });
 
-  it("two parallel starts in different repos at cap 1 start exactly one", async () => {
+  it("two parallel claims in different repos at cap 1 claim exactly one", async () => {
     if (databaseUrl === undefined) {
       throw new Error("unreachable");
     }
@@ -113,20 +113,20 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
 
       const outcomes = await Promise.all(
         targets.map((target) =>
-          projection.startRun({ target, cap: 1, ...WINDOW }),
+          projection.claimRun({ target, cap: 1, ...WINDOW }),
         ),
       );
 
-      const started = outcomes.filter(
-        (outcome) => outcome.ok && outcome.value.started,
+      const claimed = outcomes.filter(
+        (outcome) => outcome.ok && outcome.value.kind === ClaimOutcomes.CLAIMED,
       );
-      expect(started).toHaveLength(1);
+      expect(claimed).toHaveLength(1);
     } finally {
       await deleteTenantRows(handle, tenant);
     }
   });
 
-  it("a start waits on the instance advisory lock while another holds it", async () => {
+  it("a claim waits on the instance advisory lock while another holds it", async () => {
     if (databaseUrl === undefined) {
       throw new Error("unreachable");
     }
@@ -153,7 +153,7 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
         "generation-cap",
       ]);
 
-      const start = projection.startRun({ target, cap: 1, ...WINDOW });
+      const start = projection.claimRun({ target, cap: 1, ...WINDOW });
       const whileHeld = await Promise.race([start, waitMs(HOLD_MS)]);
       await holding.query("commit");
       const released = await start;
@@ -162,7 +162,7 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       if (!released.ok) {
         throw new Error(released.error.message);
       }
-      expect(released.value.started).toBe(true);
+      expect(released.value.kind).toBe(ClaimOutcomes.CLAIMED);
     } finally {
       holding.release();
       await holder.end();
@@ -192,9 +192,7 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       }
 
       const outcomes = await Promise.all(
-        [1, 2].map(() =>
-          projection.claimRun({ target, leaseMs: LEASE_MS, ...WINDOW }),
-        ),
+        [1, 2].map(() => projection.claimRun({ target, ...WINDOW })),
       );
 
       const kinds = outcomes.map((outcome) => outcome.ok && outcome.value.kind);

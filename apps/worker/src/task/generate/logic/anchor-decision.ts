@@ -16,7 +16,7 @@ import { planAnchoredRun } from "./anchored-run";
 
 /**
  * Whether this run anchors on the previous brief, restarts fresh, or has
- * nothing to anchor on. Runs BEFORE `markRunning(GENERATING)`; its two brief
+ * nothing to anchor on. Runs BEFORE the GENERATING phase mark; its two brief
  * reads and the one anchoring hop are the only side effects.
  */
 export async function decideAnchor(

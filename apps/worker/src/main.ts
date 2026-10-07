@@ -15,12 +15,17 @@ import {
   closeDb,
   createDb,
   createEnvKeyProvider,
+  RECOVER_GENERATION_TASK,
   resolveMigrateCommand,
 } from "persistence";
 import type { Mutable } from "types/utils";
 import { loadConfig } from "./config";
 import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
-import { createGenerateTask, type GenerateTaskDeps } from "./task/generate";
+import {
+  createGenerateTask,
+  createRecoverGenerationTask,
+  type GenerateTaskDeps,
+} from "./task/generate";
 import {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,
@@ -173,6 +178,7 @@ async function main(): Promise<void> {
   }
 
   const generate = createGenerateTask(generateDeps);
+  const recoverGeneration = createRecoverGenerationTask(generateDeps);
 
   const sweepAudit = createSweepAuditTask({
     handle,
@@ -194,6 +200,8 @@ async function main(): Promise<void> {
     // the failure events read.
     taskList: {
       generate: (payload, helpers) => generate(payload, helpers),
+      [RECOVER_GENERATION_TASK]: (payload, helpers) =>
+        recoverGeneration(payload, helpers),
       // The one scheduled job. Instance-wide, not tenant-scoped: retention is
       // an operator env setting, so there is no ctx to bind it to.
       [SWEEP_AUDIT_TASK]: () => sweepAudit(),

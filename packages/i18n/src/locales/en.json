@@ -42,7 +42,7 @@
   },
   "generationError": {
     "provider-auth": "The model provider rejected the configured credentials.",
-    "provider-rate-limit": "The model provider's rate limit was hit. The next attempt may succeed.",
+    "provider-rate-limit": "The model provider's rate limit was hit.",
     "provider-timeout": "The model provider timed out before finishing.",
     "provider-unavailable": "The model provider could not be reached.",
     "provider-refusal": "The model declined to summarize this pull request.",
@@ -51,6 +51,7 @@
     "github-access": "GitHub denied access to this repository's content.",
     "diff-too-large": "The diff is too large to summarize.",
     "github-unavailable": "GitHub was unavailable while reading the pull request.",
+    "attempts-exhausted": "The brief stopped after using all its attempts for this push and will not try again on its own. A submitted review, a review request or pasting the pull request URL again starts it over.",
     "unknown": "Generation failed: {{detail}}"
   },
   "pulls": {

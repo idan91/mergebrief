@@ -125,6 +125,7 @@ describe("generate task, observability", () => {
     );
     expect(exhausted?.["level"]).toBe("error");
     expect(exhausted?.["attempt"]).toBe(25);
+    expect(exhausted?.["maxAttempts"]).toBe(25);
     expect(exhausted?.["prId"]).toBe(String(pr.id));
     expect(exhausted?.["headSha"]).toBe(HEAD_1);
   });

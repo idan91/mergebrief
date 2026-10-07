@@ -102,7 +102,7 @@ describe("hard-fail catalog gates", () => {
       key.startsWith("generationError."),
     );
     expect(errorKeys).toHaveLength(36);
-    expect(generationKeys).toHaveLength(11);
+    expect(generationKeys).toHaveLength(12);
   });
 });
 

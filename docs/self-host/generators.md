@@ -150,12 +150,13 @@ run, so a single busy PR can consume a day's budget on its own. Runs that
 were superseded or failed DO count: they spent. A run counts on the day it
 started, and purging its pull request does not take it back.
 Queued-but-not-yet-drained jobs and capped skips do not — a burst of
-webhooks must not trip the cap before a single token is spent. Nor does a
-job that finds a brief already stored for its base and head pair (a review
-submitted after the brief, a ready flip that still needs its Entry comment):
-it produces no brief generation, so it is not counted. Such a job may still
-owe a checkpoint delta; while the instance sits at the cap that delta is
-refused, and below the cap it is paid without counting.
+webhooks must not trip the cap before a single token is spent. A job that
+finds a brief already stored for its base and head pair (a review submitted
+after the brief, a ready flip that still needs its Entry comment, a retry
+whose brief landed before it failed) produces no brief generation and counts
+only if it pays: one that still owes a checkpoint delta or a narrative counts
+once, at its first provider call, and is refused there if the cap is reached.
+While the instance sits at the cap such a job is refused before any work.
 
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,

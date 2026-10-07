@@ -207,7 +207,7 @@ The persisted record of producing a **Brief** for one head of one PR, which the 
 _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
 
 **Claim**:
-The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles a failed Generation without one.
+The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles an unheld Generation as succeeded without one.
 _Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 
 **Job**:

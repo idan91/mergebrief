@@ -3,6 +3,7 @@
 // harness's raw window, never by sleeping.
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
+  ChargeOutcomes,
   ClaimOutcomes,
   createGenerationProjection,
   createTenantRepository,
@@ -11,7 +12,11 @@ import {
   type GenerationProjection,
   type TenantContext,
 } from "../src/index";
-import { createPgliteHarness, type PgliteHarness } from "../src/testing";
+import {
+  createPgliteHarness,
+  succeedTestRun,
+  type PgliteHarness,
+} from "../src/testing";
 import {
   isInstallationId,
   isRepoId,
@@ -30,6 +35,7 @@ const CTX: TenantContext = {
   installationId: brandWith(isInstallationId, 1000n),
 };
 const LEASE_MS = 120_000;
+const LEASE_SLACK_MS = 5_000;
 const WINDOW = {
   from: new Date("2000-01-01T00:00:00.000Z"),
   to: new Date("2100-01-01T00:00:00.000Z"),
@@ -90,6 +96,11 @@ async function claim(
   return unwrap(await world.gen.claimRun({ ...input, cap }));
 }
 
+/** A pickup time after every row write the test made. */
+function readLater(): Date {
+  return new Date(Date.now() + LEASE_SLACK_MS);
+}
+
 async function expireLease(world: ClaimWorld): Promise<void> {
   await world.harness.raw(
     "update generation set lease_expires_at = now() - interval '1 second'",
@@ -132,13 +143,17 @@ describe("claimRun", () => {
     expect(await countAttemptRows(world)).toBe(1);
   });
 
-  it("reports held while another run's lease is live", async () => {
+  it("reports held and the lease time left while another run holds it", async () => {
     const world = await makeClaimWorld();
     const first = readRunId(await claim(world));
 
     const second = await claim(world);
 
-    expect(second).toEqual({ kind: ClaimOutcomes.HELD });
+    if (second.kind !== ClaimOutcomes.HELD) {
+      throw new Error(`expected held, got ${second.kind}`);
+    }
+    expect(second.leaseRemainingMs).toBeGreaterThan(LEASE_MS - LEASE_SLACK_MS);
+    expect(second.leaseRemainingMs).toBeLessThanOrEqual(LEASE_MS);
     expect((await world.gen.get(world.target))?.runId).toBe(first);
     expect(await countAttemptRows(world)).toBe(1);
   });
@@ -169,7 +184,7 @@ describe("claimRun", () => {
 
   it("reports finished on a succeeded row", async () => {
     const world = await makeClaimWorld();
-    await world.gen.markSucceeded(world.target);
+    await world.harness.raw("update generation set status = 'succeeded'");
 
     expect(await claim(world)).toEqual({ kind: ClaimOutcomes.FINISHED });
     expect(await countAttemptRows(world)).toBe(0);
@@ -187,6 +202,175 @@ describe("claimRun", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected not-found");
     expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
+  });
+});
+
+describe("claimRun attempt budget and recovery job", () => {
+  async function claimThrice(world: ClaimWorld): Promise<void> {
+    for (let round = 0; round < 3; round += 1) {
+      readRunId(await claim(world));
+      await expireLease(world);
+    }
+  }
+
+  it("refuses a fourth claim as exhausted until a trigger re-projects", async () => {
+    const world = await makeClaimWorld();
+    await claimThrice(world);
+
+    expect(await claim(world)).toEqual({
+      kind: ClaimOutcomes.EXHAUSTED,
+      claims: 3,
+    });
+    expect(await countAttemptRows(world)).toBe(3);
+
+    unwrap(await world.gen.markFailed(world.target, FAILED_RUN.failure));
+    unwrap(await world.gen.upsertPending(world.target));
+    expect((await claim(world)).kind).toBe(ClaimOutcomes.CLAIMED);
+  });
+
+  it("names each claim's number among the head's claims", async () => {
+    const world = await makeClaimWorld();
+    const numbers: number[] = [];
+
+    for (let round = 0; round < 3; round += 1) {
+      const outcome = await claim(world);
+      if (outcome.kind !== ClaimOutcomes.CLAIMED) {
+        throw new Error(`expected a claim, got ${outcome.kind}`);
+      }
+      numbers.push(outcome.claims);
+      await expireLease(world);
+    }
+
+    expect(numbers).toEqual([1, 2, 3]);
+  });
+
+  it("an exhausted head ends failed with attempts-exhausted", async () => {
+    const world = await makeClaimWorld();
+    await claimThrice(world);
+    expect((await claim(world)).kind).toBe(ClaimOutcomes.EXHAUSTED);
+
+    const failed = unwrap(
+      await world.gen.markFailed(world.target, {
+        code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+      }),
+    );
+
+    expect(failed.status).toBe(GenerationStatuses.FAILED);
+    expect(failed.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    expect(failed.errorParams).toBeNull();
+    expect(failed.runId).toBeNull();
+  });
+
+  it("queues the head's recovery job in the claim's transaction", async () => {
+    const world = await makeClaimWorld();
+
+    readRunId(
+      unwrap(
+        await world.gen.claimRun({
+          target: world.target,
+          leaseMs: LEASE_MS,
+          recovery: { delaySeconds: 125 },
+          ...WINDOW,
+        }),
+      ),
+    );
+
+    const jobs = await world.harness.raw(
+      "select task_identifier, key from graphile_worker.jobs",
+    );
+    expect(jobs).toEqual([
+      {
+        task_identifier: "recover-generation",
+        key: `recover-generation:${world.pullRequestId}:${HEAD}`,
+      },
+    ]);
+  });
+
+  it("a held row queues no recovery job", async () => {
+    const world = await makeClaimWorld();
+    readRunId(await claim(world));
+
+    await world.gen.claimRun({
+      target: world.target,
+      leaseMs: LEASE_MS,
+      recovery: { delaySeconds: 125 },
+      ...WINDOW,
+    });
+
+    expect(
+      await world.harness.raw("select key from graphile_worker.jobs"),
+    ).toEqual([]);
+  });
+});
+
+describe("chargeRun", () => {
+  it("writes one attempt and leaves a succeeded row as found", async () => {
+    const world = await makeClaimWorld();
+    const before = await succeedTestRun(world.gen, world.target);
+
+    const charged = unwrap(
+      await world.gen.chargeRun({ target: world.target, cap: 2, ...WINDOW }),
+    );
+
+    expect(charged.kind).toBe(ChargeOutcomes.CHARGED);
+    expect(await world.gen.get(world.target)).toEqual(before);
+    expect(await countAttemptRows(world)).toBe(2);
+  });
+
+  it("refuses at the cap and writes nothing", async () => {
+    const world = await makeClaimWorld();
+    await succeedTestRun(world.gen, world.target);
+
+    const refused = unwrap(
+      await world.gen.chargeRun({ target: world.target, cap: 1, ...WINDOW }),
+    );
+
+    expect(refused).toEqual({ kind: ChargeOutcomes.CAPPED, startedRuns: 1 });
+    expect(await countAttemptRows(world)).toBe(1);
+  });
+
+  it("a missing row returns not-found and writes nothing", async () => {
+    const world = await makeClaimWorld();
+
+    const result = await world.gen.chargeRun({
+      target: makeBriefTarget(world.pullRequestId, "ghost"),
+      ...WINDOW,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(await countAttemptRows(world)).toBe(0);
+  });
+});
+
+describe("readClaim", () => {
+  it("reports an unclaimed row, a live lease and a lapsed one", async () => {
+    const world = await makeClaimWorld();
+    expect(await world.gen.readClaim(world.target)).toEqual({
+      claimed: false,
+      leaseLive: false,
+      leaseRemainingMs: 0,
+    });
+
+    readRunId(await claim(world));
+    const live = await world.gen.readClaim(world.target);
+    expect(live?.claimed).toBe(true);
+    expect(live?.leaseLive).toBe(true);
+    expect(live?.leaseRemainingMs).toBeGreaterThan(LEASE_MS - LEASE_SLACK_MS);
+
+    await expireLease(world);
+    expect(await world.gen.readClaim(world.target)).toEqual({
+      claimed: true,
+      leaseLive: false,
+      leaseRemainingMs: 0,
+    });
+  });
+
+  it("a missing row reads undefined", async () => {
+    const world = await makeClaimWorld();
+
+    expect(
+      await world.gen.readClaim(makeBriefTarget(world.pullRequestId, "ghost")),
+    ).toBeUndefined();
   });
 });
 
@@ -209,8 +393,13 @@ describe("fenced transitions", () => {
     const finished = await world.gen.finishRun(world.target, STALE_RUN_ID, {
       status: GenerationStatuses.SUCCEEDED,
     });
+    const recorded = await world.gen.recordRepoConfig(
+      world.target,
+      STALE_RUN_ID,
+      "{}",
+    );
 
-    for (const result of [advanced, renewed, finished]) {
+    for (const result of [advanced, renewed, finished, recorded]) {
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected claim-lost");
       expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
@@ -231,14 +420,31 @@ describe("fenced transitions", () => {
     expect(advanced.runId).toBe(runId);
   });
 
-  it("renewLease pushes a lapsed lease back into the future", async () => {
+  it("renewLease pushes a lapsed lease forward and leaves updated_at", async () => {
     const world = await makeClaimWorld();
     const runId = readRunId(await claim(world));
-    await expireLease(world);
+    await world.harness.raw(
+      "update generation set updated_at = now() - interval '1 minute', lease_expires_at = now() - interval '1 second'",
+    );
+    const before = await world.gen.get(world.target);
 
     unwrap(await world.gen.renewLease(world.target, runId, LEASE_MS));
 
     expect(await readLeaseIsLive(world)).toBe(true);
+    expect((await world.gen.get(world.target))?.updatedAt).toEqual(
+      before?.updatedAt,
+    );
+  });
+
+  it("recordRepoConfig writes the holder's repo config", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+
+    const recorded = unwrap(
+      await world.gen.recordRepoConfig(world.target, runId, "{}"),
+    );
+
+    expect(recorded.repoConfig).toBe("{}");
   });
 
   it("finishRun succeeded clears the claim and the phase", async () => {
@@ -348,6 +554,20 @@ describe("unclaimed transitions", () => {
 });
 
 describe("settleStoredBrief", () => {
+  it("leaves a row re-projected after the rerun was picked up", async () => {
+    const world = await makeClaimWorld();
+    await world.harness.raw(
+      "update generation set updated_at = now() + interval '1 minute'",
+    );
+
+    expect(
+      await world.gen.settleStoredBrief(world.target, new Date()),
+    ).toBeUndefined();
+    expect((await world.gen.get(world.target))?.status).toBe(
+      GenerationStatuses.PENDING,
+    );
+  });
+
   it("turns a failed row into succeeded and clears its error", async () => {
     const world = await makeClaimWorld();
     await world.gen.markFailed(world.target, {
@@ -355,7 +575,10 @@ describe("settleStoredBrief", () => {
       params: { detail: "boom" },
     });
 
-    const settled = await world.gen.settleStoredBrief(world.target);
+    const settled = await world.gen.settleStoredBrief(
+      world.target,
+      readLater(),
+    );
 
     expect(settled?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(settled?.errorCode).toBeNull();
@@ -367,21 +590,35 @@ describe("settleStoredBrief", () => {
     readRunId(await claim(world));
     await world.harness.raw("update generation set status = 'failed'");
 
-    expect(await world.gen.settleStoredBrief(world.target)).toBeUndefined();
+    expect(
+      await world.gen.settleStoredBrief(world.target, readLater()),
+    ).toBeUndefined();
     expect((await world.gen.get(world.target))?.status).toBe(
       GenerationStatuses.FAILED,
     );
   });
 
-  it("leaves pending and succeeded rows alone", async () => {
+  it("settles a released pending row and leaves a succeeded one", async () => {
     const world = await makeClaimWorld();
 
-    expect(await world.gen.settleStoredBrief(world.target)).toBeUndefined();
-    await world.gen.markSucceeded(world.target);
-    expect(await world.gen.settleStoredBrief(world.target)).toBeUndefined();
-    expect((await world.gen.get(world.target))?.status).toBe(
-      GenerationStatuses.SUCCEEDED,
+    const settled = await world.gen.settleStoredBrief(
+      world.target,
+      readLater(),
     );
+
+    expect(settled?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(
+      await world.gen.settleStoredBrief(world.target, readLater()),
+    ).toBeUndefined();
+  });
+
+  it("leaves a running row of the previous release alone", async () => {
+    const world = await makeClaimWorld();
+    await world.harness.raw("update generation set status = 'running'");
+
+    expect(
+      await world.gen.settleStoredBrief(world.target, readLater()),
+    ).toBeUndefined();
   });
 });
 
@@ -391,7 +628,7 @@ describe("supersedeStaleBriefs and the claim", () => {
     readRunId(await claim(world));
     const current = makeBriefTarget(world.pullRequestId, "current");
     await world.gen.upsertPending(current);
-    await world.gen.markSucceeded(current);
+    await succeedTestRun(world.gen, current);
     await world.harness.raw(
       "update generation set updated_at = now() - interval '1 minute'",
     );

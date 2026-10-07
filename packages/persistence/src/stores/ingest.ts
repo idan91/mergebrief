@@ -26,11 +26,19 @@ import {
   type PullRequestUpdateSet,
   type PullRequestUpsertInput,
 } from "./tenant";
+import {
+  addQueueJob,
+  buildJobPayload,
+  GENERATE_TASK_IDENTIFIER,
+  getRecoveryJobKey,
+  RECOVER_GENERATION_TASK,
+} from "./queue";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
-import type { GenerateJobPayload, Mutable } from "types";
+import type { Mutable } from "types";
 import {
   GenerationKinds,
+  JobKeyModes,
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
@@ -64,10 +72,6 @@ function buildTerminalKeeper(
   return (stored, fresh) =>
     sql`case when ${existingPrIsTerminal()} then ${stored} else ${fresh} end`;
 }
-
-const GENERATE_TASK_IDENTIFIER = "generate";
-/** Every graphile retry is a paid run the daily cap counts, so retries stay few. */
-const GENERATE_JOB_MAX_ATTEMPTS = 3;
 
 // ---------------------------------------------------------------------------
 // Errors: expected failures. Programmer/infra errors still `throw`.
@@ -205,39 +209,6 @@ async function upsertPullRequestRow(
   return { row: storedRow, applied: false };
 }
 
-/** The world-discriminated job payload; ids cross as STRINGS (JSON bigint). */
-function buildJobPayload(
-  scope: RowScope,
-  grantId: GrantRowId | undefined,
-  pullRequestId: bigint,
-  headSha: string,
-): GenerateJobPayload {
-  if (scope.ownerUserId !== null) {
-    if (grantId === undefined) {
-      // Programmer error: an owner-scoped trigger with no credential reference
-      // would enqueue a job the worker can only fail.
-      throw new Error("owner-scoped triggerGeneration requires grantId");
-    }
-
-    return {
-      owner_user_id: String(scope.ownerUserId),
-      grant_id: String(grantId),
-      pull_request_id: String(pullRequestId),
-      head_sha: headSha,
-    } satisfies GenerateJobPayload;
-  }
-
-  if (scope.installationId === null) {
-    throw new Error("scope carries neither world");
-  }
-
-  return {
-    installation_id: String(scope.installationId),
-    pull_request_id: String(pullRequestId),
-    head_sha: headSha,
-  } satisfies GenerateJobPayload;
-}
-
 /**
  * The stored brief for the row's base and the input's head. A row without a
  * base SHA has no pair to match.
@@ -333,38 +304,79 @@ async function isGenerateJobHeld(
 }
 
 /**
- * Enqueue on the SAME tx via graphile's public SQL function (named notation,
- * so extra defaulted parameters in real graphile don't matter). Ids cross as
- * STRINGS, since JSON cannot carry bigint; the worker re-brands them through
- * `TenantContextSchema`.
+ * Whether a job for the PR waits in the queue with no worker on it yet. A job
+ * that spent its attempts stays in graphile's table unlocked but never runs
+ * again, so it does not count as waiting.
  */
+async function hasQueuedGenerateJob(
+  tx: IngestTransaction,
+  pullRequestId: PullRequestRowId,
+): Promise<boolean> {
+  const jobKey = getGenerateJobKey(pullRequestId);
+  const rows = await tx
+    .select({ id: sql`job.id` })
+    .from(sql`graphile_worker.jobs as job`)
+    .where(
+      sql`job.key = ${jobKey} and job.locked_at is null and job.attempts < job.max_attempts`,
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Locks the PR row when the scope holds it. A trigger's upsert takes the same
+ * lock, so a queue read after this one sees any job that trigger added.
+ */
+async function lockPullRequestInScope(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+): Promise<boolean> {
+  const rows = await tx
+    .select({ id: pullRequest.id })
+    .from(pullRequest)
+    .where(and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)))
+    .limit(1)
+    .for("update");
+  return rows.length > 0;
+}
+
+function validateDelaySeconds(
+  name: string,
+  value: number | undefined,
+): IngestError | undefined {
+  if (value === undefined || (Number.isFinite(value) && value >= 0)) {
+    return undefined;
+  }
+  return {
+    code: IngestErrorCodes.INVALID_DEBOUNCE,
+    message: `${name} must be a non-negative finite number, got ${value}`,
+  };
+}
+
+/** Enqueue on the SAME tx via graphile's public SQL function. */
 async function enqueueGenerateJob(
   tx: IngestTransaction,
   scope: RowScope,
-  input: TriggerGenerationInput,
+  input: Pick<TriggerGenerationInput, "headSha" | "grantId" | "refreshRunAt">,
   pullRequestId: PullRequestRowId,
   debounceSeconds: number,
 ): Promise<void> {
-  const jobKey = getGenerateJobKey(pullRequestId);
-  const payload = buildJobPayload(
-    scope,
-    input.grantId,
-    pullRequestId,
-    input.headSha,
-  );
-  const payloadJson = JSON.stringify(payload);
-  const jobKeyMode =
-    input.refreshRunAt === true ? "replace" : "preserve_run_at";
-  await tx.execute(sql`
-    select graphile_worker.add_job(
-      ${GENERATE_TASK_IDENTIFIER},
-      payload => ${payloadJson}::json,
-      job_key => ${jobKey},
-      run_at => now() + make_interval(secs => ${debounceSeconds}),
-      max_attempts => ${GENERATE_JOB_MAX_ATTEMPTS},
-      job_key_mode => ${jobKeyMode}
-    )
-  `);
+  await addQueueJob(tx, {
+    identifier: GENERATE_TASK_IDENTIFIER,
+    payload: buildJobPayload(
+      scope,
+      input.grantId,
+      pullRequestId,
+      input.headSha,
+    ),
+    key: getGenerateJobKey(pullRequestId),
+    delaySeconds: debounceSeconds,
+    keyMode:
+      input.refreshRunAt === true
+        ? JobKeyModes.REPLACE
+        : JobKeyModes.PRESERVE_RUN_AT,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -461,6 +473,35 @@ export interface IngestRoutines {
     input: PullRequestUpsertInput,
     options?: RecordStateOptions,
   ): Promise<IngestOutcome>;
+  /**
+   * Queue the PR's `generate` job again, `delaySeconds` out, beside the locked
+   * job running now. An unlocked job already queued for the key runs anyway
+   * and keeps its payload and `run_at`; a PR outside the scope queues nothing.
+   */
+  requeueGenerateJob(
+    input: RequeueGenerateJobInput,
+  ): Promise<Result<RequeueOutcome, IngestError>>;
+  /**
+   * Queue the head's recovery job, `delaySeconds` out, with the `generate`
+   * payload. One stays pending per head: a later call moves its `run_at`, and
+   * one locked by a running recovery gets a fresh job beside it. A PR outside
+   * the scope queues nothing.
+   */
+  scheduleClaimRecovery(
+    input: RequeueGenerateJobInput,
+  ): Promise<Result<RequeueOutcome, IngestError>>;
+}
+
+export interface RequeueGenerateJobInput {
+  readonly pullRequestId: PullRequestRowId;
+  readonly headSha: string;
+  /** The url-box job's credential reference, as on `TriggerGenerationInput`. */
+  readonly grantId?: GrantRowId;
+  readonly delaySeconds: number;
+}
+
+export interface RequeueOutcome {
+  readonly queued: boolean;
 }
 
 export interface RecordStateOptions {
@@ -490,14 +531,9 @@ export function createIngestRoutines(
         ["debounceSeconds", debounceSeconds],
         ["regenerationDebounceSeconds", input.regenerationDebounceSeconds],
       ] as const) {
-        if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
-          return {
-            ok: false,
-            error: {
-              code: IngestErrorCodes.INVALID_DEBOUNCE,
-              message: `${name} must be a non-negative finite number, got ${value}`,
-            },
-          };
+        const invalid = validateDelaySeconds(name, value);
+        if (invalid !== undefined) {
+          return { ok: false, error: invalid };
         }
       }
 
@@ -615,6 +651,61 @@ export function createIngestRoutines(
           effectiveDebounceSeconds,
         );
         return { ok: true, value };
+      });
+    },
+
+    async requeueGenerateJob(input) {
+      const invalid = validateDelaySeconds("delaySeconds", input.delaySeconds);
+      if (invalid !== undefined) {
+        return { ok: false, error: invalid };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const inScope = await lockPullRequestInScope(tx, scope, pullRequestId);
+        const alreadyQueued =
+          inScope && (await hasQueuedGenerateJob(tx, pullRequestId));
+        if (!inScope || alreadyQueued) {
+          return { ok: true, value: { queued: false } };
+        }
+
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          input,
+          pullRequestId,
+          input.delaySeconds,
+        );
+        return { ok: true, value: { queued: true } };
+      });
+    },
+
+    async scheduleClaimRecovery(input) {
+      const invalid = validateDelaySeconds("delaySeconds", input.delaySeconds);
+      if (invalid !== undefined) {
+        return { ok: false, error: invalid };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId, headSha } = input;
+        const inScope = await lockPullRequestInScope(tx, scope, pullRequestId);
+        if (!inScope) {
+          return { ok: true, value: { queued: false } };
+        }
+
+        await addQueueJob(tx, {
+          identifier: RECOVER_GENERATION_TASK,
+          payload: buildJobPayload(
+            scope,
+            input.grantId,
+            pullRequestId,
+            headSha,
+          ),
+          key: getRecoveryJobKey(pullRequestId, headSha),
+          delaySeconds: input.delaySeconds,
+          keyMode: JobKeyModes.REPLACE,
+        });
+        return { ok: true, value: { queued: true } };
       });
     },
 

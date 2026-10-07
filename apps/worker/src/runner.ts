@@ -23,7 +23,7 @@ const DEFAULT_CONCURRENCY = 1;
 
 export interface StartWorkerOptions {
   readonly databaseUrl: string;
-  /** The registered tasks, `generate` and `sweep-audit` in production. */
+  /** The registered tasks, `generate`, `recover-generation` and `sweep-audit` in production. */
   readonly taskList: TaskList;
   /** Crontab text for the scheduled jobs. REQUIRED, so a refactor cannot drop
    * the schedule and leave a green build with nothing sweeping. */

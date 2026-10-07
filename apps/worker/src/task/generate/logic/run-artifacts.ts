@@ -7,18 +7,24 @@ import {
   writeAudit,
   type AuditEntry,
 } from "persistence";
+import { GenerationStatuses } from "types/generations";
 import { AUDIT_OPERATION_GENERATE } from "../consts";
 import {
   RunDecisionKinds,
+  type FreshRun,
   type GeneratingRun,
   type PrefetchedSpan,
   type ProducedBrief,
+  type RevisionArtifactInputs,
   type RunContext,
   type RunInputs,
 } from "../types";
+import { buildAttemptFields } from "../utils";
 import { generateBrief, recoverStoredBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
 import { throwOnGitHubFailure } from "./errors";
+import { createSpendCharge } from "./spend-gate";
+import { throwOnClaimLost } from "./supersession-watch";
 import {
   countPrChangedLines,
   writeRevisionArtifacts,
@@ -37,7 +43,7 @@ export async function produceBrief(
   generator: Generator,
 ): Promise<ProducedBrief> {
   if (decision.kind === RunDecisionKinds.FRESH) {
-    return generateFreshBrief(context, inputs, generator);
+    return generateFreshBrief(context, decision, inputs, generator);
   }
 
   const { payload, store, prevBrief, prInfo, log } = context;
@@ -57,6 +63,7 @@ export async function produceBrief(
 
 async function generateFreshBrief(
   context: RunContext,
+  decision: FreshRun,
   inputs: RunInputs,
   generator: Generator,
 ): Promise<ProducedBrief> {
@@ -69,6 +76,7 @@ async function generateFreshBrief(
     source: context.source,
     projection: context.projection,
     target: context.target,
+    runId: decision.runId,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
     priorBriefs: context.priorBriefs,
@@ -106,7 +114,11 @@ export async function writeFollowOnArtifacts(
   generator: Generator,
 ): Promise<void> {
   const { deps, payload, watch, log } = context;
-  const prevSpan = await writeRevisionSpan(context, inputs, brief, generator);
+  const chargeSpend = createSpendCharge(context);
+  const prevSpan = await writeRevisionSpan(context, inputs, brief, {
+    generator,
+    chargeSpend,
+  });
   const deltaCount = await generateCheckpointDeltas(payload, {
     hugeSpanRatio: deps.hugeSpanRatio,
     store: context.store,
@@ -118,6 +130,7 @@ export async function writeFollowOnArtifacts(
     prevSpan,
     generator,
     watch,
+    chargeSpend,
     effort: deps.effort,
     briefHeadIndex: brief.briefRef.headIndex,
     wholePrChangedLines: countPrChangedLines(inputs.files),
@@ -140,7 +153,7 @@ async function writeRevisionSpan(
   context: RunContext,
   inputs: RunInputs,
   brief: ProducedBrief,
-  generator: Generator,
+  spend: Pick<RevisionArtifactInputs, "generator" | "chargeSpend">,
 ): Promise<PrefetchedSpan | undefined> {
   const { deps, payload, prevBrief } = context;
   if (prevBrief === undefined || inputs.prevSpanFetch === undefined) {
@@ -158,7 +171,8 @@ async function writeRevisionSpan(
     prevBrief,
     briefRef: brief.briefRef,
     generatedBrief: brief.generatedBrief,
-    generator,
+    generator: spend.generator,
+    chargeSpend: spend.chargeSpend,
     watch: context.watch,
     effort: deps.effort,
     wholePrChangedLines: countPrChangedLines(inputs.files),
@@ -175,8 +189,8 @@ async function writeRevisionSpan(
  * pickup is newer than this run and keeps its row.
  */
 export async function finishRun(context: RunContext): Promise<void> {
-  const { payload, projection, target, pickedUpAt, prRow, log } = context;
-  await projection.markSucceeded(target);
+  const { payload, projection, pickedUpAt, prRow, log } = context;
+  await recordRunSuccess(context);
   const swept = await projection.supersedeStaleBriefs(
     payload.pullRequestId,
     payload.headSha,
@@ -188,6 +202,34 @@ export async function finishRun(context: RunContext): Promise<void> {
   log.info(
     `generate: succeeded for ${prRow.prNumber}@${payload.headSha.slice(0, 8)}`,
   );
+  warnOnUnpaidTakeover(context);
+}
+
+/** A takeover claims, and so counts, even when nothing was left to pay for. */
+function warnOnUnpaidTakeover(context: RunContext): void {
+  const { recovering, run, log } = context;
+  if (!recovering || run.attempt === undefined || run.providerCalls > 0) {
+    return;
+  }
+
+  log.warn(
+    "generate: the recovery run made no provider call, its claim still counts as an attempt",
+    buildAttemptFields(run.attempt),
+  );
+}
+
+/** A claimed run finishes through its claim; a stored-brief run settles the row. */
+async function recordRunSuccess(context: RunContext): Promise<void> {
+  const { projection, target, run, pickedUpAt } = context;
+  if (run.runId === undefined) {
+    await projection.settleStoredBrief(target, pickedUpAt);
+    return;
+  }
+
+  const finished = await projection.finishRun(target, run.runId, {
+    status: GenerationStatuses.SUCCEEDED,
+  });
+  throwOnClaimLost(finished);
 }
 
 async function recordGenerateAudit(

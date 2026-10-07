@@ -6,6 +6,8 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
+import type { z } from "zod/v4";
+import type { Effort, GenerateRequest, Generator } from "generators";
 import { RepoConfigPaths } from "repo-config";
 import {
   BASE,
@@ -38,6 +40,13 @@ describe("generate task, daily generation cap", () => {
     const triggered = await trigger(HEAD_1);
     await makeTask({ spend: UNCAPPED })(triggered.payload);
     return triggered;
+  }
+
+  /** A paid run another slot started, written straight to the ledger. */
+  async function burnRunElsewhere(): Promise<void> {
+    await harness.raw(
+      "insert into generation_attempt (installation_id, run_id, generation_id) values (42, gen_random_uuid(), 0)",
+    );
   }
 
   it("a job over a stored brief skips the gate and counts nothing", async () => {
@@ -95,12 +104,112 @@ describe("generate task, daily generation cap", () => {
     expect(generator.calls).toEqual(["delta"]);
     const store = createArtifactStore(harness.handle, ctx);
     expect(await store.deltas.get(second.pr.id, HEAD_1, HEAD_2)).toBeDefined();
+    // Two fresh runs plus the delta this run paid for.
+    expect(
+      await createGenerationProjection(harness.handle, ctx).countStartedRuns({
+        from: new Date(Date.now() - 60_000),
+        to: new Date(Date.now() + 60_000),
+      }),
+    ).toBe(3);
+  });
+
+  it("a paid retry over a stored brief counts toward the cap", async () => {
+    const CAP = { maxGenerationsPerDay: 2 };
+    const first = await trigger(HEAD_1);
+    const written = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: BASE,
+      submittedAt: new Date(),
+    });
+    expect(written.ok).toBe(true);
+    const inner = stubGenerator();
+    const failingDelta: Generator = {
+      async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
+        if (req.label === "delta") {
+          throw makeConnectionError();
+        }
+        return inner.generate(req);
+      },
+      origin: (effort: Effort) => inner.origin(effort),
+    };
+    await expect(
+      makeTask({ generator: failingDelta, spend: CAP })(first.payload),
+    ).rejects.toThrow("Connection error");
+
+    const retry = stubGenerator();
+    await makeTask({ generator: retry, spend: CAP })(first.payload);
+
+    expect(retry.calls).toEqual(["delta"]);
     expect(
       await createGenerationProjection(harness.handle, ctx).countStartedRuns({
         from: new Date(Date.now() - 60_000),
         to: new Date(Date.now() + 60_000),
       }),
     ).toBe(2);
+    const second = await trigger(HEAD_2);
+    const fresh = stubGenerator();
+    await makeTask({
+      generator: fresh,
+      github: stubGitHub(HEAD_2),
+      spend: CAP,
+    })(second.payload);
+    expect(fresh.calls).toEqual([]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(second.pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatuses.CAPPED);
+  });
+
+  it("a stored-brief run refused at its first paid call writes no row", async () => {
+    const first = await trigger(HEAD_1);
+    await makeTask({ spend: UNCAPPED })(first.payload);
+    const written = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: BASE,
+      submittedAt: new Date(),
+    });
+    expect(written.ok).toBe(true);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const before = await projection.get(makeTarget(first.pr, HEAD_1));
+    const inner = stubGenerator();
+    // Another slot spends the last unit between the gate and the delta call.
+    const github = stubGitHub(HEAD_1);
+    const openSource = github.openPullRequestSource.bind(github);
+    github.openPullRequestSource = async (...args) => {
+      const source = await openSource(...args);
+      const fetchFiles = source.fetchPullRequestFiles.bind(source);
+      source.fetchPullRequestFiles = async () => {
+        await burnRunElsewhere();
+        return fetchFiles();
+      };
+      return source;
+    };
+    const { logger, readLines } = captureLogger();
+
+    await expect(
+      makeTask({
+        generator: inner,
+        github,
+        spend: { maxGenerationsPerDay: 2 },
+        log: logger,
+      })(first.payload),
+    ).resolves.toBeUndefined();
+
+    expect(inner.calls).toEqual([]);
+    expect(await projection.get(makeTarget(first.pr, HEAD_1))).toEqual(before);
+    const trip = readLines().find((line) => line["evt"] === "spend.cap.trip");
+    expect(trip?.["level"]).toBe("warn");
+    expect(readLines().map((line) => line["evt"])).not.toContain("job.fail");
   });
 
   it("at the cap a stored-brief run owing a delta is refused", async () => {

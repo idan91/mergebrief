@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectOffenders,
-  findDestructiveStatements,
+  findContractStatements,
   GRANDFATHERED_MIGRATIONS,
   judgeMigration,
 } from "../scripts/migration-contracts";
@@ -20,6 +20,11 @@ function joinSqlLines(...lines: string[]): string {
 
 const DROP_COLUMN = 'ALTER TABLE "brief" DROP COLUMN "legacy";';
 const DROP_COLUMN_STATEMENT = 'ALTER TABLE "brief" DROP COLUMN "legacy"';
+const DROP_SHAPE_STATEMENT =
+  'ALTER TABLE "brief" DROP CONSTRAINT "brief_shape"';
+const DROP_SHAPE = `${DROP_SHAPE_STATEMENT};--> statement-breakpoint`;
+const READD_SHAPE =
+  'ALTER TABLE "brief" ADD CONSTRAINT "brief_shape" CHECK ("n" IN (1, 2, 3));--> statement-breakpoint';
 const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
 
 describe("judgeMigration", () => {
@@ -153,6 +158,56 @@ describe("judgeMigration", () => {
     });
   });
 
+  it("passes a widens-marked constraint drop re-added as a CHECK", () => {
+    const verdict = judgeMigration(
+      "0047_x.sql",
+      joinSqlLines("-- widens brief_shape", DROP_SHAPE, READD_SHAPE),
+    );
+
+    expect(verdict).toEqual({ kind: MigrationVerdicts.OK });
+  });
+
+  it("fails a widens marker whose file never re-adds the constraint", () => {
+    const verdict = judgeMigration(
+      "0047_x.sql",
+      joinSqlLines("-- widens brief_shape", DROP_SHAPE),
+    );
+
+    expect(verdict).toEqual({
+      kind: MigrationVerdicts.MISSING_CONTRACTS_LINE,
+      statements: [DROP_SHAPE_STATEMENT],
+    });
+  });
+
+  it("fails a widens marker that names a different constraint", () => {
+    const verdict = judgeMigration(
+      "0047_x.sql",
+      joinSqlLines("-- widens brief_other", DROP_SHAPE, READD_SHAPE),
+    );
+
+    expect(verdict).toEqual({
+      kind: MigrationVerdicts.MISSING_CONTRACTS_LINE,
+      statements: [DROP_SHAPE_STATEMENT],
+    });
+  });
+
+  it("still asks a contracts line of the other drops in a widening file", () => {
+    const verdict = judgeMigration(
+      "0047_x.sql",
+      joinSqlLines(
+        "-- widens brief_shape",
+        DROP_SHAPE,
+        READD_SHAPE,
+        DROP_COLUMN,
+      ),
+    );
+
+    expect(verdict).toEqual({
+      kind: MigrationVerdicts.MISSING_CONTRACTS_LINE,
+      statements: [DROP_COLUMN_STATEMENT],
+    });
+  });
+
   it("grandfathers the migrations that predate the rule by name", () => {
     expect(GRANDFATHERED_MIGRATIONS).toContain(
       "0042_drop-installation-columns",
@@ -194,7 +249,7 @@ describe("collectOffenders", () => {
       .filter((name) => {
         const body = readFileSync(join(MIGRATIONS_DIR, name), "utf8");
         const unmarked = !body.startsWith("-- contracts ");
-        return unmarked && findDestructiveStatements(body).length > 0;
+        return unmarked && findContractStatements(body).length > 0;
       })
       .map((name) => name.replace(/\.sql$/, ""))
       .toSorted();

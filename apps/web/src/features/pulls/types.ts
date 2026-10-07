@@ -65,6 +65,7 @@ export const GenerationFailureCodes = {
   GITHUB_ACCESS: "github-access",
   DIFF_TOO_LARGE: "diff-too-large",
   GITHUB_UNAVAILABLE: "github-unavailable",
+  ATTEMPTS_EXHAUSTED: "attempts-exhausted",
   UNKNOWN: "unknown",
 } as const;
 export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
