@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { FailureKinds } from "../../../shared-errors/failures";
 
-export default {
+export const collaboratorsController = {
   async listCollaborators(
     deps: CollaboratorsControllerDeps,
     input: ListCollaboratorsInput,

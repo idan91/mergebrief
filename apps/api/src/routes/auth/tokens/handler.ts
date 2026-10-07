@@ -3,7 +3,7 @@ import { BadRequest, NotFound } from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
 import { API_TOKEN_PREFIX, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
-import tokensController from "./controller";
+import { tokensController } from "./controller";
 import { mintBodySchema } from "./schemas";
 import { buildTokenView, parseTokenId } from "./utils";
 import { HttpStatuses } from "types/http";
@@ -11,7 +11,7 @@ import { HttpStatuses } from "types/http";
 // Every response is per-viewer state → `no-store`, error paths included.
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-export default function createHandlers(deps: AuthRouteDeps) {
+export function createTokensHandlers(deps: AuthRouteDeps) {
   const mintToken = async (c: Context<AuthzEnv>) => {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = mintBodySchema.safeParse(raw);

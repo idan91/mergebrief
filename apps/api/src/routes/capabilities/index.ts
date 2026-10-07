@@ -9,7 +9,7 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
-import createCapabilitiesHandlers from "./handler";
+import { createCapabilitiesHandlers } from "./handler";
 
 export function capabilitiesRoute(
   deps: AuthRouteDeps,

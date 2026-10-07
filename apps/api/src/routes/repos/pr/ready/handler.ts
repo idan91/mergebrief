@@ -10,14 +10,14 @@ import {
   throwRepoResolveFailure,
 } from "../../logic/resolve-repo-owner-and-name";
 import { prNumberSchema } from "../../../wire-bounds";
-import readyController from "./controller";
+import { readyController } from "./controller";
 import { throwMarkReadyFailure } from "./logic/wire-failures";
 import { resolvePrScopeFrom } from "../scope";
 import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-export default function createHandlers(deps: AuthRouteDeps) {
+export function createReadyHandlers(deps: AuthRouteDeps) {
   const markReady = async (c: Context<AuthzEnv>) => {
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {

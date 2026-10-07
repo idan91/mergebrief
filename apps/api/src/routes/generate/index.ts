@@ -14,7 +14,7 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
-import createGenerateHandlers from "./handler";
+import { createGenerateHandlers } from "./handler";
 
 export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();

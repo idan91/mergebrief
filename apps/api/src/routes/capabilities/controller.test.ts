@@ -5,7 +5,7 @@ import {
   OperationKinds,
   type ProductOperationDescriptor,
 } from "../../product-operations/types";
-import capabilitiesController from "./controller";
+import { capabilitiesController } from "./controller";
 
 const OPERATIONS: readonly ProductOperationDescriptor[] = [
   {

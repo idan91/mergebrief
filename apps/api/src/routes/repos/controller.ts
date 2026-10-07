@@ -7,7 +7,7 @@ interface RepoListEntry {
   readonly fullName: string;
 }
 
-export default {
+export const reposController = {
   /** Deterministic order for humans and diffs: fullName ascending. */
   listRepos(allowed: ReadonlyMap<RepoId, AllowedRepo>): {
     repos: readonly RepoListEntry[];

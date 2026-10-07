@@ -11,7 +11,7 @@ import { stampAuditTarget } from "../../product-operations/audit";
 import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { resolveOperatorTokenFor, type AuthzEnv } from "../authz";
-import generateController from "./controller";
+import { generateController } from "./controller";
 import { bodySchema } from "./schemas";
 import type { GenerateFailure } from "./types";
 import { HttpStatuses } from "types/http";
@@ -33,7 +33,7 @@ function throwGenerateFailure(failure: GenerateFailure): never {
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
 
-export default function createHandlers(deps: AuthRouteDeps) {
+export function createGenerateHandlers(deps: AuthRouteDeps) {
   return {
     generateBrief: async (c: Context<AuthzEnv>) => {
       const body = bodySchema.safeParse(

@@ -1,7 +1,7 @@
 import { isInstallationId, isRepoId, type RepoId } from "persistence";
 import { describe, expect, it } from "vitest";
 import type { AllowedRepo } from "../installation-resolver";
-import reposController from "./controller";
+import { reposController } from "./controller";
 
 function brandRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) {

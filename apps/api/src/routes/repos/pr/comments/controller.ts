@@ -8,7 +8,7 @@ import {
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import type { CommentsControllerDeps } from "./types";
 
-export default {
+export const commentsController = {
   /** POST one held draft as an inline review comment. A 401'd POST created
    * nothing, so the client's refreshed re-run cannot double-post. */
   async postInlineComment(

@@ -30,7 +30,7 @@ import {
 import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";
-import createConversationHandlers from "./handler";
+import { createConversationHandlers } from "./handler";
 
 const log: Logger = {
   error: vi.fn(),

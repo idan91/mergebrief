@@ -14,7 +14,7 @@ import {
 import type { AuthRouteDeps } from "../../../../auth/session/types";
 import type { AuthzEnv } from "../../../../authz";
 import { prNumberSchema } from "../../../../wire-bounds";
-import sessionController from "../controller";
+import { sessionController } from "../controller";
 import { spanQuerySchema } from "../schemas";
 import type { SessionWriteFailure } from "../types";
 import { resolvePrScopeFrom } from "../../scope";

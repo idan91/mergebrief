@@ -105,7 +105,7 @@ function bindSessionWriter(
   };
 }
 
-export default {
+export const sessionController = {
   /**
    * The session read. PURE: it NEVER creates a session. Before the first
    * write the payload carries the carry-over verdicts evaluated in memory

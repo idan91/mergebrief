@@ -24,7 +24,7 @@ function serializeStrippedConversation(
   return JSON.stringify(stripEntryComment(conversation, entryCommentId));
 }
 
-export default {
+export const conversationController = {
   async readConversation(
     deps: ConversationControllerDeps,
     input: ReadConversationInput,

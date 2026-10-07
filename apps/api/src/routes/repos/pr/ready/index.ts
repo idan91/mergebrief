@@ -13,7 +13,7 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
-import createReadyHandlers from "./handler";
+import { createReadyHandlers } from "./handler";
 
 export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();

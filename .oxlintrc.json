@@ -144,17 +144,6 @@
       }
     },
     {
-      // Domain controllers and handler factories are single-export modules,
-      // default-exported by convention (apps/api AGENTS.md domain layout).
-      "files": [
-        "apps/api/src/routes/**/controller.ts",
-        "apps/api/src/routes/**/handler.ts"
-      ],
-      "rules": {
-        "import/no-default-export": "off"
-      }
-    },
-    {
       // Framework-required default exports: vite/tsup/drizzle read the
       // default export of their config, and TanStack Start's server entry is
       // resolved the same way. The house plugin is loaded by oxlint the same

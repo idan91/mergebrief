@@ -14,7 +14,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestUserOctokit } from "../../../../../test/fixtures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import sessionController from "./controller";
+import { sessionController } from "./controller";
 import { resolveSessionTarget } from "./logic/brief-target";
 import { UnreadableBriefError } from "./logic/carry-over-inputs";
 

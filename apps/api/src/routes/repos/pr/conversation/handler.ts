@@ -19,7 +19,7 @@ import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";
 import { prNumberSchema } from "../../../wire-bounds";
-import conversationController from "./controller";
+import { conversationController } from "./controller";
 import type { ReadConversationResult } from "./types";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
@@ -35,7 +35,7 @@ function conversationJson(c: Context<AuthzEnv>, body: string): Response {
   });
 }
 
-export default function createHandlers(
+export function createConversationHandlers(
   deps: AuthRouteDeps,
   github: InstallationGitHubPort,
   cache: TtlCache<string>,

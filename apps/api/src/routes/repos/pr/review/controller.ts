@@ -259,4 +259,4 @@ async function submitReview(
   return { ok: true, value } as const;
 }
 
-export default { submitReview };
+export const reviewController = { submitReview };

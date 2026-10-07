@@ -13,7 +13,7 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
-import createReviewHandlers from "./handler";
+import { createReviewHandlers } from "./handler";
 import type { EvictConversation } from "./types";
 
 export function reviewSubmitRoute(

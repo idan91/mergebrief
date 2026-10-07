@@ -24,7 +24,7 @@ import {
   prNumberSchema,
   MAX_BODY_LENGTH,
 } from "../../../wire-bounds";
-import reviewController from "./controller";
+import { reviewController } from "./controller";
 import { throwSubmitFailure } from "./logic/wire-failures";
 import { OutcomeToEvent } from "./consts";
 import { ReviewOutcomes, type ReviewOutcome } from "./types";
@@ -126,7 +126,7 @@ async function recordSubmittedDrafts(
   }
 }
 
-export default function createHandlers(
+export function createReviewHandlers(
   deps: AuthRouteDeps,
   evictConversation: EvictConversation,
 ) {

@@ -21,11 +21,12 @@ import {
   resolveSessionWrite,
   throwSessionWriteFailure,
 } from "../session/logic/write-seam";
-import sessionController, {
+import {
+  sessionController,
   type ExistingSessionWriteFailure,
 } from "../session/controller";
 import { spanQuerySchema } from "../session/schemas";
-import commentsController from "./controller";
+import { commentsController } from "./controller";
 import {
   throwPublishFailure,
   throwReplyFailure,
@@ -190,7 +191,7 @@ async function recordReplyReview(
   }
 }
 
-export default function createHandlers(
+export function createCommentsHandlers(
   deps: AuthRouteDeps,
   evictConversation: EvictConversation,
 ) {

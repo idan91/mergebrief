@@ -82,7 +82,7 @@ async function readLatestGenerations(
   return merged;
 }
 
-export default {
+export const inboxController = {
   async listInbox(
     deps: InboxControllerDeps,
     input: ListInboxInput,

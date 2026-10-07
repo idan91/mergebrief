@@ -4,7 +4,7 @@
 import { computeCatalogFingerprint } from "../../product-operations/manifest";
 import type { ProductOperationDescriptor } from "../../product-operations/types";
 
-export default {
+export const capabilitiesController = {
   buildCapabilities(operations: readonly ProductOperationDescriptor[]) {
     return {
       operations,

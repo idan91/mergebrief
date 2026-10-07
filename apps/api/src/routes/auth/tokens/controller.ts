@@ -21,7 +21,7 @@ import type {
 
 type RevokeResult = Result<ApiTokenMetadataRow, RevokeFailure>;
 
-export default {
+export const tokensController = {
   async mintToken(
     { deps, session }: TokensControllerDeps,
     input: MintInput,

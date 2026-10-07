@@ -21,7 +21,7 @@ import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import { refreshUrlPullRequest } from "../../../live-read";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { TtlCache } from "../../../ttl-cache";
-import readsController from "./controller";
+import { readsController } from "./controller";
 import {
   briefQuerySchema,
   deltaQuerySchema,
@@ -64,7 +64,7 @@ async function buildDeps(
   };
 }
 
-export default function createHandlers(
+export function createReadsHandlers(
   deps: AuthRouteDeps,
   diffCache: TtlCache<string>,
   fileCache: TtlCache<readonly string[]>,

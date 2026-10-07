@@ -18,7 +18,7 @@ import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import type { InstallationGitHubPort } from "../github-port";
 import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
-import createReposHandlers from "./handler";
+import { createReposHandlers } from "./handler";
 import { prRoutes } from "./pr";
 import type { UploadQuotaLimits } from "./pr/attachments/types";
 

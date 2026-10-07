@@ -10,7 +10,7 @@ import {
 import { WriteClassifications } from "persistence";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
-import createTokensHandlers from "./handler";
+import { createTokensHandlers } from "./handler";
 
 /** Mount the token-management surface over the cookie session gate. */
 export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {

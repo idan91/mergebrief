@@ -25,7 +25,7 @@ import { resolveOperatorTokenFor, type AuthzEnv } from "../authz";
 import { refreshUrlPullRequests } from "../live-read";
 import type { TtlCache } from "../ttl-cache";
 import { INBOX_LIVE_BUDGET_MS } from "./consts";
-import inboxController from "./controller";
+import { inboxController } from "./controller";
 import { readLiveStacks } from "./logic/live-stacks";
 import { inboxQuerySchema, type InboxQuery } from "./schemas";
 
@@ -57,7 +57,7 @@ function shapeFilters(query: InboxQuery): InboxFilters {
   return filters;
 }
 
-export default function createHandlers(
+export function createInboxHandlers(
   deps: AuthRouteDeps,
   installations: AccessibleInstallationsResolver,
   repos: InstallationResolver,

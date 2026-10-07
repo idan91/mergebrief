@@ -49,7 +49,7 @@ import type { OpenPullRequest } from "brief-core/pr-stack";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import { FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
 import { buildFileBlobCacheKey } from "./logic/keys";
-import createReadsHandlers from "./handler";
+import { createReadsHandlers } from "./handler";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),

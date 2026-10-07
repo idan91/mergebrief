@@ -15,7 +15,7 @@ import { NotFound } from "../../../../shared-errors/api-error";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildOpenPullsCacheKey } from "../../../open-pulls-cache";
 import { createTtlCache } from "../../../ttl-cache";
-import readsController from "./controller";
+import { readsController } from "./controller";
 import type { ReadsControllerDeps } from "./types";
 
 let harness: PgliteHarness;

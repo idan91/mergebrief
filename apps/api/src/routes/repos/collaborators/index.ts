@@ -19,7 +19,7 @@ import {
 } from "../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import { COLLABORATORS_CACHE_MAX_ENTRIES } from "./consts";
-import createCollaboratorsHandlers from "./handler";
+import { createCollaboratorsHandlers } from "./handler";
 
 export interface CollaboratorsRouteDeps extends AuthRouteDeps {
   readonly github: InstallationGitHubPort;

@@ -94,6 +94,8 @@ function ruleIdOf(code: string): string | undefined {
   // config text promises is provable against a real run.
   const core = /^eslint\((.+)\)$/.exec(code);
   if (core?.[1] !== undefined) return `eslint/${core[1]}`;
+  const imports = /^import\((.+)\)$/.exec(code);
+  if (imports?.[1] !== undefined) return `import/${imports[1]}`;
   return undefined;
 }
 
@@ -196,6 +198,8 @@ const EXPLICIT_ABSENCE = `export function isAbsent(value: number | null | undefi
 }
 `;
 
+const DEFAULT_EXPORTED_FACTORY = `export default function createHandlers() {\n  return {};\n}\n`;
+const NAMED_CONTROLLER = `export const widgetsController = { listWidgets };\n\nfunction listWidgets() {\n  return [];\n}\n`;
 const ZOD_ROOT_IMPORT = `import { z } from "zod";\n\nexport const name = z.string();\n`;
 const ZOD_V4_IMPORT = `import { z } from "zod/v4";\n\nexport const name = z.string();\n`;
 
@@ -225,6 +229,8 @@ const MATRIX_FILES = {
     "export function helper() {\n  return 1;\n}\n",
   "packages/types/src/maps.ts":
     'export const Kinds = { LINE: "line", FILE: "file" } as const;\n',
+  "apps/api/src/routes/widgets/handler.ts": DEFAULT_EXPORTED_FACTORY,
+  "apps/api/src/routes/widgets/controller.ts": NAMED_CONTROLLER,
   "packages/brief-core/src/zod-root.ts": ZOD_ROOT_IMPORT,
   "packages/brief-core/src/zod-v4.ts": ZOD_V4_IMPORT,
 };
@@ -325,6 +331,20 @@ describe("absence checks", () => {
     expect(
       rulesFor(lintMatrix(), "packages/brief-core/src/explicit-absence.ts"),
     ).not.toContainEqual(expect.stringMatching(/^eslint\/eqeqeq@/));
+  });
+});
+
+describe("api domain exports", () => {
+  it("reports a default-exported handler factory", () => {
+    expect(
+      rulesFor(lintMatrix(), "apps/api/src/routes/widgets/handler.ts"),
+    ).toContain("import/no-default-export@error");
+  });
+
+  it("passes a named controller", () => {
+    expect(
+      rulesFor(lintMatrix(), "apps/api/src/routes/widgets/controller.ts"),
+    ).toEqual([]);
   });
 });
 

@@ -31,7 +31,7 @@ import {
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
-import commentsController from "./controller";
+import { commentsController } from "./controller";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),

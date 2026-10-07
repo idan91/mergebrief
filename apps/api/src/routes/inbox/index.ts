@@ -17,7 +17,7 @@ import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import type { InstallationResolver } from "../installation-resolver";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { TtlCache } from "../ttl-cache";
-import createInboxHandlers from "./handler";
+import { createInboxHandlers } from "./handler";
 
 export function inboxRoutes(
   deps: AuthRouteDeps,

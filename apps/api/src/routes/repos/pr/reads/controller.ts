@@ -216,7 +216,7 @@ function runBoundRead<T>(
   return github.run(call);
 }
 
-export default {
+export const readsController = {
   /** The whole-PR span artifact body for (base, head). */
   async readBrief(
     deps: ReadsControllerDeps,

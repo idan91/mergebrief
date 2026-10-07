@@ -5,7 +5,7 @@ import { markPullRequestReadyForReview } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import type { ReadyControllerDeps } from "./types";
 
-export default {
+export const readyController = {
   async markPullRequestReady(
     deps: ReadyControllerDeps,
     input: Parameters<typeof markPullRequestReadyForReview>[1],

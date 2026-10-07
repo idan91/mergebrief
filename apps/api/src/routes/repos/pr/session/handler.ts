@@ -20,7 +20,7 @@ import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
 import { assertHuman } from "../../../assert-human";
-import sessionController from "./controller";
+import { sessionController } from "./controller";
 import { MAX_SESSION_DRAFTS } from "./consts";
 import {
   addressSchema,
@@ -96,7 +96,7 @@ async function readJsonBody(c: Context<AuthzEnv>) {
   return c.req.json().catch(() => undefined);
 }
 
-export default function createHandlers(deps: AuthRouteDeps) {
+export function createSessionHandlers(deps: AuthRouteDeps) {
   /** GET the session, a query: it reads, it projects, it creates nothing. */
   const readSession = async (c: Context<AuthzEnv>) => {
     const span = spanQuerySchema.safeParse({

@@ -5,7 +5,7 @@ import { BadGateway, NotFound } from "../../../shared-errors/api-error";
 import { requireInstallationScope, type AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
-import collaboratorsController from "./controller";
+import { collaboratorsController } from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
 import { parseOwnerAndName } from "../utils";
 import { ApiErrorCodes } from "contract";
@@ -24,7 +24,7 @@ function rosterJson(c: Context<AuthzEnv>, body: string): Response {
 }
 
 /** The gated live-fetch, installation token, serialized bodies cached. */
-export default function createHandlers(
+export function createCollaboratorsHandlers(
   github: InstallationGitHubPort,
   cache: TtlCache<string>,
 ) {

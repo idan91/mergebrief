@@ -18,7 +18,7 @@ import {
   FILE_BLOB_CACHE_MAX_ENTRIES,
   OPEN_PULLS_CACHE_MAX_ENTRIES,
 } from "./consts";
-import createReadsHandlers from "./handler";
+import { createReadsHandlers } from "./handler";
 
 export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();

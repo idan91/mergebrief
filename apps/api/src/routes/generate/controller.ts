@@ -67,7 +67,7 @@ async function resolveUnderFallback(
   return viewer;
 }
 
-export default {
+export const generateController = {
   async generateBrief(
     deps: GenerateControllerDeps,
     input: GenerateBriefInput,
