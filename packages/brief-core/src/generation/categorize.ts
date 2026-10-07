@@ -87,7 +87,7 @@ import {
  * Applied when a caller passes no explicit effort. Configured values arrive
  * from the loaded generator block; each adapter maps or declines it.
  */
-const DEFAULT_EFFORT: Effort = "medium";
+export const DEFAULT_EFFORT: Effort = "medium";
 
 /**
  * Array fields where an out-of-vocabulary token may be dropped (warn) instead

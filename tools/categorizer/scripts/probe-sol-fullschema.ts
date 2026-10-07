@@ -1,12 +1,12 @@
 /**
  * One-off probe: run a single eval fixture through the configured generator
- * (openrouter gpt-5.6-sol) and print the raw generation result — success or
- * the full error — without the eval harness's baseline gate. Verifies
+ * (openrouter gpt-5.6-sol) and print the raw generation result, success or
+ * the full error, without the eval harness's baseline gate. Verifies
  * metadata.raw surfacing on the strict-json_schema 400.
  *
  *   pnpm -C tools/categorizer exec tsx scripts/probe-sol-fullschema.ts
  */
-import { categorize } from "brief-core";
+import { generateBrief } from "brief-core";
 import { createGenerator, loadGeneratorConfigFile } from "generators";
 import { loadCases } from "../eval/loadCase";
 
@@ -46,16 +46,19 @@ async function main(): Promise<void> {
   const { fixture } = probeCase;
   console.error("[probe] generating…");
   try {
-    const brief = await categorize(
-      fixture.pr,
-      1,
-      fixture.commitRange,
-      constructed.value,
-      (m: string) => console.error(`[progress] ${m}`),
-      fixture.repoContext,
-      loaded.value.generator.effort ?? "medium",
-    );
-    console.info(JSON.stringify(brief, null, 2).slice(0, 2000));
+    const result = await generateBrief({
+      pr: fixture.pr,
+      headIndex: 1,
+      commitRange: fixture.commitRange,
+      generator: constructed.value,
+      log: (m: string) => console.error(`[progress] ${m}`),
+      repoContext: fixture.repoContext,
+      effort: loaded.value.generator.effort,
+    });
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+    console.info(JSON.stringify(result.value.brief, null, 2).slice(0, 2000));
     console.error("[probe] SUCCESS — full schema accepted");
   } catch (error) {
     console.error("[probe] FAILURE — full error follows:");

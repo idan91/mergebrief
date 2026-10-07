@@ -20,7 +20,7 @@ import {
   type RunInputs,
 } from "../types";
 import { buildAttemptFields } from "../utils";
-import { generateBrief, recoverStoredBrief } from "./brief-generation";
+import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
 import { throwOnGitHubFailure } from "./errors";
 import { createSpendCharge } from "./spend-gate";
@@ -68,7 +68,7 @@ async function generateFreshBrief(
   generator: Generator,
 ): Promise<ProducedBrief> {
   const { deps, payload } = context;
-  const generated = await generateBrief(payload, {
+  const generated = await writeFreshBrief(payload, {
     fullRegeneration: deps.fullRegeneration,
     anchorGenerator: deps.generator,
     effort: deps.effort,
@@ -83,7 +83,6 @@ async function generateFreshBrief(
     prevBrief: context.prevBrief,
     prevSpanFetch: inputs.prevSpanFetch,
     prInfo: context.prInfo,
-    files: inputs.files,
     diff: inputs.diff,
     locator: inputs.locator,
     meta: inputs.meta,

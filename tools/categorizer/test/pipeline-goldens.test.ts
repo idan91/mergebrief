@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { categorize } from "brief-core";
+import { generateBrief, type GenerateBriefOptions } from "brief-core";
 import type { Brief } from "brief-core/types";
-import type { Effort } from "generators";
+import type { Effort, Generator } from "generators";
 import { loadCases, type EvalCase, type EvalFixture } from "../eval/loadCase";
 import { loadPairCases, runPairCase, type PairCase } from "../eval/pairs";
 import {
@@ -35,6 +35,17 @@ const RISK_ATTRIBUTE_DROP = "dropped comment-contradicts-code";
 interface GoldenRun {
   requests: readonly RecordedRequest[];
   output: unknown;
+}
+
+interface AnchoringGolden {
+  baseGroupIds: readonly string[];
+  frozenGroupIds: readonly string[];
+  reLook: readonly { id: string; reason: string | undefined }[];
+  previousGroupIds: readonly string[];
+  carriedChunkIds: readonly string[];
+  carriedGroupIds: readonly string[];
+  regeneratedGroupIds: readonly string[];
+  groupIds: readonly string[];
 }
 
 interface AdversarialRun {
@@ -71,21 +82,31 @@ async function loadPairs(): Promise<PairCase[]> {
   return loaded.value;
 }
 
+function makeOptions(
+  fixture: EvalFixture,
+  headIndex: number,
+  generator: Generator,
+): GenerateBriefOptions {
+  return {
+    pr: fixture.pr,
+    headIndex,
+    commitRange: fixture.commitRange,
+    generator,
+    effort: EFFORT,
+    repoContext: fixture.repoContext,
+  };
+}
+
 async function runSingleCase(evalCase: EvalCase): Promise<GoldenRun> {
   const { fixture } = evalCase;
   const generator = makeCannedGenerator();
 
-  const brief = await categorize(
-    fixture.pr,
-    1,
-    fixture.commitRange,
-    generator,
-    () => {},
-    fixture.repoContext,
-    EFFORT,
-  );
+  const result = await generateBrief(makeOptions(fixture, 1, generator));
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
 
-  return { requests: generator.requests, output: brief };
+  return { requests: generator.requests, output: result.value.brief };
 }
 
 async function runPair(
@@ -102,6 +123,44 @@ async function runPair(
     requests: generator.requests,
     output: { base: pair.base, revised: pair.revised },
   };
+}
+
+async function runAnchoring(
+  pairCase: PairCase,
+  chainGroupIds: readonly string[],
+): Promise<AnchoringGolden> {
+  const { fixture } = pairCase;
+  const generator = makeCannedGenerator();
+
+  const base = await generateBrief(makeOptions(fixture.base, 1, generator));
+  if (!base.ok) {
+    throw new Error(base.error.message);
+  }
+  const revised = await generateBrief({
+    ...makeOptions(fixture.revised, 2, generator),
+    previous: { brief: base.value.brief, ...fixture.increment, chainGroupIds },
+  });
+  if (!revised.ok || revised.value.anchoring === undefined) {
+    throw new Error(`${pairCase.id}: the anchored run returned no anchoring`);
+  }
+
+  const { plan, ...carry } = revised.value.anchoring;
+  return {
+    baseGroupIds: base.value.brief.changeGroups.map((group) => group.id),
+    frozenGroupIds: plan.frozen.map((frozen) => frozen.group.id),
+    reLook: plan.reLook.map(({ id, reason }) => ({ id, reason })),
+    previousGroupIds: plan.previousGroupIds,
+    carriedChunkIds: carry.carriedChunkIds,
+    carriedGroupIds: carry.carriedGroupIds,
+    regeneratedGroupIds: carry.regeneratedGroupIds,
+    groupIds: revised.value.brief.changeGroups.map((group) => group.id),
+  };
+}
+
+function listMintedGroupIds(golden: AnchoringGolden): string[] {
+  return golden.regeneratedGroupIds.filter(
+    (id) => !golden.baseGroupIds.includes(id),
+  );
 }
 
 async function runAdversarialPair(
@@ -235,6 +294,42 @@ describe("request goldens", () => {
 describe("brief goldens", () => {
   it.each(caseIds)("%s produces the recorded brief", (caseId) => {
     expect(serializeGolden(requireRun(caseId).output)).toMatchSnapshot();
+  });
+});
+
+describe("anchoring goldens", () => {
+  it.each(pairCases)(
+    "$id records the plan and the carried set",
+    async (pairCase) => {
+      const golden = await runAnchoring(pairCase, []);
+
+      expect(serializeGolden(golden)).toMatchSnapshot();
+    },
+  );
+
+  it("skips reserved chain ids when descent mints a group id", async () => {
+    const unchained = await Promise.all(
+      pairCases.map(async (pairCase) => ({
+        pairCase,
+        minted: listMintedGroupIds(await runAnchoring(pairCase, [])),
+      })),
+    );
+    const minting = unchained.find((found) => found.minted.length > 0);
+    if (minting === undefined) {
+      throw new Error("no pair case mints a group id under descent");
+    }
+
+    const chained = await runAnchoring(minting.pairCase, minting.minted);
+
+    expect(chained.previousGroupIds).toEqual(
+      expect.arrayContaining(minting.minted),
+    );
+    expect(
+      chained.groupIds.filter((id) => minting.minted.includes(id)),
+    ).toEqual([]);
+    expect(
+      serializeGolden({ caseId: minting.pairCase.id, chained }),
+    ).toMatchSnapshot();
   });
 });
 

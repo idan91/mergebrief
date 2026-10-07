@@ -4,13 +4,13 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import { AnchorStates, type Mutable, type Result } from "types";
 import {
-  categorize,
-  parseChangedRanges,
+  generateBrief,
   planAnchoredGeneration,
-  stitchBrief,
   type AnchorPlan,
   type CompareFile,
   type CompareFiles,
+  type GenerateBriefOptions,
+  type GenerateBriefResult,
 } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
@@ -31,7 +31,7 @@ import type { CaseOutcome } from "./report";
 import { persistRunBriefs } from "./specimens";
 
 /**
- * Pair properties run the production categorize/plan/categorize/stitch pipeline.
+ * Pair properties run the production `generateBrief` entry, fresh then anchored.
  * Unbaselined cases withhold verdicts. Establish baselines only through explicit review
  * after proving that deliberately broken pairs fail their predicates.
  */
@@ -281,6 +281,71 @@ export interface PairRunResult {
  */
 export type PairRunMode = "anchored" | "fresh";
 
+function makeFixtureOptions(
+  fixture: EvalFixture,
+  headIndex: number,
+  generator: Generator,
+  effort: Effort,
+): GenerateBriefOptions {
+  return {
+    pr: fixture.pr,
+    headIndex,
+    commitRange: fixture.commitRange,
+    generator,
+    effort,
+    repoContext: fixture.repoContext,
+  };
+}
+
+function unwrapBrief(result: GenerateBriefResult): Brief {
+  if (!result.ok) {
+    throw new Error(`stitch failed: ${result.error.message}`);
+  }
+  return result.value.brief;
+}
+
+async function runPair(
+  fixture: PairFixture,
+  generator: Generator,
+  effort: Effort,
+  mode: PairRunMode,
+): Promise<RevisionPair> {
+  const base = unwrapBrief(
+    await generateBrief(makeFixtureOptions(fixture.base, 1, generator, effort)),
+  );
+  const revisedOptions = makeFixtureOptions(
+    fixture.revised,
+    2,
+    generator,
+    effort,
+  );
+
+  if (mode === "fresh") {
+    // No stitch and no anchor stamp, the anchored-path guarantees are
+    // absent by design. The plan rides along for inspection.
+    const plan = planAnchoredGeneration({
+      previousBrief: base,
+      ...fixture.increment,
+    });
+    const revised = unwrapBrief(await generateBrief(revisedOptions));
+    return { base, revised, plan };
+  }
+
+  const result = await generateBrief({
+    ...revisedOptions,
+    previous: { brief: base, ...fixture.increment },
+  });
+  const revised = unwrapBrief(result);
+  if (!result.ok || result.value.anchoring === undefined) {
+    throw new Error("anchored run returned no plan");
+  }
+  return {
+    base,
+    revised: { ...revised, anchor: { state: AnchorStates.ANCHORED } },
+    plan: result.value.anchoring.plan,
+  };
+}
+
 export async function runPairCase(
   pairCase: PairCase,
   generator: Generator,
@@ -297,58 +362,8 @@ export async function runPairCase(
     progress(`  ${pairCase.id}: run ${run}/${runs} (base + revision)…`);
     try {
       // oxlint-disable-next-line no-await-in-loop -- serial by design (see runCase)
-      const base = await categorize(
-        fixture.base.pr,
-        1,
-        fixture.base.commitRange,
-        generator,
-        () => {},
-        fixture.base.repoContext,
-        effort,
-      );
-      const plan = planAnchoredGeneration({
-        previousBrief: base,
-        incrementalDiff: fixture.increment.incrementalDiff,
-        compareFiles: fixture.increment.compareFiles,
-        baseShaMoved: fixture.increment.baseShaMoved,
-      });
-      // oxlint-disable-next-line no-await-in-loop -- serial by design
-      const generated = await categorize(
-        fixture.revised.pr,
-        2,
-        fixture.revised.commitRange,
-        generator,
-        () => {},
-        fixture.revised.repoContext,
-        effort,
-        mode === "anchored"
-          ? {
-              previousBrief: base,
-              frozenGroupIds: plan.frozen.map((carry) => carry.group.id),
-            }
-          : undefined,
-      );
-      if (mode === "fresh") {
-        // No stitch and no anchor stamp, the anchored-path guarantees are
-        // absent by design. The plan rides along for inspection.
-        pairs.push({ base, revised: generated, plan });
-        runNumbers.push(run);
-        continue;
-      }
-      const stitched = stitchBrief({
-        generated,
-        plan,
-        prFiles: fixture.revised.pr.meta.files.map((file) => file.path),
-        changedFiles: parseChangedRanges(fixture.revised.pr.diff),
-      });
-      if (!stitched.ok) {
-        throw new Error(`stitch failed: ${stitched.error.message}`);
-      }
-      const revised: Brief = {
-        ...stitched.value.brief,
-        anchor: { state: AnchorStates.ANCHORED },
-      };
-      pairs.push({ base, revised, plan });
+      const pair = await runPair(fixture, generator, effort, mode);
+      pairs.push(pair);
       runNumbers.push(run);
     } catch (error) {
       failureMessages.push(

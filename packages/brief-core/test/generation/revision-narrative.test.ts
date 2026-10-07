@@ -647,6 +647,35 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(narrative["headIndex"]).toBe(2);
   });
 
+  it("anchors a follow-up brief on the previous brief from disk", async () => {
+    class BriefRecordingGenerator extends FakeGenerator {
+      readonly briefUsers: string[] = [];
+      override async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
+        if (req.label === "brief") {
+          this.briefUsers.push(req.user);
+        }
+        return super.generate(req);
+      }
+    }
+    const generator = new BriefRecordingGenerator();
+    await firstBrief(generator);
+    fetched.meta = makeMeta(HEAD_2);
+
+    const brief = await generateAndWrite(
+      dir,
+      URL,
+      undefined,
+      generator,
+      () => {},
+    );
+
+    expect(generator.briefUsers[0]).not.toContain("<anchor_brief");
+    expect(generator.briefUsers[1]).toContain("<anchor_brief");
+    expect(brief.anchor).toEqual({ state: "anchored" });
+  });
+
   // Pins the CLI call-site wiring of `marksFiles`: if the caller drops it, both
   // overlap directions silently stop running and no other assertion notices.
   it("lands coverage warnings when the model under-covers the span", async () => {

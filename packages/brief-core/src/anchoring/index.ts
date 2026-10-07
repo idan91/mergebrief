@@ -282,7 +282,7 @@ export function stitchBrief(
   args: StitchArgs,
 ): Result<StitchResult, StitchError> {
   const { plan, prFiles } = args;
-  const warnings: string[] = [];
+  const issues: string[] = [];
 
   // The model can resurrect files removed from the PR because they remain in the anchor
   // or re-look diff. Drop them before judging claims so they cannot survive or supply evidence.
@@ -295,8 +295,8 @@ export function stitchBrief(
     ),
   ];
   for (const file of departedFiles) {
-    warnings.push(
-      `anchored stitch: generated chunk on ${file} dropped — the PR no longer changes it`,
+    issues.push(
+      `generated chunk on ${file} dropped — the PR no longer changes it`,
     );
   }
   const generated =
@@ -338,20 +338,20 @@ export function stitchBrief(
     );
     if (overlaps && newEvidence) {
       claimedIds.add(group.id);
-      warnings.push(
-        `anchored stitch: frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
+      issues.push(
+        `frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
       );
     } else if (overlaps) {
       // The re-emission holds nothing beyond the group's own frozen files,
       // no new file is joining, so there is no claim evidence (the re-look
       // diff cannot have touched a frozen file by construction). The carry
       // survives; the model's drift is discarded with the frozen chunks.
-      warnings.push(
-        `anchored stitch: frozen group ${group.id} re-emitted without a new file — no claim evidence, carry kept`,
+      issues.push(
+        `frozen group ${group.id} re-emitted without a new file — no claim evidence, carry kept`,
       );
     } else {
-      warnings.push(
-        `anchored stitch: generated group reused frozen id ${group.id} without its files — treated as a numbering slip, not a claim`,
+      issues.push(
+        `generated group reused frozen id ${group.id} without its files — treated as a numbering slip, not a claim`,
       );
     }
   }
@@ -476,9 +476,7 @@ export function stitchBrief(
   // ---- overlap report over the MERGED chunk set ---------------------------
   // Replaces categorize()'s lines, which name model tmp chunk ids that the
   // id re-mint above may have reassigned in the stored artifact.
-  for (const issue of detectChunkOverlaps(mergedChunks)) {
-    warnings.push(`anchored stitch: ${issue}`);
-  }
+  issues.push(...detectChunkOverlaps(mergedChunks));
 
   // ---- unattributed remainder over the MERGED chunk set -------------------
   // categorize() skips this on anchored runs; only the stitch sees carried +
@@ -486,8 +484,8 @@ export function stitchBrief(
   const unattributed = deriveUnattributed(mergedChunks, [...args.changedFiles]);
   if (unattributed.length > 0) {
     const gap = unattributedTotals(unattributed);
-    warnings.push(
-      `anchored stitch: ${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
+    issues.push(
+      `${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
     );
   }
 
@@ -507,8 +505,8 @@ export function stitchBrief(
       readingOrder = mapped;
     } else {
       readingOrder = undefined;
-      warnings.push(
-        "anchored stitch: reading order dropped — not a permutation of the merged groups",
+      issues.push(
+        "reading order dropped — not a permutation of the merged groups",
       );
     }
   }
@@ -533,8 +531,8 @@ export function stitchBrief(
       items.flatMap((item) => {
         const groupIds = rewriteIds(item.groupIds);
         if (requiresAnchor && groupIds.length === 0) {
-          warnings.push(
-            `anchored stitch: intent item dropped (dangling group anchor) — ${item.intent}`,
+          issues.push(
+            `intent item dropped (dangling group anchor) — ${item.intent}`,
           );
           return [];
         }
@@ -579,8 +577,8 @@ export function stitchBrief(
   if (ungrouped.length > 0) {
     // Named, not counted: a file with no parsed ranges never reaches the
     // remainder above, so this line is the only place it is reported.
-    warnings.push(
-      `anchored stitch: ${String(ungrouped.length)} file(s) in no group — ${ungrouped.toSorted().join(", ")}`,
+    issues.push(
+      `${String(ungrouped.length)} file(s) in no group — ${ungrouped.toSorted().join(", ")}`,
     );
   }
   // Backstop for the mechanical guarantee: a carried group may only describe
@@ -606,16 +604,12 @@ export function stitchBrief(
 
   // Full structural validators on the artifact actually persisted,
   // warn-register, matching their fresh-path posture.
-  for (const issue of validatePartition(mergedGroups, mergedChunks)) {
-    warnings.push(`anchored stitch: ${issue}`);
-  }
+  issues.push(...validatePartition(mergedGroups, mergedChunks));
   // Length floor over the MERGED artifact, carried groups included, so a
   // pre-cap carry is measured too; replaces the partial stamp `categorize()`
   // computed on the re-emitted regions alone.
   const textLength = validateTextLength(mergedGroups, mergedChunks);
-  for (const issue of textLength.issues) {
-    warnings.push(`anchored stitch: ${issue}`);
-  }
+  issues.push(...textLength.issues);
 
   const carriedGroupIds = carriedIds;
   const regeneratedGroupIds = keptGroups.flatMap((group) => {
@@ -630,7 +624,8 @@ export function stitchBrief(
     (line) =>
       !line.includes("text length issues") && !line.includes("loc overlap"),
   );
-  const mergedWarnings = [...priorWarnings, ...warnings];
+  const stitchWarnings = issues.map((issue) => `anchored stitch: ${issue}`);
+  const mergedWarnings = [...priorWarnings, ...stitchWarnings];
   const brief: Brief = {
     ...generated,
     changeGroups: mergedGroups,
@@ -668,6 +663,7 @@ export function stitchBrief(
       carriedGroupIds,
       carriedChunkIds: carriedChunks.map((chunk) => chunk.id),
       regeneratedGroupIds,
+      issues,
     },
   };
 }

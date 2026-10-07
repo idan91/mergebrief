@@ -1,11 +1,10 @@
 import type {
-  AnchorPlan,
-  AnchorViewInput,
   Brief,
   ContextFetch,
   ContextProvider,
   PrLocator,
   PrMetadata,
+  PreviousBriefInput,
   RevisionNarrativeConfig,
   SharedRootDeps,
 } from "brief-core";
@@ -208,9 +207,8 @@ export interface AnchorDecisionInputs {
 
 export interface AnchorDecision {
   readonly anchor: Anchor;
-  /** Present only when the run anchors; drives the post-generation stitch. */
-  readonly anchorPlan: AnchorPlan | undefined;
-  readonly anchorView: AnchorViewInput | undefined;
+  /** Present only when the run anchors; brief-core plans and stitches from it. */
+  readonly previous: PreviousBriefInput | undefined;
   /** Every group id the PR's chain has used, resolved even on a fresh restart. */
   readonly chainGroupIds: readonly string[];
 }
@@ -436,7 +434,6 @@ export interface BriefGenerationInputs {
   /** The prevHead...head compare diff Result, fetched once by the caller. */
   readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
   readonly prInfo: PullRequestInfo;
-  readonly files: readonly PullRequestFile[];
   readonly diff: string;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;

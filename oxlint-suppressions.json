@@ -410,14 +410,6 @@
       "count": 2
     }
   },
-  "packages/brief-core/src/anchoring/types.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/comment-density": {
-      "count": 1
-    }
-  },
   "packages/brief-core/src/cli/config.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -986,11 +978,6 @@
       "count": 3
     },
     "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/scripts/probe-sol-fullschema.ts": {
-    "house/no-em-dash": {
       "count": 1
     }
   },

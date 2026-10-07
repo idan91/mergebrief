@@ -1,9 +1,8 @@
 import {
-  categorize,
-  parseChangedRanges,
-  stitchBrief,
+  generateBrief,
   type Brief,
   type FetchedPr,
+  type GenerateBriefOptions,
 } from "brief-core";
 import { checkBriefForWrite, STORED_BODY_VERSION } from "brief-core/artifact";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
@@ -25,11 +24,11 @@ import { runGenerator } from "./errors";
 import { throwOnClaimLost } from "./supersession-watch";
 
 /**
- * The fresh-brief path: anchor decision, the generating Entry, the model
- * call, the anchored stitch and the brief write. The anchor decision runs
- * BEFORE the GENERATING phase mark; the stitch's coverage failure is permanent.
+ * The fresh-brief path: anchor decision, the generating Entry, brief-core's
+ * generation and the brief write. The anchor decision runs BEFORE the
+ * GENERATING phase mark; the stitch's coverage failure is permanent.
  */
-export async function generateBrief(
+export async function writeFreshBrief(
   payload: ParsedGeneratePayload,
   inputs: BriefGenerationInputs,
 ): Promise<GeneratedBrief> {
@@ -45,7 +44,6 @@ export async function generateBrief(
     prevBrief,
     prevSpanFetch,
     prInfo,
-    files,
     diff,
     locator,
     meta,
@@ -58,21 +56,18 @@ export async function generateBrief(
   const { pullRequestId, headSha } = payload;
 
   const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
-  const { anchor, anchorPlan, anchorView, chainGroupIds } = await decideAnchor(
-    payload,
-    {
-      store,
-      source,
-      fullRegeneration,
-      generator: anchorGenerator,
-      effort,
-      prevBrief,
-      priorBriefs,
-      prevSpanFetch,
-      baseSha: prInfo.baseSha,
-      log,
-    },
-  );
+  const { anchor, previous, chainGroupIds } = await decideAnchor(payload, {
+    store,
+    source,
+    fullRegeneration,
+    generator: anchorGenerator,
+    effort,
+    prevBrief,
+    priorBriefs,
+    prevSpanFetch,
+    baseSha: prInfo.baseSha,
+    log,
+  });
   await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
     const generatingBody = entryCommentGeneratingBody(
@@ -83,45 +78,33 @@ export async function generateBrief(
   const { links, primaryTicket } = await loadContext();
   const fetchedPr: FetchedPr = { locator, meta, diff, links };
   if (primaryTicket !== undefined) fetchedPr.primaryTicket = primaryTicket;
-  const brief = await runGenerator(
-    () =>
-      categorize(
-        fetchedPr,
-        headIndex,
-        {
-          base: prInfo.baseSha,
-          head: headSha,
-          commitCount: prInfo.commitCount,
-        },
-        generator,
-        coreMessageLog,
-        repoConfig?.repoContext,
-        effort,
-        anchorView,
-      ),
+  const options: GenerateBriefOptions = {
+    pr: fetchedPr,
+    headIndex,
+    commitRange: {
+      base: prInfo.baseSha,
+      head: headSha,
+      commitCount: prInfo.commitCount,
+    },
+    generator,
+    effort,
+    repoContext: repoConfig?.repoContext,
+    log: coreMessageLog,
+    previous,
+  };
+  const generated = await runGenerator(
+    () => generateBrief(options),
     log,
     GenerationKinds.BRIEF,
   );
   await advancePhase(inputs, GenerationPhases.WRITING);
-  // Anchored stitch: carry frozen groups verbatim over the model's take,
-  // rewrite ids by descent, enforce coverage. A coverage failure is a
-  // pipeline error, permanent, never salvage.
-  let finalBrief = brief;
-  let carriedChunkIds: readonly string[] = [];
-  if (anchorPlan !== undefined) {
-    const stitched = stitchBrief({
-      generated: brief,
-      plan: anchorPlan,
-      prFiles: files.map((file) => file.path),
-      changedFiles: parseChangedRanges(diff),
-    });
-    if (!stitched.ok) {
-      throw new PermanentJobError(stitched.error.message);
-    }
-    finalBrief = stitched.value.brief;
-    carriedChunkIds = stitched.value.carriedChunkIds;
+  // A stitch coverage failure is a pipeline error, permanent, never salvage.
+  if (!generated.ok) {
+    throw new PermanentJobError(generated.error.message);
   }
-  const stamped: Brief = { ...finalBrief, anchor };
+  const { brief, anchoring } = generated.value;
+  const carriedChunkIds = anchoring?.carriedChunkIds ?? [];
+  const stamped: Brief = { ...brief, anchor };
   const briefWrite: Mutable<BriefWriteInput> = {
     pullRequestId,
     baseSha: prInfo.baseSha,

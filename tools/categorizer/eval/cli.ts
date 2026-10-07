@@ -12,7 +12,7 @@ import {
   type TokenUsage,
 } from "generators";
 import type { Result } from "types/utils";
-import { categorize } from "brief-core";
+import { generateBrief } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
 import {
   BaselineModes,
@@ -205,15 +205,18 @@ async function evaluateCase(
   const generate = async () => {
     run += 1;
     progress(`  ${evalCase.id}: run ${run}/${runs}…`);
-    return categorize(
-      fixture.pr,
-      1,
-      fixture.commitRange,
+    const result = await generateBrief({
+      pr: fixture.pr,
+      headIndex: 1,
+      commitRange: fixture.commitRange,
       generator,
-      () => {},
-      fixture.repoContext,
       effort,
-    );
+      repoContext: fixture.repoContext,
+    });
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+    return result.value.brief;
   };
   const result = await runCase(generate, runs);
   persistRunBriefs(join(OUT_DIR, "eval-runs", evalCase.id), result);

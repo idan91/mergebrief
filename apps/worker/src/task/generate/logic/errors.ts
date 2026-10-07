@@ -128,6 +128,14 @@ export async function runGenerator<T>(
     emit(GenerationStatuses.SUCCEEDED);
     return value;
   } catch (error) {
+    // A step the call drives, not the generator, threw an already classified
+    // error: it keeps its class and is no generator outcome.
+    if (
+      error instanceof PermanentJobError ||
+      error instanceof TransientJobError
+    ) {
+      throw error;
+    }
     emit(GenerationStatuses.FAILED);
     if (isTransientGenerationError(error)) {
       throw error instanceof Error ? error : new Error(String(error));

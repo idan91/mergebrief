@@ -1902,6 +1902,404 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
 }"
 `;
 
+exports[`anchoring goldens > 'pair-additive' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-ask-edit' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-boundary-restructure' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-intent-transition' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-meaning-changing' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-new-material' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1",
+    "c2"
+  ],
+  "carriedGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "frozenGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "groupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": [
+    "g3"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-real-brief143-docs' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-rebase-noise' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [],
+  "carriedGroupIds": [],
+  "frozenGroupIds": [],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g1",
+      "reason": "base SHA moved (rebase/base-advance) — three-dot span data untrusted"
+    },
+    {
+      "id": "g2",
+      "reason": "base SHA moved (rebase/base-advance) — three-dot span data untrusted"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g1",
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-risk-add' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-risk-remove' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-subtractive' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+    }
+  ],
+  "regeneratedGroupIds": []
+}"
+`;
+
+exports[`anchoring goldens > skips reserved chain ids when descent mints a group id 1`] = `
+"{
+  "caseId": "pair-intent-transition",
+  "chained": {
+    "baseGroupIds": [
+      "g1"
+    ],
+    "carriedChunkIds": [
+      "c1"
+    ],
+    "carriedGroupIds": [
+      "g1"
+    ],
+    "frozenGroupIds": [
+      "g1"
+    ],
+    "groupIds": [
+      "g1",
+      "g3"
+    ],
+    "previousGroupIds": [
+      "g1",
+      "g2"
+    ],
+    "reLook": [],
+    "regeneratedGroupIds": [
+      "g3"
+    ]
+  }
+}"
+`;
+
 exports[`brief goldens > button-under-split produces the recorded brief 1`] = `
 "{
   "changeGroups": [

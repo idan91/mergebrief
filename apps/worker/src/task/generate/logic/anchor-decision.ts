@@ -1,4 +1,4 @@
-import type { AnchorPlan, AnchorViewInput } from "brief-core";
+import type { PreviousBriefInput } from "brief-core";
 import {
   FreshRestartReasons,
   FullRegenerations,
@@ -12,7 +12,7 @@ import {
   recoverStoredBody,
   resolveChainGroupIds,
 } from "../utils";
-import { planAnchoredRun } from "./anchored-run";
+import { buildPreviousBriefInput } from "./anchored-run";
 
 /**
  * Whether this run anchors on the previous brief, restarts fresh, or has
@@ -39,8 +39,7 @@ export async function decideAnchor(
 
   const policy = fullRegeneration ?? FullRegenerations.NEVER;
   let anchor: Anchor = { state: AnchorStates.NONE };
-  let anchorPlan: AnchorPlan | undefined;
-  let anchorView: AnchorViewInput | undefined;
+  let previous: PreviousBriefInput | undefined;
 
   // The chain's used-id set rides ahead of the anchoring decision: even a
   // fresh restart keeps history reserved, or descent could resurrect a
@@ -102,7 +101,7 @@ export async function decideAnchor(
         `generate: fresh restart — model swapped (${prevRow.provider}/${prevRow.model} → ${current.provider}/${current.model})`,
       );
     } else if (previousBody !== undefined) {
-      const anchored = await planAnchoredRun(payload, {
+      previous = await buildPreviousBriefInput(payload, {
         store,
         source,
         prevBrief,
@@ -112,11 +111,9 @@ export async function decideAnchor(
         baseSha,
         log,
       });
-      anchorPlan = anchored.plan;
       anchor = { state: AnchorStates.ANCHORED };
-      anchorView = anchored.view;
     }
   }
 
-  return { anchor, anchorPlan, anchorView, chainGroupIds };
+  return { anchor, previous, chainGroupIds };
 }

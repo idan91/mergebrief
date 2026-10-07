@@ -1,17 +1,19 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { AnchorStates } from "types/generations";
+import { isCompleteBrief, readStoredBrief } from "../artifact";
 import {
   ghPrSource,
   isCommitish,
   parsePrUrl,
   type FetchedPr,
+  type PrLocator,
   type PrSource,
 } from "../github";
-import {
-  categorize,
-  categorizeRevisionNarrative,
-} from "../generation/categorize";
+import { generateBrief } from "../generation/brief";
+import type { PreviousBriefInput } from "../generation/brief/types";
+import { categorizeRevisionNarrative } from "../generation/categorize";
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
@@ -54,6 +56,7 @@ import {
   type RevisionNarrativeConfig,
 } from "../generation/config";
 import {
+  briefId,
   commentsName,
   diffsName,
   outName,
@@ -186,6 +189,88 @@ export interface GenerateOptions {
   readonly hugeSpanRatio?: number | undefined;
 }
 
+/** The previous brief's head, the span since it, and its body when readable. */
+interface PriorBrief {
+  headSha: string;
+  span: string;
+  brief?: Brief;
+}
+
+interface PriorBriefLookup {
+  outDir: string;
+  stem: string;
+  index: number;
+  locator: PrLocator;
+  head: string;
+  source: PrSource;
+  log: (msg: string) => void;
+}
+
+async function readBriefFile(
+  path: string,
+  log: (msg: string) => void,
+): Promise<Brief | undefined> {
+  let json: string;
+  try {
+    json = await readFile(path, "utf8");
+  } catch {
+    log(`previous brief ${path} unreadable; generating fresh`);
+    return undefined;
+  }
+
+  const read = readStoredBrief(json);
+  if (!read.ok) {
+    log(`previous brief ${path} is not a complete brief; generating fresh`);
+    return undefined;
+  }
+  const { brief } = read.value;
+  const complete = isCompleteBrief(brief);
+  if (!complete) {
+    log(`previous brief ${path} is not a complete brief; generating fresh`);
+    return undefined;
+  }
+  return brief;
+}
+
+/** The brief at index - 1, found through the manifest; absent on a first brief. */
+async function readPriorBrief(
+  lookup: PriorBriefLookup,
+): Promise<PriorBrief | undefined> {
+  const { outDir, stem, index, locator, head, source, log } = lookup;
+  const prevIndex = index - 1;
+  if (prevIndex < 1) {
+    return undefined;
+  }
+  const headSha = await lookupBriefShaByIndex(outDir, stem, prevIndex);
+  if (headSha === null) {
+    return undefined;
+  }
+
+  const span = await source.fetchCompareDiff(locator, headSha, head);
+  const prior: PriorBrief = { headSha, span };
+  const path = join(outDir, `${briefId(stem, prevIndex, headSha)}.brief.json`);
+  const brief = await readBriefFile(path, log);
+  if (brief !== undefined) {
+    prior.brief = brief;
+  }
+  return prior;
+}
+
+/** No compare file list on the CLI's source, so the plan re-looks every group. */
+function buildPreviousInput(
+  prior: PriorBrief | undefined,
+  commitRange: CommitRange,
+): PreviousBriefInput | undefined {
+  if (prior?.brief === undefined) {
+    return undefined;
+  }
+  return {
+    brief: prior.brief,
+    incrementalDiff: prior.span,
+    baseShaMoved: prior.brief.commitRange.base !== commitRange.base,
+  };
+}
+
 /**
  * Generate one brief and write its artifacts under `outDir`: the diff and
  * metadata fetch, the model call, and the brief, diffs and comments sidecars.
@@ -220,19 +305,36 @@ export async function generateAndWrite(
     pr.locator.number,
   );
   const index = await assignBriefIndex(outDir, stem, commitRange.head);
+  const prior = await readPriorBrief({
+    outDir,
+    stem,
+    index,
+    locator: pr.locator,
+    head: commitRange.head,
+    source,
+    log,
+  });
   log(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
-  const brief = await categorize(
+  const previous = buildPreviousInput(prior, commitRange);
+  const generated = await generateBrief({
     pr,
-    index,
+    headIndex: index,
     commitRange,
     generator,
-    log,
-    undefined,
     effort,
-  );
+    log,
+    previous,
+  });
+  if (!generated.ok) {
+    throw new Error(generated.error.message);
+  }
+  const { brief } = generated.value;
+  if (previous !== undefined) {
+    brief.anchor = { state: AnchorStates.ANCHORED };
+  }
 
   // An unread primary is surfaced, never silent; the brief still lands.
   const primaryTicket = brief.intentCheck?.primaryTicket;
@@ -258,53 +360,45 @@ export async function generateAndWrite(
 
   // Comparison marks + revision narrative, absent on the first brief (no
   // previous head). Marks use the same three-dot compare diff as the delta.
-  if (index > 1) {
-    const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
-    if (prevHeadSha) {
-      const revDiff = await source.fetchCompareDiff(
-        pr.locator,
-        prevHeadSha,
-        commitRange.head,
-      );
+  if (prior !== undefined) {
+    const prevHeadSha = prior.headSha;
+    // Never caught: a marks failure means comparison data is unavailable and
+    // must surface loudly, unlike a narrative failure below.
+    const marks = buildComparisonMarks(
+      commitRange.head,
+      prevHeadSha,
+      "previous-brief",
+      index - 1,
+      prior.span,
+    );
+    await writeComparisonMarks(outDir, stem, marks, log);
 
-      // Never caught: a marks failure means comparison data is unavailable and
-      // must surface loudly, unlike a narrative failure below.
-      const marks = buildComparisonMarks(
-        commitRange.head,
-        prevHeadSha,
-        "previous-brief",
-        index - 1,
-        revDiff,
-      );
-      await writeComparisonMarks(outDir, stem, marks, log);
+    // Back-compat alias kept while the FE migrates off `.revchanges.json`.
+    // Derived from the marks above, the diff is never scanned twice.
+    const revChanges: RevisionChanges = {
+      headSha: commitRange.head,
+      prevHeadSha,
+      prevIndex: index - 1,
+      files: marks.files,
+    };
+    const revFile = join(outDir, revChangesName(brief));
+    await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
+    log(`wrote ${revFile} (compat alias)`);
 
-      // Back-compat alias kept while the FE migrates off `.revchanges.json`.
-      // Derived from the marks above, the diff is never scanned twice.
-      const revChanges: RevisionChanges = {
-        headSha: commitRange.head,
-        prevHeadSha,
-        prevIndex: index - 1,
-        files: marks.files,
-      };
-      const revFile = join(outDir, revChangesName(brief));
-      await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
-      log(`wrote ${revFile} (compat alias)`);
-
-      await generateAndWriteRevisionNarrative({
-        outDir,
-        pr,
-        brief,
-        prevHeadSha,
-        prevIndex: index - 1,
-        incrementalDiff: revDiff,
-        marksFiles: marks.files,
-        generator,
-        log,
-        effort,
-        revisionNarrative: options.revisionNarrative,
-        hugeSpanRatio: options.hugeSpanRatio,
-      });
-    }
+    await generateAndWriteRevisionNarrative({
+      outDir,
+      pr,
+      brief,
+      prevHeadSha,
+      prevIndex: index - 1,
+      incrementalDiff: prior.span,
+      marksFiles: marks.files,
+      generator,
+      log,
+      effort,
+      revisionNarrative: options.revisionNarrative,
+      hugeSpanRatio: options.hugeSpanRatio,
+    });
   }
   return brief;
 }

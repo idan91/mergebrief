@@ -57,7 +57,6 @@ export {
   toPrimaryTicket,
 } from "./context";
 export {
-  categorize,
   categorizeDelta,
   categorizeRevisionNarrative,
   type DeltaInput,
@@ -181,9 +180,13 @@ export {
   type StoredPrStack,
 } from "./pr-stack";
 export { generateAndWrite, type Range } from "./cli/categorize";
-// Anchored generation: the pure plan + stitch helpers the worker's generate
-// task and the eval harness's revision-pair runner both run.
-export { planAnchoredGeneration, stitchBrief } from "./anchoring";
+export { generateBrief } from "./generation/brief";
+export type {
+  GenerateBriefOptions,
+  GenerateBriefResult,
+  PreviousBriefInput,
+} from "./generation/brief/types";
+export { planAnchoredGeneration } from "./anchoring";
 export type {
   AnchorPlan,
   AnchorPlanArgs,

@@ -9,6 +9,7 @@ import {
   type GitHubApiError,
   type PullRequestInfo,
 } from "github";
+import { TransientJobError } from "../../src/task/failure";
 import type { GenerateTaskDeps } from "../../src/task/generate";
 import {
   BASE,
@@ -106,6 +107,16 @@ function makeTwoGroupBriefOutput(
 
 const BUILT_IN_RISK = "dense-logic";
 
+/** Every hunk_span insert throws a Postgres error, as a lost connection would. */
+async function refuseHopWrites(): Promise<void> {
+  await harness.raw(
+    "create function refuse_hop() returns trigger language plpgsql as $$ begin raise exception 'hop write refused'; end $$",
+  );
+  await harness.raw(
+    "create trigger refuse_hop before insert on hunk_span for each row execute function refuse_hop()",
+  );
+}
+
 setUpHarness();
 
 describe("generate task, anchored generation", () => {
@@ -124,6 +135,8 @@ describe("generate task, anchored generation", () => {
     };
     /** Make the second revision's model call fail (the hop must survive). */
     rev2FailWith?: unknown;
+    /** Make the second revision's hop write throw. */
+    rev2HopRefused?: boolean;
     /** Fail the second revision's compare-files fetch. */
     rev2CompareFilesError?: GitHubApiError;
     rev1Output?: unknown;
@@ -199,6 +212,10 @@ describe("generate task, anchored generation", () => {
       generator.failNextWith = options.rev2FailWith;
       // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
       await expect(task(second.payload)).rejects.toThrow(GeneratorError);
+    } else if (options.rev2HopRefused === true) {
+      await refuseHopWrites();
+      // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
+      await expect(task(second.payload)).rejects.toThrow(TransientJobError);
     } else {
       await task(second.payload);
     }
@@ -427,6 +444,31 @@ describe("generate task, anchored generation", () => {
     // can still place its anchors across the push.
     expect(await store.briefs.get(pr.id, BASE, HEAD_2)).toBeUndefined();
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
+  });
+
+  it("rethrows a hop write the database refuses so graphile retries it", async () => {
+    const { pr, generator, readLines } = await runTwoRevisions({
+      rev2HopRefused: true,
+    });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe("unknown");
+    const briefRequests = generator.requests.filter(
+      (request) => request.label === "brief",
+    );
+    expect(briefRequests).toHaveLength(1);
+    const lines = readLines();
+    const jobFail = lines.find((line) => line["evt"] === "job.fail");
+    expect(jobFail?.["permanent"]).toBe(false);
+    const failedCall = lines.some(
+      (line) =>
+        line["evt"] === "generation.complete" &&
+        line["outcome"] === GenerationStatuses.FAILED,
+    );
+    expect(failedCall).toBe(false);
   });
 
   it("writes an empty carried set when nothing anchors", async () => {
