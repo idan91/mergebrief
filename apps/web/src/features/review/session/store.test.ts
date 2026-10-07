@@ -443,6 +443,118 @@ describe("per-action writes", () => {
   });
 });
 
+function makeHeldGatewayStore() {
+  const releases: ((result: SessionWriteResult) => void)[] = [];
+  const hold = (): Promise<SessionWriteResult> =>
+    new Promise((resolve) => {
+      releases.push(resolve);
+    });
+  const gateway: SessionWriteGateway = {
+    setRead: hold,
+    dispose: hold,
+    address: hold,
+    reclassify: hold,
+    createComment: () => Promise.resolve({ ok: true, value: "9001" }),
+    updateComment: hold,
+    reanchorComment: hold,
+    deleteComment: hold,
+    setOutcome: hold,
+  };
+  return {
+    store: createReviewSessionStore(deriveInitialState(model), () => gateway),
+    releaseWrites: (result: SessionWriteResult = OK) => {
+      for (const release of releases.splice(0)) {
+        release(result);
+      }
+    },
+  };
+}
+
+function deriveReadWithChunks(...chunkIds: string[]) {
+  return () => ({
+    ...deriveInitialState(model),
+    reviewedChunks: new Set(chunkIds),
+  });
+}
+
+describe("reads the store owns", () => {
+  it("drops a read that began before a write and landed after it", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    store.startRead();
+    store.getState().actions.reviewChunk("c1");
+    releaseWrites();
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+
+    expect(store.applyRead(deriveReadWithChunks())).toBe(false);
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("drops a read that lands while a write is in flight", () => {
+    const { store } = makeHeldGatewayStore();
+    store.getState().actions.reviewChunk("c1");
+    store.startRead();
+
+    expect(store.hasPendingWrite()).toBe(true);
+    expect(store.applyRead(deriveReadWithChunks())).toBe(false);
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("applies a read that began after the write settled", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    store.getState().actions.reviewChunk("c1");
+    releaseWrites();
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+    store.startRead();
+
+    expect(store.applyRead(deriveReadWithChunks("c1", "c2"))).toBe(true);
+    expect(store.getState().reviewedChunks.has("c2")).toBe(true);
+  });
+
+  it("applies a read when no write was made at all", () => {
+    const store = freshStore();
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(true);
+    expect(store.getState().reviewedChunks.has("c2")).toBe(true);
+  });
+
+  it("reverts a failed write before it stops counting as pending", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    const pendingAtRevert: boolean[] = [];
+    store.getState().actions.reviewChunk("c1");
+    store.subscribe((state) => {
+      if (!state.reviewedChunks.has("c1")) {
+        pendingAtRevert.push(store.hasPendingWrite());
+      }
+    });
+    releaseWrites(FAILED);
+
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+    expect(pendingAtRevert.length).toBeGreaterThan(0);
+    expect(pendingAtRevert).not.toContain(false);
+  });
+
+  it("counts a tracked publish as a write until it settles", async () => {
+    const store = freshStore();
+    let finishPost: () => void = () => undefined;
+    store.startRead();
+    const posted = store.getState().actions.trackWrite(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPost = resolve;
+        }),
+    );
+
+    expect(store.hasPendingWrite()).toBe(true);
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(false);
+    finishPost();
+    await posted;
+    expect(store.hasPendingWrite()).toBe(false);
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(false);
+
+    store.startRead();
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(true);
+  });
+});
+
 describe("deleteMissingDraft", () => {
   it("writes for a carried draft the Brief renders nowhere", async () => {
     // The store never held it, no chunk covers its file, so the ordinary

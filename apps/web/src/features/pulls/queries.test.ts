@@ -28,7 +28,12 @@ import {
   buildPrMetaQueryOptions,
   buildPrStackQueryOptions,
   buildSessionQueryOptions,
+  createSessionReads,
 } from "./queries";
+import {
+  emptySessionPayload,
+  type SessionReadListener,
+} from "../review/session";
 
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
 const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
@@ -356,5 +361,145 @@ describe("buildPrStackQueryOptions polling", () => {
     focusManager.setFocused(true);
     await vi.advanceTimersByTimeAsync(0);
     expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createSessionReads", () => {
+  const span = ["424242", 7, "base-1", "head-1"] as const;
+  let stopObserving: (() => void) | undefined;
+
+  afterEach(() => {
+    stopObserving?.();
+    stopObserving = undefined;
+    focusManager.setFocused(undefined);
+    vi.useRealTimers();
+  });
+
+  function makeListener(pending = false) {
+    const events: string[] = [];
+    const listener: SessionReadListener = {
+      startRead: () => events.push("start"),
+      landRead: (payload) => events.push(`land:${payload.reviewOutcome}`),
+      hasPendingWrite: () => pending,
+    };
+    return { events, listener };
+  }
+
+  it("tells the store when a session read starts and when it lands", async () => {
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue({
+      ...emptySessionPayload(),
+      reviewOutcome: "approve",
+    });
+    const client = new QueryClient();
+    const reads = createSessionReads(client, ...span);
+    const { events, listener } = makeListener();
+    const unsubscribe = reads.subscribe(listener);
+
+    await client.fetchQuery(buildSessionQueryOptions(...span));
+
+    expect(events).toEqual(["start", "land:approve"]);
+    unsubscribe();
+    client.clear();
+  });
+
+  it("ignores a read of another Brief's session", async () => {
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    const client = new QueryClient();
+    const reads = createSessionReads(client, ...span);
+    const { events, listener } = makeListener();
+    reads.subscribe(listener);
+
+    await client.fetchQuery(
+      buildSessionQueryOptions("424242", 7, "base-1", "head-2"),
+    );
+
+    expect(events).toEqual([]);
+    client.clear();
+  });
+
+  it("holds the focus refetch while the store has a write pending", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    const client = new QueryClient();
+    client.mount();
+    const reads = createSessionReads(client, ...span);
+    let pending = true;
+    reads.subscribe({
+      startRead: () => undefined,
+      landRead: () => undefined,
+      hasPendingWrite: () => pending,
+    });
+    const observer = new QueryObserver(
+      client,
+      buildSessionQueryOptions(...span, reads),
+    );
+    const unsubscribe = observer.subscribe(() => undefined);
+    stopObserving = () => {
+      unsubscribe();
+      client.unmount();
+      client.clear();
+    };
+    await vi.advanceTimersByTimeAsync(0);
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+
+    pending = false;
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+  });
+
+  function observeSessions(client: QueryClient, ...heads: string[]): void {
+    const unsubscribes = heads.map((head) =>
+      new QueryObserver(
+        client,
+        buildSessionQueryOptions("424242", 7, "base-1", head),
+      ).subscribe(() => undefined),
+    );
+    stopObserving = () => {
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe();
+      }
+      client.clear();
+    };
+  }
+
+  it("rereads only its own Brief's session query", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    const client = new QueryClient();
+    observeSessions(client, "head-1", "head-2");
+    await vi.advanceTimersByTimeAsync(0);
+    apiFetchJsonMock.mockClear();
+
+    createSessionReads(client, ...span).requestRead();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchJsonMock.mock.calls[0]?.[0]).toContain("head=head-1");
+  });
+
+  it("never rereads a session query no screen observes", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    const client = new QueryClient();
+    await client.fetchQuery(buildSessionQueryOptions(...span));
+    observeSessions(client, "head-2");
+    await vi.advanceTimersByTimeAsync(0);
+    apiFetchJsonMock.mockClear();
+
+    createSessionReads(client, ...span).requestRead();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(apiFetchJsonMock).not.toHaveBeenCalled();
   });
 });

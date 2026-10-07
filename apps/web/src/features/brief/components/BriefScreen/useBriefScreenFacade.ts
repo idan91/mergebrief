@@ -492,6 +492,7 @@ export function useBriefScreenFacade({
       postingCommentIds.size > 0
         ? t(POST_COMMENT_COPY_KEYS.submitWhilePosting)
         : undefined,
+    trackWrite: actions.trackWrite,
   });
   const liveSubmit = submitFlow.available;
   const submitPending = submitFlow.pending;

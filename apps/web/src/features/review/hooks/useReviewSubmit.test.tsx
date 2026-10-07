@@ -59,7 +59,14 @@ function makeDraftWithBody(body: string): ReviewComment {
 }
 
 function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
-  const markSubmitted = vi.fn();
+  const writeEvents: string[] = [];
+  function trackWrite<Value>(write: () => Promise<Value>): Promise<Value> {
+    writeEvents.push("start");
+    return write().finally(() => writeEvents.push("end"));
+  }
+  const markSubmitted = vi.fn(() => {
+    writeEvents.push("flip");
+  });
   const recordSubmittedReview = vi.fn();
   const announce = vi.fn();
   const invalidateConversation = vi.fn();
@@ -82,6 +89,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     invalidateConversation,
     closeSubmit,
     resetOutcome,
+    trackWrite,
     ...overrides,
   };
   const rendered = renderHook(
@@ -99,6 +107,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     closeSubmit,
     resetOutcome,
     consumeReviewComment,
+    writeEvents,
   };
 }
 
@@ -138,6 +147,21 @@ describe("useReviewSubmit", () => {
     });
     act(() => rendered.result.current.submit());
     expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays a session write until the submitted drafts flip", async () => {
+    const { rendered, action, writeEvents } = setup();
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 5,
+      commentsFolded: 0,
+      commentsTotal: 1,
+    });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(writeEvents).toEqual(["start", "flip", "end"]);
   });
 
   it("submits the signature-line body and flips drafts on success", async () => {

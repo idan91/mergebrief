@@ -133,16 +133,6 @@ export function sessionWritePath(
 type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
- * Focus refetch replaces the store. Delay it while this tab has sent writes,
- * otherwise stale payloads can erase visible actions or duplicate a draft. This is no lock.
- */
-let inFlight = 0;
-
-export function hasPendingSessionWrite(): boolean {
-  return inFlight > 0;
-}
-
-/**
  * One operation. A non-2xx is an EXPECTED outcome the caller reverts on,
  * never a throw, and a thrown fetch is the same indeterminate failure: the
  * reviewer is told, and the action stays available.
@@ -156,7 +146,6 @@ async function send<T>(
 ): Promise<SessionWriteResult<T>> {
   const path = sessionWritePath(target, suffix);
   let response: Response;
-  inFlight += 1;
   try {
     const init: Mutable<ApiFetchInit> = {
       method,
@@ -168,8 +157,6 @@ async function send<T>(
     response = await apiFetch(path, init);
   } catch {
     return { ok: false, failure: UNKNOWN };
-  } finally {
-    inFlight -= 1;
   }
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);

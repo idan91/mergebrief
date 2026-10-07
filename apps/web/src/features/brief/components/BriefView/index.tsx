@@ -5,6 +5,7 @@ import type { ConversationFilter } from "@web/features/conversation/utils";
 import {
   ReviewSessionProvider,
   type ReviewSessionPayload,
+  type SessionReadSource,
   type SessionWrites,
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils";
@@ -61,6 +62,8 @@ export interface BriefViewProps {
   /** Absent or null renders as if no repo config exists. */
   repoConfig?: RepoConfigContext | null | undefined;
   session?: ReviewSessionPayload | undefined;
+  /** Every session read after the first; absent on the file path. */
+  sessionReads?: SessionReadSource | undefined;
   writes?: SessionWrites | undefined;
   /** The content region dims and goes inert; the header stays live. */
   revisionPending?: boolean | undefined;
@@ -98,6 +101,7 @@ export function BriefView({
   revisions,
   searchParams,
   session,
+  sessionReads,
   staleHead,
   submitReview,
   writes,
@@ -110,6 +114,7 @@ export function BriefView({
     <ReviewSessionProvider
       briefId={briefId}
       model={model}
+      reads={sessionReads}
       session={session}
       writes={writes}
     >
@@ -136,7 +141,6 @@ export function BriefView({
         setFocusParam={setFocusParam}
         ownDraft={ownDraft}
         readOnly={readOnly}
-        reviewSession={session}
         revisionPending={revisionPending}
         revisions={revisions}
         searchParams={searchParams}

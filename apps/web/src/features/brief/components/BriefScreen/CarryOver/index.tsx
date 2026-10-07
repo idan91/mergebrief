@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { ReviewSessionPayload } from "@web/features/review/session";
 import type { CarriedItem } from "@web/features/review/utils";
 import { AttentionList } from "./AttentionList";
 import styles from "./CarryOver.module.scss";
@@ -9,8 +8,6 @@ import { useCarryOver } from "./useCarryOver";
 import { getSpanLabel } from "./utils";
 
 export interface CarryOverProps {
-  /** The session read. No `carriedFrom` = a first-ever session, no row. */
-  session: ReviewSessionPayload;
   model: BriefViewModel;
   /** This Brief's head, the far end of the span the row states. */
   headSha: string;
@@ -24,14 +21,9 @@ export interface CarryOverProps {
  * No dismiss control. Silent carry-over is invisible, and an unseen carry
  * gets re-checked by hand, which is the exact cost the carry-over removes.
  */
-export function CarryOver({
-  session,
-  model,
-  headSha,
-  jumpToItem,
-}: CarryOverProps) {
+export function CarryOver({ model, headSha, jumpToItem }: CarryOverProps) {
   const { t } = useTranslation();
-  const view = useCarryOver({ session, model, jumpToItem });
+  const view = useCarryOver({ model, jumpToItem });
 
   if (view === null) {
     return null;

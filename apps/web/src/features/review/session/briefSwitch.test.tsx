@@ -127,10 +127,6 @@ function renderSession(initial?: ReviewSessionPayload) {
   );
   return {
     ...utils,
-    rerenderWith: (next: ReviewSessionPayload) => {
-      currentSession = next;
-      utils.rerender();
-    },
     switchTo: (briefId: string, next?: ReviewSessionPayload) => {
       currentBriefId = briefId;
       currentSession = next;
@@ -176,22 +172,6 @@ describe("in-place brief switch", () => {
     // copy, not from anything the client kept.
     switchTo("brief-a", sessionWithReadMark("c1"));
     expect(result.current.reviewedChunks.has("c1")).toBe(true);
-  });
-
-  it("a session that lands after the first paint still reaches the store", () => {
-    // The degraded route recovering: writes come back on when the payload
-    // arrives, so the work it carries has to arrive with them.
-    const { result, rerenderWith } = renderSession();
-    expect(result.current.reviewedChunks.has("c1")).toBe(false);
-    rerenderWith(sessionWithReadMark("c1"));
-    expect(result.current.reviewedChunks.has("c1")).toBe(true);
-  });
-
-  it("replaces the unplaced drafts with each server read", () => {
-    const { result, rerenderWith } = renderSession(sessionWithUnplacedDraft());
-    expect(result.current.unplacedDrafts).toEqual([GONE_DRAFT]);
-    rerenderWith(sessionWithReadMark("c1"));
-    expect(result.current.unplacedDrafts).toEqual([]);
   });
 
   it("leaves out an unplaced draft this tab deleted", () => {

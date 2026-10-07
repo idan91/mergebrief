@@ -7,7 +7,6 @@ import type {
   LineLinkTarget,
   SubmitReviewAction,
 } from "@web/features/review/utils";
-import type { ReviewSessionPayload } from "@web/features/review/session";
 import type {
   MarkReadyAction,
   PostCommentResult,
@@ -141,8 +140,6 @@ export interface BriefScreenProps {
   submitReview?: SubmitReviewAction | undefined;
   conversation?: ConversationPlan | undefined;
   readOnly?: { reason: string } | undefined;
-  /** Absent on the file path. */
-  reviewSession?: ReviewSessionPayload | undefined;
   conversationFocusThreadId?: number | undefined;
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;

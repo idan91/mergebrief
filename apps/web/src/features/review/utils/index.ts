@@ -24,6 +24,10 @@ export {
   type ReviewCommentStatus,
 } from "./comments";
 export { resolveChunkForLine } from "./chunk-for-line";
+export {
+  makeSessionReadDriver,
+  type SessionReadDriver,
+} from "./session-read-driver";
 export { buildReceipt, type Receipt } from "./receipt";
 export {
   commentLocation,

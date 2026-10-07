@@ -22,7 +22,10 @@ export interface SessionSnapshot {
 
 export function serializeSnapshot(
   briefId: string,
-  state: Omit<ReviewSessionState, "unplacedDrafts">,
+  state: Omit<
+    ReviewSessionState,
+    "unplacedDrafts" | "carriedFrom" | "attention"
+  >,
 ): SessionSnapshot {
   return {
     briefId,

@@ -12,13 +12,11 @@ export {
   parseReviewSessionPayload,
   type ReviewSessionPayload,
 } from "./serverState";
-export {
-  createSessionWrites,
-  hasPendingSessionWrite,
-  type SessionWrites,
-} from "./writes";
+export { createSessionWrites, type SessionWrites } from "./writes";
 export {
   ReviewSessionProvider,
+  type SessionReadListener,
+  type SessionReadSource,
   useChunkReviewComments,
   useDraftCommentCount,
   useFileReviewComments,

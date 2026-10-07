@@ -77,7 +77,6 @@ export function BriefScreen({
   setFocusParam,
   ownDraft,
   readOnly,
-  reviewSession,
   revisionPending,
   revisions,
   staleHead,
@@ -159,7 +158,6 @@ export function BriefScreen({
     setFocusParam,
     ownDraft,
     readOnly,
-    reviewSession,
     revisionPending,
     staleHead,
     submitReview,
@@ -267,12 +265,11 @@ export function BriefScreen({
                 aria-busy={pendingShown || undefined}
                 inert={pendingShown || undefined}
               >
-                {regions.carryOver && reviewSession !== undefined ? (
+                {regions.carryOver ? (
                   <CarryOver
                     headSha={brief.pr.sha}
                     jumpToItem={jumpToSubmitItem}
                     model={model}
-                    session={reviewSession}
                   />
                 ) : null}
 

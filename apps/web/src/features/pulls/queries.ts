@@ -4,7 +4,12 @@
 // the same gate. Artifact bodies are immutable per span (natural-key upserts)
 // → Infinity staleTime; the list and PR-meta are live projections → short
 // staleTime.
-import { queryOptions, type QueryKey } from "@tanstack/react-query";
+import {
+  hashKey,
+  queryOptions,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import {
   ApiError,
@@ -22,9 +27,10 @@ import {
   type RepoConfigContext,
 } from "@web/features/brief/utils";
 import {
-  hasPendingSessionWrite,
   parseReviewSessionPayload,
   type ReviewSessionPayload,
+  type SessionReadListener,
+  type SessionReadSource,
 } from "../review/session";
 import type {
   Brief,
@@ -150,6 +156,7 @@ export function buildSessionQueryOptions(
   prNumber: number,
   base: string,
   head: string,
+  reads?: SessionReads,
 ) {
   return queryOptions({
     queryKey: ["review-session", repoId, prNumber, base, head],
@@ -171,19 +178,80 @@ export function buildSessionQueryOptions(
     // Refetch on window focus, so a CLI write made while the tab was in the
     // background appears when the reviewer comes back. No polling and no live
     // channel: the payload scales with reviewer actions, not PR size. The
-    // refetch REPLACES the store, which is safe because every action already
-    // wrote through, composer text is component state and survives it.
+    // store decides whether a landed read replaces it; composer text is
+    // component state and survives either way.
     staleTime: 0,
-    // Suppressed while this tab has a write in flight: the refetch replaces
-    // the store, and a payload computed before that write lands would take
-    // the reviewer's own action back off the screen.
-    refetchOnWindowFocus: () => !hasPendingSessionWrite(),
+    // Held while the Brief's store has a write in flight: the store would
+    // drop that read anyway.
+    refetchOnWindowFocus:
+      reads === undefined ? true : () => !reads.hasPendingWrite(),
     // A remount re-reads: the loader's read can be up to its own freshness
     // window old, and the store is derived from the payload, so a cached one
     // would drop everything written since.
     refetchOnMount: "always",
     retry: false,
   });
+}
+
+/** One Brief's session reads, plus the pending-write check its focus refetch holds on. */
+export interface SessionReads extends SessionReadSource {
+  hasPendingWrite(): boolean;
+}
+
+/**
+ * Feeds the session query's fetch start and landed data to the stores that
+ * subscribe. The query cache notifies synchronously when a fetch begins, so
+ * a store marks the read before any later write can start.
+ */
+export function createSessionReads(
+  queryClient: QueryClient,
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): SessionReads {
+  const { queryKey } = buildSessionQueryOptions(repoId, prNumber, base, head);
+  const queryHash = hashKey(queryKey);
+  const listeners = new Set<SessionReadListener>();
+
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      const unsubscribeCache = queryClient
+        .getQueryCache()
+        .subscribe((event) => {
+          const ownUpdate =
+            event.type === "updated" && event.query.queryHash === queryHash;
+          if (!ownUpdate) {
+            return;
+          }
+          if (event.action.type === "fetch") {
+            listener.startRead();
+            return;
+          }
+          if (event.action.type !== "success") {
+            return;
+          }
+          const payload = queryClient.getQueryData(queryKey);
+          if (payload !== undefined) {
+            listener.landRead(payload);
+          }
+        });
+      return () => {
+        unsubscribeCache();
+        listeners.delete(listener);
+      };
+    },
+    hasPendingWrite: () =>
+      [...listeners].some((listener) => listener.hasPendingWrite()),
+    requestRead() {
+      void queryClient.refetchQueries({
+        queryKey,
+        exact: true,
+        type: "active",
+      });
+    },
+  };
 }
 
 /**

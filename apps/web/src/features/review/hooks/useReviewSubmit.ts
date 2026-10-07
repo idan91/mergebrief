@@ -13,6 +13,7 @@ import {
 import type { Receipt } from "../utils/receipt";
 import type { ReviewOutcome } from "../utils/state";
 import type { SessionDraftComment } from "../session/serverState";
+import type { ReviewSessionActions } from "../session/store";
 import {
   buildReviewBody,
   buildSignatureLine,
@@ -51,6 +52,8 @@ export interface UseReviewSubmitInput {
   resetOutcome: () => void;
   /** Hard-guards `submit()`: e.g. a post-now in flight would duplicate on GitHub. */
   blockedExternally?: string | undefined;
+  /** The session store's write count, held from the request until the flip lands. */
+  trackWrite: ReviewSessionActions["trackWrite"];
 }
 
 export interface UseReviewSubmitValue {
@@ -112,6 +115,7 @@ export function useReviewSubmit(
     closeSubmit,
     resetOutcome,
     blockedExternally,
+    trackWrite,
   } = input;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +215,7 @@ export function useReviewSubmit(
         announce(COPY.POSTED);
       }
     };
-    void (async () => {
+    void trackWrite(async () => {
       try {
         // Once GitHub reports the review created, a local failure must never
         // render as "nothing was posted".
@@ -284,7 +288,7 @@ export function useReviewSubmit(
         inFlight.current = false;
         setPending(false);
       }
-    })();
+    });
   }, [
     action,
     announce,
@@ -301,6 +305,7 @@ export function useReviewSubmit(
     recordSubmittedReview,
     resetOutcome,
     signatureLine,
+    trackWrite,
     unplacedDrafts,
     COPY,
     t,

@@ -178,15 +178,22 @@ export function useOwnDraftFlow(
         if (!batchOwnsMessaging) announce(t(key));
       };
       try {
-        const result = await postComment(comment.id);
-        if (result.kind === "posted") {
-          // The external write is the commit point: flip the posted comment
-          // to server-owned and record the wrapping review id (the "yours"
-          // join key), then announce.
-          actions.markCommentsSubmitted([comment.id]);
-          if (result.reviewId !== undefined) {
-            actions.recordSubmittedReview(result.reviewId);
+        // A session write until the flip below has landed, so a read that
+        // began before the post never puts the draft back.
+        const result = await actions.trackWrite(async () => {
+          const posted = await postComment(comment.id);
+          if (posted.kind === "posted") {
+            // The external write is the commit point: flip the posted
+            // comment to server-owned and record the wrapping review id
+            // (the "yours" join key).
+            actions.markCommentsSubmitted([comment.id]);
+            if (posted.reviewId !== undefined) {
+              actions.recordSubmittedReview(posted.reviewId);
+            }
           }
+          return posted;
+        });
+        if (result.kind === "posted") {
           say(POST_COMMENT_COPY_KEYS.posted);
           // Conversation write, refetch so the new thread renders.
           invalidateConversation?.();

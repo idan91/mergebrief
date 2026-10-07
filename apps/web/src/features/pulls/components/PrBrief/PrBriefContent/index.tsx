@@ -2,7 +2,11 @@
 // live-diff attach) lives here; plan/transport assembly lives in the
 // usePrBriefPlans hook.
 import { useTranslation } from "react-i18next";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import {
@@ -42,6 +46,7 @@ import {
   buildPrDiffQueryOptions,
   buildPrStackQueryOptions,
   buildSessionQueryOptions,
+  createSessionReads,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
 import { useBehindNoticeFacade } from "./DbBriefControls/BehindNotice/useBehindNoticeFacade";
@@ -124,8 +129,22 @@ export function PrBriefContent({
   // already carries marks, drafts and dispositions. A failed read degrades:
   // the Brief renders, and the screen goes read-only, a reviewer typing into
   // a screen hiding their earlier drafts writes the same comment twice.
+  // Every later read reaches the Brief's store through `sessionReads`, which
+  // the store's subscription keys on, so its identity holds per span.
+  const queryClient = useQueryClient();
+  const sessionReads = useMemo(
+    () =>
+      createSessionReads(queryClient, repoId, prNumber, span.base, span.head),
+    [prNumber, queryClient, repoId, span.base, span.head],
+  );
   const session = useQuery(
-    buildSessionQueryOptions(repoId, prNumber, span.base, span.head),
+    buildSessionQueryOptions(
+      repoId,
+      prNumber,
+      span.base,
+      span.head,
+      sessionReads,
+    ),
   );
   // No session in hand = writes off, whether the read failed or has not
   // landed. A failed BACKGROUND refetch keeps the session that is already
@@ -329,6 +348,7 @@ export function PrBriefContent({
         revisionPending={revisionPending}
         revisions={revisions}
         session={session.data}
+        sessionReads={sessionReads}
         writes={session.data === undefined ? undefined : writes}
         searchParams={searchParams}
         staleHead={staleHead}

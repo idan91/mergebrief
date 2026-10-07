@@ -11,8 +11,10 @@ import {
   type ReviewComment,
 } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
+import type { SessionAttentionItem } from "./attention";
 import type { BulkDisposition, Disposition } from "./disposition";
-import type { SessionDraftComment } from "./serverState";
+import { createSessionLedger } from "./ledger";
+import type { SessionCarriedFrom, SessionDraftComment } from "./serverState";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
 
@@ -41,6 +43,9 @@ export interface ReviewSessionState {
    * the own-comment join keys against fetched conversation threads.
    */
   submittedReviewIds: number[];
+  /** The span this session's carried work came from; null = nothing carried. */
+  carriedFrom: SessionCarriedFrom | null;
+  attention: SessionAttentionItem[];
 }
 
 export interface ReviewSessionActions {
@@ -99,6 +104,12 @@ export interface ReviewSessionActions {
   setOutcome: (outcome: ReviewOutcome) => void;
   /** Drops the pending failure copy once the screen has announced it. */
   clearWriteError: () => void;
+  /**
+   * Counts a publish (post-now, Submit) as a session write until `write`
+   * settles, its local bookkeeping included, so no read that began before
+   * it lands over its result.
+   */
+  trackWrite: <Value>(write: () => Promise<Value>) => Promise<Value>;
 }
 
 export interface ReviewSessionStoreValue extends ReviewSessionState {
@@ -120,7 +131,19 @@ export interface ReviewSessionStoreValue extends ReviewSessionState {
   actions: ReviewSessionActions;
 }
 
-export type ReviewSessionStore = StoreApi<ReviewSessionStoreValue>;
+export interface ReviewSessionStore extends StoreApi<ReviewSessionStoreValue> {
+  /** A session read began; it lands only if no write moves before it does. */
+  startRead: () => void;
+  /**
+   * Lays a landed read over the store, unless a write started or was in
+   * flight since the latest read began. A dropped read asks for a new one
+   * once the writes settle.
+   */
+  applyRead: (derive: () => ReviewSessionState) => boolean;
+  hasPendingWrite: () => boolean;
+  /** Fires when a new read is wanted, possibly inside the dropped read's own landing. */
+  subscribeReadRequests: (listener: () => void) => () => void;
+}
 
 function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
@@ -175,6 +198,8 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
     unplacedDrafts: [],
     reviewOutcome: "comment",
     submittedReviewIds: [],
+    carriedFrom: null,
+    attention: [],
   };
 }
 
@@ -202,7 +227,8 @@ export function createReviewSessionStore(
   initial: ReviewSessionState,
   getGateway: () => SessionWriteGateway | null = () => null,
 ): ReviewSessionStore {
-  return createStore<ReviewSessionStoreValue>((set, get) => {
+  const ledger = createSessionLedger();
+  const api = createStore<ReviewSessionStoreValue>((set, get) => {
     /**
      * Fire one operation. A failure reverts and records its copy; a frozen
      * session additionally closes the screen. `null` = no gateway (the local
@@ -216,15 +242,17 @@ export function createReviewSessionStore(
     ): Promise<SessionWriteResult<T> | null> {
       const gateway = getGateway();
       if (gateway === null) return null;
-      const result = await operation(gateway);
-      if (result.ok) return result;
-      revert();
-      set(
-        result.failure.frozen
-          ? { frozen: true, writeError: result.failure.copy }
-          : { writeError: result.failure.copy },
-      );
-      return result;
+      return ledger.trackWrite(async () => {
+        const result = await operation(gateway);
+        if (result.ok) return result;
+        revert();
+        set(
+          result.failure.frozen
+            ? { frozen: true, writeError: result.failure.copy }
+            : { writeError: result.failure.copy },
+        );
+        return result;
+      });
     }
 
     /** True when the write landed, or there was none to make. */
@@ -358,31 +386,33 @@ export function createReviewSessionStore(
           // rendered under a composer that is still saying "Saving…" is the
           // half-applied state this design refuses. The composer's own
           // pending affordance is what stands in meanwhile.
-          const created = await gateway.createComment(comment);
-          if (!created.ok) {
-            set(
-              created.failure.frozen
-                ? { frozen: true, writeError: created.failure.copy }
-                : { writeError: created.failure.copy },
-            );
-            return false;
-          }
-          set((state) => ({
-            reviewComments: [
-              ...state.reviewComments,
-              {
-                ...comment,
-                // The server's row id is what post-now and every later edit
-                // address the draft by; a contract-violating empty id falls
-                // back to a local one until the next read replaces it.
-                id:
-                  created.value === ""
-                    ? getUniqueCommentId(comment.anchor, state.reviewComments)
-                    : created.value,
-              },
-            ],
-          }));
-          return true;
+          return ledger.trackWrite(async () => {
+            const created = await gateway.createComment(comment);
+            if (!created.ok) {
+              set(
+                created.failure.frozen
+                  ? { frozen: true, writeError: created.failure.copy }
+                  : { writeError: created.failure.copy },
+              );
+              return false;
+            }
+            set((state) => ({
+              reviewComments: [
+                ...state.reviewComments,
+                {
+                  ...comment,
+                  // The server's row id is what post-now and every later edit
+                  // address the draft by; a contract-violating empty id falls
+                  // back to a local one until the next read replaces it.
+                  id:
+                    created.value === ""
+                      ? getUniqueCommentId(comment.anchor, state.reviewComments)
+                      : created.value,
+                },
+              ],
+            }));
+            return true;
+          });
         },
         updateComment(id, body) {
           const before = get().reviewComments.find(
@@ -530,9 +560,25 @@ export function createReviewSessionStore(
         clearWriteError() {
           set({ writeError: null });
         },
+        trackWrite: (write) => ledger.trackWrite(write),
       },
     };
   });
+
+  return {
+    ...api,
+    startRead: () => ledger.startRead(),
+    applyRead(derive) {
+      if (!ledger.isReadCurrent()) {
+        ledger.dropRead();
+        return false;
+      }
+      api.setState(derive());
+      return true;
+    },
+    hasPendingWrite: () => ledger.hasPendingWrite(),
+    subscribeReadRequests: (listener) => ledger.subscribeReadRequests(listener),
+  };
 }
 
 /** The dispositions the ids currently hold, an optimistic write's undo. */

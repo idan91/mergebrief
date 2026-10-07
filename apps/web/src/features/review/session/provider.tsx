@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   type ReactNode,
@@ -34,15 +35,34 @@ import type { SessionWrites } from "./writes";
 
 const ReviewSessionContext = createContext<ReviewSessionStore | null>(null);
 
+/** The store's side of one Brief's session reads. */
+export interface SessionReadListener {
+  startRead(): void;
+  landRead(payload: ReviewSessionPayload): void;
+  hasPendingWrite(): boolean;
+}
+
+/**
+ * The read lifecycle of one Brief's session query. `startRead` must fire
+ * synchronously when a fetch begins, before any write can start after it.
+ */
+export interface SessionReadSource {
+  subscribe(listener: SessionReadListener): () => void;
+  /** Rereads this Brief's session; never one no screen observes. */
+  requestRead(): void;
+}
+
 interface ReviewSessionProviderProps {
   briefId: string;
   model: BriefViewModel;
   /**
-   * The server-held session, read by the route loader. Absent = no session to
+   * The server-held session the store starts from. Absent = no session to
    * show (a file-backed Brief, or a read that failed), and the screen is
    * read-only.
    */
   session?: ReviewSessionPayload | undefined;
+  /** Every later read; absent on the file-backed path, which never rereads. */
+  reads?: SessionReadSource | undefined;
   /**
    * The session write transport. Absent = no writes wired (the local
    * file-backed path), where the store's actions stay purely local.
@@ -51,15 +71,117 @@ interface ReviewSessionProviderProps {
   children: ReactNode;
 }
 
+interface SessionStoreEntry {
+  briefId: string;
+  store: ReviewSessionStore;
+  landRead: (model: BriefViewModel, payload: ReviewSessionPayload) => void;
+}
+
 /**
- * Create the store per mount for SSR isolation, but switch briefs in place.
- * Re-derive during render: an effect would expose old ids to the new brief and crash.
- * The loader and writes keep the server authoritative.
+ * Pairs a fresh store with the payload it last took, so a refetch that
+ * structural sharing hands back unchanged never replaces the store.
  */
+function createSessionStoreEntry(
+  briefId: string,
+  model: BriefViewModel,
+  session: ReviewSessionPayload | undefined,
+  getGateway: () => SessionWriteGateway | null,
+): SessionStoreEntry {
+  const store = createReviewSessionStore(
+    sessionInitialState(model, session),
+    getGateway,
+  );
+  let appliedRead = session;
+  return {
+    briefId,
+    store,
+    landRead(readModel, payload) {
+      if (payload === appliedRead) {
+        return;
+      }
+      const applied = store.applyRead(() =>
+        sessionInitialState(readModel, payload),
+      );
+      if (applied) {
+        appliedRead = payload;
+      }
+    },
+  };
+}
+
+/**
+ * One store per Brief: a switch gets a fresh one rather than a reset, so the
+ * old Brief's ids, frozen posture and failure copy never reach the new one.
+ */
+function useCreateSessionStoreEntry(
+  briefId: string,
+  model: BriefViewModel,
+  session: ReviewSessionPayload | undefined,
+  getGateway: () => SessionWriteGateway | null,
+): SessionStoreEntry {
+  const entryRef = useRef<SessionStoreEntry | null>(null);
+  if (entryRef.current === null || entryRef.current.briefId !== briefId) {
+    entryRef.current = createSessionStoreEntry(
+      briefId,
+      model,
+      session,
+      getGateway,
+    );
+  }
+  return entryRef.current;
+}
+
+/**
+ * Forwards the store's read requests to the source a tick later: a request
+ * can come from inside the query cache's own notification, which must not
+ * refetch re-entrantly. Unsubscribing also cancels a request not yet sent.
+ */
+function forwardReadRequests(
+  store: ReviewSessionStore,
+  reads: SessionReadSource,
+): () => void {
+  let subscribed = true;
+  const unsubscribe = store.subscribeReadRequests(() => {
+    queueMicrotask(() => {
+      if (subscribed) {
+        reads.requestRead();
+      }
+    });
+  });
+  return () => {
+    subscribed = false;
+    unsubscribe();
+  };
+}
+
+function useSessionReads(
+  entry: SessionStoreEntry,
+  model: BriefViewModel,
+  reads: SessionReadSource | undefined,
+): void {
+  useEffect(() => {
+    if (reads === undefined) {
+      return undefined;
+    }
+    const { store } = entry;
+    const stopForwarding = forwardReadRequests(store, reads);
+    const unsubscribe = reads.subscribe({
+      startRead: () => store.startRead(),
+      landRead: (payload) => entry.landRead(model, payload),
+      hasPendingWrite: () => store.hasPendingWrite(),
+    });
+    return () => {
+      stopForwarding();
+      unsubscribe();
+    };
+  }, [entry, model, reads]);
+}
+
 export function ReviewSessionProvider({
   briefId,
   model,
   session,
+  reads,
   writes,
   children,
 }: ReviewSessionProviderProps) {
@@ -73,45 +195,16 @@ export function ReviewSessionProvider({
   );
   const gatewayRef = useRef<SessionWriteGateway | null>(gateway);
   gatewayRef.current = gateway;
-  const storeRef = useRef<ReviewSessionStore | null>(null);
-  storeRef.current ??= createReviewSessionStore(
-    sessionInitialState(model, session),
+  const entry = useCreateSessionStoreEntry(
+    briefId,
+    model,
+    session,
     () => gatewayRef.current,
   );
-  const store = storeRef.current;
-  const mountedBriefId = useRef(briefId);
-  const appliedSession = useRef(session);
-
-  // Reapply on session identity changes so a read recovering after first paint reaches
-  // the store before writes resume. Structural sharing skips unchanged refetches.
-  // The guarded render update runs once per change; server inputs cannot change mid-render.
-  if (
-    mountedBriefId.current !== briefId ||
-    appliedSession.current !== session
-  ) {
-    // A different Brief is a different session: the frozen posture and any
-    // pending failure copy belong to the one that was left behind. A refetch
-    // of the SAME brief keeps them, the server session is still frozen, and
-    // un-freezing would hand back controls whose every write fails.
-    const switched = mountedBriefId.current !== briefId;
-    mountedBriefId.current = briefId;
-    appliedSession.current = session;
-    const nextState: Partial<ReviewSessionStoreValue> = sessionInitialState(
-      model,
-      session,
-    );
-
-    if (switched) {
-      nextState.frozen = false;
-      nextState.writeError = null;
-      nextState.deletedMissingDrafts = new Set<string>();
-    }
-
-    store.setState(nextState);
-  }
+  useSessionReads(entry, model, reads);
 
   return (
-    <ReviewSessionContext.Provider value={store}>
+    <ReviewSessionContext.Provider value={entry.store}>
       {children}
     </ReviewSessionContext.Provider>
   );

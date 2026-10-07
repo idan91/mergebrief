@@ -26,7 +26,11 @@ import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
 const MARK_READY_COPY = {
   upstream: appI18n.t("pulls.markReady.upstream"),
 };
-import type { ReviewSessionPayload } from "../../../review/session";
+import type {
+  ReviewSessionPayload,
+  SessionReadSource,
+} from "../../../review/session";
+import { makeSessionReadDriver } from "../../../review/utils";
 import { BriefView } from ".";
 import {
   markReadyBatchFailureCopy,
@@ -117,6 +121,7 @@ async function renderBriefView(
   ownDraft: OwnDraftPlan | undefined,
   brief: Brief = briefFixture,
   staleHead = false,
+  sessionReads?: SessionReadSource,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -130,6 +135,7 @@ async function renderBriefView(
           briefId="own-draft-test"
           searchParams={{}}
           session={buildSessionPayload()}
+          sessionReads={sessionReads}
           ownDraft={plan}
           staleHead={staleHead}
         />
@@ -480,6 +486,41 @@ describe("own-draft Brief view", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
     await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
     expect(postComment).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts a post-now as a session write until it settles", async () => {
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    const reads = makeSessionReadDriver();
+    let finishPost: (result: PostCommentResult) => void = noop;
+    const postComment = vi.fn(
+      (_draftId: string) =>
+        new Promise<PostCommentResult>((resolve) => {
+          finishPost = resolve;
+        }),
+    );
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    await renderBriefView(
+      { markReady, postComment },
+      flaglessBrief,
+      false,
+      reads.source,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: /post my 1 draft comment/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    await waitFor(() => expect(postComment).toHaveBeenCalledTimes(1));
+
+    expect(reads.hasPendingWrite()).toBe(true);
+    act(() => {
+      finishPost({ kind: "posted", commentId: 1 });
+    });
+    await waitFor(() => expect(reads.hasPendingWrite()).toBe(false));
   });
 
   it("failure: toast through the live region, CTA re-enabled", async () => {

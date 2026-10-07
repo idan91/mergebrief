@@ -3,12 +3,22 @@
 // attention list's clearing affordances, driven through the real screen,
 // because the list is what replaces the row and both are one region.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  within,
+} from "@testing-library/react";
 import { renderInRouter } from "../../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
-import type { ReviewSessionPayload } from "@web/features/review/session";
+import type {
+  ReviewSessionPayload,
+  SessionReadSource,
+} from "@web/features/review/session";
+import { makeSessionReadDriver } from "@web/features/review/utils";
 import { BriefView } from "../../BriefView";
 import { briefFixture } from "@web/features/brief/fixtures";
 
@@ -108,7 +118,10 @@ function buildCarriedDisposition(
   });
 }
 
-async function renderScreen(session: ReviewSessionPayload | undefined) {
+async function renderScreen(
+  session: ReviewSessionPayload | undefined,
+  sessionReads?: SessionReadSource,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -121,6 +134,7 @@ async function renderScreen(session: ReviewSessionPayload | undefined) {
           briefId="carry-over-test"
           searchParams={{}}
           session={session}
+          sessionReads={sessionReads}
         />
       </QueryClientProvider>
     </I18nProvider>,
@@ -144,6 +158,19 @@ describe("carry-over row", () => {
   it("renders no row at all on a first-ever session", async () => {
     await renderScreen(buildPayload({ carriedFrom: null }));
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
+  });
+
+  it("renders the row from a session read that lands later", async () => {
+    const reads = makeSessionReadDriver();
+    await renderScreen(buildPayload({ carriedFrom: null }), reads.source);
+    expect(screen.queryByTestId("carry-over-row")).toBeNull();
+
+    act(() => {
+      reads.startRead();
+      reads.landRead(buildPayload({}));
+    });
+
+    expect(getRowText()).toContain("Your review carried forward · 4 items");
   });
 
   it("renders no row when a previous session carried nothing", async () => {

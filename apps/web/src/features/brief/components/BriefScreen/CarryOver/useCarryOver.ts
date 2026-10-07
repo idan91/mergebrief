@@ -16,7 +16,6 @@ import {
 import type { AttentionActionId } from "./AttentionList/utils";
 
 export interface CarryOverParams {
-  session: ReviewSessionPayload;
   model: BriefViewModel;
   jumpToItem: (item: CarriedItem) => void;
 }
@@ -31,10 +30,10 @@ export interface CarryOverView {
 
 /**
  * The carry-over row's flow: what carried, what of it still needs a re-look,
- * and the operation each affordance runs. `null` = no row to render at all.
+ * and the operation each affordance runs. `null` = no row to render at all,
+ * which a store with no session (or a first-ever one) always answers.
  */
 export function useCarryOver({
-  session,
   model,
   jumpToItem,
 }: CarryOverParams): CarryOverView | null {
@@ -46,7 +45,8 @@ export function useCarryOver({
     (state) => state.deletedMissingDrafts,
   );
   const armedDraftId = useReviewFlow((state) => state.reanchorDraftId);
-  const carriedFrom = session.carriedFrom;
+  const carriedFrom = useReviewSession((state) => state.carriedFrom);
+  const attention = useReviewSession((state) => state.attention);
 
   // Both store fields get a new reference on EVERY comment or disposition
   // action anywhere in the Brief, and almost none of them touch a carried
@@ -54,7 +54,7 @@ export function useCarryOver({
   const items = useMemo(
     () =>
       deriveCarriedItems({
-        attention: session.attention,
+        attention,
         chunks: model.groups.flatMap((group) => group.chunks),
         regions: getChunkRegions(model),
         flags: model.flags,
@@ -62,7 +62,7 @@ export function useCarryOver({
         comments,
         deletedMissingDrafts,
       }),
-    [session.attention, model, dispositions, comments, deletedMissingDrafts],
+    [attention, model, dispositions, comments, deletedMissingDrafts],
   );
 
   // A first-ever session carried nothing, and neither did a previous one that

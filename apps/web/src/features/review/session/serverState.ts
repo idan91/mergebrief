@@ -151,6 +151,8 @@ export function sessionInitialState(
     submittedReviewIds: payload.submittedReviewIds
       .map((id) => Number(id))
       .filter((id) => Number.isSafeInteger(id)),
+    carriedFrom: payload.carriedFrom,
+    attention: payload.attention,
   };
 }
 
