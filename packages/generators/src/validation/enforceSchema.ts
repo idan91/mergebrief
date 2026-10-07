@@ -2,6 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarningSink,
+} from "../contract/types";
 import { parseStructuredText, validationError } from "./jsonSchema";
 import { salvageDroppableEnums } from "./enumRecovery";
 
@@ -49,6 +53,7 @@ export interface RunWithSchemaFloorArgs<S extends z.ZodType> {
   /** Where failed attempts' raw outputs are dumped for debugging. */
   failureDir: string;
   log?: Logger;
+  onWarning?: GeneratorWarningSink;
   attempt(feedback: FloorFeedback | undefined): Promise<FloorAttempt>;
 }
 
@@ -194,7 +199,12 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
           )
         : null;
     if (salvaged) {
-      log(`⚠ salvaged ${args.label}: ${salvaged.issues.join("; ")}`);
+      const salvageMessage = `⚠ salvaged ${args.label}: ${salvaged.issues.join("; ")}`;
+      log(salvageMessage);
+      args.onWarning?.({
+        kind: GeneratorWarningKinds.SALVAGED,
+        message: salvageMessage,
+      });
       return salvaged.value;
     }
 
@@ -209,9 +219,12 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     const dumpNote = dumpPath ? ` (raw output saved to ${dumpPath})` : "";
 
     if (attempt === 0 && effectiveRaw !== "") {
-      log(
-        `⚠ ${args.label} failed schema validation — retrying once with error feedback${dumpNote}`,
-      );
+      const retryMessage = `⚠ ${args.label} failed schema validation — retrying once with error feedback`;
+      log(`${retryMessage}${dumpNote}`);
+      args.onWarning?.({
+        kind: GeneratorWarningKinds.FEEDBACK_RETRY,
+        message: retryMessage,
+      });
       feedback = { raw: effectiveRaw, error: errorMessage };
       continue;
     }

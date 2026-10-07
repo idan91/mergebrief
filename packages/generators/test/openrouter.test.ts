@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { APIUserAbortError } from "openai";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+} from "../src/contract/types";
 import { createOpenRouterCore } from "../src/adapters/openrouter";
 import { createGenerator, Providers } from "../src/config/registry";
 import {
@@ -354,6 +358,31 @@ describe("OpenRouter served-model verification", () => {
     );
     expect(assemblyLogs.join("\n")).not.toContain("stream reports");
     expect(generator.origin("medium").model).toBe(SLUG);
+  });
+
+  it("reports a served-model mismatch as a typed warning", async () => {
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+    );
+    const generator = await mustCore(scripted);
+    const warnings: GeneratorWarning[] = [];
+
+    await generator.generate({
+      ...request(),
+      onWarning: (warning) => warnings.push(warning),
+    });
+
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.SERVED_MODEL_MISMATCH,
+        message:
+          "warning: requested model test-lab/test-model-1 but the stream reports other-lab/shadow-model — origin stamp stays the declaration",
+      },
+    ]);
   });
 
   it("falls back to the construction log when the caller gave no request log", async () => {

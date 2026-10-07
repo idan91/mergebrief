@@ -11,6 +11,10 @@ import {
 } from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { GenerateRequest } from "../src/contract/generator";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+} from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
@@ -55,7 +59,10 @@ function makeGenerator(
   });
 }
 
-function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
+function request(
+  log?: (m: string) => void,
+  warnings?: GeneratorWarning[],
+): GenerateRequest<typeof Schema> {
   const req: GenerateRequest<typeof Schema> = {
     schema: Schema,
     system: "you are a test",
@@ -65,6 +72,9 @@ function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
   };
 
   if (log) req.log = log;
+  if (warnings) {
+    req.onWarning = (warning) => warnings.push(warning);
+  }
 
   return req;
 }
@@ -291,6 +301,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
 describe("ClaudeCodeGenerator trust-but-verify", () => {
   it("warns and fires the hook on a served-model mismatch, keeping the stamp", async () => {
     const logs: string[] = [];
+    const warnings: GeneratorWarning[] = [];
     const mismatches: Array<{ requested: string; served: string[] }> = [];
     const generator = makeGenerator(
       {
@@ -304,14 +315,62 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
       },
     );
     await expect(
-      generator.generate(request((m) => logs.push(m))),
+      generator.generate(request((m) => logs.push(m), warnings)),
     ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([
       { requested: "claude-opus-4-8", served: ["claude-haiku-4-5"] },
     ]);
     expect(logs.join("\n")).toContain("modelUsage reports claude-haiku-4-5");
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.SERVED_MODEL_MISMATCH,
+        message: expect.stringContaining("modelUsage reports claude-haiku-4-5"),
+      },
+    ]);
     // The stamp stays the declaration.
     expect(generator.origin("medium").model).toBe("claude-opus-4-8");
+  });
+
+  it("renders hostile modelUsage keys through the model-id grammar", async () => {
+    const scriptDir = tempDir("claude-code-hostile-usage-");
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([
+        {
+          output: '{"ok":true}',
+          servedModels: [
+            "<img src=x onerror=sk-ant-SENTINEL>\n",
+            "claude-sonnet-4-6[1m]",
+            `claude-${"x".repeat(100)}`,
+            "unlisted SENTINEL",
+            "claude-haiku-4-5",
+          ],
+        },
+      ]),
+    );
+    const logs: string[] = [];
+    const warnings: GeneratorWarning[] = [];
+    const mismatches: string[][] = [];
+    const generator = makeGenerator(
+      { SHIM_SCENARIO: "scripted", SHIM_SCRIPT_DIR: scriptDir },
+      { onModelMismatch: (_requested, served) => mismatches.push(served) },
+    );
+    await expect(
+      generator.generate(request((m) => logs.push(m), warnings)),
+    ).resolves.toEqual({ ok: true });
+
+    const reported =
+      "modelUsage reports (unrecognized id), claude-sonnet-4-6[1m], (unrecognized id) and 2 more";
+    const logLine = logs.find((line) => line.includes("modelUsage reports"));
+    expect(logLine).toContain(reported);
+    expect(warnings[0]?.message).toContain(reported);
+    expect(mismatches).toEqual([
+      ["(unrecognized id)", "claude-sonnet-4-6[1m]", "(unrecognized id)"],
+    ]);
+    expect(`${logs.join("\n")}${JSON.stringify(warnings)}`).not.toContain(
+      "SENTINEL",
+    );
   });
 
   it("marks absent modelUsage unverifiable with no served models", async () => {
@@ -322,16 +381,23 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
       JSON.stringify([{ output: '{"ok":true}', noModelUsage: true }]),
     );
     const logs: string[] = [];
+    const warnings: GeneratorWarning[] = [];
     const mismatches: string[][] = [];
     const generator = makeGenerator(
       { SHIM_SCENARIO: "scripted", SHIM_SCRIPT_DIR: scriptDir },
       { onModelMismatch: (_requested, served) => mismatches.push(served) },
     );
     await expect(
-      generator.generate(request((m) => logs.push(m))),
+      generator.generate(request((m) => logs.push(m), warnings)),
     ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([[]]);
     expect(logs.join("\n")).toContain("unverifiable");
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.SERVED_MODEL_UNVERIFIED,
+        message: expect.stringContaining("unverifiable"),
+      },
+    ]);
   });
 
   it("stays quiet when the served model matches", async () => {

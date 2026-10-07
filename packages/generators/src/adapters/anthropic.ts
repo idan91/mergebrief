@@ -145,6 +145,9 @@ export class AnthropicGenerator implements Generator {
     };
 
     if (req.salvageFields) floor.salvageFields = req.salvageFields;
+    if (req.onWarning) {
+      floor.onWarning = req.onWarning;
+    }
 
     return runWithSchemaFloor(floor);
   }

@@ -5,6 +5,10 @@ import { APIUserAbortError } from "openai";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+} from "../src/contract/types";
 import { createOpenAiCore } from "../src/adapters/openai";
 import { createGenerator, Providers } from "../src/config/registry";
 import { getRequestUrl } from "./helpers";
@@ -172,6 +176,31 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
       model: "gpt-test-1",
       effort: null,
     });
+  });
+
+  it("reports a rejected reasoning_effort as a typed warning", async () => {
+    const warnings: GeneratorWarning[] = [];
+    const { generator } = await coreWith((body) =>
+      body["reasoning_effort"] !== undefined
+        ? jsonError(400, "Unsupported parameter: 'reasoning_effort'.")
+        : sse('{"ok":true}'),
+    );
+
+    await expect(
+      generator.generate({
+        ...request(),
+        onWarning: (warning) => warnings.push(warning),
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.EFFORT_REJECTED,
+        message: expect.stringContaining(
+          "gpt-test-1 rejected reasoning_effort",
+        ),
+      },
+    ]);
   });
 
   it("keeps effort in the origin once the provider accepted the knob", async () => {

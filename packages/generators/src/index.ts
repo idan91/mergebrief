@@ -16,6 +16,12 @@ export {
   type TokenUsage,
 } from "./contract/generator";
 export {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+  type GeneratorWarningKind,
+  type GeneratorWarningSink,
+} from "./contract/types";
+export {
   AnchorSchema,
   Efforts,
   FreshRestartReasons,

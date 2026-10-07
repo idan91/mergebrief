@@ -16,6 +16,10 @@ import {
   type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarningSink,
+} from "../contract/types";
 import { harnessTimeoutError } from "../harness/redact";
 import {
   resolveHarnessTimeouts,
@@ -80,6 +84,31 @@ function renderCategory(category: string): string {
 /** Same default as the SDK adapter, the stamp must name a real model. */
 const DEFAULT_MODEL = "claude-opus-4-8";
 
+/**
+ * `modelUsage` keys are untrusted CLI output: a key reaches a log line, a
+ * warning or the mismatch hook only through this grammar, and only the
+ * first few are listed.
+ */
+const MODEL_ID_GRAMMAR = /^[\w.:[\]-]{1,100}$/;
+const MAX_LISTED_SERVED_MODELS = 3;
+const UNRECOGNIZED_MODEL_ID = "(unrecognized id)";
+
+function renderModelId(id: string): string {
+  return MODEL_ID_GRAMMAR.test(id) ? id : UNRECOGNIZED_MODEL_ID;
+}
+
+function listServedModels(modelUsage: string[]): string[] {
+  return modelUsage.slice(0, MAX_LISTED_SERVED_MODELS).map(renderModelId);
+}
+
+function describeServedModels(listed: string[], total: number): string {
+  const unlisted = total - listed.length;
+  if (unlisted > 0) {
+    return `${listed.join(", ")} and ${unlisted} more`;
+  }
+  return listed.join(", ");
+}
+
 export interface ClaudeCodeGeneratorOptions {
   /** Binary path or name (PATH-resolved by spawn). */
   command: string;
@@ -91,6 +120,7 @@ export interface ClaudeCodeGeneratorOptions {
   /**
    * Served-model mismatch surfacing hook (trust-but-verify): fired when the
    * result envelope's `modelUsage` keys don't include the requested model.
+   * `served` is the rendered, capped key list, never the raw keys.
    * The origin stamp stays the declaration either way.
    */
   onModelMismatch?: ((requested: string, served: string[]) => void) | undefined;
@@ -197,10 +227,13 @@ export class ClaudeCodeGenerator implements Generator {
         };
         if (req.signal) runArgs.signal = req.signal;
         const run = await runHarnessProcess(runArgs);
-        return this.interpret(req.label, run, log);
+        return this.interpret(req.label, run, log, req.onWarning);
       },
     };
     if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.onWarning) {
+      floorArgs.onWarning = req.onWarning;
+    }
 
     try {
       writeFileSync(systemFile, req.system, { mode: 0o600 });
@@ -222,6 +255,7 @@ export class ClaudeCodeGenerator implements Generator {
     label: string,
     run: HarnessRunResult,
     log: Logger,
+    onWarning: GeneratorWarningSink | undefined,
   ): { raw: string; parsed?: unknown; invalidReason?: string } {
     if (run.timedOut) {
       throw harnessTimeoutError(label, run);
@@ -256,7 +290,7 @@ export class ClaudeCodeGenerator implements Generator {
       );
     }
 
-    this.verifyServedModel(envelope, log);
+    this.verifyServedModel(envelope, log, onWarning);
 
     if (envelope.subtype === "error_max_structured_output_retries") {
       // The CLI exhausted its own enforcement retries, but our floor is
@@ -294,22 +328,35 @@ export class ClaudeCodeGenerator implements Generator {
   }
 
   /** Trust-but-verify: envelope modelUsage keys vs the requested model. */
-  private verifyServedModel(envelope: ResultEnvelope, log: Logger): void {
+  private verifyServedModel(
+    envelope: ResultEnvelope,
+    log: Logger,
+    onWarning: GeneratorWarningSink | undefined,
+  ): void {
     if (envelope.modelUsage === null) {
       // Missing/drifted modelUsage: verification is UNAVAILABLE, which must
       // surface rather than silently pass, served [] means "could not
       // verify", distinct from a concrete mismatch.
-      log(
-        `warning: result envelope carried no modelUsage — served model for ${this.model} is unverifiable`,
-      );
+      const unverifiedMessage = `warning: result envelope carried no modelUsage — served model for ${this.model} is unverifiable`;
+      log(unverifiedMessage);
+      onWarning?.({
+        kind: GeneratorWarningKinds.SERVED_MODEL_UNVERIFIED,
+        message: unverifiedMessage,
+      });
       this.onModelMismatch?.(this.model, []);
       return;
     }
     if (envelope.modelUsage.includes(this.model)) return;
-    log(
-      `warning: requested model ${this.model} but modelUsage reports ${envelope.modelUsage.join(", ")} — origin stamp stays the declaration`,
-    );
-    this.onModelMismatch?.(this.model, envelope.modelUsage);
+
+    const served = listServedModels(envelope.modelUsage);
+    const reported = describeServedModels(served, envelope.modelUsage.length);
+    const mismatchMessage = `warning: requested model ${this.model} but modelUsage reports ${reported} — origin stamp stays the declaration`;
+    log(mismatchMessage);
+    onWarning?.({
+      kind: GeneratorWarningKinds.SERVED_MODEL_MISMATCH,
+      message: mismatchMessage,
+    });
+    this.onModelMismatch?.(this.model, served);
   }
 }
 

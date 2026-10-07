@@ -527,14 +527,6 @@
       "count": 34
     }
   },
-  "packages/generators/src/contract/generator.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/comment-density": {
-      "count": 1
-    }
-  },
   "packages/generators/src/validation/openaiStrict.ts": {
     "house/no-em-dash": {
       "count": 4
@@ -566,22 +558,9 @@
       "count": 2
     }
   },
-  "packages/generators/test/contract.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "packages/generators/test/cursor.contract.test.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "packages/generators/test/cursor.test.ts": {
-    "house/no-em-dash": {
-      "count": 15
-    },
-    "house/test-title": {
-      "count": 7
     }
   },
   "packages/generators/test/floor.test.ts": {
@@ -608,11 +587,6 @@
   "packages/generators/test/openai-strict.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/generators/test/shims/fake-claude.cjs": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "packages/generators/test/shims/fake-codex.cjs": {

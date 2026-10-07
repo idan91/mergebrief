@@ -163,6 +163,9 @@ export class CodexGenerator implements Generator {
       },
     };
     if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.onWarning) {
+      floorArgs.onWarning = req.onWarning;
+    }
 
     try {
       writeFileSync(schemaFile, JSON.stringify(codexWireSchema), {

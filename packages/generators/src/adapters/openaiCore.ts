@@ -2,6 +2,10 @@ import { APIConnectionError, APIUserAbortError, OpenAIError } from "openai";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import {
+  GeneratorWarningKinds,
+  type GeneratorWarningSink,
+} from "../contract/types";
+import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
   type RunWithSchemaFloorArgs,
@@ -64,10 +68,10 @@ export interface OpenAiChatRequest {
 /** Per-call knobs a transport honors alongside the wire body. */
 export interface StreamChatOptions {
   signal?: AbortSignal;
-  /** The PER-REQUEST logger: warnings a wrapper emits through it reach the
-   * caller's collection surface (artifact warnings), not just the
-   * construction-time process log. */
+  /** The PER-REQUEST logger, not the construction-time process log. */
   log?: Logger;
+  /** The PER-REQUEST sink: a wrapper's warnings reach the artifact through it. */
+  onWarning?: GeneratorWarningSink;
 }
 
 /**
@@ -245,6 +249,9 @@ export class OpenAiCompatibleCore implements Generator {
     };
 
     if (req.salvageFields) floor.salvageFields = req.salvageFields;
+    if (req.onWarning) {
+      floor.onWarning = req.onWarning;
+    }
 
     return runWithSchemaFloor(floor);
   }
@@ -297,9 +304,12 @@ export class OpenAiCompatibleCore implements Generator {
         if (req.signal?.aborted) {
           throw new APIUserAbortError();
         }
-        log(
-          `warning: ${this.model} rejected reasoning_effort — retrying without it; origin will record effort: null`,
-        );
+        const rejectedMessage = `warning: ${this.model} rejected reasoning_effort — retrying without it; origin will record effort: null`;
+        log(rejectedMessage);
+        req.onWarning?.({
+          kind: GeneratorWarningKinds.EFFORT_REJECTED,
+          message: rejectedMessage,
+        });
         const { reasoning_effort: _dropped, ...rest } = body;
         try {
           return await this.consume(req, rest, log);
@@ -343,6 +353,9 @@ export class OpenAiCompatibleCore implements Generator {
 
       if (req.signal) streamOptions.signal = req.signal;
       if (req.log) streamOptions.log = req.log;
+      if (req.onWarning) {
+        streamOptions.onWarning = req.onWarning;
+      }
 
       const stream = await this.transport.streamChat(body, streamOptions);
       for await (const chunk of stream) {

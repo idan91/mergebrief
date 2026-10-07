@@ -1,16 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
 import {
   categorize,
   categorizeDelta,
   categorizeRevisionNarrative,
 } from "../../src/generation/categorize";
-import type {
-  Effort,
-  GenerateRequest,
-  Generation,
-  Generator,
-  Logger,
+import {
+  GeneratorWarningKinds,
+  runWithSchemaFloor,
+  type Effort,
+  type GenerateRequest,
+  type Generation,
+  type Generator,
+  type GeneratorWarning,
+  type Logger,
+  type RunWithSchemaFloorArgs,
 } from "generators";
 import type { Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github";
@@ -113,6 +120,52 @@ const twoGroupBriefGen = {
       riskSurface: [],
     },
   ],
+};
+
+const deltaBriefGen = {
+  summary: "s",
+  commentsAddressed: "",
+  changedGroups: twoGroupBriefGen.changeGroups,
+  chunks: twoGroupBriefGen.chunks.map((chunk) => ({
+    ...chunk,
+    summary: "adds a line",
+    addressesComments: [],
+  })),
+  wholePrImpact: "completes the original intent",
+};
+
+const revisionNarrativeGen = {
+  overview: "In this revision, two lines were added to the module.",
+  chunks: [
+    {
+      id: "rc1",
+      briefChangeGroupId: "g1",
+      file: "src/a.ts",
+      addedRanges: [{ start: 1, end: 1 }],
+      removedRanges: [],
+      summary: "Adds a line handling the extra case.",
+    },
+  ],
+};
+
+const narrativeBrief: Brief = {
+  ...twoGroupBriefGen,
+  chunks: twoGroupBriefGen.chunks.map((chunk) => ({
+    ...chunk,
+    loc: { added: 0, deleted: 0 },
+  })),
+  concernView: [{ concern: "implementation", added: 0, deleted: 0 }],
+  pr: {
+    repo: "o/r",
+    number: 1,
+    title: "t",
+    url: pr.meta.url,
+    sha: pr.meta.sha,
+    description: "d",
+  },
+  index: 1,
+  commitRange,
+  generation: { provider: "fake", model: "fake-model", effort: "medium" },
 };
 
 describe("categorize, PR lifecycle stamping", () => {
@@ -658,11 +711,12 @@ describe("categorize, intent check validation", () => {
   });
 });
 
-/** Emits pipeline-shaped warning lines via the request log mid-generate. */
+/** Emits plain log lines, then typed warnings, mid-generate. */
 class WarningGenerator extends FakeGenerator {
   constructor(
     fixture: unknown,
     private readonly lines: string[],
+    private readonly warnings: GeneratorWarning[] = [],
   ) {
     super(fixture);
   }
@@ -671,28 +725,168 @@ class WarningGenerator extends FakeGenerator {
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
     const log: Logger = req.log ?? (() => {});
-    for (const line of this.lines) log(line);
+    for (const line of this.lines) {
+      log(line);
+    }
+    for (const warning of this.warnings) {
+      req.onWarning?.(warning);
+    }
     return super.generate(req);
   }
 }
 
+/** The real schema floor over one invalid attempt, then the fixture. */
+class RetryingGenerator extends FakeGenerator {
+  constructor(
+    private readonly validFixture: unknown,
+    private readonly failureDir: string,
+  ) {
+    super(validFixture);
+  }
+
+  override async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
+    const floor: RunWithSchemaFloorArgs<S> = {
+      schema: req.schema,
+      label: req.label,
+      failureDir: this.failureDir,
+      attempt: async (feedback) => {
+        if (feedback === undefined) {
+          return { raw: "{}" };
+        }
+        return { raw: JSON.stringify(this.validFixture) };
+      },
+    };
+    if (req.log) {
+      floor.log = req.log;
+    }
+    if (req.onWarning) {
+      floor.onWarning = req.onWarning;
+    }
+    return runWithSchemaFloor(floor);
+  }
+}
+
 describe("categorize, generation warnings surfaced on the artifact", () => {
-  it("collects salvage/mismatch warning lines into generationWarnings", async () => {
+  let failureDir: string;
+  beforeEach(() => {
+    failureDir = mkdtempSync(join(tmpdir(), "categorize-warnings-"));
+  });
+  afterEach(() => {
+    rmSync(failureDir, { recursive: true, force: true });
+  });
+
+  it("stores typed generator warnings as their message lines", async () => {
+    const salvaged = "⚠ salvaged brief: dropped 1 invalid tags entry";
+    const mismatch =
+      "warning: requested model m but modelUsage reports other — origin stamp stays the declaration";
+    const generator = new WarningGenerator(
+      twoGroupBriefGen,
+      ["thinking… (brief)", "note: could not remove temp dir /tmp/x"],
+      [
+        { kind: GeneratorWarningKinds.SALVAGED, message: salvaged },
+        {
+          kind: GeneratorWarningKinds.SERVED_MODEL_MISMATCH,
+          message: mismatch,
+        },
+      ],
+    );
+
+    const brief = await categorize(pr, 1, commitRange, generator);
+
+    expect(brief.generationWarnings).toEqual([salvaged, mismatch]);
+  });
+
+  it("stores a typed generator warning on the delta brief", async () => {
+    const rejected =
+      "warning: m rejected reasoning_effort; origin will record effort: null";
+    const generator = new WarningGenerator(
+      deltaBriefGen,
+      [],
+      [{ kind: GeneratorWarningKinds.EFFORT_REJECTED, message: rejected }],
+    );
+
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: pr.diff,
+      },
+      generator,
+    );
+
+    expect(delta.generationWarnings).toContain(rejected);
+  });
+
+  it("stores a typed generator warning on the revision narrative", async () => {
+    const unverified =
+      "warning: result envelope carried no modelUsage; served model is unverifiable";
+    const generator = new WarningGenerator(
+      revisionNarrativeGen,
+      [],
+      [
+        {
+          kind: GeneratorWarningKinds.SERVED_MODEL_UNVERIFIED,
+          message: unverified,
+        },
+      ],
+    );
+
+    const narrative = await categorizeRevisionNarrative(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        prevHeadSha: "prev000000000000",
+        headSha: pr.meta.sha,
+        prevIndex: 1,
+        headIndex: 2,
+        incrementalDiff: pr.diff,
+        brief: narrativeBrief,
+      },
+      generator,
+    );
+
+    expect(narrative.generationWarnings).toContain(unverified);
+  });
+
+  it("keeps warning-shaped log lines that are not typed out of the artifact", async () => {
+    const generator = new WarningGenerator(twoGroupBriefGen, [
+      "⚠ salvaged brief: dropped 1 invalid tags entry",
+      "warning: requested model m but modelUsage reports other",
+    ]);
+
+    const brief = await categorize(pr, 1, commitRange, generator);
+
+    expect("generationWarnings" in brief).toBe(false);
+  });
+
+  it("stores the feedback retry without the dump path", async () => {
+    const fixture = {
+      ...twoGroupBriefGen,
+      readingOrder: [{ groupId: "g1", why: "half an order" }],
+    };
+    const logs: string[] = [];
+
     const brief = await categorize(
       pr,
       1,
       commitRange,
-      new WarningGenerator(twoGroupBriefGen, [
-        "⚠ salvaged brief: dropped 1 invalid tags entry",
-        "warning: requested model m but modelUsage reports other — origin stamp stays the declaration",
-        "thinking… (brief)", // progress noise, must NOT be collected
-        "note: could not remove temp dir /tmp/x", // operational, NOT collected
-      ]),
+      new RetryingGenerator(fixture, failureDir),
+      (line) => logs.push(line),
     );
-    expect(brief.generationWarnings).toEqual([
-      "⚠ salvaged brief: dropped 1 invalid tags entry",
-      "warning: requested model m but modelUsage reports other — origin stamp stays the declaration",
-    ]);
+
+    const warnings = brief.generationWarnings ?? [];
+    expect(warnings[0]).toBe(
+      "⚠ brief failed schema validation — retrying once with error feedback",
+    );
+    const stored = warnings.join("\n");
+    expect(stored).toContain("\n⚠ reading order issues: ");
+    expect(stored).not.toContain("raw output saved to");
+    expect(stored).not.toContain(failureDir);
+    expect(logs.join("\n")).toContain(`raw output saved to ${failureDir}`);
   });
 
   it("omits the field entirely on a clean generation", async () => {
@@ -1813,51 +2007,8 @@ describe("branch facts in the user message", () => {
   });
 
   it("delta and narrative user share the same branch facts", async () => {
-    const deltaGen = {
-      summary: "s",
-      commentsAddressed: "",
-      changedGroups: twoGroupBriefGen.changeGroups,
-      chunks: twoGroupBriefGen.chunks.map((chunk) => ({
-        ...chunk,
-        summary: "adds a line",
-        addressesComments: [],
-      })),
-      wholePrImpact: "completes the original intent",
-    };
-    const narrativeGen = {
-      overview: "In this revision, two lines were added to the module.",
-      chunks: [
-        {
-          id: "rc1",
-          briefChangeGroupId: "g1",
-          file: "src/a.ts",
-          addedRanges: [{ start: 1, end: 1 }],
-          removedRanges: [],
-          summary: "Adds a line handling the extra case.",
-        },
-      ],
-    };
-    const narrativeBrief: Brief = {
-      ...twoGroupBriefGen,
-      chunks: twoGroupBriefGen.chunks.map((chunk) => ({
-        ...chunk,
-        loc: { added: 0, deleted: 0 },
-      })),
-      concernView: [{ concern: "implementation", added: 0, deleted: 0 }],
-      pr: {
-        repo: "o/r",
-        number: 1,
-        title: "t",
-        url: pr.meta.url,
-        sha: pr.meta.sha,
-        description: "d",
-      },
-      index: 1,
-      commitRange,
-      generation: { provider: "fake", model: "fake-model", effort: "medium" },
-    };
-    const deltaGenerator = new CapturingGenerator(deltaGen);
-    const narrativeGenerator = new CapturingGenerator(narrativeGen);
+    const deltaGenerator = new CapturingGenerator(deltaBriefGen);
+    const narrativeGenerator = new CapturingGenerator(revisionNarrativeGen);
     await categorizeDelta(
       {
         locator: pr.locator,

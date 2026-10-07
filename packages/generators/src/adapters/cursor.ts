@@ -22,6 +22,10 @@ import type {
   Logger,
   TokenUsage,
 } from "../contract/generator";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarningSink,
+} from "../contract/types";
 import { harnessTimeoutError, redactSecrets } from "../harness/redact";
 import {
   resolveHarnessTimeouts,
@@ -195,10 +199,16 @@ export class CursorGenerator implements Generator {
           log,
         };
         if (req.onUsage) interpretArgs.onUsage = req.onUsage;
+        if (req.onWarning) {
+          interpretArgs.onWarning = req.onWarning;
+        }
         return interpretCursorRun(interpretArgs);
       },
     };
     if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+    if (req.onWarning) {
+      floorArgs.onWarning = req.onWarning;
+    }
 
     try {
       return await runWithSchemaFloor(floorArgs);
@@ -351,6 +361,7 @@ interface InterpretCursorRunArgs {
   run: HarnessRunResult;
   log: Logger;
   onUsage?: (usage: TokenUsage) => void;
+  onWarning?: GeneratorWarningSink;
 }
 
 /** Map one finished cursor run onto a floor attempt or a classified throw. */
@@ -373,7 +384,13 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
         );
       }
       const drift = describePermissionModeDrift(event.permissionMode);
-      if (drift !== null) args.log(drift);
+      if (drift !== null) {
+        args.log(drift);
+        args.onWarning?.({
+          kind: GeneratorWarningKinds.PLAN_MODE_UNVERIFIED,
+          message: drift,
+        });
+      }
     } else {
       envelope = event.envelope;
     }

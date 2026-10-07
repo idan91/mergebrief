@@ -13,6 +13,11 @@ import {
 } from "../src/adapters/cursor";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { TokenUsage } from "../src/contract/generator";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+  type GeneratorWarningSink,
+} from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
@@ -31,7 +36,7 @@ const FAKE_CURSOR = join(
 
 const Schema = z.object({ ok: z.boolean() });
 
-// Every temp dir is tracked and removed after each test — repeated local
+// Every temp dir is tracked and removed after each test, repeated local
 // runs must not accumulate failure dumps and script fixtures.
 const tempDirs: string[] = [];
 function tempDir(prefix: string): string {
@@ -61,6 +66,7 @@ function makeGenerator(
 function request(extras?: {
   log?: (m: string) => void;
   onUsage?: (usage: TokenUsage) => void;
+  onWarning?: GeneratorWarningSink;
 }) {
   const req: {
     schema: typeof Schema;
@@ -70,6 +76,7 @@ function request(extras?: {
     label: string;
     log?: (m: string) => void;
     onUsage?: (usage: TokenUsage) => void;
+    onWarning?: GeneratorWarningSink;
   } = {
     schema: Schema,
     system: "you are a test",
@@ -79,6 +86,9 @@ function request(extras?: {
   };
   if (extras?.log) req.log = extras.log;
   if (extras?.onUsage) req.onUsage = extras.onUsage;
+  if (extras?.onWarning) {
+    req.onWarning = extras.onWarning;
+  }
   return req;
 }
 
@@ -104,7 +114,7 @@ async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
 }
 
 describe("CursorGenerator invocation profile", () => {
-  it("passes the plan-mode lockdown argv from an empty temp cwd, prompts via stdin", async () => {
+  it("runs plan-mode lockdown argv in an empty cwd, prompts via stdin", async () => {
     const { generator, scriptDir } = scriptedGenerator([
       { output: '{"ok":true}' },
     ]);
@@ -113,7 +123,7 @@ describe("CursorGenerator invocation profile", () => {
     const argv: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
-    // The COMPLETE lockdown argv contract — order, pairing, and nothing
+    // The COMPLETE lockdown argv contract, order, pairing, and nothing
     // extra: never --force, never --sandbox, never --api-key. No --model
     // when none is configured (the CLI's own default runs).
     expect(argv).toEqual([
@@ -125,7 +135,7 @@ describe("CursorGenerator invocation profile", () => {
       "--trust",
     ]);
     // System, wire schema, user, and the output contract all travel by
-    // stdin (the CLI has no system channel and NO schema flag — the prompt
+    // stdin (the CLI has no system channel and NO schema flag, the prompt
     // is the only place the model ever sees the schema), in that order.
     const stdin = readFileSync(join(scriptDir, "stdin-0.txt"), "utf8");
     expect(stdin.startsWith("you are a test")).toBe(true);
@@ -142,7 +152,7 @@ describe("CursorGenerator invocation profile", () => {
     expect(cwd).toContain("cursor-gen-");
   });
 
-  it("sends the configured model id VERBATIM — never a bracket override", async () => {
+  it("sends the configured model id VERBATIM, never a bracket override", async () => {
     // The CLI accepts only --list-models ids; a bracket-decorated id is
     // rejected outright (execution-verified), so effort never decorates it.
     const { generator, scriptDir } = scriptedGenerator([
@@ -190,7 +200,7 @@ describe("CursorGenerator invocation profile", () => {
       "--model",
       "gpt-5.2",
     ]);
-    // Requested effort can't ride a bare id — the gap is logged, not silent.
+    // Requested effort can't ride a bare id, the gap is logged, not silent.
     expect(logs.join("\n")).toContain("does not ride the wire");
   });
 
@@ -267,7 +277,7 @@ describe("CursorGenerator envelope handling", () => {
 
   it("skips narration braces and a schema echo to find the real answer", async () => {
     // With the wire schema riding the prompt, a model may echo it (or use
-    // braces in prose) BEFORE the answer — the LAST parseable object wins.
+    // braces in prose) BEFORE the answer, the LAST parseable object wins.
     const { generator, scriptDir } = scriptedGenerator([
       {
         output:
@@ -313,20 +323,33 @@ describe("CursorGenerator envelope handling", () => {
   });
 
   it("warns on a drifted permission mode without echoing it", async () => {
-    // The one lockdown claim the CLI makes checkable — silence here would
+    // The one lockdown claim the CLI makes checkable, silence here would
     // let a drifted CLI run generations with write+shell tools live.
     const logs: string[] = [];
+    const warnings: GeneratorWarning[] = [];
     const generator = makeGenerator({
       SHIM_SCENARIO: "valid",
       SHIM_PERMISSION_MODE: "drift-SENTINEL-mode",
     });
     await expect(
-      generator.generate(request({ log: (m) => logs.push(m) })),
+      generator.generate(
+        request({
+          log: (m) => logs.push(m),
+          onWarning: (warning) => warnings.push(warning),
+        }),
+      ),
     ).resolves.toEqual({ ok: true });
     const joined = logs.join("\n");
     expect(joined).toContain("write lockdown is unverified");
     expect(joined).toContain("an unrecognized mode");
     expect(joined).not.toContain("SENTINEL");
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.PLAN_MODE_UNVERIFIED,
+        message: expect.stringContaining("write lockdown is unverified"),
+      },
+    ]);
+    expect(JSON.stringify(warnings)).not.toContain("SENTINEL");
   });
 
   it("never echoes a drifted apiKeySource into logs", async () => {
@@ -366,7 +389,7 @@ describe("CursorGenerator envelope handling", () => {
   });
 
   it("reports billed usage even when the envelope is an error", async () => {
-    // The tokens were spent before the failure classified — onUsage fires
+    // The tokens were spent before the failure classified, onUsage fires
     // off the envelope, ahead of the error branches.
     const usages: TokenUsage[] = [];
     const { generator } = scriptedGenerator([
@@ -398,7 +421,7 @@ describe("CursorGenerator stderr taxonomy", () => {
     expect(caught.kind).toBe(GeneratorErrorKinds.AUTH);
     expect(caught.message).toContain("cursor-agent login");
     expect(caught.message).toContain("CURSOR_API_KEY");
-    // Fixed text only — the CLI's own phrasing never rides along.
+    // Fixed text only, the CLI's own phrasing never rides along.
     expect(caught.message).not.toContain("Please run");
   });
 
@@ -427,7 +450,7 @@ describe("CursorGenerator stderr taxonomy", () => {
   });
 
   it("falls back to opaque with the exit code and a REDACTED stderr tail", async () => {
-    // stderr is cursor's only error channel — an unclassified failure must
+    // stderr is cursor's only error channel, an unclassified failure must
     // carry the tail (unlike claude/codex, whose errors ride in-band), with
     // credential-shaped substrings stripped at the redactSecrets boundary.
     const generator = makeGenerator({
@@ -510,8 +533,8 @@ describe("cursor registry entry", () => {
     expect(result.value.origin("low")).toMatchObject({ provider: "cursor" });
   });
 
-  it("refuses boot when the CLI is logged out (about exits 0)", async () => {
-    // The exit-blind trap: `about` succeeds either way — only the JSON
+  it("refuses boot when the CLI is logged out though about exits 0", async () => {
+    // The exit-blind trap: `about` succeeds either way, only the JSON
     // verdict can refuse.
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: FAKE_CURSOR },
@@ -576,7 +599,7 @@ describe("cursor registry entry", () => {
   });
 
   it("keeps credential vars out of the probe spawns", async () => {
-    // The shim's about arm exits 1 when any stripped-list var reached it —
+    // The shim's about arm exits 1 when any stripped-list var reached it,
     // a successful construction here proves the probe went through
     // envForSpawn (CURSOR_API_KEY excepted: the deliberate survivor).
     // Minimal env, not a process.env spread: the vitest runner injects
@@ -599,7 +622,7 @@ describe("cursor registry entry", () => {
   });
 });
 
-describe("buildCursorVersionWarning (headless-contract floor)", () => {
+describe("buildCursorVersionWarning headless-contract floor", () => {
   it("stays silent at the floor and above", () => {
     expect(buildCursorVersionWarning("2026.08.25-3e8eec8")).toBeNull();
     expect(buildCursorVersionWarning("2026.08.26-0000000")).toBeNull();
@@ -627,7 +650,7 @@ describe("buildCursorVersionWarning (headless-contract floor)", () => {
   });
 });
 
-describe("interpretCursorAbout (auth verdict — `about` exits 0 logged out)", () => {
+describe("interpretCursorAbout auth verdict", () => {
   it("passes silently on an authenticated account", () => {
     const verdict = interpretCursorAbout(
       JSON.stringify({
@@ -640,14 +663,14 @@ describe("interpretCursorAbout (auth verdict — `about` exits 0 logged out)", (
     expect(verdict).toEqual({ ok: true, value: null });
   });
 
-  it("passes on partial evidence (tier without email)", () => {
+  it("passes on partial evidence, a tier without an email", () => {
     const verdict = interpretCursorAbout(
       JSON.stringify({ userEmail: null, subscriptionTier: "pro" }),
     );
     expect(verdict).toEqual({ ok: true, value: null });
   });
 
-  it("refuses boot when both identity fields are null (logged out)", () => {
+  it("refuses boot when both identity fields are null", () => {
     const verdict = interpretCursorAbout(
       JSON.stringify({
         cliVersion: "2026.08.25-3e8eec8",
@@ -671,7 +694,7 @@ describe("interpretCursorAbout (auth verdict — `about` exits 0 logged out)", (
   });
 
   it("never echoes the account email into any verdict", () => {
-    // `about` output carries userEmail — PII that must never reach a
+    // `about` output carries userEmail, PII that must never reach a
     // message or warning on ANY path (allowlist rendering only).
     const sentinel = "leak-SENTINEL@example.com";
     const pass = interpretCursorAbout(
@@ -702,10 +725,10 @@ describe("interpretCursorAbout (auth verdict — `about` exits 0 logged out)", (
   });
 });
 
-describe("resolveCursorTimeouts (stream is pipe-silent until exit)", () => {
+describe("resolveCursorTimeouts for a stream silent until exit", () => {
   it("defaults the inactivity watchdog to the hard ceiling", () => {
     // With no liveness signal on the pipe, a 3-minute inactivity default
-    // would kill every longer run — inactivity must collapse to wall-clock.
+    // would kill every longer run, inactivity must collapse to wall-clock.
     const timeouts = resolveCursorTimeouts(undefined);
     expect(timeouts.inactivityMs).toBe(timeouts.hardMs);
   });

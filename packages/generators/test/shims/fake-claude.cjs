@@ -212,6 +212,12 @@ if (scenario === "scripted") {
       });
       // Envelope-drift arm: an older/newer CLI without modelUsage.
       if (script.noModelUsage) delete envelope.modelUsage;
+      // Hostile-key arm: modelUsage keys straight from the script.
+      if (script.servedModels) {
+        envelope.modelUsage = Object.fromEntries(
+          script.servedModels.map((id) => [id, { inputTokens: 1 }]),
+        );
+      }
       emit(envelope);
     }
     process.exit(0);
@@ -273,7 +279,7 @@ switch (scenario) {
     });
     break;
   case "hang":
-    // No output, never exits — the inactivity watchdog's case.
+    // No output, never exits: the inactivity watchdog's case.
     stayAlive();
     break;
   case "spawn-grandchild": {
@@ -306,7 +312,7 @@ switch (scenario) {
     stayAlive();
     break;
   case "flush-on-sigint":
-    // Silent hang; on SIGINT flush malformed output then exit — the
+    // Silent hang; on SIGINT flush malformed output then exit, the
     // grace-window flush a dying CLI produces.
     process.on("SIGINT", () => {
       process.stdout.write("MALFORMED-DYING-FLUSH\n", () => process.exit(130));

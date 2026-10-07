@@ -2,11 +2,13 @@ import OpenAI, { type ClientOptions } from "openai";
 import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
+import { GeneratorWarningKinds } from "../contract/types";
 import {
   OpenAiCompatibleCore,
   type OpenAiChatRequest,
   type OpenAiChatTransport,
   type OpenAiStreamChunk,
+  type StreamChatOptions,
 } from "./openaiCore";
 
 /**
@@ -83,15 +85,16 @@ export async function createOpenRouterCore(
     requested: options.model,
     reasoningSupported,
     providerRouting: options.providerRouting,
-    onMismatch: (served, requestLog) => {
+    onMismatch: (served, streamOptions) => {
       // The served id is provider-reported (untrusted): render it through
       // the slug grammar so arbitrary text can't enter logs or the hook.
-      // The warning goes through the PER-REQUEST log so it reaches the
-      // caller's artifact-warning collection, not just the process log.
       const shown = MODEL_SLUG.test(served) ? served : "(unrecognized id)";
-      (requestLog ?? log)(
-        `warning: requested model ${options.model} but the stream reports ${shown} — origin stamp stays the declaration`,
-      );
+      const mismatchMessage = `warning: requested model ${options.model} but the stream reports ${shown} — origin stamp stays the declaration`;
+      (streamOptions.log ?? log)(mismatchMessage);
+      streamOptions.onWarning?.({
+        kind: GeneratorWarningKinds.SERVED_MODEL_MISMATCH,
+        message: mismatchMessage,
+      });
       options.onModelMismatch?.(options.model, shown);
     },
   });
@@ -127,7 +130,7 @@ function openRouterTransport(
     requested: string;
     reasoningSupported: boolean;
     providerRouting: Record<string, unknown> | undefined;
-    onMismatch: (served: string, requestLog: Logger | undefined) => void;
+    onMismatch: (served: string, streamOptions: StreamChatOptions) => void;
   },
 ): OpenAiChatTransport {
   return {
@@ -152,7 +155,7 @@ function openRouterTransport(
         options.signal ? { signal: options.signal } : undefined,
       );
       return verifyServedModel(stream, config.requested, (served) =>
-        config.onMismatch(served, options.log),
+        config.onMismatch(served, options),
       );
     },
   };

@@ -7,10 +7,14 @@ import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { GenerateRequest, Generator } from "../src/contract/generator";
 import { GenerationSchema, type Generation } from "../src/contract/generation";
+import {
+  GeneratorWarningKinds,
+  type GeneratorWarning,
+} from "../src/contract/types";
 
 /**
  * The shared Generator conformance suite: every adapter must pass these
- * cases through its own transport fake — stub SDK
+ * cases through its own transport fake: stub SDK
  * client for Anthropic, real-process shim binaries for the harness CLIs,
  * fetch-level fixtures for the API adapters. The suite asserts the pipeline
  * BEHAVIOR (schema floor, salvage, retry-once, dump, abort passthrough,
@@ -30,14 +34,14 @@ export const contractPayloads = {
   /** One out-of-vocabulary token in the droppable `tags` field. */
   salvageable: JSON.stringify({ title: "t", tags: ["bugfix", "scary"] }),
   salvagedParsed: { title: "t", tags: ["bugfix"] },
-  /** Structurally invalid (title must be a string) — unsalvageable. */
+  /** Structurally invalid (title must be a string), so unsalvageable. */
   invalid: JSON.stringify({ title: 42, tags: [] }),
 } as const;
 
 /**
  * One scripted transport turn: a raw model output, an abort-shaped
  * rejection, or a provider refusal (only for harnesses that declare
- * `supportsRefusal` — not every transport has a refusal signal).
+ * `supportsRefusal`, since not every transport has a refusal signal).
  */
 export type ContractTurn =
   | { raw: string }
@@ -47,7 +51,7 @@ export type ContractTurn =
 /** What a harness hands back for one scripted generator. */
 export interface ContractGeneratorHandle {
   generator: Generator;
-  /** Signal to thread into generate() — harnesses that abort supply one. */
+  /** Signal to thread into generate(); harnesses that abort supply one. */
   signal?: AbortSignal;
   /** Transport attempts served so far. */
   attempts(): number;
@@ -95,7 +99,10 @@ export function describeGeneratorContract(
       await rm(dir, { recursive: true, force: true });
     });
 
-    async function generate(handle: ContractGeneratorHandle) {
+    async function generate(
+      handle: ContractGeneratorHandle,
+      warnings?: GeneratorWarning[],
+    ) {
       const req: GenerateRequest<typeof ContractSchema> = {
         schema: ContractSchema,
         system: "sys",
@@ -104,7 +111,12 @@ export function describeGeneratorContract(
         label: "contract",
         salvageFields: ["tags"],
       };
-      if (handle.signal) req.signal = handle.signal;
+      if (handle.signal) {
+        req.signal = handle.signal;
+      }
+      if (warnings !== undefined) {
+        req.onWarning = (warning) => warnings.push(warning);
+      }
       return handle.generator.generate(req);
     }
 
@@ -126,7 +138,7 @@ export function describeGeneratorContract(
         contractPayloads.salvagedParsed,
       );
       expect(handle.attempts()).toBe(1);
-      // Salvage is a recovery, not a failure — nothing may be dumped.
+      // Salvage is a recovery, not a failure: nothing may be dumped.
       expect(dumps(dir)).toHaveLength(0);
     });
 
@@ -162,6 +174,37 @@ export function describeGeneratorContract(
       expect(dumped).toMatchObject({ raw: contractPayloads.invalid });
     });
 
+    it("reports a salvage as a typed salvaged warning", async () => {
+      const handle = await harness.make(
+        [{ raw: contractPayloads.salvageable }],
+        dir,
+      );
+      const warnings: GeneratorWarning[] = [];
+      await generate(handle, warnings);
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.kind).toBe(GeneratorWarningKinds.SALVAGED);
+      expect(warnings[0]?.message).toMatch(/^⚠ salvaged contract: /);
+    });
+
+    it("reports the feedback retry as a warning without the dump path", async () => {
+      const handle = await harness.make(
+        [{ raw: contractPayloads.invalid }, { raw: contractPayloads.valid }],
+        dir,
+      );
+      const warnings: GeneratorWarning[] = [];
+      await generate(handle, warnings);
+
+      expect(warnings).toEqual([
+        {
+          kind: GeneratorWarningKinds.FEEDBACK_RETRY,
+          message:
+            "⚠ contract failed schema validation — retrying once with error feedback",
+        },
+      ]);
+      expect(dumps(dir)).toHaveLength(1);
+    });
+
     it("throws a schema-floor GeneratorError with both attempts dumped", async () => {
       const handle = await harness.make(
         [{ raw: contractPayloads.invalid }, { raw: contractPayloads.invalid }],
@@ -177,7 +220,7 @@ export function describeGeneratorContract(
       const files = dumps(dir);
       expect(files).toHaveLength(2);
       for (const file of files) {
-        // Label-prefixed name and the exact {error, raw} shape — no extra
+        // Label-prefixed name and the exact {error, raw} shape: no extra
         // fields, raw byte-identical to the failed output.
         expect(file).toMatch(/^contract-/);
         const dumped: unknown = JSON.parse(

@@ -76,6 +76,12 @@ import type {
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
 import { attributeSafe, stripKnownFences } from "./fences";
+import { createWarningCollector, formatGenerationWarnings } from "./warnings";
+import {
+  GenerationWarningKinds,
+  type GenerationWarning,
+  type WarningCollector,
+} from "./warnings/types";
 
 /**
  * Applied when a caller passes no explicit effort. Configured values arrive
@@ -189,11 +195,12 @@ function acceptRepoContext(
   repoContext: RepoContext | undefined,
   files: readonly { path: string }[],
   log: Logger,
+  warnings: WarningCollector,
 ): { context: RepoContext | undefined; blocks: string } {
   if (repoContext === undefined) return { context: undefined, blocks: "" };
 
   const gated = sanitizeCustomAttributes(repoContext.customAttributes);
-  warnIssues(gated.issues, log, "repo attrs");
+  warnings.reportIssues("repo attrs", gated.issues);
   // No file list (rare) = no basis to pre-filter; keep everything.
   const applicable =
     files.length === 0
@@ -212,7 +219,10 @@ function acceptRepoContext(
   if (instructions !== undefined) {
     const rendered = renderRepoInstructions(instructions);
     if (rendered.block === undefined) {
-      log(rendered.warning);
+      warnings.report({
+        kind: GenerationWarningKinds.REPO_INSTRUCTIONS_OMITTED,
+        message: rendered.warning,
+      });
       instructions = undefined;
     } else {
       sections.push(`## Repo instructions\n${rendered.block}`);
@@ -335,22 +345,33 @@ ${fileList || "(none reported)"}
 ${clean(pr.diff)}`;
 }
 
-export async function categorize(
+export interface CategorizedBrief {
+  brief: Brief;
+  warnings: GenerationWarning[];
+}
+
+/** `categorize` plus the typed warnings its stored lines were formatted from. */
+export async function categorizeWithWarnings(
   pr: FetchedPr,
   index: number,
   commitRange: CommitRange,
-  generator: Generator = new AnthropicGenerator(),
-  log: Logger = () => {},
-  repoContext?: RepoContext,
-  effort: Effort = DEFAULT_EFFORT,
-  anchor?: AnchorViewInput,
-): Promise<Brief> {
+  generator: Generator,
+  log: Logger,
+  repoContext: RepoContext | undefined,
+  effort: Effort,
+  anchor: AnchorViewInput | undefined,
+): Promise<CategorizedBrief> {
   // The model produces analysis only; pr / index / commitRange / generation are
   // CLI-owned metadata it cannot know, filled in here.
-  const collector = collectGenerationWarnings(log);
+  const collector = createWarningCollector(log);
   // One accepted repo-context view: every gate runs BEFORE any name touches the
   // schema enum or any text touches the prompt.
-  const accepted = acceptRepoContext(repoContext, pr.meta.files, collector.log);
+  const accepted = acceptRepoContext(
+    repoContext,
+    pr.meta.files,
+    log,
+    collector,
+  );
   const effectiveContext = accepted.context;
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
@@ -375,7 +396,8 @@ export async function categorize(
     effort,
     label: "brief",
     salvageFields: SALVAGE_FIELDS,
-    log: collector.log,
+    log,
+    onWarning: collector.recordGeneratorWarning,
   });
   // Counts never come from the model: chunk loc = |ranges ∩ changed lines|,
   // concernView rolls up from that, and the remainder no chunk claims is
@@ -386,11 +408,10 @@ export async function categorize(
   // before anything counts them, so the overlap check sees final ranges.
   const snappedChunks = snapChunkRanges(generated.chunks, fileDiffs);
   const chunksWithLoc = deriveChunkLoc(snappedChunks, changedFiles);
-  warnIssues(detectChunkOverlaps(chunksWithLoc), collector.log, "loc overlap");
-  warnIssues(
-    crossCheckFileTotals(changedFiles, pr.meta.files),
-    collector.log,
+  collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
+  collector.reportIssues(
     "loc cross-check",
+    crossCheckFileTotals(changedFiles, pr.meta.files),
   );
   // On anchored runs the model deliberately withholds frozen groups' chunks,
   // so a remainder computed here would mis-claim their lines as unattributed;
@@ -400,7 +421,7 @@ export async function categorize(
       ? deriveUnattributed(chunksWithLoc, changedFiles)
       : undefined;
   if (unattributed !== undefined) {
-    warnIssues(coverageIssues(unattributed), collector.log, "loc coverage");
+    collector.reportIssues("loc coverage", coverageIssues(unattributed));
   }
 
   const { readingOrder, ...rest } = generated;
@@ -413,7 +434,7 @@ export async function categorize(
     generated.changeGroups,
     carriedGroupIds,
   );
-  warnIssues(readingOrderIssues, collector.log, "reading order");
+  collector.reportIssues("reading order", readingOrderIssues);
   const keepReadingOrder =
     readingOrder !== undefined && readingOrderIssues.length === 0;
 
@@ -449,7 +470,7 @@ export async function categorize(
     carriedGroupIds,
     primaryFacts,
   );
-  warnIssues(intentChecked.issues, collector.log, "intent check");
+  collector.reportIssues("intent check", intentChecked.issues);
   // Harness data, stamped after validation: the model never sees it.
   const intentCheck =
     pr.primaryTicket === undefined
@@ -468,15 +489,15 @@ export async function categorize(
           chunksWithLoc,
           effectiveContext.customAttributes,
         );
-  warnIssues(repoChecked.issues, collector.log, "repo attrs");
+  collector.reportIssues("repo attrs", repoChecked.issues);
 
   const trio = validateRiskAttributes(repoChecked.chunks, fileDiffs);
-  warnIssues(trio.issues, collector.log, "risk attrs");
+  collector.reportIssues("risk attrs", trio.issues);
 
   // Warn-only length floor: the prompt carries the caps; this measures
   // compliance and stamps the structured violations for the FE.
   const textLength = validateTextLength(generated.changeGroups, trio.chunks);
-  warnIssues(textLength.issues, collector.log, "text length");
+  collector.reportIssues("text length", textLength.issues);
 
   const brief: Brief = {
     ...rest,
@@ -495,18 +516,43 @@ export async function categorize(
   if (unattributed !== undefined) brief.unattributed = unattributed;
   if (keepReadingOrder) brief.readingOrder = readingOrder;
 
-  warnIssues(
+  collector.reportIssues(
+    "partition",
     validatePartition(brief.changeGroups, brief.chunks),
-    collector.log,
   );
 
-  const warnings = collector.warnings();
-  if (warnings.length > 0) brief.generationWarnings = warnings;
+  const warnings = collector.listWarnings();
+  if (warnings.length > 0) {
+    brief.generationWarnings = formatGenerationWarnings(warnings);
+  }
   if (textLength.violations.length > 0) {
     brief.lengthViolations = textLength.violations;
   }
 
-  return brief;
+  return { brief, warnings };
+}
+
+export async function categorize(
+  pr: FetchedPr,
+  index: number,
+  commitRange: CommitRange,
+  generator: Generator = new AnthropicGenerator(),
+  log: Logger = () => {},
+  repoContext?: RepoContext,
+  effort: Effort = DEFAULT_EFFORT,
+  anchor?: AnchorViewInput,
+): Promise<Brief> {
+  const categorized = await categorizeWithWarnings(
+    pr,
+    index,
+    commitRange,
+    generator,
+    log,
+    repoContext,
+    effort,
+    anchor,
+  );
+  return categorized.brief;
 }
 
 /** Warn line for a non-empty unattributed remainder (coverage gap). */
@@ -516,38 +562,6 @@ function coverageIssues(unattributed: UnattributedFile[]): string[] {
   return [
     `${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
   ];
-}
-
-/** Log-and-continue for warn-only validation issues (never a throw). */
-export function warnIssues(
-  issues: string[],
-  log: Logger,
-  label = "partition",
-): void {
-  if (issues.length > 0) {
-    log(`⚠ ${label} issues: ${issues.join("; ")}`);
-  }
-}
-
-/**
- * Tee warning lines off a Logger into an artifact-bound collection: salvage/retry
- * lines (`⚠ …`) and adapter warnings (`warning: …`) become part of the artifact
- * so the UI can render what generation did, not just that it finished.
- */
-export function collectGenerationWarnings(log: Logger): {
-  log: Logger;
-  warnings: () => string[];
-} {
-  const seen: string[] = [];
-  return {
-    log: (message) => {
-      if (message.startsWith("⚠") || message.startsWith("warning:")) {
-        seen.push(message);
-      }
-      log(message);
-    },
-    warnings: () => [...seen],
-  };
 }
 
 // --- Delta (per-reviewer carry-over is out of scope) ----------------------
@@ -628,7 +642,7 @@ export async function categorizeDelta(
 ): Promise<DeltaBrief> {
   // The model produces analysis only; identifiers, endpoint indices, and
   // generation are CLI-owned, filled in here.
-  const collector = collectGenerationWarnings(log);
+  const collector = createWarningCollector(log);
   const generated = await generator.generate({
     schema: DeltaBriefGenerationSchema,
     system: buildDeltaSystemPrompt(),
@@ -636,7 +650,8 @@ export async function categorizeDelta(
     effort,
     label: "delta",
     salvageFields: SALVAGE_FIELDS,
-    log: collector.log,
+    log,
+    onWarning: collector.recordGeneratorWarning,
   });
   // Delta chunk loc derives from the incremental diff, same discipline as
   // the full brief; the delta artifact carries no concernView/unattributed.
@@ -645,13 +660,13 @@ export async function categorizeDelta(
     generated.chunks,
     changedRangesFromFileDiffs(fileDiffs),
   );
-  warnIssues(detectChunkOverlaps(chunksWithLoc), collector.log, "loc overlap");
+  collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
   const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
-  warnIssues(trio.issues, collector.log, "risk attrs");
+  collector.reportIssues("risk attrs", trio.issues);
 
   // Warn-only length floor, same posture as the full brief.
   const textLength = validateTextLength(generated.changedGroups, trio.chunks);
-  warnIssues(textLength.issues, collector.log, "text length");
+  collector.reportIssues("text length", textLength.issues);
 
   const delta: DeltaBrief = {
     ...generated,
@@ -663,13 +678,15 @@ export async function categorizeDelta(
     headIndex: input.headIndex ?? null,
     generation: generator.origin(effort),
   };
-  warnIssues(
+  collector.reportIssues(
+    "partition",
     validatePartition(delta.changedGroups, delta.chunks),
-    collector.log,
   );
 
-  const warnings = collector.warnings();
-  if (warnings.length > 0) delta.generationWarnings = warnings;
+  const warnings = collector.listWarnings();
+  if (warnings.length > 0) {
+    delta.generationWarnings = formatGenerationWarnings(warnings);
+  }
   if (textLength.violations.length > 0) {
     delta.lengthViolations = textLength.violations;
   }
@@ -777,30 +794,28 @@ export async function categorizeRevisionNarrative(
 ): Promise<RevisionNarrative> {
   // The model produces overview + chunks only; the rest is CLI-owned metadata
   // it cannot know, filled in here.
-  const collector = collectGenerationWarnings(log);
+  const collector = createWarningCollector(log);
   const generated = await generator.generate({
     schema: RevisionNarrativeGenerationSchema,
     system: buildRevisionNarrativeSystemPrompt(),
     user: renderRevisionNarrativeUser(input),
     effort,
     label: "revision narrative",
-    log: collector.log,
+    log,
+    onWarning: collector.recordGeneratorWarning,
   });
-  warnIssues(
-    validateNarrativeGroups(generated.chunks, input.brief.changeGroups),
-    collector.log,
+  collector.reportIssues(
     "revision narrative",
+    validateNarrativeGroups(generated.chunks, input.brief.changeGroups),
   );
   if (input.marksFiles !== undefined) {
-    warnIssues(
-      validateNarrativeMarksOverlap(generated.chunks, input.marksFiles),
-      collector.log,
+    collector.reportIssues(
       "revision narrative marks overlap",
+      validateNarrativeMarksOverlap(generated.chunks, input.marksFiles),
     );
-    warnIssues(
-      validateMarksNarrativeCoverage(input.marksFiles, generated.chunks),
-      collector.log,
+    collector.reportIssues(
       "revision narrative coverage",
+      validateMarksNarrativeCoverage(input.marksFiles, generated.chunks),
     );
   }
   // Warn-only length floor: overview + hover-callout summaries.
@@ -808,8 +823,8 @@ export async function categorizeRevisionNarrative(
     generated.overview,
     generated.chunks,
   );
-  warnIssues(textLength.issues, collector.log, "text length");
-  const warnings = collector.warnings();
+  collector.reportIssues("text length", textLength.issues);
+  const warnings = collector.listWarnings();
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
@@ -824,7 +839,9 @@ export async function categorizeRevisionNarrative(
   if (textLength.violations.length > 0) {
     narrative.lengthViolations = textLength.violations;
   }
-  if (warnings.length > 0) narrative.generationWarnings = warnings;
+  if (warnings.length > 0) {
+    narrative.generationWarnings = formatGenerationWarnings(warnings);
+  }
 
   return narrative;
 }
