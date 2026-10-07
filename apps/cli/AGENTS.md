@@ -30,6 +30,7 @@ What the layout can't show:
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI synthesizes shapes only where documented (e.g. `delta`).
 - **One client-side shape check family**: the span flags every span-addressed command requires (exit 2), plus flag XOR `-F` payload exclusivity, plus `--file` without a span refusing `--side`/`--start-side` (exit 2; otherwise the line-arm `--side` default would swallow a no-op flag). Everything else relays the server's locked validation (4xx → exit 5; 429 → exit 7).
 - **Single-file bundle:** workspace runtime deps are limited to `i18n` (the string catalog — tsup bundles it in; the bundle stays one file) plus compile-time `types`. `dependencies` lists exactly what the bundle inlines (`commander`, `zod`, `i18n`) so `pnpm audit --prod` still sees them; the release tool's `prune-manifest` strips the block after the build, so the shipped manifest carries no `dependencies` and no publisher ever rewrites the `workspace:` range. `bin` is `dist/mergebrief.js` with no `./`: npm 11 drops a `./` bin on publish (not on pack), and the package would ship without its command. `test/manifest.test.ts` holds both. Assets ship as constants, never file reads.
+- **Copy:** CLI-originated copy (help text, prompts, error lines, warnings) is English by contract; a wire error code still renders through the catalog (`errors.<code>`).
 - **Secrets:** the profile token is plaintext-on-disk by design (0600, v1, disclaimed at mint) — but it never appears in stdout, stderr, or errors.
 
 ## Verification

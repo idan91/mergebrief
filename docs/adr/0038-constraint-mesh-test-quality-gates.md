@@ -94,6 +94,10 @@ domain). No kill-rate number — the survivor list is the deliverable; each
 survivor becomes a test fix or a recorded acceptable. One-shot audit at
 implementation, then a pre-release convention step. Never per-PR CI.
 
+_Amended 2026-10-05 (BRIEF-337)._ Deferred post-v1, as the v1 release gate
+below already says: no Stryker run or pre-release step exists yet, and
+nothing in the repo describes one as live.
+
 ### 6. Property-based testing (fast-check)
 
 Adopted on three untrusted-input surfaces: `packages/github`
@@ -103,6 +107,10 @@ its output always passes the validator), repo-config parsing (arbitrary
 input → `Result`, defaults applied). Lives inside the existing vitest
 suites — no new tier, `numRuns: 100`, failures print a reproducing seed
 (compatible with the no-flake policy). Not applied to I/O packages or UI.
+
+_Amended 2026-10-05 (BRIEF-337)._ Deferred post-v1, as the v1 release gate
+below already says: fast-check is not a dependency and none of the three
+surfaces carries a property test yet.
 
 ### 7. Static constraints
 
