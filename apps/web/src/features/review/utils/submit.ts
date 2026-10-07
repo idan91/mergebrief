@@ -1,7 +1,7 @@
 // The submit route's request body, the review body the hook sends, and the
 // client-side refusal that mirrors the route's deterministic 400s. The fold
 // below rebuilds the exact string the route measures, so it must track
-// `foldCommentsIntoBody` in apps/api's review route character for character.
+// `foldCommentsIntoBody` in apps/api's publish module character for character.
 import type { TFunction } from "i18next";
 import { CommentAnchorKinds } from "types/comments";
 import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";

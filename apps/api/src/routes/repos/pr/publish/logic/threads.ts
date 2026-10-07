@@ -3,30 +3,15 @@
 // at the first transport failure so the caller can delete the pending review.
 // octokit paces every mutation, GraphQL included, at one per second per
 // viewer, so a submit costs about N+2 seconds of wall clock.
-import {
-  ReviewThreadFailureKinds,
-  type AddReviewThreadInput,
-  type GitHubApiError,
-  type ReviewThread,
-  type ReviewThreadFailure,
-} from "github";
+import { ReviewThreadFailureKinds } from "github";
 import type { Result } from "types/utils";
-import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
-import { toThreadInput, type SubmitComment } from "./submit-comments";
-
-/** One thread mutation on the reviewer's token, refresh budget included. */
-export type PostThread = (
-  input: AddReviewThreadInput,
-) => Promise<
-  Result<ReviewThread, ReviewThreadFailure | TokenUnreadableFailure>
->;
-
-export interface PostedThreads {
-  readonly landed: SubmitComment[];
-  readonly rejected: SubmitComment[];
-}
-
-export type PostThreadsFailure = GitHubApiError | TokenUnreadableFailure;
+import type {
+  PostedThreads,
+  PostThread,
+  PostThreadsFailure,
+  PublishComment,
+} from "../types";
+import { shapeThreadInput } from "./anchor";
 
 /**
  * Post every comment as a thread on the pending review. A rejected anchor is
@@ -36,13 +21,13 @@ export type PostThreadsFailure = GitHubApiError | TokenUnreadableFailure;
 export async function postReviewThreads(
   post: PostThread,
   reviewNodeId: string,
-  comments: readonly SubmitComment[],
+  comments: readonly PublishComment[],
 ): Promise<Result<PostedThreads, PostThreadsFailure>> {
-  const landed: SubmitComment[] = [];
-  const rejected: SubmitComment[] = [];
+  const landed: PublishComment[] = [];
+  const rejected: PublishComment[] = [];
 
   for (const comment of comments) {
-    const posted = await post(toThreadInput(reviewNodeId, comment));
+    const posted = await post(shapeThreadInput(reviewNodeId, comment));
     if (posted.ok) {
       landed.push(comment);
       continue;

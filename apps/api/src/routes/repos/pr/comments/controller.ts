@@ -1,32 +1,10 @@
 // Hono-free. One reviewer channel per request: the refresh budget spans the
 // fresh repo re-resolve AND the write; failures ride the Result whole.
-import {
-  createInlineReviewComment,
-  createReviewCommentReply,
-  setReviewThreadResolution,
-} from "github";
+import { createReviewCommentReply, setReviewThreadResolution } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import type { CommentsControllerDeps } from "./types";
 
 export const commentsController = {
-  /** POST one held draft as an inline review comment. A 401'd POST created
-   * nothing, so the client's refreshed re-run cannot double-post. */
-  async postInlineComment(
-    deps: CommentsControllerDeps,
-    input: Parameters<typeof createInlineReviewComment>[1],
-  ) {
-    const posted = await deps.github.run((token) =>
-      createInlineReviewComment(
-        deps.github.createMutationOctokit(token),
-        input,
-      ),
-    );
-    if (!posted.ok) {
-      return buildGitHubDeniedResult(posted.error, "mutation");
-    }
-    return posted;
-  },
-
   /** POST a reply under an existing review comment. */
   async postReply(
     deps: CommentsControllerDeps,

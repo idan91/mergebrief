@@ -1,9 +1,5 @@
 import { randomBytes } from "node:crypto";
-import {
-  GitHubApiErrorCodes,
-  createInlineReviewComment,
-  createReviewCommentReply,
-} from "github";
+import { GitHubApiErrorCodes, createReviewCommentReply } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -35,7 +31,6 @@ import { commentsController } from "./controller";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
-  createInlineReviewComment: vi.fn(),
   createReviewCommentReply: vi.fn(),
 }));
 
@@ -109,40 +104,10 @@ function buildGitHubError(
 }
 
 beforeEach(() => {
-  vi.mocked(createInlineReviewComment).mockReset();
   vi.mocked(createReviewCommentReply).mockReset();
 });
 
 describe("commentsController", () => {
-  it("wraps a publish denial whole with phase mutation", async () => {
-    vi.mocked(createInlineReviewComment).mockResolvedValue({
-      ok: false,
-      error: {
-        code: GitHubApiErrorCodes.FORBIDDEN,
-        status: 403,
-        message: "denied",
-        staleAnchor: false,
-      },
-    });
-    const result = await commentsController.postInlineComment(
-      { github: await buildClient() },
-      {
-        owner: "acme",
-        repo: "app",
-        prNumber: 7,
-        commitId: "a".repeat(40),
-        path: "src/x.ts",
-        line: 3,
-        side: "RIGHT",
-        body: "note",
-      },
-    );
-    expect(result).toMatchObject({
-      ok: false,
-      error: { kind: "github-denied", phase: "mutation" },
-    });
-  });
-
   it("wraps a reply denial whole with phase mutation", async () => {
     vi.mocked(createReviewCommentReply).mockResolvedValue(
       buildGitHubError(GitHubApiErrorCodes.NOT_FOUND),

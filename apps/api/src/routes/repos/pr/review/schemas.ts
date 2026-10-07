@@ -2,7 +2,7 @@
 // the commit off the named Brief's head; the request carries neither.
 import { z } from "zod/v4";
 import { MAX_BODY_LENGTH } from "../../../wire-bounds";
-import { ReviewOutcomes } from "./types";
+import { ReviewOutcomes } from "types/reviews";
 
 export const submitBodySchema = z
   .object({

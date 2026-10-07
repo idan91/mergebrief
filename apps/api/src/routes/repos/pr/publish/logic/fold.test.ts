@@ -1,124 +1,19 @@
-import { ReviewCommentSides, ReviewSubjectTypes } from "github";
 import type { ReviewDraftCommentRow } from "persistence";
-import {
-  CommentAnchorKinds,
-  DraftCommentSides,
-  DraftCommentStatuses,
-} from "types/comments";
+import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
 import { describe, expect, it } from "vitest";
-import {
-  foldCommentsIntoBody,
-  shapeSubmitComment,
-  toThreadInput,
-} from "./submit-comments";
-
-const STAMP = new Date("2026-01-01T00:00:00Z");
-
-function makeLineDraft(
-  patch: Partial<ReviewDraftCommentRow> = {},
-): ReviewDraftCommentRow {
-  return {
-    id: 1n,
-    installationId: 1n,
-    reviewSessionId: 10n,
-    anchor: {
-      kind: CommentAnchorKinds.LINE,
-      file: "src/a.ts",
-      side: DraftCommentSides.NEW,
-      startLine: 12,
-      endLine: 12,
-    },
-    body: "anchored note",
-    status: DraftCommentStatuses.DRAFT,
-    anchorStatus: null,
-    carriedFromSessionId: null,
-    carriedFromCommentId: null,
-    createdAt: STAMP,
-    ...patch,
-  } as ReviewDraftCommentRow;
-}
+import { makeDraftCommentRow } from "../../../../../../test/fixtures";
+import { shapePublishComment } from "./anchor";
+import { foldCommentsIntoBody } from "./fold";
 
 function makeFileDraft(
   patch: Partial<ReviewDraftCommentRow> = {},
 ): ReviewDraftCommentRow {
-  return makeLineDraft({
+  return makeDraftCommentRow({
     anchor: { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
     body: "on the file",
     ...patch,
   });
 }
-
-describe("shapeSubmitComment", () => {
-  it("omits line and side on a File comment", () => {
-    expect(shapeSubmitComment(makeFileDraft())).toEqual({
-      path: "src/app.ts",
-      body: "on the file",
-      subjectType: ReviewSubjectTypes.FILE,
-    });
-  });
-
-  it("keeps a single-line draft on the line arm", () => {
-    expect(shapeSubmitComment(makeLineDraft())).toEqual({
-      path: "src/a.ts",
-      line: 12,
-      side: ReviewCommentSides.RIGHT,
-      body: "anchored note",
-    });
-  });
-});
-
-describe("toThreadInput", () => {
-  it("shapes a File comment as a FILE thread without line fields", () => {
-    const thread = toThreadInput(
-      "PRR_node",
-      shapeSubmitComment(makeFileDraft()),
-    );
-    expect(thread).toEqual({
-      reviewNodeId: "PRR_node",
-      subjectType: ReviewSubjectTypes.FILE,
-      path: "src/app.ts",
-      body: "on the file",
-    });
-    expect("line" in thread).toBe(false);
-    expect("side" in thread).toBe(false);
-  });
-
-  it("shapes a range draft as a LINE thread with the start pair", () => {
-    const thread = toThreadInput(
-      "PRR_node",
-      shapeSubmitComment(
-        makeLineDraft({
-          anchor: {
-            kind: CommentAnchorKinds.LINE,
-            file: "src/b.ts",
-            side: DraftCommentSides.OLD,
-            startLine: 25,
-            endLine: 30,
-          },
-        }),
-      ),
-    );
-    expect(thread).toEqual({
-      reviewNodeId: "PRR_node",
-      subjectType: ReviewSubjectTypes.LINE,
-      path: "src/b.ts",
-      line: 30,
-      side: ReviewCommentSides.LEFT,
-      startLine: 25,
-      startSide: ReviewCommentSides.LEFT,
-      body: "anchored note",
-    });
-  });
-
-  it("keeps a single-line draft free of the start pair", () => {
-    const thread = toThreadInput(
-      "PRR_node",
-      shapeSubmitComment(makeLineDraft()),
-    );
-    expect("startLine" in thread).toBe(false);
-    expect("startSide" in thread).toBe(false);
-  });
-});
 
 describe("foldCommentsIntoBody", () => {
   it("returns the body untouched when nothing was rejected", () => {
@@ -131,7 +26,7 @@ describe("foldCommentsIntoBody", () => {
   it("names how many of the total were folded", () => {
     const folded = foldCommentsIntoBody(
       "overall verdict",
-      [shapeSubmitComment(makeFileDraft())],
+      [shapePublishComment(makeFileDraft())],
       3,
     );
     expect(folded).toContain(
@@ -143,7 +38,7 @@ describe("foldCommentsIntoBody", () => {
   it("folds a File comment as path with no range", () => {
     const folded = foldCommentsIntoBody(
       "overall verdict",
-      [shapeSubmitComment(makeFileDraft())],
+      [shapePublishComment(makeFileDraft())],
       1,
     );
     expect(folded).toContain("**`src/app.ts`**");
@@ -154,7 +49,7 @@ describe("foldCommentsIntoBody", () => {
   it("folds without a body when the review has none", () => {
     const folded = foldCommentsIntoBody(
       undefined,
-      [shapeSubmitComment(makeLineDraft())],
+      [shapePublishComment(makeDraftCommentRow())],
       1,
     );
     expect(folded?.startsWith("---")).toBe(true);
@@ -166,8 +61,8 @@ describe("foldCommentsIntoBody", () => {
     // apps/web/src/features/review/utils/submit.test.ts. Change both or neither.
     const drafts = [
       makeFileDraft({ body: "on the file 🧪" }),
-      makeLineDraft(),
-      makeLineDraft({
+      makeDraftCommentRow(),
+      makeDraftCommentRow({
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/b.ts",
@@ -177,7 +72,7 @@ describe("foldCommentsIntoBody", () => {
         },
         body: "range note",
       }),
-      makeLineDraft({
+      makeDraftCommentRow({
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/c.ts",
@@ -188,7 +83,7 @@ describe("foldCommentsIntoBody", () => {
         },
         body: "crossing note 𝔸",
       }),
-    ].map(shapeSubmitComment);
+    ].map(shapePublishComment);
 
     const folded = foldCommentsIntoBody(
       "Looks right 🚀\n\n---\n\nsignature line",
@@ -205,12 +100,12 @@ describe("foldCommentsIntoBody", () => {
     // apps/web/src/features/review/utils/submit.test.ts. Change both or neither.
     const drafts = [
       makeFileDraft({ body: "on the file 🧪" }),
-      makeLineDraft(),
+      makeDraftCommentRow(),
       makeFileDraft({
         anchor: { kind: CommentAnchorKinds.FILE, file: "src/gone.ts" },
         body: "gone file 🧹",
       }),
-      makeLineDraft({
+      makeDraftCommentRow({
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/gone.ts",
@@ -220,7 +115,7 @@ describe("foldCommentsIntoBody", () => {
         },
         body: "gone range",
       }),
-      makeLineDraft({
+      makeDraftCommentRow({
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/gone.ts",
@@ -231,7 +126,7 @@ describe("foldCommentsIntoBody", () => {
         },
         body: "gone crossing",
       }),
-    ].map(shapeSubmitComment);
+    ].map(shapePublishComment);
 
     const folded = foldCommentsIntoBody(
       "Looks right 🚀\n\n---\n\nsignature line",

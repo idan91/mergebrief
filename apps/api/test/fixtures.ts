@@ -1,7 +1,8 @@
 // The identity and auth wiring every route suite builds before it can call
 // `createApp`: one encryption key, one OAuth app, and the branded ids the
-// tenant scope is keyed by. Session-specific seeding lives in
-// `session/fixtures.ts`, which builds on these.
+// tenant scope is keyed by, plus the stored draft row the publish unit tests
+// shape. Session-specific seeding lives in `session/fixtures.ts`, which
+// builds on these.
 import { createHash, randomBytes } from "node:crypto";
 import {
   createUserOctokit,
@@ -17,8 +18,14 @@ import {
   type InstallationId,
   type KeyProvider,
   type RepoId,
+  type ReviewDraftCommentRow,
   type ReviewerId,
 } from "persistence";
+import {
+  CommentAnchorKinds,
+  DraftCommentSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 import { vi } from "vitest";
 import type { AuthDeps } from "../src/index";
@@ -154,4 +161,31 @@ function jsonBody(body: unknown): Response {
     status: 200,
     headers: { "content-type": "application/json" },
   });
+}
+
+/** A held single-line draft on `src/a.ts`; `patch` overrides any field. */
+export function makeDraftCommentRow(
+  patch: Partial<ReviewDraftCommentRow> = {},
+): ReviewDraftCommentRow {
+  return {
+    id: 1n,
+    installationId: 1n,
+    reviewSessionId: 10n,
+    anchor: {
+      kind: CommentAnchorKinds.LINE,
+      file: "src/a.ts",
+      side: DraftCommentSides.NEW,
+      startLine: 12,
+      endLine: 12,
+    },
+    body: "anchored note",
+    status: DraftCommentStatuses.DRAFT,
+    anchorStatus: null,
+    carriedFromSessionId: null,
+    carriedFromCommentId: null,
+    publishClaim: null,
+    publishClaimedAt: null,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    ...patch,
+  } as ReviewDraftCommentRow;
 }

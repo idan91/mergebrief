@@ -10,11 +10,12 @@ import {
   NotFound,
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
-import type { PublishFailure, ReplyFailure, ResolutionFailure } from "../types";
+import type { ReplyFailure, ResolutionFailure } from "../types";
+import type { CommentPublishFailure } from "../../publish/types";
 import { FailureKinds } from "../../../../../shared-errors/failures";
 
 /** Map a final create-comment failure to the sanitized response posture. */
-export function throwPublishFailure(failure: PublishFailure): never {
+export function throwPublishFailure(failure: CommentPublishFailure): never {
   if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }

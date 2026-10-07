@@ -1,5 +1,5 @@
 import type { RepoId, ScopeContext } from "persistence";
-import type { GitHubApiError, InlineReviewCommentError } from "github";
+import type { GitHubApiError } from "github";
 import type {
   GitHubDeniedFailure,
   TokenUnreadableFailure,
@@ -10,10 +10,6 @@ import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client"
 export interface CommentsControllerDeps {
   readonly github: ReviewerGitHubClient;
 }
-
-export type PublishFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<InlineReviewCommentError>;
 
 export type ReplyFailure =
   | TokenUnreadableFailure

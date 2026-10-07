@@ -44,8 +44,8 @@ import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
 } from "../../logic/resolve-repo-owner-and-name";
-import { shapeInlineCommentWrite } from "./logic/draft-anchor";
 import { resolvePrScopeFrom } from "../scope";
+import { publishComment } from "../publish";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { HttpStatuses } from "types/http";
 
@@ -234,14 +234,15 @@ export function createCommentsHandlers(
       throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
     }
 
-    const posted = await commentsController.postInlineComment(
-      { github },
-      shapeInlineCommentWrite(draft, {
+    const posted = await publishComment(
+      { github, log: c.get("logger") },
+      {
         owner: resolvedName.value.owner,
         repo: resolvedName.value.repo,
         prNumber: pr.prNumber,
         commitId: commitId.data,
-      }),
+      },
+      draft,
     );
     if (!posted.ok) {
       throwPublishFailure(posted.error);

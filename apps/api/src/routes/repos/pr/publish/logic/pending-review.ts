@@ -1,9 +1,6 @@
-// Hono-free. A submit is three GitHub objects in order: open a PENDING
-// review, attach one thread per comment, submit with the verdict. A thread
-// GitHub rejects is folded into the body; a transport failure after the
-// pending review exists deletes it before returning, so the client's retry
-// starts clean. A 401'd create made nothing, so a refreshed retry cannot
-// double-post.
+// The GitHub calls around one pending review: open it, attach threads,
+// submit it, and delete it when the submit cannot finish. A 401'd create
+// made nothing, so a refreshed retry cannot double-post.
 import {
   addPullRequestReviewThread,
   countPendingReviewComments,
@@ -15,7 +12,6 @@ import {
   ReviewThreadFailureKinds,
   ReviewValidationClasses,
   submitPullRequestReview,
-  type CreatePullRequestReviewInput,
   type CreateReviewError,
   type PendingReview,
   type ReviewEvent,
@@ -24,36 +20,19 @@ import {
 } from "github";
 import type { Mutable, Result } from "types/utils";
 import {
-  buildGitHubDeniedResult,
   isTokenUnreadableFailure,
   type TokenUnreadableFailure,
-} from "../../../../shared-errors/failures";
-import {
-  foldCommentsIntoBody,
-  type SubmitComment,
-} from "./logic/submit-comments";
-import { postReviewThreads, type PostThread } from "./logic/submit-threads";
-import type { PendingReviewHeldFailure, ReviewControllerDeps } from "./types";
+} from "../../../../../shared-errors/failures";
+import type {
+  PendingReviewHeldFailure,
+  PendingReviewResult,
+  PostThread,
+  PublishDeps,
+  PublishTarget,
+  SubmitPendingResult,
+} from "../types";
 
-interface SubmitReviewInput {
-  readonly target: CreatePullRequestReviewInput;
-  readonly event: ReviewEvent;
-  readonly body: string | undefined;
-  readonly comments: readonly SubmitComment[];
-}
-
-export interface SubmittedReview {
-  readonly reviewId: bigint;
-  readonly commentsFolded: number;
-  readonly commentsTotal: number;
-}
-
-type PendingReviewResult = Result<
-  PendingReview,
-  CreateReviewError | TokenUnreadableFailure | PendingReviewHeldFailure
->;
-
-function isPendingReviewHeld(
+export function isPendingReviewHeld(
   error: CreateReviewError | TokenUnreadableFailure | PendingReviewHeldFailure,
 ): error is PendingReviewHeldFailure {
   return "kind" in error && error.kind === "pending-review-held";
@@ -84,8 +63,8 @@ function isThreadTokenExpired(failure: ReviewThreadFailure): boolean {
  * back whole.
  */
 async function clearStalePendingReview(
-  deps: ReviewControllerDeps,
-  target: CreatePullRequestReviewInput,
+  deps: PublishDeps,
+  target: PublishTarget,
 ): Promise<
   Result<
     void,
@@ -128,9 +107,9 @@ async function clearStalePendingReview(
 }
 
 /** Open the pending review, clearing a stale one and retrying once. */
-async function openPendingReview(
-  deps: ReviewControllerDeps,
-  target: CreatePullRequestReviewInput,
+export async function openPendingReview(
+  deps: PublishDeps,
+  target: PublishTarget,
 ): Promise<PendingReviewResult> {
   const create = () =>
     deps.github.run((token) =>
@@ -149,15 +128,48 @@ async function openPendingReview(
   return create();
 }
 
+export function createThreadPoster(deps: PublishDeps): PostThread {
+  return (thread) =>
+    deps.github.run(
+      (token) =>
+        addPullRequestReviewThread(
+          deps.github.createMutationOctokit(token),
+          thread,
+        ),
+      isThreadTokenExpired,
+    );
+}
+
+export async function submitPendingReview(
+  deps: PublishDeps,
+  pending: PendingReview,
+  event: ReviewEvent,
+  body: string | undefined,
+): Promise<SubmitPendingResult> {
+  const submission: Mutable<SubmitPullRequestReviewInput> = {
+    reviewNodeId: pending.reviewNodeId,
+    event,
+  };
+  if (body !== undefined) {
+    submission.body = body;
+  }
+  return deps.github.run((token) =>
+    submitPullRequestReview(
+      deps.github.createMutationOctokit(token),
+      submission,
+    ),
+  );
+}
+
 /**
  * A submit whose acknowledgement was lost may still have published the
  * review; the review this request created being listed in a non-pending
  * state is the proof. Reporting that as a retryable failure would post the
  * whole review a second time. A review missing from the list was deleted.
  */
-async function hasSubmitLanded(
-  deps: ReviewControllerDeps,
-  target: CreatePullRequestReviewInput,
+export async function hasSubmitLanded(
+  deps: PublishDeps,
+  target: PublishTarget,
   pending: PendingReview,
 ): Promise<boolean> {
   const probe = await deps.github.run((token) =>
@@ -173,9 +185,9 @@ async function hasSubmitLanded(
  * Best effort: a pending review that outlives a failed submit makes the next
  * create 422, which the next request clears itself. Logged, never surfaced.
  */
-async function discardPendingReview(
-  deps: ReviewControllerDeps,
-  target: CreatePullRequestReviewInput,
+export async function discardPendingReview(
+  deps: PublishDeps,
+  target: PublishTarget,
   pending: PendingReview,
 ): Promise<void> {
   const deleted = await deps.github.run((token) =>
@@ -193,70 +205,3 @@ async function discardPendingReview(
     });
   }
 }
-
-async function submitReview(
-  deps: ReviewControllerDeps,
-  input: SubmitReviewInput,
-) {
-  const pending = await openPendingReview(deps, input.target);
-  if (!pending.ok) {
-    if (isPendingReviewHeld(pending.error)) {
-      return { ok: false, error: pending.error } as const;
-    }
-    return buildGitHubDeniedResult(pending.error, "mutation");
-  }
-
-  const postThread: PostThread = (thread) =>
-    deps.github.run(
-      (token) =>
-        addPullRequestReviewThread(
-          deps.github.createMutationOctokit(token),
-          thread,
-        ),
-      isThreadTokenExpired,
-    );
-  const threads = await postReviewThreads(
-    postThread,
-    pending.value.reviewNodeId,
-    input.comments,
-  );
-  if (!threads.ok) {
-    await discardPendingReview(deps, input.target, pending.value);
-    return buildGitHubDeniedResult(threads.error, "mutation");
-  }
-
-  const body = foldCommentsIntoBody(
-    input.body,
-    threads.value.rejected,
-    input.comments.length,
-  );
-  const submission: Mutable<SubmitPullRequestReviewInput> = {
-    reviewNodeId: pending.value.reviewNodeId,
-    event: input.event,
-  };
-  if (body !== undefined) {
-    submission.body = body;
-  }
-  const submitted = await deps.github.run((token) =>
-    submitPullRequestReview(
-      deps.github.createMutationOctokit(token),
-      submission,
-    ),
-  );
-  if (!submitted.ok) {
-    const landed = await hasSubmitLanded(deps, input.target, pending.value);
-    if (!landed) {
-      await discardPendingReview(deps, input.target, pending.value);
-      return buildGitHubDeniedResult(submitted.error, "mutation");
-    }
-  }
-
-  const value: SubmittedReview = {
-    reviewId: pending.value.reviewId,
-    commentsFolded: threads.value.rejected.length,
-    commentsTotal: input.comments.length,
-  };
-  return { ok: true, value } as const;
-}
-
-export const reviewController = { submitReview };

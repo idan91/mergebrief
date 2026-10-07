@@ -12,7 +12,7 @@ import {
   NotFound,
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
-import type { SubmitFailure } from "../types";
+import type { ReviewPublishFailure } from "../../publish/types";
 import { FailureKinds } from "../../../../../shared-errors/failures";
 
 function isValidation(
@@ -23,7 +23,7 @@ function isValidation(
 }
 
 /** Map a final create-review failure to the sanitized response posture. */
-export function throwSubmitFailure(failure: SubmitFailure): never {
+export function throwSubmitFailure(failure: ReviewPublishFailure): never {
   if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }

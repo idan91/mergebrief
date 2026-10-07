@@ -9,26 +9,25 @@ import {
 import type { Result } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
 import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
-import { postReviewThreads, type PostThread } from "./submit-threads";
-import type { SubmitComment } from "./submit-comments";
+import type { PostThread, PublishComment } from "../types";
+import { postReviewThreads } from "./threads";
 
-const FILE_COMMENT: SubmitComment = {
-  path: "src/app.ts",
+const FILE_COMMENT: PublishComment = {
+  anchor: { path: "src/app.ts", subjectType: ReviewSubjectTypes.FILE },
   body: "on the file",
-  subjectType: ReviewSubjectTypes.FILE,
 };
-const LINE_COMMENT: SubmitComment = {
-  path: "src/a.ts",
-  line: 12,
-  side: "RIGHT",
+const LINE_COMMENT: PublishComment = {
+  anchor: { path: "src/a.ts", line: 12, side: "RIGHT" },
   body: "anchored note",
 };
-const RANGE_COMMENT: SubmitComment = {
-  path: "src/b.ts",
-  line: 30,
-  side: "LEFT",
-  startLine: 25,
-  startSide: "LEFT",
+const RANGE_COMMENT: PublishComment = {
+  anchor: {
+    path: "src/b.ts",
+    line: 30,
+    side: "LEFT",
+    startLine: 25,
+    startSide: "LEFT",
+  },
   body: "multi-line note",
 };
 

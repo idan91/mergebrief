@@ -1,5 +1,8 @@
 import type { Context } from "hono";
-import { createTenantRepository } from "persistence";
+import {
+  createTenantRepository,
+  type ReviewDraftCommentRow,
+} from "persistence";
 import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
 import { ApiErrorCodes } from "contract";
 import {
@@ -24,18 +27,12 @@ import {
   prNumberSchema,
   MAX_BODY_LENGTH,
 } from "../../../wire-bounds";
-import { reviewController } from "./controller";
 import { throwSubmitFailure } from "./logic/wire-failures";
-import { OutcomeToEvent } from "./consts";
-import { ReviewOutcomes, type ReviewOutcome } from "./types";
-import {
-  foldCommentsIntoBody,
-  shapeSubmitComment,
-  type SubmitComment,
-} from "./logic/submit-comments";
+import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
 import { resolvePrScopeFrom } from "../scope";
+import { foldEveryDraftIntoBody, publishReview } from "../publish";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { HttpStatuses } from "types/http";
 
@@ -73,20 +70,16 @@ async function resolveSubmittableDrafts(
  */
 function assertSubmitRepresentable(
   submitBody: { outcome: ReviewOutcome; body?: string | undefined },
-  comments: readonly SubmitComment[],
+  drafts: readonly ReviewDraftCommentRow[],
 ): void {
   if (
     submitBody.outcome === ReviewOutcomes.COMMENT &&
-    comments.length === 0 &&
+    drafts.length === 0 &&
     (submitBody.body ?? "").trim() === ""
   ) {
     throw new BadRequest();
   }
-  const worstFold = foldCommentsIntoBody(
-    submitBody.body,
-    comments,
-    comments.length,
-  );
+  const worstFold = foldEveryDraftIntoBody(submitBody.body, drafts);
   if (worstFold !== undefined && worstFold.length > MAX_BODY_LENGTH) {
     throw new BadRequest();
   }
@@ -156,8 +149,7 @@ export function createReviewHandlers(
       throw new BadRequest();
     }
     const drafts = await resolveSubmittableDrafts(c, resolved);
-    const comments = drafts.map(shapeSubmitComment);
-    assertSubmitRepresentable(submitBody, comments);
+    assertSubmitRepresentable(submitBody, drafts);
 
     // One refresh-once budget for the WHOLE request, shared across the fresh
     // slug resolve, the pending review, every thread and the submit.
@@ -171,7 +163,7 @@ export function createReviewHandlers(
       throwRepoResolveFailure(target.error, c.get("urlBoxOnly") === true);
     }
 
-    const created = await reviewController.submitReview(
+    const created = await publishReview(
       { github, log: c.get("logger") },
       {
         target: {
@@ -180,9 +172,9 @@ export function createReviewHandlers(
           prNumber: pr.prNumber,
           commitId: commitId.data,
         },
-        event: OutcomeToEvent[submitBody.outcome],
+        outcome: submitBody.outcome,
         body: submitBody.body,
-        comments,
+        drafts,
       },
     );
     if (!created.ok) {

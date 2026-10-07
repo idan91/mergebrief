@@ -278,7 +278,7 @@ describe("foldDraftsIntoBody", () => {
 
   it("folds the fixture the api fold test pins to the same length", () => {
     // The api fold test holds a literal copy of this fixture and length:
-    // apps/api/src/routes/repos/pr/review/logic/submit-comments.test.ts.
+    // apps/api/src/routes/repos/pr/publish/logic/fold.test.ts.
     // Change both or neither.
     const drafts: ReviewComment[] = [
       {
