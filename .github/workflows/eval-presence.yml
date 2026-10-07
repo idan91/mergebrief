@@ -7,8 +7,8 @@ name: Eval presence
 # only checks that the PR body says what was run, or says why nothing was.
 #
 # Trigger paths are the generation surface named in root CLAUDE.md:
-# the prompt, the output schema, validators/salvage, repo-config injection,
-# and output-affecting adapter defaults.
+# the prompt, the output schema, validators/salvage, the anchored plan and
+# stitch, repo-config injection, and output-affecting adapter defaults.
 on:
   pull_request:
     # `edited` matters: adding the eval report to the body is exactly how an
@@ -22,6 +22,8 @@ on:
     paths:
       - "packages/brief-core/src/generation/**"
       - "packages/brief-core/src/types.ts"
+      - "packages/brief-core/src/anchoring/**"
+      - "packages/brief-core/src/diff/**"
       - "packages/generators/src/validation/**"
       - "packages/generators/src/adapters/**"
       # Zero-config provider selection + per-provider option schemas —

@@ -25,8 +25,10 @@ that case and leaves the others' specimens from the last full run.
 
 Run before merging any change to the generation surface:
 `packages/brief-core/src/generation/prompt.ts`, the output schema
-(`packages/brief-core/src/types.ts`), validators/salvage, repo-config
-injection, or output-affecting adapter defaults. Also once when a fixture
+(`packages/brief-core/src/types.ts`), validators/salvage, the anchored
+plan and stitch (`packages/brief-core/src/anchoring/`) with the diff
+parsers that decide them (`packages/brief-core/src/diff/`),
+repo-config injection, or output-affecting adapter defaults. Also once when a fixture
 lands (`--rebaseline` records its baseline) and after a model bump.
 Include the report in the PR body. Never wired into CI — live API spend.
 
