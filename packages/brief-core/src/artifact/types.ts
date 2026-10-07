@@ -13,6 +13,7 @@ import type {
 import type {
   StoredChangeGroupReadSchema,
   StoredChunkReadSchema,
+  StoredSessionFactsReadSchema,
 } from "./schemas";
 
 export const ArtifactIssueCodes = {
@@ -114,3 +115,36 @@ export interface GroupMembership {
 }
 
 export type GroupMembershipResult = Result<GroupMembership, ArtifactIssue[]>;
+
+/**
+ * A risk-surface flag's identity: file, attribute, AND the region it fires
+ * over, its chunk's whole diff span. Region is part of the identity because a
+ * Disposition is anchored to one occurrence: the same attribute firing twice
+ * in a file is two decisions.
+ */
+export interface FlagKey {
+  readonly filePath: string;
+  readonly attribute: string;
+  readonly regionStart: number;
+  readonly regionEnd: number;
+}
+
+/** What a Review Session needs from its Brief, and nothing else. */
+export interface BriefSessionFacts {
+  readonly chunkIds: readonly string[];
+  readonly groupIds: readonly string[];
+  readonly flags: readonly FlagKey[];
+  /** Deduplicated; a File comment keys on these. */
+  readonly filePaths: readonly string[];
+}
+
+export type BriefSessionFactsRead = Result<BriefSessionFacts, ArtifactIssue[]>;
+
+export type StoredSessionFactsChunk = z.infer<
+  typeof StoredSessionFactsReadSchema
+>["chunks"][number];
+
+export interface ChunkRegion {
+  readonly start: number;
+  readonly end: number;
+}

@@ -6,6 +6,7 @@
 // The asymmetry it exists to keep: an item that cannot be placed orphans, and
 // orphaned work is never deleted, only unplaced. Nothing here may ever settle
 // or mark-read on a guess.
+import type { FlagKey } from "brief-core/artifact";
 import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
 import {
   AnchorStatuses,
@@ -27,19 +28,6 @@ import {
   type DispositionEvidenceStatus,
 } from "types/dispositions";
 import { HunkSpansSchema } from "./artifact-store";
-
-/**
- * A risk-surface flag's identity: file, attribute, AND the region it fires
- * over. Region is part of the identity because a disposition is anchored to
- * one occurrence: the same attribute firing twice in a file is two decisions,
- * and dropping one must not be masked by the other surviving.
- */
-export interface FlagKey {
-  readonly filePath: string;
-  readonly attribute: string;
-  readonly regionStart: number;
-  readonly regionEnd: number;
-}
 
 /** What the NEW Brief offers the evaluation: everything outside the reviewer's rows. */
 export interface CarryOverContext {

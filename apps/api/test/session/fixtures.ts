@@ -56,8 +56,6 @@ export const BRIEF_BODY = JSON.stringify({
   ],
 });
 
-export const NO_ARTIFACT = { groupIds: [], flags: [], filePaths: [] };
-
 export const CTX: TenantContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
 };
@@ -270,7 +268,7 @@ export async function seedOrphanedDraft(
 ): Promise<void> {
   const repo = createTenantRepository(handle, CTX);
   const added = await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+    { briefId, reviewerId: REVIEWER },
     (writer) =>
       writer.addDraftComment({
         kind: CommentAnchorKinds.LINE,
@@ -295,7 +293,7 @@ export async function seedPreviousWork(
 ): Promise<void> {
   const repo = createTenantRepository(handle, CTX);
   const opened = await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+    { briefId, reviewerId: REVIEWER },
     async (writer) => {
       await writer.addDraftComment({
         kind: CommentAnchorKinds.LINE,
@@ -313,7 +311,7 @@ export async function seedPreviousWork(
   );
   if (!opened.ok) throw new Error("previous session seed failed");
   await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+    { briefId, reviewerId: REVIEWER },
     (writer) =>
       writer.putDisposition({
         filePath: "src/app.ts",

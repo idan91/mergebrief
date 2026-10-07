@@ -416,7 +416,6 @@ async function seedSessionDrafts(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) => {
       for (const [index, body] of bodies.entries()) {
@@ -503,7 +502,6 @@ async function seedCarriedDraft(
     {
       briefId,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) =>
       await writer.addDraftComment({
@@ -533,7 +531,6 @@ async function seedTwoSideDraft(
     {
       briefId,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) =>
       await writer.addDraftComment({
@@ -561,7 +558,6 @@ async function seedFileDraft(
     {
       briefId,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) =>
       await writer.addDraftComment({
@@ -1056,7 +1052,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       {
         briefId,
         reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-        brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
       },
       async (writer) => {
         const first = (await writer.draftComments())[0];
@@ -1163,7 +1158,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
-      body: "{}",
+      body: JSON.stringify({ changeGroups: [], chunks: [] }),
     });
     if (!newer.ok) throw new Error("newer brief write failed");
     await createTenantRepository(
@@ -1173,7 +1168,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       {
         briefId: newer.value.id,
         reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-        brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
       },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );

@@ -1,21 +1,14 @@
-// Which Brief a session request names, and the facts read off it. The read
-// and the writes both resolve through here, so a stale tab lands on the same
-// Brief whichever verb it uses.
+// Which Brief a session request names. The read and the writes both resolve
+// through here, so a stale tab lands on the same Brief whichever verb it uses.
 import {
   createArtifactStore,
   createTenantRepository,
   type BriefRowId,
-  type PullRequestRowId,
   type RepoId,
   type ScopeContext,
 } from "persistence";
 import type { AuthRouteDeps } from "../../../../auth/session/types";
 import type { BriefSpan } from "../schemas";
-import {
-  readCarryOverInputs,
-  UnreadableBriefError,
-  type CarryOverInputs,
-} from "./carry-over-inputs";
 
 /**
  * The PR and the Brief a request names, never "the newest Brief". The write
@@ -23,7 +16,6 @@ import {
  * the Brief it is looking at, not be redirected into an unseen session.
  */
 export interface SessionTarget {
-  readonly pullRequestId: PullRequestRowId;
   readonly briefId: BriefRowId;
   readonly headIndex: number;
 }
@@ -55,33 +47,7 @@ export async function resolveSessionTarget(
     return undefined;
   }
   return {
-    pullRequestId: pr.id,
     briefId: current.id,
     headIndex: current.headIndex,
   };
-}
-
-/**
- * Called only when a previous session exists, the parse the read defers.
- * Every arm that cannot state the Brief's facts throws: a missing row is the
- * same hazard as an unparseable one, because empty facts read as "nothing
- * fires any more".
- */
-export async function loadCarryOverInputs(
-  deps: AuthRouteDeps,
-  ctx: ScopeContext,
-  target: SessionTarget,
-  span: BriefSpan,
-): Promise<CarryOverInputs> {
-  const row = await createArtifactStore(deps.handle, ctx).briefs.get(
-    target.pullRequestId,
-    span.base,
-    span.head,
-  );
-  // Identity, not existence: a different row under the same span is not the
-  // Brief the caller named.
-  if (row === undefined || row.id !== target.briefId) {
-    throw new UnreadableBriefError("brief row vanished between reads");
-  }
-  return readCarryOverInputs(row.body);
 }

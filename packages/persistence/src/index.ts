@@ -176,8 +176,7 @@ export type {
   ReviewSessionErrorCode,
   ReviewSessionKey,
   SessionWriter,
-  CarryOverQuery,
-  CarryOverInputs,
+  ReviewSessionPreview,
   ReviewSessionView,
   CarriedFrom,
   DispositionRow,
@@ -204,7 +203,6 @@ export type {
   CarriedWork,
   CarriedDraftComment,
   CarriedDisposition,
-  FlagKey,
 } from "./stores/carry-over";
 
 // The ArtifactStore interface: ctx-bound typed writes/reads for the six

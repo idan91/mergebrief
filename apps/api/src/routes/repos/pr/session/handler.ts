@@ -13,9 +13,9 @@ import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,
-  InternalError,
   NotFound,
 } from "../../../../shared-errors/api-error";
+import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
@@ -117,8 +117,8 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
       log: c.get("logger"),
     });
     if (!previewed.ok) {
-      if (previewed.error.kind === "unreadable-brief") {
-        throw new InternalError();
+      if (previewed.error.kind === FailureKinds.SESSION_REJECTED) {
+        throwSessionWriteFailure(previewed.error);
       }
       throw new NotFound();
     }

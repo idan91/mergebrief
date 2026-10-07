@@ -51,7 +51,6 @@ import {
 } from "./env";
 
 const MINUTE_MS = 60_000;
-const NO_FACTS = { groupIds: [], flags: [], filePaths: [] };
 const OLDER_HEAD = "3333333300001111222233334444555566667777";
 const LATEST_HEAD = "4444444400001111222233334444555566667777";
 const SEED_ORIGIN = { provider: "stub", model: "stub", effort: "low" };
@@ -100,13 +99,10 @@ async function openSession(
   const result = await createTenantRepository(
     handle,
     ctx,
-  ).reviewSessions.writeToSession(
-    { briefId, reviewerId, brief: async () => NO_FACTS },
-    async (writer) => {
-      if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
-      return undefined;
-    },
-  );
+  ).reviewSessions.writeToSession({ briefId, reviewerId }, async (writer) => {
+    if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
+    return undefined;
+  });
   if (!result.ok) throw new Error(`session seed failed: ${result.error.code}`);
 }
 

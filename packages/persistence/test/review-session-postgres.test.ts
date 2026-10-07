@@ -10,7 +10,7 @@ import {
 } from "../src/index";
 import type {
   AppDatabase,
-  CarryOverQuery,
+  ReviewSessionKey,
   SessionWriter,
   TenantRepository,
 } from "../src/index";
@@ -40,8 +40,8 @@ const DRAFT_LIMIT = 2;
 
 interface World {
   readonly sessions: TenantRepository["reviewSessions"];
-  readonly older: CarryOverQuery;
-  readonly newer: CarryOverQuery;
+  readonly older: ReviewSessionKey;
+  readonly newer: ReviewSessionKey;
 }
 
 interface Gate {
@@ -72,7 +72,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "test",
     effort: "high",
-    body: '{"brief":true}',
+    body: '{"changeGroups":[],"chunks":[]}',
     carriedChunkIds: [],
     anchorState: "anchored",
   });
@@ -94,13 +94,12 @@ async function seedWorld(
     state: PrStates.OPEN,
     repoSlug: "acme/lock",
   });
-  const brief = async () => ({ groupIds: [], flags: [], filePaths: [] });
   const older = await seedBrief(handle, fixture, pr.id, 1);
   const newer = await seedBrief(handle, fixture, pr.id, 2);
   return {
     sessions: repo.reviewSessions,
-    older: { briefId: older, reviewerId: REVIEWER, brief },
-    newer: { briefId: newer, reviewerId: REVIEWER, brief },
+    older: { briefId: older, reviewerId: REVIEWER },
+    newer: { briefId: newer, reviewerId: REVIEWER },
   };
 }
 
@@ -131,9 +130,9 @@ function addDraft(writer: SessionWriter, body: string) {
 
 async function readDraftBodies(
   world: World,
-  query: CarryOverQuery,
+  key: ReviewSessionKey,
 ): Promise<string[]> {
-  const snapshot = await world.sessions.get(query);
+  const snapshot = await world.sessions.get(key);
   return (snapshot?.draftComments ?? []).map((row) => row.body);
 }
 

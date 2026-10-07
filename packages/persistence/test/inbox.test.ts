@@ -47,7 +47,6 @@ const OTHER: ReviewerId = brandWith(isReviewerId, 502n);
 const VIEWER_LOGIN = "octocat";
 const REPO_A: RepoId = brandWith(isRepoId, 100n);
 const REPO_B: RepoId = brandWith(isRepoId, 200n);
-const NO_FACTS = { groupIds: [], flags: [], filePaths: [] };
 
 const CTX_ACME: ScopeContext = { installationId: ACME };
 const CTX_OCTO: ScopeContext = { installationId: OCTO };
@@ -112,7 +111,7 @@ async function seedBrief(
     provider: "stub",
     model: "stub",
     effort: "low",
-    body: "{}",
+    body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
   if (!written.ok) {
     throw new Error(written.error.message);
@@ -136,13 +135,10 @@ async function openSession(
   const result = await createTenantRepository(
     handle,
     ctx,
-  ).reviewSessions.writeToSession(
-    { briefId, reviewerId, brief: async () => NO_FACTS },
-    async (writer) => {
-      if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
-      return writer.session;
-    },
-  );
+  ).reviewSessions.writeToSession({ briefId, reviewerId }, async (writer) => {
+    if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
+    return writer.session;
+  });
   if (!result.ok) {
     throw new Error(`session seed failed: ${result.error.code}`);
   }

@@ -6,6 +6,7 @@ import {
   isRepoId,
   isReviewerId,
   parseTenantContext,
+  ReviewSessionErrorCodes,
   type RepoId,
   type TenantContext,
 } from "persistence";
@@ -13,30 +14,9 @@ import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestUserOctokit } from "../../../../../test/fixtures";
+import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { sessionController } from "./controller";
-import { resolveSessionTarget } from "./logic/brief-target";
-import { UnreadableBriefError } from "./logic/carry-over-inputs";
-
-vi.mock("persistence", async (importOriginal) => {
-  const actual = await importOriginal<{
-    createTenantRepository: typeof createTenantRepository;
-  }>();
-  return {
-    ...actual,
-    createTenantRepository: vi.fn(actual.createTenantRepository),
-  };
-});
-
-vi.mock("./logic/brief-target", async (importOriginal) => {
-  const actual = await importOriginal<{
-    resolveSessionTarget: typeof resolveSessionTarget;
-  }>();
-  return {
-    ...actual,
-    resolveSessionTarget: vi.fn(actual.resolveSessionTarget),
-  };
-});
 
 const log: Logger = {
   error: vi.fn(),
@@ -155,50 +135,74 @@ describe("sessionController.resolveWrite", () => {
 });
 
 describe("sessionController.previewSession", () => {
-  const span = { base: "base1", head: "head1" };
+  const UNREADABLE_PR = 8;
 
-  async function previewWithUnreadableBrief(stillThere: boolean) {
-    const target = await resolveSessionTarget(
-      deps,
-      ctx,
+  async function seedUnreadableNextBrief(): Promise<void> {
+    const tenant = createTenantRepository(harness.handle, ctx);
+    const pr = await tenant.pullRequests.upsert({
       repoId,
-      PR_NUMBER,
-      span,
-    );
-    if (target === undefined) {
-      throw new Error("fixture brief missing");
-    }
-    vi.mocked(resolveSessionTarget)
-      .mockResolvedValueOnce(target)
-      .mockResolvedValueOnce(stillThere ? target : undefined);
-    vi.mocked(createTenantRepository).mockReturnValueOnce({
-      reviewSessions: {
-        preview: () =>
-          Promise.reject(new UnreadableBriefError("brief row vanished")),
-      },
-    } as unknown as ReturnType<typeof createTenantRepository>);
-
-    return sessionController.previewSession(deps, {
-      ctx,
-      repoId,
-      prNumber: PR_NUMBER,
-      span,
-      reviewerId: brand(REVIEWER_ID, isReviewerId),
-      log,
+      prNumber: UNREADABLE_PR,
+      repoSlug: "acme/app",
+      title: "Change thing",
+      state: PrStates.OPEN,
     });
+    const briefs = createArtifactStore(harness.handle, ctx).briefs;
+    const seeds = [
+      { headSha: "head1", headIndex: 0, body: BRIEF_BODY },
+      { headSha: "head2", headIndex: 1, body: "{ not json" },
+    ];
+    for (const seed of seeds) {
+      const written = await briefs.write({
+        ...seed,
+        pullRequestId: pr.id,
+        baseSha: "base1",
+        commitCount: 1,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+      });
+      if (!written.ok) {
+        throw new Error("fixture brief write failed");
+      }
+    }
   }
 
-  it("answers not found when the brief is purged mid-read", async () => {
-    expect(await previewWithUnreadableBrief(false)).toEqual({
-      ok: false,
-      error: { kind: "target-not-found" },
-    });
-  });
+  function makeInput(head: string) {
+    return {
+      ctx,
+      repoId,
+      prNumber: UNREADABLE_PR,
+      span: { base: "base1", head },
+      reviewerId: brand(REVIEWER_ID, isReviewerId),
+      log,
+    };
+  }
 
-  it("keeps an unreadable brief that still exists a fault", async () => {
-    expect(await previewWithUnreadableBrief(true)).toEqual({
+  it("refuses a carry-over over an unreadable brief with the store code", async () => {
+    await seedUnreadableNextBrief();
+    const earlier = await sessionController.resolveWrite(
+      deps,
+      makeInput("head1"),
+    );
+    if (!earlier.ok) {
+      throw new Error("fixture brief missing");
+    }
+    await earlier.value.run((writer) => writer.putReadMark({ chunkId: "c1" }));
+
+    const previewed = await sessionController.previewSession(
+      deps,
+      makeInput("head2"),
+    );
+
+    expect(previewed).toEqual({
       ok: false,
-      error: { kind: "unreadable-brief" },
+      error: {
+        kind: FailureKinds.SESSION_REJECTED,
+        error: expect.objectContaining({
+          code: ReviewSessionErrorCodes.BRIEF_UNREADABLE,
+        }),
+      },
     });
+    expect(log.error).toHaveBeenCalled();
   });
 });

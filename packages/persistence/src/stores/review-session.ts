@@ -2,6 +2,10 @@
 // first writes materialize them. Resolve parent ownership inside the same transaction
 // and return Result errors for cross-tenant parents before any write.
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
+import {
+  readBriefSessionFacts,
+  type BriefSessionFacts,
+} from "brief-core/artifact";
 import type { Hop } from "brief-core/remap";
 import {
   CommentAnchorKinds,
@@ -31,7 +35,6 @@ import {
   evaluateCarryOver,
   NOTHING_CARRIED,
   type CarriedWork,
-  type FlagKey,
   type PreviousWork,
 } from "./carry-over";
 import { StoredIdsSchema } from "./artifact-store";
@@ -66,6 +69,11 @@ export const ReviewSessionErrorCodes = {
    * generated one. Surfaces as the existing `pr-changed-since-read` (409).
    */
   SESSION_FROZEN: "session-frozen",
+  /**
+   * The Brief body will not yield its session facts. Never read as empty
+   * facts: no flag firing would drop every carried decision silently.
+   */
+  BRIEF_UNREADABLE: "brief-unreadable",
 } as const;
 export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCodes>;
 
@@ -196,24 +204,6 @@ export interface ReviewSessionSnapshot {
   readonly dispositions: readonly DispositionRow[];
 }
 
-/** What the current Brief's artifact body contributes to an evaluation. */
-export interface CarryOverInputs {
-  /** Change-group ids the current Brief emits. */
-  readonly groupIds: readonly string[];
-  /** Risk-surface flags the current Brief emits. */
-  readonly flags: readonly FlagKey[];
-  /** Paths the current Brief still shows; a File comment keys on these. */
-  readonly filePaths: readonly string[];
-}
-
-/**
- * Resolve brief facts lazily: only a previous-session evaluation needs the expensive body parse.
- * The storage layer otherwise treats the artifact as opaque.
- */
-export interface CarryOverQuery extends ReviewSessionKey {
-  readonly brief: () => Promise<CarryOverInputs>;
-}
-
 /** The receipt's count before materialization, every evaluated subject. */
 function countPendingCarriedItems(carried: CarriedWork): number {
   return (
@@ -309,16 +299,31 @@ export interface ReviewSessionRepository {
    * `sessionFrozen` when the reviewer already works on a newer Brief.
    */
   writeToSession<T>(
-    query: CarryOverQuery,
+    key: ReviewSessionKey,
     write: (writer: SessionWriter) => Promise<T>,
   ): Promise<Result<T, ReviewSessionError>>;
   /**
    * The session as it stands plus, while it does not exist yet, the previous
    * session's work re-placed onto this Brief. Creates NOTHING, the verdicts
-   * become rows only when the reviewer writes.
+   * become rows only when the reviewer writes. `briefUnreadable` when the
+   * evaluation needs a Brief body that will not parse; a write refuses the
+   * same way.
    */
-  preview(query: CarryOverQuery): Promise<ReviewSessionView>;
+  preview(key: ReviewSessionKey): Promise<ReviewSessionPreview>;
 }
+
+export type ReviewSessionPreview = Result<
+  ReviewSessionView,
+  ReviewSessionError
+>;
+
+type SessionFactsRead = Result<BriefSessionFacts, ReviewSessionError>;
+
+/** `undefined` when nothing is pending, so nothing needs the body. */
+type PendingFactsRead = Result<
+  BriefSessionFacts | undefined,
+  ReviewSessionError
+>;
 
 /** What the current Brief contributes to an evaluation. */
 interface BriefFacts {
@@ -560,6 +565,43 @@ export function createReviewSessionRepository(
     return rows[0];
   }
 
+  /**
+   * What the Brief's body tells a session, parsed. Only ever on the outer
+   * handle before a transaction opens, or on the transaction itself: the
+   * outer handle inside an open transaction deadlocks a single connection.
+   */
+  async function readSessionFacts(
+    reader: Reader,
+    briefId: BriefRowId,
+  ): Promise<SessionFactsRead> {
+    const rows = await reader
+      .select({ body: brief.body })
+      .from(brief)
+      .where(
+        and(
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
+          eq(brief.id, briefId),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined) {
+      return fail(
+        ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
+        `brief ${briefId} not in ${scope.label}`,
+      );
+    }
+
+    const read = readBriefSessionFacts(row.body);
+    if (!read.ok) {
+      return fail(
+        ReviewSessionErrorCodes.BRIEF_UNREADABLE,
+        `brief ${briefId} body yields no session facts`,
+      );
+    }
+    return { ok: true, value: read.value };
+  }
+
   /** The reviewer's newest session on an OLDER Brief of the same PR. */
   async function previousSession(
     tx: Reader,
@@ -735,15 +777,16 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * Re-evaluate inside materialization rather than trusting a read payload, preserving late writes.
-   * Resolve the artifact beforehand: its thunk reads through this same handle and would
-   * deadlock inside a transaction on a single-connection database.
+   * Re-evaluate inside materialization rather than trusting a read payload,
+   * preserving late writes. The session facts are read before the
+   * transaction opens: a read on the outer handle while it is open deadlocks
+   * a single-connection database.
    */
   async function evaluatePending(
     tx: Reader,
     facts: BriefFacts,
     previous: PreviousSession,
-    artifact: CarryOverInputs,
+    sessionFacts: BriefSessionFacts,
   ): Promise<CarriedWork> {
     const chain = await chainBriefs(tx, facts, previous.headIndex);
     const heads = chain.map((row) => row.headSha);
@@ -754,9 +797,9 @@ export function createReviewSessionRepository(
     return evaluateCarryOver(work, {
       carriedChunkIds: carriedThroughChain(chain, previous.headIndex),
       groupIdsDescended: descendedThroughChain(chain, previous.headIndex),
-      groupIds: artifact.groupIds,
-      flags: artifact.flags,
-      filePaths: artifact.filePaths,
+      groupIds: sessionFacts.groupIds,
+      flags: sessionFacts.flags,
+      filePaths: sessionFacts.filePaths,
       hops,
       baseShaMoved: previous.baseSha !== facts.baseSha,
     });
@@ -1162,14 +1205,14 @@ export function createReviewSessionRepository(
    */
   async function materializeSession(
     tx: Tx,
-    query: CarryOverQuery,
+    key: ReviewSessionKey,
     facts: BriefFacts,
-    artifact: CarryOverInputs | undefined,
+    sessionFacts: BriefSessionFacts | undefined,
   ): Promise<Result<ReviewSessionRow, ReviewSessionError>> {
-    const previous = await lockPreviousSession(tx, facts, query.reviewerId);
-    const frozen = await hasNewerSession(tx, facts, query.reviewerId);
+    const previous = await lockPreviousSession(tx, facts, key.reviewerId);
+    const frozen = await hasNewerSession(tx, facts, key.reviewerId);
     if (frozen) {
-      return failFrozen(facts, query.reviewerId);
+      return failFrozen(facts, key.reviewerId);
     }
 
     // DO NOTHING is the creation detector: a second concurrent first-write
@@ -1179,8 +1222,8 @@ export function createReviewSessionRepository(
       .insert(reviewSession)
       .values({
         installationId: scope.installationId,
-        briefId: query.briefId,
-        reviewerId: query.reviewerId,
+        briefId: key.briefId,
+        reviewerId: key.reviewerId,
       })
       .onConflictDoNothing({
         target: [
@@ -1192,19 +1235,15 @@ export function createReviewSessionRepository(
       .returning();
     const created = inserted[0];
     if (created === undefined) {
-      const committed = await lockSession(tx, query);
+      const committed = await lockSession(tx, key);
       if (committed === undefined) {
         throw new Error("review_session vanished inside its own transaction");
       }
       // The wait for that lock can outlast a newer session copying from the
       // committed row, so the freeze is checked again under the lock.
-      const frozenUnderLock = await hasNewerSession(
-        tx,
-        facts,
-        query.reviewerId,
-      );
+      const frozenUnderLock = await hasNewerSession(tx, facts, key.reviewerId);
       if (frozenUnderLock) {
-        return failFrozen(facts, query.reviewerId);
+        return failFrozen(facts, key.reviewerId);
       }
       return { ok: true, value: committed };
     }
@@ -1212,12 +1251,12 @@ export function createReviewSessionRepository(
     // With no previous row there was nothing to lock, so a first write on an
     // older Brief can commit between the lookup and the insert. Its work would
     // be left behind for good, the same reason the throw below is deliberate.
-    const latest = await previousSession(tx, facts, query.reviewerId);
+    const latest = await previousSession(tx, facts, key.reviewerId);
     throwIfPreviousChanged(previous, latest);
     if (previous === undefined) {
       return { ok: true, value: created };
     }
-    if (artifact === undefined) {
+    if (sessionFacts === undefined) {
       // The probe lost a race, a concurrent first write on an older Brief
       // created this session. Failing is deliberate: carry-over cannot be
       // re-evaluated inside the open transaction, and skipping it writes
@@ -1227,7 +1266,7 @@ export function createReviewSessionRepository(
       );
     }
 
-    const carried = await evaluatePending(tx, facts, previous, artifact);
+    const carried = await evaluatePending(tx, facts, previous, sessionFacts);
     await copyCarried(tx, created, carried, previous.id);
     // Stamped here and never recomputed: the receipt states what came
     // across, and every marker it could be re-derived from is one the
@@ -1265,22 +1304,27 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * The Brief facts a materialization would evaluate against, or `undefined`
-   * when there is nothing to evaluate, the session already exists, or it is
-   * the reviewer's first on this PR. Both skip the Brief-body parse entirely.
+   * The session facts a materialization would evaluate against, or
+   * `undefined` when there is nothing to evaluate: the session already
+   * exists, or it is the reviewer's first on this PR. Both skip the body
+   * parse entirely. A missing Brief is the transaction's refusal to make.
    */
-  async function deriveCarryOverInputs(
-    query: CarryOverQuery,
-  ): Promise<CarryOverInputs | undefined> {
-    if ((await findSession(query)) !== undefined) {
-      return undefined;
+  async function readPendingFacts(
+    key: ReviewSessionKey,
+  ): Promise<PendingFactsRead> {
+    const nothingPending = { ok: true, value: undefined } as const;
+    if ((await findSession(key)) !== undefined) {
+      return nothingPending;
     }
-    const facts = await readBriefCarrySlice(db, query.briefId);
+    const facts = await readBriefCarrySlice(db, key.briefId);
     if (facts === undefined) {
-      return undefined;
+      return nothingPending;
     }
-    const previous = await previousSession(db, facts, query.reviewerId);
-    return previous === undefined ? undefined : query.brief();
+    const previous = await previousSession(db, facts, key.reviewerId);
+    if (previous === undefined) {
+      return nothingPending;
+    }
+    return readSessionFacts(db, key.briefId);
   }
 
   /** The session and everything it owns, or `undefined`, never a create. */
@@ -1364,25 +1408,28 @@ export function createReviewSessionRepository(
       return snapshotFor(key);
     },
 
-    async writeToSession(query, write) {
-      // Resolve the thunk before opening the transaction to avoid single-connection deadlock.
-      // First-ever sessions skip the expensive brief parse because they have nothing to evaluate.
-      const artifact = await deriveCarryOverInputs(query);
+    async writeToSession(key, write) {
+      // Read before the transaction opens: the outer handle deadlocks inside it.
+      const pending = await readPendingFacts(key);
+      if (!pending.ok) {
+        return pending;
+      }
+
       return db.transaction(async (tx) => {
-        const facts = await readBriefCarrySlice(tx, query.briefId);
+        const facts = await readBriefCarrySlice(tx, key.briefId);
         if (facts === undefined) {
           return fail(
             ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-            `brief ${query.briefId} not in ${scope.label}`,
+            `brief ${key.briefId} not in ${scope.label}`,
           );
         }
-        const existing = await lockSession(tx, query);
+        const existing = await lockSession(tx, key);
         if (existing === undefined) {
           const materialized = await materializeSession(
             tx,
-            query,
+            key,
             facts,
-            artifact,
+            pending.value,
           );
           if (!materialized.ok) {
             return materialized;
@@ -1390,39 +1437,40 @@ export function createReviewSessionRepository(
           const writer = sessionWriter(tx, materialized.value);
           return { ok: true, value: await write(writer) };
         }
-        const frozen = await hasNewerSession(tx, facts, query.reviewerId);
+        const frozen = await hasNewerSession(tx, facts, key.reviewerId);
         if (frozen) {
-          return failFrozen(facts, query.reviewerId);
+          return failFrozen(facts, key.reviewerId);
         }
 
         return { ok: true, value: await write(sessionWriter(tx, existing)) };
       });
     },
 
-    async preview(query) {
+    async preview(key) {
       // The session and the Brief are independent reads, so they go together;
       // the previous-session probe then answers BOTH "did work carry in" and
       // "is there anything to evaluate", so a first-ever session, and every
       // session that already materialized, never pays for the body parse.
       const [snapshot, facts] = await Promise.all([
-        snapshotFor(query),
-        readBriefCarrySlice(db, query.briefId),
+        snapshotFor(key),
+        readBriefCarrySlice(db, key.briefId),
       ]);
+      const nothingCarried = {
+        ok: true,
+        value: {
+          session: snapshot,
+          carried: NOTHING_CARRIED,
+          carriedFrom: undefined,
+        },
+      } as const;
       if (facts === undefined) {
-        return {
-          session: snapshot,
-          carried: NOTHING_CARRIED,
-          carriedFrom: undefined,
-        };
+        return nothingCarried;
       }
-      const previous = await previousSession(db, facts, query.reviewerId);
+      const previous = await previousSession(db, facts, key.reviewerId);
       if (previous === undefined) {
-        return {
-          session: snapshot,
-          carried: NOTHING_CARRIED,
-          carriedFrom: undefined,
-        };
+        return nothingCarried;
       }
+
       const from = {
         sessionId: previous.id,
         headSha: previous.headSha,
@@ -1431,26 +1479,30 @@ export function createReviewSessionRepository(
       if (snapshot !== undefined) {
         // Materialized: the carry-over already sits in the session's own rows,
         // so only its source and its size are still worth reporting.
-        return {
+        const items = snapshot.session.carriedItemCount;
+        const view = {
           session: snapshot,
           carried: NOTHING_CARRIED,
-          carriedFrom: {
-            ...from,
-            items: snapshot.session.carriedItemCount,
-          },
+          carriedFrom: { ...from, items },
         };
+        return { ok: true, value: view };
       }
-      // Resolve the brief-body thunk before the transaction to avoid single-connection deadlock.
-      // Read prior-session rows together inside it; they remain writable until materialization.
-      const artifact = await query.brief();
+
+      // Read before the transaction opens; the prior session's rows are read
+      // together inside it, since they stay writable until materialization.
+      const sessionFacts = await readSessionFacts(db, key.briefId);
+      if (!sessionFacts.ok) {
+        return sessionFacts;
+      }
       const carried = await db.transaction((tx) =>
-        evaluatePending(tx, facts, previous, artifact),
+        evaluatePending(tx, facts, previous, sessionFacts.value),
       );
-      return {
+      const view = {
         session: undefined,
         carried,
         carriedFrom: { ...from, items: countPendingCarriedItems(carried) },
       };
+      return { ok: true, value: view };
     },
   };
 }

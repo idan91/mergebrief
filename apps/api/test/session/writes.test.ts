@@ -12,7 +12,6 @@ import { createApp, type ApiApp } from "../../src/index";
 import { testLogger } from "../logging";
 import {
   CTX,
-  NO_ARTIFACT,
   REPO_ID,
   REVIEWER,
   seedApiToken,
@@ -226,7 +225,6 @@ describe("the Review Session writes", () => {
       {
         briefId: current,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       async () => {
         throw new Error("the write failed after the copy");
@@ -254,7 +252,6 @@ describe("the Review Session writes", () => {
       {
         briefId: current,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
@@ -578,7 +575,7 @@ describe("the Review Session writes", () => {
       harness.handle,
       CTX,
     ).reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      { briefId, reviewerId: REVIEWER },
       (writer) => writer.publishDraftComments([BigInt(draftId)]),
     );
 
@@ -608,7 +605,7 @@ describe("the Review Session writes", () => {
     const briefId = await seedBrief(harness.handle, 1);
     const repo = createTenantRepository(harness.handle, CTX);
     await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      { briefId, reviewerId: REVIEWER },
       async (writer) => {
         for (let i = 0; i < 64; i++) {
           await writer.addDraftComment({
@@ -629,7 +626,7 @@ describe("the Review Session writes", () => {
       "select id from review_draft_comment order by id limit 1",
     );
     await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      { briefId, reviewerId: REVIEWER },
       (writer) =>
         writer.publishDraftComments([BigInt(String(rows[0]?.["id"]))]),
     );
@@ -909,7 +906,6 @@ describe("the Review Session writes", () => {
       {
         briefId: previous,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       (writer) =>
         writer.putDisposition({

@@ -226,7 +226,6 @@ async function seedDraft(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) =>
       writer.addDraftComment({
@@ -271,7 +270,6 @@ async function seedFileDraft(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) =>
       writer.addDraftComment({
@@ -313,14 +311,13 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     provider: "anthropic",
     model: "claude",
     effort: "high",
-    body: "{}",
+    body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
   if (!newer.ok) throw new Error("freeze: brief write failed");
   const opened = await repo.reviewSessions.writeToSession(
     {
       briefId: newer.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) => writer.putReadMark({ chunkId: "c1" }),
   );

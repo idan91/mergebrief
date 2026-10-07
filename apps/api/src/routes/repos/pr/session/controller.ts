@@ -3,8 +3,10 @@
 // wire posture.
 import {
   createTenantRepository,
+  ReviewSessionErrorCodes,
   type RepoId,
   type ReviewerId,
+  type ReviewSessionError,
   type SessionWriter,
   type ScopeContext,
 } from "persistence";
@@ -12,11 +14,7 @@ import type { Logger } from "logging";
 import type { Result } from "types/utils";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { BriefSpan } from "./schemas";
-import {
-  loadCarryOverInputs,
-  resolveSessionTarget,
-} from "./logic/brief-target";
-import { UnreadableBriefError } from "./logic/carry-over-inputs";
+import { resolveSessionTarget, type SessionTarget } from "./logic/brief-target";
 import type { SessionPayload } from "contract";
 import { buildSessionPayload } from "./logic/payload";
 import type { SessionWriteFailure } from "./types";
@@ -61,47 +59,45 @@ type ExistingSessionWriteResult<Written> = Result<
 
 type PreviewSessionResult = Result<
   SessionPayload,
-  { readonly kind: "target-not-found" } | { readonly kind: "unreadable-brief" }
+  { readonly kind: "target-not-found" } | SessionWriteFailure
 >;
+
+/** A refusal the store rides back whole, logged when the Brief is at fault. */
+function rejectSession(
+  input: ResolveWriteInput,
+  target: SessionTarget,
+  error: ReviewSessionError,
+): { readonly ok: false; readonly error: SessionWriteFailure } {
+  if (error.code === ReviewSessionErrorCodes.BRIEF_UNREADABLE) {
+    input.log.error("brief artifact unreadable, carry-over not evaluated", {
+      briefId: String(target.briefId),
+      head: input.span.head,
+    });
+  }
+  return { ok: false, error: { kind: FailureKinds.SESSION_REJECTED, error } };
+}
 
 /**
  * Bind the resolved target into the session-write channel: one writer
- * transaction per call, carry facts loaded lazily, store refusals riding
- * the Result whole.
+ * transaction per call, store refusals riding the Result whole.
  */
 function bindSessionWriter(
   deps: AuthRouteDeps,
   input: ResolveWriteInput,
-  target: NonNullable<Awaited<ReturnType<typeof resolveSessionTarget>>>,
+  target: SessionTarget,
 ): SessionWrite {
   return async (write) => {
-    try {
-      const written = await createTenantRepository(
-        deps.handle,
-        input.ctx,
-      ).reviewSessions.writeToSession(
-        {
-          briefId: target.briefId,
-          reviewerId: input.reviewerId,
-          brief: () => loadCarryOverInputs(deps, input.ctx, target, input.span),
-        },
-        write,
-      );
-      if (!written.ok) {
-        return {
-          ok: false,
-          error: { kind: FailureKinds.SESSION_REJECTED, error: written.error },
-        };
-      }
-      return written;
-    } catch (error) {
-      if (!(error instanceof UnreadableBriefError)) throw error;
-      input.log.error("brief artifact unreadable — nothing was materialized", {
-        briefId: String(target.briefId),
-        head: input.span.head,
-      });
-      return { ok: false, error: { kind: "unreadable-brief" } };
+    const written = await createTenantRepository(
+      deps.handle,
+      input.ctx,
+    ).reviewSessions.writeToSession(
+      { briefId: target.briefId, reviewerId: input.reviewerId },
+      write,
+    );
+    if (!written.ok) {
+      return rejectSession(input, target, written.error);
     }
+    return written;
   };
 }
 
@@ -127,45 +123,24 @@ export const sessionController = {
       } satisfies PreviewSessionResult;
     }
 
-    try {
-      const view = await createTenantRepository(
-        deps.handle,
-        input.ctx,
-      ).reviewSessions.preview({
-        briefId: target.briefId,
-        reviewerId: input.reviewerId,
-        brief: () => loadCarryOverInputs(deps, input.ctx, target, input.span),
-      });
-      return {
-        ok: true,
-        value: buildSessionPayload(view, target.headIndex),
-      } satisfies PreviewSessionResult;
-    } catch (error) {
-      // A purge that lands between resolving the target and reading it
-      // leaves nothing to read: that is the brief being gone, not a fault.
-      const stillThere = await resolveSessionTarget(
-        deps,
-        input.ctx,
-        input.repoId,
-        input.prNumber,
-        input.span,
-      );
-      if (stillThere === undefined) {
-        return {
-          ok: false,
-          error: { kind: "target-not-found" },
-        } satisfies PreviewSessionResult;
-      }
-      if (!(error instanceof UnreadableBriefError)) throw error;
-      input.log.error("brief artifact unreadable — carry-over not evaluated", {
-        briefId: String(target.briefId),
-        head: input.span.head,
-      });
-      return {
-        ok: false,
-        error: { kind: "unreadable-brief" },
-      } satisfies PreviewSessionResult;
+    const view = await createTenantRepository(
+      deps.handle,
+      input.ctx,
+    ).reviewSessions.preview({
+      briefId: target.briefId,
+      reviewerId: input.reviewerId,
+    });
+    if (!view.ok) {
+      return rejectSession(
+        input,
+        target,
+        view.error,
+      ) satisfies PreviewSessionResult;
     }
+    return {
+      ok: true,
+      value: buildSessionPayload(view.value, target.headIndex),
+    } satisfies PreviewSessionResult;
   },
 
   /**

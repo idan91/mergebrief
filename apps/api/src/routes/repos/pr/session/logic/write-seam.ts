@@ -50,9 +50,12 @@ export async function resolveSessionWrite(
   return resolved.value;
 }
 
-/** The store's expected refusals, mapped to the wire. */
+/**
+ * The store's expected refusals, mapped to the wire. An unreadable Brief is a
+ * retryable 500, never empty facts that would drop carried decisions.
+ */
 export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
-  if (failure.kind === "unreadable-brief") {
+  if (failure.error.code === ReviewSessionErrorCodes.BRIEF_UNREADABLE) {
     throw new InternalError();
   }
   if (failure.error.code === ReviewSessionErrorCodes.SESSION_FROZEN) {

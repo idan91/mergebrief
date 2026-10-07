@@ -93,3 +93,27 @@ export const StoredBriefReadSchema = BriefSchema.extend({
 export const StoredDeltaBriefReadSchema = DeltaBriefSchema.extend({
   chunks: z.array(DeltaChunkSchema.extend(readRiskFields)),
 });
+
+const sessionFactsRangeSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+});
+
+/**
+ * The two top-level lists are required: a body without them would read as
+ * zero groups and zero flags, which a carry-over takes for every decision
+ * having stopped firing. A chunk missing its ranges is only a chunk with no
+ * span. Risk names stay open, a repo's custom names included.
+ */
+export const StoredSessionFactsReadSchema = z.object({
+  changeGroups: z.array(z.object({ id: z.string() })),
+  chunks: z.array(
+    z.object({
+      id: z.string(),
+      file: z.string(),
+      addedRanges: z.array(sessionFactsRangeSchema).default([]),
+      removedRanges: z.array(sessionFactsRangeSchema).default([]),
+      riskSurface: z.array(z.string()).default([]),
+    }),
+  ),
+});

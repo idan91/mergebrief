@@ -12,7 +12,6 @@ import { testLogger } from "../logging";
 import {
   BRIEF_BODY,
   CTX,
-  NO_ARTIFACT,
   REPO_ID,
   REVIEWER,
   seedBrief,
@@ -209,7 +208,6 @@ describe("read-review-session", () => {
       {
         briefId: current,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       async (writer) => {
         await writer.putReadMark({ chunkId: "c1" });
@@ -231,10 +229,9 @@ describe("read-review-session", () => {
     // this session wrote itself must never inflate a receipt that claims to
     // state what came across, and it is the same number the pre-materialized
     // read returned.
-    expect(body.carriedFrom?.items).toBe(2);
+    expect(body.carriedFrom?.items).toBe(3);
     // The same list, now off the session's own rows: the subject has an id
-    // to act on. The carried disposition dropped: the write that materialized
-    // this session named no flags, so it is silent rather than unclearable.
+    // to act on.
     expect(body.attention).toEqual([
       {
         kind: "orphaned-anchor",
@@ -250,6 +247,17 @@ describe("read-review-session", () => {
           endLine: 12,
         },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
+      },
+      {
+        kind: "reopened-disposition",
+        subject: { type: "disposition", id: null, attribute: "no-tests" },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        },
+        clearedBy: ["address-risk", "dismiss-risk"],
       },
     ]);
     expect(await sessionRows()).toBe(before);
@@ -270,7 +278,6 @@ describe("read-review-session", () => {
       {
         briefId: previous,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
@@ -288,7 +295,6 @@ describe("read-review-session", () => {
       {
         briefId: current,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       (writer) => writer.setReviewOutcome(ReviewOutcomes.COMMENT),
     );
@@ -306,7 +312,6 @@ describe("read-review-session", () => {
       {
         briefId: current,
         reviewerId: REVIEWER,
-        brief: async () => NO_ARTIFACT,
       },
       (writer) => writer.clearReadMark("c1"),
     );

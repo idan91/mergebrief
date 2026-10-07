@@ -91,7 +91,6 @@ async function seedBrief(
 }
 
 /** No previous session in these fixtures, so the facts are never consulted. */
-const NO_FACTS = { groupIds: [], flags: [], filePaths: [] };
 
 /**
  * A materialized session: the ONLY way one is created. The write is the
@@ -107,7 +106,7 @@ async function openSession(
     handle,
     ctx,
   ).reviewSessions.writeToSession(
-    { briefId, reviewerId, brief: async () => NO_FACTS },
+    { briefId, reviewerId },
     async (writer) => writer.session,
   );
   if (!created.ok)
@@ -125,10 +124,7 @@ async function write<T>(
   const written = await createTenantRepository(
     handle,
     ctx,
-  ).reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
-    body,
-  );
+  ).reviewSessions.writeToSession({ briefId, reviewerId: REVIEWER }, body);
   if (!written.ok) throw new Error(`write failed: ${written.error.code}`);
   return written.value;
 }
@@ -490,7 +486,6 @@ describe("reviewSessions session semantics", () => {
     const query = {
       briefId,
       reviewerId: REVIEWER,
-      brief: async () => NO_FACTS,
     };
 
     await repo.reviewSessions.writeToSession(query, (writer) =>
@@ -652,7 +647,7 @@ describe("reviewSessions tenancy containment", () => {
       handle,
       CTX_B,
     ).reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
+      { briefId, reviewerId: REVIEWER },
       async (writer) => writer.session,
     );
 
