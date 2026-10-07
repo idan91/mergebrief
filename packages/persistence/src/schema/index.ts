@@ -10,6 +10,7 @@ export { delta } from "./delta";
 export { diffSnapshot } from "./diff-snapshot";
 export { disposition } from "./disposition";
 export { generation } from "./generation";
+export { generationAttempt } from "./generation-attempt";
 export { githubGrant } from "./github-grant";
 export { hunkSpan } from "./hunk-span";
 export { inboxArchive } from "./inbox-archive";

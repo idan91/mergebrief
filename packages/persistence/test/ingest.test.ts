@@ -281,6 +281,65 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(jobs).toHaveLength(0);
   });
 
+  describe("a re-trigger and the claim", () => {
+    async function claimHead(pullRequestId: PullRequestRowId): Promise<void> {
+      const claimed = await createGenerationProjection(
+        harness.handle,
+        CTX,
+      ).claimRun({
+        target: briefTarget(pullRequestId),
+        phase: GenerationPhases.GENERATING,
+        leaseMs: 120_000,
+        from: new Date(0),
+        to: new Date("2100-01-01T00:00:00.000Z"),
+      });
+      if (!claimed.ok) throw new Error(claimed.error.message);
+      await harness.raw("delete from graphile_worker.jobs");
+    }
+
+    it("a head a live lease holds is kept and not enqueued", async () => {
+      const first = unwrap(await trigger());
+      await claimHead(first.pullRequest.id);
+
+      const second = unwrap(await trigger());
+
+      const row = expectGeneration(second);
+      expect(row.status).toBe(GenerationStatuses.RUNNING);
+      expect(row.runId).not.toBeNull();
+      expect(await harness.raw("select id from graphile_worker.jobs")).toEqual(
+        [],
+      );
+    });
+
+    it("a running head whose lease lapsed is projected and enqueued", async () => {
+      const first = unwrap(await trigger());
+      await claimHead(first.pullRequest.id);
+      await harness.raw(
+        "update generation set lease_expires_at = now() - interval '1 second'",
+      );
+
+      const second = unwrap(await trigger());
+
+      const row = expectGeneration(second);
+      expect(row.status).toBe(GenerationStatuses.PENDING);
+      expect(row.runId).toBeNull();
+      expect(row.leaseExpiresAt).toBeNull();
+      expect(row.phase).toBeNull();
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
+    });
+  });
+
+  it("the enqueued job carries three max attempts", async () => {
+    unwrap(await trigger());
+
+    const jobs = await harness.raw(
+      "select max_attempts from graphile_worker.jobs",
+    );
+
+    expect(jobs).toEqual([{ max_attempts: 3 }]);
+  });
+
   describe("a re-trigger and the queued job", () => {
     const NEXT_HEAD_SHA = "b".repeat(40);
 
@@ -443,7 +502,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
   it("rolls back the whole transaction when enqueueing fails", async () => {
     await harness.raw(
-      "drop function graphile_worker.add_job(text, json, text, timestamptz, text)",
+      "drop function graphile_worker.add_job(text, json, text, timestamptz, int, text)",
     );
 
     await expect(trigger()).rejects.toThrow(/add_job/);

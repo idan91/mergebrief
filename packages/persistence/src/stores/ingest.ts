@@ -5,7 +5,7 @@
 // imports it). The job key `generate:{pull_request_id}` with `preserve_run_at`
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
-// job, and a `running` head is neither reset nor re-enqueued.
+// job, and a head a live run holds is neither reset nor re-enqueued.
 import { and, eq, isNull, ne, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
@@ -14,7 +14,11 @@ import { checkpoint } from "../schema/checkpoint";
 import { delta } from "../schema/delta";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
-import { getGenerateJobKey, type GenerationRow } from "./generation";
+import {
+  getGenerateJobKey,
+  projectPendingGeneration,
+  type GenerationRow,
+} from "./generation";
 import {
   buildLifecycleColumns,
   buildLiveReadColumns,
@@ -37,15 +41,6 @@ import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
-
-/**
- * A re-queue column: the stored value survives while the row is `running`,
- * otherwise the reset value wins. A running head is never clobbered, and a
- * dropped trigger is not a paid attempt.
- */
-function keepWhileRunning(column: PgColumn, reset: SQL | string | null): SQL {
-  return sql`case when ${generation.status} = ${GenerationStatuses.RUNNING} then ${column} else ${reset} end`;
-}
 
 /**
  * SQL predicate (for use in an `ON CONFLICT DO UPDATE`): the EXISTING
@@ -71,6 +66,8 @@ function buildTerminalKeeper(
 }
 
 const GENERATE_TASK_IDENTIFIER = "generate";
+/** Every graphile retry is a paid run the daily cap counts, so retries stay few. */
+const GENERATE_JOB_MAX_ATTEMPTS = 3;
 
 // ---------------------------------------------------------------------------
 // Errors: expected failures. Programmer/infra errors still `throw`.
@@ -318,58 +315,6 @@ type IngestTransaction = Parameters<
 >[0];
 
 /**
- * Project the head's brief generation as `pending`, replicating
- * `generation.ts#upsertPending`'s insert/onConflict inline on the tx. No
- * parent-in-tenant check: the parent row was written by this transaction.
- */
-async function projectPending(
-  tx: IngestTransaction,
-  scope: RowScope,
-  pullRequestId: PullRequestRowId,
-  headSha: string,
-): Promise<GenerationRow> {
-  const genRows = await tx
-    .insert(generation)
-    .values({
-      installationId: scope.installationId,
-      pullRequestId,
-      kind: GenerationKinds.BRIEF,
-      headSha,
-      baselineSha: null,
-      status: GenerationStatuses.PENDING,
-    })
-    .onConflictDoUpdate({
-      target: [
-        generation.installationId,
-        generation.pullRequestId,
-        generation.kind,
-        generation.headSha,
-        generation.baselineSha,
-      ],
-      set: {
-        status: keepWhileRunning(generation.status, GenerationStatuses.PENDING),
-        attempts: keepWhileRunning(
-          generation.attempts,
-          sql`${generation.attempts} + 1`,
-        ),
-        phase: keepWhileRunning(generation.phase, null),
-        errorCode: keepWhileRunning(generation.errorCode, null),
-        errorParams: keepWhileRunning(generation.errorParams, null),
-        // A fresh attempt re-acquires repo config; stale origin data
-        // from a prior drain must not survive the re-queue.
-        repoConfig: keepWhileRunning(generation.repoConfig, null),
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
-  const genRow = genRows[0];
-  if (genRow === undefined) {
-    throw new Error("generation upsertPending returned no row");
-  }
-  return genRow;
-}
-
-/**
  * Whether a worker holds the PR's generate job right now. A run over a
  * stored brief never marks the projection, so the queue is the only place
  * that shows it; a second job on a held key would run beside the live one.
@@ -416,6 +361,7 @@ async function enqueueGenerateJob(
       payload => ${payloadJson}::json,
       job_key => ${jobKey},
       run_at => now() + make_interval(secs => ${debounceSeconds}),
+      max_attempts => ${GENERATE_JOB_MAX_ATTEMPTS},
       job_key_mode => ${jobKeyMode}
     )
   `);
@@ -461,7 +407,7 @@ export interface TriggerGenerationInput {
    * Replace a pending job's `run_at` with this trigger's window instead of
    * keeping the first push's. The `ready_for_review` flip sets it so a
    * draft-damped job is pulled in to the short window; nothing else should,
-   * since every replace re-arms the debounce. A running head still gets no
+   * since every replace re-arms the debounce. A held head still gets no
    * job; the live run reads the flip itself.
    */
   readonly refreshRunAt?: boolean;
@@ -485,7 +431,8 @@ export interface IngestOutcome {
    * Absent when the trigger landed on a PR whose terminal lifecycle was
    * preserved, when the event was skipped or when a stored brief covers it:
    * nothing is projected and no job is enqueued. Present with status
-   * `running` when the head is mid-run: the row was kept and no job added.
+   * `running` when a live run holds the head: the row was kept and no job
+   * added.
    */
   readonly generation?: GenerationRow;
   /** The stored brief that covers this event; no job was queued for it. */
@@ -636,7 +583,7 @@ export function createIngestRoutines(
           }
         }
 
-        // 2. Project the brief generation as `pending`. A running head is
+        // 2. Project the brief generation as `pending`. A held head is
         // never re-enqueued, refreshRunAt included: under N slots a fresh job
         // for the same head would run beside the live one. The live run
         // re-reads draft state before its ready Entry instead.
@@ -645,14 +592,14 @@ export function createIngestRoutines(
           applied: true,
         };
         if (storedBrief === undefined) {
-          const genRow = await projectPending(
-            tx,
-            scope,
-            prRow.id,
-            input.headSha,
-          );
-          value.generation = genRow;
-          if (genRow.status === GenerationStatuses.RUNNING) {
+          const projected = await projectPendingGeneration(tx, scope, {
+            pullRequestId: prRow.id,
+            kind: GenerationKinds.BRIEF,
+            headSha: input.headSha,
+            baselineSha: null,
+          });
+          value.generation = projected.row;
+          if (projected.held) {
             return { ok: true, value };
           }
         } else if (await isGenerateJobHeld(tx, prRow.id)) {

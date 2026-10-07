@@ -263,6 +263,7 @@ const M1_TABLES = [
   "diff_snapshot",
   "disposition",
   "generation",
+  "generation_attempt",
   "github_grant",
   "hunk_span",
   "inbox_archive",

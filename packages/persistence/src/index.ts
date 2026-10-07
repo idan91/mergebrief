@@ -20,6 +20,7 @@ export {
   WriteClassifications,
   UncoveredWorks,
   GenerationKinds,
+  ClaimOutcomes,
   AuditActorTypes,
   AuditChannels,
   AuditOutcomes,
@@ -38,6 +39,7 @@ export type {
   UncoveredWork,
   GenerationKind,
   GenerationFailure,
+  ClaimOutcome,
   AuditChannel,
   AuditOutcome,
   ClaimState,
@@ -261,12 +263,15 @@ export {
   GenerationErrorCodes,
 } from "./stores/generation";
 export type {
+  ClaimRunInput,
+  ClaimRunOutcome,
   GenerateJobTiming,
   GenerationProjection,
   GenerationError,
   GenerationErrorCode,
   GenerationTarget,
   GenerationRow,
+  RunOutcome,
   StartRunInput,
   StartRunOutcome,
 } from "./stores/generation";

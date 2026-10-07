@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import {
+  ClaimOutcomes,
   createArtifactStore,
   createGenerationProjection,
   createPurgeRoutines,
@@ -279,12 +280,17 @@ describe("owner-scoped generation projection", () => {
       baselineSha: null,
     } as const;
     expect((await projA.upsertPending(target)).ok).toBe(true);
-    expect((await projA.markRunning(target)).ok).toBe(true);
-
     const window = {
       from: new Date(Date.now() - 60_000),
       to: new Date(Date.now() + 60_000),
     };
+    const claimed = await projA.claimRun({
+      target,
+      leaseMs: 120_000,
+      ...window,
+    });
+    expect(claimed.ok && claimed.value.kind).toBe(ClaimOutcomes.CLAIMED);
+
     // The cap is the INSTANCE's budget: the owner's started run is visible
     // from every scope, so N viewers cannot multiply the daily spend.
     expect(await projA.countStartedRuns(window)).toBe(1);

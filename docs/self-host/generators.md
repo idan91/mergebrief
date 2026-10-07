@@ -142,11 +142,13 @@ At the cap the worker **skips** the generation before any provider call:
   [observability.md](./observability.md));
 - nothing is queued for later.
 
-The counter is the generation store itself: **provider attempts** on the
-current UTC day, whichever repo made them — not distinct pull requests, and
+The counter is one record per started run: **provider attempts** started on
+the current UTC day, whichever repo made them — not distinct pull requests, and
 not distinct pushes. A push that is re-queued (another push lands, a review is submitted)
-spends again and counts again, so a single busy PR can consume a day's
-budget on its own. Runs that were superseded or failed DO count: they spent.
+spends again and counts again, and so does every automatic retry of a failed
+run, so a single busy PR can consume a day's budget on its own. Runs that
+were superseded or failed DO count: they spent. A run counts on the day it
+started, and purging its pull request does not take it back.
 Queued-but-not-yet-drained jobs and capped skips do not — a burst of
 webhooks must not trip the cap before a single token is spent. Nor does a
 job that finds a brief already stored for its base and head pair (a review
@@ -158,8 +160,9 @@ refused, and below the cap it is paid without counting.
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,
 so N slots cannot start past the cap together. It is still a guardrail, not
-an invoice, and it does not observe the queue's own internal retries of a
-single run. Treat it as a ceiling on what you are willing to spend per day,
+an invoice. The counter starts empty on the day you upgrade to the release
+that introduced it, so runs from before the upgrade that day are not counted.
+Treat it as a ceiling on what you are willing to spend per day,
 not as a bill. Cost reporting is a separate, later concern.
 
 The window resets at 00:00 UTC. A push skipped today is not retried

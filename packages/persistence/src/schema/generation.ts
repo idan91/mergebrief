@@ -1,6 +1,7 @@
-// `generation` is the mutable status projection of a worker job. NOT a queue, NOT
-// a lock, NOT a domain entity: graphile-worker deletes succeeded jobs, so the
-// web tier polls this instead. The unique key is NULLS NOT DISTINCT because
+// `generation` is the mutable status projection of a worker job. NOT a queue,
+// NOT a domain entity: graphile-worker deletes succeeded jobs, so the web tier
+// polls this instead. A run claims the row with `run_id` under a lease that
+// lapses at `lease_expires_at`. The unique key is NULLS NOT DISTINCT because
 // `baseline_sha` is null for briefs; without it Postgres would treat every
 // brief row as distinct and the single-row-per-key upsert could never
 // conflict.
@@ -13,6 +14,7 @@ import {
   text,
   timestamp,
   unique,
+  uuid,
 } from "drizzle-orm/pg-core";
 import type { GenerationKind, PullRequestRowId } from "../types";
 import type {
@@ -51,6 +53,10 @@ export const generation = pgTable(
      */
     repoConfig: text("repo_config"),
     attempts: integer("attempts").notNull().default(0),
+    /** The claim holder's run; null while nobody holds the row. */
+    runId: uuid("run_id"),
+    /** The claim lapses at this database time unless its holder renews it. */
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

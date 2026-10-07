@@ -1,9 +1,10 @@
-// The advisory lock behind `startRun` cannot be proven on PGlite, which runs
-// one connection. This suite runs only against a real Postgres named by
+// The advisory lock behind `startRun` and the row lock behind `claimRun`
+// cannot be proven on PGlite, which runs one connection. This suite runs only against a real Postgres named by
 // MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red under CI.
 import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import {
+  ClaimOutcomes,
   createGenerationProjection,
   createTenantRepository,
 } from "../src/index";
@@ -25,6 +26,7 @@ const WINDOW = {
   to: new Date("2100-01-01T00:00:00.000Z"),
 };
 const HOLD_MS = 300;
+const LEASE_MS = 120_000;
 
 describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
   it("two parallel starts at cap 1 start exactly one", async () => {
@@ -164,6 +166,42 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
     } finally {
       holding.release();
       await holder.end();
+      await deleteTenantRows(handle, tenant);
+    }
+  });
+
+  it("two parallel claims on one row claim it exactly once", async () => {
+    if (databaseUrl === undefined) {
+      throw new Error("unreachable");
+    }
+    const { tenant, repoId, ctx } = makeFixture();
+    const handle = await connectMigrated(databaseUrl);
+
+    try {
+      const pr = await createTenantRepository(handle, ctx).pullRequests.upsert({
+        repoId,
+        prNumber: 1,
+        state: PrStates.OPEN,
+        repoSlug: "acme/lock",
+      });
+      const projection = createGenerationProjection(handle, ctx);
+      const target = makeBriefTarget(pr.id, "contended");
+      const pending = await projection.upsertPending(target);
+      if (!pending.ok) {
+        throw new Error(pending.error.message);
+      }
+
+      const outcomes = await Promise.all(
+        [1, 2].map(() =>
+          projection.claimRun({ target, leaseMs: LEASE_MS, ...WINDOW }),
+        ),
+      );
+
+      const kinds = outcomes.map((outcome) => outcome.ok && outcome.value.kind);
+      expect(kinds).toHaveLength(2);
+      expect(kinds).toContain(ClaimOutcomes.CLAIMED);
+      expect(kinds).toContain(ClaimOutcomes.HELD);
+    } finally {
       await deleteTenantRows(handle, tenant);
     }
   });

@@ -99,6 +99,19 @@ export const GenerationKinds = {
 } as const;
 export type GenerationKind = ValueOf<typeof GenerationKinds>;
 
+/** What a claim on a `generation` row found. */
+export const ClaimOutcomes = {
+  /** The row is now this run's: a fresh run id, a lease, one paid attempt. */
+  CLAIMED: "claimed",
+  /** Another run's lease is live; nothing was written. */
+  HELD: "held",
+  /** The day's attempts reached the cap; nothing was written. */
+  CAPPED: "capped",
+  /** The row already succeeded; there is nothing to claim. */
+  FINISHED: "finished",
+} as const;
+export type ClaimOutcome = ValueOf<typeof ClaimOutcomes>;
+
 /** Codes that carry interpolation params, typed per code. */
 export interface GenerationFailureParamMap {
   [GenerationFailureCodes.GENERATION_CONFIG]: { readonly detail: string };

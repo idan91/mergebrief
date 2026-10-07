@@ -1,29 +1,28 @@
-// Spend-cap counter: the instance-wide, UTC-day-windowed count of
-// generation runs that STARTED, plus the terminal `capped` transition. The
-// boundary cases (23:59:59.999 vs 00:00:00.000) are the whole point of the
-// half-open window, so `created_at` is backdated through the raw harness
+// Spend-cap counter: the instance-wide, UTC-day-windowed count of paid runs,
+// one `generation_attempt` row each, plus the terminal `capped` transition.
+// The boundary cases (23:59:59.999 vs 00:00:00.000) are the whole point of
+// the half-open window, so `started_at` is backdated through the raw harness
 // client, since nothing in the store surface sets it.
+import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle, type AppDatabase } from "../src/db/handle";
 import {
-  createTenantRepository,
+  ClaimOutcomes,
   createGenerationProjection,
+  createPurgeRoutines,
+  createTenantRepository,
+  type GenerationTarget,
   type TenantContext,
 } from "../src/index";
 import {
-  GenerationKinds,
   isInstallationId,
   isRepoId,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
 } from "../src/types";
-import {
-  GenerationPhases,
-  GenerationStatuses,
-  type GenerationStatus,
-} from "types/generations";
+import { GenerationPhases, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import { brandWith, freshPglite, makeBriefTarget } from "./helpers";
 
@@ -33,226 +32,142 @@ const REPO: RepoId = brandWith(isRepoId, 777n);
 const OTHER_REPO: RepoId = brandWith(isRepoId, 888n);
 const CTX: TenantContext = { installationId: TENANT };
 const SLUG = "acme/api";
+const LEASE_MS = 120_000;
 
 /** The UTC day under test: 2026-08-03T00:00Z (inclusive) → 08-04 (exclusive). */
 const DAY_START = new Date("2026-08-03T00:00:00.000Z");
 const DAY_END = new Date("2026-08-04T00:00:00.000Z");
+const NEXT_DAY_END = new Date("2026-08-05T00:00:00.000Z");
+const INSIDE = new Date("2026-08-03T12:00:00.000Z");
+const ALL_TIME = {
+  from: new Date(0),
+  to: new Date("2100-01-01T00:00:00.000Z"),
+};
 
 interface Harness {
   readonly handle: AppDatabase;
-  /** Backdate one projection row's created_at (raw; nothing public sets it). */
-  backdate(rowId: bigint, createdAt: Date): Promise<void>;
-  /** Project a brief run at `status`, stamped `createdAt` (and `attempts`). */
-  run(input: {
-    pullRequestId: PullRequestRowId;
-    headSha: string;
-    status: GenerationStatus;
-    createdAt: Date;
-    attempts?: number;
-  }): Promise<void>;
+  readonly pullRequestId: PullRequestRowId;
+  /** One paid run on `target`, finished as succeeded and stamped `startedAt`. */
+  spend(
+    target: GenerationTarget,
+    startedAt: Date,
+    ctx?: TenantContext,
+  ): Promise<void>;
+  countDay(from: Date, to: Date): Promise<number>;
 }
 
-async function harness(): Promise<
-  Harness & { pullRequestId: PullRequestRowId }
-> {
+async function stampAttempt(
+  client: PGlite,
+  runId: string,
+  startedAt: Date,
+): Promise<void> {
+  await client.query(
+    "update generation_attempt set started_at = $1 where run_id = $2",
+    [startedAt.toISOString(), runId],
+  );
+}
+
+async function harness(): Promise<Harness> {
   const client = await freshPglite();
   const handle = fromDrizzle(drizzle(client));
-  const repo = createTenantRepository(handle, CTX);
-  const pr = await repo.pullRequests.upsert({
+  const pr = await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,
     state: PrStates.OPEN,
     repoSlug: SLUG,
   });
-  const projection = createGenerationProjection(handle, CTX);
   return {
     handle,
     pullRequestId: pr.id,
-    async backdate(rowId, createdAt) {
-      await client.query(
-        "update generation set created_at = $1 where id = $2",
-        [createdAt.toISOString(), rowId],
-      );
+    async spend(target, startedAt, ctx = CTX) {
+      const projection = createGenerationProjection(handle, ctx);
+      await projection.upsertPending(target);
+      const claimed = await projection.claimRun({
+        target,
+        leaseMs: LEASE_MS,
+        ...ALL_TIME,
+      });
+      if (!claimed.ok || claimed.value.kind !== ClaimOutcomes.CLAIMED) {
+        throw new Error("expected a claim");
+      }
+      await stampAttempt(client, claimed.value.runId, startedAt);
+      await projection.finishRun(target, claimed.value.runId, {
+        status: GenerationStatuses.SUCCEEDED,
+      });
     },
-    async run({ pullRequestId, headSha, status, createdAt, attempts = 0 }) {
-      const target = {
-        pullRequestId,
-        kind: GenerationKinds.BRIEF,
-        headSha,
-        baselineSha: null,
-      } as const;
-      const pending = await projection.upsertPending(target);
-      if (!pending.ok) throw new Error(pending.error.message);
-      // `created_at` defaults to now() and `attempts` only moves on a
-      // re-queue; the counter windows on the first and SUMS the second, so
-      // the fixture stamps both directly.
-      await client.query(
-        "update generation set status = $1, created_at = $2, attempts = $3 where id = $4",
-        [status, createdAt.toISOString(), attempts, pending.value.id],
-      );
+    async countDay(from, to) {
+      return createGenerationProjection(handle, CTX).countStartedRuns({
+        from,
+        to,
+      });
     },
   };
 }
 
 describe("countStartedRuns", () => {
-  it("counts started runs and excludes pending and capped ones", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    const inside = new Date("2026-08-03T12:00:00.000Z");
-    await run({
-      pullRequestId,
-      headSha: "a",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "b",
-      status: GenerationStatuses.FAILED,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "c",
-      // Superseded runs SPENT, so they count.
-      status: GenerationStatuses.SUPERSEDED,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "d",
-      status: GenerationStatuses.RUNNING,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "e",
-      // The job is enqueued but never drained, so nothing spent yet.
-      status: GenerationStatuses.PENDING,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "f",
-      // The skip itself must never feed the counter that produced it.
-      status: GenerationStatuses.CAPPED,
-      createdAt: inside,
-    });
+  it("counts one per paid run and nothing for an unstarted row", async () => {
+    const { pullRequestId, spend, countDay, handle } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "a"), INSIDE);
+    await spend(makeBriefTarget(pullRequestId, "b"), INSIDE);
+    await createGenerationProjection(handle, CTX).upsertPending(
+      makeBriefTarget(pullRequestId, "waiting"),
+    );
 
-    const count = await createGenerationProjection(
-      handle,
-      CTX,
-    ).countStartedRuns({
-      from: DAY_START,
-      to: DAY_END,
-    });
-    expect(count).toBe(4);
+    expect(await countDay(DAY_START, DAY_END)).toBe(2);
   });
 
-  it("counts ATTEMPTS, not rows: a re-run row spends once per attempt", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    const inside = new Date("2026-08-03T12:00:00.000Z");
-    // One row, re-run twice after its first run: three paid runs against
-    // one natural key. Counting rows would report 1 and let a hot PR spend a
-    // multiple of the cap.
-    await run({
-      pullRequestId,
-      headSha: "hot",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-      attempts: 3,
-    });
-    // A first run carries attempts = 0 but is still one paid run.
-    await run({
-      pullRequestId,
-      headSha: "fresh",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-    });
+  it("two claims on one row count two", async () => {
+    const { pullRequestId, spend, countDay } = await harness();
+    const target = makeBriefTarget(pullRequestId, "retried");
+    await spend(target, INSIDE);
+    await spend(target, INSIDE);
 
-    const count = await createGenerationProjection(
-      handle,
-      CTX,
-    ).countStartedRuns({
-      from: DAY_START,
-      to: DAY_END,
-    });
-    expect(count).toBe(4);
+    expect(await countDay(DAY_START, DAY_END)).toBe(2);
   });
 
-  it("pending and capped rows count nothing however high their attempts", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    const inside = new Date("2026-08-03T12:00:00.000Z");
-    await run({
-      pullRequestId,
-      headSha: "re-run",
-      status: GenerationStatuses.PENDING,
-      createdAt: inside,
-      attempts: 9,
-    });
-    await run({
-      pullRequestId,
-      headSha: "skipped",
-      status: GenerationStatuses.CAPPED,
-      createdAt: inside,
-      attempts: 9,
-    });
+  it("a re-queued or capped row keeps its earlier attempts counted", async () => {
+    const { pullRequestId, spend, countDay, handle } = await harness();
+    const projection = createGenerationProjection(handle, CTX);
+    const requeued = makeBriefTarget(pullRequestId, "requeued");
+    const capped = makeBriefTarget(pullRequestId, "capped");
+    await spend(requeued, INSIDE);
+    await spend(capped, INSIDE);
 
-    const count = await createGenerationProjection(
-      handle,
-      CTX,
-    ).countStartedRuns({
-      from: DAY_START,
-      to: DAY_END,
-    });
-    expect(count).toBe(0);
+    await projection.upsertPending(requeued);
+    await projection.markCapped(capped);
+
+    expect(await countDay(DAY_START, DAY_END)).toBe(2);
+  });
+
+  it("a re-run on a later day counts on its own day", async () => {
+    const { pullRequestId, spend, countDay } = await harness();
+    const target = makeBriefTarget(pullRequestId, "two-days");
+    await spend(target, INSIDE);
+    await spend(target, new Date("2026-08-04T09:00:00.000Z"));
+
+    expect(await countDay(DAY_START, DAY_END)).toBe(1);
+    expect(await countDay(DAY_END, NEXT_DAY_END)).toBe(1);
   });
 
   it("includes the first instant of the day and excludes the next day's", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    await run({
-      pullRequestId,
-      headSha: "midnight",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: DAY_START,
-    });
-    await run({
-      pullRequestId,
-      headSha: "last-instant",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: new Date("2026-08-03T23:59:59.999Z"),
-    });
-    await run({
-      pullRequestId,
-      headSha: "next-day",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: DAY_END,
-    });
-    await run({
-      pullRequestId,
-      headSha: "yesterday",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: new Date("2026-08-02T23:59:59.999Z"),
-    });
+    const { pullRequestId, spend, countDay } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "midnight"), DAY_START);
+    await spend(
+      makeBriefTarget(pullRequestId, "last-instant"),
+      new Date("2026-08-03T23:59:59.999Z"),
+    );
+    await spend(makeBriefTarget(pullRequestId, "next-day"), DAY_END);
+    await spend(
+      makeBriefTarget(pullRequestId, "yesterday"),
+      new Date("2026-08-02T23:59:59.999Z"),
+    );
 
-    const count = await createGenerationProjection(
-      handle,
-      CTX,
-    ).countStartedRuns({
-      from: DAY_START,
-      to: DAY_END,
-    });
-    expect(count).toBe(2);
+    expect(await countDay(DAY_START, DAY_END)).toBe(2);
   });
 
   it("counts every repo and every tenant into one instance pool", async () => {
-    const { handle, pullRequestId, run, backdate } = await harness();
-    const inside = new Date("2026-08-03T09:00:00.000Z");
-    await run({
-      pullRequestId,
-      headSha: "mine",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-    });
+    const { handle, pullRequestId, spend, countDay } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "mine"), INSIDE);
 
     // Same tenant, a different repo: the cap is the INSTANCE's budget.
     const sibling = await createTenantRepository(
@@ -264,12 +179,7 @@ describe("countStartedRuns", () => {
       state: PrStates.OPEN,
       repoSlug: "acme/web",
     });
-    await run({
-      pullRequestId: sibling.id,
-      headSha: "sibling",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-    });
+    await spend(makeBriefTarget(sibling.id, "sibling"), INSIDE);
 
     // Another installation entirely: the operator pays one bill, so its
     // run counts into the same pool.
@@ -283,23 +193,21 @@ describe("countStartedRuns", () => {
       state: PrStates.OPEN,
       repoSlug: SLUG,
     });
-    const foreign = createGenerationProjection(handle, otherCtx);
-    const foreignTarget = {
-      pullRequestId: foreignPr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "foreign",
-      baselineSha: null,
-    } as const;
-    const pending = await foreign.upsertPending(foreignTarget);
-    if (!pending.ok) throw new Error(pending.error.message);
-    await foreign.markSucceeded(foreignTarget);
-    await backdate(pending.value.id, inside);
+    await spend(makeBriefTarget(foreignPr.id, "foreign"), INSIDE, otherCtx);
 
-    const count = await createGenerationProjection(
-      handle,
-      CTX,
-    ).countStartedRuns({ from: DAY_START, to: DAY_END });
-    expect(count).toBe(3);
+    expect(await countDay(DAY_START, DAY_END)).toBe(3);
+  });
+
+  it("a purged pull request leaves its attempts counted", async () => {
+    const { handle, pullRequestId, spend, countDay } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "purged"), INSIDE);
+
+    const purged = await createPurgeRoutines(handle, CTX).purgePullRequest(
+      pullRequestId,
+    );
+
+    expect(purged.ok).toBe(true);
+    expect(await countDay(DAY_START, DAY_END)).toBe(1);
   });
 });
 
@@ -307,12 +215,7 @@ describe("markCapped", () => {
   it("is terminal, consumes no attempt, and carries no error", async () => {
     const { handle, pullRequestId } = await harness();
     const projection = createGenerationProjection(handle, CTX);
-    const target = {
-      pullRequestId,
-      kind: GenerationKinds.BRIEF,
-      headSha: "capped-head",
-      baselineSha: null,
-    } as const;
+    const target = makeBriefTarget(pullRequestId, "capped-head");
     const pending = await projection.upsertPending(target);
     if (!pending.ok) throw new Error(pending.error.message);
 
@@ -377,15 +280,8 @@ describe("startRun", () => {
   });
 
   it("an absent cap starts without counting", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    const inside = new Date("2026-08-03T12:00:00.000Z");
-    await run({
-      pullRequestId,
-      headSha: "spent",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: inside,
-      attempts: 50,
-    });
+    const { handle, pullRequestId, spend } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "spent"), INSIDE);
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "uncapped");
     await projection.upsertPending(target);
@@ -401,37 +297,19 @@ describe("startRun", () => {
     expect(row?.status).toBe(GenerationStatuses.RUNNING);
   });
 
-  it("capped and pending rows never count against the cap", async () => {
-    const { handle, pullRequestId, run } = await harness();
-    const inside = new Date("2026-08-03T12:00:00.000Z");
-    await run({
-      pullRequestId,
-      headSha: "skipped",
-      status: GenerationStatuses.CAPPED,
-      createdAt: inside,
-    });
-    await run({
-      pullRequestId,
-      headSha: "waiting",
-      status: GenerationStatuses.PENDING,
-      createdAt: inside,
-    });
+  it("records an attempt the cap counts", async () => {
+    const { handle, pullRequestId, countDay } = await harness();
     const projection = createGenerationProjection(handle, CTX);
-    const target = makeBriefTarget(pullRequestId, "next");
+    const target = makeBriefTarget(pullRequestId, "counted");
     await projection.upsertPending(target);
 
-    const started = await projection.startRun({
-      target,
-      cap: 1,
-      ...WINDOW,
-    });
+    await projection.startRun({ target, ...WINDOW });
 
-    if (!started.ok) throw new Error(started.error.message);
-    expect(started.value.started).toBe(true);
+    expect(await countDay(WINDOW.from, WINDOW.to)).toBe(1);
   });
 
   it("a run started in another repo counts against this start", async () => {
-    const { handle, pullRequestId: _own, run } = await harness();
+    const { handle, pullRequestId, spend } = await harness();
     const sibling = await createTenantRepository(
       handle,
       CTX,
@@ -441,14 +319,9 @@ describe("startRun", () => {
       state: PrStates.OPEN,
       repoSlug: "acme/web",
     });
-    await run({
-      pullRequestId: sibling.id,
-      headSha: "elsewhere",
-      status: GenerationStatuses.SUCCEEDED,
-      createdAt: new Date("2026-08-03T12:00:00.000Z"),
-    });
+    await spend(makeBriefTarget(sibling.id, "elsewhere"), INSIDE);
     const projection = createGenerationProjection(handle, CTX);
-    const target = makeBriefTarget(_own, "mine");
+    const target = makeBriefTarget(pullRequestId, "mine");
     await projection.upsertPending(target);
 
     const refused = await projection.startRun({ target, cap: 1, ...WINDOW });

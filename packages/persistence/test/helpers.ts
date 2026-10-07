@@ -19,6 +19,7 @@ import {
 } from "../src/index";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 import { generation } from "../src/schema/generation";
+import { generationAttempt } from "../src/schema/generation-attempt";
 import { pullRequest } from "../src/schema/pull-request";
 import {
   GenerationKinds,
@@ -98,6 +99,9 @@ export async function deleteTenantRows(
   tenant: InstallationId,
 ): Promise<void> {
   const db = internal(handle);
+  await db
+    .delete(generationAttempt)
+    .where(eq(generationAttempt.installationId, tenant));
   await db.delete(generation).where(eq(generation.installationId, tenant));
   await db.delete(pullRequest).where(eq(pullRequest.installationId, tenant));
   await closeDb(handle);

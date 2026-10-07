@@ -203,8 +203,12 @@ A per-repo opt-in (repo YAML; org default + per-repo override; off by default) t
 _Avoid_: activation (as "turning the tool on"), draft mode, draft gate
 
 **Generation**:
-One attempt to produce a **Brief** for one head of one PR; the persisted record the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). It is a record of an attempt, never a queue and never a lock. A **Job** that runs with a stored Brief is not a Generation: it produces no Brief and adds no attempt to the record.
-_Avoid_: job (that is the **Job**), run, generation job
+The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). Each paid try at it, graphile retries included, is one attempt, and attempts are what the daily cap counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief is not a Generation: it produces no Brief and adds no attempt.
+_Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
+
+**Claim**:
+The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles a failed Generation without one.
+_Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 
 **Job**:
 The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.

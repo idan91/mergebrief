@@ -326,13 +326,18 @@ describe("generate task, daily generation cap", () => {
     expect(github.commentCalls).toEqual([]);
   });
 
-  it("counts ATTEMPTS: one row re-run to attempts=3 fills a cap of 3", async () => {
-    // graphile/webhook re-queues make ONE row several paid runs; the gate
-    // must see the spend, not the row count.
-    await burnOneRun();
-    await harness.raw(
-      "update generation set attempts = 3 where head_sha = '" + HEAD_1 + "'",
-    );
+  it("counts every retry: one head run three times fills a cap of 3", async () => {
+    // graphile retries make ONE row several paid runs; the gate must see the
+    // spend, not the row count.
+    const first = await trigger(HEAD_1);
+    for (let failedRuns = 0; failedRuns < 2; failedRuns += 1) {
+      const failing = stubGenerator();
+      failing.failNextWith = makeConnectionError();
+      await expect(
+        makeTask({ generator: failing, spend: UNCAPPED })(first.payload),
+      ).rejects.toThrow("Connection error");
+    }
+    await makeTask({ spend: UNCAPPED })(first.payload);
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_2);

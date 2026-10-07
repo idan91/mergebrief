@@ -17,31 +17,35 @@ import { createMigratedPglite } from "./pglite-snapshot";
 // every worker at once under coverage instrumentation.
 export { warmPgliteSnapshot } from "./pglite-snapshot";
 
-// Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match the
-// named-notation call in `ingest.ts`. `key`, `run_at` and `locked_at` carry the
-// real `graphile_worker.jobs` view's names, so a store read that passes here
-// resolves in production. A NULL `key` never conflicts, so the keyless call is
-// a plain insert. A key that matches a LOCKED job is detached from it first, so
-// the insert adds a job beside the held one, as graphile's `add_jobs` does. Not
-// mirrored: the detached job's `attempts = max_attempts`, and `payload`, which
-// the real view lacks and this table carries for test assertions only.
+// Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match
+// the named-notation call in `ingest.ts`, and the columns carry the real
+// `graphile_worker.jobs` view's names, so a store read that passes here
+// resolves in production. A NULL `key` never conflicts. A key that matches a
+// LOCKED job is detached from it first, so the insert adds a job beside the
+// held one, as graphile's `add_jobs` does. Not mirrored: the detached job's
+// `attempts = max_attempts`, and `payload`, which the real view lacks and this
+// table carries for test assertions only.
 const GRAPHILE_WORKER_STUB_SQL = `
 create schema if not exists graphile_worker;
 create table graphile_worker.jobs (
   id bigserial primary key, task_identifier text not null, payload json,
   key text unique, run_at timestamptz not null default now(), locked_at timestamptz,
+  max_attempts int not null default 25,
   created_at timestamptz not null default now());
 create or replace function graphile_worker.add_job(
   identifier text, payload json default null, job_key text default null,
-  run_at timestamptz default now(), job_key_mode text default 'replace')
+  run_at timestamptz default now(), max_attempts int default null,
+  job_key_mode text default 'replace')
 returns graphile_worker.jobs language sql as $$
   update graphile_worker.jobs set key = null
     where key = add_job.job_key and locked_at is not null;
-  insert into graphile_worker.jobs(task_identifier, payload, key, run_at)
-    values (add_job.identifier, add_job.payload, add_job.job_key, add_job.run_at)
+  insert into graphile_worker.jobs(task_identifier, payload, key, run_at, max_attempts)
+    values (add_job.identifier, add_job.payload, add_job.job_key, add_job.run_at,
+            coalesce(add_job.max_attempts, 25))
   on conflict (key) do update
     set task_identifier = excluded.task_identifier,
         payload = excluded.payload,
+        max_attempts = excluded.max_attempts,
         run_at = case when add_job.job_key_mode = 'preserve_run_at'
                       then graphile_worker.jobs.run_at else excluded.run_at end
   returning *;
