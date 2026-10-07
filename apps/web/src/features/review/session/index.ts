@@ -6,6 +6,7 @@ export {
 } from "./store";
 export { serializeSnapshot, type SessionSnapshot } from "./snapshot";
 export type { AttentionItemKind } from "./attention";
+export { getChunkRegions } from "./anchors";
 export {
   emptySessionPayload,
   parseReviewSessionPayload,

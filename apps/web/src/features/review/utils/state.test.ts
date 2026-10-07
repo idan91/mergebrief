@@ -17,6 +17,7 @@ import { CommentAnchorKinds } from "types/comments";
 import {
   deriveCarriedItems,
   deriveUnresolvedItems,
+  getChunkRegion,
   riskEvidenceLabel,
   summarySignatureLine,
   type CarriedInput,
@@ -315,6 +316,7 @@ function buildCarriedInput(
   return {
     attention,
     chunks: [carriedChunk],
+    regions: new Map([[carriedChunk.id, getChunkRegion(carriedChunk)]]),
     flags: [riskFlag],
     dispositions: {},
     comments: [reviewComment],

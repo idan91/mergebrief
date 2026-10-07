@@ -1,23 +1,15 @@
-// Store vocabulary to wire vocabulary for the session writes. The store keys
-// by brief-local ids; the wire keys by content anchor (file, attribute, line
-// region), so the model resolves one into the other here, the same anchors
-// the read resolved back.
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { Category } from "../../brief/types";
-import { CommentAnchorKinds } from "types/comments";
-import {
-  isFileCommentAnchor,
-  type CommentAnchor,
-  type ReviewComment,
-} from "../utils/comments";
+import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
-import { getChunkRegion } from "../utils/state";
+import {
+  buildDraftAnchorWire,
+  buildEvidenceWire,
+  buildFlagAnchorWires,
+} from "./anchors";
 import type {
-  DraftAnchorWire,
-  EvidenceWire,
   FlagAnchorWire,
-  LineDraftAnchorWire,
   SessionWriteResult,
   SessionWrites,
 } from "./writes";
@@ -45,38 +37,6 @@ export interface SessionWriteGateway {
   setOutcome(outcome: ReviewOutcome): Promise<SessionWriteResult>;
 }
 
-/** The ref a stored evidence row carries: the kind decides which field. */
-function evidenceRef(evidence: RiskEvidence): string {
-  if (evidence.kind === "linked-comment") return evidence.commentId ?? "";
-  if (evidence.kind === "chunk-reviewed") return evidence.chunkId ?? "";
-  return evidence.note ?? "";
-}
-
-function toEvidenceWire(evidence: RiskEvidence): EvidenceWire {
-  return { kind: evidence.kind, ref: evidenceRef(evidence) };
-}
-
-/** Brief-local flag id → the anchor its disposition row keys on. */
-function flagAnchors(model: BriefViewModel): Map<string, FlagAnchorWire> {
-  const regions = new Map(
-    model.groups
-      .flatMap((group) => group.chunks)
-      .map((chunk) => [chunk.id, getChunkRegion(chunk)]),
-  );
-  const anchors = new Map<string, FlagAnchorWire>();
-  for (const flag of model.flags) {
-    const region = regions.get(flag.chunkId);
-    if (region === undefined) continue;
-    anchors.set(flag.id, {
-      filePath: flag.file,
-      attribute: flag.attr,
-      regionStart: region.start,
-      regionEnd: region.end,
-    });
-  }
-  return anchors;
-}
-
 /**
  * A decision that resolved to nothing sendable. NEVER reported as success:
  * the store would keep the disposition, the receipt would count it, and the
@@ -88,28 +48,11 @@ const UNRESOLVED: SessionWriteResult = {
   failure: { frozen: false, copy: "review.writeError.unresolvedRisk" },
 };
 
-function toDraftAnchorWire(anchor: CommentAnchor): DraftAnchorWire {
-  if (isFileCommentAnchor(anchor)) {
-    return { kind: CommentAnchorKinds.FILE, filePath: anchor.file };
-  }
-  const wire: LineDraftAnchorWire = {
-    kind: CommentAnchorKinds.LINE,
-    filePath: anchor.file,
-    side: anchor.side,
-    startLine: anchor.startLine,
-    endLine: anchor.endLine,
-  };
-  if (anchor.startSide !== undefined) {
-    wire.startSide = anchor.startSide;
-  }
-  return wire;
-}
-
 export function createSessionWriteGateway(
   model: BriefViewModel,
   writes: SessionWrites,
 ): SessionWriteGateway {
-  const anchors = flagAnchors(model);
+  const anchors = buildFlagAnchorWires(model);
   const buildFlagAnchors = (flagIds: Iterable<string>): FlagAnchorWire[] =>
     [...flagIds].flatMap((id) => {
       const anchor = anchors.get(id);
@@ -131,7 +74,7 @@ export function createSessionWriteGateway(
       // every flag addressed and only some of them stored.
       const flags = [...evidenceByFlagId].flatMap(([id, evidence]) => {
         const anchor = anchors.get(id);
-        const wire = toEvidenceWire(evidence);
+        const wire = buildEvidenceWire(evidence);
         return anchor === undefined || wire.ref === ""
           ? []
           : [{ ...anchor, evidence: wire }];
@@ -143,12 +86,12 @@ export function createSessionWriteGateway(
     },
     reclassify: (groupId, category) => writes.reclassify(groupId, category),
     createComment: (comment) => {
-      const draft = toDraftAnchorWire(comment.anchor);
+      const draft = buildDraftAnchorWire(comment.anchor);
       return writes.createDraft({ ...draft, body: comment.body });
     },
     updateComment: (id, body) => writes.updateDraft(id, body),
     reanchorComment: (id, anchor) =>
-      writes.reanchorDraft(id, toDraftAnchorWire(anchor)),
+      writes.reanchorDraft(id, buildDraftAnchorWire(anchor)),
     deleteComment: (id) => writes.deleteDraft(id),
     setOutcome: (outcome) => writes.setOutcome(outcome),
   };

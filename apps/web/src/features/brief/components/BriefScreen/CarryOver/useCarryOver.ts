@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {
+  getChunkRegions,
   useReviewActions,
   useReviewFlow,
   useReviewSession,
@@ -55,6 +56,7 @@ export function useCarryOver({
       deriveCarriedItems({
         attention: session.attention,
         chunks: model.groups.flatMap((group) => group.chunks),
+        regions: getChunkRegions(model),
         flags: model.flags,
         dispositions,
         comments,

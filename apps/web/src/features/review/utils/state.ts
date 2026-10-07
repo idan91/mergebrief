@@ -225,6 +225,8 @@ export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
 export interface CarriedInput {
   attention: readonly SessionAttentionItem[];
   chunks: BriefChunk[];
+  /** The session's one chunk-to-region map, keyed by chunk id. */
+  regions: ReadonlyMap<string, ChunkRegion>;
   flags: RiskFlag[];
   dispositions: Record<string, Disposition>;
   comments: ReviewComment[];
@@ -264,12 +266,11 @@ export function isFlagUnderAnchor(
 function getFlagsAtAnchor(
   input: CarriedInput,
   item: SessionAttentionItem,
-  regions: ReadonlyMap<string, ChunkRegion>,
 ): RiskFlag[] {
   const { location } = item;
   if (location.kind !== CommentAnchorKinds.LINE) return [];
   return input.flags.filter((flag) =>
-    isFlagUnderAnchor(flag, regions.get(flag.chunkId), {
+    isFlagUnderAnchor(flag, input.regions.get(flag.chunkId), {
       filePath: location.filePath,
       attribute: item.subject.attribute,
       startLine: location.startLine,
@@ -359,9 +360,8 @@ function formatAttentionLocationLabel(
 function buildCarriedDispositionItem(
   input: CarriedInput,
   item: SessionAttentionItem,
-  regions: ReadonlyMap<string, ChunkRegion>,
 ): CarriedItem | undefined {
-  const pending = getFlagsAtAnchor(input, item, regions).find((flag) =>
+  const pending = getFlagsAtAnchor(input, item).find((flag) =>
     isDispositionPending(
       item.kind,
       input.dispositions[flag.id] ?? { kind: "open" },
@@ -392,14 +392,11 @@ function buildCarriedDispositionItem(
  * puts its item straight back.
  */
 export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
-  const regions = new Map(
-    input.chunks.map((chunk) => [chunk.id, getChunkRegion(chunk)]),
-  );
   return input.attention.flatMap((item) => {
     const derived =
       item.kind === AttentionItemKinds.ORPHANED_ANCHOR
         ? buildCarriedDraftItem(input, item)
-        : buildCarriedDispositionItem(input, item, regions);
+        : buildCarriedDispositionItem(input, item);
     return derived === undefined ? [] : [derived];
   });
 }
