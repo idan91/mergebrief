@@ -8,7 +8,7 @@ import {
   InboxStatuses,
   InboxLayouts,
 } from "types/inbox";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   MAX_INBOX_FILTER_VALUES,
   MAX_INBOX_PAGE,
@@ -23,7 +23,7 @@ function brandId<Id extends bigint>(
 ) {
   return z
     .string()
-    .regex(/^[0-9]{1,19}$/, `${label} must be an id`)
+    .regex(/^[0-9]{1,19}$/, { message: `${label} must be an id`, abort: true })
     .transform((raw, ctx) => {
       const value = BigInt(raw);
       if (value > MAX_ROW_ID || !guard(value)) {
@@ -37,7 +37,7 @@ function brandId<Id extends bigint>(
 const repoIdSchema = brandId(isRepoId, "repo");
 const installationIdSchema = brandId(isInstallationId, "installation");
 
-function buildListSchema<Schema extends z.ZodTypeAny>(schema: Schema) {
+function buildListSchema<Schema extends z.ZodType>(schema: Schema) {
   return z.array(schema).max(MAX_INBOX_FILTER_VALUES).optional();
 }
 
@@ -49,22 +49,20 @@ export const inboxQuerySchema = z.object({
     .min(1)
     .max(MAX_INBOX_PAGE)
     .default(1),
-  [InboxQueryKeys.SORT]: z.nativeEnum(InboxSorts).default(InboxSorts.UPDATED),
-  [InboxQueryKeys.LAYOUT]: z
-    .nativeEnum(InboxLayouts)
-    .default(InboxLayouts.FOLDED),
+  [InboxQueryKeys.SORT]: z.enum(InboxSorts).default(InboxSorts.UPDATED),
+  [InboxQueryKeys.LAYOUT]: z.enum(InboxLayouts).default(InboxLayouts.FOLDED),
   [InboxQueryKeys.STATE]: z
-    .array(z.nativeEnum(InboxStatuses))
+    .array(z.enum(InboxStatuses))
     .max(MAX_INBOX_FILTER_VALUES)
     .default(DEFAULT_STATUSES),
   [InboxQueryKeys.REPO]: buildListSchema(repoIdSchema),
-  [InboxQueryKeys.REVIEW]: buildListSchema(z.nativeEnum(InboxReviewStates)),
+  [InboxQueryKeys.REVIEW]: buildListSchema(z.enum(InboxReviewStates)),
   [InboxQueryKeys.AUTHOR]: z
-    .nativeEnum(InboxAuthorFilters)
+    .enum(InboxAuthorFilters)
     .default(InboxAuthorFilters.ALL),
   [InboxQueryKeys.INSTALLATION]: buildListSchema(installationIdSchema),
   [InboxQueryKeys.ARCHIVED]: z
-    .nativeEnum(InboxArchivedFilters)
+    .enum(InboxArchivedFilters)
     .default(InboxArchivedFilters.HIDE),
 });
 export type InboxQuery = z.infer<typeof inboxQuerySchema>;

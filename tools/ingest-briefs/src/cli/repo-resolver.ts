@@ -4,7 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { isRepoId, type PullRequestLifecycle } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { CliArgs } from "../args";
 import type { RepoResolution, ResolveRepo } from "../ingest";
 import { buildStaticLifecycle } from "./lifecycle";

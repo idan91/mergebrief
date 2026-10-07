@@ -1,12 +1,12 @@
 // Request-parsing helpers for the reads handlers: every rejection is the
 // deterministic 400 (`invalid-request`), never a schema-shaped hint.
 import type { Context } from "hono";
-import type { z } from "zod";
+import type { z } from "zod/v4";
 import { BadRequest } from "../../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema } from "../../../wire-bounds";
 
-export function parseQuery<S extends z.ZodTypeAny>(
+export function parseQuery<S extends z.ZodType>(
   c: Context<AuthzEnv>,
   schema: S,
   keys: readonly string[],

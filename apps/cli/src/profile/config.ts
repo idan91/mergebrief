@@ -8,12 +8,12 @@
 // it never changes which profile resolves.
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { Result } from "types/utils";
 import { CliError, ExitCodes } from "../exit";
 
 const profileSchema = z.object({
-  baseUrl: z.string().url(),
+  baseUrl: z.url(),
   /** Plaintext by design (0600 file); MERGEBRIEF_TOKEN overrides it. */
   token: z.string().optional(),
   /**

@@ -5,7 +5,7 @@
 import { InboxQueryBounds } from "contract";
 import { isRepoId, type RepoId } from "persistence";
 import type { Result } from "types/utils";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /** Same cap GitHub enforces on comment and review bodies. */
 export const MAX_BODY_LENGTH = 65_536;
@@ -21,7 +21,7 @@ export const MAX_ROW_ID = 9_223_372_036_854_775_807n;
 
 export const rowIdSchema = z
   .string()
-  .regex(/^[0-9]{1,19}$/, "id must be a row id")
+  .regex(/^[0-9]{1,19}$/, { message: "id must be a row id", abort: true })
   .transform((value) => BigInt(value))
   .refine((value) => value <= MAX_ROW_ID, { message: "id out of range" });
 

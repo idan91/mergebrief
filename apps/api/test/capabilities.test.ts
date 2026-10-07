@@ -16,7 +16,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";

@@ -1,7 +1,7 @@
 // The body boundaries: what the ingest needs to READ off each artifact. The
-// bodies themselves still reach the stores verbatim — these schemas only pull
+// bodies themselves still reach the stores verbatim; these schemas only pull
 // out the coordinates a row is keyed on.
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /** `owner/repo`, strict: the slug reaches a `gh api` path in the CLI
  * wrapper, so it must never smuggle extra path segments. */
@@ -26,7 +26,7 @@ const markedFileSchema = z
     addedRanges: z.array(lineRangeSchema),
     removedRanges: z.array(lineRangeSchema),
   })
-  .passthrough();
+  .loose();
 
 /** The metadata slice the ingest needs off a Brief body; the body itself
  * stays verbatim. `generation` is absent on artifacts predating the stamp. */
@@ -73,7 +73,7 @@ export const RevchangesSchema = z.object({
           z.object({ start: z.number(), end: z.number() }),
         ),
       })
-      .passthrough(),
+      .loose(),
   ),
 });
 
@@ -105,4 +105,4 @@ export const ComparisonFileSchema = z
     headSha: z.string().min(1),
     files: z.array(markedFileSchema),
   })
-  .passthrough();
+  .loose();

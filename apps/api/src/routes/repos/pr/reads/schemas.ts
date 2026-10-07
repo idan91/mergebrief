@@ -1,5 +1,5 @@
 // Boundary schemas for the read surface. A SHA is a non-empty token.
-import { z } from "zod";
+import { z } from "zod/v4";
 import { MAX_FILE_RANGE_LINES } from "contract";
 import {
   commitShaSchema,

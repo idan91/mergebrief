@@ -15,7 +15,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import type { Logger } from "logging";
 import { Pool } from "pg";
 import { Runtimes } from "types/runtime";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import { recordInstanceVersion } from "./instance-version";
 

@@ -3,7 +3,7 @@
 // read defers until a previous session makes it necessary.
 import type { FlagKey } from "persistence";
 import { parseJson } from "../../../../../utils";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * The change groups a reclassification may descend into, and the flags a

@@ -5,7 +5,7 @@
 // identifying field is `caller_ip`, written solely under the operator PII
 // flag. `metadata` takes ANY key and CLOSED values: a token, a finite number,
 // or a boolean. The value rules are the enforcement.
-import { z } from "zod";
+import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
 import type {

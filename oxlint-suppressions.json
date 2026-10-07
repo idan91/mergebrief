@@ -96,16 +96,6 @@
       "count": 2
     }
   },
-  "apps/cli/src/commands/capabilities-map.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/cli/src/commands/capabilities.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/cli/src/commands/diff-filter.ts": {
     "house/no-em-dash": {
       "count": 3
@@ -114,11 +104,6 @@
   "apps/cli/src/commands/session-read.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/cli/src/profile/repos.ts": {
-    "house/no-em-dash": {
-      "count": 4
     }
   },
   "apps/cli/test/diff-filter.test.ts": {
@@ -444,11 +429,6 @@
   "apps/web/src/utils/motion.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/worker/src/task/payload.ts": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/worker/src/task/spend.ts": {
@@ -1154,16 +1134,6 @@
   "tools/ingest-briefs/src/ingest/logic/deltas.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "tools/ingest-briefs/src/ingest/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/ingest-briefs/src/ingest/types.ts": {
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "vitest.shared.ts": {

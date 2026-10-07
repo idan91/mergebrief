@@ -7,7 +7,7 @@
 // Result error, never a write. `revision_narrative` also resolves its `brief`
 // in (ctx, same PR); `comparison_marks` and `hunk_span` bodies are strict Zod.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { comparisonMarks } from "../schema/comparison-marks";

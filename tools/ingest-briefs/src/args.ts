@@ -2,7 +2,7 @@
 // command line without importing the module that runs the ingest on load.
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /** Every flag is `--name`; the same two dashes alone are pnpm's separator. */
 const FLAG_PREFIX = "--";

@@ -22,7 +22,7 @@ import {
   createTenantRepository,
   createGrantAuth,
 } from "persistence";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { ApiErrorCodes } from "contract";
 import {
   BadGateway,

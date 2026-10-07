@@ -1,14 +1,14 @@
 // Repo addressing: the per-profile disk cache of `GET /api/repos`
-// (`<cacheDir>/<profile>/repos.json`, NO TTL — XDG cache = safe-to-delete
+// (`<cacheDir>/<profile>/repos.json`, NO TTL; XDG cache = safe-to-delete
 // signal) and the self-healing resolution used by every PR-addressed command:
 //   cache miss            → refresh once, retry
 //   slug not in the cache → refresh once, retry (rename self-heal)
 //   `--refresh`           → bypass the cache outright
 // Not-found AFTER a refresh is the DISTINCT not-found exit with an honest
-// error naming the profile — never a guess, never a prompt.
+// error naming the profile, never a guess, never a prompt.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 
@@ -27,7 +27,7 @@ function cachePath(deps: RepoCacheDeps): string {
   return join(deps.cacheDir, deps.profileName, "repos.json");
 }
 
-/** A cache read keeps the RAW disk bytes alongside the parsed shape — the
+/** A cache read keeps the RAW disk bytes alongside the parsed shape: the
  * verbatim-passthrough promise holds on the cached path too. */
 function readCache(
   deps: RepoCacheDeps,
@@ -42,7 +42,7 @@ function readCache(
     const parsed = reposBodySchema.safeParse(JSON.parse(raw));
     return parsed.success ? { body: parsed.data, bodyText: raw } : undefined;
   } catch {
-    // A corrupt cache is a miss — it self-heals on the next fetch.
+    // A corrupt cache is a miss; it self-heals on the next fetch.
     return undefined;
   }
 }
@@ -100,7 +100,7 @@ export async function resolveRepoId(
   if (fresh === undefined) {
     throw new CliError(
       ExitCodes.NOT_FOUND,
-      `${fullName} is not visible to profile "${deps.profileName}" — not in its installation, or your access changed (try --refresh, -R owner/name, or another profile)`,
+      `${fullName} is not visible to profile "${deps.profileName}": not in its installation, or your access changed (try --refresh, -R owner/name, or another profile)`,
     );
   }
   return fresh.repoId;

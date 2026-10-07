@@ -1,12 +1,12 @@
 // The outcome and the review body. The comments come off the session, and
 // the commit off the named Brief's head; the request carries neither.
-import { z } from "zod";
+import { z } from "zod/v4";
 import { MAX_BODY_LENGTH } from "../../../wire-bounds";
 import { ReviewOutcomes } from "./types";
 
 export const submitBodySchema = z
   .object({
-    outcome: z.nativeEnum(ReviewOutcomes),
+    outcome: z.enum(ReviewOutcomes),
     body: z.string().max(MAX_BODY_LENGTH).optional(),
   })
   .refine(

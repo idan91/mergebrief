@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import { MAX_BODY_LENGTH, rowIdSchema } from "../../../wire-bounds";
 
 export const publishDraftSchema = z.object({ draftId: rowIdSchema });

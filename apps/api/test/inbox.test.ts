@@ -600,12 +600,16 @@ describe("GET /api/inbox", () => {
     const badLayout = await get("/api/inbox?layout=sideways", cookie);
     const mixed = await get("/api/inbox?layout=mixed", cookie);
     const badPage = await get("/api/inbox?page=0", cookie);
+    const badRepo = await get("/api/inbox?repo=abc", cookie);
+    const badInstallation = await get("/api/inbox?installation=1e3", cookie);
 
     expect((await readBody(mine)).items.map((i) => i["prNumber"])).toEqual([1]);
     expect(bad.status).toBe(400);
     expect(badLayout.status).toBe(400);
     expect(mixed.status).toBe(200);
     expect(badPage.status).toBe(400);
+    expect(badRepo.status).toBe(400);
+    expect(badInstallation.status).toBe(400);
   });
 
   it("no state key on the wire reads as open and draft", async () => {

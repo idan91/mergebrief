@@ -85,6 +85,15 @@
     // out per-path in the overrides.
     "import/no-default-export": "error",
     "import/no-cycle": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          { "name": "zod", "message": "Import zod as \"zod/v4\"." },
+          { "name": "zod/v3", "message": "Import zod as \"zod/v4\"." }
+        ]
+      }
+    ],
     // Side-effect imports are how Vite loads global styles and server
     // entrypoints register themselves.
     "import/no-unassigned-import": [

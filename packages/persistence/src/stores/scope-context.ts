@@ -5,7 +5,7 @@
 //
 // The query side of scoping lives in `scope.ts`: this module answers "is this
 // a valid identity", that one answers "which rows does it see".
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   isInstallationId,
   isReviewerId,
@@ -48,12 +48,12 @@ function coerceBigInt(value: unknown): bigint | undefined {
 function brandedIdSchema<T extends bigint>(
   guard: (value: bigint) => value is T,
   label: string,
-): z.ZodType<T, z.ZodTypeDef, unknown> {
+): z.ZodType<T> {
   return z.unknown().transform((value, ctx): T => {
     const big = coerceBigInt(value);
     if (big === undefined || !guard(big)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: `${label} must be a positive integer`,
       });
       return z.NEVER;

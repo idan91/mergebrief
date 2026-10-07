@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import { WriteClassifications } from "persistence";
 import { MAX_EXPIRY_DAYS } from "./consts";
 

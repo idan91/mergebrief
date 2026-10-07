@@ -2,7 +2,7 @@
 // shared `types` package): the ingest serializer writes STRING ids (JSON
 // cannot carry bigint); this boundary Zod-validates the untrusted job row
 // back into branded ids. Anything that doesn't parse is a poisoned/foreign
-// job, not a transient failure — callers drop it rather than retry.
+// job, not a transient failure: callers drop it rather than retry.
 import {
   isGrantRowId,
   isPullRequestRowId,
@@ -12,7 +12,7 @@ import {
   type PullRequestRowId,
   type TenantContext,
 } from "persistence";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { GenerateJobPayload, Result } from "types";
 
 /** What both job shapes carry: which PR, at which head. */
@@ -58,7 +58,7 @@ const RawPayloadSchema = z.union([
 
 /**
  * Compile-time pin: every `GenerateJobPayload` (the shared enqueue-side
- * contract) must be valid INPUT to this schema — if the contract gains or
+ * contract) must be valid INPUT to this schema. If the contract gains or
  * renames a field, this line breaks the build here, next to the parser that
  * must follow it.
  */

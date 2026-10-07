@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { describe, expect, it } from "vitest";
 import { ApiErrorCodes } from "contract";
 import { BadRequest } from "../../../../shared-errors/api-error";

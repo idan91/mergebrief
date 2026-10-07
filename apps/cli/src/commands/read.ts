@@ -2,7 +2,7 @@
 // hunk filter), `delta`. Passthrough by default; `delta` is one of the
 // CLI-synthesized shapes. One command may make two API reads (`delta` =
 // pr-meta → delta; `diff --group` = brief + diff).
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";

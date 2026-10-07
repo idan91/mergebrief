@@ -6,7 +6,7 @@
 // return Result; the bin boundary owns exit codes.
 import { createHash } from "node:crypto";
 import type { Result } from "types/utils";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const manifestSchema = z.object({
   // An empty list is a broken generator run, not an empty product surface:

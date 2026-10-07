@@ -1,11 +1,7 @@
 // What a session write may say on the wire: every payload and path parameter
 // the write routes accept, with the bounds that keep an unbounded string or
 // an out-of-range id from reaching the store.
-import {
-  ChangeGroupCategories,
-  ReviewOutcomes,
-  type ChangeGroupCategory,
-} from "types/reviews";
+import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import {
   DispositionEvidenceKinds,
   type DispositionEvidence,
@@ -15,7 +11,7 @@ import {
   DraftCommentSides,
   type DraftCommentSide,
 } from "types/comments";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   MAX_BODY_LENGTH,
   MAX_ID_LENGTH,
@@ -120,12 +116,8 @@ export const createDraftSchema = z.union([
 
 export const readSchema = z.object({ read: z.boolean() });
 
-function isChangeGroupCategory(value: unknown): value is ChangeGroupCategory {
-  return Object.values(ChangeGroupCategories).some((known) => known === value);
-}
-
 export const categorySchema = z.object({
-  category: z.unknown().refine(isChangeGroupCategory),
+  category: z.enum(ChangeGroupCategories),
 });
 
 /**
@@ -150,7 +142,7 @@ const flagSchema = riskAnchorObject.refine(ORDERED_REGION.check, {
 
 /** Bulk is ONE call carrying an array: the operation's shape, not batching. */
 const MAX_FLAGS_PER_CALL = 200;
-function buildFlagsSchema<T extends z.ZodTypeAny>(flag: T) {
+function buildFlagsSchema<T extends z.ZodType>(flag: T) {
   return z.object({ flags: z.array(flag).min(1).max(MAX_FLAGS_PER_CALL) });
 }
 

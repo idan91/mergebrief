@@ -196,6 +196,9 @@ const EXPLICIT_ABSENCE = `export function isAbsent(value: number | null | undefi
 }
 `;
 
+const ZOD_ROOT_IMPORT = `import { z } from "zod";\n\nexport const name = z.string();\n`;
+const ZOD_V4_IMPORT = `import { z } from "zod/v4";\n\nexport const name = z.string();\n`;
+
 function emDashComment(name: string): string {
   return `// A comment carrying an em dash — right here.\nexport const ${name} = 1;\n`;
 }
@@ -222,6 +225,8 @@ const MATRIX_FILES = {
     "export function helper() {\n  return 1;\n}\n",
   "packages/types/src/maps.ts":
     'export const Kinds = { LINE: "line", FILE: "file" } as const;\n',
+  "packages/brief-core/src/zod-root.ts": ZOD_ROOT_IMPORT,
+  "packages/brief-core/src/zod-v4.ts": ZOD_V4_IMPORT,
 };
 
 let matrix: LintResult | undefined;
@@ -320,6 +325,20 @@ describe("absence checks", () => {
     expect(
       rulesFor(lintMatrix(), "packages/brief-core/src/explicit-absence.ts"),
     ).not.toContainEqual(expect.stringMatching(/^eslint\/eqeqeq@/));
+  });
+});
+
+describe("zod import path", () => {
+  it("reports the bare zod package", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/zod-root.ts"),
+    ).toContain("eslint/no-restricted-imports@error");
+  });
+
+  it("passes the zod/v4 subpath", () => {
+    expect(rulesFor(lintMatrix(), "packages/brief-core/src/zod-v4.ts")).toEqual(
+      [],
+    );
   });
 });
 

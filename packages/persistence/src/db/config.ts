@@ -6,7 +6,7 @@
 // AUDIT_PRIVATE_WRITES. MERGEBRIEF_AUTO_MIGRATE=false is check-only, for a
 // runtime role without DDL (see db/migrate.ts). The minimization defaults
 // encode the SELF-HOST posture; a stricter deployment flips them via env.
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
 import { checkDsnTls } from "./tls";
@@ -64,9 +64,7 @@ const FALSE_TOKENS = new Set(["false", "0", "no", "off", ""]);
  * any non-empty string (including "false") as `true`. This maps an explicit
  * token set; an absent var takes `defaultValue`; anything else fails validation.
  */
-function envBool(
-  defaultValue: boolean,
-): z.ZodType<boolean, z.ZodTypeDef, unknown> {
+function envBool(defaultValue: boolean): z.ZodType<boolean> {
   return z.preprocess((value) => {
     if (value === undefined) {
       return defaultValue;
@@ -97,7 +95,7 @@ export const AUDIT_RETENTION_FLOOR_DAYS = 30;
 const auditRetentionDaysSchema = z.preprocess(
   (value) => (value === undefined || value === "" ? null : value),
   z.coerce
-    .number({ invalid_type_error: "AUDIT_RETENTION_DAYS must be a number" })
+    .number({ error: "AUDIT_RETENTION_DAYS must be a number" })
     .int("AUDIT_RETENTION_DAYS must be a whole number of days")
     .min(
       AUDIT_RETENTION_FLOOR_DAYS,
@@ -108,7 +106,7 @@ const auditRetentionDaysSchema = z.preprocess(
 
 /** Postgres connection URL: a parseable URL whose scheme is postgres(ql). */
 const databaseUrlSchema = z
-  .string({ required_error: "DATABASE_URL is required" })
+  .string({ error: "DATABASE_URL is required" })
   .min(1, "DATABASE_URL is required")
   .refine(
     isPostgresUrl,

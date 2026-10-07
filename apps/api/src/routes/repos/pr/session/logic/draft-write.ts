@@ -2,7 +2,7 @@
 // columns, and a Line comment always names kind so a reanchor can convert.
 import type { DraftCommentPatch, DraftCommentWrite } from "persistence";
 import { CommentAnchorKinds } from "types/comments";
-import type { z } from "zod";
+import type { z } from "zod/v4";
 import type { anchorSchema, createDraftSchema } from "../schemas";
 
 type CreateDraftParsed = z.infer<typeof createDraftSchema>;
