@@ -1558,6 +1558,41 @@ describe("writeToSession, the first write, one transaction", () => {
     ]);
   });
 
+  it("edits and deletes a carried draft by its source id", async () => {
+    const { world, current } = await pending();
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const key = { briefId: current, reviewerId: REVIEWER };
+    const previewed = await unwrapPreview(sessions.preview(key));
+    const sourceId = previewed.carried.draftComments[0]?.id ?? 0n;
+
+    const edited = await sessions.editDraft(key, sourceId, "re-worded");
+    const deleted = await sessions.deleteDraft(key, sourceId);
+
+    expect(edited.ok && edited.value.body).toBe("re-worded");
+    expect(deleted.ok && deleted.value.carriedFromCommentId).toBe(sourceId);
+    expect((await sessions.get(key))?.draftComments).toEqual([]);
+  });
+
+  it("rolls a refused first draft edit back, carry and session too", async () => {
+    const { world, current } = await pending();
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const draftsBefore = await countRows(world.client, "review_draft_comment");
+
+    const refused = await sessions.editDraft(
+      { briefId: current, reviewerId: REVIEWER },
+      987654321n,
+      "edited",
+    );
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+    );
+    expect(await countRows(world.client, "review_session")).toBe(1);
+    expect(await countRows(world.client, "review_draft_comment")).toBe(
+      draftsBefore,
+    );
+  });
+
   it("never carries the review outcome", async () => {
     const { world, current } = await pending();
 
@@ -1732,6 +1767,32 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
       reviewerId: REVIEWER,
     });
     expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c1"]);
+  });
+
+  it("refuses every draft operation on a frozen session", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    const second = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
+    const older = { briefId: first, reviewerId: REVIEWER };
+    const anchor = { kind: CommentAnchorKinds.FILE, file: "src/app.ts" };
+    const added = await sessions.addDraft(older, { anchor, body: "first" });
+    if (!added.ok) throw new Error("draft seed failed");
+    await openSession(world, second);
+
+    const refusals = [
+      await sessions.addDraft(older, { anchor, body: "late" }),
+      await sessions.editDraft(older, added.value.id, "edited"),
+      await sessions.reanchorDraft(older, added.value.id, anchor),
+      await sessions.deleteDraft(older, added.value.id),
+    ];
+
+    expect(
+      refusals.map((refusal) => !refusal.ok && refusal.error.code),
+    ).toEqual(Array(4).fill(ReviewSessionErrorCodes.SESSION_FROZEN));
+    const snapshot = await sessions.get(older);
+    expect(snapshot?.draftComments.map((row) => row.body)).toEqual(["first"]);
   });
 
   it("a refused first write leaves no session row", async () => {

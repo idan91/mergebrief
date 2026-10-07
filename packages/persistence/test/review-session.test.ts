@@ -638,6 +638,152 @@ describe("reviewSessions session semantics", () => {
   });
 });
 
+const LINE_ANCHOR = {
+  kind: CommentAnchorKinds.LINE,
+  file: "src/app.ts",
+  side: DraftCommentSides.NEW,
+  startLine: 1,
+  endLine: 1,
+} as const;
+
+describe("the draft operations", () => {
+  it("adds a draft as the session's first write", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+
+    const added = await sessions.addDraft(key, {
+      anchor: LINE_ANCHOR,
+      body: "first",
+    });
+
+    expect(added.ok && added.value.body).toBe("first");
+    expect(await countRows(client, "review_session")).toBe(1);
+    const snapshot = await sessions.get(key);
+    expect(snapshot?.draftComments.map((row) => row.anchor)).toEqual([
+      LINE_ANCHOR,
+    ]);
+  });
+
+  it("refuses the 65th unposted draft and counts no published one", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const held: bigint[] = [];
+    for (let index = 0; index < 64; index++) {
+      const added = await sessions.addDraft(key, {
+        anchor: LINE_ANCHOR,
+        body: `draft ${index}`,
+      });
+      if (added.ok) {
+        held.push(added.value.id);
+      }
+    }
+
+    const refused = await sessions.addDraft(key, {
+      anchor: LINE_ANCHOR,
+      body: "one too many",
+    });
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_LIMIT_REACHED,
+    );
+    expect((await sessions.get(key))?.draftComments).toHaveLength(64);
+
+    await write(handle, CTX_A, briefId, (writer) =>
+      writer.publishDraftComments(held.slice(0, 1)),
+    );
+    const freed = await sessions.addDraft(key, {
+      anchor: LINE_ANCHOR,
+      body: "fits again",
+    });
+    expect(freed.ok).toBe(true);
+  });
+
+  it("edits, re-anchors and deletes a draft the session holds", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const added = await sessions.addDraft(key, {
+      anchor: LINE_ANCHOR,
+      body: "first",
+    });
+    if (!added.ok) throw new Error("draft seed failed");
+    const draftId = added.value.id;
+    await write(handle, CTX_A, briefId, (writer) =>
+      writer.updateDraftComment(draftId, {
+        anchorStatus: AnchorStatuses.MOVED,
+      }),
+    );
+
+    const edited = await sessions.editDraft(key, draftId, "re-worded");
+    const fileAnchor = { kind: CommentAnchorKinds.FILE, file: "src/b.ts" };
+    const moved = await sessions.reanchorDraft(key, draftId, fileAnchor);
+
+    expect(edited.ok && edited.value.body).toBe("re-worded");
+    expect(moved.ok && moved.value.anchor).toEqual(fileAnchor);
+    expect(moved.ok && moved.value.anchorStatus).toBeNull();
+    const deleted = await sessions.deleteDraft(key, draftId);
+    expect(deleted.ok && deleted.value.id).toBe(draftId);
+    expect((await sessions.get(key))?.draftComments).toEqual([]);
+  });
+
+  it("refuses an unknown or published draft and moves nothing", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+    const added = await sessions.addDraft(key, {
+      anchor: LINE_ANCHOR,
+      body: "published",
+    });
+    if (!added.ok) throw new Error("draft seed failed");
+    const published = added.value.id;
+    await write(handle, CTX_A, briefId, (writer) =>
+      writer.publishDraftComments([published]),
+    );
+
+    const refusals = [
+      await sessions.editDraft(key, published, "edited"),
+      await sessions.reanchorDraft(key, published, LINE_ANCHOR),
+      await sessions.deleteDraft(key, published),
+      await sessions.editDraft(key, 987654321n, "edited"),
+      await sessions.reanchorDraft(key, 987654321n, LINE_ANCHOR),
+      await sessions.deleteDraft(key, 987654321n),
+    ];
+
+    expect(
+      refusals.map((refusal) => !refusal.ok && refusal.error.code),
+    ).toEqual([
+      ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+      ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+      ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+    ]);
+    expect((await sessions.get(key))?.draftComments).toEqual([
+      expect.objectContaining({ id: published, body: "published" }),
+    ]);
+  });
+
+  it("leaves no session row behind a refused first write", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
+    const key = { briefId, reviewerId: REVIEWER };
+
+    const refused = await sessions.editDraft(key, 987654321n, "edited");
+
+    expect(!refused.ok && refused.error.code).toBe(
+      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+    );
+    expect(await countRows(client, "review_session")).toBe(0);
+  });
+});
+
 describe("reviewSessions tenancy containment", () => {
   it("B cannot open a session against A's brief", async () => {
     const { client, handle } = await freshPair();

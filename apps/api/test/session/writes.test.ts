@@ -560,9 +560,24 @@ describe("the Review Session writes", () => {
     expect(
       (await write("DELETE", "/comments/987654321", "head-2")).status,
     ).toBe(404);
-    // The write still materialized: the session row and its copies stand, and
-    // the older Brief is frozen from here whatever the response said.
-    expect(await countRows("review_session")).toBe(2);
+    // A refused write rolls back whole: no session, no copies, nothing frozen.
+    expect(await countRows("review_session")).toBe(1);
+  });
+
+  it("leaves the session unmaterialized after a refused first edit", async () => {
+    const previous = await seedBrief(harness.handle, 1);
+    await seedBrief(harness.handle, 2);
+    await seedPreviousWork(harness.handle, previous);
+
+    const refused = await write("PATCH", "/comments/987654321", "head-2", {
+      body: "edited",
+    });
+
+    expect(refused.status).toBe(404);
+    const after = await read("head-2");
+    expect(
+      z.object({ materialized: z.boolean() }).parse(await after.json()),
+    ).toEqual({ materialized: false });
   });
 
   it("409s an edit or a delete against a draft already published", async () => {

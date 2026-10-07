@@ -181,6 +181,8 @@ export type {
   CarriedFrom,
   DispositionRow,
   DraftCommentPatch,
+  DraftOperationResult,
+  NewDraft,
   ReviewSessionSnapshot,
   ReviewSessionRow,
   ReviewDraftCommentRow,

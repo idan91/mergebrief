@@ -55,11 +55,17 @@ export async function resolveSessionWrite(
  * retryable 500, never empty facts that would drop carried decisions.
  */
 export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
-  if (failure.error.code === ReviewSessionErrorCodes.BRIEF_UNREADABLE) {
-    throw new InternalError();
+  switch (failure.error.code) {
+    case ReviewSessionErrorCodes.BRIEF_UNREADABLE:
+      throw new InternalError();
+    case ReviewSessionErrorCodes.SESSION_FROZEN:
+      throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
+    case ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED:
+      throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
+    case ReviewSessionErrorCodes.DRAFT_LIMIT_REACHED:
+      throw new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED);
+    case ReviewSessionErrorCodes.DRAFT_NOT_FOUND:
+    case ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT:
+      throw new NotFound();
   }
-  if (failure.error.code === ReviewSessionErrorCodes.SESSION_FROZEN) {
-    throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
-  }
-  throw new NotFound();
 }

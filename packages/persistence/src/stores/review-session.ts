@@ -1,7 +1,19 @@
 // Tenant context filters every read and stamps every write. Reads never create sessions;
 // first writes materialize them. Resolve parent ownership inside the same transaction
 // and return Result errors for cross-tenant parents before any write.
-import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  lt,
+  lte,
+  or,
+} from "drizzle-orm";
 import {
   readBriefSessionFacts,
   type BriefSessionFacts,
@@ -74,12 +86,38 @@ export const ReviewSessionErrorCodes = {
    * facts: no flag firing would drop every carried decision silently.
    */
   BRIEF_UNREADABLE: "brief-unreadable",
+  /** The session holds no draft by that id, its own or a carried source's. */
+  DRAFT_NOT_FOUND: "draft-not-found",
+  /** The draft is already on GitHub, so it no longer moves. */
+  DRAFT_ALREADY_PUBLISHED: "draft-already-published",
+  /** The session already holds `MAX_SESSION_DRAFTS` unposted drafts. */
+  DRAFT_LIMIT_REACHED: "draft-limit-reached",
 } as const;
 export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCodes>;
 
 export interface ReviewSessionError {
   readonly code: ReviewSessionErrorCode;
   readonly message: string;
+}
+
+/**
+ * How many unposted drafts one session may hold. It bounds what a single
+ * submit posts to GitHub: the 65th is refused when it is written, not at
+ * submit, where the reviewer would have nowhere to put it.
+ */
+const MAX_SESSION_DRAFTS = 64;
+
+/**
+ * Carries a refusal out of a transaction callback, so the transaction rolls
+ * back; a refusal returned from the callback would commit.
+ */
+class SessionOperationRefusal extends Error {
+  readonly refusal: ReviewSessionError;
+
+  constructor(refusal: ReviewSessionError) {
+    super(refusal.message);
+    this.refusal = refusal;
+  }
 }
 
 type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
@@ -289,7 +327,49 @@ export interface SessionWriter {
   setReviewOutcome(outcome: ReviewOutcome): Promise<ReviewSessionRow>;
 }
 
-export interface ReviewSessionRepository {
+/** A draft as the reviewer first writes it: where it sits and what it says. */
+export interface NewDraft {
+  readonly anchor: DraftAnchor;
+  readonly body: string;
+}
+
+/** The draft row an operation wrote or removed, or why it refused. */
+export type DraftOperationResult = Result<
+  ReviewDraftCommentRow,
+  ReviewSessionError
+>;
+
+/**
+ * The reviewer's draft actions. Each is one session write: it materializes
+ * the session if needed, refuses a frozen one, and a refusal rolls the whole
+ * write back, so a refused first write leaves no session row. A draft is
+ * named by its own id or by the carried row it was copied from.
+ */
+interface DraftOperations {
+  /** `draftLimitReached` once the session holds its cap of unposted drafts. */
+  addDraft(
+    key: ReviewSessionKey,
+    draft: NewDraft,
+  ): Promise<DraftOperationResult>;
+  editDraft(
+    key: ReviewSessionKey,
+    draftId: bigint,
+    body: string,
+  ): Promise<DraftOperationResult>;
+  /** The reviewer placed it, so the carry-over's verdict on it is settled. */
+  reanchorDraft(
+    key: ReviewSessionKey,
+    draftId: bigint,
+    anchor: DraftAnchor,
+  ): Promise<DraftOperationResult>;
+  /** Answers the row that went, which a carried id does not name. */
+  deleteDraft(
+    key: ReviewSessionKey,
+    draftId: bigint,
+  ): Promise<DraftOperationResult>;
+}
+
+export interface ReviewSessionRepository extends DraftOperations {
   /** Read by key. Absence is a normal `undefined`, never a create. */
   get(key: ReviewSessionKey): Promise<ReviewSessionSnapshot | undefined>;
   /**
@@ -1403,46 +1483,204 @@ export function createReviewSessionRepository(
     };
   }
 
+  /**
+   * The locked session row a write lands on, materialized first if this is
+   * the first write, refused when frozen. A refusal here has written nothing.
+   */
+  async function openForWrite(
+    tx: Tx,
+    key: ReviewSessionKey,
+    sessionFacts: BriefSessionFacts | undefined,
+  ): Promise<Result<ReviewSessionRow, ReviewSessionError>> {
+    const facts = await readBriefCarrySlice(tx, key.briefId);
+    if (facts === undefined) {
+      return fail(
+        ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
+        `brief ${key.briefId} not in ${scope.label}`,
+      );
+    }
+    const existing = await lockSession(tx, key);
+    if (existing === undefined) {
+      return materializeSession(tx, key, facts, sessionFacts);
+    }
+
+    const frozen = await hasNewerSession(tx, facts, key.reviewerId);
+    if (frozen) {
+      return failFrozen(facts, key.reviewerId);
+    }
+    return { ok: true, value: existing };
+  }
+
+  /**
+   * One session write, one transaction: the session locked and judged, then
+   * `operation`. Its refusal rolls the transaction back, a materialization
+   * included.
+   */
+  async function runSessionOperation<Value>(
+    key: ReviewSessionKey,
+    operation: (
+      tx: Tx,
+      session: ReviewSessionRow,
+    ) => Promise<Result<Value, ReviewSessionError>>,
+  ): Promise<Result<Value, ReviewSessionError>> {
+    // Read before the transaction opens: the outer handle deadlocks inside it.
+    const pending = await readPendingFacts(key);
+    if (!pending.ok) {
+      return pending;
+    }
+
+    try {
+      return await db.transaction(async (tx) => {
+        const opened = await openForWrite(tx, key, pending.value);
+        if (!opened.ok) {
+          return opened;
+        }
+        const done = await operation(tx, opened.value);
+        if (!done.ok) {
+          throw new SessionOperationRefusal(done.error);
+        }
+        return done;
+      });
+    } catch (error) {
+      if (error instanceof SessionOperationRefusal) {
+        return { ok: false, error: error.refusal };
+      }
+      throw error;
+    }
+  }
+
+  /** The draft `draftId` names in this session, while it is still a draft. */
+  async function findWritableDraft(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    draftId: bigint,
+  ): Promise<DraftOperationResult> {
+    const rows = await tx
+      .select()
+      .from(reviewDraftComment)
+      .where(addressedDraft(sessionId, draftId))
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined) {
+      return fail(
+        ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
+        `review_session ${sessionId} holds no draft ${draftId}`,
+      );
+    }
+    if (row.status === DraftCommentStatuses.SUBMITTED) {
+      return fail(
+        ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
+        `draft ${row.id} is already published`,
+      );
+    }
+    return { ok: true, value: parseDraftCommentRow(row) };
+  }
+
+  /** Move the fields of a writable draft, refusing as `findWritableDraft` does. */
+  async function updateWritableDraft(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+    draftId: bigint,
+    values: Partial<typeof reviewDraftComment.$inferInsert>,
+  ): Promise<DraftOperationResult> {
+    const held = await findWritableDraft(tx, sessionId, draftId);
+    if (!held.ok) {
+      return held;
+    }
+
+    const rows = await tx
+      .update(reviewDraftComment)
+      .set(values)
+      .where(and(ownedBy(sessionId), eq(reviewDraftComment.id, held.value.id)))
+      .returning();
+    const row = only(rows, "review_draft_comment");
+    return { ok: true, value: parseDraftCommentRow(row) };
+  }
+
+  /** The drafts a submit would post, counted under the session lock. */
+  async function countUnpostedDrafts(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+  ): Promise<number> {
+    const rows = await tx
+      .select({ unposted: count() })
+      .from(reviewDraftComment)
+      .where(
+        and(
+          ownedBy(sessionId),
+          eq(reviewDraftComment.status, DraftCommentStatuses.DRAFT),
+        ),
+      );
+    return rows[0]?.unposted ?? 0;
+  }
+
   return {
     async get(key) {
       return snapshotFor(key);
     },
 
     async writeToSession(key, write) {
-      // Read before the transaction opens: the outer handle deadlocks inside it.
-      const pending = await readPendingFacts(key);
-      if (!pending.ok) {
-        return pending;
-      }
+      return runSessionOperation(key, async (tx, session) => {
+        const written = await write(sessionWriter(tx, session));
+        return { ok: true, value: written };
+      });
+    },
 
-      return db.transaction(async (tx) => {
-        const facts = await readBriefCarrySlice(tx, key.briefId);
-        if (facts === undefined) {
-          return fail(
-            ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-            `brief ${key.briefId} not in ${scope.label}`,
-          );
-        }
-        const existing = await lockSession(tx, key);
-        if (existing === undefined) {
-          const materialized = await materializeSession(
-            tx,
-            key,
-            facts,
-            pending.value,
-          );
-          if (!materialized.ok) {
-            return materialized;
+    async addDraft(key, draft) {
+      return runSessionOperation(
+        key,
+        async (tx, session): Promise<DraftOperationResult> => {
+          const unposted = await countUnpostedDrafts(tx, session.id);
+          if (unposted >= MAX_SESSION_DRAFTS) {
+            return fail(
+              ReviewSessionErrorCodes.DRAFT_LIMIT_REACHED,
+              `review_session ${session.id} holds ${unposted} unposted drafts`,
+            );
           }
-          const writer = sessionWriter(tx, materialized.value);
-          return { ok: true, value: await write(writer) };
-        }
-        const frozen = await hasNewerSession(tx, facts, key.reviewerId);
-        if (frozen) {
-          return failFrozen(facts, key.reviewerId);
+
+          const rows = await tx
+            .insert(reviewDraftComment)
+            .values({
+              installationId: scope.installationId,
+              reviewSessionId: session.id,
+              ...shapeDraftCommentValues(draft.anchor),
+              body: draft.body,
+            })
+            .returning();
+          const row = only(rows, "review_draft_comment");
+          return { ok: true, value: parseDraftCommentRow(row) };
+        },
+      );
+    },
+
+    async editDraft(key, draftId, body) {
+      return runSessionOperation(key, (tx, session) =>
+        updateWritableDraft(tx, session.id, draftId, { body }),
+      );
+    },
+
+    async reanchorDraft(key, draftId, anchor) {
+      return runSessionOperation(key, (tx, session) =>
+        updateWritableDraft(tx, session.id, draftId, {
+          ...shapeDraftCommentValues(anchor),
+          anchorStatus: null,
+        }),
+      );
+    },
+
+    async deleteDraft(key, draftId) {
+      return runSessionOperation(key, async (tx, session) => {
+        const held = await findWritableDraft(tx, session.id, draftId);
+        if (!held.ok) {
+          return held;
         }
 
-        return { ok: true, value: await write(sessionWriter(tx, existing)) };
+        await tx
+          .delete(reviewDraftComment)
+          .where(
+            and(ownedBy(session.id), eq(reviewDraftComment.id, held.value.id)),
+          );
+        return held;
       });
     },
 

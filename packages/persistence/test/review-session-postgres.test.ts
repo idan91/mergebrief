@@ -35,8 +35,7 @@ import {
 const databaseUrl = readTestPostgresUrl(process.env);
 const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
 const HOLD_MS = 300;
-const OVERLAP_MS = 100;
-const DRAFT_LIMIT = 2;
+const DRAFT_CAP = 64;
 
 interface World {
   readonly sessions: TenantRepository["reviewSessions"];
@@ -243,31 +242,29 @@ describe.skipIf(databaseUrl === undefined)(
       });
     });
 
-    it("two parallel adds one under a limit add exactly one", async () => {
+    it("two parallel adds one under the draft cap add exactly one", async () => {
       await runInWorld(async (world) => {
-        await world.sessions.writeToSession(world.older, (writer) =>
-          addDraft(writer, "first"),
-        );
-        async function addUnderLimit(writer: SessionWriter): Promise<boolean> {
-          const held = await writer.draftComments();
-          if (held.length >= DRAFT_LIMIT) {
-            return false;
+        await world.sessions.writeToSession(world.older, async (writer) => {
+          for (let index = 1; index < DRAFT_CAP; index++) {
+            await addDraft(writer, `draft ${index}`);
           }
-          await waitMs(OVERLAP_MS);
-          await addDraft(writer, "under the limit");
-          return true;
-        }
+        });
 
         const outcomes = await Promise.all(
           [1, 2].map(() =>
-            world.sessions.writeToSession(world.older, addUnderLimit),
+            world.sessions.addDraft(world.older, {
+              anchor: { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+              body: "under the cap",
+            }),
           ),
         );
 
-        const added = outcomes.filter((outcome) => outcome.ok && outcome.value);
-        expect(added).toHaveLength(1);
+        const refusals = outcomes.flatMap((outcome) =>
+          outcome.ok ? [] : [outcome.error.code],
+        );
+        expect(refusals).toEqual([ReviewSessionErrorCodes.DRAFT_LIMIT_REACHED]);
         expect(await readDraftBodies(world, world.older)).toHaveLength(
-          DRAFT_LIMIT,
+          DRAFT_CAP,
         );
       });
     });

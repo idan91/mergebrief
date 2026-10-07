@@ -2,26 +2,15 @@
 // shared write seam, and map refusals onto the wire as throws. Composition
 // stays in `index.ts`.
 import type { Context } from "hono";
-import type {
-  DispositionAnchor,
-  ReviewDraftCommentRow,
-  SessionWriter,
-} from "persistence";
+import type { DispositionAnchor, SessionWriter } from "persistence";
 import { DispositionDecisions } from "types/dispositions";
-import { DraftCommentStatuses } from "types/comments";
-import { ApiErrorCodes } from "contract";
-import {
-  BadRequest,
-  Conflict,
-  NotFound,
-} from "../../../../shared-errors/api-error";
+import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
 import { assertHuman } from "../../../assert-human";
 import { sessionController } from "./controller";
-import { MAX_SESSION_DRAFTS } from "./consts";
 import {
   addressSchema,
   anchorSchema,
@@ -39,32 +28,11 @@ import {
   resolveSessionWrite,
   throwSessionWriteFailure,
 } from "./logic/write-seam";
-import { createDraftWrite, reanchorDraftPatch } from "./logic/draft-write";
+import { shapeDraftAnchor, shapeNewDraft } from "./logic/draft-write";
 import { resolvePrScopeFrom } from "../scope";
 import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" };
-
-/** The session's own row under `id`, or its copy of the carried row `id`. */
-function heldDraft(
-  drafts: readonly ReviewDraftCommentRow[],
-  id: bigint,
-): ReviewDraftCommentRow | undefined {
-  return drafts.find((row) => row.id === id || row.carriedFromCommentId === id);
-}
-
-/** Unheld draft → the hint-free 404; already on GitHub → 409 (immutable). */
-function assertWritableDraft(
-  draft: ReviewDraftCommentRow | undefined,
-): ReviewDraftCommentRow {
-  if (draft === undefined) {
-    throw new NotFound();
-  }
-  if (draft.status === DraftCommentStatuses.SUBMITTED) {
-    throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
-  }
-  return draft;
-}
 
 /**
  * Run one risk operation's whole array as ONE session write, the array is
@@ -133,25 +101,13 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     }
 
     const resolved = await resolveSessionWrite(deps, c);
-    const written = await resolved.run(async (writer) => {
-      const held = await writer.draftComments();
-      const unposted = held.filter(
-        (row) => row.status === DraftCommentStatuses.DRAFT,
-      );
-      if (unposted.length >= MAX_SESSION_DRAFTS) {
-        return undefined;
-      }
-      return await writer.addDraftComment(createDraftWrite(parsed.data));
-    });
-    if (!written.ok) {
-      throwSessionWriteFailure(written.error);
-    }
-    if (written.value === undefined) {
-      throw new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED);
+    const added = await resolved.drafts.add(shapeNewDraft(parsed.data));
+    if (!added.ok) {
+      throwSessionWriteFailure(added.error);
     }
 
     return c.json(
-      { draftId: String(written.value.id) },
+      { draftId: String(added.value.id) },
       HttpStatuses.CREATED,
       NO_STORE,
     );
@@ -165,24 +121,16 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     }
 
     const resolved = await resolveSessionWrite(deps, c);
-    const written = await resolved.run(async (writer) => {
-      const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (
-        held === undefined ||
-        held.status === DraftCommentStatuses.SUBMITTED
-      ) {
-        return held;
-      }
-      return await writer.updateDraftComment(draftId.data, {
-        body: parsed.data.body,
-      });
-    });
-    if (!written.ok) {
-      throwSessionWriteFailure(written.error);
+    const edited = await resolved.drafts.edit(draftId.data, parsed.data.body);
+    if (!edited.ok) {
+      throwSessionWriteFailure(edited.error);
     }
 
-    const draft = assertWritableDraft(written.value);
-    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
+    return c.json(
+      { draftId: String(edited.value.id) },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   const reanchorDraftComment = async (c: Context<AuthzEnv>) => {
@@ -194,26 +142,19 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     assertHuman(c);
 
     const resolved = await resolveSessionWrite(deps, c);
-    const written = await resolved.run(async (writer) => {
-      const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (
-        held === undefined ||
-        held.status === DraftCommentStatuses.SUBMITTED
-      ) {
-        return held;
-      }
-      // The human placed it, so the carry-over's verdict is settled.
-      return await writer.updateDraftComment(
-        draftId.data,
-        reanchorDraftPatch(parsed.data),
-      );
-    });
-    if (!written.ok) {
-      throwSessionWriteFailure(written.error);
+    const moved = await resolved.drafts.reanchor(
+      draftId.data,
+      shapeDraftAnchor(parsed.data),
+    );
+    if (!moved.ok) {
+      throwSessionWriteFailure(moved.error);
     }
 
-    const draft = assertWritableDraft(written.value);
-    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
+    return c.json(
+      { draftId: String(moved.value.id) },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   const deleteDraftComment = async (c: Context<AuthzEnv>) => {
@@ -224,25 +165,18 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     assertHuman(c);
 
     const resolved = await resolveSessionWrite(deps, c);
-    const written = await resolved.run(async (writer) => {
-      const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (
-        held === undefined ||
-        held.status === DraftCommentStatuses.SUBMITTED
-      ) {
-        return held;
-      }
-      await writer.deleteDraftComment(draftId.data);
-      return held;
-    });
-    if (!written.ok) {
-      throwSessionWriteFailure(written.error);
+    const deleted = await resolved.drafts.delete(draftId.data);
+    if (!deleted.ok) {
+      throwSessionWriteFailure(deleted.error);
     }
 
-    const draft = assertWritableDraft(written.value);
     // The row that went, not the id that named it: a carried id names the
     // previous session's row, which the copy's deletion leaves alive.
-    return c.json({ draftId: String(draft.id) }, HttpStatuses.OK, NO_STORE);
+    return c.json(
+      { draftId: String(deleted.value.id) },
+      HttpStatuses.OK,
+      NO_STORE,
+    );
   };
 
   const setChunkRead = async (c: Context<AuthzEnv>) => {

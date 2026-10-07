@@ -4,7 +4,11 @@
 import {
   createTenantRepository,
   ReviewSessionErrorCodes,
+  type DraftAnchor,
+  type DraftOperationResult,
+  type NewDraft,
   type RepoId,
+  type ReviewDraftCommentRow,
   type ReviewerId,
   type ReviewSessionError,
   type SessionWriter,
@@ -25,8 +29,19 @@ export type SessionWrite = <T>(
   write: (writer: SessionWriter) => Promise<T>,
 ) => Promise<Result<T, SessionWriteFailure>>;
 
+type DraftWriteResult = Result<ReviewDraftCommentRow, SessionWriteFailure>;
+
+/** The store's draft operations, bound to the named Brief and reviewer. */
+export interface SessionDraftWrites {
+  add(draft: NewDraft): Promise<DraftWriteResult>;
+  edit(draftId: bigint, body: string): Promise<DraftWriteResult>;
+  reanchor(draftId: bigint, anchor: DraftAnchor): Promise<DraftWriteResult>;
+  delete(draftId: bigint): Promise<DraftWriteResult>;
+}
+
 export interface ResolvedSessionWrite {
   readonly run: SessionWrite;
+  readonly drafts: SessionDraftWrites;
   /** The named Brief's head, the commit the reviewer read, and the one a
    * GitHub write pins to. */
   readonly head: string;
@@ -101,6 +116,34 @@ function bindSessionWriter(
   };
 }
 
+/** Bind the store's draft operations; refusals ride the Result whole. */
+function bindDraftWrites(
+  deps: AuthRouteDeps,
+  input: ResolveWriteInput,
+  target: SessionTarget,
+): SessionDraftWrites {
+  const sessions = createTenantRepository(
+    deps.handle,
+    input.ctx,
+  ).reviewSessions;
+  const key = { briefId: target.briefId, reviewerId: input.reviewerId };
+  function settle(done: DraftOperationResult): DraftWriteResult {
+    if (!done.ok) {
+      return rejectSession(input, target, done.error);
+    }
+    return done;
+  }
+
+  return {
+    add: async (draft) => settle(await sessions.addDraft(key, draft)),
+    edit: async (draftId, body) =>
+      settle(await sessions.editDraft(key, draftId, body)),
+    reanchor: async (draftId, anchor) =>
+      settle(await sessions.reanchorDraft(key, draftId, anchor)),
+    delete: async (draftId) => settle(await sessions.deleteDraft(key, draftId)),
+  };
+}
+
 export const sessionController = {
   /**
    * The session read. PURE: it NEVER creates a session. Before the first
@@ -167,6 +210,7 @@ export const sessionController = {
       value: {
         head: input.span.head,
         run: bindSessionWriter(deps, input, target),
+        drafts: bindDraftWrites(deps, input, target),
       },
     } satisfies ResolveWriteResult;
   },
