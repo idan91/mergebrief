@@ -1,0 +1,245 @@
+import { describe, expect, it } from "vitest";
+import {
+  GeneratorError,
+  GeneratorErrorKinds,
+  type Effort,
+  type Generator,
+} from "generators";
+import {
+  captureLogger,
+  HEAD_1,
+  makeTask,
+  setUpHarness,
+  stubGenerator,
+  stubGitHub,
+  trigger,
+} from "./helpers";
+
+setUpHarness();
+
+describe("generate task, observability", () => {
+  it("logs transient job.fail with attempts and job bindings", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch pull request: GitHub API returned status 502",
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ github, log: logger });
+
+    await expect(
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
+    ).rejects.toThrow("502");
+
+    const fail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(fail?.["level"]).toBe("error");
+    expect(fail?.["permanent"]).toBe(false);
+    expect(fail?.["attempt"]).toBe(1);
+    expect(fail?.["maxAttempts"]).toBe(25);
+    expect(fail?.["prId"]).toBe(String(pr.id));
+    expect(fail?.["headSha"]).toBe(HEAD_1);
+    expect(
+      readLines().some((line) => line["evt"] === "job.retries.exhausted"),
+    ).toBe(false);
+  });
+
+  it("logs generation.complete with the model call duration", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ log: logger });
+
+    await task(payload);
+
+    const done = readLines().find(
+      (line) => line["evt"] === "generation.complete",
+    );
+    expect(done?.["level"]).toBe("info");
+    expect(done?.["kind"]).toBe("brief");
+    expect(done?.["outcome"]).toBe("succeeded");
+    expect(typeof done?.["durationMs"]).toBe("number");
+  });
+
+  it("logs generation.complete when the model call throws", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.generate = () => {
+      throw new Error("provider exploded");
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ generator, log: logger });
+
+    // A permanent provider failure is recorded, not rethrown.
+    await task(payload);
+
+    const done = readLines().find(
+      (line) => line["evt"] === "generation.complete",
+    );
+    expect(done?.["outcome"]).toBe("failed");
+    expect(typeof done?.["durationMs"]).toBe("number");
+  });
+
+  it("logs permanent job.fail without rethrowing", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "not-found",
+      status: 404,
+      message: "failed to fetch pull request: GitHub API returned status 404",
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ github, log: logger });
+
+    await expect(
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
+    ).resolves.toBeUndefined();
+
+    const fail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("mints job.retries.exhausted on the final attempt", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch pull request: GitHub API returned status 502",
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ github, log: logger });
+
+    await expect(
+      task(payload, {
+        job: { attempts: 25, max_attempts: 25, run_at: new Date() },
+      }),
+    ).rejects.toThrow("502");
+
+    const exhausted = readLines().find(
+      (line) => line["evt"] === "job.retries.exhausted",
+    );
+    expect(exhausted?.["level"]).toBe("error");
+    expect(exhausted?.["attempt"]).toBe(25);
+    expect(exhausted?.["prId"]).toBe(String(pr.id));
+    expect(exhausted?.["headSha"]).toBe(HEAD_1);
+  });
+
+  it("a provider-call failure emits provider.error with provider and status", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const throwing: Generator = {
+      async generate(): Promise<never> {
+        throw Object.assign(new Error("rate limited"), { status: 429 });
+      },
+      origin: (effort: Effort) => ({
+        provider: "stub",
+        model: "stub-model",
+        effort,
+      }),
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ generator: throwing, log: logger });
+
+    await expect(
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
+    ).rejects.toThrow("rate limited");
+
+    const provider = readLines().find(
+      (line) => line["evt"] === "provider.error",
+    );
+    expect(provider?.["level"]).toBe("error");
+    expect(provider?.["provider"]).toBe("stub");
+    expect(provider?.["status"]).toBe(429);
+    expect(provider?.["headSha"]).toBe(HEAD_1);
+    expect(readLines().some((line) => line["evt"] === "job.fail")).toBe(true);
+  });
+
+  it("a GeneratorError emits provider.error with its kind", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const throwing: Generator = {
+      async generate(): Promise<never> {
+        throw new GeneratorError(
+          GeneratorErrorKinds.AUTH,
+          "provider rejected the key",
+        );
+      },
+      origin: (effort: Effort) => ({
+        provider: "stub",
+        model: "stub-model",
+        effort,
+      }),
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ generator: throwing, log: logger });
+
+    await expect(task(payload)).resolves.toBeUndefined();
+
+    const provider = readLines().find(
+      (line) => line["evt"] === "provider.error",
+    );
+    expect(provider?.["provider"]).toBe("stub");
+    expect(provider?.["kind"]).toBe("auth");
+    const fail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("logs generation.start once with the queue wait", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ log: logger });
+
+    await task(payload, {
+      job: { attempts: 0, max_attempts: 25, run_at: new Date() },
+    });
+
+    const starts = readLines().filter(
+      (line) => line["evt"] === "generation.start",
+    );
+    expect(starts.length).toBe(1);
+    const start = starts[0];
+    expect(start?.["level"]).toBe("info");
+    expect(typeof start?.["waitMs"]).toBe("number");
+    expect(start?.["waitMs"]).toBeGreaterThanOrEqual(0);
+    expect(start?.["attempt"]).toBe(0);
+    expect(start?.["prId"]).toBe(String(pr.id));
+    expect(start?.["headSha"]).toBe(HEAD_1);
+  });
+
+  it("waitMs counts from the job's run_at, not the row's created_at", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ log: logger });
+    const runAt = new Date(Date.now() - 5_000);
+
+    await task(payload, {
+      job: { attempts: 0, max_attempts: 25, run_at: runAt },
+    });
+
+    const start = readLines().find(
+      (line) => line["evt"] === "generation.start",
+    );
+    expect(start?.["waitMs"]).toBeGreaterThanOrEqual(5_000);
+    expect(start?.["waitMs"]).toBeLessThan(60_000);
+  });
+
+  it("success-path lines ride the {prId, headSha} bindings", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ log: logger });
+
+    await task(payload);
+
+    const succeeded = readLines().find(
+      (line) =>
+        typeof line["msg"] === "string" && line["msg"].includes("succeeded"),
+    );
+    expect(succeeded?.["prId"]).toBe(String(pr.id));
+    expect(succeeded?.["headSha"]).toBe(HEAD_1);
+  });
+});

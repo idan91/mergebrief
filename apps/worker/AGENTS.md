@@ -39,7 +39,7 @@ What the layout can't show:
 
 `test/sweep-audit.test.ts` drives the scheduled sweep over the same PGlite harness, seeding aged rows through its raw window.
 
-`test/generate.test.ts` = integration via `persistence/testing`'s PGlite harness (real migrations + the graphile_worker stub), a stub `Generator` (canned outputs parsed through the request's own schema — no model calls), and an in-memory GitHub port (no network). The first test drives the real `createIngestRoutines` enqueue and feeds the task the payload read back from the stubbed jobs table — the contract test for the handshake.
+`test/generate/` = integration, one file per behaviour, via `persistence/testing`'s PGlite harness (real migrations + the graphile_worker stub), a stub `Generator` (canned outputs parsed through the request's own schema — no model calls), and an in-memory GitHub port (no network). The shared `helpers.ts` holds the stubs, `setUpHarness` and `makeTask` (the task over the test's harness with stub defaults; a test passes only what it varies). `trigger` drives the real `createIngestRoutines` enqueue and feeds the task the payload read back from the stubbed jobs table — the contract test for the handshake.
 
 ## Verification
 
