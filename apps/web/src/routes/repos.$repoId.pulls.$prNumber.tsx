@@ -6,6 +6,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
@@ -299,18 +300,11 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   errorComponent: PrBriefError,
 });
 
-/**
- * The one hard read-only reason: a superseded BASE renders a diff that is not
- * the PR's current one, so line anchors can land wrong or nowhere on GitHub.
- * Head-mismatch staleness is writable behind a submit ack instead.
- */
-const BASE_DRIFT_REASON =
-  "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.";
-
 /** Exactly a PR-brief page, never any other repos surface. */
 const PR_BRIEF_PATH_PATTERN = /^\/repos\/[^/]+\/pulls\/[^/]+$/;
 
 function PrBriefRoute() {
+  const { t } = useTranslation();
   // Route-level so BriefScreen itself stays renderable without a router.
   useUnsavedComposerBlocker();
   const params = Route.useParams();
@@ -389,10 +383,13 @@ function PrBriefRoute() {
   const newerRevisionSelectable =
     timeline === undefined ||
     timeline.selectedIndex < timeline.points.length - 1;
+  // The one hard read-only reason: a superseded BASE renders a diff that is
+  // not the PR's current one, so line anchors can land wrong or nowhere on
+  // GitHub. Head-mismatch staleness is writable behind a submit ack instead.
   // An inline literal busts every ChunkCard's memo boundary per poll tick.
   const readOnly = useMemo(
-    () => (baseDrift ? { reason: BASE_DRIFT_REASON } : undefined),
-    [baseDrift],
+    () => (baseDrift ? { reason: t("brief.baseDriftReason") } : undefined),
+    [baseDrift, t],
   );
 
   const briefSearch = useMemo<BriefSearchParams>(

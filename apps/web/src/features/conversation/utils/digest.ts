@@ -34,8 +34,8 @@ export type DigestGroupKind = ValueOf<typeof DigestGroupKinds>;
 export interface DigestThreadRow {
   readonly kind: typeof DigestRowKinds.THREAD;
   readonly thread: ConversationThread;
-  /** The one-liner for the row (digest-line spec over the root body). */
-  readonly digestLine: string;
+  /** The one-liner for the row; undefined for a body with no text line. */
+  readonly digestLine: string | undefined;
   readonly placement: ThreadPlacement;
   /** True when the thread came from this reviewer's recorded submits. */
   readonly isOwn: boolean;

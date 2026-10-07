@@ -19,18 +19,6 @@ import {
   markReadyBatchFailureCopy,
 } from "./utils";
 
-export const OWN_DRAFT_ENTRY_ANNOUNCEMENT =
-  "This pull request was converted to a draft. You're now viewing your own draft — review submission unlocks once it's marked ready for review.";
-
-export const MARK_READY_HISTORICAL_REASON =
-  "You're viewing an earlier revision. Switch to the latest revision to mark this pull request ready for review.";
-
-export const MARK_READY_GATE_CLOSED_REASON =
-  "This pull request has newer commits — switch to the latest revision to mark it ready for review.";
-
-export const MARK_READY_EXIT_ANNOUNCEMENT =
-  "This pull request is now ready for review — the pre-ready check closed.";
-
 export interface UseMarkReadyFlowInput {
   /**
    * The route's mark-ready transport; ABSENT while a historical revision is
@@ -132,7 +120,7 @@ export function useMarkReadyFlow(
         if (activeAtExit === null || activeAtExit === document.body) {
           document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
         }
-        announce(MARK_READY_EXIT_ANNOUNCEMENT);
+        announce(t("pulls.markReady.exited"));
       }
       return;
     }
@@ -142,7 +130,7 @@ export function useMarkReadyFlow(
       (active === null || active === document.body)
     ) {
       document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
-      announce(OWN_DRAFT_ENTRY_ANNOUNCEMENT);
+      announce(t("pulls.markReady.ownDraftEntered"));
     }
     closeReviewerOverlays();
   }, [
@@ -151,6 +139,7 @@ export function useMarkReadyFlow(
     gateOpenRef,
     overlayWasOpenRef,
     ownDraftActive,
+    t,
   ]);
   // A batch failure closes the gate while the modal still holds focus. The
   // rescue must run AFTER React commits the close: a requestAnimationFrame is
@@ -187,11 +176,11 @@ export function useMarkReadyFlow(
     if (active === null || active === document.body) {
       document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
     }
-    announce(MARK_READY_GATE_CLOSED_REASON);
-  }, [announce, gateOpenRef, markReadyAvailable, ownDraftActive]);
+    announce(t("pulls.markReady.gateClosed"));
+  }, [announce, gateOpenRef, markReadyAvailable, ownDraftActive, t]);
   const requestMarkReady = useCallback(() => {
     if (!markReadyAvailable) {
-      announce(MARK_READY_HISTORICAL_REASON);
+      announce(t("pulls.markReady.historicalRevision"));
       return;
     }
     // The CTA is aria-disabled (not hard disabled) while pending, so a click
@@ -212,6 +201,7 @@ export function useMarkReadyFlow(
     markReady,
     markReadyAvailable,
     markReadyPending,
+    t,
     unpostedDraftComments.length,
   ]);
   const closeMarkReadyGate = useCallback(() => setMarkReadyGateOpen(false), []);

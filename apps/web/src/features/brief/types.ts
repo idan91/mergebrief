@@ -600,10 +600,19 @@ export interface RevisionNarrative {
   chunks: RevisionNarrativeChunk[];
 }
 
-/** Why a Previous-Brief narrative was deliberately not generated. */
-export type RevisionNarrativeSkipReason =
-  | "span too large"
-  | "disabled by config";
+/**
+ * Why a Previous-Brief narrative was deliberately not generated: pinned wire
+ * values brief-core writes into skip stubs, rendered through the catalog.
+ */
+export const RevisionNarrativeSkipReasons = {
+  // oxlint-disable-next-line i18next/no-literal-string -- pinned wire value, never rendered as-is
+  SPAN_TOO_LARGE: "span too large",
+  // oxlint-disable-next-line i18next/no-literal-string -- pinned wire value, never rendered as-is
+  DISABLED_BY_CONFIG: "disabled by config",
+} as const;
+export type RevisionNarrativeSkipReason = ValueOf<
+  typeof RevisionNarrativeSkipReasons
+>;
 
 /**
  * @description Explicit skip stub written when a Previous-Brief span never got

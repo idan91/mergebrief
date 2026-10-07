@@ -248,7 +248,7 @@
               ]
             },
             "object-properties": {
-              "exclude": ["[A-Z_-]+", "error", "name", "nativeName"]
+              "exclude": ["error", "name", "nativeName"]
             },
             "words": {
               // Punctuation-only and single-glyph nodes are decoration; the
@@ -262,6 +262,94 @@
                 "^(?![A-Z][a-z])(?![\\s\\S]*[A-Za-z] [A-Za-z(])[\\s\\S]*$"
               ]
             }
+          }
+        ],
+        // i18next skips every string under a SHOUT_CASE const; this reports
+        // the copy-shaped ones. Keyboard key names, TextMate scopes and brand
+        // names are not copy; the attribute and callee lists copy i18next's
+        // above and change with them.
+        "house/no-shout-case-copy": [
+          "error",
+          {
+            "ignoreKeys": [
+              "error",
+              "name",
+              "nativeName",
+              "key",
+              "keys",
+              "scope"
+            ],
+            "ignoreAttributes": [
+              "className",
+              "data-.*",
+              "id",
+              "key",
+              "type",
+              "role",
+              "href",
+              "to",
+              "name",
+              "value",
+              "scope",
+              "color",
+              "as",
+              "testId",
+              "labelledBy",
+              "describedBy",
+              "aria-hidden",
+              "aria-haspopup",
+              "autoComplete",
+              "rel",
+              "target",
+              "charSet",
+              "property",
+              "content",
+              "crossOrigin",
+              "boxClassName",
+              "labelClassName",
+              "triggerClassName",
+              "stroke",
+              "fill",
+              "focusable",
+              "viewBox",
+              "xmlns",
+              "d",
+              "points",
+              "offset",
+              "stopColor",
+              "placement",
+              "callout",
+              "kind",
+              "variant",
+              "size",
+              "density",
+              "tone",
+              "state",
+              "side",
+              "anchor",
+              "components"
+            ],
+            "ignoreCallees": [
+              "i18n(ext)?$",
+              "^t$",
+              "require",
+              "addEventListener",
+              "removeEventListener",
+              "postMessage",
+              "getElementById",
+              "dispatch",
+              "commit",
+              "includes",
+              "indexOf",
+              "endsWith",
+              "startsWith",
+              "Error",
+              "super",
+              "logger\\..*",
+              "console\\..*",
+              "warn",
+              "failRead"
+            ]
           }
         ]
       }
@@ -278,7 +366,8 @@
         "**/characterization/**"
       ],
       "rules": {
-        "i18next/no-literal-string": "off"
+        "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off"
       }
     },
     {
@@ -325,7 +414,8 @@
       // Stories are fixtures, not copy.
       "files": ["**/*.stories.tsx"],
       "rules": {
-        "i18next/no-literal-string": "off"
+        "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off"
       }
     },
     {
@@ -337,6 +427,7 @@
       ],
       "rules": {
         "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off",
         "house/no-render-function": "off",
         "house/no-process-env": "off",
         "typescript/no-non-null-assertion": "off",

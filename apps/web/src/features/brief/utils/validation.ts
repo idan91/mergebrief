@@ -25,6 +25,7 @@ import {
   type PrimaryTicket,
   PrimaryTicketStatuses,
   ReferenceLocations,
+  RevisionNarrativeSkipReasons,
   type Specificity,
   type TicketAlignment,
   TicketTrackers,
@@ -535,11 +536,6 @@ function parseRevisionNarrativeChunk(
     },
   };
 }
-
-const RevisionNarrativeSkipReasons = {
-  SPAN_TOO_LARGE: "span too large",
-  DISABLED_BY_CONFIG: "disabled by config",
-} as const;
 
 /**
  * Parse a fetched `.revision-narrative.json`, discriminating on

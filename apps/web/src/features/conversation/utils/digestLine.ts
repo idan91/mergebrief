@@ -1,10 +1,9 @@
 // One-liner derivation for digest rows: strip markdown to plain text → first
-// non-empty text line → cap ~80ch → fallback for code-only bodies. Heading,
-// table, and code lines are DROPPED, not merely unmarked — otherwise bot
-// digests render their own section headings as the summary.
+// non-empty text line → cap ~80ch. Heading, table, and code lines are DROPPED,
+// not merely unmarked; otherwise bot digests render their own section headings
+// as the summary.
 
 const MAX_DIGEST_LINE = 80;
-const CODE_ONLY_FALLBACK = "suggested change";
 
 /** A GFM table separator row: `---|---`, `:--- | :---:`, with/without pipes. */
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
@@ -31,11 +30,11 @@ function stripInline(line: string): string {
 }
 
 /**
- * Derive the one-line digest text for a comment body. Never empty: bodies
- * that strip to nothing (code-only suggestions, image-only, tables) fall
- * back to a static label.
+ * Derive the one-line digest text for a comment body. A body that strips to
+ * nothing (code-only suggestions, image-only, tables) has none: the row
+ * renders the catalog's code-only label instead.
  */
-export function deriveDigestLine(body: string): string {
+export function deriveDigestLine(body: string): string | undefined {
   const rawLines = body.split("\n");
   // Fence state remembers the opener (char + length): a ```` fence legally
   // contains ``` lines and only a matching, >=-length marker closes it.
@@ -70,7 +69,7 @@ export function deriveDigestLine(body: string): string {
         fence = { char, length: marker.length };
         continue;
       }
-      // A CLOSER allows only trailing whitespace — ```ts inside an open
+      // A CLOSER allows only trailing whitespace: ```ts inside an open
       // fence is content.
       if (
         char === fence.char &&
@@ -98,7 +97,7 @@ export function deriveDigestLine(body: string): string {
     // Headings and table rows are structure, not content.
     if (/^#{1,6}\s/.test(line)) continue;
     // Separator check FIRST: a leading-pipe separator (`|---|---|`) must still
-    // enter table mode so pipe-less body rows drop — but only a PIPED separator
+    // enter table mode so pipe-less body rows drop, but only a PIPED separator
     // is a table; a bare `---` is a horizontal rule and must not swallow text.
     if (TABLE_SEPARATOR.test(line)) {
       if (line.includes("|")) {
@@ -107,7 +106,7 @@ export function deriveDigestLine(body: string): string {
       continue;
     }
     // A leading pipe is only a table row when a separator establishes the
-    // table (GFM requires one) — otherwise it is text.
+    // table (GFM requires one); otherwise it is text.
     if (
       line.startsWith("|") &&
       next !== undefined &&
@@ -130,7 +129,7 @@ export function deriveDigestLine(body: string): string {
     if (next !== undefined && /^\s*(-+|=+)\s*$/.test(next)) {
       continue;
     }
-    // Horizontal rules — and a bare `=` run (a consumed Setext underline).
+    // Horizontal rules, and a bare `=` run (a consumed Setext underline).
     if (/^(-{3,}|\*{3,}|_{3,}|=+)$/.test(line)) continue;
     // Quote and list markers unwrap to their content.
     const unwrapped = stripInline(line.replace(/^([-*+]|\d+[.)])\s+/, ""));
@@ -140,5 +139,5 @@ export function deriveDigestLine(body: string): string {
     }
     return `${unwrapped.slice(0, MAX_DIGEST_LINE)}…`;
   }
-  return CODE_ONLY_FALLBACK;
+  return undefined;
 }

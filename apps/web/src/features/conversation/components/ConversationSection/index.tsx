@@ -28,12 +28,13 @@ import type { ReplyResult } from "../../reply";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import rowStyles from "../../rows.module.scss";
-import type { ConversationReview } from "../../types";
+import { ReviewVerdictStates, type ConversationReview } from "../../types";
 import type {
   ConversationResolutionPlan,
   ThreadComposerWiring,
   ThreadRevisionJump,
 } from "../../wiring";
+import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
 import { headSummary } from "./utils";
 import { Icon } from "@web/components/Icon";
@@ -103,11 +104,11 @@ export interface ConversationSectionProps {
   filter?: ConversationFilter | undefined;
 }
 
-const VERDICT_LABEL: Record<ConversationReview["state"], string> = {
-  APPROVED: "approved",
-  CHANGES_REQUESTED: "changes requested",
-  COMMENTED: "commented",
-  DISMISSED: "dismissed",
+const VERDICT_STATE_ATTRIBUTES: Record<ConversationReview["state"], string> = {
+  [ReviewVerdictStates.APPROVED]: "approved",
+  [ReviewVerdictStates.CHANGES_REQUESTED]: "changes-requested",
+  [ReviewVerdictStates.COMMENTED]: "commented",
+  [ReviewVerdictStates.DISMISSED]: "dismissed",
 };
 
 /**
@@ -432,9 +433,9 @@ export function ConversationSection({
                       </span>
                       <span
                         className={rowStyles["chip"]}
-                        data-state={VERDICT_LABEL[review.state]}
+                        data-state={VERDICT_STATE_ATTRIBUTES[review.state]}
                       >
-                        {VERDICT_LABEL[review.state]}
+                        {t(VERDICT_LABEL_KEYS[review.state])}
                       </span>
                       {review.body.trim() !== "" ? (
                         <span className={rowStyles["rowLine"]}>

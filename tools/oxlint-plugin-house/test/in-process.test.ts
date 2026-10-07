@@ -11,15 +11,31 @@ const tester = new RuleTester();
 // oxlint exports no `Rule` type; the tester's own parameter type stands in.
 type TesterRule = Parameters<RuleTester["run"]>[1];
 
+type TesterCases = Parameters<RuleTester["run"]>[2];
+type ValidCase = Exclude<TesterCases["valid"][number], string>;
+type InvalidCase = TesterCases["invalid"][number];
+type TesterOptions = NonNullable<ValidCase["options"]>;
+
 interface FixtureCase {
   readonly rule: string;
   /** The run's label when one rule has more than one fixture pair. */
   readonly name?: string;
   readonly bad: string;
   readonly good: string;
+  /** Strings outside the rule's reach (ignored callees, attributes, keys), kept out of `good`. */
+  readonly ignored?: string;
   readonly lines: readonly number[];
   readonly messageIds?: readonly string[];
+  readonly options?: TesterOptions;
 }
+
+const SHOUT_CASE_OPTIONS: TesterOptions = [
+  {
+    ignoreKeys: ["name"],
+    ignoreCallees: ["Error", "logger\\..*", "startsWith"],
+    ignoreAttributes: ["className"],
+  },
+];
 
 const CASES: readonly FixtureCase[] = [
   { rule: "no-enum", bad: "bad.ts", good: "good.ts", lines: [1, 5] },
@@ -131,21 +147,57 @@ const CASES: readonly FixtureCase[] = [
     good: "good-barrel/index.ts",
     lines: readMarkedLines("no-re-export", "bad-barrel/index.ts"),
   },
+  {
+    rule: "no-shout-case-copy",
+    name: "no-shout-case-copy in code",
+    bad: "bad.ts",
+    good: "good.ts",
+    ignored: "ignored.ts",
+    lines: readMarkedLines("no-shout-case-copy", "bad.ts"),
+    options: SHOUT_CASE_OPTIONS,
+  },
+  {
+    rule: "no-shout-case-copy",
+    name: "no-shout-case-copy in JSX",
+    bad: "bad.tsx",
+    good: "good.tsx",
+    ignored: "ignored.tsx",
+    lines: readMarkedLines("no-shout-case-copy", "bad.tsx"),
+    options: SHOUT_CASE_OPTIONS,
+  },
 ];
 
-for (const { rule, name, bad, good, lines, messageIds } of CASES) {
+for (const {
+  rule,
+  name,
+  bad,
+  good,
+  ignored,
+  lines,
+  messageIds,
+  options,
+} of CASES) {
   const definition = plugin.rules[rule];
   if (definition === undefined) throw new Error(`plugin has no rule ${rule}`);
+  const valid: ValidCase[] = [{ ...readFixture(rule, good) }];
+  if (ignored !== undefined) {
+    valid.push({ ...readFixture(rule, ignored) });
+  }
+  const invalid: InvalidCase = {
+    ...readFixture(rule, bad),
+    errors: lines.map((line, index) => ({
+      messageId: messageIds?.[index] ?? "violation",
+      line,
+    })),
+  };
+  if (options !== undefined) {
+    for (const validCase of valid) {
+      validCase.options = options;
+    }
+    invalid.options = options;
+  }
   tester.run(name ?? rule, definition as unknown as TesterRule, {
-    valid: [readFixture(rule, good)],
-    invalid: [
-      {
-        ...readFixture(rule, bad),
-        errors: lines.map((line, index) => ({
-          messageId: messageIds?.[index] ?? "violation",
-          line,
-        })),
-      },
-    ],
+    valid,
+    invalid: [invalid],
   });
 }

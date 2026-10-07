@@ -25,6 +25,8 @@ export function PrCommentRow({
   briefGeneratedAt,
 }: PrCommentRowProps) {
   const { t } = useTranslation();
+  const digestLine =
+    deriveDigestLine(comment.body) ?? t("conversation.digestCodeOnly");
   return (
     <li className={rowStyles["row"]}>
       <RowButton
@@ -39,9 +41,7 @@ export function PrCommentRow({
             </span>
           ) : null}
         </span>
-        <span className={rowStyles["rowLine"]}>
-          {deriveDigestLine(comment.body)}
-        </span>
+        <span className={rowStyles["rowLine"]}>{digestLine}</span>
         {postdatesBrief(comment, briefGeneratedAt, NO_OWN_REVIEWS) ? (
           <span className={rowStyles["chip"]} data-state="after-brief">
             {t("conversation.afterThisBrief")}

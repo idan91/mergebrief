@@ -16,8 +16,8 @@ query fetches review threads with resolution state.
 `;
 
 describe("deriveDigestLine", () => {
-  it("skips markdown headings and uses the first prose line (CodeRabbit walkthrough)", () => {
-    const line = deriveDigestLine(CODERABBIT_WALKTHROUGH);
+  it("skips markdown headings and uses the first prose line of a walkthrough", () => {
+    const line = deriveDigestLine(CODERABBIT_WALKTHROUGH) ?? "";
     expect(
       line.startsWith("The changes introduce a new GraphQL primitive"),
     ).toBe(true);
@@ -25,10 +25,10 @@ describe("deriveDigestLine", () => {
     expect(line).not.toContain("#");
   });
 
-  it("skips table rows (no pipe garbage in the digest)", () => {
+  it("skips table rows so no pipe garbage reaches the digest", () => {
     const tableOnly =
       "## Changes\n\n| File | Summary |\n|---|---|\n| a.ts | new |\n";
-    expect(deriveDigestLine(tableOnly)).toBe("suggested change");
+    expect(deriveDigestLine(tableOnly)).toBeUndefined();
   });
 
   it("returns a plain human sentence untouched", () => {
@@ -37,15 +37,15 @@ describe("deriveDigestLine", () => {
     );
   });
 
-  it("falls back for a code-only body (suggestion block)", () => {
-    expect(deriveDigestLine("```suggestion\nconst x = 2;\n```")).toBe(
-      "suggested change",
-    );
+  it("returns no line for a code-only suggestion block", () => {
+    expect(
+      deriveDigestLine("```suggestion\nconst x = 2;\n```"),
+    ).toBeUndefined();
   });
 
-  it("falls back for an empty or whitespace body", () => {
-    expect(deriveDigestLine("")).toBe("suggested change");
-    expect(deriveDigestLine("  \n\n  ")).toBe("suggested change");
+  it("returns no line for an empty or whitespace body", () => {
+    expect(deriveDigestLine("")).toBeUndefined();
+    expect(deriveDigestLine("  \n\n  ")).toBeUndefined();
   });
 
   it("strips emphasis, inline code, links, and quote markers", () => {
@@ -58,40 +58,40 @@ describe("deriveDigestLine", () => {
 
   it("caps at ~80 chars on the first line only", () => {
     const long = `${"a".repeat(100)}\nsecond line`;
-    const line = deriveDigestLine(long);
+    const line = deriveDigestLine(long) ?? "";
     expect(line.length).toBeLessThanOrEqual(81);
     expect(line.endsWith("…")).toBe(true);
   });
 
-  it("keeps intraword underscores (identifiers are not emphasis)", () => {
+  it("keeps intraword underscores because identifiers are not emphasis", () => {
     expect(deriveDigestLine("rename user_id to account_id")).toBe(
       "rename user_id to account_id",
     );
   });
 
-  it("falls back for a 4-space-indented code-only body", () => {
-    expect(deriveDigestLine("    const x = 1;\n    const y = 2;")).toBe(
-      "suggested change",
-    );
+  it("returns no line for a 4-space-indented code-only body", () => {
+    expect(
+      deriveDigestLine("    const x = 1;\n    const y = 2;"),
+    ).toBeUndefined();
   });
 
-  it("drops a leading-pipe-less table header (separator-aware)", () => {
+  it("drops a table header without a leading pipe by its separator", () => {
     const table = "File | Summary\n--- | ---\na.ts | new\n\nProse after table.";
     expect(deriveDigestLine(table)).toBe("Prose after table.");
   });
 
-  it("drops pipe-less body rows after a leading-pipe separator (|---|---|)", () => {
+  it("drops pipe-less body rows after a leading-pipe separator", () => {
     const table = "| File | Summary |\n|---|---|\na.ts | new\n\nProse after.";
     expect(deriveDigestLine(table)).toBe("Prose after.");
   });
 
-  it("does not let a horizontal rule open table mode (prose with a pipe survives)", () => {
+  it("keeps prose with a pipe after a horizontal rule", () => {
     expect(deriveDigestLine("---\nUse A | B for the join")).toBe(
       "Use A | B for the join",
     );
   });
 
-  it("drops a Setext heading (text + dashed underline) like an ATX one", () => {
+  it("drops a Setext heading like an ATX one", () => {
     expect(deriveDigestLine("Walkthrough\n---\nActual point here.")).toBe(
       "Actual point here.",
     );
@@ -100,7 +100,7 @@ describe("deriveDigestLine", () => {
     );
   });
 
-  it("applies structural filters inside blockquotes (quoted walkthrough)", () => {
+  it("applies structural filters inside a quoted walkthrough", () => {
     expect(deriveDigestLine("> ## Walkthrough\n> Real point here.")).toBe(
       "Real point here.",
     );
@@ -112,17 +112,17 @@ describe("deriveDigestLine", () => {
     );
   });
 
-  it("drops pipe-less rows while a table is open (GFM: until a blank line)", () => {
+  it("drops pipe-less rows while a table is open until a blank line", () => {
     const table = "| File | Summary |\n|---|---|\na.ts\n\nProse after.";
     expect(deriveDigestLine(table)).toBe("Prose after.");
   });
 
-  it("falls back for blockquoted indented code", () => {
-    expect(deriveDigestLine(">     const x = 1;")).toBe("suggested change");
+  it("returns no line for blockquoted indented code", () => {
+    expect(deriveDigestLine(">     const x = 1;")).toBeUndefined();
   });
 
   it("treats 4-space-indented lines starting with > as code, not blockquotes", () => {
-    expect(deriveDigestLine("    > old value")).toBe("suggested change");
+    expect(deriveDigestLine("    > old value")).toBeUndefined();
   });
 
   it("keeps intraword double underscores too", () => {
@@ -145,7 +145,7 @@ describe("deriveDigestLine", () => {
     ).toBe("Prose after.");
   });
 
-  it("keeps literal spaced asterisks (not emphasis delimiters)", () => {
+  it("keeps literal spaced asterisks that are not emphasis delimiters", () => {
     expect(deriveDigestLine("Use a * b * c")).toBe("Use a * b * c");
     expect(deriveDigestLine("*emph* start")).toBe("emph start");
   });
@@ -159,7 +159,7 @@ describe("deriveDigestLine", () => {
     expect(deriveDigestLine(body)).toBe("Prose after.");
   });
 
-  it("does not close a fence on an info-string line (```ts is content, not a closer)", () => {
+  it("keeps a fence open across an info-string line", () => {
     const body = "```markdown\ncontent\n```ts\ncode line\n```\nProse after.";
     expect(deriveDigestLine(body)).toBe("Prose after.");
   });

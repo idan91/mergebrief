@@ -88,7 +88,7 @@ function writeAdaptedRootConfig(root: string): void {
 function ruleIdOf(code: string): string | undefined {
   const house = /^house\((.+)\)$/.exec(code);
   if (house?.[1] !== undefined) return `house/${house[1]}`;
-  const plugin = /^eslint-plugin-i18next\((.+)\)$/.exec(code);
+  const plugin = /^(?:eslint-plugin-)?i18next\((.+)\)$/.exec(code);
   if (plugin?.[1] !== undefined) return `i18next/${plugin[1]}`;
   // Core rules the root config configures itself, so a rule option the
   // config text promises is provable against a real run.
@@ -203,6 +203,10 @@ const NAMED_CONTROLLER = `export const widgetsController = { listWidgets };\n\nf
 const ZOD_ROOT_IMPORT = `import { z } from "zod";\n\nexport const name = z.string();\n`;
 const ZOD_V4_IMPORT = `import { z } from "zod/v4";\n\nexport const name = z.string();\n`;
 
+const SHOUT_CASE_COPY = `export const FALLBACK = "suggested change";\n`;
+const SHOUT_CASE_KEY_COPY = `export const labels = { OPEN: "Open pull request" };\n`;
+const SHOUT_CASE_CATALOG_KEY = `export const FALLBACK_KEY = "conversation.digestCodeOnly";\n`;
+
 function emDashComment(name: string): string {
   return `// A comment carrying an em dash — right here.\nexport const ${name} = 1;\n`;
 }
@@ -233,6 +237,10 @@ const MATRIX_FILES = {
   "apps/api/src/routes/widgets/controller.ts": NAMED_CONTROLLER,
   "packages/brief-core/src/zod-root.ts": ZOD_ROOT_IMPORT,
   "packages/brief-core/src/zod-v4.ts": ZOD_V4_IMPORT,
+  "apps/web/src/features/brief/utils/fallback.ts": SHOUT_CASE_COPY,
+  "apps/web/src/features/brief/utils/labels.ts": SHOUT_CASE_KEY_COPY,
+  "apps/web/src/features/brief/utils/keys.ts": SHOUT_CASE_CATALOG_KEY,
+  "packages/brief-core/src/fallback.ts": SHOUT_CASE_COPY,
 };
 
 let matrix: LintResult | undefined;
@@ -344,6 +352,26 @@ describe("api domain exports", () => {
   it("passes a named controller", () => {
     expect(
       rulesFor(lintMatrix(), "apps/api/src/routes/widgets/controller.ts"),
+    ).toEqual([]);
+  });
+});
+
+describe("copy behind SHOUT_CASE names", () => {
+  it("reports copy in a SHOUT_CASE const and under a SHOUT_CASE key", () => {
+    expect(
+      rulesFor(lintMatrix(), "apps/web/src/features/brief/utils/fallback.ts"),
+    ).toEqual(["house/no-shout-case-copy@error"]);
+    expect(
+      rulesFor(lintMatrix(), "apps/web/src/features/brief/utils/labels.ts"),
+    ).toEqual(["i18next/no-literal-string@error"]);
+  });
+
+  it("passes a catalog key in web and a SHOUT_CASE const outside it", () => {
+    expect(
+      rulesFor(lintMatrix(), "apps/web/src/features/brief/utils/keys.ts"),
+    ).toEqual([]);
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/fallback.ts"),
     ).toEqual([]);
   });
 });

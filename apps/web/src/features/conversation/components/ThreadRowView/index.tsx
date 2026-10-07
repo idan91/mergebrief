@@ -50,6 +50,7 @@ export function ThreadRowView({
   const { thread } = row;
   const author = thread.comments[0]?.author;
   const commentCount = thread.comments.length;
+  const digestLine = row.digestLine ?? t("conversation.digestCodeOnly");
   // Outdated wins over resolved: it is WHY the thread left the code view, so
   // those rows stay full. Expanding any thread restores the full row too.
   const slim = thread.isResolved && !thread.isOutdated && !expanded;
@@ -82,7 +83,7 @@ export function ThreadRowView({
             <SlimSeparator />
             <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
             <SlimSeparator />
-            <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
+            <span className={rowStyles["rowLine"]}>{digestLine}</span>
             {commentCount > 1 ? (
               <>
                 <SlimSeparator />
@@ -111,7 +112,7 @@ export function ThreadRowView({
               />
             )}
             <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
-            <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
+            <span className={rowStyles["rowLine"]}>{digestLine}</span>
             {row.isOwn ? (
               <span className={rowStyles["ownTag"]}>
                 {t("conversation.yours")}

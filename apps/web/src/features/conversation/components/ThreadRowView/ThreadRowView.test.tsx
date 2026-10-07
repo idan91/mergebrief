@@ -203,6 +203,15 @@ describe("ThreadRowView, host element", () => {
       "2 comments",
     );
   });
+
+  it("labels a body with no text line through the catalog", () => {
+    const row: Mutable<DigestThreadRow> = threadRow();
+    row.digestLine = undefined;
+    renderRow(row);
+    expect(screen.getByTestId("thread-row").textContent).toContain(
+      "suggested change",
+    );
+  });
 });
 
 describe("ThreadRowView, slim resolved rows", () => {

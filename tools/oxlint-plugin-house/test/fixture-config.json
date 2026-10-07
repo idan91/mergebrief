@@ -16,6 +16,14 @@
     "house/no-process-env": "error",
     "house/no-hand-built-plural": "error",
     "house/types-const-maps": "error",
-    "house/no-re-export": "error"
+    "house/no-re-export": "error",
+    "house/no-shout-case-copy": [
+      "error",
+      {
+        "ignoreKeys": ["name"],
+        "ignoreCallees": ["Error", "logger\\..*", "startsWith"],
+        "ignoreAttributes": ["className"]
+      }
+    ]
   }
 }

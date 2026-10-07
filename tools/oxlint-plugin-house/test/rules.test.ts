@@ -180,3 +180,29 @@ describe("house/no-hand-built-plural", () => {
     expectLines("no-hand-built-plural", "good.ts", []);
   });
 });
+
+describe("house/no-shout-case-copy", () => {
+  it("reports copy anywhere under a SHOUT_CASE const", () => {
+    expectMarkedLines("no-shout-case-copy", "bad.ts");
+  });
+
+  it("reports JSX text under a SHOUT_CASE const", () => {
+    expectMarkedLines("no-shout-case-copy", "bad.tsx");
+  });
+
+  it("passes catalog keys, label maps and technical consts", () => {
+    expectLines("no-shout-case-copy", "good.ts", []);
+  });
+
+  it("passes a component that resolves a label key with t", () => {
+    expectLines("no-shout-case-copy", "good.tsx", []);
+  });
+
+  it("passes ignored callees, comparisons and ignored keys", () => {
+    expectLines("no-shout-case-copy", "ignored.ts", []);
+  });
+
+  it("passes ignored JSX attributes under a SHOUT_CASE const", () => {
+    expectLines("no-shout-case-copy", "ignored.tsx", []);
+  });
+});

@@ -13,7 +13,6 @@ import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import type { IntentCheck, IntentItem } from "../../../types";
 import {
-  ALARM_CAUTION,
   ALARM_GLYPH,
   CLAMP_THRESHOLD,
   CLAMP_VISIBLE,
@@ -188,7 +187,7 @@ function IntentBucket({
         {t(bucket.labelKey)}
       </h4>
       {bucket.alarm ? (
-        <p className={styles["caution"]}>{ALARM_CAUTION}</p>
+        <p className={styles["caution"]}>{t("brief.intent.alarmCaution")}</p>
       ) : null}
       <ul className={styles["bucketList"]} id={listId}>
         {/* Content key: the list is immutable per prop and intent+quote

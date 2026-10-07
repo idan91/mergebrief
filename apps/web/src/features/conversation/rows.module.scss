@@ -89,7 +89,7 @@
     }
 
     &[data-state="approved"],
-    &[data-state="changes requested"],
+    &[data-state="changes-requested"],
     &[data-state="commented"],
     &[data-state="dismissed"] {
       color: var(--color-text-1);

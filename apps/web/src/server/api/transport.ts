@@ -23,8 +23,6 @@ const SUBMIT_TIMEOUT_MS = 150_000;
 // browser's own timeout, not a proxy 504, is what the reviewer sees.
 const UPLOAD_TIMEOUT_MS = 150_000;
 
-const TRANSPORT_UNAVAILABLE_MSG = "apiFetch: api transport unavailable";
-
 let cached: ApiTransportDeps | undefined;
 
 /**
@@ -95,7 +93,7 @@ export function fetchFromApi(
     transport = getApiTransport();
   } catch (error) {
     const logger = getServerLogger();
-    logger.error(TRANSPORT_UNAVAILABLE_MSG, { err: error });
+    logger.error("apiFetch: api transport unavailable", { err: error });
     return Promise.resolve(apiUnavailable(503));
   }
   return dispatchToApi(path, cookie, transport, init);

@@ -37,4 +37,18 @@ describe("PrCommentRow body", () => {
     );
     expect(screen.queryByText(/<img/)).toBeNull();
   });
+
+  it("labels a code-only body through the catalog when collapsed", () => {
+    render(
+      <PrCommentRow
+        comment={makeComment("```suggestion\nconst x = 2;\n```")}
+        expanded={false}
+        toggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button").textContent).toContain(
+      "suggested change",
+    );
+  });
 });

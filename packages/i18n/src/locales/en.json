@@ -152,7 +152,11 @@
       "notFound": "This pull request is no longer accessible on GitHub.",
       "githubPermission": "GitHub blocked the action: the MergeBrief App needs the 'Contents: Read & write' repository permission to mark a PR ready. Update the App's permissions and retry.",
       "upstream": "GitHub rejected the request or is unreachable — try again shortly.",
-      "failed": "Something went wrong marking this pull request ready — try again."
+      "failed": "Something went wrong marking this pull request ready — try again.",
+      "ownDraftEntered": "This pull request was converted to a draft. You're now viewing your own draft — review submission unlocks once it's marked ready for review.",
+      "historicalRevision": "You're viewing an earlier revision. Switch to the latest revision to mark this pull request ready for review.",
+      "gateClosed": "This pull request has newer commits — switch to the latest revision to mark it ready for review.",
+      "exited": "This pull request is now ready for review — the pre-ready check closed."
     },
     "markReadyModal": {
       "heading": "Before marking ready",
@@ -355,7 +359,8 @@
       "tracker": {
         "github": "GitHub",
         "notion": "Notion"
-      }
+      },
+      "alarmCaution": "AI-inferred tension — verify against the diff and the ticket before acting on it"
     },
     "toolbar": {
       "ariaLabelGroupStepper": "Step between change groups",
@@ -544,7 +549,9 @@
         "prDiffUnavailable": "The pull request diff is not available right now, so this line cannot take a comment yet.",
         "fileNotInBrief": "No chunk of this brief touches this file, so a comment here has nowhere to land.",
         "close": "Close"
-      }
+      },
+      "skipReasonSpanTooLarge": "span too large",
+      "skipReasonDisabledByConfig": "disabled by config"
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",
@@ -737,7 +744,11 @@
       "wholePrImpact": "Whole-PR impact"
     },
     "stateBadge": {
-      "pullRequest": "pull request "
+      "pullRequest": "pull request ",
+      "open": "Open",
+      "draft": "Draft",
+      "merged": "Merged",
+      "closed": "Closed"
     },
     "unattributed": {
       "label": "unattributed",
@@ -768,7 +779,8 @@
       "actionDismiss": "Dismiss",
       "fileGone": "This file is no longer in this brief, so the draft can only be deleted.",
       "actionReanchorArmed": "Cancel re-anchor"
-    }
+    },
+    "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review."
   },
   "review": {
     "outcome": {
@@ -1029,7 +1041,14 @@
     "summaryComments_one": "{{count}} comment",
     "summaryComments_other": "{{count}} comments",
     "summaryThreads_one": "{{count}} thread · {{open}} open",
-    "summaryThreads_other": "{{count}} threads · {{open}} open"
+    "summaryThreads_other": "{{count}} threads · {{open}} open",
+    "digestCodeOnly": "suggested change",
+    "verdict": {
+      "approved": "approved",
+      "changesRequested": "changes requested",
+      "commented": "commented",
+      "dismissed": "dismissed"
+    }
   },
   "tokens": {
     "heading": "API tokens",
@@ -1169,7 +1188,10 @@
       "updated": "Updated since your review",
       "yours": "Yours",
       "yoursTip": "Yours: you opened this pull request"
-    }
+    },
+    "editorModeWrite": "Write",
+    "editorModePreview": "Preview",
+    "unsavedCommentLeavePrompt": "You have an unsaved comment. Leave this page and discard it?"
   },
   "briefError": {
     "not-found": "That brief isn't on this instance.",

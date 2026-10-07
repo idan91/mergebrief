@@ -20,6 +20,7 @@ import {
   type ReviewerFacet,
   type VerdictFacet,
 } from "../../utils/filter";
+import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import rowStyles from "../../rows.module.scss";
 import styles from "./ConversationFilterPanel.module.scss";
 
@@ -29,13 +30,6 @@ export interface ConversationFilterPanelProps {
   reviewers: readonly ReviewerFacet[];
   onChange: (next: ConversationFilter) => void;
 }
-
-/** Chip text, the digest's own verdict vocabulary. */
-const VERDICT_LABEL: Record<FilterVerdictState, string> = {
-  APPROVED: "approved",
-  CHANGES_REQUESTED: "changes requested",
-  COMMENTED: "commented",
-};
 
 const VERDICT_ORDER: readonly FilterVerdictState[] = [
   "APPROVED",
@@ -97,7 +91,7 @@ export function ConversationFilterPanel({
                     onChange(withVerdictSelection(filter, facet.state))
                   }
                 >
-                  {VERDICT_LABEL[facet.state]}
+                  {t(VERDICT_LABEL_KEYS[facet.state])}
                   <span className={styles["count"]}>{facet.humanCount}</span>
                   {facet.botCount > 0 ? (
                     <span className={rowStyles["botTag"]}>

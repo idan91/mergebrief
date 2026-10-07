@@ -7,13 +7,21 @@ import {
   type ComparisonRun,
   type ComparisonSource,
 } from "../../../../comparison/runs";
-import type {
-  BriefChunk,
-  RevisionNarrativeSkipReason,
+import {
+  RevisionNarrativeSkipReasons,
+  type BriefChunk,
+  type RevisionNarrativeSkipReason,
 } from "../../../../types";
 
 import styles from "./ComparisonCallout.module.scss";
 import type { TranslationKey } from "i18n";
+
+const SKIP_REASON_KEYS: Record<RevisionNarrativeSkipReason, TranslationKey> = {
+  [RevisionNarrativeSkipReasons.SPAN_TOO_LARGE]:
+    "brief.diff.skipReasonSpanTooLarge",
+  [RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG]:
+    "brief.diff.skipReasonDisabledByConfig",
+};
 
 export interface ComparisonCalloutProps {
   /** The rail element the callout anchors to. */
@@ -88,7 +96,9 @@ export function ComparisonCallout({
         <Callout.Body>
           <span className={styles["unavailable"]}>
             {skipReason
-              ? t("brief.diff.summarySkipped", { reason: skipReason })
+              ? t("brief.diff.summarySkipped", {
+                  reason: t(SKIP_REASON_KEYS[skipReason]),
+                })
               : t("brief.diff.summaryUnavailable")}
           </span>
         </Callout.Body>

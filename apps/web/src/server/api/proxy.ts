@@ -198,16 +198,13 @@ export async function requestApi(
   });
 }
 
-const UPSTREAM_TIMEOUT_MSG = "api request timed out";
-const UPSTREAM_FAILURE_MSG = "api request failed";
-
 function logUpstreamFailure(
   deps: ApiTransportDeps,
   error: unknown,
   timedOut: boolean,
 ): void {
   const { logger } = deps;
-  logger.error(timedOut ? UPSTREAM_TIMEOUT_MSG : UPSTREAM_FAILURE_MSG, {
+  logger.error(timedOut ? "api request timed out" : "api request failed", {
     err: error,
   });
 }

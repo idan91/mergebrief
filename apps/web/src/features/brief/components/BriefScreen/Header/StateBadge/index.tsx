@@ -1,3 +1,4 @@
+import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@web/components/Icon";
 import {
@@ -32,17 +33,17 @@ type BadgeVariant = ValueOf<typeof BadgeVariants>;
 
 /** The status glyph ahead of the word, the same drawings Home's row end uses. */
 const BADGE_ICON: Record<BadgeVariant, IconName> = {
-  open: IconNames.GIT_PULL_REQUEST,
-  draft: IconNames.CIRCLE_DASHED,
-  merged: IconNames.GIT_MERGE,
-  closed: IconNames.X_CIRCLE,
+  [BadgeVariants.OPEN]: IconNames.GIT_PULL_REQUEST,
+  [BadgeVariants.DRAFT]: IconNames.CIRCLE_DASHED,
+  [BadgeVariants.MERGED]: IconNames.GIT_MERGE,
+  [BadgeVariants.CLOSED]: IconNames.X_CIRCLE,
 };
 
-const BADGE_LABEL: Record<BadgeVariant, string> = {
-  open: "Open",
-  draft: "Draft",
-  merged: "Merged",
-  closed: "Closed",
+const BADGE_LABEL_KEYS: Record<BadgeVariant, TranslationKey> = {
+  [BadgeVariants.OPEN]: "brief.stateBadge.open",
+  [BadgeVariants.DRAFT]: "brief.stateBadge.draft",
+  [BadgeVariants.MERGED]: "brief.stateBadge.merged",
+  [BadgeVariants.CLOSED]: "brief.stateBadge.closed",
 };
 
 /**
@@ -75,6 +76,7 @@ export function StateBadge({ pr, live }: StateBadgeProps) {
   const { t } = useTranslation();
   const variant = badgeVariant(pr, live);
   if (variant === null) return null;
+  const label = t(BADGE_LABEL_KEYS[variant]);
   return (
     <span
       className={styles["badge"]}
@@ -83,7 +85,7 @@ export function StateBadge({ pr, live }: StateBadgeProps) {
     >
       <Icon name={BADGE_ICON[variant]} size={IconSizes.SM} />
       <ScreenReaderOnly>{t("brief.stateBadge.pullRequest")}</ScreenReaderOnly>
-      {BADGE_LABEL[variant]}
+      {label}
     </span>
   );
 }

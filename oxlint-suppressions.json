@@ -169,11 +169,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/consts.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/utils.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -279,21 +274,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/conversation/utils/chips.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/utils/digestLine.test.ts": {
-    "house/test-title": {
-      "count": 15
-    }
-  },
-  "apps/web/src/features/conversation/utils/digestLine.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
   "apps/web/src/features/conversation/utils/mentions.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -369,14 +349,6 @@
   },
   "apps/web/src/hooks/useLatestRef.ts": {
     "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/hooks/useUnsavedComposerGuard.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/comment-density": {
       "count": 1
     }
   },

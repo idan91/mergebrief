@@ -18,6 +18,11 @@ export interface RuleNode {
   readonly typeName?: RuleNode;
   readonly left?: RuleNode;
   readonly right?: RuleNode;
+  readonly key?: RuleNode;
+  readonly consequent?: RuleNode;
+  readonly alternate?: RuleNode;
+  // Array holes arrive as `null`.
+  readonly elements?: readonly (RuleNode | null)[];
   readonly exprName?: RuleNode;
   readonly moduleReference?: RuleNode;
   readonly extends?: readonly RuleNode[];

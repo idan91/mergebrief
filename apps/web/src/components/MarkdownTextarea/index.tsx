@@ -6,6 +6,7 @@
    The root group's keydown is a composite-widget shortcut scope
    (Cmd+Shift+P / Escape from the textarea, tabs, and focused preview
    panel alike); the wrapper itself is not focusable and traps nothing. */
+import type { TranslationKey } from "i18n";
 import { Trans, useTranslation } from "react-i18next";
 import {
   useId,
@@ -92,9 +93,9 @@ export interface MarkdownTextareaProps {
 const ATTACH_ACCEPT = Object.values(AttachmentMediaTypes).join(",");
 
 const MODES: MarkdownTextareaMode[] = Object.values(MarkdownTextareaModes);
-const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
-  [MarkdownTextareaModes.WRITE]: "Write",
-  [MarkdownTextareaModes.PREVIEW]: "Preview",
+const MODE_LABEL_KEYS: Record<MarkdownTextareaMode, TranslationKey> = {
+  [MarkdownTextareaModes.WRITE]: "shell.editorModeWrite",
+  [MarkdownTextareaModes.PREVIEW]: "shell.editorModePreview",
 };
 
 interface PreviewPanelProps {
@@ -295,22 +296,25 @@ export function MarkdownTextarea({
         tabIndex={-1}
         onKeyDown={onTablistKeyDown}
       >
-        {MODES.map((mode) => (
-          // oxlint-disable-next-line house/no-raw-button -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
-          <button
-            aria-controls={panelId(mode)}
-            aria-selected={facade.mode === mode}
-            data-state={facade.mode === mode ? "active" : undefined}
-            id={tabId(mode)}
-            key={mode}
-            role="tab"
-            tabIndex={facade.mode === mode ? 0 : -1}
-            type="button"
-            onClick={() => facade.setMode(mode)}
-          >
-            {MODE_LABELS[mode]}
-          </button>
-        ))}
+        {MODES.map((mode) => {
+          const modeLabel = t(MODE_LABEL_KEYS[mode]);
+          return (
+            // oxlint-disable-next-line house/no-raw-button -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
+            <button
+              aria-controls={panelId(mode)}
+              aria-selected={facade.mode === mode}
+              data-state={facade.mode === mode ? "active" : undefined}
+              id={tabId(mode)}
+              key={mode}
+              role="tab"
+              tabIndex={facade.mode === mode ? 0 : -1}
+              type="button"
+              onClick={() => facade.setMode(mode)}
+            >
+              {modeLabel}
+            </button>
+          );
+        })}
       </div>
       <div
         aria-labelledby={tabId(MarkdownTextareaModes.WRITE)}
