@@ -752,6 +752,15 @@ export interface ResolveExpansionRangeParams {
   blocked?: readonly LineRange[];
 }
 
+export const FileRangeResultKinds = {
+  READY: "ready",
+  TOO_LARGE: "too-large",
+  NOT_TEXT: "not-text",
+  NOT_FOUND: "not-found",
+  UNAVAILABLE: "unavailable",
+} as const;
+export type FileRangeResultKind = ValueOf<typeof FileRangeResultKinds>;
+
 /** A slice of the file at the head ref, as the file-range read returns it. */
 export interface FileRangeSlice {
   from: number;

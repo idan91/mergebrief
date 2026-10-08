@@ -18,19 +18,13 @@ import type {
   SessionAttentionItem,
 } from "../session/attention";
 import { AttentionItemKinds } from "../session/attention";
+import { UnresolvedItemKinds, type UnresolvedItemKind } from "./types";
 
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind =
   | "linked-comment"
   | "chunk-reviewed"
   | "manual-note";
-export type UnresolvedItemKind =
-  | "open-risk"
-  | "missing-evidence"
-  | "unreviewed-core"
-  | "unreviewed-remainder"
-  | "draft-comment"
-  | "thin-dismissal";
 
 /**
  * @description A batch of flags a dismiss modal is open FOR, with its display
@@ -141,7 +135,7 @@ export function deriveUnresolvedItems(
     if (disposition.kind === "open") {
       items.push({
         id: `risk:${flag.id}`,
-        kind: "open-risk",
+        kind: UnresolvedItemKinds.OPEN_RISK,
         label,
         targetId: flag.chunkId,
       });
@@ -150,7 +144,7 @@ export function deriveUnresolvedItems(
     if (disposition.kind === "addressed" && !disposition.evidence) {
       items.push({
         id: `evidence:${flag.id}`,
-        kind: "missing-evidence",
+        kind: UnresolvedItemKinds.MISSING_EVIDENCE,
         label,
         targetId: flag.chunkId,
       });
@@ -159,7 +153,7 @@ export function deriveUnresolvedItems(
     if (disposition.kind === "dismissed" && isThinReason(disposition.reason)) {
       items.push({
         id: `dismissal:${flag.id}`,
-        kind: "thin-dismissal",
+        kind: UnresolvedItemKinds.THIN_DISMISSAL,
         label,
         targetId: flag.chunkId,
       });
@@ -173,7 +167,7 @@ export function deriveUnresolvedItems(
     if (chunk.role === Roles.CORE && !input.reviewedChunkIds.has(chunk.id)) {
       items.push({
         id: `core:${chunk.id}`,
-        kind: "unreviewed-core",
+        kind: UnresolvedItemKinds.UNREVIEWED_CORE,
         label: chunk.file,
         targetId: chunk.id,
       });
@@ -186,7 +180,7 @@ export function deriveUnresolvedItems(
     }
     items.push({
       id: `remainder:${chunk.id}`,
-      kind: "unreviewed-remainder",
+      kind: UnresolvedItemKinds.UNREVIEWED_REMAINDER,
       label: chunk.file,
       targetId: chunk.id,
     });
@@ -196,7 +190,7 @@ export function deriveUnresolvedItems(
     if (comment.status === ReviewCommentStatuses.DRAFT) {
       items.push({
         id: `comment:${comment.id}`,
-        kind: "draft-comment",
+        kind: UnresolvedItemKinds.DRAFT_COMMENT,
         label: commentLocation(comment),
         targetId: resolveJumpChunkId(comment, input.chunks),
       });

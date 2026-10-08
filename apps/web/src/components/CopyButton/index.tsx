@@ -5,8 +5,7 @@ import { Icon } from "../Icon";
 import { type IconName, IconNames, IconSizes } from "../Icon/types";
 import { IconButton } from "../IconButton";
 import styles from "./CopyButton.module.scss";
-
-type CopyState = "idle" | "copied" | "failed";
+import { CopyStates, type CopyState } from "./types";
 
 export interface CopyButtonProps {
   /** The text written to the clipboard, or a resolver run at click time. */
@@ -41,12 +40,12 @@ export function CopyButton({
   className,
 }: CopyButtonProps) {
   const { t } = useTranslation();
-  const [state, setState] = useState<CopyState>("idle");
+  const [state, setState] = useState<CopyState>(CopyStates.IDLE);
   const resetTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(resetTimer.current), []);
 
   const copy = async () => {
-    let next: CopyState = "copied";
+    let next: CopyState = CopyStates.COPIED;
     const resolved = typeof text === "function" ? text() : text;
     try {
       await navigator.clipboard.writeText(resolved);
@@ -54,23 +53,26 @@ export function CopyButton({
     } catch {
       // Clipboard denied or insecure context, surfaced via the button's
       // own state, nothing else to recover.
-      next = "failed";
+      next = CopyStates.FAILED;
     }
     setState(next);
     window.clearTimeout(resetTimer.current);
-    resetTimer.current = window.setTimeout(() => setState("idle"), 1600);
+    resetTimer.current = window.setTimeout(
+      () => setState(CopyStates.IDLE),
+      1600,
+    );
   };
 
   const announcementByState: Record<CopyState, string> = {
-    idle: "",
-    copied: t("shell.copied"),
-    failed: t("shell.copyFailed"),
+    [CopyStates.IDLE]: "",
+    [CopyStates.COPIED]: t("shell.copied"),
+    [CopyStates.FAILED]: t("shell.copyFailed"),
   };
   const announcement = announcementByState[state];
   const feedbackIconByState: Record<CopyState, IconName | undefined> = {
-    idle: undefined,
-    copied: IconNames.CHECK,
-    failed: IconNames.X,
+    [CopyStates.IDLE]: undefined,
+    [CopyStates.COPIED]: IconNames.CHECK,
+    [CopyStates.FAILED]: IconNames.X,
   };
   const feedbackIcon = feedbackIconByState[state];
   const resting = content ?? <Icon name={icon} size={IconSizes.SM} />;

@@ -5,6 +5,7 @@ import type { ValueOf } from "types/utils";
 import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
+import { CompareParams } from "../../../comparison/types";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
 import {
@@ -150,7 +151,7 @@ export function ReadingToolbar({
         {comparison.available && comparison.runCount > 0 ? (
           <span
             aria-label={
-              comparison.compare === "last-review"
+              comparison.compare === CompareParams.LAST_REVIEW
                 ? t("brief.toolbar.ariaLabelChangeStepperLastReview")
                 : t("brief.toolbar.ariaLabelChangeStepperRevision")
             }

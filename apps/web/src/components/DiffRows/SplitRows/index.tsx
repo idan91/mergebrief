@@ -1,6 +1,11 @@
 import { Fragment, type KeyboardEvent, type ReactNode } from "react";
 
-import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
+import {
+  type DiffLine,
+  type HunkSideName,
+  HunkSideNames,
+  type RowTokenMap,
+} from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "../DiffCodeText";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { pairSplitRows } from "../pairSplitRows";
@@ -13,7 +18,6 @@ import {
   type DiffRowSlot,
   type DiffUnderRowSlot,
   type EmphasisByRow,
-  type LineSide,
   NumberCellStates,
   type SplitCell,
   type SplitRow,
@@ -242,7 +246,8 @@ function SideCells({
   }
 
   const { line, index } = cell;
-  const lineSide: LineSide = side === SplitSides.LEFT ? "old" : "new";
+  const lineSide: HunkSideName =
+    side === SplitSides.LEFT ? HunkSideNames.OLD : HunkSideNames.NEW;
   const number = side === SplitSides.LEFT ? line.oldLine : line.newLine;
   const numberContent = lineNumberContent?.(line, index, lineSide);
   const selected = attributes.selected ? "" : undefined;

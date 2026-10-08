@@ -1,8 +1,13 @@
 import { useState } from "react";
 
-import type { ExpandableEdge, ExpanderStep, LineRange } from "../types";
+import {
+  FileRangeResultKinds,
+  type ExpandableEdge,
+  type ExpanderStep,
+  type FileRangeResultKind,
+  type LineRange,
+} from "../types";
 import { resolveExpanderStep } from "../utils/expansionState";
-import type { FileRangeResult } from "../queries";
 import { isExpansionCovered } from "../utils/expansion-rows";
 import { useFileRangeReader } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
@@ -10,7 +15,10 @@ import { useExpansionActions } from "./useExpansion";
 import { useFileRows } from "./useFileRows";
 
 /** Why an edge cannot expand; the file-range read's refusals, curated. */
-export type ExpandFailure = Exclude<FileRangeResult["kind"], "ready">;
+export type ExpandFailure = Exclude<
+  FileRangeResultKind,
+  typeof FileRangeResultKinds.READY
+>;
 
 export interface UseExpandEdgeInput {
   edge: ExpandableEdge;
@@ -66,7 +74,7 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
       if (result === undefined) {
         return false;
       }
-      if (result.kind !== "ready") {
+      if (result.kind !== FileRangeResultKinds.READY) {
         setFailure(result.kind);
         return false;
       }
@@ -82,7 +90,7 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
     } catch (error) {
       // A thrown read (5xx, network, malformed body) is the same "not now".
       console.error(error);
-      setFailure("unavailable");
+      setFailure(FileRangeResultKinds.UNAVAILABLE);
       return false;
     } finally {
       setBusy(false);

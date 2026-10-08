@@ -1,7 +1,7 @@
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import type { LineRange } from "../types";
+import { FileRangeResultKinds, type LineRange } from "../types";
 import {
   buildFileRangeQueryOptions,
   isFileRangeReadable,
@@ -85,7 +85,7 @@ function combineFileRanges(
 
   for (const result of results) {
     const data = result.data;
-    if (data?.kind !== "ready") {
+    if (data?.kind !== FileRangeResultKinds.READY) {
       continue;
     }
     data.range.lines.forEach((content, offset) => {

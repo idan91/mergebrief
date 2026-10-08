@@ -8,6 +8,7 @@ import { Button } from "@web/components/Button";
 import { RowButton } from "@web/components/RowButton";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { type UnresolvedItem } from "../../utils/state";
+import { UnresolvedItemKinds } from "../../utils/types";
 import styles from "./SubmitModal.module.scss";
 
 export interface AdvisoryViewProps {
@@ -60,12 +61,15 @@ function unresolvedKindLabel(
   kind: UnresolvedItem["kind"],
 ): string {
   const keys: Record<UnresolvedItem["kind"], TranslationKey> = {
-    "open-risk": "review.submit.blockerOpenRisk",
-    "missing-evidence": "review.submit.blockerMissingEvidence",
-    "unreviewed-core": "review.submit.blockerUnreviewedCore",
-    "unreviewed-remainder": "review.submit.blockerUnreviewedRemainder",
-    "draft-comment": "review.submit.blockerDraftComment",
-    "thin-dismissal": "review.submit.blockerThinDismissal",
+    [UnresolvedItemKinds.OPEN_RISK]: "review.submit.blockerOpenRisk",
+    [UnresolvedItemKinds.MISSING_EVIDENCE]:
+      "review.submit.blockerMissingEvidence",
+    [UnresolvedItemKinds.UNREVIEWED_CORE]:
+      "review.submit.blockerUnreviewedCore",
+    [UnresolvedItemKinds.UNREVIEWED_REMAINDER]:
+      "review.submit.blockerUnreviewedRemainder",
+    [UnresolvedItemKinds.DRAFT_COMMENT]: "review.submit.blockerDraftComment",
+    [UnresolvedItemKinds.THIN_DISMISSAL]: "review.submit.blockerThinDismissal",
   };
   return t(keys[kind]);
 }

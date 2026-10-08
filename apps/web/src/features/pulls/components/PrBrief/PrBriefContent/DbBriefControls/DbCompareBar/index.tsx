@@ -7,6 +7,7 @@
 // a single tab stop, and arrow-key movement.
 import { useTranslation } from "react-i18next";
 import {
+  CompareParams,
   compareUnavailableTitle,
   isCompareAvailable,
   withCompare,
@@ -57,28 +58,32 @@ export function DbCompareBar({
   ];
 
   const compareOption = (
-    compare: "last-review" | "previous-brief",
+    compare: Exclude<CompareParam, typeof CompareParams.OFF>,
     label: string,
   ): SegmentedOption<CompareParam> => {
     if (isCompareAvailable(compare, availability)) {
       return { value: compare, label };
     }
     const reason =
-      (compare === "last-review" ? lastReviewDisabledReason : undefined) ??
-      compareUnavailableTitle(t, compare);
+      (compare === CompareParams.LAST_REVIEW
+        ? lastReviewDisabledReason
+        : undefined) ?? compareUnavailableTitle(t, compare);
     return { value: compare, label, unavailableReason: reason };
   };
 
   const compareOptions: SegmentedOption<CompareParam>[] = [
-    compareOption("last-review", t("pulls.compare.lastReview")),
-    compareOption("previous-brief", t("pulls.compare.previousBrief")),
+    compareOption(CompareParams.LAST_REVIEW, t("pulls.compare.lastReview")),
+    compareOption(
+      CompareParams.PREVIOUS_BRIEF,
+      t("pulls.compare.previousBrief"),
+    ),
     compareState.view === "changes"
       ? {
-          value: "off",
+          value: CompareParams.OFF,
           label: t("pulls.compare.off"),
           unavailableReason: t("pulls.compare.offOnlyFull"),
         }
-      : { value: "off", label: t("pulls.compare.off") },
+      : { value: CompareParams.OFF, label: t("pulls.compare.off") },
   ];
 
   return (
@@ -100,7 +105,7 @@ export function DbCompareBar({
         }}
         options={compareOptions}
         showLegend
-        value={compareState.compare ?? "off"}
+        value={compareState.compare ?? CompareParams.OFF}
       />
     </nav>
   );

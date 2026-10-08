@@ -1,6 +1,10 @@
 import type { TFunction } from "i18next";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
-import type { LineSide } from "@web/components/DiffRows/types";
+import {
+  type DiffLine,
+  DiffLineKinds,
+  type HunkSideName,
+  HunkSideNames,
+} from "@web/utils/diffTokens/types";
 
 import type { BriefChunk, LineRange } from "../types";
 import { GroupViewKinds, isUnattributedRemainderChunk } from "./remainder";
@@ -9,7 +13,7 @@ import type { BriefViewModel } from "./viewModel";
 
 /** One line of a file by side, where a jump lands inside a chunk. */
 export interface LineTarget {
-  side: LineSide;
+  side: HunkSideName;
   line: number;
 }
 
@@ -76,8 +80,9 @@ export function resolveSpanOwner(
   index: FileLineOwners,
   line: DiffLine,
 ): SpanOwner | undefined {
-  const side: LineSide = line.kind === DiffLineKinds.DEL ? "old" : "new";
-  const number = side === "old" ? line.oldLine : line.newLine;
+  const side: HunkSideName =
+    line.kind === DiffLineKinds.DEL ? HunkSideNames.OLD : HunkSideNames.NEW;
+  const number = side === HunkSideNames.OLD ? line.oldLine : line.newLine;
   if (number === undefined) {
     return undefined;
   }
@@ -94,7 +99,7 @@ export function resolveSpanOwner(
  * line; the narrowest range wins, which is the more specific claim.
  */
 export function resolveLineOwner(
-  side: LineSide,
+  side: HunkSideName,
   line: number,
   chunks: readonly BriefChunk[],
 ): BriefChunk | undefined {
@@ -103,7 +108,8 @@ export function resolveLineOwner(
   let ownerWidth = Number.POSITIVE_INFINITY;
 
   for (const chunk of chunks) {
-    const ranges = side === "new" ? chunk.addedRanges : chunk.removedRanges;
+    const ranges =
+      side === HunkSideNames.NEW ? chunk.addedRanges : chunk.removedRanges;
     const width = resolveHoldingWidth(ranges, line);
     if (width === undefined) {
       continue;

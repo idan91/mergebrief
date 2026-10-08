@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { ProductActionIds } from "contract";
+
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {
   getChunkRegions,
@@ -77,7 +79,7 @@ export function useCarryOver({
   // Exhaustive by construction: a new clearing operation the server can send
   // fails to compile here rather than falling through to a wrong one.
   const runners: Record<AttentionActionId, (item: CarriedItem) => void> = {
-    "delete-draft-comment": (item) => {
+    [ProductActionIds.DELETE_DRAFT_COMMENT]: (item) => {
       // An unplaceable draft was never resolved into the store, so the
       // ordinary delete would find nothing to act on and write nothing.
       if (item.unplaceable) {
@@ -87,19 +89,19 @@ export function useCarryOver({
       flowActions.cancelComposer();
       sessionActions.deleteComment(item.actionTargetId);
     },
-    "reanchor-draft-comment": (item) => {
+    [ProductActionIds.REANCHOR_DRAFT_COMMENT]: (item) => {
       flowActions.startReanchor(item.actionTargetId, composerDisabledReason);
       if (armedDraftId !== item.actionTargetId) {
         jumpToItem(item);
       }
     },
-    "address-risk": (item) => {
+    [ProductActionIds.ADDRESS_RISK]: (item) => {
       flowActions.setEvidenceTarget({
         flagIds: [item.actionTargetId],
         label: item.label,
       });
     },
-    "dismiss-risk": (item) => {
+    [ProductActionIds.DISMISS_RISK]: (item) => {
       flowActions.setDismissTarget({
         flagIds: [item.actionTargetId],
         label: item.label,

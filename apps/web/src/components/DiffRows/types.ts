@@ -2,6 +2,7 @@ import type { ValueOf } from "types/utils";
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
 import type {
   DiffLine,
+  HunkSideName,
   RowToken,
   RowTokenMap,
 } from "@web/utils/diffTokens/types";
@@ -11,9 +12,6 @@ export const DiffViews = {
   SPLIT: "split",
 } as const;
 export type DiffView = ValueOf<typeof DiffViews>;
-
-/** Which side of a diff a line number belongs to. */
-export type LineSide = "old" | "new";
 
 export const SplitSides = {
   LEFT: "left",
@@ -54,7 +52,7 @@ export const NumberCellStates = {
 export type DiffNumberCellSlot = (
   row: DiffLine,
   index: number,
-  side: LineSide,
+  side: HunkSideName,
 ) => ReactNode;
 
 /** A whole row of the caller's own: hunk headers and expansion controls. */

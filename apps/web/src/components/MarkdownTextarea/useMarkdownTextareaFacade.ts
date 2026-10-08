@@ -21,6 +21,7 @@ import {
 } from "./utils";
 import type { ToolbarIconKey } from "./icons";
 import {
+  AttachDisabledReasons,
   MarkdownTextareaModes,
   type AttachDisabledReason,
   type MarkdownTextareaMode,
@@ -82,10 +83,10 @@ export interface MarkdownTextareaFacadeArgs {
 }
 
 const ATTACH_DISABLED_TITLE_KEYS = {
-  "no-scope": "shell.attach.noScope",
-  "not-installed": "shell.attach.notInstalled",
-  refused: "shell.attach.refused",
-  "no-permission": "shell.attach.noPermission",
+  [AttachDisabledReasons.NO_SCOPE]: "shell.attach.noScope",
+  [AttachDisabledReasons.NOT_INSTALLED]: "shell.attach.notInstalled",
+  [AttachDisabledReasons.REFUSED]: "shell.attach.refused",
+  [AttachDisabledReasons.NO_PERMISSION]: "shell.attach.noPermission",
 } as const satisfies Record<AttachDisabledReason, string>;
 
 function readCommonPrefixLength(left: string, right: string): number {

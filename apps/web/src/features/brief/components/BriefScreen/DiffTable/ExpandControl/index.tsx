@@ -8,6 +8,7 @@ import {
   type ExpandableEdge,
   type ExpanderStep,
   ExpansionDirections,
+  FileRangeResultKinds,
   type LineRange,
 } from "../../../../types";
 import { resolveReachableLines } from "../../../../utils/expansionState";
@@ -63,10 +64,10 @@ const NO_EDGE: ExpandableEdge = {
 };
 
 const FAILURE_KEYS: Record<ExpandFailure, TranslationKey> = {
-  "too-large": "brief.diff.expandTooLarge",
-  "not-text": "brief.diff.expandNotText",
-  "not-found": "brief.diff.expandNotFound",
-  unavailable: "brief.diff.expandUnavailable",
+  [FileRangeResultKinds.TOO_LARGE]: "brief.diff.expandTooLarge",
+  [FileRangeResultKinds.NOT_TEXT]: "brief.diff.expandNotText",
+  [FileRangeResultKinds.NOT_FOUND]: "brief.diff.expandNotFound",
+  [FileRangeResultKinds.UNAVAILABLE]: "brief.diff.expandUnavailable",
 };
 
 /**

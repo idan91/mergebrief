@@ -1,13 +1,16 @@
 // Where a line link lands, decided from the brief's own data before anything
 // scrolls: the chunk it names, the row to find, and the hunk-edge read that
 // brings a folded line into the rows.
-import type { LineSide } from "@web/components/DiffRows/types";
 import {
   CommentSides,
   type LineLinkTarget,
   rowId,
 } from "@web/features/review/utils";
-import type { DiffLine } from "@web/utils/diffTokens/types";
+import {
+  type DiffLine,
+  type HunkSideName,
+  HunkSideNames,
+} from "@web/utils/diffTokens/types";
 import {
   type BriefChunk,
   type ExpansionGap,
@@ -22,29 +25,36 @@ interface GapMatch {
   newLines: number[];
 }
 
-function resolveLineSide(side: LineLinkTarget["side"]): LineSide {
-  return side === CommentSides.OLD ? "old" : "new";
+function resolveLineSide(side: LineLinkTarget["side"]): HunkSideName {
+  return side === CommentSides.OLD ? HunkSideNames.OLD : HunkSideNames.NEW;
 }
 
-function resolveLineOnSide(row: DiffLine, side: LineSide): number | undefined {
-  return side === "old" ? row.oldLine : row.newLine;
+function resolveLineOnSide(
+  row: DiffLine,
+  side: HunkSideName,
+): number | undefined {
+  return side === HunkSideNames.OLD ? row.oldLine : row.newLine;
 }
 
-function showsLine(rows: readonly DiffLine[], side: LineSide, line: number) {
+function showsLine(
+  rows: readonly DiffLine[],
+  side: HunkSideName,
+  line: number,
+) {
   return rows.some((row) => resolveLineOnSide(row, side) === line);
 }
 
 /** The gap holding every folded line, measured on the new side; old lines map through the edge's offset. */
 function resolveGapForLines(
   gaps: readonly ExpansionGap[],
-  side: LineSide,
+  side: HunkSideName,
   lines: readonly number[],
 ): GapMatch | undefined {
   let best: (GapMatch & { distance: number }) | undefined;
 
   for (const gap of gaps) {
     const newLines = lines.map((line) =>
-      side === "old" ? line - gap.offset : line,
+      side === HunkSideNames.OLD ? line - gap.offset : line,
     );
     const inside = newLines.every(
       (newLine) =>

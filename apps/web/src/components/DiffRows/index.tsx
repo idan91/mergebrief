@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { HunkSideNames } from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "./DiffCodeText";
 import { SplitRows } from "./SplitRows";
 import { type DiffRowsProps, DiffViews, NumberCellStates } from "./types";
@@ -78,8 +79,8 @@ export function DiffRows({
         }
         const attributes = rowAttributes?.(row, index) ?? {};
 
-        const oldContent = lineNumberContent?.(row, index, "old");
-        const newContent = lineNumberContent?.(row, index, "new");
+        const oldContent = lineNumberContent?.(row, index, HunkSideNames.OLD);
+        const newContent = lineNumberContent?.(row, index, HunkSideNames.NEW);
 
         return (
           <Fragment key={key}>

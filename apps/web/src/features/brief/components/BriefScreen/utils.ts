@@ -14,7 +14,7 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
-import type { CompareParam } from "../../comparison/compareState";
+import { CompareParams, type CompareParam } from "../../comparison/types";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
   buildChunkComparisonView,
@@ -195,19 +195,21 @@ export function resolveLocalComparisonIds(
   comparisons: ComparisonAvailability | undefined,
 ): LocalComparisonIds {
   const marksIdByCompare: Record<CompareParam, string | undefined> = {
-    "previous-brief": comparisons?.previousBrief?.marksId,
-    "last-review": comparisons?.lastReview?.marksId,
-    off: undefined,
+    [CompareParams.PREVIOUS_BRIEF]: comparisons?.previousBrief?.marksId,
+    [CompareParams.LAST_REVIEW]: comparisons?.lastReview?.marksId,
+    [CompareParams.OFF]: undefined,
   };
 
   return {
     marksId: marksIdByCompare[compare],
     narrativeId:
-      compare === "previous-brief"
+      compare === CompareParams.PREVIOUS_BRIEF
         ? comparisons?.previousBrief?.narrativeId
         : undefined,
     deltaId:
-      compare === "last-review" ? comparisons?.lastReview?.deltaId : undefined,
+      compare === CompareParams.LAST_REVIEW
+        ? comparisons?.lastReview?.deltaId
+        : undefined,
   };
 }
 

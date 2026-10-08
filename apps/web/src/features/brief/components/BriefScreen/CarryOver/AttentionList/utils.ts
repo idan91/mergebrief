@@ -59,7 +59,7 @@ export function getActionCopyKey(
   action: AttentionActionId,
   armed: boolean,
 ): TranslationKey {
-  if (action === "reanchor-draft-comment" && armed) {
+  if (action === ProductActionIds.REANCHOR_DRAFT_COMMENT && armed) {
     return "brief.carryOver.actionReanchorArmed";
   }
   return ATTENTION_ACTION_COPY[action];

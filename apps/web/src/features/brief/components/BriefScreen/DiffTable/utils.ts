@@ -21,9 +21,13 @@ import {
   type DiffRowView,
 } from "./diffRowView";
 import type { BriefChunk, GuestRowReason } from "../../../types";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
-  type LineSide,
+  type DiffLine,
+  DiffLineKinds,
+  type HunkSideName,
+  HunkSideNames,
+} from "@web/utils/diffTokens/types";
+import {
   type SplitCell,
   type SplitRow,
   type SplitSide,
@@ -155,7 +159,11 @@ export function resolveSelectionGlyph(
   }
   const startSide = selection.startSide ?? selection.side;
 
-  return { index: first, side: startSide === CommentSides.OLD ? "old" : "new" };
+  return {
+    index: first,
+    side:
+      startSide === CommentSides.OLD ? HunkSideNames.OLD : HunkSideNames.NEW,
+  };
 }
 
 /** The side a range sits on; absent for a range that crosses. */
@@ -819,7 +827,7 @@ function sharesOwner(
 }
 
 export interface SpanLines {
-  side: LineSide;
+  side: HunkSideName;
   from: number;
   to: number;
 }
@@ -840,9 +848,10 @@ export function resolveSpanLines(
       (row) => row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.DEL,
     );
   const adds = changed.filter((row) => row.kind === DiffLineKinds.ADD);
-  const side: LineSide = adds.length > 0 ? "new" : "old";
+  const side: HunkSideName =
+    adds.length > 0 ? HunkSideNames.NEW : HunkSideNames.OLD;
   const numbers = (adds.length > 0 ? adds : changed).map((row) =>
-    side === "new" ? row.newLine : row.oldLine,
+    side === HunkSideNames.NEW ? row.newLine : row.oldLine,
   );
 
   return { side, from: numbers[0] ?? 0, to: numbers.at(-1) ?? 0 };

@@ -17,6 +17,7 @@ import { buildFileRangeQueryOptions, isFileRangeReadable } from "../../queries";
 import {
   type BriefChunk,
   ExpansionDirections,
+  FileRangeResultKinds,
   type LineRange,
 } from "../../types";
 import { isExpansionCovered } from "../../utils/expansion-rows";
@@ -178,7 +179,7 @@ export function useLineLinkLanding(
         const result = await queryClient.fetchQuery(
           buildFileRangeQueryOptions(params),
         );
-        if (result.kind !== "ready") {
+        if (result.kind !== FileRangeResultKinds.READY) {
           return LineReadOutcomes.UNAVAILABLE;
         }
         // The source clamps to the file's end: a line past it is not there.

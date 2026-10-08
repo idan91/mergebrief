@@ -54,3 +54,13 @@ export type SubmitReviewResult =
   | { kind: typeof SubmitReviewResultKinds.PUBLISH_PENDING }
   /** 409, a comment in the review may already be on GitHub; settle it first. */
   | { kind: typeof SubmitReviewResultKinds.PUBLISH_IN_DOUBT };
+
+export const UnresolvedItemKinds = {
+  OPEN_RISK: "open-risk",
+  MISSING_EVIDENCE: "missing-evidence",
+  UNREVIEWED_CORE: "unreviewed-core",
+  UNREVIEWED_REMAINDER: "unreviewed-remainder",
+  DRAFT_COMMENT: "draft-comment",
+  THIN_DISMISSAL: "thin-dismissal",
+} as const;
+export type UnresolvedItemKind = ValueOf<typeof UnresolvedItemKinds>;

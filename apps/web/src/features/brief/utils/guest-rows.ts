@@ -1,6 +1,10 @@
-import type { LineSide } from "@web/components/DiffRows/types";
 import { resolveChunkForLine } from "@web/features/review/utils";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import {
+  type DiffLine,
+  DiffLineKinds,
+  type HunkSideName,
+  HunkSideNames,
+} from "@web/utils/diffTokens/types";
 
 import {
   GuestHostPrefixes,
@@ -31,7 +35,7 @@ export interface GuestRowsInput {
 export interface CommentableGuestRow {
   commentable: true;
   chunkId: string;
-  side: LineSide;
+  side: HunkSideName;
   line: number;
 }
 
@@ -42,7 +46,7 @@ export interface InertGuestRow {
 
 export type GuestRowResolution = CommentableGuestRow | InertGuestRow;
 
-const NEW_SIDE: LineSide = "new";
+const NEW_SIDE: HunkSideName = HunkSideNames.NEW;
 
 function refuse(reason: GuestRowReason): InertGuestRow {
   return { commentable: false, reason };

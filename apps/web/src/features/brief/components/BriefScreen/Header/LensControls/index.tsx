@@ -7,10 +7,10 @@ import {
   withCompare,
   withView,
   type BriefSearch,
-  type CompareParam,
   type CompareOptionFlags,
   type ViewParam,
 } from "../../../../comparison/compareState";
+import { CompareParams, type CompareParam } from "../../../../comparison/types";
 import {
   SegmentedControl,
   SegmentedDensities,
@@ -60,7 +60,7 @@ export function LensControls({
         keepLink(prev, withView(compareState, view, availability)),
     });
   const compareOption = (
-    compare: "last-review" | "previous-brief",
+    compare: Exclude<CompareParam, typeof CompareParams.OFF>,
     label: string,
   ): SegmentedOption<CompareParam> =>
     isCompareAvailable(compare, availability)
@@ -85,14 +85,17 @@ export function LensControls({
   const offOption: SegmentedOption<CompareParam> =
     compareState.view === "changes"
       ? {
-          value: "off",
+          value: CompareParams.OFF,
           label: t("brief.timeline.off"),
           unavailableReason: t("brief.timeline.offOnlyFull"),
         }
-      : { value: "off", label: t("brief.timeline.off") };
+      : { value: CompareParams.OFF, label: t("brief.timeline.off") };
   const compareOptions: SegmentedOption<CompareParam>[] = [
-    compareOption("last-review", t("brief.timeline.lastReview")),
-    compareOption("previous-brief", t("brief.timeline.previousBrief")),
+    compareOption(CompareParams.LAST_REVIEW, t("brief.timeline.lastReview")),
+    compareOption(
+      CompareParams.PREVIOUS_BRIEF,
+      t("brief.timeline.previousBrief"),
+    ),
     offOption,
   ];
 
@@ -115,7 +118,7 @@ export function LensControls({
         onChange={selectCompare}
         options={compareOptions}
         showLegend
-        value={compareState.compare ?? "off"}
+        value={compareState.compare ?? CompareParams.OFF}
       />
     </div>
   );

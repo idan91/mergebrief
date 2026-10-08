@@ -1,6 +1,6 @@
 import { WaitReasons, type WaitReason } from "contract";
 import type { TranslationKey } from "i18n";
-import type { GenerationPhase } from "types/generations";
+import { GenerationPhases, type GenerationPhase } from "types/generations";
 
 export const WAIT_REASON_KEYS: Record<WaitReason, TranslationKey> = {
   [WaitReasons.DEBOUNCING]: "pulls.wait.debouncing",
@@ -9,10 +9,10 @@ export const WAIT_REASON_KEYS: Record<WaitReason, TranslationKey> = {
 
 /** Exhaustive over the stored vocabulary: a new phase fails this typecheck until it has a line. */
 const PHASE_KEY_BY_PHASE: Record<GenerationPhase, TranslationKey> = {
-  fetching: "pulls.wait.phase.fetching",
-  redacting: "pulls.wait.phase.redacting",
-  generating: "pulls.wait.phase.generating",
-  writing: "pulls.wait.phase.writing",
+  [GenerationPhases.FETCHING]: "pulls.wait.phase.fetching",
+  [GenerationPhases.REDACTING]: "pulls.wait.phase.redacting",
+  [GenerationPhases.GENERATING]: "pulls.wait.phase.generating",
+  [GenerationPhases.WRITING]: "pulls.wait.phase.writing",
 };
 
 /** Read through a Map: the wire phase is an open string, and a Record would answer `constructor`. */

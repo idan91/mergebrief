@@ -32,6 +32,7 @@ import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView";
 import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
 import { buildLineOwnersByFile } from "../../utils/lineOwner";
+import { CompareParams } from "../../comparison/types";
 import type { ChangesReviewWiring } from "./ChangesOnlyView/types";
 import { SummarySection } from "./SummarySection";
 import { ReadingPositionProvider } from "./readingPosition";
@@ -380,9 +381,10 @@ export function BriefScreen({
                             <ChangesOnlyView
                               key={`changes-${briefId}`}
                               compare={
-                                overlay.activeCompare === "last-review"
-                                  ? "last-review"
-                                  : "previous-brief"
+                                overlay.activeCompare ===
+                                CompareParams.LAST_REVIEW
+                                  ? CompareParams.LAST_REVIEW
+                                  : CompareParams.PREVIOUS_BRIEF
                               }
                               brief={brief}
                               model={model}

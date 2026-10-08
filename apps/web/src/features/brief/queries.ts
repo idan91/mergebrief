@@ -23,6 +23,7 @@ import {
   getLocalRevisionChanges,
   getLocalRevisionNarrative,
 } from "./server/brief.functions";
+import { FileRangeResultKinds } from "./types";
 
 function stringField(value: unknown, key: string): string | undefined {
   if (typeof value !== "object" || value === null) {
@@ -153,15 +154,18 @@ export interface FileRangeParams {
 }
 
 export type FileRangeResult =
-  | { readonly kind: "ready"; readonly range: FileRangeView }
+  | {
+      readonly kind: typeof FileRangeResultKinds.READY;
+      readonly range: FileRangeView;
+    }
   /** `file-too-large`: past the expander's budget; the edge stays folded. */
-  | { readonly kind: "too-large" }
+  | { readonly kind: typeof FileRangeResultKinds.TOO_LARGE }
   /** `file-not-text`: binary or non-utf8, there is nothing to show as lines. */
-  | { readonly kind: "not-text" }
+  | { readonly kind: typeof FileRangeResultKinds.NOT_TEXT }
   /** `file-not-found`: the path is gone at this commit (or never existed). */
-  | { readonly kind: "not-found" }
+  | { readonly kind: typeof FileRangeResultKinds.NOT_FOUND }
   /** Any other refusal: auth, upstream, or a 400 this build cannot name. */
-  | { readonly kind: "unavailable" };
+  | { readonly kind: typeof FileRangeResultKinds.UNAVAILABLE };
 
 export function buildFileRangeQueryKey(params: FileRangeParams) {
   return [
@@ -197,7 +201,7 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
       if (!parsed.success) {
         throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
       }
-      return { kind: "ready", range: parsed.data };
+      return { kind: FileRangeResultKinds.READY, range: parsed.data };
     },
     // Never collected: a range refetched after eviction would render its
     // rows blank while the read is in flight.
@@ -233,14 +237,19 @@ function buildFileRangePath(params: FileRangeParams): string {
 }
 
 /** Every refusal this read answers with a reader-facing state of its own. */
-type FileRangeFailure = Exclude<FileRangeResult, { readonly kind: "ready" }>;
+type FileRangeFailure = Exclude<
+  FileRangeResult,
+  { readonly kind: typeof FileRangeResultKinds.READY }
+>;
 
-const UNAVAILABLE: FileRangeFailure = { kind: "unavailable" };
+const UNAVAILABLE: FileRangeFailure = {
+  kind: FileRangeResultKinds.UNAVAILABLE,
+};
 
 const FILE_RANGE_FAILURES: Partial<Record<ApiErrorCode, FileRangeFailure>> = {
-  [ApiErrorCodes.FILE_TOO_LARGE]: { kind: "too-large" },
-  [ApiErrorCodes.FILE_NOT_TEXT]: { kind: "not-text" },
-  [ApiErrorCodes.FILE_NOT_FOUND]: { kind: "not-found" },
+  [ApiErrorCodes.FILE_TOO_LARGE]: { kind: FileRangeResultKinds.TOO_LARGE },
+  [ApiErrorCodes.FILE_NOT_TEXT]: { kind: FileRangeResultKinds.NOT_TEXT },
+  [ApiErrorCodes.FILE_NOT_FOUND]: { kind: FileRangeResultKinds.NOT_FOUND },
 };
 
 /**

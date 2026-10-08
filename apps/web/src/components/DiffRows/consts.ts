@@ -1,5 +1,9 @@
-import { DiffRowOrigins } from "@web/utils/diffTokens/types";
-import type { LineSide, PairedEmphasis } from "./types";
+import {
+  DiffRowOrigins,
+  type HunkSideName,
+  HunkSideNames,
+} from "@web/utils/diffTokens/types";
+import type { PairedEmphasis } from "./types";
 
 /** Past this many tokens on a side the whole line is the change; no emphasis. */
 export const INTRA_LINE_TOKEN_CAP = 200;
@@ -26,7 +30,7 @@ export const EXPANDED_ROW_SELECTOR = `tr${EXPANDED_ORIGIN_SELECTOR}`;
 export const EXPANDED_RIGHT_NUMBER_SELECTOR = `td[data-side="right"]${EXPANDED_ORIGIN_SELECTOR}[data-line-number]`;
 
 /** The line a number cell shows per side; read back only by `buildLineCellSelector`. */
-export const LINE_ATTRIBUTES: Record<LineSide, string> = {
-  old: "data-line-old",
-  new: "data-line-new",
+export const LINE_ATTRIBUTES: Record<HunkSideName, string> = {
+  [HunkSideNames.OLD]: "data-line-old",
+  [HunkSideNames.NEW]: "data-line-new",
 };

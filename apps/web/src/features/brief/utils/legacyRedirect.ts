@@ -1,4 +1,5 @@
 import type { BriefSearch } from "../comparison/compareState";
+import { CompareParams } from "../comparison/types";
 import type { LocalBriefSummary } from "../types";
 
 export interface LegacyDeltaRedirect {
@@ -40,6 +41,6 @@ export function resolveLegacyDeltaRedirect(
 
   return {
     briefId: headBrief.id,
-    search: { view: "changes", compare: "last-review" },
+    search: { view: "changes", compare: CompareParams.LAST_REVIEW },
   };
 }

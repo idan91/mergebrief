@@ -1,4 +1,4 @@
-import type { CompareParam } from "./compareState";
+import type { CompareParam } from "./types";
 import type { ComparisonMarkFiles, ComparisonSource } from "./runs";
 import type { RevisionNarrativeSkipReason } from "../types";
 

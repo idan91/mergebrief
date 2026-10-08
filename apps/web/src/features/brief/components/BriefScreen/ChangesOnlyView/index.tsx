@@ -23,6 +23,7 @@ import {
   type RevisionNarrativeSkipReason,
   Roles,
 } from "../../../types";
+import { CompareParams, type CompareParam } from "../../../comparison/types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";
 import type { FileRowsCache } from "../../../utils/fileRows";
 import { DeltaContext } from "../DeltaContext";
@@ -49,7 +50,7 @@ import styles from "./ChangesOnlyView.module.scss";
  */
 export interface ChangesOnlyViewProps {
   /** The active baseline; `off` is normalized away before Changes Only renders. */
-  compare: "previous-brief" | "last-review";
+  compare: Exclude<CompareParam, typeof CompareParams.OFF>;
   /** The full Brief at the selected head, owns the Change-group taxonomy. */
   brief: Brief;
   /** View model for the full Brief (group order, titles, categories). */
@@ -85,7 +86,7 @@ function ignoreJump(): void {
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
   const jumpToChunk = props.jumpToChunk ?? ignoreJump;
   const summary =
-    props.compare === "last-review" ? (
+    props.compare === CompareParams.LAST_REVIEW ? (
       <LastReviewChanges
         brief={props.brief}
         delta={props.delta}

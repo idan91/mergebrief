@@ -10,14 +10,14 @@ import {
   ButtonVariants,
 } from "@web/components/Button";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import type { LineSide } from "@web/components/DiffRows/types";
+import { type HunkSideName, HunkSideNames } from "@web/utils/diffTokens/types";
 import type { LineTarget, SpanOwner } from "../../../../utils/lineOwner";
 import styles from "./SiblingSpanHeader.module.scss";
 
 export interface SiblingSpanHeaderProps {
   owner: SpanOwner;
   /** First and last changed line the span shows, on `side`. */
-  side: LineSide;
+  side: HunkSideName;
   from: number;
   to: number;
   columnCount: number;
@@ -42,7 +42,7 @@ export function SiblingSpanHeader({
     count === 1 ? String(from) : t("brief.diff.siblingSpanRange", { from, to });
   const jumpName = resolveJumpName(t, owner);
   const labelKey =
-    side === "old"
+    side === HunkSideNames.OLD
       ? "brief.diff.siblingSpanGroupRemoved"
       : "brief.diff.siblingSpanGroup";
 

@@ -16,6 +16,6 @@ export {
   type BriefSearch,
   type BriefSearchParams,
   type CompareOptionFlags,
-  type CompareParam,
   type ViewParam,
 } from "./compareState";
+export { CompareParams, type CompareParam } from "./types";

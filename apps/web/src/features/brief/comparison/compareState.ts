@@ -2,6 +2,7 @@ import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import type { BriefTimelinePoint } from "../utils/timeline";
+import { CompareParams, type CompareParam } from "./types";
 
 /**
  * @description The **View** control: `full` renders the whole Brief; `changes`
@@ -9,12 +10,6 @@ import type { BriefTimelinePoint } from "../utils/timeline";
  * Only" axis.
  */
 export type ViewParam = "full" | "changes";
-
-/**
- * @description The **Compare** control. Canonical values match the marks artifact's `baselineLabel` for `previous-brief`;
- * `last-review` is the user-facing name for the `checkpoint` baseline.
- */
-export type CompareParam = "previous-brief" | "last-review" | "off";
 
 export interface BriefSearch {
   view: ViewParam;
@@ -107,9 +102,9 @@ export function buildBriefSearchParams(
 }
 
 export function parseCompareParam(value: unknown): CompareParam | undefined {
-  return value === "previous-brief" ||
-    value === "last-review" ||
-    value === "off"
+  return value === CompareParams.PREVIOUS_BRIEF ||
+    value === CompareParams.LAST_REVIEW ||
+    value === CompareParams.OFF
     ? value
     : undefined;
 }
@@ -132,22 +127,22 @@ export function defaultComparison(
   availability: CompareOptionFlags,
 ): CompareParam {
   if (availability.lastReview) {
-    return "last-review";
+    return CompareParams.LAST_REVIEW;
   }
   if (availability.previousBrief) {
-    return "previous-brief";
+    return CompareParams.PREVIOUS_BRIEF;
   }
-  return "off";
+  return CompareParams.OFF;
 }
 
 function isAvailable(
   compare: CompareParam,
   availability: CompareOptionFlags,
 ): boolean {
-  if (compare === "off") {
+  if (compare === CompareParams.OFF) {
     return true;
   }
-  if (compare === "previous-brief") {
+  if (compare === CompareParams.PREVIOUS_BRIEF) {
     return availability.previousBrief;
   }
   return availability.lastReview;
@@ -163,16 +158,16 @@ export function normalizeBriefSearch(
 ): BriefSearch {
   const compare = isAvailable(search.compare, availability)
     ? search.compare
-    : "off";
+    : CompareParams.OFF;
 
   if (search.view === "full") {
     return { view: "full", compare };
   }
 
   const activeCompare =
-    compare === "off" ? defaultComparison(availability) : compare;
-  if (activeCompare === "off") {
-    return { view: "full", compare: "off" };
+    compare === CompareParams.OFF ? defaultComparison(availability) : compare;
+  if (activeCompare === CompareParams.OFF) {
+    return { view: "full", compare: CompareParams.OFF };
   }
   return { view: "changes", compare: activeCompare };
 }
@@ -188,11 +183,14 @@ export function resolveBriefSearch(
 ): BriefSearch {
   if (params.view === undefined && params.compare === undefined) {
     return availability.lastReview
-      ? { view: "changes", compare: "last-review" }
-      : { view: "full", compare: "off" };
+      ? { view: "changes", compare: CompareParams.LAST_REVIEW }
+      : { view: "full", compare: CompareParams.OFF };
   }
   return normalizeBriefSearch(
-    { view: params.view ?? "full", compare: params.compare ?? "off" },
+    {
+      view: params.view ?? "full",
+      compare: params.compare ?? CompareParams.OFF,
+    },
     availability,
   );
 }
@@ -226,10 +224,10 @@ export function isCompareAvailable(
 /** Short, honest reason a Compare option is disabled. */
 export function compareUnavailableTitle(
   t: TFunction,
-  compare: "previous-brief" | "last-review",
+  compare: Exclude<CompareParam, typeof CompareParams.OFF>,
 ): string {
   return t(
-    compare === "previous-brief"
+    compare === CompareParams.PREVIOUS_BRIEF
       ? PREVIOUS_BRIEF_UNAVAILABLE_TITLE_KEY
       : LAST_REVIEW_UNAVAILABLE_TITLE_KEY,
   );
@@ -270,7 +268,7 @@ export function stripDefaultSearch(
   storedDiff: DiffView,
 ): BriefSearchParams {
   const viewDroppable = params.view === "full";
-  const compareDroppable = params.compare === "off";
+  const compareDroppable = params.compare === CompareParams.OFF;
   const kept: BriefSearchParams = {};
 
   if (params.view !== undefined) {

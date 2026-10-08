@@ -1,6 +1,8 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ProductActionIds } from "contract";
+
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import type { CarriedItem } from "@web/features/review/utils";
@@ -73,7 +75,10 @@ function AttentionRow({
           <Button
             aria-describedby={hintId}
             data-testid={`attention-action-${action}`}
-            disabled={item.unplaceable && action !== "delete-draft-comment"}
+            disabled={
+              item.unplaceable &&
+              action !== ProductActionIds.DELETE_DRAFT_COMMENT
+            }
             key={action}
             onClick={() => runAction(item, action)}
             size="sm"

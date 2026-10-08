@@ -11,8 +11,8 @@ import {
   type BriefSearch,
   type BriefSearchParams,
   type CompareOptionFlags,
-  type CompareParam,
 } from "../../comparison/compareState";
+import { CompareParams, type CompareParam } from "../../comparison/types";
 import type { ComparisonSource } from "../../comparison/runs";
 import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
@@ -160,9 +160,9 @@ export function useComparisonOverlay(
   const planPrevious = comparisonPlan?.previousBrief;
   const planLastReview = comparisonPlan?.lastReview;
   const planSlotByCompare: Record<CompareParam, ActivePlanSlot> = {
-    "previous-brief": planPrevious,
-    "last-review": planLastReview,
-    off: undefined,
+    [CompareParams.PREVIOUS_BRIEF]: planPrevious,
+    [CompareParams.LAST_REVIEW]: planLastReview,
+    [CompareParams.OFF]: undefined,
   };
   const activePlanSlot = planSlotByCompare[activeCompare];
   const planActive =
@@ -190,7 +190,7 @@ export function useComparisonOverlay(
     ...planNarrativeOptions,
     enabled:
       planActive &&
-      activeCompare === "previous-brief" &&
+      activeCompare === CompareParams.PREVIOUS_BRIEF &&
       planPrevious?.narrative !== undefined,
   });
   const narrativeArtifact: RevisionNarrativeArtifact | null =
@@ -228,7 +228,7 @@ export function useComparisonOverlay(
     ...planDeltaOptions,
     enabled:
       planActive &&
-      activeCompare === "last-review" &&
+      activeCompare === CompareParams.LAST_REVIEW &&
       planLastReview?.delta !== undefined,
   });
   // The stored delta core carries no rows: they slice from the span diff,
@@ -240,7 +240,7 @@ export function useComparisonOverlay(
   const spanWanted =
     planActive &&
     compareState.view === "changes" &&
-    activeCompare === "last-review" &&
+    activeCompare === CompareParams.LAST_REVIEW &&
     planLastReview?.rawDiff !== undefined &&
     planSpanOptions.enabled !== false &&
     planDelta.data !== undefined;
@@ -274,7 +274,7 @@ export function useComparisonOverlay(
   const narrativeSpanWanted =
     planActive &&
     compareState.view === "changes" &&
-    activeCompare === "previous-brief" &&
+    activeCompare === CompareParams.PREVIOUS_BRIEF &&
     planPrevious?.rawDiff !== undefined &&
     narrativeSpanOptions.enabled !== false &&
     hasRemovedLines(narrative);
@@ -296,7 +296,7 @@ export function useComparisonOverlay(
   // the queryKey with the active fetch above, so React Query dedupes when
   // Compare = last-review is on.
   const localSinceIds = resolveLocalComparisonIds(
-    "last-review",
+    CompareParams.LAST_REVIEW,
     timeline.selectedPoint?.comparisons,
   );
   const localSinceMarks = useQuery({
@@ -317,7 +317,7 @@ export function useComparisonOverlay(
 
   const comparisonSource: ComparisonSource = useMemo(
     () =>
-      activeCompare === "last-review"
+      activeCompare === CompareParams.LAST_REVIEW
         ? { kind: "last-review", delta }
         : { kind: "previous-brief", brief, narrative },
     [activeCompare, brief, delta, narrative],
@@ -326,7 +326,9 @@ export function useComparisonOverlay(
   const comparison: ComparisonOverlayState = useMemo(() => {
     // The overlay only paints in Full Brief; Changes Only renders its own view.
     const available =
-      compareState.view === "full" && activeCompare !== "off" && Boolean(marks);
+      compareState.view === "full" &&
+      activeCompare !== CompareParams.OFF &&
+      Boolean(marks);
     const effectiveMarks = available ? marks : null;
     return {
       compare: activeCompare,

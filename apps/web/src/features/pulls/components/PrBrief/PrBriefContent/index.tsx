@@ -25,6 +25,7 @@ import {
   type BriefSearch,
   type BriefSearchParams,
   buildBriefSearchParams,
+  CompareParams,
   resolveBriefSearch,
   stripDefaultSearch,
   withCompare,
@@ -236,7 +237,7 @@ export function PrBriefContent({
           buildBriefSearchParams(searchView, searchCompare),
           flags,
         ),
-        "last-review",
+        CompareParams.LAST_REVIEW,
         flags,
       ),
     );
