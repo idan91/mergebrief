@@ -6,7 +6,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
   type ReviewComment,
@@ -20,7 +19,7 @@ import {
 } from "../utils/submit";
 import type { SubmitReviewResult } from "../utils/types";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 const RECEIPT: Receipt = {
   subject: { repo: "octo/hello", number: 7, sha: "c".repeat(40) },
@@ -37,7 +36,7 @@ const ANCHOR: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 3,
   endLine: 3,
   rowIds: ["chunk-a:0"],

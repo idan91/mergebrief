@@ -3,13 +3,8 @@
 // a comment the reviewer writes a second time.
 import { Categories } from "../../brief/types";
 import { isRecord } from "@web/utils/typeGuards";
-import { CommentAnchorKinds } from "types/comments";
-import {
-  CommentSides,
-  ReviewCommentStatuses,
-  type CommentSide,
-  type ReviewComment,
-} from "../utils/comments";
+import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
+import { ReviewCommentStatuses, type ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import { isCarryStatus } from "./attention";
 import type {
@@ -25,9 +20,7 @@ import type {
 const DRAFT_STATUSES = new Set<string>(
   Object.values(ReviewCommentStatuses) satisfies ReviewComment["status"][],
 );
-const SIDES = new Set<string>(
-  Object.values(CommentSides) satisfies CommentSide[],
-);
+const SIDES = new Set<string>(Object.values(DiffSides) satisfies DiffSide[]);
 const DECISIONS = new Set<string>([
   "addressed",
   "dismissed",

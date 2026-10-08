@@ -10,9 +10,8 @@ import {
   type ApiErrorCode,
   type ApiFetchInit,
 } from "../../../data/apiFetch";
-import type { CommentAnchorKinds, Mutable } from "types";
+import type { CommentAnchorKinds, Mutable, DiffSide } from "types";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
-import type { CommentSide } from "../utils/comments";
 import type { Category } from "../../brief/types";
 
 /** The Brief a write names, the same span the session read took. */
@@ -62,9 +61,9 @@ const UNKNOWN: SessionWriteFailure = {
 export interface LineDraftAnchorWire {
   kind?: typeof CommentAnchorKinds.LINE;
   filePath: string;
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
 }

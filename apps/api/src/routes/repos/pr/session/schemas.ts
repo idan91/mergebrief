@@ -6,11 +6,7 @@ import {
   DispositionEvidenceKinds,
   type DispositionEvidence,
 } from "types/dispositions";
-import {
-  CommentAnchorKinds,
-  DraftCommentSides,
-  type DraftCommentSide,
-} from "types/comments";
+import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
 import { z } from "zod/v4";
 import {
   MAX_BODY_LENGTH,
@@ -31,8 +27,8 @@ const filePathSchema = z.string().min(1).max(MAX_PATH_LENGTH);
 export const briefLocalIdSchema = z.string().min(1).max(MAX_ID_LENGTH);
 
 const sideSchema = z.union([
-  z.literal(DraftCommentSides.OLD),
-  z.literal(DraftCommentSides.NEW),
+  z.literal(DiffSides.OLD),
+  z.literal(DiffSides.NEW),
 ]);
 
 /** The coordinates a draft carries; they ARE the GitHub POST payload. */
@@ -47,8 +43,8 @@ const anchorShape = {
 // Cross-side line numbers are not comparable; ordering binds same-side only.
 const ORDERED_LINES = {
   check: (anchor: {
-    side: DraftCommentSide;
-    startSide?: DraftCommentSide | undefined;
+    side: DiffSide;
+    startSide?: DiffSide | undefined;
     startLine: number;
     endLine: number;
   }) =>
@@ -63,10 +59,10 @@ const ORDERED_LINES = {
  */
 function normalizeStartSide<
   T extends {
-    side: DraftCommentSide;
-    startSide?: DraftCommentSide | undefined;
+    side: DiffSide;
+    startSide?: DiffSide | undefined;
   },
->(anchor: T): Omit<T, "startSide"> & { startSide: DraftCommentSide | null } {
+>(anchor: T): Omit<T, "startSide"> & { startSide: DiffSide | null } {
   const { startSide, ...rest } = anchor;
   return {
     ...rest,
@@ -87,8 +83,8 @@ const lineAnchorObject = z.object({
 
 function withLineAnchorChecks<
   Output extends {
-    side: DraftCommentSide;
-    startSide?: DraftCommentSide | undefined;
+    side: DiffSide;
+    startSide?: DiffSide | undefined;
     startLine: number;
     endLine: number;
   },

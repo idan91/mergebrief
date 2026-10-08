@@ -1,4 +1,4 @@
-import type { ValueOf } from "types/utils";
+import type { DiffSide, ValueOf } from "types";
 import type { z } from "zod/v4";
 import type {
   tokenizeRequestSchema,
@@ -37,18 +37,12 @@ export interface DiffLine {
   origin?: DiffRowOrigin;
 }
 
-export const HunkSideNames = {
-  OLD: "old",
-  NEW: "new",
-} as const;
-export type HunkSideName = ValueOf<typeof HunkSideNames>;
-
 /**
  * One side of one hunk, reassembled into the continuous text the grammar
  * needs. `rowIndexes[i]` is the diff row `text[i]` came from.
  */
 export interface HunkSide {
-  side: HunkSideName;
+  side: DiffSide;
   text: string[];
   rowIndexes: number[];
   /** The file line the side's first row sits on; 1 means the file's start. */

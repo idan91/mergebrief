@@ -4,15 +4,13 @@ import {
   type ReviewCommentSide,
   type ReviewEvent,
 } from "github";
-import { DraftCommentSides, type DraftCommentSide } from "types/comments";
+import { DiffSides, type DiffSide } from "types/comments";
 import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 
 /** The stored side vocabulary as GitHub names it. */
-export const SideOnGithub: Readonly<
-  Record<DraftCommentSide, ReviewCommentSide>
-> = {
-  [DraftCommentSides.OLD]: ReviewCommentSides.LEFT,
-  [DraftCommentSides.NEW]: ReviewCommentSides.RIGHT,
+export const SideOnGithub: Readonly<Record<DiffSide, ReviewCommentSide>> = {
+  [DiffSides.OLD]: ReviewCommentSides.LEFT,
+  [DiffSides.NEW]: ReviewCommentSides.RIGHT,
 };
 
 export const MS_PER_SECOND = 1000;

@@ -5,10 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ReviewSessionProvider, useReviewSession } from "..";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
 } from "../../utils/comments";
@@ -73,7 +72,7 @@ const anchor: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   chunkId: "c1",
   file: "src/a.ts",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 11,
   endLine: 11,
   rowIds: ["row-1"],

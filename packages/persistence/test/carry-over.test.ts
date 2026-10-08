@@ -35,7 +35,7 @@ import {
 } from "../src/types";
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
-import { DraftCommentSides, type DraftCommentSide } from "types/comments";
+import { DiffSides, type DiffSide } from "types/comments";
 import { brandWith, freshPglite } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
@@ -202,7 +202,7 @@ async function seedDraft(
 function makeLineAnchor(
   startLine: number,
   endLine: number,
-  side: DraftCommentSide = DraftCommentSides.NEW,
+  side: DiffSide = DiffSides.NEW,
 ): DraftAnchor {
   return {
     kind: CommentAnchorKinds.LINE,
@@ -1047,7 +1047,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     await seedDraft(
       world,
       previous,
-      makeLineAnchor(10, 12, DraftCommentSides.OLD),
+      makeLineAnchor(10, 12, DiffSides.OLD),
       "on the removed side",
     );
 
@@ -1247,7 +1247,7 @@ describe("old-side drafts against the PR base", () => {
     await seedDraft(
       world,
       briefId,
-      makeLineAnchor(10, 12, DraftCommentSides.OLD),
+      makeLineAnchor(10, 12, DiffSides.OLD),
       "on the removed side",
     );
   }
@@ -1312,8 +1312,8 @@ describe("two-side drafts, both legs or orphan", () => {
     world: World,
     briefId: BriefRowId,
     anchor: {
-      startSide: DraftCommentSide;
-      side: DraftCommentSide;
+      startSide: DiffSide;
+      side: DiffSide;
       startLine: number;
       endLine: number;
     },
@@ -1341,8 +1341,8 @@ describe("two-side drafts, both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.OLD,
-      side: DraftCommentSides.NEW,
+      startSide: DiffSides.OLD,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1353,7 +1353,7 @@ describe("two-side drafts, both legs or orphan", () => {
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         anchor: expect.objectContaining({
-          startSide: DraftCommentSides.OLD,
+          startSide: DiffSides.OLD,
           startLine: 10,
           endLine: 15,
         }),
@@ -1368,8 +1368,8 @@ describe("two-side drafts, both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.NEW,
-      side: DraftCommentSides.OLD,
+      startSide: DiffSides.NEW,
+      side: DiffSides.OLD,
       startLine: 10,
       endLine: 20,
     });
@@ -1379,7 +1379,7 @@ describe("two-side drafts, both legs or orphan", () => {
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         anchor: expect.objectContaining({
-          startSide: DraftCommentSides.NEW,
+          startSide: DiffSides.NEW,
           startLine: 13,
           endLine: 20,
         }),
@@ -1399,8 +1399,8 @@ describe("two-side drafts, both legs or orphan", () => {
       },
     ]);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.OLD,
-      side: DraftCommentSides.NEW,
+      startSide: DiffSides.OLD,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1410,7 +1410,7 @@ describe("two-side drafts, both legs or orphan", () => {
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         anchor: expect.objectContaining({
-          startSide: DraftCommentSides.OLD,
+          startSide: DiffSides.OLD,
           startLine: 10,
           endLine: 12,
         }),
@@ -1432,8 +1432,8 @@ describe("two-side drafts, both legs or orphan", () => {
       },
     ]);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.OLD,
-      side: DraftCommentSides.NEW,
+      startSide: DiffSides.OLD,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1443,7 +1443,7 @@ describe("two-side drafts, both legs or orphan", () => {
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         anchor: expect.objectContaining({
-          startSide: DraftCommentSides.OLD,
+          startSide: DiffSides.OLD,
           startLine: 10,
           endLine: 12,
         }),
@@ -1458,8 +1458,8 @@ describe("two-side drafts, both legs or orphan", () => {
     const current = await seedBrief(world, 2, [], "other-base");
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.NEW,
-      side: DraftCommentSides.OLD,
+      startSide: DiffSides.NEW,
+      side: DiffSides.OLD,
       startLine: 10,
       endLine: 20,
     });
@@ -1470,7 +1470,7 @@ describe("two-side drafts, both legs or orphan", () => {
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         anchor: expect.objectContaining({
-          startSide: DraftCommentSides.NEW,
+          startSide: DiffSides.NEW,
           startLine: 10,
           endLine: 20,
         }),
@@ -1485,8 +1485,8 @@ describe("two-side drafts, both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     // No hop row at all.
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSides.OLD,
-      side: DraftCommentSides.NEW,
+      startSide: DiffSides.OLD,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1514,7 +1514,7 @@ describe("the first write, one transaction", () => {
   const OTHER_FILE_ANCHOR: DraftAnchor = {
     kind: CommentAnchorKinds.LINE,
     file: "src/other.ts",
-    side: DraftCommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 1,
     endLine: 2,
   };

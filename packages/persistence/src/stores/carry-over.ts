@@ -11,7 +11,7 @@ import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
   type AnchorStatus,
   type DraftCommentStatus,
@@ -221,9 +221,7 @@ function carryTwoSideComment(
   }
   const { anchor } = comment;
   const newLine =
-    anchor.startSide === DraftCommentSides.NEW
-      ? anchor.startLine
-      : anchor.endLine;
+    anchor.startSide === DiffSides.NEW ? anchor.startLine : anchor.endLine;
   const placed = replace(context, anchor.file, newLine, newLine);
   if (placed === undefined) {
     return { ...comment, anchorStatus: AnchorStatuses.ORPHANED };
@@ -231,7 +229,7 @@ function carryTwoSideComment(
   if (placed.start === newLine) {
     return { ...comment, anchorStatus: null };
   }
-  if (anchor.startSide === DraftCommentSides.NEW) {
+  if (anchor.startSide === DiffSides.NEW) {
     return relocateLineComment(
       comment,
       placed.start,
@@ -269,7 +267,7 @@ function carryLineComment(
   // about, so a base that held still leaves them exact. A moved base or a
   // chain that cannot be trusted still orphans them: an untrustworthy span
   // orphans every anchor it covers, whichever side it sits on.
-  if (comment.anchor.side === DraftCommentSides.OLD) {
+  if (comment.anchor.side === DiffSides.OLD) {
     const unplaceable = context.baseShaMoved || context.hops === null;
     return {
       ...comment,

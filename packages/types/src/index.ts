@@ -9,11 +9,11 @@ export type {
 export {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
   type AnchorStatus,
   type CommentAnchorKind,
-  type DraftCommentSide,
+  type DiffSide,
   type DraftCommentStatus,
 } from "./comments";
 export { HttpStatuses, type HttpStatus } from "./http";

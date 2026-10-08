@@ -1,11 +1,12 @@
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../brief/types";
-import { rowId, type CommentSide } from "../../utils/comments";
+import { rowId } from "../../utils/comments";
 import { resolveChunkForLine } from "../../utils/chunk-for-line";
 import type { RiskEvidence } from "../../utils/state";
 import type { SessionLineDraftComment } from "../serverState";
 import type { CoveredRow, DraftRows } from "./types";
+import type { DiffSide } from "types/comments";
 
 export function collectChunks(model: BriefViewModel): BriefChunk[] {
   return model.groups.flatMap((group) => group.chunks);
@@ -22,7 +23,7 @@ export function getEvidenceRef(evidence: RiskEvidence): string {
   return evidence.note ?? "";
 }
 
-function getLineOnSide(row: DiffLine, side: CommentSide): number | undefined {
+function getLineOnSide(row: DiffLine, side: DiffSide): number | undefined {
   return side === "old" ? row.oldLine : row.newLine;
 }
 
@@ -67,7 +68,7 @@ function collectSameSideRows(
 function collectCrossSideRows(
   rows: readonly DiffLine[],
   draft: SessionLineDraftComment,
-  startSide: CommentSide,
+  startSide: DiffSide,
 ): CoveredRow[] {
   const startIndex = rows.findIndex(
     (row) => getLineOnSide(row, startSide) === draft.startLine,

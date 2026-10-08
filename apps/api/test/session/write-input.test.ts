@@ -3,7 +3,7 @@
 // ceiling a row id must stay under, the line ordering an anchor must hold,
 // and the closed category vocabulary.
 import { ChangeGroupCategories } from "types/reviews";
-import { DraftCommentSides } from "types/comments";
+import { DiffSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import {
   anchorSchema,
@@ -16,7 +16,7 @@ import { rowIdSchema } from "../../src/routes/wire-bounds";
 
 const ANCHOR = {
   filePath: "src/app.ts",
-  side: DraftCommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 10,
   endLine: 12,
 };
@@ -86,22 +86,22 @@ describe("anchorSchema two-side ranges", () => {
   it("accepts old\u2192new and keeps the crossing startSide", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
-      startSide: DraftCommentSides.OLD,
+      startSide: DiffSides.OLD,
     });
-    expect(parsed).toMatchObject({ startSide: DraftCommentSides.OLD });
+    expect(parsed).toMatchObject({ startSide: DiffSides.OLD });
   });
 
   it("accepts a cross-side range with lines out of order", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
-      side: DraftCommentSides.OLD,
-      startSide: DraftCommentSides.NEW,
+      side: DiffSides.OLD,
+      startSide: DiffSides.NEW,
       startLine: 25,
       endLine: 3,
     });
     expect(parsed).toMatchObject({
-      side: DraftCommentSides.OLD,
-      startSide: DraftCommentSides.NEW,
+      side: DiffSides.OLD,
+      startSide: DiffSides.NEW,
       startLine: 25,
       endLine: 3,
     });
@@ -109,7 +109,7 @@ describe("anchorSchema two-side ranges", () => {
 
   it("normalizes a startSide equal to side to null", () => {
     expect(
-      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSides.NEW }),
+      anchorSchema.parse({ ...ANCHOR, startSide: DiffSides.NEW }),
     ).toMatchObject({ startSide: null });
   });
 
@@ -121,7 +121,7 @@ describe("anchorSchema two-side ranges", () => {
     expect(
       anchorSchema.safeParse({
         ...ANCHOR,
-        startSide: DraftCommentSides.NEW,
+        startSide: DiffSides.NEW,
         startLine: 12,
         endLine: 10,
       }).success,
@@ -142,7 +142,7 @@ describe("createDraftSchema", () => {
     expect(
       createDraftSchema.parse({
         ...ANCHOR,
-        startSide: DraftCommentSides.NEW,
+        startSide: DiffSides.NEW,
         body: "hi",
       }),
     ).toMatchObject({ startSide: null });

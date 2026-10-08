@@ -1,15 +1,10 @@
 import type { BriefChunk } from "../../brief/types";
-import type { CommentSide } from "./comments";
-import { CommentSides } from "./comments";
 import { getChunkRegion } from "./state";
+import { type DiffSide, DiffSides } from "types/comments";
 
-function holdsLine(
-  chunk: BriefChunk,
-  side: CommentSide,
-  line: number,
-): boolean {
+function holdsLine(chunk: BriefChunk, side: DiffSide, line: number): boolean {
   const ranges =
-    side === CommentSides.OLD ? chunk.removedRanges : chunk.addedRanges;
+    side === DiffSides.OLD ? chunk.removedRanges : chunk.addedRanges;
 
   return ranges.some((range) => line >= range.start && line <= range.end);
 }
@@ -24,7 +19,7 @@ function holdsLine(
 export function resolveChunkForLine(
   chunks: readonly BriefChunk[],
   file: string,
-  side: CommentSide,
+  side: DiffSide,
   line: number,
 ): BriefChunk | undefined {
   const inFile = chunks.filter((chunk) => chunk.file === file);

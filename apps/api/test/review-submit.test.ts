@@ -18,7 +18,7 @@ import { ReviewOutcomes } from "types/reviews";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   type AnchorStatus,
 } from "types/comments";
 import {
@@ -420,14 +420,14 @@ async function seedSessionDrafts(
     {
       kind: CommentAnchorKinds.LINE,
       file: "src/a.ts",
-      side: DraftCommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 12,
       endLine: 12,
     },
     {
       kind: CommentAnchorKinds.LINE,
       file: "src/b.ts",
-      side: DraftCommentSides.OLD,
+      side: DiffSides.OLD,
       startLine: 25,
       endLine: 30,
     },
@@ -539,7 +539,7 @@ async function seedCarriedDraft(
     {
       kind: CommentAnchorKinds.LINE,
       file: "src/c.ts",
-      side: DraftCommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 40,
       endLine: 40,
     },
@@ -561,8 +561,8 @@ async function seedTwoSideDraft(
     {
       kind: CommentAnchorKinds.LINE,
       file: "src/c.ts",
-      side: DraftCommentSides.NEW,
-      startSide: DraftCommentSides.OLD,
+      side: DiffSides.NEW,
+      startSide: DiffSides.OLD,
       startLine: 10,
       endLine: 12,
     },
@@ -1501,7 +1501,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           {
             kind: CommentAnchorKinds.LINE,
             file: "src/a.ts",
-            side: DraftCommentSides.NEW,
+            side: DiffSides.NEW,
             startLine: 12,
             endLine: 12,
           },

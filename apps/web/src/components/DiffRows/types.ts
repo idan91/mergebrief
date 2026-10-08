@@ -1,8 +1,7 @@
-import type { ValueOf } from "types/utils";
+import type { ValueOf, DiffSide } from "types";
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
 import type {
   DiffLine,
-  HunkSideName,
   RowToken,
   RowTokenMap,
 } from "@web/utils/diffTokens/types";
@@ -52,7 +51,7 @@ export const NumberCellStates = {
 export type DiffNumberCellSlot = (
   row: DiffLine,
   index: number,
-  side: HunkSideName,
+  side: DiffSide,
 ) => ReactNode;
 
 /** A whole row of the caller's own: hunk headers and expansion controls. */

@@ -12,7 +12,7 @@ import {
   DispositionEvidenceKinds,
 } from "types/dispositions";
 import type { KeyProvider } from "persistence";
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
@@ -704,7 +704,7 @@ describe("the Review Session writes", () => {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: DRAFT.filePath,
-          side: DraftCommentSides.NEW,
+          side: DiffSides.NEW,
           startLine: DRAFT.startLine,
           endLine: DRAFT.endLine,
         },

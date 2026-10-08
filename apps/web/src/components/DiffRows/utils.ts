@@ -1,10 +1,7 @@
-import {
-  DiffLineKinds,
-  type DiffLine,
-  type HunkSideName,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 
 import { LINE_ATTRIBUTES } from "./consts";
+import type { DiffSide } from "types/comments";
 
 /** Hunk and note rows span every column and take no slot content. */
 export function isFullWidthDiffRow(row: DiffLine): boolean {
@@ -55,10 +52,7 @@ export function buildDiffRowKeys(rows: readonly DiffLine[]): string[] {
 }
 
 /** The number cell showing a line on a side. */
-export function buildLineCellSelector(
-  side: HunkSideName,
-  line: number,
-): string {
+export function buildLineCellSelector(side: DiffSide, line: number): string {
   return `td[${LINE_ATTRIBUTES[side]}="${String(line)}"]`;
 }
 
@@ -70,7 +64,7 @@ export function buildLineCellSelector(
  */
 export function findRowByLine(
   root: ParentNode,
-  side: HunkSideName,
+  side: DiffSide,
   line: number,
 ): HTMLElement | null {
   for (const cell of root.querySelectorAll(buildLineCellSelector(side, line))) {

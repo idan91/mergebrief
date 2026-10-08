@@ -5,11 +5,10 @@ import type {
   RepoConfigContext,
 } from "@web/features/brief/utils";
 import type { Brief } from "../../brief/types";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, type DiffSide } from "types/comments";
 import {
   isFileCommentAnchor,
   ReviewCommentStatuses,
-  type CommentSide,
   type ReviewCommentStatus,
 } from "./comments";
 import type { SessionSnapshot } from "../session";
@@ -74,9 +73,9 @@ export interface ReceiptCommentBase {
 
 export interface ReceiptLineComment extends ReceiptCommentBase {
   kind: typeof CommentAnchorKinds.LINE;
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
 }

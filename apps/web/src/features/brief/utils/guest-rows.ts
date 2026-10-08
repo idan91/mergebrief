@@ -1,10 +1,5 @@
 import { resolveChunkForLine } from "@web/features/review/utils";
-import {
-  type DiffLine,
-  DiffLineKinds,
-  type HunkSideName,
-  HunkSideNames,
-} from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 
 import {
   GuestHostPrefixes,
@@ -12,6 +7,7 @@ import {
   GuestRowReasons,
 } from "../types";
 import type { FileLineOwners } from "./lineOwner";
+import { type DiffSide, DiffSides } from "types/comments";
 
 /** The owner's own row a guest row came from, when it came from the owner's diff. */
 export interface GuestRowOrigin {
@@ -35,7 +31,7 @@ export interface GuestRowsInput {
 export interface CommentableGuestRow {
   commentable: true;
   chunkId: string;
-  side: HunkSideName;
+  side: DiffSide;
   line: number;
 }
 
@@ -46,7 +42,7 @@ export interface InertGuestRow {
 
 export type GuestRowResolution = CommentableGuestRow | InertGuestRow;
 
-const NEW_SIDE: HunkSideName = HunkSideNames.NEW;
+const NEW_SIDE: DiffSide = DiffSides.NEW;
 
 function refuse(reason: GuestRowReason): InertGuestRow {
   return { commentable: false, reason };

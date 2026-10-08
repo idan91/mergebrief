@@ -8,12 +8,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import {
-  CommentSides,
-  ReviewCommentStatuses,
-  type CommentAnchor,
-} from "../utils/comments";
-import { CommentAnchorKinds } from "types/comments";
+import { ReviewCommentStatuses, type CommentAnchor } from "../utils/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
   ReviewSessionProvider,
   useChunkReviewComments,
@@ -80,7 +76,7 @@ function anchorFor(chunkId: string, line: number): CommentAnchor {
     kind: CommentAnchorKinds.LINE,
     chunkId,
     file: `src/${chunkId.slice(-1)}.ts`,
-    side: CommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: line,
     endLine: line,
     rowIds: [`${chunkId}-row-0`],

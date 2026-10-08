@@ -1,12 +1,12 @@
 import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
 import { Roles, type Brief } from "@web/features/brief/types";
 import type { SessionSnapshot } from "../session";
-import { CommentSides, ReviewCommentStatuses } from "./comments";
+import { ReviewCommentStatuses } from "./comments";
 import { buildReceipt } from "./receipt";
 
 const t = createI18n().t;
@@ -141,7 +141,7 @@ describe("buildReceipt", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/leak.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
       rowIds: ["chunk-a:1"],
@@ -179,7 +179,7 @@ describe("buildReceipt", () => {
         id: "c1",
         kind: CommentAnchorKinds.LINE,
         file: "src/leak.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 12,
         firstLine: "Please add a test.",
@@ -189,7 +189,7 @@ describe("buildReceipt", () => {
         id: "c0",
         kind: CommentAnchorKinds.LINE,
         file: "src/leak.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 12,
         firstLine: "Already posted.",

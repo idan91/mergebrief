@@ -1,5 +1,5 @@
 import type { ReviewDraftCommentRow } from "persistence";
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { makeDraftCommentRow } from "../../../../../../test/fixtures";
 import { shapePublishComment } from "./anchor";
@@ -66,7 +66,7 @@ describe("foldCommentsIntoBody", () => {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/b.ts",
-          side: DraftCommentSides.OLD,
+          side: DiffSides.OLD,
           startLine: 25,
           endLine: 30,
         },
@@ -76,8 +76,8 @@ describe("foldCommentsIntoBody", () => {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/c.ts",
-          side: DraftCommentSides.NEW,
-          startSide: DraftCommentSides.OLD,
+          side: DiffSides.NEW,
+          startSide: DiffSides.OLD,
           startLine: 10,
           endLine: 10,
         },
@@ -109,7 +109,7 @@ describe("foldCommentsIntoBody", () => {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/gone.ts",
-          side: DraftCommentSides.OLD,
+          side: DiffSides.OLD,
           startLine: 4,
           endLine: 6,
         },
@@ -119,8 +119,8 @@ describe("foldCommentsIntoBody", () => {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: "src/gone.ts",
-          side: DraftCommentSides.NEW,
-          startSide: DraftCommentSides.OLD,
+          side: DiffSides.NEW,
+          startSide: DiffSides.OLD,
           startLine: 8,
           endLine: 9,
         },

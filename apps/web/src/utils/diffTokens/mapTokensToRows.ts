@@ -1,9 +1,5 @@
-import {
-  HunkSideNames,
-  type HunkSide,
-  type RowTokenLine,
-  type RowTokenMap,
-} from "./types";
+import { type HunkSide, type RowTokenLine, type RowTokenMap } from "./types";
+import { DiffSides } from "types/comments";
 
 /**
  * `tokensBySide[i]` holds the tokenized lines of `sides[i]` in `text` order.
@@ -50,7 +46,7 @@ function rankOldSideFirst(sides: readonly HunkSide[]): number[] {
 }
 
 function rankSide(sides: readonly HunkSide[], index: number): number {
-  return sides[index]?.side === HunkSideNames.OLD ? 0 : 1;
+  return sides[index]?.side === DiffSides.OLD ? 0 : 1;
 }
 
 function spellsText(line: RowTokenLine, text: string | undefined): boolean {

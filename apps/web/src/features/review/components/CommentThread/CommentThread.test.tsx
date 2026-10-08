@@ -13,14 +13,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type ReviewComment,
 } from "../../utils/comments";
 import { createReviewFlowStore, ReviewFlowProvider } from "../../session";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { CommentThread } from ".";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 function makeFlowStore() {
   return createReviewFlowStore(
@@ -52,7 +51,7 @@ function comment(status: ReviewComment["status"]): ReviewComment {
       kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/a.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 3,
       endLine: 3,
       rowIds: ["chunk-a:0"],

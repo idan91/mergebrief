@@ -14,14 +14,14 @@ export const DraftCommentStatuses = {
 export type DraftCommentStatus = ValueOf<typeof DraftCommentStatuses>;
 
 /**
- * The diff side a draft comment's coordinates address. The client's
- * vocabulary, mapped to GitHub's LEFT/RIGHT only at submit.
+ * The side of a diff a line belongs to: draft comment coordinates and the
+ * client's diff rendering. Mapped to GitHub's LEFT/RIGHT only at submit.
  */
-export const DraftCommentSides = {
+export const DiffSides = {
   OLD: "old",
   NEW: "new",
 } as const;
-export type DraftCommentSide = ValueOf<typeof DraftCommentSides>;
+export type DiffSide = ValueOf<typeof DiffSides>;
 
 /**
  * Carry-over verdict on a draft comment's coordinates. Null means the anchor

@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds, DiffSides } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
   type FileCommentAnchor,
@@ -71,7 +70,7 @@ describe("draft anchors", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: crossChunk.id,
       file: crossChunk.file,
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 11,
       rowIds: [`${crossChunk.id}:4`, `${crossChunk.id}:5`],
@@ -85,8 +84,8 @@ describe("draft anchors", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: crossChunk.id,
       file: crossChunk.file,
-      side: CommentSides.NEW,
-      startSide: CommentSides.OLD,
+      side: DiffSides.NEW,
+      startSide: DiffSides.OLD,
       startLine: 10,
       endLine: 12,
       rowIds: [2, 3, 4, 5, 6].map((index) => `${crossChunk.id}:${index}`),

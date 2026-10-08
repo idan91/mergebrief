@@ -18,7 +18,7 @@ import {
 import {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
 import { describe, expect, it } from "vitest";
@@ -40,7 +40,7 @@ const CARRIED: CarriedWork = {
       anchor: {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 12,
       },

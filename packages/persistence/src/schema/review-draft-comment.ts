@@ -18,7 +18,7 @@ import {
   DraftCommentStatuses,
   type AnchorStatus,
   type CommentAnchorKind,
-  type DraftCommentSide,
+  type DiffSide,
   type DraftCommentStatus,
 } from "types/comments";
 import type { ReviewSessionId } from "../types";
@@ -39,9 +39,9 @@ export const reviewDraftComment = pgTable(
       .$type<CommentAnchorKind>()
       .notNull()
       .default(CommentAnchorKinds.LINE),
-    side: text("side").$type<DraftCommentSide>(),
+    side: text("side").$type<DiffSide>(),
     /** Non-null only when the range genuinely crosses sides (GitHub `start_side`). */
-    startSide: text("start_side").$type<DraftCommentSide>(),
+    startSide: text("start_side").$type<DiffSide>(),
     startLine: integer("start_line"),
     endLine: integer("end_line"),
     body: text("body").notNull(),
@@ -81,7 +81,7 @@ type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;
 
 export interface LineDraftCommentRow extends DraftCommentSqlRow {
   readonly kind: typeof CommentAnchorKinds.LINE;
-  readonly side: DraftCommentSide;
+  readonly side: DiffSide;
   readonly startLine: number;
   readonly endLine: number;
 }

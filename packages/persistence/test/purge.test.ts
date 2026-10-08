@@ -44,7 +44,7 @@ import {
 } from "../src/types";
 import { ChangeGroupCategories } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
-import { DraftCommentSides } from "types/comments";
+import { DiffSides } from "types/comments";
 import { GenerationStatuses } from "types/generations";
 import { PrStates, type PrState } from "types/pull-requests";
 import { brandWith, freshPglite } from "./helpers";
@@ -184,7 +184,7 @@ async function seedFullGraph(
     installationId,
     reviewSessionId,
     filePath: "src/index.ts",
-    side: DraftCommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 10,
     endLine: 12,
     body: "free-text reviewer content",

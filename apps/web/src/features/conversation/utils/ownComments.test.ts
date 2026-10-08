@@ -2,9 +2,7 @@
 // Matching drafts must become submitted so a missed local flip cannot resurrect a post.
 import { describe, expect, it } from "vitest";
 import {
-  CommentSides,
   ReviewCommentStatuses,
-  type CommentSide,
   type ReviewComment,
   type ReviewCommentStatus,
 } from "@web/features/review/utils";
@@ -15,7 +13,12 @@ import {
   type ConversationThread,
   type ThreadSide,
 } from "../types";
-import { CommentAnchorKinds, type Mutable } from "types";
+import {
+  CommentAnchorKinds,
+  type Mutable,
+  DiffSides,
+  type DiffSide,
+} from "types";
 import {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
@@ -24,7 +27,7 @@ import {
 function localComment(overrides: {
   id: string;
   file?: string;
-  side?: CommentSide;
+  side?: DiffSide;
   startLine?: number;
   endLine?: number;
   body?: string;
@@ -36,7 +39,7 @@ function localComment(overrides: {
       kind: CommentAnchorKinds.LINE,
       chunkId: "c1",
       file: overrides.file ?? "src/a.ts",
-      side: overrides.side ?? CommentSides.NEW,
+      side: overrides.side ?? DiffSides.NEW,
       startLine: overrides.startLine ?? 11,
       endLine: overrides.endLine ?? 11,
       rowIds: ["c1:3"],
@@ -106,8 +109,8 @@ describe("reconcileOwnComments", () => {
   it("joins on path, line and side with old-side mapped to LEFT", () => {
     const result = reconcileOwnComments(
       [
-        localComment({ id: "left-1", side: CommentSides.OLD, endLine: 20 }),
-        localComment({ id: "right-1", side: CommentSides.NEW, endLine: 11 }),
+        localComment({ id: "left-1", side: DiffSides.OLD, endLine: 20 }),
+        localComment({ id: "right-1", side: DiffSides.NEW, endLine: 11 }),
       ],
       [
         serverThread({

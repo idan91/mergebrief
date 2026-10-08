@@ -1,16 +1,8 @@
 // Where a line link lands, decided from the brief's own data before anything
 // scrolls: the chunk it names, the row to find, and the hunk-edge read that
 // brings a folded line into the rows.
-import {
-  CommentSides,
-  type LineLinkTarget,
-  rowId,
-} from "@web/features/review/utils";
-import {
-  type DiffLine,
-  type HunkSideName,
-  HunkSideNames,
-} from "@web/utils/diffTokens/types";
+import { type LineLinkTarget, rowId } from "@web/features/review/utils";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import {
   type BriefChunk,
   type ExpansionGap,
@@ -19,42 +11,32 @@ import {
 } from "../../types";
 import { findExpansionGaps, formatExpansionKey } from "../../utils/expandRows";
 import { LineLandingKinds, type LineLandingPlan } from "./types";
+import { DiffSides, type DiffSide } from "types/comments";
 
 interface GapMatch {
   gap: ExpansionGap;
   newLines: number[];
 }
 
-function resolveLineSide(side: LineLinkTarget["side"]): HunkSideName {
-  return side === CommentSides.OLD ? HunkSideNames.OLD : HunkSideNames.NEW;
+function resolveLineOnSide(row: DiffLine, side: DiffSide): number | undefined {
+  return side === DiffSides.OLD ? row.oldLine : row.newLine;
 }
 
-function resolveLineOnSide(
-  row: DiffLine,
-  side: HunkSideName,
-): number | undefined {
-  return side === HunkSideNames.OLD ? row.oldLine : row.newLine;
-}
-
-function showsLine(
-  rows: readonly DiffLine[],
-  side: HunkSideName,
-  line: number,
-) {
+function showsLine(rows: readonly DiffLine[], side: DiffSide, line: number) {
   return rows.some((row) => resolveLineOnSide(row, side) === line);
 }
 
 /** The gap holding every folded line, measured on the new side; old lines map through the edge's offset. */
 function resolveGapForLines(
   gaps: readonly ExpansionGap[],
-  side: HunkSideName,
+  side: DiffSide,
   lines: readonly number[],
 ): GapMatch | undefined {
   let best: (GapMatch & { distance: number }) | undefined;
 
   for (const gap of gaps) {
     const newLines = lines.map((line) =>
-      side === HunkSideNames.OLD ? line - gap.offset : line,
+      side === DiffSides.OLD ? line - gap.offset : line,
     );
     const inside = newLines.every(
       (newLine) =>
@@ -101,7 +83,7 @@ export function planLineLanding(
   target: LineLinkTarget,
   rowsSettled = true,
 ): LineLandingPlan {
-  const startSide = resolveLineSide(target.startSide ?? target.side);
+  const startSide = target.startSide ?? target.side;
   const line = target.startLine;
   const owner = chunks.find((chunk) => chunk.id === target.chunkId);
   if (owner === undefined) {
@@ -114,7 +96,7 @@ export function planLineLanding(
   }
   const rows = owner.diff;
   const row = { side: startSide, line };
-  const sameSide = startSide === resolveLineSide(target.side);
+  const sameSide = startSide === target.side;
   const wanted = sameSide ? [line, target.endLine] : [line];
   const folded = wanted.filter(
     (wantedLine) => !showsLine(rows, startSide, wantedLine),
@@ -150,8 +132,8 @@ export function collectSelectionRowIds(
   target: LineLinkTarget,
 ): string[] {
   const rows = chunk.diff ?? [];
-  const startSide = resolveLineSide(target.startSide ?? target.side);
-  const endSide = resolveLineSide(target.side);
+  const startSide = target.startSide ?? target.side;
+  const endSide = target.side;
   if (startSide !== endSide) {
     return [];
   }

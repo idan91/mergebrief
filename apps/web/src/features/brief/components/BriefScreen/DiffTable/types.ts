@@ -11,8 +11,8 @@ import type {
   BriefChunk,
   RevisionNarrativeSkipReason,
 } from "../../../types";
-import type { HunkSideName, RowTokenMap } from "@web/utils/diffTokens/types";
-import type { ValueOf } from "types/utils";
+import type { RowTokenMap } from "@web/utils/diffTokens/types";
+import type { ValueOf, DiffSide } from "types";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
 import type { DiffRowView } from "./diffRowView";
@@ -106,5 +106,5 @@ export type DragMode = ValueOf<typeof DragModes>;
 /** Where the selection's link glyph renders: a rendered row on one side. */
 export interface SelectionGlyphPlacement {
   index: number;
-  side: HunkSideName;
+  side: DiffSide;
 }

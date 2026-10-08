@@ -3,7 +3,7 @@
 // below rebuilds the exact string the route measures, so it must track
 // `foldCommentsIntoBody` in apps/api's publish module character for character.
 import type { TFunction } from "i18next";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
 import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 
 import type {
@@ -11,11 +11,9 @@ import type {
   UnplacedDrafts,
 } from "../session/serverState";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   isLineCommentAnchor,
   listDraftComments,
-  type CommentSide,
   type ReviewComment,
 } from "./comments";
 import type { Receipt } from "./receipt";
@@ -38,9 +36,9 @@ export interface BuildSubmitPayloadInput {
   body?: string;
 }
 
-const SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
-  [CommentSides.OLD]: ThreadSides.LEFT,
-  [CommentSides.NEW]: ThreadSides.RIGHT,
+const SIDE_TO_WIRE: Record<DiffSide, ThreadSide> = {
+  [DiffSides.OLD]: ThreadSides.LEFT,
+  [DiffSides.NEW]: ThreadSides.RIGHT,
 };
 
 /** The route's cap on the folded review body, in UTF-16 code units. */
@@ -118,9 +116,9 @@ export function buildReviewBody(
 }
 
 interface FoldedRange {
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
 }

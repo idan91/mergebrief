@@ -18,7 +18,7 @@ import {
 import { ChangeGroupCategories } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
 import { PrStates } from "types/pull-requests";
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { vi } from "vitest";
 import {
   INSTALLATION_ID,
@@ -281,7 +281,7 @@ export async function seedOrphanedDraft(
       anchor: {
         kind: CommentAnchorKinds.LINE,
         file: "src/other.ts",
-        side: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 12,
       },
@@ -309,7 +309,7 @@ export async function seedPreviousWork(
       anchor: {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 12,
       },

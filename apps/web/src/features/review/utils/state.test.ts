@@ -3,17 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { Roles, type BriefChunk } from "../../brief/types";
 import { GroupViewKinds, type RiskFlag } from "@web/features/brief/utils";
-import {
-  CommentSides,
-  ReviewCommentStatuses,
-  type ReviewComment,
-} from "./comments";
+import { ReviewCommentStatuses, type ReviewComment } from "./comments";
 import type {
   AttentionItemKind,
   SessionAttentionItem,
 } from "../session/attention";
 import type { Disposition } from "../session/disposition";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
   deriveCarriedItems,
   deriveUnresolvedItems,
@@ -64,7 +60,7 @@ const reviewComment = {
     kind: CommentAnchorKinds.LINE,
     chunkId: "chunk-a",
     file: "src/a.ts",
-    side: CommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 12,
     endLine: 12,
     rowIds: ["chunk-a:2"],

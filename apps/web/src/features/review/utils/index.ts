@@ -1,7 +1,6 @@
 // Curated utils entry: the review vocabulary other features read. Internal
 // review files import the modules directly, never this index.
 export {
-  CommentSides,
   ReviewCommentStatuses,
   countAnchorLines,
   resolveJumpChunkId,
@@ -15,7 +14,6 @@ export {
   rowId,
   type ChunkLocator,
   type CommentAnchor,
-  type CommentSide,
   type FileCommentAnchor,
   type LineCommentAnchor,
   type LineLinkTarget,

@@ -1,7 +1,7 @@
 import type { Category } from "../../brief/types";
-import type { CommentAnchorKinds, Result } from "types";
+import type { CommentAnchorKinds, Result, DiffSide } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { CommentSide, ReviewComment } from "../utils/comments";
+import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import {
   isAttentionItem,
@@ -34,9 +34,9 @@ export interface SessionDraftCommentBase {
 
 export interface SessionLineDraftComment extends SessionDraftCommentBase {
   kind: typeof CommentAnchorKinds.LINE;
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
 }

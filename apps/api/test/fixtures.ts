@@ -23,7 +23,7 @@ import {
 } from "persistence";
 import {
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
 
@@ -184,7 +184,7 @@ export function makeDraftCommentRow(
     anchor: {
       kind: CommentAnchorKinds.LINE,
       file: "src/a.ts",
-      side: DraftCommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 12,
       endLine: 12,
     },

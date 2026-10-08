@@ -11,7 +11,7 @@ import {
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import type { ReviewDraftCommentRow } from "persistence";
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeDraftCommentRow } from "../../../../../test/fixtures";
@@ -146,8 +146,8 @@ describe("publish transports", () => {
       anchor: {
         kind: CommentAnchorKinds.LINE,
         file: "src/c.ts",
-        side: DraftCommentSides.NEW,
-        startSide: DraftCommentSides.OLD,
+        side: DiffSides.NEW,
+        startSide: DiffSides.OLD,
         startLine: 8,
         endLine: 9,
       },

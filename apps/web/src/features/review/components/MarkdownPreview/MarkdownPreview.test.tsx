@@ -13,8 +13,8 @@ import {
   GrammarNames,
   TokenizeModes,
 } from "@web/utils/diffTokens/types";
-import { CommentAnchorKinds } from "types/comments";
-import { CommentSides, type CommentAnchor } from "../../utils/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { type CommentAnchor } from "../../utils/comments";
 import { MarkdownPreview } from ".";
 
 const { requestSnippetTokens } = vi.hoisted(() => ({
@@ -36,7 +36,7 @@ const ANCHOR: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   file: "src/a.ts",
   chunkId: "chunk-1",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 4,
   endLine: 4,
   rowIds: ["r4"],

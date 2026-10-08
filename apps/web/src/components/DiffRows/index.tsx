@@ -1,11 +1,11 @@
 import { Fragment } from "react";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
-import { HunkSideNames } from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "./DiffCodeText";
 import { SplitRows } from "./SplitRows";
 import { type DiffRowsProps, DiffViews, NumberCellStates } from "./types";
 import { buildDiffRowKeys, isFullWidthDiffRow } from "./utils";
 import styles from "./DiffRows.module.scss";
+import { DiffSides } from "types/comments";
 
 const NO_ANCHOR_ATTRIBUTES: Record<`data-${string}`, string> = {};
 const CODE_COLUMNS = 1;
@@ -79,8 +79,8 @@ export function DiffRows({
         }
         const attributes = rowAttributes?.(row, index) ?? {};
 
-        const oldContent = lineNumberContent?.(row, index, HunkSideNames.OLD);
-        const newContent = lineNumberContent?.(row, index, HunkSideNames.NEW);
+        const oldContent = lineNumberContent?.(row, index, DiffSides.OLD);
+        const newContent = lineNumberContent?.(row, index, DiffSides.NEW);
 
         return (
           <Fragment key={key}>

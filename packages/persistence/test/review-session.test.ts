@@ -8,7 +8,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
 import { describe, expect, it } from "vitest";
@@ -82,7 +82,7 @@ const BRIEF_BODY = JSON.stringify({
 const LINE_ANCHOR = {
   kind: CommentAnchorKinds.LINE,
   file: "src/app.ts",
-  side: DraftCommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 1,
   endLine: 1,
 } as const;
@@ -199,8 +199,8 @@ describe("review-session vocabularies match CHECK constraints", () => {
     ["review_session_review_outcome_check", ReviewOutcomes],
     ["review_draft_comment_status_check", DraftCommentStatuses],
     ["review_draft_comment_kind_check", CommentAnchorKinds],
-    ["review_draft_comment_side_check", DraftCommentSides],
-    ["review_draft_comment_start_side_check", DraftCommentSides],
+    ["review_draft_comment_side_check", DiffSides],
+    ["review_draft_comment_start_side_check", DiffSides],
     ["review_draft_comment_anchor_status_check", AnchorStatuses],
     ["review_group_reclassification_category_check", ChangeGroupCategories],
     ["disposition_carry_status_check", DispositionCarryStatuses],
@@ -235,7 +235,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
       {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: start,
         endLine: end,
       },
@@ -260,8 +260,8 @@ describe("review-session vocabularies match CHECK constraints", () => {
       {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.OLD,
-        startSide: DraftCommentSides.NEW,
+        side: DiffSides.OLD,
+        startSide: DiffSides.NEW,
         startLine: 10,
         endLine: 20,
       },
@@ -270,7 +270,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
     expect(written.anchor).toEqual(
       expect.objectContaining({
         kind: CommentAnchorKinds.LINE,
-        startSide: DraftCommentSides.NEW,
+        startSide: DiffSides.NEW,
       }),
     );
 
@@ -280,8 +280,8 @@ describe("review-session vocabularies match CHECK constraints", () => {
       {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startSide: DraftCommentSides.OLD,
+        side: DiffSides.NEW,
+        startSide: DiffSides.OLD,
         startLine: 25,
         endLine: 3,
       },
@@ -375,7 +375,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
       {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 1,
         endLine: 2,
       },
@@ -426,8 +426,8 @@ describe("review-session vocabularies match CHECK constraints", () => {
       {
         kind: CommentAnchorKinds.LINE,
         file: "src/app.ts",
-        side: DraftCommentSides.NEW,
-        startSide: DraftCommentSides.NEW,
+        side: DiffSides.NEW,
+        startSide: DiffSides.NEW,
         startLine: 1,
         endLine: 2,
       },

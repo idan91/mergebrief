@@ -3,11 +3,10 @@ import { appI18n } from "../../../../i18n/I18nProvider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
 } from "../../utils/comments";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
   createReviewFlowStore,
   type ReviewFlowSessionActions,
@@ -18,7 +17,7 @@ const anchor: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 10,
   endLine: 10,
   rowIds: ["row-1"],
@@ -163,7 +162,7 @@ describe("ReviewFlow store", () => {
         lineSelection: {
           chunkId: "chunk-a",
           file: "src/a.ts",
-          side: CommentSides.NEW,
+          side: DiffSides.NEW,
           startLine: 10,
           endLine: 10,
           rowIds: ["row-1"],
@@ -197,7 +196,7 @@ describe("ReviewFlow store", () => {
     const picked = {
       chunkId: "chunk-a",
       file: "src/a.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 12,
       endLine: 20,
       rowIds: ["chunk-a:3", "chunk-a:4"],

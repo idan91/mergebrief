@@ -10,11 +10,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Receipt } from "../../../utils/receipt";
 import { ReceiptAccordion } from ".";
-import { CommentAnchorKinds } from "types/comments";
-import {
-  CommentSides,
-  ReviewCommentStatuses,
-} from "@web/features/review/utils";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { ReviewCommentStatuses } from "@web/features/review/utils";
 
 const RAW =
   "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa\n  not checked: business intent";
@@ -46,7 +43,7 @@ function receipt(): Receipt {
         id: "comment:1",
         kind: CommentAnchorKinds.LINE,
         file: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 3,
         endLine: 5,
         firstLine: "Race on refresh.",
@@ -56,7 +53,7 @@ function receipt(): Receipt {
         id: "comment:2",
         kind: CommentAnchorKinds.LINE,
         file: "src/b.ts",
-        side: CommentSides.OLD,
+        side: DiffSides.OLD,
         startLine: 9,
         endLine: 9,
         firstLine: "Dead branch.",

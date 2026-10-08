@@ -2,17 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import {
-  CommentSides,
-  ReviewCommentStatuses,
-  type ReviewComment,
-} from "../utils/comments";
+import { ReviewCommentStatuses, type ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import { createReviewSessionStore, deriveInitialState } from "./store";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -128,7 +124,7 @@ describe("comments + outcome", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
@@ -158,7 +154,7 @@ describe("comments + outcome", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/leak.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 12,
       rowIds: [] as string[],
@@ -171,7 +167,7 @@ describe("comments + outcome", () => {
       collapsed: false,
     });
     void store.getState().actions.saveComment({
-      anchor: { ...anchor, startSide: CommentSides.OLD },
+      anchor: { ...anchor, startSide: DiffSides.OLD },
       body: "two-side",
       status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
@@ -187,7 +183,7 @@ describe("comments + outcome", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
@@ -219,7 +215,7 @@ describe("comments + outcome", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
@@ -327,7 +323,7 @@ function anchorFor(chunkId: string): ReviewComment["anchor"] {
     kind: CommentAnchorKinds.LINE,
     chunkId,
     file: "src/leak.ts",
-    side: CommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 10,
     endLine: 10,
     rowIds: [`${chunkId}:1`],

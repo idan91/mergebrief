@@ -1,7 +1,7 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import {
   buildSuggestionDiffRows,
@@ -13,7 +13,6 @@ import {
   MAX_POSTED_COMMENT_LENGTH,
   postCommentBlockedReason,
   reviewCommentSubmitLabel,
-  CommentSides,
   ReviewCommentStatuses,
   countDraftComments,
   findDraftComment,
@@ -36,7 +35,7 @@ describe("createCommentAnchor", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-1",
       file: "src/a.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 11,
       endLine: 11,
       rowIds: ["chunk-1:3"],
@@ -48,7 +47,7 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [3, 4, 5]),
     ).toMatchObject({
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 11,
       endLine: 13,
       selectedText:
@@ -69,8 +68,8 @@ describe("createCommentAnchor", () => {
       kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-1",
       file: "src/a.ts",
-      side: CommentSides.NEW,
-      startSide: CommentSides.OLD,
+      side: DiffSides.NEW,
+      startSide: DiffSides.OLD,
       startLine: 11,
       endLine: 11,
       rowIds: ["chunk-1:2", "chunk-1:3"],
@@ -84,7 +83,7 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2, 3, 4, 5]),
     ).toMatchObject({
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 10,
       endLine: 13,
     });
@@ -97,8 +96,8 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2]),
     ).toMatchObject({
-      side: CommentSides.OLD,
-      startSide: CommentSides.NEW,
+      side: DiffSides.OLD,
+      startSide: DiffSides.NEW,
       startLine: 10,
       endLine: 11,
     });
@@ -114,22 +113,10 @@ describe("createSideAnchor", () => {
 
   it("anchors a same-side run on that side's numbers", () => {
     expect(
-      createSideAnchor(
-        "chunk-1",
-        "src/a.ts",
-        diffRows,
-        [1, 2],
-        CommentSides.OLD,
-      ),
-    ).toMatchObject({ side: CommentSides.OLD, startLine: 10, endLine: 11 });
+      createSideAnchor("chunk-1", "src/a.ts", diffRows, [1, 2], DiffSides.OLD),
+    ).toMatchObject({ side: DiffSides.OLD, startLine: 10, endLine: 11 });
     expect(
-      createSideAnchor(
-        "chunk-1",
-        "src/a.ts",
-        diffRows,
-        [1, 2],
-        CommentSides.OLD,
-      ),
+      createSideAnchor("chunk-1", "src/a.ts", diffRows, [1, 2], DiffSides.OLD),
     ).not.toHaveProperty("startSide");
   });
 
@@ -140,32 +127,20 @@ describe("createSideAnchor", () => {
         "src/a.ts",
         twoHunks,
         [5, 6, 7],
-        CommentSides.NEW,
+        DiffSides.NEW,
       ),
     ).toBeNull();
   });
 
   it("rejects a gap in the side's numbering", () => {
     expect(
-      createSideAnchor(
-        "chunk-1",
-        "src/a.ts",
-        diffRows,
-        [1, 5],
-        CommentSides.NEW,
-      ),
+      createSideAnchor("chunk-1", "src/a.ts", diffRows, [1, 5], DiffSides.NEW),
     ).toBeNull();
   });
 
   it("rejects a row with no number on the side", () => {
     expect(
-      createSideAnchor(
-        "chunk-1",
-        "src/a.ts",
-        diffRows,
-        [2, 3],
-        CommentSides.OLD,
-      ),
+      createSideAnchor("chunk-1", "src/a.ts", diffRows, [2, 3], DiffSides.OLD),
     ).toBeNull();
   });
 });
@@ -186,8 +161,8 @@ describe("buildSuggestionDiffRows", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
-        startSide: CommentSides.OLD,
+        side: DiffSides.NEW,
+        startSide: DiffSides.OLD,
         startLine: 11,
         endLine: 13,
         rowIds: [],
@@ -207,7 +182,7 @@ describe("buildSuggestionDiffRows", () => {
           kind: CommentAnchorKinds.LINE,
           chunkId: "chunk-1",
           file: "src/a.ts",
-          side: CommentSides.NEW,
+          side: DiffSides.NEW,
           startLine: 21,
           endLine: 22,
           rowIds: ["chunk-1:3", "chunk-1:4"],
@@ -244,7 +219,7 @@ describe("postCommentBlockedReason", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 1,
         endLine: 1,
         rowIds: [],
@@ -266,7 +241,7 @@ describe("commentAnchorLabel", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 11,
         endLine: 13,
         rowIds: [],
@@ -278,7 +253,7 @@ describe("commentAnchorLabel", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.OLD,
+        side: DiffSides.OLD,
         startLine: 7,
         endLine: 7,
         rowIds: [],
@@ -299,8 +274,8 @@ describe("commentAnchorLabel", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
-        startSide: CommentSides.OLD,
+        side: DiffSides.NEW,
+        startSide: DiffSides.OLD,
         startLine: 10,
         endLine: 12,
         rowIds: [],
@@ -312,8 +287,8 @@ describe("commentAnchorLabel", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.OLD,
-        startSide: CommentSides.NEW,
+        side: DiffSides.OLD,
+        startSide: DiffSides.NEW,
         startLine: 10,
         endLine: 20,
         rowIds: [],
@@ -333,7 +308,7 @@ describe("resolveJumpChunkId", () => {
             kind: CommentAnchorKinds.LINE,
             chunkId: "chunk-1",
             file: "src/a.ts",
-            side: CommentSides.NEW,
+            side: DiffSides.NEW,
             startLine: 11,
             endLine: 11,
             rowIds: [],
@@ -393,7 +368,7 @@ function makeComment(input: {
         kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 11,
         endLine: 11,
         rowIds: [],

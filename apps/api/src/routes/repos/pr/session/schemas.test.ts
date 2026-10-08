@@ -1,4 +1,4 @@
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { anchorSchema, createDraftSchema } from "./schemas";
 
@@ -15,8 +15,8 @@ describe("anchorSchema file arm", () => {
   it.each([
     ["a start line", { startLine: 1 }],
     ["an end line", { endLine: 1 }],
-    ["a side", { side: DraftCommentSides.NEW }],
-    ["a start side", { startSide: DraftCommentSides.OLD }],
+    ["a side", { side: DiffSides.NEW }],
+    ["a start side", { startSide: DiffSides.OLD }],
   ])("rejects mixing the file kind with %s", (_case, extra) => {
     expect(anchorSchema.safeParse({ ...fileAnchor, ...extra }).success).toBe(
       false,

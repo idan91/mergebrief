@@ -16,7 +16,6 @@ import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import type { Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
 } from "../../utils/comments";
@@ -29,7 +28,7 @@ import {
 } from "../../session";
 import { CommentComposer } from ".";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 afterEach(cleanup);
 
@@ -76,7 +75,7 @@ const anchor: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 11,
   endLine: 11,
   rowIds: ["chunk-a-row-0"],
@@ -139,7 +138,7 @@ describe("CommentComposer store-backed submit label", () => {
         id: "41",
         kind: CommentAnchorKinds.LINE,
         filePath: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 11,
         endLine: 11,
         body: "existing",

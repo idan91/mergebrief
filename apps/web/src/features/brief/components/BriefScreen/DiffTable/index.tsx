@@ -3,11 +3,7 @@ import type { ReactNode } from "react";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import {
-  type DiffLine,
-  DiffLineKinds,
-  type HunkSideName,
-} from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import { ComparisonCallout } from "./ComparisonCallout";
 import {
   COMMENT_ANCHOR_ATTRIBUTES,
@@ -35,6 +31,7 @@ import {
   showsThreadOnRow,
 } from "./utils";
 import { RailSides } from "./types";
+import type { DiffSide } from "types/comments";
 
 export function DiffTable(props: DiffTableProps) {
   const {
@@ -211,7 +208,7 @@ export function DiffTable(props: DiffTableProps) {
   function buildNumberCellContent(
     _line: DiffLine,
     index: number,
-    side: HunkSideName,
+    side: DiffSide,
   ): ReactNode {
     const glyph = table.selectionGlyph;
     if (glyph === undefined || table.lineSelection === null) {

@@ -5,10 +5,8 @@
 // matching an own server thread is reported for flipping, so a missed
 // sessionStorage flip can never re-ship posted comments.
 import {
-  CommentSides,
   ReviewCommentStatuses,
   isLineCommentAnchor,
-  type CommentSide,
   type ReviewComment,
 } from "@web/features/review/utils";
 import {
@@ -17,6 +15,7 @@ import {
   type ConversationThread,
   type ThreadSide,
 } from "../types";
+import { DiffSides, type DiffSide } from "types/comments";
 
 export interface OwnCommentReconciliation {
   /** Root comment ids of threads created by this reviewer's recorded submits. */
@@ -37,9 +36,9 @@ export interface OwnCommentReconciliation {
   readonly resurrectedDraftIds: readonly string[];
 }
 
-const LOCAL_SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
-  [CommentSides.OLD]: ThreadSides.LEFT,
-  [CommentSides.NEW]: ThreadSides.RIGHT,
+const LOCAL_SIDE_TO_WIRE: Record<DiffSide, ThreadSide> = {
+  [DiffSides.OLD]: ThreadSides.LEFT,
+  [DiffSides.NEW]: ThreadSides.RIGHT,
 };
 
 function anchorMatchesThread(

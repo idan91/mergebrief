@@ -1,5 +1,5 @@
 import { ReviewCommentSides, ReviewSubjectTypes } from "github";
-import { CommentAnchorKinds, DraftCommentSides } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { makeDraftCommentRow } from "../../../../../../test/fixtures";
 import {
@@ -21,7 +21,7 @@ function makeRangeDraft() {
     anchor: {
       kind: CommentAnchorKinds.LINE,
       file: "src/b.ts",
-      side: DraftCommentSides.OLD,
+      side: DiffSides.OLD,
       startLine: 25,
       endLine: 30,
     },

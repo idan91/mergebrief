@@ -4,10 +4,9 @@
 // linked-id half of the filter would render "evidence comment missing" for a
 // disposition the reviewer legitimately recorded.
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type ReviewComment,
 } from "@web/features/review/utils";
@@ -21,7 +20,7 @@ function comment(id: string, chunkId: string): ReviewComment {
       kind: CommentAnchorKinds.LINE,
       chunkId,
       file: "src/x.ts",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 1,
       endLine: 1,
       rowIds: [],

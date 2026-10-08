@@ -1,4 +1,4 @@
-import type { CommentAnchorKind, DraftCommentSide } from "types/comments";
+import type { CommentAnchorKind, DiffSide } from "types/comments";
 import type {
   GenerationFailureCode,
   GenerationFailureCodes,
@@ -193,10 +193,10 @@ interface DraftAnchorBase {
 
 export interface LineDraftAnchor extends DraftAnchorBase {
   readonly kind: Extract<CommentAnchorKind, "line">;
-  readonly side: DraftCommentSide;
+  readonly side: DiffSide;
   readonly startLine: number;
   readonly endLine: number;
-  readonly startSide?: DraftCommentSide;
+  readonly startSide?: DiffSide;
 }
 
 export interface FileDraftAnchor extends DraftAnchorBase {

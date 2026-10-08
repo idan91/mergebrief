@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import {
   createFileCommentAnchor,
   type LineCommentAnchor,
   type ReviewComment,
-  CommentSides,
   ReviewCommentStatuses,
 } from "./comments";
 import type { Receipt } from "./receipt";
@@ -29,7 +28,7 @@ function anchor(overrides: Partial<LineCommentAnchor> = {}): LineCommentAnchor {
     kind: CommentAnchorKinds.LINE,
     chunkId: "chunk-1",
     file: "src/a.ts",
-    side: CommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 12,
     endLine: 12,
     rowIds: ["chunk-1:0"],
@@ -294,7 +293,7 @@ describe("foldDraftsIntoBody", () => {
         "range",
         {
           file: "src/b.ts",
-          side: CommentSides.OLD,
+          side: DiffSides.OLD,
           startLine: 25,
           endLine: 30,
         },
@@ -304,8 +303,8 @@ describe("foldDraftsIntoBody", () => {
         "crossing",
         {
           file: "src/c.ts",
-          side: CommentSides.NEW,
-          startSide: CommentSides.OLD,
+          side: DiffSides.NEW,
+          startSide: DiffSides.OLD,
           startLine: 10,
           endLine: 10,
         },
@@ -342,7 +341,7 @@ describe("foldDraftsIntoBody", () => {
         id: "gone-range",
         filePath: "src/gone.ts",
         kind: CommentAnchorKinds.LINE,
-        side: CommentSides.OLD,
+        side: DiffSides.OLD,
         startLine: 4,
         endLine: 6,
         body: "gone range",
@@ -352,8 +351,8 @@ describe("foldDraftsIntoBody", () => {
         id: "gone-crossing",
         filePath: "src/gone.ts",
         kind: CommentAnchorKinds.LINE,
-        side: CommentSides.NEW,
-        startSide: CommentSides.OLD,
+        side: DiffSides.NEW,
+        startSide: DiffSides.OLD,
         startLine: 8,
         endLine: 9,
         body: "gone crossing",
@@ -373,8 +372,8 @@ describe("foldDraftsIntoBody", () => {
 
   it("spells out both sides of a crossing range", () => {
     const crossing = comment("a", {
-      side: CommentSides.NEW,
-      startSide: CommentSides.OLD,
+      side: DiffSides.NEW,
+      startSide: DiffSides.OLD,
       startLine: 10,
       endLine: 10,
     });

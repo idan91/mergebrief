@@ -18,7 +18,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type ReviewComment,
 } from "@web/features/review/utils";
@@ -35,7 +34,7 @@ import {
   ThreadSides,
   type PrConversation,
 } from "../../types";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
@@ -530,7 +529,7 @@ describe("ConversationSection", () => {
         kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["c1:1"],

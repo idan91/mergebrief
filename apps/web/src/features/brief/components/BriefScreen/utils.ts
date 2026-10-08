@@ -2,10 +2,8 @@
 // so they are unit-testable directly, without rendering.
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
-import type { Result, ValueOf } from "types/utils";
+import { type Result, type ValueOf, type DiffSide, DiffSides } from "types";
 import {
-  type CommentSide,
-  CommentSides,
   type LineLinkTarget,
   type RiskEvidence,
   type RiskEvidenceKind,
@@ -450,13 +448,13 @@ export function deriveShareUrl(
   return url.href;
 }
 
-const LINE_SIDE_LETTERS: Record<CommentSide, string> = {
-  [CommentSides.OLD]: "L",
-  [CommentSides.NEW]: "R",
+const LINE_SIDE_LETTERS: Record<DiffSide, string> = {
+  [DiffSides.OLD]: "L",
+  [DiffSides.NEW]: "R",
 };
-const SIDE_BY_LETTER: Record<string, CommentSide> = {
-  L: CommentSides.OLD,
-  R: CommentSides.NEW,
+const SIDE_BY_LETTER: Record<string, DiffSide> = {
+  L: DiffSides.OLD,
+  R: DiffSides.NEW,
 };
 const LINE_PART_PATTERN = /^([LR])(\d+)(?:-([LR])(\d+))?$/;
 

@@ -1,11 +1,6 @@
 import { isContextKind } from "./utils";
-import {
-  DiffLineKinds,
-  HunkSideNames,
-  type TokenizableRow,
-  type HunkSide,
-  type HunkSideName,
-} from "./types";
+import { DiffLineKinds, type TokenizableRow, type HunkSide } from "./types";
+import { DiffSides, type DiffSide } from "types/comments";
 
 /**
  * Rebuilds the two continuous texts a hunk was cut from, so a grammar sees
@@ -17,8 +12,8 @@ import {
  */
 export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
   const sides: HunkSide[] = [];
-  let oldSide = startSide(HunkSideNames.OLD);
-  let newSide = startSide(HunkSideNames.NEW);
+  let oldSide = startSide(DiffSides.OLD);
+  let newSide = startSide(DiffSides.NEW);
   let lastOldLine: number | undefined;
   let lastNewLine: number | undefined;
 
@@ -29,8 +24,8 @@ export function reconstructHunkSides(rows: TokenizableRow[]): HunkSide[] {
     if (newSide.text.length > 0) {
       sides.push(newSide);
     }
-    oldSide = startSide(HunkSideNames.OLD);
-    newSide = startSide(HunkSideNames.NEW);
+    oldSide = startSide(DiffSides.OLD);
+    newSide = startSide(DiffSides.NEW);
     lastOldLine = undefined;
     lastNewLine = undefined;
   }
@@ -88,6 +83,6 @@ function skipsLines(
   return line !== lastLine + 1;
 }
 
-function startSide(side: HunkSideName): HunkSide {
+function startSide(side: DiffSide): HunkSide {
   return { side, text: [], rowIndexes: [] };
 }

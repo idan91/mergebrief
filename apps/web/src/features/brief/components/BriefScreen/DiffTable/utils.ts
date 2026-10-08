@@ -5,8 +5,6 @@ import {
 } from "@web/features/conversation/types";
 import {
   type CommentAnchor,
-  type CommentSide,
-  CommentSides,
   isLineCommentAnchor,
   type LineCommentAnchor,
   type LineSelection,
@@ -21,12 +19,7 @@ import {
   type DiffRowView,
 } from "./diffRowView";
 import type { BriefChunk, GuestRowReason } from "../../../types";
-import {
-  type DiffLine,
-  DiffLineKinds,
-  type HunkSideName,
-  HunkSideNames,
-} from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
   type SplitCell,
   type SplitRow,
@@ -58,6 +51,7 @@ import type {
   GuestRowOrigin,
   GuestRowResolution,
 } from "../../../utils/guest-rows";
+import { type DiffSide, DiffSides } from "types/comments";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -161,20 +155,19 @@ export function resolveSelectionGlyph(
 
   return {
     index: first,
-    side:
-      startSide === CommentSides.OLD ? HunkSideNames.OLD : HunkSideNames.NEW,
+    side: startSide,
   };
 }
 
 /** The side a range sits on; absent for a range that crosses. */
 export function resolvePlacement(
-  side: CommentSide,
-  startSide: CommentSide | undefined,
+  side: DiffSide,
+  startSide: DiffSide | undefined,
 ): SplitSide | undefined {
   if (startSide !== undefined && startSide !== side) {
     return undefined;
   }
-  return side === CommentSides.OLD ? SplitSides.LEFT : SplitSides.RIGHT;
+  return side === DiffSides.OLD ? SplitSides.LEFT : SplitSides.RIGHT;
 }
 
 export function placementForAnchor(
@@ -390,9 +383,9 @@ export function isNewSideAnchor(
   anchor: Pick<LineSelection, "side" | "startSide">,
 ): boolean {
   const startsNew =
-    anchor.startSide === undefined || anchor.startSide === CommentSides.NEW;
+    anchor.startSide === undefined || anchor.startSide === DiffSides.NEW;
 
-  return anchor.side === CommentSides.NEW && startsNew;
+  return anchor.side === DiffSides.NEW && startsNew;
 }
 
 function hasNewSideAnchor(comment: ReviewComment): boolean {
@@ -532,8 +525,8 @@ export type LineRangeShape = Pick<
   "side" | "startSide" | "startLine" | "endLine"
 >;
 
-function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
-  return side === CommentSides.OLD ? row.oldLine : row.newLine;
+function lineOnSide(row: DiffLine, side: DiffSide): number | undefined {
+  return side === DiffSides.OLD ? row.oldLine : row.newLine;
 }
 
 /**
@@ -827,7 +820,7 @@ function sharesOwner(
 }
 
 export interface SpanLines {
-  side: HunkSideName;
+  side: DiffSide;
   from: number;
   to: number;
 }
@@ -848,10 +841,9 @@ export function resolveSpanLines(
       (row) => row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.DEL,
     );
   const adds = changed.filter((row) => row.kind === DiffLineKinds.ADD);
-  const side: HunkSideName =
-    adds.length > 0 ? HunkSideNames.NEW : HunkSideNames.OLD;
+  const side: DiffSide = adds.length > 0 ? DiffSides.NEW : DiffSides.OLD;
   const numbers = (adds.length > 0 ? adds : changed).map((row) =>
-    side === HunkSideNames.NEW ? row.newLine : row.oldLine,
+    side === DiffSides.NEW ? row.newLine : row.oldLine,
   );
 
   return { side, from: numbers[0] ?? 0, to: numbers.at(-1) ?? 0 };
@@ -1064,8 +1056,7 @@ export function buildLineAnchor(
   if (side === undefined) {
     return createCommentAnchor(chunkId, file, sourceRows, indexes);
   }
-  const commentSide =
-    side === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
+  const commentSide = side === SplitSides.LEFT ? DiffSides.OLD : DiffSides.NEW;
 
   return createSideAnchor(chunkId, file, sourceRows, indexes, commentSide);
 }

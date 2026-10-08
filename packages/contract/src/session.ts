@@ -11,7 +11,7 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DispositionEvidenceStatus,
-  DraftCommentSide,
+  DiffSide,
   DraftCommentStatus,
   ReviewOutcome,
 } from "types";
@@ -59,9 +59,9 @@ export interface DraftCommentPayloadBase {
 
 export interface LineDraftCommentPayload extends DraftCommentPayloadBase {
   readonly kind: Extract<CommentAnchorKind, "line">;
-  readonly side: DraftCommentSide;
+  readonly side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  readonly startSide?: DraftCommentSide;
+  readonly startSide?: DiffSide;
   readonly startLine: number;
   readonly endLine: number;
 }

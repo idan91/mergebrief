@@ -18,10 +18,10 @@ import { ReviewOutcomes } from "types/reviews";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
-  DraftCommentSides,
+  DiffSides,
   DraftCommentStatuses,
   type AnchorStatus,
-  type DraftCommentSide,
+  type DiffSide,
   type DraftCommentStatus,
 } from "types/comments";
 import {
@@ -248,7 +248,7 @@ async function seedDraft(
   body = "post now",
   status: DraftCommentStatus = DraftCommentStatuses.DRAFT,
   anchorStatus: AnchorStatus | null = null,
-  startSide: DraftCommentSide | null = null,
+  startSide: DiffSide | null = null,
 ): Promise<{ briefId: BriefRowId; draftId: bigint }> {
   const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
@@ -275,7 +275,7 @@ async function seedDraft(
   const line = {
     kind: CommentAnchorKinds.LINE,
     file: "src/index.ts",
-    side: DraftCommentSides.NEW,
+    side: DiffSides.NEW,
     startLine: 10,
     endLine: 12,
   };
@@ -580,7 +580,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       "spans both sides",
       DraftCommentStatuses.DRAFT,
       null,
-      DraftCommentSides.OLD,
+      DiffSides.OLD,
     );
 
     const res = await post(app, cookie, named(draftId));
@@ -1255,7 +1255,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         {
           kind: CommentAnchorKinds.LINE,
           file: "src/other.ts",
-          side: DraftCommentSides.NEW,
+          side: DiffSides.NEW,
           startLine: 3,
           endLine: 3,
         },

@@ -12,7 +12,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 
 import { apiFetch } from "../../../data/apiFetch";
 import { createSessionWrites } from "./writes";
-import { CommentSides } from "../utils/comments";
+import { DiffSides } from "types/comments";
 
 const apiFetchMock = vi.mocked(apiFetch);
 const TARGET = {
@@ -63,7 +63,7 @@ describe("createSessionWrites", () => {
     await expect(
       writes.createDraft({
         filePath: "a.ts",
-        side: CommentSides.NEW,
+        side: DiffSides.NEW,
         startLine: 3,
         endLine: 3,
         body: "look here",

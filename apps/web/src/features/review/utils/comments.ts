@@ -5,14 +5,10 @@ import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
 import {
   CommentAnchorKinds,
   type CommentAnchorKind,
+  DiffSides,
+  type DiffSide,
   type ValueOf,
 } from "types";
-
-export const CommentSides = {
-  OLD: "old",
-  NEW: "new",
-} as const;
-export type CommentSide = ValueOf<typeof CommentSides>;
 
 export interface CommentAnchorBase {
   kind: CommentAnchorKind;
@@ -22,9 +18,9 @@ export interface CommentAnchorBase {
 export interface LineCommentAnchor extends CommentAnchorBase {
   kind: typeof CommentAnchorKinds.LINE;
   chunkId: string;
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
   rowIds: string[];
@@ -39,9 +35,9 @@ export interface LineCommentAnchor extends CommentAnchorBase {
 export interface LineSelection {
   chunkId: string;
   file: string;
-  side: CommentSide;
+  side: DiffSide;
   /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
+  startSide?: DiffSide;
   startLine: number;
   endLine: number;
   rowIds: string[];
@@ -181,7 +177,7 @@ export function createSideAnchor(
   file: string,
   rows: DiffLine[],
   selectedIndexes: number[],
-  side: CommentSide,
+  side: DiffSide,
 ): LineCommentAnchor | null {
   const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
     (left, right) => left - right,
@@ -236,8 +232,8 @@ function isConsecutiveRun(lines: (number | undefined)[]): lines is number[] {
   });
 }
 
-function getRowSide(row: DiffLine): CommentSide {
-  return row.kind === DiffLineKinds.DEL ? CommentSides.OLD : CommentSides.NEW;
+function getRowSide(row: DiffLine): DiffSide {
+  return row.kind === DiffLineKinds.DEL ? DiffSides.OLD : DiffSides.NEW;
 }
 
 export function rowId(chunkId: string, rowIndex: number): string {
@@ -329,8 +325,8 @@ export function reviewCommentSubmitLabel(
     : t("review.comment.addReviewComment");
 }
 
-function getSignForSide(side: CommentSide): string {
-  return side === CommentSides.NEW ? "+" : "-";
+function getSignForSide(side: DiffSide): string {
+  return side === DiffSides.NEW ? "+" : "-";
 }
 
 export function commentAnchorLabel(
@@ -358,12 +354,12 @@ export function commentAnchorLabel(
 
 function lineForSide(
   row: DiffLine | undefined,
-  side: CommentSide,
+  side: DiffSide,
 ): number | undefined {
   if (!row) {
     return undefined;
   }
-  return side === CommentSides.OLD ? row.oldLine : row.newLine;
+  return side === DiffSides.OLD ? row.oldLine : row.newLine;
 }
 
 function isContinuous(indexes: number[]): boolean {
@@ -386,9 +382,7 @@ function suggestionLineNumber(
     return {};
   }
   const line = anchor.startLine + lineOffset;
-  return anchor.side === CommentSides.OLD
-    ? { oldLine: line }
-    : { newLine: line };
+  return anchor.side === DiffSides.OLD ? { oldLine: line } : { newLine: line };
 }
 
 function splitDiffText(text: string): string[] {

@@ -12,12 +12,11 @@ import { describe, expect, it } from "vitest";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
-  CommentSides,
   ReviewCommentStatuses,
   type CommentAnchor,
   type ReviewComment,
 } from "@web/features/review/utils";
-import { CommentAnchorKinds } from "types/comments";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
   createReviewSessionStore,
   deriveInitialState,
@@ -40,7 +39,7 @@ const ANCHOR: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: CommentSides.NEW,
+  side: DiffSides.NEW,
   startLine: 3,
   endLine: 3,
   rowIds: ["chunk-a:0"],

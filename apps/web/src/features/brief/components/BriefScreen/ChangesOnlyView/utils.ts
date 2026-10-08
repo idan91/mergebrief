@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-import { CommentSides, resolveChunkForLine } from "@web/features/review/utils";
+import { resolveChunkForLine } from "@web/features/review/utils";
 import {
   type DiffLine,
   DiffLineKinds,
@@ -15,6 +15,7 @@ import type {
   RevisionNarrativeChunk,
 } from "../../../types";
 import type { GuestRowOrigin } from "../../../utils/guest-rows";
+import { DiffSides } from "types/comments";
 
 /** A narrative card's rows and, per row, the owner row each came from; a gap note has none. */
 export interface NarrativeRows {
@@ -300,7 +301,7 @@ export function resolveCardOwnerChunkId(
     .map((range) => range.start)
     .toSorted((left, right) => left - right)[0];
   if (firstAdded !== undefined) {
-    return resolveChunkForLine(chunks, file, CommentSides.NEW, firstAdded)?.id;
+    return resolveChunkForLine(chunks, file, DiffSides.NEW, firstAdded)?.id;
   }
 
   const inFile = chunks.filter((chunk) => chunk.file === file);

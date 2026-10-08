@@ -41,7 +41,7 @@ import {
   splitFilePath,
 } from "./utils";
 import { LinkParamErrors } from "./types";
-import { CommentSides } from "@web/features/review/utils";
+import { DiffSides } from "types/comments";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
   return {
@@ -670,7 +670,7 @@ describe("link param", () => {
   it("names one new-side line and reads it back", () => {
     const target = {
       chunkId: "c3",
-      side: CommentSides.NEW,
+      side: DiffSides.NEW,
       startLine: 38,
       endLine: 38,
     };
@@ -684,7 +684,7 @@ describe("link param", () => {
   it("names a same-side range with the letter on both ends", () => {
     const target = {
       chunkId: "c3",
-      side: CommentSides.OLD,
+      side: DiffSides.OLD,
       startLine: 12,
       endLine: 20,
     };
@@ -698,8 +698,8 @@ describe("link param", () => {
   it("carries both sides of a crossing range", () => {
     const target = {
       chunkId: "c3",
-      side: CommentSides.NEW,
-      startSide: CommentSides.OLD,
+      side: DiffSides.NEW,
+      startSide: DiffSides.OLD,
       startLine: 12,
       endLine: 20,
     };
