@@ -2,10 +2,11 @@ import { useTranslation } from "react-i18next";
 
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Badge } from "@web/components/Badge";
-import type {
-  IntentCheck,
-  PrimaryTicket,
-  Specificity,
+import {
+  Specificities,
+  type IntentCheck,
+  type PrimaryTicket,
+  type Specificity,
 } from "../../../../types";
 import { isHttpUrl } from "../utils";
 import styles from "./TicketAlignment.module.scss";
@@ -24,9 +25,9 @@ export interface AlignmentRowsProps {
 
 /** Why there is no read: a broad source, or a precise one whose ticket states no quotable goal. */
 const NO_READ_KEY = {
-  broad: "brief.intent.noRead",
-  none: "brief.intent.noReadPrecise",
-  precise: "brief.intent.noReadPrecise",
+  [Specificities.BROAD]: "brief.intent.noRead",
+  [Specificities.NONE]: "brief.intent.noReadPrecise",
+  [Specificities.PRECISE]: "brief.intent.noReadPrecise",
 } as const satisfies Record<Specificity, string>;
 
 /** The labelled pair; a missing read keeps the "This PR" row as the no-read line. */

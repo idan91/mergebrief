@@ -1,6 +1,10 @@
 import type { TranslationKey } from "i18n";
 
-import type { AttentionItemKind } from "@web/features/review/session";
+import { ProductActionIds } from "contract";
+import {
+  AttentionItemKinds,
+  type AttentionItemKind,
+} from "@web/features/review/session";
 import type { CarriedItem } from "@web/features/review/utils";
 
 /**
@@ -10,10 +14,10 @@ import type { CarriedItem } from "@web/features/review/utils";
  * called". An id absent here renders no control rather than a dead one.
  */
 export const ATTENTION_ACTION_COPY = {
-  "reanchor-draft-comment": "brief.carryOver.actionReanchor",
-  "delete-draft-comment": "brief.carryOver.actionDeleteDraft",
-  "address-risk": "brief.carryOver.actionAddress",
-  "dismiss-risk": "brief.carryOver.actionDismiss",
+  [ProductActionIds.REANCHOR_DRAFT_COMMENT]: "brief.carryOver.actionReanchor",
+  [ProductActionIds.DELETE_DRAFT_COMMENT]: "brief.carryOver.actionDeleteDraft",
+  [ProductActionIds.ADDRESS_RISK]: "brief.carryOver.actionAddress",
+  [ProductActionIds.DISMISS_RISK]: "brief.carryOver.actionDismiss",
 } as const satisfies Record<string, TranslationKey>;
 
 export type AttentionActionId = keyof typeof ATTENTION_ACTION_COPY;
@@ -25,15 +29,15 @@ export interface KindCopy {
 }
 
 const KIND_COPY: Record<AttentionItemKind, KindCopy> = {
-  "orphaned-anchor": {
+  [AttentionItemKinds.ORPHANED_ANCHOR]: {
     title: "brief.carryOver.kindOrphanedAnchor",
     hint: "brief.carryOver.hintOrphanedAnchor",
   },
-  "reopened-disposition": {
+  [AttentionItemKinds.REOPENED_DISPOSITION]: {
     title: "brief.carryOver.kindReopenedDisposition",
     hint: "brief.carryOver.hintReopenedDisposition",
   },
-  "missing-evidence": {
+  [AttentionItemKinds.MISSING_EVIDENCE]: {
     title: "brief.carryOver.kindMissingEvidence",
     hint: "brief.carryOver.hintMissingEvidence",
   },

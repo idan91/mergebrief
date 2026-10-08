@@ -24,13 +24,14 @@ import type { ConversationPlan } from "@web/features/conversation";
 import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
-import type {
-  BriefChunk,
-  ComparisonAvailability,
-  IntentCheck,
-  RevisionNarrative,
-  RevisionNarrativeArtifact,
-  RevisionNarrativeSkipReason,
+import {
+  Specificities,
+  type BriefChunk,
+  type ComparisonAvailability,
+  type IntentCheck,
+  type RevisionNarrative,
+  type RevisionNarrativeArtifact,
+  type RevisionNarrativeSkipReason,
 } from "../../types";
 import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
@@ -107,7 +108,7 @@ export function groupSinceMarkers(
  * broad/none or a pre-feature Brief. Never feeds the gate's OPEN condition.
  */
 export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
-  return intentCheck?.specificity === "precise"
+  return intentCheck?.specificity === Specificities.PRECISE
     ? intentCheck.statedButMissing.length
     : 0;
 }
@@ -121,7 +122,7 @@ export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
 export function countIntentTensions(
   intentCheck: IntentCheck | undefined,
 ): number {
-  return intentCheck?.specificity === "precise"
+  return intentCheck?.specificity === Specificities.PRECISE
     ? intentCheck.deviations.filter((item) => !item.acknowledged).length +
         intentCheck.claimedButUnachieved.length
     : 0;

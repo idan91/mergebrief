@@ -11,7 +11,11 @@ import { Badge } from "@web/components/Badge";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
-import type { IntentCheck, IntentItem } from "../../../types";
+import {
+  Specificities,
+  type IntentCheck,
+  type IntentItem,
+} from "../../../types";
 import {
   ALARM_GLYPH,
   CLAMP_THRESHOLD,
@@ -253,7 +257,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     );
 
     const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
-    const available = specificity === "precise";
+    const available = specificity === Specificities.PRECISE;
 
     const partition = partitionIntentCheck(intentCheck);
     const ticketUrl = primaryTicket?.url;

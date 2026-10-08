@@ -39,22 +39,22 @@ export interface ComparisonCalloutProps {
 }
 
 const EYEBROW_KEYS = {
-  "last-review": {
-    removed: "brief.diff.calloutRemovedSinceLastReview",
-    new: "brief.diff.calloutNewSinceLastReview",
+  LAST_REVIEW: {
+    REMOVED: "brief.diff.calloutRemovedSinceLastReview",
+    NEW: "brief.diff.calloutNewSinceLastReview",
   },
-  revision: {
-    removed: "brief.diff.calloutRemovedThisRevision",
-    new: "brief.diff.calloutNewThisRevision",
+  REVISION: {
+    REMOVED: "brief.diff.calloutRemovedThisRevision",
+    NEW: "brief.diff.calloutNewThisRevision",
   },
 } as const;
 
 function deriveEyebrowKey(runKind: string, sourceKind: string): TranslationKey {
   const bySource =
     sourceKind === "last-review"
-      ? EYEBROW_KEYS["last-review"]
-      : EYEBROW_KEYS.revision;
-  return runKind === "removed" ? bySource.removed : bySource.new;
+      ? EYEBROW_KEYS.LAST_REVIEW
+      : EYEBROW_KEYS.REVISION;
+  return runKind === "removed" ? bySource.REMOVED : bySource.NEW;
 }
 
 export function ComparisonCallout({

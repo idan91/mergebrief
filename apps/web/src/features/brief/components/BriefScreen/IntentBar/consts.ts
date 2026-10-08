@@ -1,14 +1,14 @@
 import type { TranslationKey } from "i18n";
 
-import type { IntentCheck } from "../../../types";
+import { Specificities, type IntentCheck } from "../../../types";
 
 /** Neutral one-liner shown when the intent source is not checkable. */
 export const UNAVAILABLE_REASON_KEY: Record<
-  Exclude<IntentCheck["specificity"], "precise">,
+  Exclude<IntentCheck["specificity"], typeof Specificities.PRECISE>,
   TranslationKey
 > = {
-  broad: "brief.intent.reasonBroad",
-  none: "brief.intent.reasonNone",
+  [Specificities.BROAD]: "brief.intent.reasonBroad",
+  [Specificities.NONE]: "brief.intent.reasonNone",
 };
 
 /**

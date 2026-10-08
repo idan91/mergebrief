@@ -14,7 +14,9 @@ import {
   type GroupViewKind,
 } from "./remainder";
 import {
+  Categories,
   Concerns,
+  RiskSurfaceAttributes,
   Roles,
   type Brief,
   type BriefChunk,
@@ -122,36 +124,38 @@ export interface BriefViewModel {
 }
 
 const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
-  "no-tests": "brief.risk.noTests",
-  "no-types": "brief.risk.noTypes",
-  "legacy-area": "brief.risk.legacyArea",
-  "dense-logic": "brief.risk.denseLogic",
-  "touches-auth": "brief.risk.touchesAuth",
-  "mutates-state": "brief.risk.mutatesState",
-  "removes-validation": "brief.risk.removesValidation",
-  "relaxes-permissions": "brief.risk.relaxesPermissions",
-  "widens-error-handling": "brief.risk.widensErrorHandling",
-  "adds-feature-flag": "brief.risk.addsFeatureFlag",
-  "new-dependency": "brief.risk.newDependency",
-  "new-abstraction": "brief.risk.newAbstraction",
-  "comment-contradicts-code": "brief.risk.commentContradictsCode",
-  "external-io": "brief.risk.externalIo",
-  "cross-service": "brief.risk.crossService",
-  "schema-adjacent": "brief.risk.schemaAdjacent",
-  "hot-path": "brief.risk.hotPath",
-  "widely-imported": "brief.risk.widelyImported",
-  "release-imminent": "brief.risk.releaseImminent",
+  [RiskSurfaceAttributes.NO_TESTS]: "brief.risk.noTests",
+  [RiskSurfaceAttributes.NO_TYPES]: "brief.risk.noTypes",
+  [RiskSurfaceAttributes.LEGACY_AREA]: "brief.risk.legacyArea",
+  [RiskSurfaceAttributes.DENSE_LOGIC]: "brief.risk.denseLogic",
+  [RiskSurfaceAttributes.TOUCHES_AUTH]: "brief.risk.touchesAuth",
+  [RiskSurfaceAttributes.MUTATES_STATE]: "brief.risk.mutatesState",
+  [RiskSurfaceAttributes.REMOVES_VALIDATION]: "brief.risk.removesValidation",
+  [RiskSurfaceAttributes.RELAXES_PERMISSIONS]: "brief.risk.relaxesPermissions",
+  [RiskSurfaceAttributes.WIDENS_ERROR_HANDLING]:
+    "brief.risk.widensErrorHandling",
+  [RiskSurfaceAttributes.ADDS_FEATURE_FLAG]: "brief.risk.addsFeatureFlag",
+  [RiskSurfaceAttributes.NEW_DEPENDENCY]: "brief.risk.newDependency",
+  [RiskSurfaceAttributes.NEW_ABSTRACTION]: "brief.risk.newAbstraction",
+  [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
+    "brief.risk.commentContradictsCode",
+  [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.risk.externalIo",
+  [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.risk.crossService",
+  [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.risk.schemaAdjacent",
+  [RiskSurfaceAttributes.HOT_PATH]: "brief.risk.hotPath",
+  [RiskSurfaceAttributes.WIDELY_IMPORTED]: "brief.risk.widelyImported",
+  [RiskSurfaceAttributes.RELEASE_IMMINENT]: "brief.risk.releaseImminent",
 };
 
 const CATEGORY_LABEL_KEYS: Record<Category, TranslationKey> = {
-  bugfix: "brief.category.bugfix",
-  "logic-refactor": "brief.category.logicRefactor",
-  "move-with-edits": "brief.category.moveWithEdits",
-  "lib-bump": "brief.category.libBump",
-  "pure-move": "brief.category.pureMove",
-  "new-feature": "brief.category.newFeature",
-  "dependency-update": "brief.category.dependencyUpdate",
-  "schema-change": "brief.category.schemaChange",
+  [Categories.BUGFIX]: "brief.category.bugfix",
+  [Categories.LOGIC_REFACTOR]: "brief.category.logicRefactor",
+  [Categories.MOVE_WITH_EDITS]: "brief.category.moveWithEdits",
+  [Categories.LIB_BUMP]: "brief.category.libBump",
+  [Categories.PURE_MOVE]: "brief.category.pureMove",
+  [Categories.NEW_FEATURE]: "brief.category.newFeature",
+  [Categories.DEPENDENCY_UPDATE]: "brief.category.dependencyUpdate",
+  [Categories.SCHEMA_CHANGE]: "brief.category.schemaChange",
 };
 
 const CONCERN_ORDER: Concern[] = [

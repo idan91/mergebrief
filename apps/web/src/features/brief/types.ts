@@ -278,7 +278,12 @@ export interface ConcernRollup {
  * populates the three buckets; `broad` and `none` render as "intent check
  * unavailable".
  */
-export type Specificity = "precise" | "broad" | "none";
+export const Specificities = {
+  PRECISE: "precise",
+  BROAD: "broad",
+  NONE: "none",
+} as const;
+export type Specificity = ValueOf<typeof Specificities>;
 
 export const AlignmentReads = {
   ALIGNED: "aligned",

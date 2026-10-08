@@ -31,6 +31,7 @@ import {
   Concerns,
   Roles,
   RiskSurfaceAttributes,
+  Specificities,
   type RevisionNarrativeSkipReason,
   type Specificity,
 } from "./types";
@@ -73,6 +74,11 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
     source: Object.values(BriefCoreTicketUnreadReasons),
   },
   {
+    label: "Specificities",
+    mirror: Specificities,
+    source: Object.values(BriefCoreSpecificities),
+  },
+  {
     label: "AlignmentReads",
     mirror: AlignmentReads,
     source: Object.values(BriefCoreAlignmentReads),
@@ -104,8 +110,7 @@ describe("brief vocabulary matches brief-core", () => {
   );
 
   it("mirrors brief-core's intent-check and skip-reason unions exactly", () => {
-    // These two mirrors are plain unions on the FE side, so the pin is
-    // type-level, gated by typecheck. Unknown `specificity` makes validation
+    // Type-level pins, gated by typecheck. Unknown `specificity` makes validation
     // DROP the whole intentCheck, so drift here silently deletes the intent bar.
     const specificityPin: Equals<Specificity, BriefCoreSpecificity> = true;
     const skipReasonPin: Equals<

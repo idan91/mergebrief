@@ -30,9 +30,9 @@ export const SupportingCollapseStates = {
 export type SupportingCollapseState = ValueOf<typeof SupportingCollapseStates>;
 
 const COLLAPSE_PRESSED: Record<SupportingCollapseState, boolean | "mixed"> = {
-  none: false,
-  some: "mixed",
-  all: true,
+  [SupportingCollapseStates.NONE]: false,
+  [SupportingCollapseStates.SOME]: "mixed",
+  [SupportingCollapseStates.ALL]: true,
 };
 
 export interface ReadingToolbarProps {

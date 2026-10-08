@@ -26,6 +26,7 @@ import {
   PrimaryTicketStatuses,
   ReferenceLocations,
   RevisionNarrativeSkipReasons,
+  Specificities,
   type Specificity,
   type TicketAlignment,
   TicketTrackers,
@@ -929,7 +930,11 @@ function parseReadingOrder(
 }
 
 function isSpecificity(value: unknown): value is Specificity {
-  return value === "precise" || value === "broad" || value === "none";
+  return (
+    value === Specificities.PRECISE ||
+    value === Specificities.BROAD ||
+    value === Specificities.NONE
+  );
 }
 
 /** Lenient: a malformed alignment parses to absent, never fails the check. */
