@@ -5,6 +5,7 @@ import { Icon } from "../Icon";
 import { type IconName, IconNames, IconSizes } from "../Icon/types";
 import { IconButton } from "../IconButton";
 import styles from "./CopyButton.module.scss";
+import { COPY_FEEDBACK_RESET_MS } from "./consts";
 import { CopyStates, type CopyState } from "./types";
 
 export interface CopyButtonProps {
@@ -59,7 +60,7 @@ export function CopyButton({
     window.clearTimeout(resetTimer.current);
     resetTimer.current = window.setTimeout(
       () => setState(CopyStates.IDLE),
-      1600,
+      COPY_FEEDBACK_RESET_MS,
     );
   };
 

@@ -10,6 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CopyButton } from ".";
+import { COPY_FEEDBACK_RESET_MS } from "./consts";
 
 afterEach(cleanup);
 
@@ -90,7 +91,7 @@ describe("CopyButton", () => {
       // Flush the async copy under fake timers.
       await vi.waitFor(() => expect(screen.getByText("Copied")).toBeTruthy());
       act(() => {
-        vi.advanceTimersByTime(1700);
+        vi.advanceTimersByTime(COPY_FEEDBACK_RESET_MS);
       });
       expect(screen.queryByText("Copied")).toBeNull();
     } finally {
