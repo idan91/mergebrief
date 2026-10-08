@@ -20,6 +20,7 @@ import {
 } from "./comments";
 import type { Receipt } from "./receipt";
 import type { ReviewOutcome } from "./state";
+import type { SubmitReviewResult } from "./types";
 
 /**
  * The submit route's body. It carries NO comments: the session already holds
@@ -61,49 +62,6 @@ export function buildSubmitPayload(
 
   return payload;
 }
-
-/**
- * The submit transport's outcome, as the review flow renders it. Implemented
- * by `features/pulls/submitReview`; typed here so the review feature owns its
- * vocabulary.
- */
-export type SubmitReviewResult =
-  | {
-      kind: "submitted";
-      reviewId: number;
-      /** Comments GitHub would not anchor, folded into the body; 0 = none. */
-      commentsFolded: number;
-      commentsTotal: number;
-    }
-  /** 409, the PR was rewritten since it was read; reload to re-anchor. */
-  | { kind: "rewritten" }
-  | { kind: "unauthorized" }
-  | { kind: "not-found" }
-  /** 409, a held draft's anchor no longer points at code; re-place or drop it. */
-  | { kind: "orphaned-draft" }
-  /** 400 (shape; programmer error) or deterministic 413, edit the body, retry-as-is never clears. */
-  | { kind: "invalid" }
-  /**
-   * 403, a url-box brief for a repo the reader's own GitHub account cannot
-   * write to. Never a retry: it clears by installing the App there.
-   */
-  | { kind: "no-write-access" }
-  /** 403, GitHub refused the viewer's review on this pull request; not a retry. */
-  | { kind: "github-permission" }
-  /** 502/anything else, GitHub rejected or is unreachable. */
-  | { kind: "upstream" }
-  /**
-   * 504 from the web proxy: its budget ran out while the API was still
-   * posting threads, so the review may land after this answer. Never a
-   * plain retry.
-   */
-  | { kind: "indeterminate" }
-  /** 409, the reader holds an unsubmitted review on GitHub; finish it there. */
-  | { kind: "pending-review-held" }
-  /** 409, a comment in the review is still being posted by another attempt. */
-  | { kind: "publish-pending" }
-  /** 409, a comment in the review may already be on GitHub; settle it first. */
-  | { kind: "publish-in-doubt" };
 
 /** What the review screen hands the transport. The drafts are already saved. */
 export interface SubmitDraftInput {

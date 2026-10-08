@@ -10,89 +10,88 @@ import {
   type ReviewComment,
 } from "@web/features/review/utils";
 import type { ReviewSessionActions } from "@web/features/review/session";
-import type { PostCommentResult } from "@web/features/pulls/transport";
+import {
+  PostCommentResultKinds,
+  type PostCommentResult,
+  type PostCommentResultKind,
+} from "@web/features/pulls/transport";
 import type { InFlightDraftPosts } from "./useInFlightDraftPosts";
+import { PostDraftOutcomes, type PostDraftOutcome } from "./types";
 
 /** Toast keys for per-comment post-now: failures always keep the draft. */
 export const POST_COMMENT_COPY_KEYS = {
-  posted: "brief.postComment.posted",
-  unauthorized: "brief.postComment.unauthorized",
-  notFound: "brief.postComment.notFound",
-  stale: "brief.postComment.stale",
+  POSTED: "brief.postComment.posted",
+  UNAUTHORIZED: "brief.postComment.unauthorized",
+  NOT_FOUND: "brief.postComment.notFound",
+  STALE: "brief.postComment.stale",
   // Deterministic route reject: retrying the SAME draft can never succeed
   // (unlike `upstream`), ask for an edit, never a plain retry.
-  invalid: "brief.postComment.invalid",
+  INVALID: "brief.postComment.invalid",
   // Deterministic 409s of their own: neither is stale, and neither becomes
   // postable by retrying, so "try again shortly" would invite a pointless
   // re-post.
-  orphanedAnchor: "brief.postComment.orphanedAnchor",
-  alreadyPublished: "brief.postComment.alreadyPublished",
-  upstream: "brief.postComment.upstream",
+  ORPHANED_ANCHOR: "brief.postComment.orphanedAnchor",
+  ALREADY_PUBLISHED: "brief.postComment.alreadyPublished",
+  UPSTREAM: "brief.postComment.upstream",
   // Deliberately INDETERMINATE: the catch can land AFTER the POST reached
   // GitHub, where a confident retry prompt could double-post.
-  failed: "brief.postComment.failed",
+  FAILED: "brief.postComment.failed",
   // Blocks Submit review while a post-now settles: the payload capture would
   // re-ship the still-draft comment.
-  submitWhilePosting: "brief.postComment.submitWhilePosting",
+  SUBMIT_WHILE_POSTING: "brief.postComment.submitWhilePosting",
   // Symmetric block: a Submit review in flight already CAPTURED the drafts,
   // posting one now would double-post when the review lands.
-  postWhileSubmitting: "brief.postComment.postWhileSubmitting",
+  POST_WHILE_SUBMITTING: "brief.postComment.postWhileSubmitting",
 } as const satisfies Record<string, TranslationKey>;
-
-/**
- * How a single post ended. Every value except `posted`/`indeterminate` is a
- * DETERMINISTIC stop-cause (the comment definitively did NOT post), carried
- * granularly because a batch suppresses per-comment copy and its summary must
- * give the cause's own recovery. `indeterminate` = failure AROUND the write:
- * may or may not have reached GitHub.
- */
-export type PostDraftOutcome =
-  | "posted"
-  | "rejected"
-  | "unauthorized"
-  | "stale"
-  | "not-found"
-  | "indeterminate";
 
 /** Every non-posted result kind: its copy and the outcome it reports. */
 const POST_FAILURES = {
-  unauthorized: {
-    copy: POST_COMMENT_COPY_KEYS.unauthorized,
-    outcome: "unauthorized",
+  [PostCommentResultKinds.UNAUTHORIZED]: {
+    copy: POST_COMMENT_COPY_KEYS.UNAUTHORIZED,
+    outcome: PostDraftOutcomes.UNAUTHORIZED,
   },
-  "not-found": {
-    copy: POST_COMMENT_COPY_KEYS.notFound,
-    outcome: "not-found",
+  [PostCommentResultKinds.NOT_FOUND]: {
+    copy: POST_COMMENT_COPY_KEYS.NOT_FOUND,
+    outcome: PostDraftOutcomes.NOT_FOUND,
   },
-  stale: { copy: POST_COMMENT_COPY_KEYS.stale, outcome: "stale" },
-  "orphaned-anchor": {
-    copy: POST_COMMENT_COPY_KEYS.orphanedAnchor,
-    outcome: "rejected",
+  [PostCommentResultKinds.STALE]: {
+    copy: POST_COMMENT_COPY_KEYS.STALE,
+    outcome: PostDraftOutcomes.STALE,
   },
-  "already-published": {
-    copy: POST_COMMENT_COPY_KEYS.alreadyPublished,
-    outcome: "rejected",
+  [PostCommentResultKinds.ORPHANED_ANCHOR]: {
+    copy: POST_COMMENT_COPY_KEYS.ORPHANED_ANCHOR,
+    outcome: PostDraftOutcomes.REJECTED,
   },
-  invalid: { copy: POST_COMMENT_COPY_KEYS.invalid, outcome: "rejected" },
+  [PostCommentResultKinds.ALREADY_PUBLISHED]: {
+    copy: POST_COMMENT_COPY_KEYS.ALREADY_PUBLISHED,
+    outcome: PostDraftOutcomes.REJECTED,
+  },
+  [PostCommentResultKinds.INVALID]: {
+    copy: POST_COMMENT_COPY_KEYS.INVALID,
+    outcome: PostDraftOutcomes.REJECTED,
+  },
   // Definitively not posted, and not a retry: the reader's own account has
   // no write access to this repository.
-  "no-write-access": {
+  [PostCommentResultKinds.NO_WRITE_ACCESS]: {
     copy: "pulls.briefError.no-repo-write-access",
-    outcome: "rejected",
+    outcome: PostDraftOutcomes.REJECTED,
   },
   // Indeterminate: an earlier attempt may have posted it, or still may.
-  "publish-pending": {
+  [PostCommentResultKinds.PUBLISH_PENDING]: {
     copy: "pulls.briefError.draft-publish-pending",
-    outcome: "indeterminate",
+    outcome: PostDraftOutcomes.INDETERMINATE,
   },
-  "publish-in-doubt": {
+  [PostCommentResultKinds.PUBLISH_IN_DOUBT]: {
     copy: "pulls.briefError.draft-publish-in-doubt",
-    outcome: "indeterminate",
+    outcome: PostDraftOutcomes.INDETERMINATE,
   },
   // Indeterminate, not rejected: GitHub may have taken it before failing.
-  upstream: { copy: POST_COMMENT_COPY_KEYS.upstream, outcome: "indeterminate" },
+  [PostCommentResultKinds.UPSTREAM]: {
+    copy: POST_COMMENT_COPY_KEYS.UPSTREAM,
+    outcome: PostDraftOutcomes.INDETERMINATE,
+  },
 } as const satisfies Record<
-  Exclude<PostCommentResult["kind"], "posted">,
+  Exclude<PostCommentResultKind, typeof PostCommentResultKinds.POSTED>,
   { copy: TranslationKey; outcome: PostDraftOutcome }
 >;
 
@@ -153,7 +152,7 @@ export function useOwnDraftFlow(
     ): Promise<PostDraftOutcome> => {
       // A posted comment is server-owned/read-only.
       if (postComment === undefined || comment.status !== "draft") {
-        return "rejected";
+        return PostDraftOutcomes.REJECTED;
       }
       // Cap mirror: an over-cap body/anchor is a deterministic route 400,
       // same copy as the disabled Post button, guarding the programmatic
@@ -163,20 +162,20 @@ export function useOwnDraftFlow(
         if (!batchOwnsMessaging) {
           announce(blocked);
         }
-        return "rejected";
+        return PostDraftOutcomes.REJECTED;
       }
       // A Submit review in flight already CAPTURED this draft, posting now
       // would double-post when the review lands.
       if (submitPending) {
         if (!batchOwnsMessaging) {
-          announce(t(POST_COMMENT_COPY_KEYS.postWhileSubmitting));
+          announce(t(POST_COMMENT_COPY_KEYS.POST_WHILE_SUBMITTING));
         }
-        return "rejected";
+        return PostDraftOutcomes.REJECTED;
       }
       // A duplicate in-flight post's outcome is unknowable from here, and a
       // batch must stop with the indeterminate summary.
       if (!inFlight.begin(comment.id)) {
-        return "indeterminate";
+        return PostDraftOutcomes.INDETERMINATE;
       }
       const say = (key: TranslationKey) => {
         if (!batchOwnsMessaging) {
@@ -188,7 +187,7 @@ export function useOwnDraftFlow(
         // began before the post never puts the draft back.
         const result = await actions.trackWrite(async () => {
           const posted = await postComment(comment.id);
-          if (posted.kind === "posted") {
+          if (posted.kind === PostCommentResultKinds.POSTED) {
             // The external write is the commit point: flip the posted
             // comment to server-owned and record the wrapping review id
             // (the "yours" join key).
@@ -199,19 +198,19 @@ export function useOwnDraftFlow(
           }
           return posted;
         });
-        if (result.kind === "posted") {
-          say(POST_COMMENT_COPY_KEYS.posted);
+        if (result.kind === PostCommentResultKinds.POSTED) {
+          say(POST_COMMENT_COPY_KEYS.POSTED);
           // Conversation write, refetch so the new thread renders.
           invalidateConversation?.();
-          return "posted";
+          return PostDraftOutcomes.POSTED;
         }
         const failure = POST_FAILURES[result.kind];
         say(failure.copy);
         return failure.outcome;
       } catch (error) {
         console.error("post-now failed", error);
-        say(POST_COMMENT_COPY_KEYS.failed);
-        return "indeterminate";
+        say(POST_COMMENT_COPY_KEYS.FAILED);
+        return PostDraftOutcomes.INDETERMINATE;
       } finally {
         inFlight.end(comment.id);
       }

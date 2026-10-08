@@ -17,8 +17,8 @@ import {
   MAX_BODY_LENGTH,
   buildSignatureLine,
   foldDraftsIntoBody,
-  type SubmitReviewResult,
 } from "../utils/submit";
+import type { SubmitReviewResult } from "../utils/types";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
 import { CommentAnchorKinds } from "types/comments";
 

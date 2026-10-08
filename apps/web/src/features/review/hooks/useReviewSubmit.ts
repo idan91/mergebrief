@@ -20,10 +20,16 @@ import {
   listUnplacedDrafts,
   submitBlockedReason,
   type SubmitReviewAction,
-  type SubmitReviewResult,
 } from "../utils/submit";
+import {
+  SubmitReviewResultKinds,
+  type SubmitReviewResult,
+} from "../utils/types";
 
-type SubmittedReview = Extract<SubmitReviewResult, { kind: "submitted" }>;
+type SubmittedReview = Extract<
+  SubmitReviewResult,
+  { kind: typeof SubmitReviewResultKinds.SUBMITTED }
+>;
 
 export interface UseReviewSubmitInput {
   /** The DB route's transport; `undefined` on the local demo path. */
@@ -229,39 +235,39 @@ export function useReviewSubmit(
           return;
         }
         switch (result.kind) {
-          case "submitted": {
+          case SubmitReviewResultKinds.SUBMITTED: {
             settleSubmitted(result);
             break;
           }
-          case "rewritten": {
+          case SubmitReviewResultKinds.REWRITTEN: {
             fail(COPY.REWRITTEN);
             break;
           }
-          case "orphaned-draft": {
+          case SubmitReviewResultKinds.ORPHANED_DRAFT: {
             fail(COPY.ORPHANED_DRAFT);
             break;
           }
-          case "unauthorized": {
+          case SubmitReviewResultKinds.UNAUTHORIZED: {
             fail(COPY.UNAUTHORIZED);
             break;
           }
-          case "not-found": {
+          case SubmitReviewResultKinds.NOT_FOUND: {
             fail(COPY.NOT_FOUND);
             break;
           }
-          case "no-write-access": {
+          case SubmitReviewResultKinds.NO_WRITE_ACCESS: {
             fail(COPY.NO_WRITE_ACCESS);
             break;
           }
-          case "github-permission": {
+          case SubmitReviewResultKinds.GITHUB_PERMISSION: {
             fail(COPY.GITHUB_PERMISSION);
             break;
           }
-          case "invalid": {
+          case SubmitReviewResultKinds.INVALID: {
             fail(COPY.INVALID);
             break;
           }
-          case "upstream": {
+          case SubmitReviewResultKinds.UPSTREAM: {
             fail(
               outcome === "comment"
                 ? COPY.UPSTREAM_NEUTRAL
@@ -269,19 +275,19 @@ export function useReviewSubmit(
             );
             break;
           }
-          case "indeterminate": {
+          case SubmitReviewResultKinds.INDETERMINATE: {
             fail(COPY.FAILED);
             break;
           }
-          case "pending-review-held": {
+          case SubmitReviewResultKinds.PENDING_REVIEW_HELD: {
             fail(COPY.PENDING_REVIEW_HELD);
             break;
           }
-          case "publish-pending": {
+          case SubmitReviewResultKinds.PUBLISH_PENDING: {
             fail(COPY.PUBLISH_PENDING);
             break;
           }
-          case "publish-in-doubt": {
+          case SubmitReviewResultKinds.PUBLISH_IN_DOUBT: {
             fail(COPY.PUBLISH_IN_DOUBT);
             break;
           }

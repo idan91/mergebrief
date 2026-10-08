@@ -2,7 +2,7 @@
 // kinds the own-draft flow renders as toast copy; only a malformed 2xx throws
 // (contract violation). The route has NO deterministic 400 reachable from a
 // valid UI state (400 = malformed prNumber only), so there is no
-// recoverable-copy mirror to keep in lockstep — a 400 collapses into upstream.
+// recoverable-copy mirror to keep in lockstep; a 400 collapses into upstream.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -13,11 +13,8 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 });
 
 import { apiFetch, ApiError } from "../../../data/apiFetch";
-import {
-  createMarkReadyAction,
-  markPrReady,
-  type MarkReadyResult,
-} from "./markReady";
+import { createMarkReadyAction, markPrReady } from "./markReady";
+import type { MarkReadyResult } from "./types";
 
 const apiFetchMock = vi.mocked(apiFetch);
 
@@ -26,7 +23,7 @@ function run(): ReturnType<typeof markPrReady> {
 }
 
 describe("markPrReady", () => {
-  it("POSTs to the ready route and parses the 200 (fresh flip or converged — indistinguishable)", async () => {
+  it("posts to the ready route and parses a fresh or converged 200", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draft: false }), { status: 200 }),
     );
@@ -53,7 +50,7 @@ describe("markPrReady", () => {
     await expect(run()).resolves.toEqual({ kind: "not-found" });
   });
 
-  it("maps a 403 to the github-permission kind (the App lacks contents:write)", async () => {
+  it("maps a 403 for missing contents write to github-permission", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "github-permission" }), {
         status: 403,
@@ -75,7 +72,7 @@ describe("markPrReady", () => {
     await expect(run()).resolves.toEqual({ kind: "github-permission" });
   });
 
-  it("maps 502 (and the UI-unreachable 400) to the upstream kind", async () => {
+  it("maps a 502 and the unreachable 400 to the upstream kind", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "upstream error" }), {
         status: 502,
@@ -109,7 +106,7 @@ describe("markPrReady", () => {
     }
   });
 
-  it("throws a typed malformed error on a 200 whose body is not { draft: false }", async () => {
+  it("throws a typed malformed error on a 200 that is not draft false", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draft: true }), { status: 200 }),
     );
@@ -129,7 +126,7 @@ async function flushMicrotasks(times = 4): Promise<void> {
 }
 
 describe("createMarkReadyAction", () => {
-  it("success: invalidates the pr-meta key and resolves only after the invalidation settles", async () => {
+  it("resolves success only after the pr-meta invalidation settles", async () => {
     const order: string[] = [];
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -170,7 +167,7 @@ describe("createMarkReadyAction", () => {
     ]);
   });
 
-  it("failure kinds resolve without invalidating anything (stay in-state)", async () => {
+  it("resolves failure kinds without invalidating anything", async () => {
     for (const kind of [
       "unauthorized",
       "not-found",

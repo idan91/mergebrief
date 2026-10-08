@@ -9,82 +9,63 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../../data/apiFetch";
+import { parsePostedComment } from "../../../data/postedComment";
 import {
-  parsePostedComment,
-  type PostedComment,
-} from "../../../data/postedComment";
+  PostCommentResultKinds,
+  type PostCommentResult,
+  type PostCommentResultKind,
+} from "./types";
 
-export type PostCommentResult =
-  | PostedComment
-  /** 401, session expired; sign in again. The draft stays. */
-  | { readonly kind: "unauthorized" }
-  /** 404, the PR (or repo access) is gone. */
-  | { readonly kind: "not-found" }
-  /** 409, the head advanced under the pinned commit; reload to re-anchor. */
-  | { readonly kind: "stale" }
-  /** 409, the draft's anchor points at no code; re-place or delete it. */
-  | { readonly kind: "orphaned-anchor" }
-  /** 409, the draft is already on GitHub; nothing posted twice. */
-  | { readonly kind: "already-published" }
-  /** 409, an earlier attempt on this draft is still running. */
-  | { readonly kind: "publish-pending" }
-  /** 409, an earlier attempt may have posted it and GitHub could not say. */
-  | { readonly kind: "publish-in-doubt" }
-  /** 400 (shape; mirrored client-side) or deterministic 413, edit the body, retry-as-is never clears. */
-  | { readonly kind: "invalid" }
-  /** 502/anything else, GitHub rejected or is unreachable. */
-  /**
-   * 403, a url-box brief for a repo the reader's own GitHub account cannot
-   * write to. Never a retry: it clears by installing the App there.
-   */
-  | { readonly kind: "no-write-access" }
-  | { readonly kind: "upstream" };
-
-type PostCommentFailureKind = Exclude<PostCommentResult["kind"], "posted">;
+type PostCommentFailureKind = Exclude<
+  PostCommentResultKind,
+  typeof PostCommentResultKinds.POSTED
+>;
 
 // Keep the wire mapping total so new codes cannot silently become retry advice.
 // Frozen-session and rewritten-PR failures require reloading to re-anchor.
 // Orphaned/published drafts are neither stale nor retryable; 413 requires a body edit.
 const KindForCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
-  [ApiErrorCodes.FORBIDDEN]: "upstream",
-  [ApiErrorCodes.GITHUB_PERMISSION]: "upstream",
-  [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
-  [ApiErrorCodes.HUMAN_ONLY]: "upstream",
-  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
-  [ApiErrorCodes.REPO_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_DISABLED]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.NOT_FOUND]: "not-found",
-  [ApiErrorCodes.INVALID_REQUEST]: "invalid",
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "invalid",
-  [ApiErrorCodes.NOT_A_PR_URL]: "upstream",
-  [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: "invalid",
-  [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.UNAUTHORIZED]: PostCommentResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.INVALID_SIGNATURE]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.FORBIDDEN]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GITHUB_PERMISSION]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.HUMAN_ONLY]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: PostCommentResultKinds.NO_WRITE_ACCESS,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.NOT_FOUND]: PostCommentResultKinds.NOT_FOUND,
+  [ApiErrorCodes.INVALID_REQUEST]: PostCommentResultKinds.INVALID,
+  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: PostCommentResultKinds.INVALID,
+  [ApiErrorCodes.NOT_A_PR_URL]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.SIGN_IN_FAILED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: PostCommentResultKinds.INVALID,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: PostCommentResultKinds.UPSTREAM,
   // Read-only codes: this write transport cannot receive any of them.
-  [ApiErrorCodes.FILE_NOT_FOUND]: "upstream",
-  [ApiErrorCodes.FILE_TOO_LARGE]: "upstream",
-  [ApiErrorCodes.FILE_NOT_TEXT]: "upstream",
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "already-published",
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "publish-pending",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "publish-in-doubt",
-  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "stale",
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "stale",
-  [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_FAILED]: "upstream",
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
-  [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
+  [ApiErrorCodes.FILE_NOT_FOUND]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_TOO_LARGE]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_NOT_TEXT]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]:
+    PostCommentResultKinds.ALREADY_PUBLISHED,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: PostCommentResultKinds.ORPHANED_ANCHOR,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: PostCommentResultKinds.PUBLISH_PENDING,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]:
+    PostCommentResultKinds.PUBLISH_IN_DOUBT,
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: PostCommentResultKinds.STALE,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: PostCommentResultKinds.STALE,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_FAILED]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_CONFIG]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.INTERNAL_ERROR]: PostCommentResultKinds.UPSTREAM,
   // Web-local; never on the wire, errorFromResponse cannot produce it.
-  [ApiErrorCodes.MALFORMED]: "upstream",
+  [ApiErrorCodes.MALFORMED]: PostCommentResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, PostCommentFailureKind>;
 
 /**

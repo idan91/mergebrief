@@ -2,13 +2,14 @@
 // copy. The action is injected by the DB route; absent action = not an
 // own-draft view, so `markReady` no-ops.
 //
-// On success the hook announces and stops — it never clears the own-draft UI
+// On success the hook announces and stops; it never clears the own-draft UI
 // locally. The injected action awaits the pr-view invalidation, so the
 // affordances vanish exactly when the refreshed PrView lands in the cache.
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { MarkReadyAction } from "../transport/markReady";
+import { MarkReadyResultKinds } from "../transport/types";
 
 export interface UseMarkReadyInput {
   /** The DB route's transport (+ pr-view invalidation); `undefined` = unavailable. */
@@ -39,27 +40,27 @@ export function useMarkReady(input: UseMarkReadyInput): UseMarkReadyValue {
       try {
         const result = await action();
         switch (result.kind) {
-          case "ready": {
+          case MarkReadyResultKinds.READY: {
             announce(t("pulls.markReady.ready"));
             break;
           }
-          case "unauthorized": {
+          case MarkReadyResultKinds.UNAUTHORIZED: {
             announce(t("pulls.markReady.unauthorized"));
             break;
           }
-          case "not-found": {
+          case MarkReadyResultKinds.NOT_FOUND: {
             announce(t("pulls.markReady.notFound"));
             break;
           }
-          case "no-write-access": {
+          case MarkReadyResultKinds.NO_WRITE_ACCESS: {
             announce(t("pulls.briefError.no-repo-write-access"));
             break;
           }
-          case "github-permission": {
+          case MarkReadyResultKinds.GITHUB_PERMISSION: {
             announce(t("pulls.markReady.githubPermission"));
             break;
           }
-          case "upstream": {
+          case MarkReadyResultKinds.UPSTREAM: {
             announce(t("pulls.markReady.upstream"));
             break;
           }

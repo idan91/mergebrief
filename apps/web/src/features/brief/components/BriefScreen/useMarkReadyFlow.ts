@@ -11,7 +11,7 @@ import type { MarkReadyAction } from "@web/features/pulls/transport";
 import { useMarkReady } from "@web/features/pulls/hooks";
 import type { IntentCheck } from "../../types";
 import type { RiskFlag } from "../../utils/viewModel";
-import type { PostDraftOutcome } from "./useOwnDraftFlow";
+import { PostDraftOutcomes, type PostDraftOutcome } from "./types";
 import {
   countIntentGaps,
   countIntentTensions,
@@ -258,7 +258,7 @@ export function useMarkReadyFlow(
           // the stop-on-failure contract.
           // oxlint-disable-next-line no-await-in-loop
           const outcome = await postDraft(draft, true);
-          if (outcome !== "posted") {
+          if (outcome !== PostDraftOutcomes.POSTED) {
             setMarkReadyBatch(null);
             setMarkReadyGateOpen(false);
             // Per-comment copy is suppressed for the batch, so this summary

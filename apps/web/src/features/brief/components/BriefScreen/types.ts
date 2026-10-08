@@ -207,3 +207,20 @@ export interface FilePathParts {
   directories: FilePathDirectory[];
   basename: string;
 }
+
+/**
+ * How a single post ended. Every value except `posted`/`indeterminate` is a
+ * DETERMINISTIC stop-cause (the comment definitively did NOT post), carried
+ * granularly because a batch suppresses per-comment copy and its summary must
+ * give the cause's own recovery. `indeterminate` = failure AROUND the write:
+ * may or may not have reached GitHub.
+ */
+export const PostDraftOutcomes = {
+  POSTED: "posted",
+  REJECTED: "rejected",
+  UNAUTHORIZED: "unauthorized",
+  STALE: "stale",
+  NOT_FOUND: "not-found",
+  INDETERMINATE: "indeterminate",
+} as const;
+export type PostDraftOutcome = ValueOf<typeof PostDraftOutcomes>;

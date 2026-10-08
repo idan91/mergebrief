@@ -24,7 +24,7 @@ import type {
 import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
 
 const MARK_READY_COPY = {
-  upstream: appI18n.t("pulls.markReady.upstream"),
+  UPSTREAM: appI18n.t("pulls.markReady.upstream"),
 };
 import type {
   ReviewSessionPayload,
@@ -534,7 +534,7 @@ describe("own-draft Brief view", () => {
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
     await waitFor(() =>
-      expect(screen.getByText(MARK_READY_COPY.upstream)).toBeTruthy(),
+      expect(screen.getByText(MARK_READY_COPY.UPSTREAM)).toBeTruthy(),
     );
     // Stay in-state: the chip is still up and the CTA is re-enabled (the CTA
     // is never hard-disabled, aria-disabled is the pending signal).
@@ -661,7 +661,7 @@ describe("own-draft Brief view", () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
     expect(screen.getByText(summary)).toBeTruthy();
     expect(
-      screen.queryByText(appI18n.t(POST_COMMENT_COPY_KEYS.upstream)),
+      screen.queryByText(appI18n.t(POST_COMMENT_COPY_KEYS.UPSTREAM)),
     ).toBeNull();
     // Stopped at the failure: the third draft was never attempted…
     expect(postComment).toHaveBeenCalledTimes(2);
@@ -1098,7 +1098,7 @@ describe("own-draft Brief view", () => {
 
     // Indeterminate copy through the live region, draft kept, gate released.
     expect(
-      await screen.findByText(appI18n.t(POST_COMMENT_COPY_KEYS.upstream)),
+      await screen.findByText(appI18n.t(POST_COMMENT_COPY_KEYS.UPSTREAM)),
     ).toBeTruthy();
     await waitFor(() =>
       expect(post.getAttribute("aria-disabled")).not.toBe("true"),

@@ -31,7 +31,6 @@ import type {
   RevisionNarrativeArtifact,
   RevisionNarrativeSkipReason,
 } from "../../types";
-import type { PostDraftOutcome } from "./useOwnDraftFlow";
 import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
   type FilePathDirectory,
@@ -40,6 +39,8 @@ import {
   LinkParamErrors,
   type LinkTarget,
   LinkTargetKinds,
+  PostDraftOutcomes,
+  type PostDraftOutcome,
 } from "./types";
 
 /** Typed placeholder for a plan slot that is absent, always `enabled: false`. */
@@ -235,13 +236,13 @@ export function discriminateNarrativeArtifact(
  * confident "not posted" there would invite a double-posting retry.
  */
 const BATCH_CAUSE_KEYS = {
-  rejected: "brief.markReadyBatch.causeRejected",
-  unauthorized: "brief.markReadyBatch.causeUnauthorized",
-  stale: "brief.markReadyBatch.causeStale",
-  "not-found": "brief.markReadyBatch.causeNotFound",
-  indeterminate: "brief.markReadyBatch.causeIndeterminate",
+  [PostDraftOutcomes.REJECTED]: "brief.markReadyBatch.causeRejected",
+  [PostDraftOutcomes.UNAUTHORIZED]: "brief.markReadyBatch.causeUnauthorized",
+  [PostDraftOutcomes.STALE]: "brief.markReadyBatch.causeStale",
+  [PostDraftOutcomes.NOT_FOUND]: "brief.markReadyBatch.causeNotFound",
+  [PostDraftOutcomes.INDETERMINATE]: "brief.markReadyBatch.causeIndeterminate",
 } as const satisfies Record<
-  Exclude<PostDraftOutcome, "posted">,
+  Exclude<PostDraftOutcome, typeof PostDraftOutcomes.POSTED>,
   TranslationKey
 >;
 
@@ -249,7 +250,7 @@ export function markReadyBatchFailureCopy(
   t: TFunction,
   posted: number,
   total: number,
-  cause: Exclude<PostDraftOutcome, "posted">,
+  cause: Exclude<PostDraftOutcome, typeof PostDraftOutcomes.POSTED>,
 ): string {
   return [
     t("brief.markReadyBatch.counts", { posted, total }),

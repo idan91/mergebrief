@@ -197,27 +197,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/pulls/hooks/useMarkReady.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/hooks/useMarkReady.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/transport/markReady.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 8
-    }
-  },
   "apps/web/src/features/pulls/utils/ownDraft.test.ts": {
     "house/no-em-dash": {
       "count": 1

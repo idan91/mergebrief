@@ -504,7 +504,7 @@ export function useBriefScreenFacade({
     resetOutcome: () => actions.setOutcome("comment"),
     blockedExternally:
       postingCommentIds.size > 0
-        ? t(POST_COMMENT_COPY_KEYS.submitWhilePosting)
+        ? t(POST_COMMENT_COPY_KEYS.SUBMIT_WHILE_POSTING)
         : undefined,
     trackWrite: actions.trackWrite,
   });
@@ -523,7 +523,7 @@ export function useBriefScreenFacade({
 
   const flagsReadOnly = ownDraftActive || writesDisabled;
   const postBlockedExternally = submitPending
-    ? t(POST_COMMENT_COPY_KEYS.postWhileSubmitting)
+    ? t(POST_COMMENT_COPY_KEYS.POST_WHILE_SUBMITTING)
     : undefined;
   const postNow = postComment === undefined ? undefined : postDraftComment;
   // One identity per real change: every comment table reads this context.

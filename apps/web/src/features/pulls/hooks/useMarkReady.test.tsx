@@ -1,23 +1,23 @@
 // @vitest-environment jsdom
 // The mark-ready facade hook owns pending/copy state for the own-draft terminal
-// action. Success stays QUIET about state — the affordances vanish only when
+// action. Success stays QUIET about state: the affordances vanish only when
 // the refreshed PrView lands; the hook never clears anything optimistically.
 // Failures re-enable the CTA and announce toast copy.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MarkReadyResult } from "../transport/markReady";
+import type { MarkReadyResult } from "../transport/types";
 import { appI18n, I18nProvider } from "../../../i18n/I18nProvider";
 import { useMarkReady } from "./useMarkReady";
 
 const t = appI18n.t;
 const MARK_READY_COPY = {
-  ready: t("pulls.markReady.ready"),
-  unauthorized: t("pulls.markReady.unauthorized"),
-  notFound: t("pulls.markReady.notFound"),
-  githubPermission: t("pulls.markReady.githubPermission"),
-  upstream: t("pulls.markReady.upstream"),
-  failed: t("pulls.markReady.failed"),
+  READY: t("pulls.markReady.ready"),
+  UNAUTHORIZED: t("pulls.markReady.unauthorized"),
+  NOT_FOUND: t("pulls.markReady.notFound"),
+  GITHUB_PERMISSION: t("pulls.markReady.githubPermission"),
+  UPSTREAM: t("pulls.markReady.upstream"),
+  FAILED: t("pulls.markReady.failed"),
 } as const;
 
 afterEach(cleanup);
@@ -39,7 +39,7 @@ function deferred(): Deferred {
 }
 
 describe("useMarkReady", () => {
-  it("is a no-op without an action (not own-draft / local path)", () => {
+  it("is a no-op without an action, off the own-draft path", () => {
     const announce = vi.fn();
     const { result } = renderHook(
       () => useMarkReady({ action: undefined, announce }),
@@ -71,15 +71,15 @@ describe("useMarkReady", () => {
       await gate.promise;
     });
     expect(result.current.pending).toBe(false);
-    expect(announce).toHaveBeenCalledWith(MARK_READY_COPY.ready);
+    expect(announce).toHaveBeenCalledWith(MARK_READY_COPY.READY);
   });
 
   it("announces failure copy per kind and re-enables the CTA", async () => {
     for (const [kind, copy] of [
-      ["unauthorized", MARK_READY_COPY.unauthorized],
-      ["not-found", MARK_READY_COPY.notFound],
-      ["github-permission", MARK_READY_COPY.githubPermission],
-      ["upstream", MARK_READY_COPY.upstream],
+      ["unauthorized", MARK_READY_COPY.UNAUTHORIZED],
+      ["not-found", MARK_READY_COPY.NOT_FOUND],
+      ["github-permission", MARK_READY_COPY.GITHUB_PERMISSION],
+      ["upstream", MARK_READY_COPY.UPSTREAM],
     ] as const) {
       const announce = vi.fn();
       const action = vi.fn(() => Promise.resolve<MarkReadyResult>({ kind }));
@@ -108,6 +108,6 @@ describe("useMarkReady", () => {
       result.current.markReady();
     });
     expect(result.current.pending).toBe(false);
-    expect(announce).toHaveBeenCalledWith(MARK_READY_COPY.failed);
+    expect(announce).toHaveBeenCalledWith(MARK_READY_COPY.FAILED);
   });
 });

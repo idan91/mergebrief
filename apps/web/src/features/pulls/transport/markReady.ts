@@ -18,26 +18,16 @@ import {
   type ApiErrorCode,
 } from "../../../data/apiFetch";
 import { buildPrMetaQueryOptions } from "../queries";
+import {
+  MarkReadyResultKinds,
+  type MarkReadyResult,
+  type MarkReadyResultKind,
+} from "./types";
 
-export type MarkReadyResult =
-  /** The PR is ready: fresh flip or already-ready convergence (indistinguishable). */
-  | { kind: "ready" }
-  | { kind: "unauthorized" }
-  | { kind: "not-found" }
-  /**
-   * 403: the App lacks `contents: write`. A distinct kind so the FE gives
-   * actionable copy instead of the "no longer accessible" 404 copy: the viewer
-   * proved repo access, so this is not an existence miss.
-   */
-  | { kind: "github-permission" }
-  /**
-   * 403: a url-box brief for a repo the reader's own GitHub account cannot
-   * write to. Never a retry: it clears by installing the App there.
-   */
-  | { kind: "no-write-access" }
-  | { kind: "upstream" };
-
-type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
+type MarkReadyFailureKind = Exclude<
+  MarkReadyResultKind,
+  typeof MarkReadyResultKinds.READY
+>;
 
 // Total over the wire vocabulary: a new ApiErrorCode member fails to compile
 // here instead of silently becoming "try again shortly". A 403 on this route
@@ -47,45 +37,45 @@ type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
 // state: so invalid-request stays in the generic upstream bucket. Retrying
 // any kind is safe: the operation is idempotent server-side.
 const KindForCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
-  [ApiErrorCodes.FORBIDDEN]: "github-permission",
-  [ApiErrorCodes.GITHUB_PERMISSION]: "github-permission",
-  [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
-  [ApiErrorCodes.HUMAN_ONLY]: "upstream",
-  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
-  [ApiErrorCodes.REPO_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_DISABLED]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.NOT_FOUND]: "not-found",
-  [ApiErrorCodes.INVALID_REQUEST]: "upstream",
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "upstream",
-  [ApiErrorCodes.NOT_A_PR_URL]: "upstream",
-  [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: "upstream",
-  [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.UNAUTHORIZED]: MarkReadyResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.INVALID_SIGNATURE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.FORBIDDEN]: MarkReadyResultKinds.GITHUB_PERMISSION,
+  [ApiErrorCodes.GITHUB_PERMISSION]: MarkReadyResultKinds.GITHUB_PERMISSION,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.HUMAN_ONLY]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: MarkReadyResultKinds.NO_WRITE_ACCESS,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.NOT_FOUND]: MarkReadyResultKinds.NOT_FOUND,
+  [ApiErrorCodes.INVALID_REQUEST]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.NOT_A_PR_URL]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.SIGN_IN_FAILED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: MarkReadyResultKinds.UPSTREAM,
   // Read-only codes: this write transport cannot receive any of them.
-  [ApiErrorCodes.FILE_NOT_FOUND]: "upstream",
-  [ApiErrorCodes.FILE_TOO_LARGE]: "upstream",
-  [ApiErrorCodes.FILE_NOT_TEXT]: "upstream",
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "upstream",
-  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
-  [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_FAILED]: "upstream",
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
-  [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
+  [ApiErrorCodes.FILE_NOT_FOUND]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_TOO_LARGE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_NOT_TEXT]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_FAILED]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_CONFIG]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.INTERNAL_ERROR]: MarkReadyResultKinds.UPSTREAM,
   // Web-local; never on the wire: errorFromResponse cannot produce it.
-  [ApiErrorCodes.MALFORMED]: "upstream",
+  [ApiErrorCodes.MALFORMED]: MarkReadyResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
 
 /** The route-injected action shape the Brief screen's own-draft flow calls. */
@@ -119,7 +109,7 @@ export async function markPrReady(
   if (!isReadyBody(body)) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  return { kind: "ready" };
+  return { kind: MarkReadyResultKinds.READY };
 }
 
 /** The invalidation boundary the action needs, a `QueryClient` satisfies it. */
@@ -144,7 +134,7 @@ export function createMarkReadyAction(
 ): MarkReadyAction {
   return async () => {
     const result = await transport(repoId, prNumber);
-    if (result.kind === "ready") {
+    if (result.kind === MarkReadyResultKinds.READY) {
       await client.invalidateQueries({
         queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,
       });

@@ -45,5 +45,9 @@ export {
   type SubmitDraftInput,
   type SubmitPayload,
   type SubmitReviewAction,
-  type SubmitReviewResult,
 } from "./submit";
+export {
+  SubmitReviewResultKinds,
+  type SubmitReviewResult,
+  type SubmitReviewResultKind,
+} from "./types";
