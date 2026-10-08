@@ -21,6 +21,7 @@ import {
   type ComparisonMarkFiles,
 } from "../../comparison/runs";
 import type { ConversationPlan } from "@web/features/conversation";
+import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import type {
@@ -592,7 +593,10 @@ export function buildReplyRecordingPlan(
     ...plan,
     postReply: async (rootCommentId, body) => {
       const result = await plan.postReply(rootCommentId, body);
-      if (result.kind === "posted" && result.reviewId !== undefined) {
+      if (
+        result.kind === ReplyResultKinds.POSTED &&
+        result.reviewId !== undefined
+      ) {
         recordSubmittedReview(result.reviewId);
       }
       return result;

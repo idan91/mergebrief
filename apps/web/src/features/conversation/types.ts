@@ -3,6 +3,7 @@
 // GitHub state names differ from Review Session dispositions; linked-comment bridges them.
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
+import type { PostedComment } from "../../data/postedComment";
 
 type Result<T> = SharedResult<T, string>;
 
@@ -475,3 +476,68 @@ export function parseConversation(value: unknown): Result<PrConversation> {
     },
   };
 }
+
+export const ReplyResultKinds = {
+  POSTED: "posted",
+  UNAUTHORIZED: "unauthorized",
+  NOT_FOUND: "not-found",
+  INVALID: "invalid",
+  NO_WRITE_ACCESS: "no-write-access",
+  UPSTREAM: "upstream",
+} as const;
+export type ReplyResultKind = ValueOf<typeof ReplyResultKinds>;
+
+export type ReplyResult =
+  | PostedComment
+  /** 401: session expired; sign in again. Draft stays. */
+  | { readonly kind: typeof ReplyResultKinds.UNAUTHORIZED }
+  /** 404: the thread's root comment (or the PR) is gone. */
+  | { readonly kind: typeof ReplyResultKinds.NOT_FOUND }
+  /** 400 (shape; mirrored client-side) or deterministic 413, edit the body, retry-as-is never clears. */
+  | { readonly kind: typeof ReplyResultKinds.INVALID }
+  /**
+   * 403: the reader is on a url-box brief for a repo their own GitHub
+   * account cannot write to. Never a retry: it clears by installing the App
+   * on that repository, not by trying again.
+   */
+  | { readonly kind: typeof ReplyResultKinds.NO_WRITE_ACCESS }
+  /** 502/anything else: GitHub rejected or is unreachable. */
+  | { readonly kind: typeof ReplyResultKinds.UPSTREAM };
+
+export const ResolveThreadResultKinds = {
+  DONE: "done",
+  UNAUTHORIZED: "unauthorized",
+  GITHUB_PERMISSION: "github-permission",
+  NOT_FOUND: "not-found",
+  INVALID: "invalid",
+  NO_WRITE_ACCESS: "no-write-access",
+  UPSTREAM: "upstream",
+} as const;
+export type ResolveThreadResultKind = ValueOf<typeof ResolveThreadResultKinds>;
+
+export type ResolveThreadResult =
+  /**
+   * The thread is in the requested state, a fresh flip or a converged one
+   * (`alreadyInTargetState`). Both are success and share the refetch path;
+   * the flag exists so copy can stay honest if it ever needs to differ.
+   */
+  | {
+      readonly kind: typeof ResolveThreadResultKinds.DONE;
+      readonly resolved: boolean;
+      readonly alreadyInTargetState: boolean;
+    }
+  /** 401: session expired; sign in again. */
+  | { readonly kind: typeof ResolveThreadResultKinds.UNAUTHORIZED }
+  /** 403: GitHub refused the mutation (permissions changed under the viewer). */
+  | { readonly kind: typeof ResolveThreadResultKinds.GITHUB_PERMISSION }
+  /** 404: the thread (or the PR) is gone. */
+  | { readonly kind: typeof ResolveThreadResultKinds.NOT_FOUND }
+  /** 400: the route rejected the shape (unreachable from valid UI state). */
+  | { readonly kind: typeof ResolveThreadResultKinds.INVALID }
+  /**
+   * 403: a url-box brief for a repo the reader's own GitHub account cannot
+   * write to. Never a retry: it clears by installing the App there.
+   */
+  | { readonly kind: typeof ResolveThreadResultKinds.NO_WRITE_ACCESS }
+  /** 502/anything else: GitHub rejected or is unreachable. */
+  | { readonly kind: typeof ResolveThreadResultKinds.UPSTREAM };

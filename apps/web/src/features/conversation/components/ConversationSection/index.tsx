@@ -24,11 +24,14 @@ import type {
   buildConversationQueryOptions,
 } from "../../queries";
 import { useMentionPool } from "../../hooks/useMentionPool";
-import type { ReplyResult } from "../../reply";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import rowStyles from "../../rows.module.scss";
-import { ReviewVerdictStates, type ConversationReview } from "../../types";
+import {
+  ReviewVerdictStates,
+  type ConversationReview,
+  type ReplyResult,
+} from "../../types";
 import type {
   ConversationResolutionPlan,
   ThreadComposerWiring,

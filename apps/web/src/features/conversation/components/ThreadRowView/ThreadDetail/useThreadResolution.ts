@@ -10,37 +10,41 @@ import type { TranslationKey } from "i18n";
 import { useCallback, useRef, useState } from "react";
 
 import { useReviewActions } from "@web/features/review/session";
-import type { ResolveThreadResult } from "../../../resolve";
+import {
+  ResolveThreadResultKinds,
+  type ResolveThreadResult,
+  type ResolveThreadResultKind,
+} from "../../../types";
 import type { ThreadResolutionWiring } from "../../../wiring";
 
 export const RESOLVE_KEYS = {
-  resolved: "conversation.resolve.resolved",
-  unresolved: "conversation.resolve.unresolved",
-  unauthorized: "conversation.resolve.unauthorized",
-  notFound: "conversation.resolve.notFound",
+  RESOLVED: "conversation.resolve.resolved",
+  UNRESOLVED: "conversation.resolve.unresolved",
+  UNAUTHORIZED: "conversation.resolve.unauthorized",
+  NOT_FOUND: "conversation.resolve.notFound",
   // The route only returns 403 at the MUTATION stage, after the viewer proved
   // repo access, so this is a real capability gap (raced revocation,
   // read-only collaborator), not an existence miss.
-  githubPermission: "conversation.resolve.githubPermission",
-  invalid: "conversation.resolve.invalid",
-  "no-write-access": "pulls.briefError.no-repo-write-access",
-  upstream: "conversation.resolve.upstream",
+  GITHUB_PERMISSION: "conversation.resolve.githubPermission",
+  INVALID: "conversation.resolve.invalid",
+  NO_WRITE_ACCESS: "pulls.briefError.no-repo-write-access",
+  UPSTREAM: "conversation.resolve.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub. Both
   // directions are idempotent, so retrying is safe, but the copy must not
   // claim the thread is unchanged.
-  failed: "conversation.resolve.failed",
+  FAILED: "conversation.resolve.failed",
 } as const satisfies Record<string, TranslationKey>;
 
 const FAILURE_KEYS: Record<
-  Exclude<ResolveThreadResult["kind"], "done">,
+  Exclude<ResolveThreadResultKind, typeof ResolveThreadResultKinds.DONE>,
   TranslationKey
 > = {
-  unauthorized: RESOLVE_KEYS.unauthorized,
-  "github-permission": RESOLVE_KEYS.githubPermission,
-  "not-found": RESOLVE_KEYS.notFound,
-  invalid: RESOLVE_KEYS.invalid,
-  "no-write-access": RESOLVE_KEYS["no-write-access"],
-  upstream: RESOLVE_KEYS.upstream,
+  [ResolveThreadResultKinds.UNAUTHORIZED]: RESOLVE_KEYS.UNAUTHORIZED,
+  [ResolveThreadResultKinds.GITHUB_PERMISSION]: RESOLVE_KEYS.GITHUB_PERMISSION,
+  [ResolveThreadResultKinds.NOT_FOUND]: RESOLVE_KEYS.NOT_FOUND,
+  [ResolveThreadResultKinds.INVALID]: RESOLVE_KEYS.INVALID,
+  [ResolveThreadResultKinds.NO_WRITE_ACCESS]: RESOLVE_KEYS.NO_WRITE_ACCESS,
+  [ResolveThreadResultKinds.UPSTREAM]: RESOLVE_KEYS.UPSTREAM,
 };
 
 /**
@@ -119,21 +123,21 @@ export function useThreadResolution(
           // The write may have landed: refetch so the row shows where it
           // actually ended up, and say so in the (indeterminate) copy.
           resolution.refetchConversation();
-          fail(t(RESOLVE_KEYS.failed));
+          fail(t(RESOLVE_KEYS.FAILED));
           return "indeterminate";
         }
-        if (result.kind === "done") {
+        if (result.kind === ResolveThreadResultKinds.DONE) {
           // Convergence is success and takes the SAME path: the local view was
           // out of date either way, so the refetch is the correction.
           resolution.refetchConversation();
           if (surfaceCopy) {
             announce(
-              target ? t(RESOLVE_KEYS.resolved) : t(RESOLVE_KEYS.unresolved),
+              target ? t(RESOLVE_KEYS.RESOLVED) : t(RESOLVE_KEYS.UNRESOLVED),
             );
           }
           return "resolved";
         }
-        if (result.kind === "github-permission") {
+        if (result.kind === ResolveThreadResultKinds.GITHUB_PERMISSION) {
           // Both truths are suspect: the thread may have moved under us AND
           // the capability that offered this button may be gone.
           resolution.refetchConversation();

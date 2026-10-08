@@ -19,9 +19,11 @@ import {
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { DigestThreadRow } from "../../../utils/digest";
-import type { ReplyResult } from "../../../reply";
-import type { ResolveThreadResult } from "../../../resolve";
-import type { ConversationThread } from "../../../types";
+import type {
+  ConversationThread,
+  ReplyResult,
+  ResolveThreadResult,
+} from "../../../types";
 import type { Mutable } from "types/utils";
 import type {
   ThreadComposerWiring,

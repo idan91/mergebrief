@@ -17,7 +17,16 @@ import {
 } from "../../data/apiFetch";
 import { INBOX_QUERY_ROOT } from "./consts";
 import { parseInboxResponse } from "./schemas";
-import { InboxStates, type InboxQueryParams, type InboxState } from "./types";
+import {
+  InboxStates,
+  RowWriteResultKinds,
+  type ArchivePullResult,
+  type DeletePullResult,
+  type InboxQueryParams,
+  type InboxState,
+  type PurgeAttachmentsResult,
+  type RowWriteFailureKind,
+} from "./types";
 import { buildInboxSearch } from "./utils";
 
 const INBOX_PATH = "/api/inbox";
@@ -54,59 +63,46 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
   });
 }
 
-/** How a row write was refused: a refusal to act, a row that is gone, or anything else. */
-export type RowWriteFailureKind = "forbidden" | "not-found" | "failed";
-
-export type DeletePullResult =
-  | { kind: "deleted" }
-  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
-  | { kind: RowWriteFailureKind };
-
-export type ArchivePullResult =
-  | { kind: "archived" }
-  | { kind: "unarchived" }
-  | { kind: Exclude<RowWriteFailureKind, "forbidden"> };
-
 // Total over the wire vocabulary: a new ApiErrorCode member fails to compile
 // here instead of silently becoming "failed".
 const KindForCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: "failed",
-  [ApiErrorCodes.INVALID_SIGNATURE]: "failed",
-  [ApiErrorCodes.FORBIDDEN]: "forbidden",
-  [ApiErrorCodes.GITHUB_PERMISSION]: "forbidden",
-  [ApiErrorCodes.SCOPE_EXCEEDED]: "forbidden",
-  [ApiErrorCodes.HUMAN_ONLY]: "forbidden",
-  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "forbidden",
-  [ApiErrorCodes.REPO_ADMIN_ONLY]: "forbidden",
-  [ApiErrorCodes.ATTACHMENTS_DISABLED]: "forbidden",
-  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "forbidden",
-  [ApiErrorCodes.NOT_FOUND]: "not-found",
-  [ApiErrorCodes.INVALID_REQUEST]: "failed",
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "failed",
-  [ApiErrorCodes.NOT_A_PR_URL]: "failed",
-  [ApiErrorCodes.SIGN_IN_FAILED]: "failed",
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: "failed",
-  [ApiErrorCodes.DIFF_TOO_LARGE]: "failed",
-  [ApiErrorCodes.FILE_NOT_FOUND]: "failed",
-  [ApiErrorCodes.FILE_TOO_LARGE]: "failed",
-  [ApiErrorCodes.FILE_NOT_TEXT]: "failed",
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "failed",
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "failed",
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "failed",
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "failed",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "failed",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "failed",
-  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "failed",
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: "failed",
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "failed",
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "failed",
-  [ApiErrorCodes.APP_NOT_INSTALLED]: "failed",
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "failed",
-  [ApiErrorCodes.GENERATION_FAILED]: "failed",
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "failed",
-  [ApiErrorCodes.GENERATION_CONFIG]: "failed",
-  [ApiErrorCodes.INTERNAL_ERROR]: "failed",
-  [ApiErrorCodes.MALFORMED]: "failed",
+  [ApiErrorCodes.UNAUTHORIZED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.INVALID_SIGNATURE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.FORBIDDEN]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.GITHUB_PERMISSION]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.HUMAN_ONLY]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: RowWriteResultKinds.FORBIDDEN,
+  [ApiErrorCodes.NOT_FOUND]: RowWriteResultKinds.NOT_FOUND,
+  [ApiErrorCodes.INVALID_REQUEST]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.NOT_A_PR_URL]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.SIGN_IN_FAILED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.FILE_NOT_FOUND]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.FILE_TOO_LARGE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.FILE_NOT_TEXT]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.GENERATION_FAILED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.GENERATION_CONFIG]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.INTERNAL_ERROR]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.MALFORMED]: RowWriteResultKinds.FAILED,
 } as const satisfies Record<ApiErrorCode, RowWriteFailureKind>;
 
 function buildPullPath(repoId: string, prNumber: number): string {
@@ -131,17 +127,8 @@ export async function deleteOwnPull(
   if (!response.ok) {
     return { kind: await readRowWriteFailure(response, path) };
   }
-  return { kind: "deleted" };
+  return { kind: RowWriteResultKinds.DELETED };
 }
-
-export type PurgeAttachmentsResult =
-  | { kind: "purged" }
-  /** A rule on the branch refuses the App: the admin's move is on GitHub. */
-  | { kind: "disabled" }
-  /** The App's own permission is short: Contents kept read-only, or an archived repository. */
-  | { kind: "app-permission" }
-  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
-  | { kind: RowWriteFailureKind };
 
 /** The gated delete of a repository's whole attachments branch. */
 export async function purgeAttachments(
@@ -150,14 +137,14 @@ export async function purgeAttachments(
   const path = `/api/repos/${encodeURIComponent(repoId)}/attachments`;
   const response = await apiFetch(path, { method: "DELETE" });
   if (response.ok) {
-    return { kind: "purged" };
+    return { kind: RowWriteResultKinds.PURGED };
   }
   const { code } = await errorFromResponse(response, path);
   if (code === ApiErrorCodes.ATTACHMENTS_DISABLED) {
-    return { kind: "disabled" };
+    return { kind: RowWriteResultKinds.DISABLED };
   }
   if (code === ApiErrorCodes.GITHUB_PERMISSION) {
-    return { kind: "app-permission" };
+    return { kind: RowWriteResultKinds.APP_PERMISSION };
   }
   return { kind: KindForCode[code] };
 }
@@ -172,20 +159,27 @@ export async function deletePull(
   if (!response.ok) {
     return { kind: await readRowWriteFailure(response, path) };
   }
-  return { kind: "deleted" };
+  return { kind: RowWriteResultKinds.DELETED };
 }
 
 async function writeArchive(
   repoId: string,
   prNumber: number,
   method: "PUT" | "DELETE",
-  done: "archived" | "unarchived",
+  done:
+    | typeof RowWriteResultKinds.ARCHIVED
+    | typeof RowWriteResultKinds.UNARCHIVED,
 ): Promise<ArchivePullResult> {
   const path = `${buildPullPath(repoId, prNumber)}/archive`;
   const response = await apiFetch(path, { method });
   if (!response.ok) {
     const kind = await readRowWriteFailure(response, path);
-    return { kind: kind === "forbidden" ? "failed" : kind };
+    return {
+      kind:
+        kind === RowWriteResultKinds.FORBIDDEN
+          ? RowWriteResultKinds.FAILED
+          : kind,
+    };
   }
   return { kind: done };
 }
@@ -195,7 +189,7 @@ export function archivePull(
   repoId: string,
   prNumber: number,
 ): Promise<ArchivePullResult> {
-  return writeArchive(repoId, prNumber, "PUT", "archived");
+  return writeArchive(repoId, prNumber, "PUT", RowWriteResultKinds.ARCHIVED);
 }
 
 /** Bring an archived row back to the viewer's Inbox. */
@@ -203,5 +197,10 @@ export function unarchivePull(
   repoId: string,
   prNumber: number,
 ): Promise<ArchivePullResult> {
-  return writeArchive(repoId, prNumber, "DELETE", "unarchived");
+  return writeArchive(
+    repoId,
+    prNumber,
+    "DELETE",
+    RowWriteResultKinds.UNARCHIVED,
+  );
 }

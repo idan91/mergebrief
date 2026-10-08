@@ -116,3 +116,45 @@ export interface FilterOption<Value extends string = string> {
   readonly value: Value;
   readonly label: string;
 }
+
+export const RowWriteResultKinds = {
+  DELETED: "deleted",
+  ARCHIVED: "archived",
+  UNARCHIVED: "unarchived",
+  PURGED: "purged",
+  DISABLED: "disabled",
+  APP_PERMISSION: "app-permission",
+  FORBIDDEN: "forbidden",
+  NOT_FOUND: "not-found",
+  FAILED: "failed",
+} as const;
+export type RowWriteResultKind = ValueOf<typeof RowWriteResultKinds>;
+
+/** How a row write was refused: a refusal to act, a row that is gone, or anything else. */
+export type RowWriteFailureKind = Extract<
+  RowWriteResultKind,
+  | typeof RowWriteResultKinds.FORBIDDEN
+  | typeof RowWriteResultKinds.NOT_FOUND
+  | typeof RowWriteResultKinds.FAILED
+>;
+
+export type DeletePullResult =
+  | { kind: typeof RowWriteResultKinds.DELETED }
+  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
+  | { kind: RowWriteFailureKind };
+
+export type ArchivePullResult =
+  | { kind: typeof RowWriteResultKinds.ARCHIVED }
+  | { kind: typeof RowWriteResultKinds.UNARCHIVED }
+  | {
+      kind: Exclude<RowWriteFailureKind, typeof RowWriteResultKinds.FORBIDDEN>;
+    };
+
+export type PurgeAttachmentsResult =
+  | { kind: typeof RowWriteResultKinds.PURGED }
+  /** A rule on the branch refuses the App: the admin's move is on GitHub. */
+  | { kind: typeof RowWriteResultKinds.DISABLED }
+  /** The App's own permission is short: Contents kept read-only, or an archived repository. */
+  | { kind: typeof RowWriteResultKinds.APP_PERMISSION }
+  /** 403: not a repository admin, or a Bearer principal on a human-only act. */
+  | { kind: RowWriteFailureKind };

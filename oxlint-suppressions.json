@@ -184,14 +184,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/conversation/wiring.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/comment-density": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/FailedCard/utils.ts": {
     "house/no-em-dash": {
       "count": 1

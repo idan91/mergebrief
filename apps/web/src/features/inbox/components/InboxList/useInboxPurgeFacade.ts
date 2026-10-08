@@ -1,19 +1,23 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { purgeAttachments, type PurgeAttachmentsResult } from "../../queries";
-import type { InboxItem } from "../../types";
+import { purgeAttachments } from "../../queries";
+import {
+  RowWriteResultKinds,
+  type InboxItem,
+  type PurgeAttachmentsResult,
+} from "../../types";
 
 type PurgeOutcome = PurgeAttachmentsResult["kind"];
 
 /** The copy each outcome announces. */
 const PurgeOutcomeCopy = {
-  purged: "home.inbox.actions.purged",
-  disabled: "home.inbox.actions.purgeDisabled",
-  "app-permission": "home.inbox.actions.purgeAppPermission",
-  forbidden: "home.inbox.actions.purgeForbidden",
-  "not-found": "home.inbox.actions.purgeFailed",
-  failed: "home.inbox.actions.purgeFailed",
+  [RowWriteResultKinds.PURGED]: "home.inbox.actions.purged",
+  [RowWriteResultKinds.DISABLED]: "home.inbox.actions.purgeDisabled",
+  [RowWriteResultKinds.APP_PERMISSION]: "home.inbox.actions.purgeAppPermission",
+  [RowWriteResultKinds.FORBIDDEN]: "home.inbox.actions.purgeForbidden",
+  [RowWriteResultKinds.NOT_FOUND]: "home.inbox.actions.purgeFailed",
+  [RowWriteResultKinds.FAILED]: "home.inbox.actions.purgeFailed",
 } as const satisfies Record<PurgeOutcome, string>;
 
 export interface InboxPurgeFacadeInput {
@@ -49,7 +53,7 @@ export function useInboxPurgeFacade({ announce }: InboxPurgeFacadeInput) {
     try {
       outcome = (await purgeAttachments(pending.repoId)).kind;
     } catch {
-      outcome = "failed";
+      outcome = RowWriteResultKinds.FAILED;
     }
     setBusy(false);
     setPending(undefined);

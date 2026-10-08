@@ -5,7 +5,7 @@ import { InboxArchivedFilters, type InboxArchivedFilter } from "types/inbox";
 
 import { BULK_CONCURRENCY, INBOX_QUERY_ROOT } from "../../consts";
 import { archivePull, unarchivePull } from "../../queries";
-import type { InboxItem } from "../../types";
+import { RowWriteResultKinds, type InboxItem } from "../../types";
 import { runWithConcurrency } from "../../utils";
 
 export interface InboxArchiveFacadeInput {
@@ -38,7 +38,9 @@ export function useInboxArchiveFacade({
     }
     const restoring = view === InboxArchivedFilters.ONLY;
     const write = restoring ? unarchivePull : archivePull;
-    const wanted = restoring ? "unarchived" : "archived";
+    const wanted = restoring
+      ? RowWriteResultKinds.UNARCHIVED
+      : RowWriteResultKinds.ARCHIVED;
     setBusy(true);
     const outcomes = await runWithConcurrency(
       items,

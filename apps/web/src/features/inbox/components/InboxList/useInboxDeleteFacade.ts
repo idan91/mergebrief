@@ -5,19 +5,19 @@ import { PullRequestSources } from "@web/features/pulls/types";
 import { useTranslation } from "react-i18next";
 
 import { BULK_CONCURRENCY, INBOX_QUERY_ROOT } from "../../consts";
+import { deleteOwnPull, deletePull } from "../../queries";
 import {
-  deleteOwnPull,
-  deletePull,
+  RowWriteResultKinds,
+  type InboxItem,
   type RowWriteFailureKind,
-} from "../../queries";
-import type { InboxItem } from "../../types";
+} from "../../types";
 import { runWithConcurrency } from "../../utils";
 
 /** The copy a refused delete announces, by the transport's failure kind. */
 const DeleteFailureCopy = {
-  forbidden: "home.inbox.actions.deleteForbidden",
-  "not-found": "home.inbox.actions.deleteFailed",
-  failed: "home.inbox.actions.deleteFailed",
+  [RowWriteResultKinds.FORBIDDEN]: "home.inbox.actions.deleteForbidden",
+  [RowWriteResultKinds.NOT_FOUND]: "home.inbox.actions.deleteFailed",
+  [RowWriteResultKinds.FAILED]: "home.inbox.actions.deleteFailed",
 } as const satisfies Record<RowWriteFailureKind, string>;
 
 export interface InboxDeleteFacadeInput {
@@ -29,7 +29,7 @@ export interface InboxDeleteFacadeInput {
 
 interface RowOutcome {
   readonly item: InboxItem;
-  readonly kind: RowWriteFailureKind | "deleted";
+  readonly kind: RowWriteFailureKind | typeof RowWriteResultKinds.DELETED;
 }
 
 /** A pasted row goes through the owner-only purge, which needs no GitHub read; an installation row through the gate. */
@@ -40,7 +40,7 @@ async function deleteRow(item: InboxItem): Promise<RowOutcome> {
     const outcome = await remove(item.repoId, item.prNumber);
     return { item, kind: outcome.kind };
   } catch {
-    return { item, kind: "failed" };
+    return { item, kind: RowWriteResultKinds.FAILED };
   }
 }
 
@@ -52,7 +52,7 @@ function describeOutcome(
 ): string {
   const single = outcomes[0];
   if (outcomes.length === 1 && single !== undefined) {
-    return single.kind === "deleted"
+    return single.kind === RowWriteResultKinds.DELETED
       ? t("home.inbox.actions.deleted")
       : t(DeleteFailureCopy[single.kind]);
   }
@@ -105,7 +105,7 @@ export function useInboxDeleteFacade({
     setPending([]);
 
     const gone = outcomes
-      .filter((outcome) => outcome.kind === "deleted")
+      .filter((outcome) => outcome.kind === RowWriteResultKinds.DELETED)
       .map((outcome) => outcome.item);
     announce(describeOutcome(t, outcomes, outcomes.length - gone.length));
     if (gone.length > 0) {

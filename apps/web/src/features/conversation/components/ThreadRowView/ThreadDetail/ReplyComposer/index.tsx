@@ -8,34 +8,39 @@ import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
 import { useReviewActions } from "@web/features/review/session";
-import { MAX_REPLY_LENGTH, type ReplyResult } from "../../../../reply";
+import { MAX_REPLY_LENGTH } from "../../../../reply";
+import {
+  ReplyResultKinds,
+  type ReplyResult,
+  type ReplyResultKind,
+} from "../../../../types";
 import type { ResolveAttempt } from "../useThreadResolution";
 import { readReplyDraft, writeReplyDraft } from "./utils";
 import rowStyles from "../../../../rows.module.scss";
 import styles from "./ReplyComposer.module.scss";
 
 const REPLY_KEYS = {
-  posted: "conversation.replyResult.posted",
-  unauthorized: "conversation.replyResult.unauthorized",
-  "not-found": "conversation.replyResult.notFound",
-  invalid: "conversation.replyResult.invalid",
-  "no-write-access": "pulls.briefError.no-repo-write-access",
-  upstream: "conversation.replyResult.upstream",
+  POSTED: "conversation.replyResult.posted",
+  UNAUTHORIZED: "conversation.replyResult.unauthorized",
+  NOT_FOUND: "conversation.replyResult.notFound",
+  INVALID: "conversation.replyResult.invalid",
+  NO_WRITE_ACCESS: "pulls.briefError.no-repo-write-access",
+  UPSTREAM: "conversation.replyResult.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub. Never
   // claim "nothing was posted".
-  failed: "conversation.replyResult.failed",
+  FAILED: "conversation.replyResult.failed",
 } as const satisfies Record<string, TranslationKey>;
 
 /** Failure key per non-posted result kind; every kind keeps the draft. */
 const REPLY_FAILURE_KEYS: Record<
-  Exclude<ReplyResult["kind"], "posted">,
+  Exclude<ReplyResultKind, typeof ReplyResultKinds.POSTED>,
   TranslationKey
 > = {
-  unauthorized: REPLY_KEYS.unauthorized,
-  "not-found": REPLY_KEYS["not-found"],
-  invalid: REPLY_KEYS.invalid,
-  "no-write-access": REPLY_KEYS["no-write-access"],
-  upstream: REPLY_KEYS.upstream,
+  [ReplyResultKinds.UNAUTHORIZED]: REPLY_KEYS.UNAUTHORIZED,
+  [ReplyResultKinds.NOT_FOUND]: REPLY_KEYS.NOT_FOUND,
+  [ReplyResultKinds.INVALID]: REPLY_KEYS.INVALID,
+  [ReplyResultKinds.NO_WRITE_ACCESS]: REPLY_KEYS.NO_WRITE_ACCESS,
+  [ReplyResultKinds.UPSTREAM]: REPLY_KEYS.UPSTREAM,
 };
 
 /**
@@ -44,13 +49,13 @@ const REPLY_FAILURE_KEYS: Record<
  * reply landed decides whether retrying is safe.
  */
 const COMBO_KEYS = {
-  both: "conversation.replyResult.both",
+  BOTH: "conversation.replyResult.both",
   /** The reply LANDED and the resolve did not, send them to Resolve. */
-  partial: "conversation.replyResult.partial",
+  PARTIAL: "conversation.replyResult.partial",
   /** The reply landed and the resolve THREW: never assert a failure. */
-  partialIndeterminate: "conversation.replyResult.partialIndeterminate",
+  PARTIAL_INDETERMINATE: "conversation.replyResult.partialIndeterminate",
   /** Appended to the reply's own failure copy: the resolve leg never ran. */
-  replyFailedSuffix: "conversation.replyResult.replyFailedSuffix",
+  REPLY_FAILED_SUFFIX: "conversation.replyResult.replyFailedSuffix",
 } as const satisfies Record<string, TranslationKey>;
 
 export interface ReplyComposerProps {
@@ -204,17 +209,17 @@ export function ReplyComposer({
     const replyFailureCopy = (copy: string) =>
       resolveLeg === undefined
         ? copy
-        : `${copy} ${t(COMBO_KEYS.replyFailedSuffix)}`;
+        : `${copy} ${t(COMBO_KEYS.REPLY_FAILED_SUFFIX)}`;
     void (async () => {
       try {
         let result: ReplyResult;
         try {
           result = await post(threadId, body);
         } catch {
-          fail(replyFailureCopy(t(REPLY_KEYS.failed)));
+          fail(replyFailureCopy(t(REPLY_KEYS.FAILED)));
           return;
         }
-        if (result.kind !== "posted") {
+        if (result.kind !== ReplyResultKinds.POSTED) {
           fail(replyFailureCopy(t(REPLY_FAILURE_KEYS[result.kind])));
           return;
         }
@@ -222,7 +227,7 @@ export function ReplyComposer({
         // reply is GitHub's record now) and let the caller refetch.
         edit("");
         if (resolveLeg === undefined) {
-          announce(t(REPLY_KEYS.posted));
+          announce(t(REPLY_KEYS.POSTED));
           onPosted();
           return;
         }
@@ -231,14 +236,14 @@ export function ReplyComposer({
         // retried from here: a landed reply retried is a double post.
         const outcome = await resolveLeg();
         if (outcome === "resolved") {
-          announce(t(COMBO_KEYS.both));
+          announce(t(COMBO_KEYS.BOTH));
         } else {
           // Partial: the copy stays next to the Resolve button that finishes
           // the job, and distinguishes a known failure from an unproven one.
           fail(
             outcome === "indeterminate"
-              ? t(COMBO_KEYS.partialIndeterminate)
-              : t(COMBO_KEYS.partial),
+              ? t(COMBO_KEYS.PARTIAL_INDETERMINATE)
+              : t(COMBO_KEYS.PARTIAL),
           );
         }
         // The reply landed either way, so the conversation is stale either

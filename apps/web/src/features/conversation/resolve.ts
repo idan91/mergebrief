@@ -13,79 +13,62 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../data/apiFetch";
+import {
+  ResolveThreadResultKinds,
+  type ResolveThreadResult,
+  type ResolveThreadResultKind,
+} from "./types";
 
-export type ResolveThreadResult =
-  /**
-   * The thread is in the requested state, a fresh flip or a converged one
-   * (`alreadyInTargetState`). Both are success and share the refetch path;
-   * the flag exists so copy can stay honest if it ever needs to differ.
-   */
-  | {
-      readonly kind: "done";
-      readonly resolved: boolean;
-      readonly alreadyInTargetState: boolean;
-    }
-  /** 401: session expired; sign in again. */
-  | { readonly kind: "unauthorized" }
-  /** 403: GitHub refused the mutation (permissions changed under the viewer). */
-  | { readonly kind: "github-permission" }
-  /** 404: the thread (or the PR) is gone. */
-  | { readonly kind: "not-found" }
-  /** 400: the route rejected the shape (unreachable from valid UI state). */
-  | { readonly kind: "invalid" }
-  /** 502/anything else: GitHub rejected or is unreachable. */
-  /**
-   * 403: a url-box brief for a repo the reader's own GitHub account cannot
-   * write to. Never a retry: it clears by installing the App there.
-   */
-  | { readonly kind: "no-write-access" }
-  | { readonly kind: "upstream" };
-
-type ResolveFailureKind = Exclude<ResolveThreadResult["kind"], "done">;
+type ResolveFailureKind = Exclude<
+  ResolveThreadResultKind,
+  typeof ResolveThreadResultKinds.DONE
+>;
 
 // Total over the wire vocabulary: a new ApiErrorCode member fails to compile
 // here instead of silently becoming "try again shortly". `forbidden` covers
 // the codeless-403 fallback for the github-permission kind.
 const KindForCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
-  [ApiErrorCodes.FORBIDDEN]: "github-permission",
-  [ApiErrorCodes.GITHUB_PERMISSION]: "github-permission",
-  [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
-  [ApiErrorCodes.HUMAN_ONLY]: "upstream",
-  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
-  [ApiErrorCodes.REPO_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_DISABLED]: "upstream",
-  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: "upstream",
-  [ApiErrorCodes.NOT_FOUND]: "not-found",
-  [ApiErrorCodes.INVALID_REQUEST]: "invalid",
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: "invalid",
-  [ApiErrorCodes.NOT_A_PR_URL]: "upstream",
-  [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: "upstream",
-  [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.UNAUTHORIZED]: ResolveThreadResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.INVALID_SIGNATURE]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.FORBIDDEN]: ResolveThreadResultKinds.GITHUB_PERMISSION,
+  [ApiErrorCodes.GITHUB_PERMISSION]: ResolveThreadResultKinds.GITHUB_PERMISSION,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.HUMAN_ONLY]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]:
+    ResolveThreadResultKinds.NO_WRITE_ACCESS,
+  [ApiErrorCodes.REPO_ADMIN_ONLY]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.NOT_FOUND]: ResolveThreadResultKinds.NOT_FOUND,
+  [ApiErrorCodes.INVALID_REQUEST]: ResolveThreadResultKinds.INVALID,
+  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: ResolveThreadResultKinds.INVALID,
+  [ApiErrorCodes.NOT_A_PR_URL]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.SIGN_IN_FAILED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: ResolveThreadResultKinds.UPSTREAM,
   // Read-only codes: this write transport cannot receive any of them.
-  [ApiErrorCodes.FILE_NOT_FOUND]: "upstream",
-  [ApiErrorCodes.FILE_TOO_LARGE]: "upstream",
-  [ApiErrorCodes.FILE_NOT_TEXT]: "upstream",
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "upstream",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "upstream",
-  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
-  [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_FAILED]: "upstream",
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
-  [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
-  [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
+  [ApiErrorCodes.FILE_NOT_FOUND]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_TOO_LARGE]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.FILE_NOT_TEXT]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]:
+    ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_FAILED]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.GENERATION_CONFIG]: ResolveThreadResultKinds.UPSTREAM,
+  [ApiErrorCodes.INTERNAL_ERROR]: ResolveThreadResultKinds.UPSTREAM,
   // Web-local; never on the wire: errorFromResponse cannot produce it.
-  [ApiErrorCodes.MALFORMED]: "upstream",
+  [ApiErrorCodes.MALFORMED]: ResolveThreadResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, ResolveFailureKind>;
 
 function isResolutionBody(
@@ -129,7 +112,7 @@ export async function setThreadResolution(
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   return {
-    kind: "done",
+    kind: ResolveThreadResultKinds.DONE,
     resolved: parsed.resolved,
     alreadyInTargetState: parsed.alreadyInTargetState,
   };

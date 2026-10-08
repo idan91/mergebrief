@@ -7,7 +7,7 @@ import { generateBriefViaApi } from "../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../brief/utils";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import { archivePull, unarchivePull } from "../../../../queries";
-import type { InboxItem } from "../../../../types";
+import { RowWriteResultKinds, type InboxItem } from "../../../../types";
 
 /** The row actions with a side effect: the clipboard write, the archive either way, and the regenerate. */
 export function useRowActionsFacade(
@@ -25,7 +25,7 @@ export function useRowActionsFacade(
     setArchiving(true);
     try {
       const outcome = await archivePull(item.repoId, item.prNumber);
-      if (outcome.kind !== "archived") {
+      if (outcome.kind !== RowWriteResultKinds.ARCHIVED) {
         onAnnounce(t("home.inbox.actions.archiveFailed"));
         return;
       }
@@ -43,7 +43,7 @@ export function useRowActionsFacade(
     setArchiving(true);
     try {
       const outcome = await unarchivePull(item.repoId, item.prNumber);
-      if (outcome.kind !== "unarchived") {
+      if (outcome.kind !== RowWriteResultKinds.UNARCHIVED) {
         onAnnounce(t("home.inbox.actions.unarchiveFailed"));
         return;
       }
