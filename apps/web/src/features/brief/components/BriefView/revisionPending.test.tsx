@@ -81,7 +81,7 @@ describe("revision-pending treatment", () => {
     });
     rerenderWith(false);
     act(() => {
-      vi.runAllTimers();
+      vi.runOnlyPendingTimers();
     });
     expect(main().hasAttribute("inert")).toBe(false);
     expect(main().hasAttribute("data-pending")).toBe(false);
