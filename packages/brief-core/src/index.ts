@@ -124,7 +124,6 @@ export {
   parseHugeSpanRatio,
 } from "./generation/huge-span";
 export {
-  CUSTOM_ATTRIBUTE_NAME_PATTERN,
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
   PARKED_ATTRIBUTE_CANDIDATES,
   REPO_INSTRUCTION_CLASSES,
@@ -198,6 +197,7 @@ export type {
   StitchResult,
 } from "./anchoring/types";
 export {
+  CUSTOM_ATTRIBUTE_NAME_PATTERN,
   Concerns,
   TextSurfaces,
   type LengthViolation,

@@ -1,10 +1,9 @@
-import type { ChangeGroup, Chunk } from "../../types";
+import type { ChangeGroup } from "../../types";
 import {
   ArtifactIssueCodes,
   type ArtifactIssue,
   type ArtifactIssueCode,
   type GroupMembership,
-  type GroupMembershipResult,
   type IdentifiedGroup,
   type SharedGroupIdIssues,
   type StoredChangeGroupRead,
@@ -12,7 +11,6 @@ import {
 } from "../types";
 
 const {
-  INVALID,
   LEGACY_MEMBERSHIP,
   MINTED_GROUP_ID,
   SHARED_GROUP_ID,
@@ -22,8 +20,10 @@ const GROUPS_PATH = "changeGroups";
 const MINTED_ID = "Group had no id and was given the lowest free one";
 const SHARED_ID = "Shares its id with an earlier change group";
 const LEGACY_LIST = "Taken from the legacy chunk id lists on a group";
-const NO_MEMBERSHIP = "Chunk belongs to no change group";
-const UNKNOWN_GROUP = "Names no change group in this body";
+const NO_MEMBERSHIP =
+  "Chunk belongs to no change group: moved to the unattributed remainder";
+const UNKNOWN_GROUP =
+  "Names no change group in this body: moved to the unattributed remainder";
 
 function makeIssue(
   code: ArtifactIssueCode,
@@ -139,65 +139,59 @@ function mapLegacyMembership(
   return groupIdByChunkId;
 }
 
-/** A chunk whose `changeGroupId` names no group is kept as stored. */
-function reportUnknownChangeGroups(
-  chunks: readonly Chunk[],
-  changeGroups: readonly ChangeGroup[],
-): ArtifactIssue[] {
-  const groupIds = new Set(changeGroups.map((group) => group.id));
-
-  return chunks.flatMap((chunk, position): ArtifactIssue[] => {
-    const namesKnownGroup = groupIds.has(chunk.changeGroupId);
-    if (namesKnownGroup) {
-      return [];
-    }
-    const path = `chunks.${position}.changeGroupId`;
-    return [makeIssue(UNKNOWN_CHANGE_GROUP, path, UNKNOWN_GROUP)];
-  });
+/** An empty `changeGroupId` names nothing, so it counts as absent. */
+function readOwnGroupId(chunk: StoredChunkRead): string | undefined {
+  const isNamed =
+    chunk.changeGroupId !== undefined && chunk.changeGroupId !== "";
+  return isNamed ? chunk.changeGroupId : undefined;
 }
 
 /**
  * Moves membership onto each chunk. A chunk's own `changeGroupId` wins over a
- * legacy list; a chunk with neither fails the read. Groups sharing an id are
- * kept as stored and reported.
+ * legacy list; a chunk with neither, or naming no group, is split off for the
+ * remainder. Groups sharing an id are kept as stored and reported.
  */
 export function normalizeGroupMembership(
   groups: StoredChangeGroupRead[],
   storedChunks: StoredChunkRead[],
-): GroupMembershipResult {
+): GroupMembership {
   const identified = identifyGroups(groups);
   const changeGroups = identified.map(stripLegacyLists);
+  const groupIds = new Set(changeGroups.map((group) => group.id));
   const legacyMembership = mapLegacyMembership(identified);
-  const chunks: Chunk[] = [];
-  const normalized: ArtifactIssue[] = [];
-  const orphaned: ArtifactIssue[] = [];
-
-  storedChunks.forEach((chunk, position) => {
-    const path = `chunks.${position}.changeGroupId`;
-    const changeGroupId = chunk.changeGroupId ?? legacyMembership.get(chunk.id);
-    if (changeGroupId === undefined) {
-      orphaned.push(makeIssue(INVALID, path, NO_MEMBERSHIP));
-      return;
-    }
-    if (chunk.changeGroupId === undefined) {
-      normalized.push(makeIssue(LEGACY_MEMBERSHIP, path, LEGACY_LIST));
-    }
-    chunks.push({ ...chunk, changeGroupId });
-  });
-
-  if (orphaned.length > 0) {
-    return { ok: false, error: orphaned };
-  }
-
   const membership: GroupMembership = {
     changeGroups,
-    chunks,
+    chunks: [],
+    orphans: [],
     issues: [
       ...reportMintedGroupIds(groups),
       ...reportSharedGroupIds(identified, GROUPS_PATH, SHARED_GROUP_ID),
-      ...normalized,
-      ...reportUnknownChangeGroups(chunks, changeGroups),
     ],
   };
-  return { ok: true, value: membership };
+
+  storedChunks.forEach((chunk, position) => {
+    const path = `chunks.${position}.changeGroupId`;
+    const ownGroupId = readOwnGroupId(chunk);
+    const changeGroupId = ownGroupId ?? legacyMembership.get(chunk.id);
+    if (changeGroupId === undefined) {
+      membership.orphans.push(chunk);
+      membership.issues.push(
+        makeIssue(UNKNOWN_CHANGE_GROUP, path, NO_MEMBERSHIP),
+      );
+      return;
+    }
+    if (ownGroupId === undefined) {
+      membership.issues.push(makeIssue(LEGACY_MEMBERSHIP, path, LEGACY_LIST));
+    }
+    if (!groupIds.has(changeGroupId)) {
+      membership.orphans.push(chunk);
+      membership.issues.push(
+        makeIssue(UNKNOWN_CHANGE_GROUP, path, UNKNOWN_GROUP),
+      );
+      return;
+    }
+    membership.chunks.push({ ...chunk, changeGroupId });
+  });
+
+  return membership;
 }

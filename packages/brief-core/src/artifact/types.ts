@@ -3,6 +3,7 @@ import type { Result, ValueOf } from "types/utils";
 import type {
   Brief,
   BriefSchema,
+  RevisionNarrativeSchema,
   ChangeGroup,
   Chunk,
   DeltaBrief,
@@ -20,6 +21,7 @@ export const ArtifactIssueCodes = {
   NOT_JSON: "not-json",
   INVALID: "invalid",
   DROPPED_SECTION: "dropped-section",
+  DROPPED_FIELD: "dropped-field",
   UNKNOWN_CHANGE_GROUP: "unknown-change-group",
   LEGACY_MEMBERSHIP: "legacy-membership",
   MINTED_GROUP_ID: "minted-group-id",
@@ -67,8 +69,14 @@ export interface StoredBriefRead {
 
 export type StoredBriefReadResult = Result<StoredBriefRead, ArtifactIssue[]>;
 export type StoredDeltaBriefReadResult = Result<DeltaBrief, ArtifactIssue[]>;
+export interface StoredRevisionNarrativeRead {
+  narrative: StoredRevisionNarrative;
+  /** Each nulled effort and dropped section. */
+  issues: ArtifactIssue[];
+}
+
 export type StoredRevisionNarrativeReadResult = Result<
-  StoredRevisionNarrative,
+  StoredRevisionNarrativeRead,
   ArtifactIssue[]
 >;
 
@@ -85,6 +93,11 @@ export type BriefSectionSchemas = Record<
   z.ZodType
 >;
 
+export type NarrativeSectionSchemas = Record<
+  OptionalShapeKey<typeof RevisionNarrativeSchema.shape>,
+  z.ZodType
+>;
+
 export type PrSectionSchemas = Record<
   OptionalShapeKey<typeof PrRefSchema.shape>,
   z.ZodType
@@ -92,6 +105,11 @@ export type PrSectionSchemas = Record<
 
 export interface SectionsRead {
   body: Record<string, unknown>;
+  dropped: ArtifactIssue[];
+}
+
+export interface RiskTokensRead {
+  chunks: StoredChunkRead[];
   dropped: ArtifactIssue[];
 }
 
@@ -111,10 +129,10 @@ export interface IdentifiedGroup {
 export interface GroupMembership {
   changeGroups: ChangeGroup[];
   chunks: Chunk[];
+  /** Chunks naming no group: the reader moves them into the remainder. */
+  orphans: StoredChunkRead[];
   issues: ArtifactIssue[];
 }
-
-export type GroupMembershipResult = Result<GroupMembership, ArtifactIssue[]>;
 
 /**
  * A risk-surface flag's identity: file, attribute, AND the region it fires

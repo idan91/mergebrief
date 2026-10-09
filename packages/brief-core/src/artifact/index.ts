@@ -5,8 +5,11 @@ import {
 } from "./logic/group-membership";
 import {
   dropInvalidBriefSections,
+  dropInvalidNarrativeSections,
   dropUnorderedReadingOrder,
 } from "./logic/optional-sections";
+import { addChunksToRemainder } from "./logic/remainder";
+import { dropMalformedRiskTokens } from "./logic/risk-tokens";
 import {
   buildStoredBriefSchema,
   StoredBriefReadSchema,
@@ -25,6 +28,7 @@ import {
   type StoredBriefReadResult,
   type StoredDeltaBriefReadResult,
   type StoredParse,
+  type StoredRevisionNarrativeRead,
   type StoredRevisionNarrativeReadResult,
 } from "./types";
 
@@ -45,6 +49,7 @@ export {
   type StoredBriefReadResult,
   type StoredDeltaBriefReadResult,
   type StoredRevisionNarrative,
+  type StoredRevisionNarrativeRead,
   type StoredRevisionNarrativeReadResult,
 } from "./types";
 
@@ -93,8 +98,9 @@ export function checkRevisionNarrativeForWrite(
 /**
  * Reads a stored Brief body of any age. Fails on a broken core, drops an
  * invalid optional section, mints a missing group id, keeps groups sharing an
- * id, normalizes legacy group membership, and reports every one of those in
- * `issues`. No body makes it throw.
+ * id, normalizes legacy group membership, moves a chunk naming no group into
+ * the unattributed remainder, and reports every one of those in `issues`. No
+ * body makes it throw.
  */
 export function readStoredBrief(json: string): StoredBriefReadResult {
   const body = parseJsonObject(json);
@@ -109,21 +115,28 @@ export function readStoredBrief(json: string): StoredBriefReadResult {
   }
 
   const { changeGroups, chunks, ...rest } = parsed.value;
-  const membership = normalizeGroupMembership(changeGroups, chunks);
-  if (!membership.ok) {
-    return membership;
+  const tokens = dropMalformedRiskTokens(chunks);
+  const membership = normalizeGroupMembership(changeGroups, tokens.chunks);
+  const { orphans } = membership;
+  const stored: StoredBrief = {
+    ...rest,
+    changeGroups: membership.changeGroups,
+    chunks: membership.chunks,
+  };
+  if (orphans.length > 0) {
+    stored.unattributed = addChunksToRemainder(
+      rest.unattributed ?? [],
+      orphans,
+    );
   }
 
-  const ordered = dropUnorderedReadingOrder({
-    ...rest,
-    changeGroups: membership.value.changeGroups,
-    chunks: membership.value.chunks,
-  });
+  const ordered = dropUnorderedReadingOrder(stored);
   const read: StoredBriefRead = {
     brief: ordered.brief,
     issues: [
       ...sections.dropped,
-      ...membership.value.issues,
+      ...tokens.dropped,
+      ...membership.issues,
       ...ordered.dropped,
     ],
   };
@@ -147,11 +160,27 @@ export function readStoredDeltaBrief(json: string): StoredDeltaBriefReadResult {
 }
 
 /**
- * Accepts both the generated narrative and the skipped stub, and strips a key
- * it does not know.
+ * Accepts both the generated narrative and the skipped stub, strips a key it
+ * does not know, and drops or nulls a broken optional field the way the Brief
+ * reader does, reporting each in `issues`.
  */
 export function readStoredRevisionNarrative(
   json: string,
 ): StoredRevisionNarrativeReadResult {
-  return readStored(StoredRevisionNarrativeReadSchema, json);
+  const body = parseJsonObject(json);
+  if (!body.ok) {
+    return body;
+  }
+
+  const sections = dropInvalidNarrativeSections(body.value);
+  const parsed = parseStored(StoredRevisionNarrativeReadSchema, sections.body);
+  if (!parsed.ok) {
+    return parsed;
+  }
+
+  const read: StoredRevisionNarrativeRead = {
+    narrative: parsed.value,
+    issues: sections.dropped,
+  };
+  return { ok: true, value: read };
 }

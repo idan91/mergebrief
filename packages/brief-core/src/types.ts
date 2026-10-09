@@ -80,6 +80,18 @@ export const RiskSurfaceAttributes = {
   RELEASE_IMMINENT: "release-imminent",
 } as const;
 
+/**
+ * Custom-attribute names double as json_schema enum tokens and prompt text,
+ * so their charset is a security control, not a style preference: kebab-case
+ * identifiers only, ≤ 50 chars. `repo-config` enforces the same shape at the
+ * YAML boundary; this is the categorizer's own floor (never trust upstream).
+ * Every built-in name fits it too, so the stored-Brief reader checks any risk
+ * token against it.
+ */
+export const CUSTOM_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+export const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
+
 export type Concern = ValueOf<typeof Concerns>;
 export type Role = ValueOf<typeof Roles>;
 export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;

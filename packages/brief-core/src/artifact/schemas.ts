@@ -65,8 +65,8 @@ export const StoredRevisionNarrativeReadSchema = z.discriminatedUnion(
   [RevisionNarrativeSchema.strip(), RevisionNarrativeSkippedSchema.strip()],
 );
 
-/** A repo's custom risk names are not known at read time. */
-const readRiskToken = z.string().min(1);
+/** A repo's custom risk names are not known at read time; the reader checks shape. */
+const readRiskToken = z.string();
 
 const readRiskFields = {
   riskSurface: z.array(readRiskToken),

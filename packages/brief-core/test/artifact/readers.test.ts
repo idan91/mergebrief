@@ -145,11 +145,6 @@ describe("readStoredBrief", () => {
       makeBodyWith({ concernView: [{ concern: "nope" }] }),
       "concernView.0.concern",
     ],
-    [
-      "an empty risk token",
-      makeBodyWithChunk({ riskSurface: [""] }),
-      "chunks.0.riskSurface.0",
-    ],
   ])("fails on %s", (_label, body, path) => {
     expect(readBody(body)).toMatchObject({
       ok: false,
@@ -159,19 +154,47 @@ describe("readStoredBrief", () => {
     });
   });
 
-  it("fails on a chunk with no membership at all", () => {
+  it("moves a chunk with no membership at all into the remainder", () => {
     const { changeGroupId: _removed, ...chunk } = makeValidBrief().chunks[0]!;
 
-    expect(readBody(makeBodyWith({ chunks: [chunk] }))).toEqual({
-      ok: false,
-      error: [
-        {
-          code: ArtifactIssueCodes.INVALID,
-          path: "chunks.0.changeGroupId",
-          message: expect.any(String),
-        },
-      ],
-    });
+    const read = readBodyOrThrow(makeBodyWith({ chunks: [chunk] }));
+
+    expect(read.brief.chunks).toEqual([]);
+    expect(read.brief.unattributed).toEqual([
+      {
+        file: chunk.file,
+        addedRanges: chunk.addedRanges,
+        removedRanges: chunk.removedRanges,
+      },
+    ]);
+    expect(read.issues).toEqual([
+      {
+        code: ArtifactIssueCodes.UNKNOWN_CHANGE_GROUP,
+        path: "chunks.0.changeGroupId",
+        message: expect.any(String),
+      },
+    ]);
+  });
+
+  it("moves a chunk whose changeGroupId is empty into the remainder", () => {
+    const read = readBodyOrThrow(makeBodyWithChunk({ changeGroupId: "" }));
+
+    expect(read.brief.chunks).toEqual([]);
+    expect(read.issues).toEqual([
+      expect.objectContaining({
+        code: ArtifactIssueCodes.UNKNOWN_CHANGE_GROUP,
+        path: "chunks.0.changeGroupId",
+      }),
+    ]);
+  });
+
+  it("takes an empty changeGroupId's group from a legacy list", () => {
+    const body = makeLegacyMembershipBody();
+    body.chunks[0] = { ...body.chunks[0], changeGroupId: "" };
+
+    const read = readBodyOrThrow(body);
+
+    expect(read.brief.chunks[0]?.changeGroupId).toBe("g1");
   });
 
   it.each([
@@ -203,6 +226,28 @@ describe("readStoredBrief", () => {
       },
     ]);
     expect(read.brief).not.toHaveProperty(path);
+  });
+
+  it("nulls an unknown effort and keeps the generation stamp", () => {
+    const brief = makeValidBrief();
+    const body = makeBodyWith({
+      generation: { ...brief.generation, effort: "extreme" },
+    });
+
+    const read = readBodyOrThrow(body);
+
+    expect(read.brief.generation).toEqual({
+      ...brief.generation,
+      effort: null,
+    });
+    expect(isCompleteBrief(read.brief)).toBe(true);
+    expect(read.issues).toEqual([
+      {
+        code: ArtifactIssueCodes.DROPPED_FIELD,
+        path: "generation.effort",
+        message: expect.any(String),
+      },
+    ]);
   });
 
   it("reads a body missing commitCount as incomplete", () => {
@@ -447,14 +492,94 @@ describe("readStoredBrief", () => {
     );
   });
 
-  it("keeps and reports a changeGroupId that names no group", () => {
-    const read = readBodyOrThrow(makeBodyWithChunk({ changeGroupId: "g9" }));
+  it("moves a chunk naming no group into the unattributed remainder", () => {
+    const brief = makeTwoGroupBrief();
+    const [kept, orphan] = brief.chunks;
+    const body = {
+      ...brief,
+      chunks: [kept, { ...orphan, changeGroupId: "g9" }],
+      unattributed: [],
+    };
 
-    expect(read.brief.chunks[0]?.changeGroupId).toBe("g9");
+    const read = readBodyOrThrow(body);
+
+    expect(read.brief.chunks).toEqual([kept]);
+    expect(read.brief.unattributed).toEqual([
+      {
+        file: orphan!.file,
+        addedRanges: orphan!.addedRanges,
+        removedRanges: orphan!.removedRanges,
+      },
+    ]);
     expect(read.issues).toEqual([
       {
         code: ArtifactIssueCodes.UNKNOWN_CHANGE_GROUP,
-        path: "chunks.0.changeGroupId",
+        path: "chunks.1.changeGroupId",
+        message: expect.any(String),
+      },
+    ]);
+  });
+
+  it("merges a moved chunk's lines into its file's remainder entry", () => {
+    const brief = makeValidBrief();
+    const orphan = {
+      ...brief.chunks[0],
+      id: "c9",
+      changeGroupId: "g9",
+      addedRanges: [{ start: 6, end: 8 }],
+      removedRanges: [{ start: 2, end: 2 }],
+    };
+    const body = {
+      ...brief,
+      chunks: [...brief.chunks, orphan],
+      unattributed: [
+        {
+          file: "a.ts",
+          addedRanges: [{ start: 9, end: 9 }],
+          removedRanges: [],
+        },
+      ],
+    };
+
+    const read = readBodyOrThrow(body);
+
+    expect(read.brief.unattributed).toEqual([
+      {
+        file: "a.ts",
+        addedRanges: [{ start: 6, end: 9 }],
+        removedRanges: [{ start: 2, end: 2 }],
+      },
+    ]);
+  });
+
+  it.each([
+    ["an empty token", ""],
+    ["a token that is not kebab-case", "Breaking Change!"],
+    ["a token over 50 characters", `a${"-b".repeat(25)}`],
+  ])("drops %s and reports it", (_label, badToken) => {
+    const body = makeBodyWithChunk({
+      riskSurface: ["no-tests", badToken],
+      riskNotes: [
+        { attr: "no-tests", note: "no coverage" },
+        { attr: badToken, note: "why it fired" },
+      ],
+    });
+
+    const read = readBodyOrThrow(body);
+
+    expect(read.brief.chunks[0]?.riskSurface).toEqual(["no-tests"]);
+    expect(read.brief.chunks[0]?.riskNotes).toEqual([
+      { attr: "no-tests", note: "no coverage" },
+    ]);
+    expect(read.issues).toEqual([
+      {
+        code: ArtifactIssueCodes.DROPPED_FIELD,
+        path: "chunks.0.riskSurface.1",
+        message: expect.any(String),
+      },
+      {
+        code: ArtifactIssueCodes.DROPPED_FIELD,
+        path: "chunks.0.riskNotes.1",
         message: expect.any(String),
       },
     ]);
@@ -570,7 +695,7 @@ describe("readStoredRevisionNarrative", () => {
 
     expect(readStoredRevisionNarrative(JSON.stringify(narrative))).toEqual({
       ok: true,
-      value: narrative,
+      value: { narrative, issues: [] },
     });
   });
 
@@ -579,7 +704,7 @@ describe("readStoredRevisionNarrative", () => {
 
     expect(readStoredRevisionNarrative(JSON.stringify(stub))).toEqual({
       ok: true,
-      value: stub,
+      value: { narrative: stub, issues: [] },
     });
   });
 
@@ -589,7 +714,7 @@ describe("readStoredRevisionNarrative", () => {
 
     expect(readStoredRevisionNarrative(JSON.stringify(body))).toEqual({
       ok: true,
-      value: narrative,
+      value: { narrative, issues: [] },
     });
     expect(checkRevisionNarrativeForWrite(body).ok).toBe(false);
   });
@@ -600,9 +725,60 @@ describe("readStoredRevisionNarrative", () => {
 
     expect(readStoredRevisionNarrative(JSON.stringify(body))).toEqual({
       ok: true,
-      value: stub,
+      value: { narrative: stub, issues: [] },
     });
     expect(checkRevisionNarrativeForWrite(body).ok).toBe(false);
+  });
+
+  it("nulls an unknown effort and keeps the narrative", () => {
+    const narrative = makeValidRevisionNarrative();
+    const body = {
+      ...narrative,
+      generation: { ...narrative.generation, effort: "extreme" },
+    };
+
+    expect(readStoredRevisionNarrative(JSON.stringify(body))).toEqual({
+      ok: true,
+      value: {
+        narrative: {
+          ...narrative,
+          generation: { ...narrative.generation, effort: null },
+        },
+        issues: [
+          {
+            code: ArtifactIssueCodes.DROPPED_FIELD,
+            path: "generation.effort",
+            message: expect.any(String),
+          },
+        ],
+      },
+    });
+  });
+
+  it.each([
+    ["generationWarnings", { generationWarnings: [1] }],
+    ["lengthViolations", { lengthViolations: [NOT_A_SECTION] }],
+    [
+      "pr.state",
+      { pr: { ...makeValidRevisionNarrative().pr, state: "merged" } },
+    ],
+  ])("drops and reports an invalid %s", (path, overrides) => {
+    const narrative = makeValidRevisionNarrative();
+    const body = { ...narrative, ...overrides };
+
+    const read = readStoredRevisionNarrative(JSON.stringify(body));
+    if (!read.ok) {
+      throw new Error(`expected an ok read: ${JSON.stringify(read.error)}`);
+    }
+
+    expect(read.value.narrative).not.toHaveProperty(path);
+    expect(read.value.issues).toEqual([
+      {
+        code: ArtifactIssueCodes.DROPPED_SECTION,
+        path,
+        message: expect.any(String),
+      },
+    ]);
   });
 
   it("fails on a narrative with no overview", () => {

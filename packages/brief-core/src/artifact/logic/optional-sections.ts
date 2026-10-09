@@ -1,9 +1,11 @@
 import type { z } from "zod/v4";
-import { BriefSchema, PrRefSchema } from "../../types";
+import { GenerationSchema } from "generators/generation";
+import { BriefSchema, PrRefSchema, RevisionNarrativeSchema } from "../../types";
 import {
   ArtifactIssueCodes,
   type ArtifactIssue,
   type BriefSectionSchemas,
+  type NarrativeSectionSchemas,
   type PrSectionSchemas,
   type ReadingOrderRead,
   type SectionsRead,
@@ -25,6 +27,11 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   intentCheck: BriefSchema.shape.intentCheck,
 };
 
+const NARRATIVE_SECTIONS: NarrativeSectionSchemas = {
+  generationWarnings: RevisionNarrativeSchema.shape.generationWarnings,
+  lengthViolations: RevisionNarrativeSchema.shape.lengthViolations,
+};
+
 const PR_SECTIONS: PrSectionSchemas = {
   state: PrRefSchema.shape.state,
   draft: PrRefSchema.shape.draft,
@@ -37,6 +44,7 @@ const PR_SECTIONS: PrSectionSchemas = {
 /** A broken section can report one issue per element. */
 const MAX_SECTION_MESSAGES = 5;
 const NOT_A_PERMUTATION = "Not a permutation of the change group ids";
+const UNKNOWN_EFFORT = "Not an effort this release knows: read as no effort";
 
 function dropInvalidSections(
   owner: Record<string, unknown>,
@@ -70,22 +78,70 @@ function dropInvalidSections(
   return { body: Object.fromEntries(keptEntries), dropped };
 }
 
-/** An absent section is not an issue; a present, invalid one is removed. */
-export function dropInvalidBriefSections(
+/**
+ * An effort a release does not know, or none at all, costs only the effort
+ * when it is the stamp's one fault: the rest stays, so the Brief can still
+ * anchor the next run.
+ */
+function nullUnknownEffort(owner: Record<string, unknown>): SectionsRead {
+  const generation = owner["generation"];
+  const hasGeneration = isRecord(generation);
+  if (!hasGeneration) {
+    return { body: owner, dropped: [] };
+  }
+
+  const withoutEffort = { ...generation, effort: null };
+  const isEffortTheOnlyFault =
+    !parseStored(GenerationSchema, generation).ok &&
+    parseStored(GenerationSchema, withoutEffort).ok;
+  if (!isEffortTheOnlyFault) {
+    return { body: owner, dropped: [] };
+  }
+
+  const issue: ArtifactIssue = {
+    code: ArtifactIssueCodes.DROPPED_FIELD,
+    path: "generation.effort",
+    message: UNKNOWN_EFFORT,
+  };
+  const body = { ...owner, generation: withoutEffort };
+  return { body, dropped: [issue] };
+}
+
+/**
+ * The effort, then the owner's own sections, then the ones inside `pr`. An
+ * absent section is not an issue; a present, invalid one is removed.
+ */
+function dropInvalidOwnerSections(
   body: Record<string, unknown>,
+  sections: Record<string, z.ZodType>,
 ): SectionsRead {
-  const top = dropInvalidSections(body, BRIEF_SECTIONS, "");
-  const pr = top.body["pr"];
+  const effort = nullUnknownEffort(body);
+  const own = dropInvalidSections(effort.body, sections, "");
+  const dropped = [...effort.dropped, ...own.dropped];
+  const pr = own.body["pr"];
   const prIsObject = isRecord(pr);
   if (!prIsObject) {
-    return top;
+    return { body: own.body, dropped };
   }
 
   const inPr = dropInvalidSections(pr, PR_SECTIONS, "pr.");
   return {
-    body: { ...top.body, pr: inPr.body },
-    dropped: [...top.dropped, ...inPr.dropped],
+    body: { ...own.body, pr: inPr.body },
+    dropped: [...dropped, ...inPr.dropped],
   };
+}
+
+export function dropInvalidBriefSections(
+  body: Record<string, unknown>,
+): SectionsRead {
+  return dropInvalidOwnerSections(body, BRIEF_SECTIONS);
+}
+
+/** The skipped stub has none of these sections, so it passes through. */
+export function dropInvalidNarrativeSections(
+  body: Record<string, unknown>,
+): SectionsRead {
+  return dropInvalidOwnerSections(body, NARRATIVE_SECTIONS);
 }
 
 function isGroupPermutation(

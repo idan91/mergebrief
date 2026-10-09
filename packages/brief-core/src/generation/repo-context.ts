@@ -4,7 +4,11 @@
 // only within the enumerated classes; criteria are fenced as data, never system.
 
 import { matchesGlob } from "../path-matching";
-import { RiskSurfaceAttributes } from "../types";
+import {
+  CUSTOM_ATTRIBUTE_NAME_MAX_CHARS,
+  CUSTOM_ATTRIBUTE_NAME_PATTERN,
+  RiskSurfaceAttributes,
+} from "../types";
 import {
   REPO_FENCE_TAGS,
   attributeSafe,
@@ -144,16 +148,6 @@ export function renderCustomAttributes(
     .join("\n");
   return `<repo_custom_attributes>\n${entries}\n</repo_custom_attributes>`;
 }
-
-/**
- * Custom-attribute names double as json_schema enum tokens and prompt text,
- * so their charset is a security control, not a style preference: kebab-case
- * identifiers only, ≤ 50 chars. `repo-config` enforces the same shape at the
- * YAML boundary; this is the categorizer's own floor (never trust upstream).
- */
-export const CUSTOM_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-
-const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
 
 /**
  * Parked built-in candidates + reserved words: custom names colliding with any
