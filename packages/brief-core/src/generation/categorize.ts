@@ -58,13 +58,13 @@ import {
 import type { BriefValidationContext } from "./final-validation/types";
 import type { PrLocator } from "../github/pr-url";
 import type { FetchedPr, PrMetadata } from "../github/types";
-import {
-  isLinearPrStack,
-  type ForkPrStack,
-  type LinearPrStack,
-  type PrStack,
-  type PrStackMember,
-} from "../pr-stack";
+import { isLinearPrStack } from "../pr-stack";
+import type {
+  ForkPrStack,
+  LinearPrStack,
+  PrStack,
+  PrStackMember,
+} from "../pr-stack/types";
 import type {
   ContextSnippet,
   PrimarySnippet,

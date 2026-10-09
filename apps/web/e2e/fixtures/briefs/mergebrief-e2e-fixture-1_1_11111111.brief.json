@@ -147,7 +147,8 @@
   "index": 1,
   "commitRange": {
     "base": "0000000099998888777766665555444433332222",
-    "head": "11111111aaaa2222bbbb3333cccc4444dddd5555"
+    "head": "11111111aaaa2222bbbb3333cccc4444dddd5555",
+    "commitCount": 1
   },
   "generation": {
     "provider": "anthropic",

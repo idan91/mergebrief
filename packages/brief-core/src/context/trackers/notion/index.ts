@@ -12,8 +12,4 @@ export const notionTracker: Tracker<typeof TicketTrackers.NOTION> = {
 };
 
 export { createNotionRead } from "./read";
-export {
-  NotionTransports,
-  type NotionHttpTransportOptions,
-  type NotionTransport,
-} from "./transport";
+export { NotionTransports, type NotionHttpTransportOptions } from "./transport";

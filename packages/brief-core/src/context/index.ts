@@ -4,16 +4,13 @@
  */
 export type {
   ContextProvider,
-  ContextProviderDeps,
-  ContextProviderType,
   ContextQuery,
   ContextReadFailure,
   ContextSnippet,
   PrimarySnippet,
   PrimaryTicketOutcome,
-  ProviderSnippet,
 } from "./types";
-export { ContextProviderTypes, MAX_SNIPPET_CHARS } from "./types";
+export { ContextProviderTypes } from "./types";
 export {
   fetchContextSnippets,
   type ContextFetch,
@@ -21,28 +18,13 @@ export {
 } from "./fan-out";
 export { toPrimaryTicket } from "./primary";
 export { createBuiltInContextProviders } from "./registry";
-export {
-  createGitHubRead,
-  GitHubTransports,
-  readFailureForStatus,
-  type GitHubTransport,
-  type InstallationIssueApi,
-  type IssueLocator,
-  type IssueRecord,
-} from "./trackers/github";
+export { GitHubTransports, type InstallationIssueApi } from "./trackers/github";
 export { buildContextQuery } from "./query";
-export { collectTicketReferences, resolvePrimaryTicket } from "./references";
-export type { TicketReference, TicketReferenceInput } from "./trackers/types";
-export {
-  createNotionRead,
-  NotionTransports,
-  type NotionTransport,
-} from "./trackers/notion";
+export { NotionTransports } from "./trackers/notion";
 export {
   checkConfiguredTrackerReads,
   listReadableTrackers,
   resolveTrackerReads,
-  type PrimaryRead,
   type SharedRootDeps,
   type TrackerReads,
   type TrackerRootDeps,

@@ -37,20 +37,10 @@ export { readBriefSessionFacts } from "./session-facts";
 export {
   ArtifactIssueCodes,
   type ArtifactIssue,
-  type ArtifactIssueCode,
   type BriefSessionFacts,
-  type BriefSessionFactsRead,
-  type BriefWriteCheck,
-  type DeltaBriefWriteCheck,
   type FlagKey,
-  type RevisionNarrativeWriteCheck,
   type StoredBrief,
-  type StoredBriefRead,
-  type StoredBriefReadResult,
-  type StoredDeltaBriefReadResult,
   type StoredRevisionNarrative,
-  type StoredRevisionNarrativeRead,
-  type StoredRevisionNarrativeReadResult,
 } from "./types";
 
 /** Runs after the parse: `extend` would drop a refinement on the schema. */

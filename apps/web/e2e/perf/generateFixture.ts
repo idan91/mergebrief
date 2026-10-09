@@ -9,6 +9,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { checkBriefForWrite } from "brief-core/artifact";
 import type { LineRange } from "brief-core/types";
 import {
   parseBrief,
@@ -183,7 +184,7 @@ function buildBrief(revision: 1 | 2, scale: Scale, chunks: ChunkSpec[]) {
         "## Summary\n- Synthetic large PR backing the perf measurement harness.\n",
     },
     index: revision,
-    commitRange: { base: SHA_BASE, head: sha },
+    commitRange: { base: SHA_BASE, head: sha, commitCount: revision },
     generation: {
       provider: "anthropic",
       model: "claude-opus-4-8",
@@ -294,6 +295,14 @@ function assertOk<T>(
   return result.value;
 }
 
+function assertWritableBrief(brief: unknown, what: string): void {
+  const checked = checkBriefForWrite(brief, []);
+  if (!checked.ok) {
+    const issues = JSON.stringify(checked.error);
+    throw new Error(`Generated ${what} failed the write check: ${issues}`);
+  }
+}
+
 async function main(): Promise<void> {
   const scale = parseArgs(process.argv.slice(2));
   const chunks = buildChunkSpecs(scale);
@@ -305,6 +314,8 @@ async function main(): Promise<void> {
 
   assertOk(parseBrief(JSON.stringify(rev1)), "revision-1 brief");
   assertOk(parseBrief(JSON.stringify(rev2)), "revision-2 brief");
+  assertWritableBrief(rev1, "revision-1 brief");
+  assertWritableBrief(rev2, "revision-2 brief");
   assertOk(parseComparisonMarks(comparison), "comparison marks");
   assertOk(
     parseRevisionNarrativeArtifact(JSON.stringify(narrative)),

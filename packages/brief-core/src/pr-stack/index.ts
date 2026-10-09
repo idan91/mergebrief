@@ -12,11 +12,8 @@ import type {
 } from "./types";
 
 export type {
-  ForkPrStack,
-  LinearPrStack,
   OpenPullRequest,
   PrStack,
-  PrStackMember,
   PrStackSelf,
   RepoIdentity,
   StoredPrStack,

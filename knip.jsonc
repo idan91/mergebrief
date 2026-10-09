@@ -65,6 +65,8 @@
     "packages/contract": { "entry": ["src/index.ts"] },
     "packages/brief-core": {
       "entry": ["src/index.ts", "src/types.ts", "src/artifact/index.ts"],
+      // An entry export no other workspace imports is dead surface here.
+      "includeEntryExports": true,
     },
     "apps/cli": {
       "entry": [

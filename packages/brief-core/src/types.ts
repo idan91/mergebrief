@@ -464,6 +464,7 @@ export const PrimaryTicketStatuses = {
   READ: "read",
   UNREAD: "unread",
 } as const;
+/** @public */
 export type PrimaryTicketStatus = ValueOf<typeof PrimaryTicketStatuses>;
 
 /** Why a primary ticket went unread: a closed set, one copy template each. */
@@ -482,6 +483,7 @@ export const AlignmentReads = {
   PARTIAL: "partial",
   MISALIGNED: "misaligned",
 } as const;
+/** @public */
 export type AlignmentRead = ValueOf<typeof AlignmentReads>;
 
 const ALIGNMENT_GOAL_DESCRIPTION =
@@ -678,7 +680,6 @@ export const AnchoringDetailSchema = z.object({
   carried: z.array(z.string()),
   regenerated: z.array(z.string()),
 });
-export type AnchoringDetail = z.infer<typeof AnchoringDetailSchema>;
 
 /**
  * Text surfaces the length floor covers. The PR lede/changelog deliberately
@@ -1024,12 +1025,8 @@ export type PrRef = z.infer<typeof PrRefSchema>;
 export type IntentItem = z.infer<typeof IntentItemSchema>;
 export type IntentCheck = z.infer<typeof IntentCheckSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
-export type RiskNote = z.infer<typeof RiskNoteSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
-export type ChunkGeneration = z.infer<typeof ChunkGenerationSchema>;
-export type DeltaChunkGeneration = z.infer<typeof DeltaChunkGenerationSchema>;
 export type UnattributedFile = z.infer<typeof UnattributedFileSchema>;
-export type DiffTotals = z.infer<typeof DiffTotalsSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ReadingOrderStep = z.infer<typeof ReadingOrderStepSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;

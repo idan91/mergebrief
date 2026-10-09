@@ -49,11 +49,20 @@ import {
   FIXTURE_DIR,
   type StateViewer,
 } from "./env";
+import { buildSeedBrief, SEED_ORIGIN } from "./seed-brief";
 
 const MINUTE_MS = 60_000;
 const OLDER_HEAD = "3333333300001111222233334444555566667777";
 const LATEST_HEAD = "4444444400001111222233334444555566667777";
-const SEED_ORIGIN = { provider: "stub", model: "stub", effort: "low" };
+const SEED_BASE_SHA = "0000000099998888777766665555444433332222";
+const SEED_COMMIT_COUNT = 1;
+
+interface SeedPullRequest {
+  readonly id: PullRequestRowId;
+  readonly repoSlug: string;
+  readonly prNumber: number;
+  readonly title: string;
+}
 
 function brandRepo(value: number): RepoId {
   const asBigInt = BigInt(value);
@@ -74,18 +83,27 @@ function resolveInstallationContext(installationId: number): ScopeContext {
 async function writeBrief(
   handle: AppDatabase,
   ctx: ScopeContext,
-  pullRequestId: PullRequestRowId,
+  pullRequest: SeedPullRequest,
   headSha: string,
   headIndex: number,
 ): Promise<BriefRowId> {
-  const written = await createArtifactStore(handle, ctx).briefs.write({
-    ...SEED_ORIGIN,
-    pullRequestId,
-    baseSha: "0000000099998888777766665555444433332222",
+  const body = buildSeedBrief({
+    repoSlug: pullRequest.repoSlug,
+    prNumber: pullRequest.prNumber,
+    title: pullRequest.title,
+    baseSha: SEED_BASE_SHA,
     headSha,
     headIndex,
-    commitCount: 1,
-    body: "{}",
+    commitCount: SEED_COMMIT_COUNT,
+  });
+  const written = await createArtifactStore(handle, ctx).briefs.write({
+    ...SEED_ORIGIN,
+    pullRequestId: pullRequest.id,
+    baseSha: SEED_BASE_SHA,
+    headSha,
+    headIndex,
+    commitCount: SEED_COMMIT_COUNT,
+    body: JSON.stringify(body),
   });
   if (!written.ok) {
     throw new Error(`brief seed failed: ${written.error.message}`);
@@ -158,15 +176,20 @@ async function seedInboxRow(
   if (!isPullRequestRowId(written.id)) {
     throw new Error("bad pull request id");
   }
-  const pullRequestId = written.id;
+  const pullRequest: SeedPullRequest = {
+    id: written.id,
+    repoSlug: repo.slug,
+    prNumber: row.prNumber,
+    title: row.title,
+  };
 
   if (row.state === InboxSeedStates.UPDATED) {
-    const older = await writeBrief(handle, ctx, pullRequestId, OLDER_HEAD, 1);
+    const older = await writeBrief(handle, ctx, pullRequest, OLDER_HEAD, 1);
     await openSession(handle, ctx, older, viewer, true);
-    await writeBrief(handle, ctx, pullRequestId, LATEST_HEAD, 2);
+    await writeBrief(handle, ctx, pullRequest, LATEST_HEAD, 2);
     return;
   }
-  const latest = await writeBrief(handle, ctx, pullRequestId, LATEST_HEAD, 1);
+  const latest = await writeBrief(handle, ctx, pullRequest, LATEST_HEAD, 1);
   if (row.state === InboxSeedStates.IN_PROGRESS) {
     await openSession(handle, ctx, latest, viewer, false);
   }
@@ -195,7 +218,13 @@ async function seedBehindRow(
   if (!isPullRequestRowId(written.id)) {
     throw new Error("bad pull request id");
   }
-  await writeBrief(handle, ctx, written.id, INBOX_BEHIND_ROW.briefHead, 1);
+  const pullRequest: SeedPullRequest = {
+    id: written.id,
+    repoSlug: E2E_REPO_SLUG,
+    prNumber: INBOX_BEHIND_ROW.prNumber,
+    title: INBOX_BEHIND_ROW.title,
+  };
+  await writeBrief(handle, ctx, pullRequest, INBOX_BEHIND_ROW.briefHead, 1);
 }
 
 /** The hidden-state viewer's one row: merged, so the default status filter shows nothing. */
