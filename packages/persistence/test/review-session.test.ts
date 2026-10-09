@@ -3,7 +3,6 @@
 // semantics (the first write creates, a read never does), and prove tenant B can neither
 // read nor write tenant A's session rows.
 import type { PGlite } from "@electric-sql/pglite";
-import { Categories } from "brief-core/types";
 import { drizzle } from "drizzle-orm/pglite";
 import {
   AnchorStatuses,
@@ -210,12 +209,6 @@ describe("review-session vocabularies match CHECK constraints", () => {
     const { client } = await freshPair();
     expect((await checkValues(client, name)).toSorted()).toEqual(
       Object.values(map).toSorted(),
-    );
-  });
-
-  it("mirrors brief-core's Category vocabulary exactly", () => {
-    expect(Object.values(ChangeGroupCategories).toSorted()).toEqual(
-      [...Categories].toSorted(),
     );
   });
 

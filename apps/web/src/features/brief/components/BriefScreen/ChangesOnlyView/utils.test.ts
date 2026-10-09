@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import {
   type Brief,
   type BriefChunk,
-  Concerns,
   type RevisionNarrativeChunk,
-  Roles,
 } from "../../../types";
 import {
   collectNarrativeRows,

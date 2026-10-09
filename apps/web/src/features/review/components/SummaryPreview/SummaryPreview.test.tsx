@@ -2,7 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Roles, type Brief } from "@web/features/brief/types";
+import { Roles } from "brief-core/types";
+import { type Brief } from "@web/features/brief/types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { I18nProvider } from "@web/i18n/I18nProvider";
 import type { SessionSnapshot } from "../../session";

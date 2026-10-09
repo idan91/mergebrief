@@ -1,10 +1,6 @@
-import {
-  Categories,
-  Concerns,
-  Roles,
-  type Brief,
-  type LocalBriefSummary,
-} from "./types";
+import { ChangeGroupCategories } from "types";
+import { Concerns, Roles } from "brief-core/types";
+import { type Brief, type LocalBriefSummary } from "./types";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
@@ -28,10 +24,13 @@ export const briefFixture: Brief = {
       id: "g1",
       title: "Fix the cross-param leak",
       summary: "Tightens validation on the shared param path.",
-      dominantCategory: Categories.BUGFIX,
+      dominantCategory: ChangeGroupCategories.BUGFIX,
       secondaryCategories: [],
       uncertain: true,
-      uncertainBetween: [Categories.BUGFIX, Categories.LOGIC_REFACTOR],
+      uncertainBetween: [
+        ChangeGroupCategories.BUGFIX,
+        ChangeGroupCategories.LOGIC_REFACTOR,
+      ],
     },
   ],
   chunks: [

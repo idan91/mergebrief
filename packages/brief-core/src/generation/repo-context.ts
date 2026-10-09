@@ -178,7 +178,7 @@ export function sanitizeCustomAttributes(
 ): { attributes: CustomRiskAttributeInput[]; issues: string[] } {
   const issues: string[] = [];
   const colliding = new Set<string>([
-    ...RiskSurfaceAttributes,
+    ...Object.values(RiskSurfaceAttributes),
     ...PARKED_ATTRIBUTE_CANDIDATES,
     ...RESERVED_ATTRIBUTE_WORDS,
   ]);

@@ -1,9 +1,8 @@
+import { ChangeGroupCategories, type ChangeGroupCategory } from "types";
 import {
-  Categories,
   Concerns,
   RiskSurfaceAttributes,
   type Brief,
-  type Category,
   type Concern,
   type RiskSurfaceAttribute,
 } from "../types";
@@ -16,62 +15,76 @@ import { stripKnownFences } from "./fences";
  * drift from the schema; descriptions mirror the vocabulary docs.
  */
 
-const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
-  bugfix: "correct a defect in existing behavior",
-  "logic-refactor": "behavior-preserving restructure of logic",
-  "move-with-edits": "relocation of code with edits inside the move",
-  "lib-bump": "dependency version change WITH API/behavior impact",
-  "pure-move": "relocation only, bytes identical, no edits",
-  "new-feature": "adds a new capability",
-  "dependency-update": "dep version bump with NO API/behavior impact",
-  "schema-change": "data-model / migration change",
+const CATEGORY_DESCRIPTIONS: Record<ChangeGroupCategory, string> = {
+  [ChangeGroupCategories.BUGFIX]: "correct a defect in existing behavior",
+  [ChangeGroupCategories.LOGIC_REFACTOR]:
+    "behavior-preserving restructure of logic",
+  [ChangeGroupCategories.MOVE_WITH_EDITS]:
+    "relocation of code with edits inside the move",
+  [ChangeGroupCategories.LIB_BUMP]:
+    "dependency version change WITH API/behavior impact",
+  [ChangeGroupCategories.PURE_MOVE]:
+    "relocation only, bytes identical, no edits",
+  [ChangeGroupCategories.NEW_FEATURE]: "adds a new capability",
+  [ChangeGroupCategories.DEPENDENCY_UPDATE]:
+    "dep version bump with NO API/behavior impact",
+  [ChangeGroupCategories.SCHEMA_CHANGE]: "data-model / migration change",
 };
 
 const CONCERN_DESCRIPTIONS: Record<Concern, string> = {
-  implementation: "the functional change itself (default role: core)",
-  test: "tests, fixtures (incl. .test.* / .spec.* files) — supporting",
-  doc: "docs, READMEs, changesets, doc-only files — supporting",
-  spec: "specification document (NOT .spec.ts — that is test) — supporting",
-  config: "configuration files — supporting",
-  generated: "generated / vendored output (lockfiles, bundles) — supporting",
+  [Concerns.IMPLEMENTATION]:
+    "the functional change itself (default role: core)",
+  [Concerns.TEST]:
+    "tests, fixtures (incl. .test.* / .spec.* files) — supporting",
+  [Concerns.DOC]: "docs, READMEs, changesets, doc-only files — supporting",
+  [Concerns.SPEC]:
+    "specification document (NOT .spec.ts — that is test) — supporting",
+  [Concerns.CONFIG]: "configuration files — supporting",
+  [Concerns.GENERATED]:
+    "generated / vendored output (lockfiles, bundles) — supporting",
 };
 
 const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
   // about the CODE
-  "no-tests": "the changed code path has no test coverage in the repo",
-  "no-types": "lacks type annotations / heavily any-typed / dynamically typed",
-  "legacy-area":
+  [RiskSurfaceAttributes.NO_TESTS]:
+    "the changed code path has no test coverage in the repo",
+  [RiskSurfaceAttributes.NO_TYPES]:
+    "lacks type annotations / heavily any-typed / dynamically typed",
+  [RiskSurfaceAttributes.LEGACY_AREA]:
     "file carries a legacy marker (@deprecated, TODO/FIXME, legacy/ path)",
-  "dense-logic": "high branching factor (deep nesting, many conditions)",
+  [RiskSurfaceAttributes.DENSE_LOGIC]:
+    "high branching factor (deep nesting, many conditions)",
   // about the CHANGE
-  "touches-auth": "modifies authn/authz, session, or identity code",
-  "mutates-state":
+  [RiskSurfaceAttributes.TOUCHES_AUTH]:
+    "modifies authn/authz, session, or identity code",
+  [RiskSurfaceAttributes.MUTATES_STATE]:
     "writes persistent state (DB writes, fs writes, globals, cache invalidation)",
-  "removes-validation":
+  [RiskSurfaceAttributes.REMOVES_VALIDATION]:
     "weakens a check, guard, type narrowing, schema validator, or assertion",
-  "relaxes-permissions":
+  [RiskSurfaceAttributes.RELAXES_PERMISSIONS]:
     "broadens an access check, role check, scope, or permission boundary",
-  "widens-error-handling":
+  [RiskSurfaceAttributes.WIDENS_ERROR_HANDLING]:
     "broadens a catch / swallows more errors / errors→warnings or no-ops",
-  "adds-feature-flag": "introduces or modifies a feature-flag check",
-  "new-dependency":
+  [RiskSurfaceAttributes.ADDS_FEATURE_FLAG]:
+    "introduces or modifies a feature-flag check",
+  [RiskSurfaceAttributes.NEW_DEPENDENCY]:
     "adds a new DIRECT dependency to a package manifest (never a version-only bump)",
-  "new-abstraction":
+  [RiskSurfaceAttributes.NEW_ABSTRACTION]:
     "introduces a new named abstraction (class, interface, service, wrapper, layer) that did not exist before",
-  "comment-contradicts-code":
+  [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
     "a comment/docstring in the diff appears to disagree with the adjacent code",
   // about the BLAST RADIUS
-  "external-io":
+  [RiskSurfaceAttributes.EXTERNAL_IO]:
     "calls external services, network, filesystem, OS, or third-party APIs",
-  "cross-service":
+  [RiskSurfaceAttributes.CROSS_SERVICE]:
     "changes a contract another service consumes — an API request/response body, RPC or queue payload, a DB schema shared by separate deployables, or a lib surface published to other repos. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API — compile-time imports between packages are NOT services. Modifying an existing consumed contract fires EVEN when additive (a new field on an existing consumed response or shared table); only a wholly NEW endpoint/export with no consumers yet is NOT cross-service",
-  "schema-adjacent":
+  [RiskSurfaceAttributes.SCHEMA_ADJACENT]:
     "near (not in) a schema/migration/persistence layer (db/, models/, migrations/)",
-  "hot-path":
+  [RiskSurfaceAttributes.HOT_PATH]:
     "on a demonstrably high-traffic or latency-critical path (serving loop, per-request middleware, tight inner loop) — not every request handler qualifies",
-  "widely-imported":
+  [RiskSurfaceAttributes.WIDELY_IMPORTED]:
     "the modified API has many EXISTING call sites in the repo (~>=10 importers); a newly-added API has zero importers and never qualifies",
-  "release-imminent":
+  [RiskSurfaceAttributes.RELEASE_IMMINENT]:
     "targets a release shipping soon, or is a backport/hotfix",
 };
 
@@ -94,9 +107,10 @@ const LINE_RANGE_SIDES = `- \`addedRanges\` — **new-side** line numbers of \`+
 const LINE_RANGE_COMPUTE = `Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.`;
 
 function bullets<T extends string>(
-  tokens: readonly T[],
+  vocabulary: Readonly<Record<string, T>>,
   descriptions: Record<T, string>,
 ): string {
+  const tokens = Object.values(vocabulary);
   return tokens.map((t) => `- \`${t}\`: ${descriptions[t]}`).join("\n");
 }
 
@@ -223,7 +237,7 @@ The "Primary ticket" section, when present, holds the one ticket this PR is abou
 
 ## Category — the intent of a change-group (pick ONE dominant)
 
-${bullets(Categories, CATEGORY_DESCRIPTIONS)}
+${bullets(ChangeGroupCategories, CATEGORY_DESCRIPTIONS)}
 
 Not categories (common mistakes): test-only, config-only, generated-code — those are **concerns**, not intents.
 
@@ -365,7 +379,7 @@ You may describe how the follow-up addresses the **supplied** review comments. B
 
 ## Category — the intent of a change-group (pick ONE dominant)
 
-${bullets(Categories, CATEGORY_DESCRIPTIONS)}
+${bullets(ChangeGroupCategories, CATEGORY_DESCRIPTIONS)}
 
 ## Concern — the artifact kind of a chunk
 
@@ -437,7 +451,7 @@ The PR's title, description, and linked context; the previous head SHA and curre
 
 ## Categories (context only — already assigned on the full Brief; you never assign one)
 
-${bullets(Categories, CATEGORY_DESCRIPTIONS)}
+${bullets(ChangeGroupCategories, CATEGORY_DESCRIPTIONS)}
 
 ## Chunk granularity
 

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { Category } from "../../../../types";
+import type { ChangeGroupCategory } from "types";
 import {
   getCategoryLabel,
   type AttributedGroupView,
@@ -9,7 +9,7 @@ import styles from "./CategoryFacts.module.scss";
 
 export interface CategoryFactsProps {
   group: AttributedGroupView;
-  dominant: Category;
+  dominant: ChangeGroupCategory;
   isReclassified: boolean;
 }
 

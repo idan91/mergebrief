@@ -6,9 +6,13 @@ import { AnchorStates, type ValueOf } from "types";
  * maps it to its provider's own setting (Anthropic `output_config.effort`,
  * OpenAI `reasoning_effort`, …); a provider without the concept ignores it.
  */
-export const Efforts = ["low", "medium", "high"] as const;
+export const Efforts = {
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+} as const;
 
-export type Effort = (typeof Efforts)[number];
+export type Effort = ValueOf<typeof Efforts>;
 
 /**
  * Generation origin; which provider/model/effort produced this artifact.

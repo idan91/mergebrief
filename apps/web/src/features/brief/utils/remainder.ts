@@ -1,8 +1,7 @@
 import type { ValueOf } from "types/utils";
 
+import { Concerns, Roles } from "brief-core/types";
 import {
-  Concerns,
-  Roles,
   type BriefChunk,
   type LineRange,
   type UnattributedFile,

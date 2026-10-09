@@ -1,16 +1,30 @@
 import {
   AlignmentReads,
-  Categories,
+  type Concern,
   Concerns,
+  PrimaryTicketStatuses,
+  ReferenceLocations,
+  RevisionNarrativeSkipReasons,
   Roles,
+  Specificities,
+  type Specificity,
+  TicketUnreadReasons,
+} from "brief-core/types";
+import {
+  ChangeGroupCategories,
+  TicketTrackers,
+  type ChangeGroupCategory,
+  type Mutable,
+  type Result as SharedResult,
+  type ValueOf,
+} from "types";
+import {
   type Brief,
   type BriefAnchor,
   type BriefChunk,
-  type Category,
   type ChangeGroup,
   type ChunkLoc,
   type CommitRange,
-  type Concern,
   type ConcernRollup,
   type ComparisonMarks,
   type ComparisonMarksSummary,
@@ -23,14 +37,7 @@ import {
   type AddressedReviewComment,
   type ReadingOrderStep,
   type PrimaryTicket,
-  PrimaryTicketStatuses,
-  ReferenceLocations,
-  RevisionNarrativeSkipReasons,
-  Specificities,
-  type Specificity,
   type TicketAlignment,
-  TicketTrackers,
-  TicketUnreadReasons,
   type PrStack,
   type PrStackMember,
   type ForkPrStack,
@@ -46,7 +53,6 @@ import {
 } from "../types";
 
 import { NAME_MAX_CHARS, NAME_PATTERN } from "./repoConfig";
-import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
 export type Result<T> = SharedResult<T, string>;
@@ -55,10 +61,10 @@ interface ParsedChangeGroup {
   id?: string;
   title: string;
   summary: string;
-  dominantCategory: Category;
-  secondaryCategories: Category[];
+  dominantCategory: ChangeGroupCategory;
+  secondaryCategories: ChangeGroupCategory[];
   uncertain: boolean;
-  uncertainBetween: Category[];
+  uncertainBetween: ChangeGroupCategory[];
   coreChunkIds: string[];
   supportingChunkIds: string[];
 }
@@ -113,13 +119,15 @@ function stringArray(value: unknown): Result<string[]> {
   return { ok: true, value };
 }
 
-function categoryArray(value: unknown): Result<Category[]> {
+function categoryArray(value: unknown): Result<ChangeGroupCategory[]> {
   const parsed = stringArray(value);
   if (!parsed.ok) {
     return parsed;
   }
   if (
-    !parsed.value.every((item): item is Category => isOneOf(Categories, item))
+    !parsed.value.every((item): item is ChangeGroupCategory =>
+      isOneOf(ChangeGroupCategories, item),
+    )
   ) {
     return { ok: false, error: "Expected an array of known categories" };
   }
@@ -831,7 +839,7 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
   if (
     !isString(title) ||
     !isString(summary) ||
-    !isOneOf(Categories, dominantCategory) ||
+    !isOneOf(ChangeGroupCategories, dominantCategory) ||
     typeof uncertain !== "boolean"
   ) {
     return {

@@ -196,6 +196,8 @@ describe("enumPreservingOutputFormat: parse", () => {
 describe("enumPreservingOutputFormat: production schema", () => {
   it("round-trips BriefGenerationSchema and keeps the risk-surface enum", () => {
     const { schema } = enumPreservingOutputFormat(BriefGenerationSchema);
-    expect(allEnums(schema)).toContainEqual([...RiskSurfaceAttributes]);
+    expect(allEnums(schema)).toContainEqual(
+      Object.values(RiskSurfaceAttributes),
+    );
   });
 });

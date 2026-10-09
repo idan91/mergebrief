@@ -1,5 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
+import {
+  Concerns,
+  type RevisionNarrativeSkipReason,
+  Roles,
+} from "brief-core/types";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
@@ -16,12 +21,9 @@ import {
   type Brief,
   type BriefChunk,
   type ComparisonMarks,
-  Concerns,
   GuestHostPrefixes,
   type RevisionNarrative,
   type RevisionNarrativeChunk,
-  type RevisionNarrativeSkipReason,
-  Roles,
 } from "../../../types";
 import { CompareParams, type CompareParam } from "../../../comparison/types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";

@@ -10,6 +10,7 @@ import {
 import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import {
   createReviewFlowStore,
   ReviewFlowProvider,
@@ -23,9 +24,7 @@ import { appI18n } from "../../../../../i18n/I18nProvider";
 import {
   type Brief,
   type BriefChunk,
-  Concerns,
   type RevisionNarrative,
-  Roles,
 } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { ChangesOnlyView } from ".";

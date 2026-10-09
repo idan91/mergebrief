@@ -9,13 +9,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  Categories,
-  Concerns,
-  Roles,
-  type Brief,
-  type LocalBriefSummary,
-} from "../features/brief/types";
+import { ChangeGroupCategories } from "types";
+import { Concerns, Roles } from "brief-core/types";
+import { type Brief, type LocalBriefSummary } from "../features/brief/types";
 import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -45,7 +41,7 @@ const readThroughFixture: Brief = {
       id: "g1",
       title: "First group",
       summary: "The first change-group.",
-      dominantCategory: Categories.BUGFIX,
+      dominantCategory: ChangeGroupCategories.BUGFIX,
       secondaryCategories: [],
       uncertain: false,
       uncertainBetween: [],
@@ -54,7 +50,7 @@ const readThroughFixture: Brief = {
       id: "g2",
       title: "Second group",
       summary: "The second change-group.",
-      dominantCategory: Categories.LOGIC_REFACTOR,
+      dominantCategory: ChangeGroupCategories.LOGIC_REFACTOR,
       secondaryCategories: [],
       uncertain: false,
       uncertainBetween: [],

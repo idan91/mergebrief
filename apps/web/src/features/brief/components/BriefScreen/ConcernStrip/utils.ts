@@ -1,6 +1,7 @@
 import type { ValueOf } from "types/utils";
 
-import { Concerns, type Concern, type ConcernRollup } from "../../../types";
+import { type Concern, Concerns } from "brief-core/types";
+import { type ConcernRollup } from "../../../types";
 
 export const SplitSegmentKinds = {
   CONCERN: "concern",

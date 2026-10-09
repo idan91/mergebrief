@@ -11,6 +11,7 @@ import {
   vi,
 } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
@@ -26,9 +27,7 @@ import { appI18n } from "../../../../../i18n/I18nProvider";
 import {
   type Brief,
   type BriefChunk,
-  Concerns,
   type RevisionNarrative,
-  Roles,
 } from "../../../types";
 import { FileRowsProvider } from "../../../hooks/useFileRows";
 import type { FileRowsCache } from "../../../utils/fileRows";

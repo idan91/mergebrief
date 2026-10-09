@@ -9,20 +9,18 @@ export const ReviewOutcomes = {
 export type ReviewOutcome = ValueOf<typeof ReviewOutcomes>;
 
 /**
- * The Change-group intent vocabulary a reviewer reclassifies to,
- * wire-identical to brief-core's `Categories`. Mirrored here (not imported)
- * so this package keeps zero dependencies; persistence's
- * `test/review-session.test.ts` pins the mirror against the source AND
- * against the DB CHECK, so all three move together.
+ * Category - the intent of a Change-group: what the model assigns at
+ * generation and what a reviewer reclassifies to. Persistence's
+ * `test/review-session.test.ts` pins it against the DB CHECK.
  */
 export const ChangeGroupCategories = {
-  BUGFIX: "bugfix",
-  LOGIC_REFACTOR: "logic-refactor",
-  MOVE_WITH_EDITS: "move-with-edits",
-  LIB_BUMP: "lib-bump",
-  PURE_MOVE: "pure-move",
-  NEW_FEATURE: "new-feature",
-  DEPENDENCY_UPDATE: "dependency-update",
-  SCHEMA_CHANGE: "schema-change",
+  BUGFIX: "bugfix", // correct a defect in existing behavior
+  LOGIC_REFACTOR: "logic-refactor", // behavior-preserving restructure of logic
+  MOVE_WITH_EDITS: "move-with-edits", // relocation of code with edits inside the move
+  LIB_BUMP: "lib-bump", // dependency version change *with* API/behavior impact
+  PURE_MOVE: "pure-move", // relocation only, bytes identical, no edits
+  NEW_FEATURE: "new-feature", // adds a new capability
+  DEPENDENCY_UPDATE: "dependency-update", // dep version bump with no API/behavior impact
+  SCHEMA_CHANGE: "schema-change", // data-model / migration change
 } as const;
 export type ChangeGroupCategory = ValueOf<typeof ChangeGroupCategories>;

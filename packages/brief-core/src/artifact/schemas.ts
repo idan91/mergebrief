@@ -27,7 +27,10 @@ export function buildStoredBriefSchema(
     return BriefSchema;
   }
 
-  const riskToken = z.enum([...RiskSurfaceAttributes, ...customNames]);
+  const riskToken = z.enum([
+    ...Object.values(RiskSurfaceAttributes),
+    ...customNames,
+  ]);
   const storedChunkSchema = ChunkSchema.extend({
     riskSurface: z.array(riskToken),
     riskNotes: z.array(RiskNoteSchema.extend({ attr: riskToken })).optional(),

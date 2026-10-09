@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
 
+import type { ChangeGroupCategory } from "types";
 import {
   useReviewActions,
   useReviewSession,
   useReviewSessionActions,
 } from "@web/features/review/session";
-import type { Category } from "../../../../../types";
 import { useFlagSurface } from "../../../../../hooks/useFlagSurface";
 import {
   getCategoryLabel,
@@ -41,7 +41,7 @@ export function useAttributedGroupCardFacade({
   const actions = useReviewSessionActions();
   const { announce } = useReviewActions();
 
-  function chooseDominant(category: Category) {
+  function chooseDominant(category: ChangeGroupCategory) {
     const categoryLabel = getCategoryLabel(t, category);
 
     actions.reclassifyGroup(group.id, category);

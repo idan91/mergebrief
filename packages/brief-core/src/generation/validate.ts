@@ -957,7 +957,7 @@ export function validateRepoAttributeTokens<C extends Chunk>(
   const customByName = new Map(
     customAttributes.map((attr) => [attr.name, attr]),
   );
-  const builtIn = new Set<string>(RiskSurfaceAttributes);
+  const builtIn = new Set<string>(Object.values(RiskSurfaceAttributes));
 
   // A token is bad on this chunk when it is unknown or a custom attribute fired
   // outside its path scope, checked for riskSurface AND riskNotes

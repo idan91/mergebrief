@@ -7,15 +7,12 @@ import {
   useState,
 } from "react";
 
+import { Specificities } from "brief-core/types";
 import { Badge } from "@web/components/Badge";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
-import {
-  Specificities,
-  type IntentCheck,
-  type IntentItem,
-} from "../../../types";
+import { type IntentCheck, type IntentItem } from "../../../types";
 import {
   ALARM_GLYPH,
   CLAMP_THRESHOLD,

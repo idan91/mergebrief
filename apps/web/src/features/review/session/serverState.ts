@@ -1,5 +1,9 @@
-import type { Category } from "../../brief/types";
-import type { CommentAnchorKinds, Result, DiffSide } from "types";
+import type {
+  ChangeGroupCategory,
+  CommentAnchorKinds,
+  DiffSide,
+  Result,
+} from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
@@ -66,7 +70,7 @@ export interface SessionDisposition {
 
 export interface SessionReclassification {
   changeGroupId: string;
-  category: Category;
+  category: ChangeGroupCategory;
 }
 
 /**

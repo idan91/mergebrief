@@ -1,9 +1,13 @@
 // Boundary guards for the session read's wire payload. A malformed payload
 // FAILS whole rather than degrading item-by-item: a silently dropped draft is
 // a comment the reviewer writes a second time.
-import { Categories } from "../../brief/types";
 import { isRecord } from "@web/utils/typeGuards";
-import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
+import {
+  ChangeGroupCategories,
+  CommentAnchorKinds,
+  DiffSides,
+  type DiffSide,
+} from "types";
 import { ReviewCommentStatuses, type ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import { isCarryStatus } from "./attention";
@@ -30,7 +34,7 @@ const EVIDENCE_KINDS = new Set<string>([
   "chunk-reviewed",
   "manual-note",
 ] satisfies RiskEvidence["kind"][]);
-const CATEGORIES = new Set<string>(Object.values(Categories));
+const CATEGORIES = new Set<string>(Object.values(ChangeGroupCategories));
 
 function isLine(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;

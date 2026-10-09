@@ -1,7 +1,8 @@
+import { Roles } from "brief-core/types";
 import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
-import { Roles, type BriefChunk } from "../../brief/types";
+import { type BriefChunk } from "../../brief/types";
 import { GroupViewKinds, type RiskFlag } from "@web/features/brief/utils";
 import { ReviewCommentStatuses, type ReviewComment } from "./comments";
 import type {

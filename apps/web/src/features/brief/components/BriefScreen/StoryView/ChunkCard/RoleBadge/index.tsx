@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Roles, type Role } from "../../../../../types";
+import { type Role, Roles } from "brief-core/types";
 import { Badge, BadgeColors } from "@web/components/Badge";
 
 export interface RoleBadgeProps {

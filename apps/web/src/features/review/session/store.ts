@@ -1,7 +1,7 @@
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { Category } from "../../brief/types";
+import type { ChangeGroupCategory } from "types";
 import { type BriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
 import {
   isFileCommentAnchor,
@@ -27,7 +27,7 @@ export interface ReviewSessionState {
    * TODO: move to region@SHA.
    */
   dispositions: Record<string, Disposition>;
-  dominants: Record<string, Category>;
+  dominants: Record<string, ChangeGroupCategory>;
   reclassifiedGroups: Set<string>;
   reviewedChunks: Set<string>;
   reviewComments: ReviewComment[];
@@ -66,7 +66,7 @@ export interface ReviewSessionActions {
   /**
    * @description Sets the dominant category and marks the group reclassified.
    */
-  reclassifyGroup: (groupId: string, category: Category) => void;
+  reclassifyGroup: (groupId: string, category: ChangeGroupCategory) => void;
   /**
    * Stages a draft comment. Awaits the write and answers whether it LANDED,
    * the composer closes on success rather than on click, so a failure leaves
@@ -189,7 +189,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
   for (const flag of model.flags) {
     dispositions[flag.id] = { kind: "open" };
   }
-  const dominants: Record<string, Category> = {};
+  const dominants: Record<string, ChangeGroupCategory> = {};
   for (const group of model.groups) {
     if (group.kind !== GroupViewKinds.ATTRIBUTED) {
       continue;

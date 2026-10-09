@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import {
   DiffLineKinds,
   DiffRowOrigins,
@@ -10,7 +11,7 @@ import {
   isCommentableLine,
   type DiffRowViewParams,
 } from "./diffRowView";
-import { Concerns, Roles, type BriefChunk } from "../../../types";
+import { type BriefChunk } from "../../../types";
 
 function stubChunk(diff: DiffLine[]): BriefChunk {
   return {

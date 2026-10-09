@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Concerns, Roles, type BriefChunk } from "../../types";
+import { Concerns, Roles } from "brief-core/types";
+import { type BriefChunk } from "../../types";
 import { collectSelectionRowIds, planLineLanding } from "./line-landing";
 
 function stubChunk(overrides: Partial<BriefChunk>): BriefChunk {

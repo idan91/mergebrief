@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { Concerns, GuestRowReasons, Roles, type BriefChunk } from "../types";
+import { GuestRowReasons, type BriefChunk } from "../types";
 import { GroupViewKinds } from "./remainder";
 import type { FileLineOwners } from "./lineOwner";
 import { resolveChunkForLine } from "@web/features/review/utils";

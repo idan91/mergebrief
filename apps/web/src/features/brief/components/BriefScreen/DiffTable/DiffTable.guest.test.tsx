@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Concerns, Roles } from "brief-core/types";
 import {
   createReviewFlowStore,
   emptySessionPayload,
@@ -24,7 +25,7 @@ import {
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
-import { type Brief, type BriefChunk, Concerns, Roles } from "../../../types";
+import { type Brief, type BriefChunk } from "../../../types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { FileLineOwners } from "../../../utils/lineOwner";
 import { buildBriefViewModel } from "../../../utils/viewModel";

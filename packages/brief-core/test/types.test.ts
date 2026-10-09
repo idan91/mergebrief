@@ -588,7 +588,7 @@ describe("IntentCheckGenerationSchema: grammar budget", () => {
   });
 
   it("carries the five registered bucket names, matching the stored arrays", () => {
-    expect([...IntentBuckets]).toEqual([
+    expect(Object.values(IntentBuckets)).toEqual([
       "accomplished",
       "statedButMissing",
       "doneButUnstated",
@@ -606,7 +606,9 @@ describe("IntentCheckGenerationSchema: grammar budget", () => {
           "alignment",
         ].includes(key),
     );
-    expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());
+    expect(storedArrays.toSorted()).toEqual(
+      Object.values(IntentBuckets).toSorted(),
+    );
   });
 
   it("keeps the generation shape leaner than five arrays", () => {
@@ -688,12 +690,14 @@ describe("intentCheck on the brief schemas: the back-compat split", () => {
       enumPreservingJsonSchema(BriefGenerationSchema),
     ).replace(/\s/g, "");
     expect(wire).toContain(
-      `"enum":[${IntentBuckets.map((b) => `"${b}"`).join(",")}]`,
+      `"enum":[${Object.values(IntentBuckets)
+        .map((b) => `"${b}"`)
+        .join(",")}]`,
     );
     expect(wire).toContain('"items"');
     // The five stored bucket arrays must NOT appear as generation properties;
     // five array `$ref` sites is exactly what blows the grammar budget.
-    for (const bucket of IntentBuckets) {
+    for (const bucket of Object.values(IntentBuckets)) {
       expect(wire).not.toContain(`"${bucket}":{"type":"array"`);
     }
   });

@@ -87,14 +87,14 @@ const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 
 /** Custom names that collide (built-in wins + chip): real built-ins ∪ parked ∪ reserved. */
 const COLLISION_VOCABULARY: ReadonlySet<string> = new Set<string>([
-  ...RiskSurfaceAttributes,
+  ...Object.values(RiskSurfaceAttributes),
   ...PARKED_ATTRIBUTE_CANDIDATES,
   ...RESERVED_ATTRIBUTE_WORDS,
 ]);
 
 /** Valid de-emphasis targets among built-ins: every real built-in except the floor. */
 const BUILT_IN_NON_FLOOR: ReadonlySet<string> = new Set(
-  RiskSurfaceAttributes.filter((name) => !FLOOR_SET.has(name)),
+  Object.values(RiskSurfaceAttributes).filter((name) => !FLOOR_SET.has(name)),
 );
 
 // --- Byte + Zod helpers -----------------------------------------------------

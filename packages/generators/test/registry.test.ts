@@ -233,7 +233,7 @@ describe("effort on the generator block", () => {
   it.each(minimalBlocks)(
     "parses every Efforts member on $provider",
     (block) => {
-      for (const effort of Efforts) {
+      for (const effort of Object.values(Efforts)) {
         const parsed = GeneratorConfigSchema.safeParse({ ...block, effort });
         expect(parsed.success).toBe(true);
         if (!parsed.success) {

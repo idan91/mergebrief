@@ -10,6 +10,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import {
   ReviewSessionProvider,
@@ -17,7 +18,6 @@ import {
   type ReviewSessionActions,
 } from "@web/features/review/session";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
-import { Categories } from "../../../types";
 import { GroupViewKinds } from "../../../utils/remainder";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import {
@@ -219,7 +219,9 @@ describe("FocusPanel", () => {
     const panel = screen.getByTestId("focus-panel");
     expect(panel.querySelector('[data-kind="uncertain"]')).not.toBeNull();
 
-    act(() => tap.actions?.reclassifyGroup("g1", Categories.LOGIC_REFACTOR));
+    act(() =>
+      tap.actions?.reclassifyGroup("g1", ChangeGroupCategories.LOGIC_REFACTOR),
+    );
 
     const dominant = panel.querySelector('[data-kind="dominant"]');
     expect(dominant?.textContent).toBe("Dominant: logic refactor");

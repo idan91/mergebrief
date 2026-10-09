@@ -1,5 +1,13 @@
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
+import { ChangeGroupCategories, type ChangeGroupCategory } from "types";
+import {
+  type Concern,
+  Concerns,
+  type RiskSurfaceAttribute,
+  RiskSurfaceAttributes,
+  Roles,
+} from "brief-core/types";
 import {
   attributeDisplayMeta,
   floorFirst,
@@ -14,18 +22,11 @@ import {
   type GroupViewKind,
 } from "./remainder";
 import {
-  Categories,
-  Concerns,
-  RiskSurfaceAttributes,
-  Roles,
   type Brief,
   type BriefChunk,
-  type Category,
   type ChangeGroup,
-  type Concern,
   type LineRange,
   type ReadingOrderStep,
-  type RiskSurfaceAttribute,
   type RiskToken,
   type UnattributedFile,
 } from "../types";
@@ -147,15 +148,15 @@ const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
   [RiskSurfaceAttributes.RELEASE_IMMINENT]: "brief.risk.releaseImminent",
 };
 
-const CATEGORY_LABEL_KEYS: Record<Category, TranslationKey> = {
-  [Categories.BUGFIX]: "brief.category.bugfix",
-  [Categories.LOGIC_REFACTOR]: "brief.category.logicRefactor",
-  [Categories.MOVE_WITH_EDITS]: "brief.category.moveWithEdits",
-  [Categories.LIB_BUMP]: "brief.category.libBump",
-  [Categories.PURE_MOVE]: "brief.category.pureMove",
-  [Categories.NEW_FEATURE]: "brief.category.newFeature",
-  [Categories.DEPENDENCY_UPDATE]: "brief.category.dependencyUpdate",
-  [Categories.SCHEMA_CHANGE]: "brief.category.schemaChange",
+const CATEGORY_LABEL_KEYS: Record<ChangeGroupCategory, TranslationKey> = {
+  [ChangeGroupCategories.BUGFIX]: "brief.category.bugfix",
+  [ChangeGroupCategories.LOGIC_REFACTOR]: "brief.category.logicRefactor",
+  [ChangeGroupCategories.MOVE_WITH_EDITS]: "brief.category.moveWithEdits",
+  [ChangeGroupCategories.LIB_BUMP]: "brief.category.libBump",
+  [ChangeGroupCategories.PURE_MOVE]: "brief.category.pureMove",
+  [ChangeGroupCategories.NEW_FEATURE]: "brief.category.newFeature",
+  [ChangeGroupCategories.DEPENDENCY_UPDATE]: "brief.category.dependencyUpdate",
+  [ChangeGroupCategories.SCHEMA_CHANGE]: "brief.category.schemaChange",
 };
 
 const CONCERN_ORDER: Concern[] = [
@@ -322,7 +323,7 @@ export type CategoryLabel = string;
 
 export function getCategoryLabel(
   t: TFunction,
-  category: Category,
+  category: ChangeGroupCategory,
 ): CategoryLabel {
   return t(CATEGORY_LABEL_KEYS[category]);
 }

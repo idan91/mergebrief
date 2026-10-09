@@ -1,10 +1,11 @@
 import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ChangeGroupCategory } from "types";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
-import type { BriefChunk, Category } from "../../../../types";
+import type { BriefChunk } from "../../../../types";
 import {
   isAttributedGroupView,
   type BriefViewModel,
@@ -22,7 +23,7 @@ export interface PanelContentProps {
   group: GroupView;
   chunk: BriefChunk | undefined;
   /** The reader's dominant category, resolved; unset for the remainder. */
-  dominant: Category | undefined;
+  dominant: ChangeGroupCategory | undefined;
   isReclassified: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   hide: () => void;

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { Concerns, Roles } from "brief-core/types";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -33,12 +34,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { type ReactNode, useState } from "react";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
 import { FileRowsProvider } from "../../../../hooks/useFileRows";
-import {
-  type Brief,
-  type BriefChunk,
-  Concerns,
-  Roles,
-} from "../../../../types";
+import { type Brief, type BriefChunk } from "../../../../types";
 import type { FileRowsCache } from "../../../../utils/fileRows";
 import { buildLineOwnersByFile } from "../../../../utils/lineOwner";
 import { buildBriefViewModel } from "../../../../utils/viewModel";

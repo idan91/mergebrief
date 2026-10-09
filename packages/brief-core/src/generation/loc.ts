@@ -187,7 +187,7 @@ export function buildConcernView(
     entry.deleted += chunk.loc.deleted;
     totals.set(chunk.concern, entry);
   }
-  return Concerns.flatMap((concern) => {
+  return Object.values(Concerns).flatMap((concern) => {
     const loc = totals.get(concern);
     if (loc === undefined) {
       return [];

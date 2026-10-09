@@ -520,11 +520,6 @@
       "count": 13
     }
   },
-  "tools/categorizer/eval/briefQueries.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "tools/categorizer/eval/cases/copybutton-new-export/expected.ts": {
     "house/no-em-dash": {
       "count": 1

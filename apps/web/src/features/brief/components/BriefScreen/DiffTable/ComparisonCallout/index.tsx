@@ -1,5 +1,9 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import {
+  type RevisionNarrativeSkipReason,
+  RevisionNarrativeSkipReasons,
+} from "brief-core/types";
 import { Callout } from "@web/components/Callout";
 import {
   bindComparisonCallout,
@@ -7,11 +11,7 @@ import {
   type ComparisonRun,
   type ComparisonSource,
 } from "../../../../comparison/runs";
-import {
-  RevisionNarrativeSkipReasons,
-  type BriefChunk,
-  type RevisionNarrativeSkipReason,
-} from "../../../../types";
+import { type BriefChunk } from "../../../../types";
 
 import styles from "./ComparisonCallout.module.scss";
 import type { TranslationKey } from "i18n";

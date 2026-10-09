@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { RevisionNarrativeSkipReason } from "brief-core/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type {
@@ -6,11 +7,7 @@ import type {
   ComparisonRun,
   ComparisonSource,
 } from "../../../comparison/runs";
-import type {
-  AddressedReviewComment,
-  BriefChunk,
-  RevisionNarrativeSkipReason,
-} from "../../../types";
+import type { AddressedReviewComment, BriefChunk } from "../../../types";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { ValueOf, DiffSide } from "types";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";

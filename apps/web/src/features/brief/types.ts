@@ -1,64 +1,19 @@
+import type {
+  AlignmentRead,
+  Concern,
+  PrimaryTicketStatus,
+  PrLifecycleState,
+  ReferenceLocation,
+  RevisionNarrativeSkipReason,
+  Role,
+  Specificity,
+  TicketUnreadReason,
+} from "brief-core/types";
+import type { ChangeGroupCategory, TicketTracker, ValueOf } from "types";
 import type { DiffLine } from "../../utils/diffTokens/types";
-
-export const Categories = {
-  BUGFIX: "bugfix",
-  LOGIC_REFACTOR: "logic-refactor",
-  MOVE_WITH_EDITS: "move-with-edits",
-  LIB_BUMP: "lib-bump",
-  PURE_MOVE: "pure-move",
-  NEW_FEATURE: "new-feature",
-  DEPENDENCY_UPDATE: "dependency-update",
-  SCHEMA_CHANGE: "schema-change",
-} as const;
-
-export const Concerns = {
-  IMPLEMENTATION: "implementation",
-  TEST: "test",
-  DOC: "doc",
-  SPEC: "spec",
-  CONFIG: "config",
-  GENERATED: "generated",
-} as const;
-
-export const Roles = {
-  CORE: "core",
-  SUPPORTING: "supporting",
-} as const;
-
-export const RiskSurfaceAttributes = {
-  NO_TESTS: "no-tests",
-  NO_TYPES: "no-types",
-  LEGACY_AREA: "legacy-area",
-  DENSE_LOGIC: "dense-logic",
-  TOUCHES_AUTH: "touches-auth",
-  MUTATES_STATE: "mutates-state",
-  REMOVES_VALIDATION: "removes-validation",
-  RELAXES_PERMISSIONS: "relaxes-permissions",
-  WIDENS_ERROR_HANDLING: "widens-error-handling",
-  ADDS_FEATURE_FLAG: "adds-feature-flag",
-  NEW_DEPENDENCY: "new-dependency",
-  NEW_ABSTRACTION: "new-abstraction",
-  COMMENT_CONTRADICTS_CODE: "comment-contradicts-code",
-  EXTERNAL_IO: "external-io",
-  CROSS_SERVICE: "cross-service",
-  SCHEMA_ADJACENT: "schema-adjacent",
-  HOT_PATH: "hot-path",
-  WIDELY_IMPORTED: "widely-imported",
-  RELEASE_IMMINENT: "release-imminent",
-} as const;
-
-import type { ValueOf } from "types/utils";
-
-export type Category = ValueOf<typeof Categories>;
-export type Concern = ValueOf<typeof Concerns>;
-export type Role = ValueOf<typeof Roles>;
-export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
 
 /** Built-in or repo-policy risk token; the closed vocabulary is per-generation. */
 export type RiskToken = string;
-
-/** GitHub PR lifecycle states. A merged PR's `state` is `closed`. */
-export type PrLifecycleState = "open" | "closed";
 
 /** Live DB-route PR state. When present it supersedes the artifact stamp. */
 export interface LivePrState {
@@ -251,10 +206,10 @@ export interface ChangeGroup {
   id: string;
   title: string;
   summary: string;
-  dominantCategory: Category;
-  secondaryCategories: Category[];
+  dominantCategory: ChangeGroupCategory;
+  secondaryCategories: ChangeGroupCategory[];
   uncertain: boolean;
-  uncertainBetween: Category[];
+  uncertainBetween: ChangeGroupCategory[];
 }
 
 /**
@@ -272,25 +227,6 @@ export interface ConcernRollup {
   added: number;
   deleted: number;
 }
-
-/**
- * @description How actionable the composite intent source is. `precise`
- * populates the three buckets; `broad` and `none` render as "intent check
- * unavailable".
- */
-export const Specificities = {
-  PRECISE: "precise",
-  BROAD: "broad",
-  NONE: "none",
-} as const;
-export type Specificity = ValueOf<typeof Specificities>;
-
-export const AlignmentReads = {
-  ALIGNED: "aligned",
-  PARTIAL: "partial",
-  MISALIGNED: "misaligned",
-} as const;
-export type AlignmentRead = ValueOf<typeof AlignmentReads>;
 
 /**
  * @description The Ticket alignment read against the primary ticket's goal:
@@ -321,31 +257,6 @@ export const GuestRowReasons = {
   FILE_NOT_IN_BRIEF: "file-not-in-brief",
 } as const;
 export type GuestRowReason = ValueOf<typeof GuestRowReasons>;
-
-export const TicketTrackers = { GITHUB: "github", NOTION: "notion" } as const;
-export type TicketTracker = ValueOf<typeof TicketTrackers>;
-
-export const ReferenceLocations = {
-  DESCRIPTION: "description",
-  TITLE: "title",
-  BRANCH: "branch",
-} as const;
-export type ReferenceLocation = ValueOf<typeof ReferenceLocations>;
-
-export const PrimaryTicketStatuses = {
-  READ: "read",
-  UNREAD: "unread",
-} as const;
-export type PrimaryTicketStatus = ValueOf<typeof PrimaryTicketStatuses>;
-
-export const TicketUnreadReasons = {
-  NOT_FOUND: "not-found",
-  NO_CREDENTIAL: "no-credential",
-  TIMEOUT: "timeout",
-  RATE_LIMITED: "rate-limited",
-  UNSUPPORTED: "unsupported",
-} as const;
-export type TicketUnreadReason = ValueOf<typeof TicketUnreadReasons>;
 
 /**
  * @description The one ticket the PR is about, as the harness resolved and
@@ -604,20 +515,6 @@ export interface RevisionNarrative {
   overview: string;
   chunks: RevisionNarrativeChunk[];
 }
-
-/**
- * Why a Previous-Brief narrative was deliberately not generated: pinned wire
- * values brief-core writes into skip stubs, rendered through the catalog.
- */
-export const RevisionNarrativeSkipReasons = {
-  // oxlint-disable-next-line i18next/no-literal-string -- pinned wire value, never rendered as-is
-  SPAN_TOO_LARGE: "span too large",
-  // oxlint-disable-next-line i18next/no-literal-string -- pinned wire value, never rendered as-is
-  DISABLED_BY_CONFIG: "disabled by config",
-} as const;
-export type RevisionNarrativeSkipReason = ValueOf<
-  typeof RevisionNarrativeSkipReasons
->;
 
 /**
  * @description Explicit skip stub written when a Previous-Brief span never got

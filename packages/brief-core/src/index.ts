@@ -198,7 +198,6 @@ export type {
   StitchResult,
 } from "./anchoring/types";
 export {
-  Categories,
   Concerns,
   TextSurfaces,
   type LengthViolation,
@@ -215,7 +214,6 @@ export {
   briefGenerationSchemaWith,
   toPrLifecycleState,
   type Brief,
-  type Category,
   type Concern,
   type Role,
   type Specificity,

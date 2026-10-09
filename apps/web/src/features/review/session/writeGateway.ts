@@ -1,5 +1,5 @@
+import type { ChangeGroupCategory } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { Category } from "../../brief/types";
 import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
@@ -24,7 +24,10 @@ export interface SessionWriteGateway {
   address(
     evidenceByFlagId: ReadonlyMap<string, RiskEvidence>,
   ): Promise<SessionWriteResult>;
-  reclassify(groupId: string, category: Category): Promise<SessionWriteResult>;
+  reclassify(
+    groupId: string,
+    category: ChangeGroupCategory,
+  ): Promise<SessionWriteResult>;
   createComment(
     comment: Omit<ReviewComment, "id">,
   ): Promise<SessionWriteResult<string>>;

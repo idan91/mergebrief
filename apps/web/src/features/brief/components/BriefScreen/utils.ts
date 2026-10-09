@@ -4,6 +4,10 @@ import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { type Result, type ValueOf, type DiffSide, DiffSides } from "types";
 import {
+  type RevisionNarrativeSkipReason,
+  Specificities,
+} from "brief-core/types";
+import {
   type LineLinkTarget,
   type RiskEvidence,
   type RiskEvidenceKind,
@@ -23,13 +27,11 @@ import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import {
-  Specificities,
   type BriefChunk,
   type ComparisonAvailability,
   type IntentCheck,
   type RevisionNarrative,
   type RevisionNarrativeArtifact,
-  type RevisionNarrativeSkipReason,
 } from "../../types";
 import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {

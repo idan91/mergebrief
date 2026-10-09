@@ -1,6 +1,6 @@
+import type { RevisionNarrativeSkipReason } from "brief-core/types";
 import type { CompareParam } from "./types";
 import type { ComparisonMarkFiles, ComparisonSource } from "./runs";
-import type { RevisionNarrativeSkipReason } from "../types";
 
 /** The comparison overlay state shared down the story view, keyed by the active Compare baseline. */
 export interface ComparisonOverlayState {

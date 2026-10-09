@@ -1,4 +1,4 @@
-import type { Category } from "../../brief/types";
+import type { ChangeGroupCategory } from "types";
 import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome } from "../utils/state";
 import type { Disposition } from "./disposition";
@@ -12,7 +12,7 @@ import type { ReviewSessionState } from "./store";
 export interface SessionSnapshot {
   briefId: string;
   dispositions: Record<string, Disposition>;
-  dominants: Record<string, Category>;
+  dominants: Record<string, ChangeGroupCategory>;
   reclassifiedGroupIds: string[];
   reviewedChunkIds: string[];
   reviewComments: ReviewComment[];

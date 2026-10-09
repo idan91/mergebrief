@@ -5,6 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import type { RevisionNarrativeSkipReason } from "brief-core/types";
 import {
   comparisonAvailability,
   resolveBriefSearch,
@@ -35,7 +36,6 @@ import type {
   LocalBriefSummary,
   RevisionNarrative,
   RevisionNarrativeArtifact,
-  RevisionNarrativeSkipReason,
 } from "../../types";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "./types";
 import {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Concerns, Roles, type BriefChunk } from "../types";
+import { Concerns, Roles } from "brief-core/types";
+import { type BriefChunk } from "../types";
 import { resolveSectionFlags, type SectionRegion } from "./section-flags";
 import type { RiskFlag } from "./viewModel";
 

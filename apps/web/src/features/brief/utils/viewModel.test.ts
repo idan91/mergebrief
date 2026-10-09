@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { ChangeGroupCategories } from "types";
 import { appI18n } from "../../../i18n/I18nProvider";
-import { Categories, type Brief } from "../types";
+import { type Brief } from "../types";
 import { GroupViewKinds } from "./remainder";
 import { parseBrief } from "./validation";
 import {
@@ -92,13 +93,13 @@ function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
 
 describe("getCategoryLabel", () => {
   it("labels move-with-edits without a stray hyphen", () => {
-    expect(getCategoryLabel(appI18n.t, Categories.MOVE_WITH_EDITS)).toBe(
-      "move with edits",
-    );
+    expect(
+      getCategoryLabel(appI18n.t, ChangeGroupCategories.MOVE_WITH_EDITS),
+    ).toBe("move with edits");
   });
 
-  it("labels every Category from the catalog", () => {
-    for (const category of Object.values(Categories)) {
+  it("labels every ChangeGroupCategory from the catalog", () => {
+    for (const category of Object.values(ChangeGroupCategories)) {
       const label = getCategoryLabel(appI18n.t, category);
       const spokenToken = category.replaceAll("-", " ");
 

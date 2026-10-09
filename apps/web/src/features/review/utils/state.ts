@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
-import { Roles, type BriefChunk } from "../../brief/types";
+import { Roles } from "brief-core/types";
+import { type BriefChunk } from "../../brief/types";
 import {
   isUnattributedRemainderChunk,
   type RiskFlag,

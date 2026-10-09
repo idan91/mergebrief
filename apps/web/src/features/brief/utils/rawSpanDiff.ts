@@ -2,9 +2,10 @@
 // to selected head, turned into one chunk per file whose rows are all guest
 // rows. No I/O, no framework imports, the toggle component owns the fetch
 // and the render.
+import { Concerns, Roles } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./diffSlicing";
-import { type BriefChunk, Concerns, GuestHostPrefixes, Roles } from "../types";
+import { type BriefChunk, GuestHostPrefixes } from "../types";
 import type { TFunction } from "i18next";
 
 /**

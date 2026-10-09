@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { Category } from "../../../types";
+import type { ChangeGroupCategory } from "types";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
 import {
   isAttributedGroupView,
@@ -16,7 +16,7 @@ export interface GroupFactsProps {
   group: GroupView;
   surface: GroupFactsSurface;
   /** The reader's dominant category, resolved by the surface's facade. */
-  dominant?: Category | undefined;
+  dominant?: ChangeGroupCategory | undefined;
   isReclassified?: boolean;
   headingId?: string | undefined;
   headingRef?: Ref<HTMLHeadingElement> | undefined;

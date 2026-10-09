@@ -1,8 +1,9 @@
-import type { Brief, Category, RiskSurfaceAttribute } from "brief-core/types";
+import type { Brief, RiskSurfaceAttribute } from "brief-core/types";
+import type { ChangeGroupCategory } from "types/reviews";
 
 /**
- * Query helpers for property checklists: anchor on run-stable facts — files,
- * groups, attribute names, order relations — never on chunk boundaries or
+ * Query helpers for property checklists: anchor on run-stable facts (files,
+ * groups, attribute names, order relations), never on chunk boundaries or
  * free-form text.
  */
 
@@ -26,12 +27,12 @@ export function fires(
   return chunks.some((chunk) => chunk.riskSurface.includes(attr));
 }
 
-export function dominantCategories(brief: Brief): Category[] {
+export function dominantCategories(brief: Brief): ChangeGroupCategory[] {
   return brief.changeGroups.map((group) => group.dominantCategory);
 }
 
 /** Group ids in presentation order: the reading order when present,
- * source order otherwise — matches how a reviewer meets them. */
+ * source order otherwise, which matches how a reviewer meets them. */
 export function orderedGroupIds(brief: Brief): string[] {
   return (
     brief.readingOrder?.map((step) => step.groupId) ??

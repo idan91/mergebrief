@@ -18,7 +18,7 @@ const STYLE_TOKEN_DRIFT = "style-token-drift";
 
 /** What the per-generation enum admits: the built-ins plus these two names. */
 const ADMITTED: ReadonlySet<string> = new Set<string>([
-  ...RiskSurfaceAttributes,
+  ...Object.values(RiskSurfaceAttributes),
   PROP_SURFACE,
   STYLE_TOKEN_DRIFT,
 ]);

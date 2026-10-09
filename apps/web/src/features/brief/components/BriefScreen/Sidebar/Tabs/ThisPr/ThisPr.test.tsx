@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { Categories } from "../../../../../types";
 import { GroupViewKinds } from "../../../../../utils/remainder";
 import { buildBriefViewModel } from "../../../../../utils/viewModel";
 import { ThisPr } from ".";
@@ -37,7 +37,7 @@ describe("ThisPr", () => {
   it("shows a move-with-edits group as move with edits", () => {
     const movedGroup = {
       ...first.group,
-      dominantCategory: Categories.MOVE_WITH_EDITS,
+      dominantCategory: ChangeGroupCategories.MOVE_WITH_EDITS,
     };
     const movedBrief = { ...briefFixture, changeGroups: [movedGroup] };
     const movedModel = buildBriefViewModel(movedBrief);

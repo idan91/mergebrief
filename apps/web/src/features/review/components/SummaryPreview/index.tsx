@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { Roles, type Brief } from "@web/features/brief/types";
+import { Roles } from "brief-core/types";
+import { type Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   buildReceipt,

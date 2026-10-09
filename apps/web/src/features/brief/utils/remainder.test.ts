@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Concerns, Roles, type UnattributedFile } from "../types";
+import { Concerns, Roles } from "brief-core/types";
+import { type UnattributedFile } from "../types";
 import {
   GroupViewKinds,
   hydrateRemainderGroup,

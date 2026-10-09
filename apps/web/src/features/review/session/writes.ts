@@ -10,9 +10,13 @@ import {
   type ApiErrorCode,
   type ApiFetchInit,
 } from "../../../data/apiFetch";
-import type { CommentAnchorKinds, Mutable, DiffSide } from "types";
+import type {
+  ChangeGroupCategory,
+  CommentAnchorKinds,
+  DiffSide,
+  Mutable,
+} from "types";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
-import type { Category } from "../../brief/types";
 
 /** The Brief a write names, the same span the session read took. */
 export interface SessionWriteTarget {
@@ -90,7 +94,10 @@ export interface EvidenceWire {
 /** Every session operation, one method each. */
 export interface SessionWrites {
   setRead(chunkId: string, read: boolean): Promise<SessionWriteResult>;
-  reclassify(groupId: string, category: Category): Promise<SessionWriteResult>;
+  reclassify(
+    groupId: string,
+    category: ChangeGroupCategory,
+  ): Promise<SessionWriteResult>;
   createDraft(
     draft: DraftAnchorWire & { body: string },
   ): Promise<SessionWriteResult<string>>;

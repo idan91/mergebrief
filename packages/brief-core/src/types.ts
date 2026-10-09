@@ -1,7 +1,6 @@
 import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators/generation";
-import { TicketTrackers } from "types/trackers";
-import type { ValueOf } from "types/utils";
+import { ChangeGroupCategories, TicketTrackers, type ValueOf } from "types";
 import { PrStackSchema } from "./pr-stack";
 
 /**
@@ -16,27 +15,15 @@ import { PrStackSchema } from "./pr-stack";
 
 // --- Closed vocabularies (one source of truth per axis) -------------------
 
-/** Category - intent. Attaches to a change-group. */
-export const Categories = [
-  "bugfix", // correct a defect in existing behavior
-  "logic-refactor", // behavior-preserving restructure of logic
-  "move-with-edits", // relocation of code with edits inside the move
-  "lib-bump", // dependency version change *with* API/behavior impact
-  "pure-move", // relocation only, bytes identical, no edits
-  "new-feature", // adds a new capability
-  "dependency-update", // dep version bump with no API/behavior impact
-  "schema-change", // data-model / migration change
-] as const;
-
 /** Concern - artifact. Attaches to a chunk. Mostly derivable from file path. */
-export const Concerns = [
-  "implementation", // the functional change itself (default core)
-  "test", // tests, fixtures (incl. .test.* / .spec.* files)
-  "doc", // docs, READMEs, changesets, doc-only files
-  "spec", // specification document (NOT .spec.ts - that's test)
-  "config", // configuration files
-  "generated", // generated / vendored output (lockfiles, bundles)
-] as const;
+export const Concerns = {
+  IMPLEMENTATION: "implementation", // the functional change itself (default core)
+  TEST: "test", // tests, fixtures (incl. .test.* / .spec.* files)
+  DOC: "doc", // docs, READMEs, changesets, doc-only files
+  SPEC: "spec", // specification document (NOT .spec.ts - that's test)
+  CONFIG: "config", // configuration files
+  GENERATED: "generated", // generated / vendored output (lockfiles, bundles)
+} as const;
 
 /**
  * Specificity - how actionable the composite intent source is. Named rather
@@ -59,50 +46,49 @@ export const RevisionNarrativeSkipReasons = {
 } as const;
 
 /** Role - core vs supporting. Attaches to a chunk. */
-export const Roles = [
-  "core", // holds the change-group's intent
-  "supporting", // serves the core (its tests, docs, specs, config)
-] as const;
+export const Roles = {
+  CORE: "core", // holds the change-group's intent
+  SUPPORTING: "supporting", // serves the core (its tests, docs, specs, config)
+} as const;
 
 /**
  * Risk surface - 19 factual attributes (never verdicts). Attaches to a chunk.
  * Three buckets: about the code / about the change / about the blast radius.
  */
-export const RiskSurfaceAttributes = [
+export const RiskSurfaceAttributes = {
   // about the CODE
-  "no-tests",
-  "no-types",
-  "legacy-area",
-  "dense-logic",
+  NO_TESTS: "no-tests",
+  NO_TYPES: "no-types",
+  LEGACY_AREA: "legacy-area",
+  DENSE_LOGIC: "dense-logic",
   // about the CHANGE
-  "touches-auth",
-  "mutates-state",
-  "removes-validation",
-  "relaxes-permissions",
-  "widens-error-handling",
-  "adds-feature-flag",
-  "new-dependency",
-  "new-abstraction",
-  "comment-contradicts-code",
+  TOUCHES_AUTH: "touches-auth",
+  MUTATES_STATE: "mutates-state",
+  REMOVES_VALIDATION: "removes-validation",
+  RELAXES_PERMISSIONS: "relaxes-permissions",
+  WIDENS_ERROR_HANDLING: "widens-error-handling",
+  ADDS_FEATURE_FLAG: "adds-feature-flag",
+  NEW_DEPENDENCY: "new-dependency",
+  NEW_ABSTRACTION: "new-abstraction",
+  COMMENT_CONTRADICTS_CODE: "comment-contradicts-code",
   // about the BLAST RADIUS
-  "external-io",
-  "cross-service",
-  "schema-adjacent",
-  "hot-path",
-  "widely-imported",
-  "release-imminent",
-] as const;
+  EXTERNAL_IO: "external-io",
+  CROSS_SERVICE: "cross-service",
+  SCHEMA_ADJACENT: "schema-adjacent",
+  HOT_PATH: "hot-path",
+  WIDELY_IMPORTED: "widely-imported",
+  RELEASE_IMMINENT: "release-imminent",
+} as const;
 
-export type Category = (typeof Categories)[number];
-export type Concern = (typeof Concerns)[number];
-export type Role = (typeof Roles)[number];
-export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
+export type Concern = ValueOf<typeof Concerns>;
+export type Role = ValueOf<typeof Roles>;
+export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
 export type Specificity = ValueOf<typeof Specificities>;
 export type RevisionNarrativeSkipReason = ValueOf<
   typeof RevisionNarrativeSkipReasons
 >;
 
-const categoryEnum = z.enum(Categories);
+const categoryEnum = z.enum(ChangeGroupCategories);
 const concernEnum = z.enum(Concerns);
 const roleEnum = z.enum(Roles);
 
@@ -115,8 +101,7 @@ const roleEnum = z.enum(Roles);
  * enumerated statically - the enum enforces it at parse time.
  */
 function riskTokenEnum(customNames: readonly string[]): z.ZodType<string> {
-  const [first, ...rest] = RiskSurfaceAttributes;
-  return z.enum([first, ...rest, ...customNames]);
+  return z.enum([...Object.values(RiskSurfaceAttributes), ...customNames]);
 }
 
 const riskSurfaceEnum = riskTokenEnum([]);
@@ -124,9 +109,12 @@ const riskSurfaceEnum = riskTokenEnum([]);
 // --- Brief shape ----------------------------------------------------------
 
 /** GitHub PR lifecycle states - a merged PR's `state` is `closed`. */
-export const PrLifecycleStates = ["open", "closed"] as const;
+export const PrLifecycleStates = {
+  OPEN: "open",
+  CLOSED: "closed",
+} as const;
 
-export type PrLifecycleState = (typeof PrLifecycleStates)[number];
+export type PrLifecycleState = ValueOf<typeof PrLifecycleStates>;
 
 /**
  * Narrow a wire-level state string to a `PrLifecycleState`. Unrecognized values
@@ -139,7 +127,7 @@ export function toPrLifecycleState(
 }
 
 export const PrRefSchema = z.object({
-  repo: z.string().describe("owner/name, e.g. medusajs/medusa"),
+  repo: z.string().describe("owner/name, e.g. idan91/mergebrief"),
   number: z.number().int().describe("PR number"),
   title: z.string(),
   url: z.string().describe("PR URL"),
@@ -629,15 +617,15 @@ export const IntentCheckSchema = z.object({
  * the stored `IntentCheckSchema` array names so `fanOutIntentCheck` is a
  * mechanical dispatch and the registered vocabulary reads the same on both sides.
  */
-export const IntentBuckets = [
-  "accomplished",
-  "statedButMissing",
-  "doneButUnstated",
-  "deviations",
-  "claimedButUnachieved",
-] as const;
+export const IntentBuckets = {
+  ACCOMPLISHED: "accomplished",
+  STATED_BUT_MISSING: "statedButMissing",
+  DONE_BUT_UNSTATED: "doneButUnstated",
+  DEVIATIONS: "deviations",
+  CLAIMED_BUT_UNACHIEVED: "claimedButUnachieved",
+} as const;
 
-export type IntentBucket = (typeof IntentBuckets)[number];
+export type IntentBucket = ValueOf<typeof IntentBuckets>;
 
 /**
  * What the model emits for the intent check: ONE tagged array instead of five

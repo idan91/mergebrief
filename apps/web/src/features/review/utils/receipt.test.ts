@@ -2,9 +2,10 @@ import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 
+import { Roles } from "brief-core/types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
-import { Roles, type Brief } from "@web/features/brief/types";
+import { type Brief } from "@web/features/brief/types";
 import type { SessionSnapshot } from "../session";
 import { ReviewCommentStatuses } from "./comments";
 import { buildReceipt } from "./receipt";
