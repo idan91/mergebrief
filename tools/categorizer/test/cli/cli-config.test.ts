@@ -45,7 +45,7 @@ describe("extractOutFlag", () => {
     });
   });
 
-  it("refuses a flag-shaped or missing value rather than writing somewhere odd", () => {
+  it("refuses a flag-shaped or missing value", () => {
     expect(extractOutFlag(["--out", "--config", "x"])).toBeNull();
     expect(extractOutFlag(["url-a", "--out"])).toBeNull();
   });

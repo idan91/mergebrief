@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { enumPreservingOutputFormat, toStrictJsonSchema } from "generators";
-import { BriefGenerationSchema, RiskSurfaceAttributes } from "../../src/types";
+import { BriefGenerationSchema, RiskSurfaceAttributes } from "../src/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

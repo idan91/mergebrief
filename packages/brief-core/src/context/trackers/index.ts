@@ -90,13 +90,4 @@ export function resolveTrackerReads(
   return { ok: true, value: reads };
 }
 
-export { githubTracker } from "./github";
-export { notionTracker, parseNotionPageId } from "./notion";
-export type {
-  PrimaryRead,
-  ReferenceHit,
-  SharedRootDeps,
-  Tracker,
-  TrackerRootDeps,
-  TrackerTransports,
-} from "./types";
+export type { PrimaryRead, SharedRootDeps, TrackerRootDeps } from "./types";

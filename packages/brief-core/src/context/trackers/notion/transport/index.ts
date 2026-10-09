@@ -5,11 +5,7 @@ export const NotionTransports = {
   HTTP: { create: createNotionHttpTransport },
 } as const;
 
-export {
-  createNotionHttpTransport,
-  type NotionFetch,
-  type NotionHttpTransportOptions,
-} from "./http";
+export { type NotionHttpTransportOptions } from "./http";
 export {
   failRead,
   type NotionBlock,

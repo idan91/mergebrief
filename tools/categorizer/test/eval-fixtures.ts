@@ -2,7 +2,7 @@ import type { Brief } from "brief-core/types";
 
 /**
  * Minimal schema-valid Brief factory for eval-harness tests. Runs entirely
- * offline — the harness's run executor takes an injected generate boundary, so
+ * offline: the harness's run executor takes an injected generate boundary, so
  * suites never touch a live adapter.
  */
 export function makeBrief(overrides: Partial<Brief> = {}): Brief {
@@ -27,6 +27,7 @@ export function makeBrief(overrides: Partial<Brief> = {}): Brief {
         dominantCategory: "new-feature",
         secondaryCategories: [],
         uncertain: false,
+        uncertainBetween: [],
       },
     ],
     chunks: [],
@@ -45,6 +46,7 @@ export function briefWithGroups(groupCount: number): Brief {
       dominantCategory: "new-feature",
       secondaryCategories: [],
       uncertain: false,
+      uncertainBetween: [],
     })),
   });
 }

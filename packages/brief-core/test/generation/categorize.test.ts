@@ -22,7 +22,7 @@ import {
   type RunWithSchemaFloorArgs,
 } from "generators";
 import type { Brief, CommitRange } from "../../src/types";
-import type { FetchedPr } from "../../src/github";
+import type { FetchedPr } from "../../src/github/types";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { IntentCheckGenerationSchema } from "../../src/types";
 

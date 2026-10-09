@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Dev CLIs + the generation-quality eval harness on top of brief-core (the Brief domain core lives there).",
   "scripts": {
-    "categorize": "tsx ../../packages/brief-core/src/cli/categorize.ts",
-    "delta": "tsx ../../packages/brief-core/src/cli/delta.ts",
+    "categorize": "tsx src/cli/categorize.ts",
+    "delta": "tsx src/cli/delta.ts",
     "eval": "tsx eval/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
@@ -16,7 +16,9 @@
     "@anthropic-ai/sdk": "^0.104.1",
     "brief-core": "workspace:*",
     "generators": "workspace:*",
+    "i18n": "workspace:*",
     "types": "workspace:*",
+    "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

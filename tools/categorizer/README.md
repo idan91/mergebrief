@@ -5,8 +5,9 @@ Turns a real pull-request diff into a structured review **brief** — a *story* 
 > **Layout**: the domain core (schema, prompt, categorize engine,
 > repo-context, delta/comparison — everything production consumes) lives in
 > `packages/brief-core`; this directory keeps the dev CLIs (`pnpm categorize`,
-> `pnpm delta` — thin entries into brief-core) and the eval harness
-> (`eval/`, `pnpm eval`).
+> `pnpm delta` in `src/cli/`, with their `gh` fetchers in `src/github/` and
+> output naming in `src/artifacts/`) and the eval harness (`eval/`,
+> `pnpm eval`).
 
 This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/mvp/center-of-gravity.md`.
 
@@ -111,16 +112,16 @@ pnpm typecheck   # tsc --noEmit (strict)
 pnpm test        # vitest run
 ```
 
-Tests cover the pure logic: PR-URL parsing edge cases (`src/github/`), output filename + summary rendering (`src/artifacts/output.ts`), and brief-schema vocabulary enforcement (`src/types.ts`). The network/LLM paths are exercised by the manual gold check.
+Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename + summary rendering (`src/artifacts/output.ts`), and CLI flag and `--context` file parsing (`src/cli/`). PR-URL parsing and brief-schema vocabulary enforcement are tested in brief-core. The network/LLM paths are exercised by the manual gold check.
 
 ### Files
 
 | File | Purpose |
 |---|---|
-| `src/types.ts` | Zod brief + delta schemas — the closed vocabulary, the heart |
-| `src/github/` | parse PR URL → `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
-| `src/generation/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
-| `src/generation/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
+| `packages/brief-core/src/types.ts` | Zod brief + delta schemas — the closed vocabulary, the heart |
+| `src/github/` | `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
+| `packages/brief-core/src/generation/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
+| `packages/brief-core/src/generation/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
 | `src/artifacts/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
 | `src/artifacts/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |
 | `src/cli/categorize.ts` | brief CLI: args (whole PR or explicit span) → fetch → categorize → write brief + diffs + comments sidecars |

@@ -15,7 +15,7 @@ import type {
 } from "../../src/generation/brief/types";
 import type { RepoContext } from "../../src/generation/repo-context";
 import type { GenerationWarning } from "../../src/generation/warnings/types";
-import type { FetchedPr } from "../../src/github";
+import type { FetchedPr } from "../../src/github/types";
 import type { Brief } from "../../src/types";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);

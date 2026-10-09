@@ -4,8 +4,7 @@ import {
   createCliRootDeps,
   resolveCliTrackerReads,
 } from "../../src/cli/context-providers";
-import { resolveTrackerReads } from "../../src/context/trackers";
-import { ContextProviderTypes } from "../../src/context/types";
+import { ContextProviderTypes, resolveTrackerReads } from "brief-core";
 import { TicketTrackers } from "types/trackers";
 
 const NOTION_BLOCK = {

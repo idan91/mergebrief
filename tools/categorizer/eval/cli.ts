@@ -13,7 +13,7 @@ import {
 } from "generators";
 import type { Result } from "types/utils";
 import { generateBrief } from "brief-core";
-import { extractConfigFlag } from "brief-core/cli-config";
+import { extractConfigFlag } from "../src/cli/config";
 import {
   BaselineModes,
   loadBaseline,

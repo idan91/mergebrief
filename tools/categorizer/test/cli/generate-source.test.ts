@@ -12,10 +12,10 @@ import type {
   Generation,
   Generator,
 } from "generators";
-import type * as ContextModule from "../../src/context";
+import type * as BriefCoreModule from "brief-core";
+import type { ReviewComment } from "brief-core/types";
 import type * as GithubModule from "../../src/github";
-import type { PrMetadata, PrSource } from "../../src/github";
-import type { ReviewComment } from "../../src/types";
+import type { PrSource } from "../../src/github";
 
 const explode = vi.hoisted(
   () => (name: string) =>
@@ -41,8 +41,8 @@ vi.mock("../../src/github", async (importOriginal) => {
   };
 });
 // Not part of the port (its own boundary): must be quiet, not exploding.
-vi.mock("../../src/context", async (importOriginal) => {
-  const actual = await importOriginal<typeof ContextModule>();
+vi.mock("brief-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof BriefCoreModule>();
   return {
     ...actual,
     fetchContextSnippets: vi.fn(async () => ({ links: [] })),
@@ -54,7 +54,7 @@ const { generateAndWrite } = await import("../../src/cli/categorize");
 const URL = "https://github.com/o/r/pull/7";
 const HEAD = "aaaa111100000000";
 
-const meta: PrMetadata = {
+const meta: BriefCoreModule.PrMetadata = {
   title: "t",
   body: "d",
   url: URL,

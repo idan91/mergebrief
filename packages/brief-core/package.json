@@ -10,8 +10,8 @@
     "./artifact": "./src/artifact/index.ts",
     "./pr-stack": "./src/pr-stack/index.ts",
     "./pr-url": "./src/github/pr-url.ts",
+    "./gh-exec": "./src/github/exec.ts",
     "./remap": "./src/diff/remap.ts",
-    "./cli-config": "./src/cli/config.ts",
     "./path-matching": "./src/path-matching.ts"
   },
   "scripts": {
@@ -20,9 +20,7 @@
   },
   "dependencies": {
     "generators": "workspace:*",
-    "i18n": "workspace:*",
     "types": "workspace:*",
-    "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

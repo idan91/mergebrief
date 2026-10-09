@@ -14,8 +14,8 @@ function outcome(overrides: Partial<CaseOutcome> = {}): CaseOutcome {
     runsScored: 5,
     generationFailures: 0,
     properties: [
-      { id: "p1", description: ">=2 groups", check: () => true },
-      { id: "p2", description: "scss follows refactor", check: () => true },
+      { id: "p1", description: ">=2 groups" },
+      { id: "p2", description: "scss follows refactor" },
     ],
     scores: new Map([
       ["p1", { passes: 5, runs: 5 }],
@@ -52,7 +52,7 @@ describe("buildReport", () => {
     expect(report.terminal).not.toContain("REGRESSION");
   });
 
-  it("counts and renders regressions, and carries them into the markdown block", () => {
+  it("counts regressions and carries them into the markdown block", () => {
     const report = buildReport({
       key: "anthropic:m",
       billing: { kind: "api" },
@@ -76,7 +76,7 @@ describe("buildReport", () => {
     ).toBe("regression");
   });
 
-  it("marks a property absent from the baseline as new — never a verdict, never silent", () => {
+  it("marks a property absent from the baseline as new, without a verdict", () => {
     const report = buildReport({
       key: "anthropic:m",
       billing: { kind: "api" },
@@ -91,7 +91,7 @@ describe("buildReport", () => {
     expect(report.regressions).toBe(0);
     const p2 = report.json.cases[0]?.properties.find((p) => p.id === "p2");
     expect(p2?.verdict).toBe("no-baseline");
-    // A partially-baselined case must be visible in the terminal — an
+    // A partially-baselined case must be visible in the terminal: an
     // unbaselined property could otherwise fail forever without a line.
     expect(report.terminal).toContain("no baseline entry");
     expect(report.terminal).toContain("p2");
@@ -130,7 +130,7 @@ describe("buildReport", () => {
     expect(report.terminal).toContain("no baseline");
   });
 
-  it("renders dollars when priced, tokens alone when not, and subscription honestly", () => {
+  it("renders dollars when priced and tokens alone when not", () => {
     const priced = buildReport({
       key: "anthropic:m",
       billing: { kind: "api" },
@@ -160,14 +160,14 @@ describe("buildReport", () => {
       usage: null,
       costUsd: null,
     });
-    // Never asserts "subscription" as fact — the harness cannot verify which
+    // Never asserts "subscription" as fact: the harness cannot verify which
     // account the CLI authenticated with.
     expect(subscription.terminal).toContain("CLI's authenticated account");
     expect(subscription.terminal).not.toContain("subscription");
     expect(subscription.terminal).not.toContain("$0");
   });
 
-  it("surfaces generation failures and withholds verdicts on under-scored cases", () => {
+  it("surfaces generation failures and withholds under-scored verdicts", () => {
     const report = buildReport({
       key: "anthropic:m",
       billing: { kind: "api" },
@@ -184,7 +184,7 @@ describe("buildReport", () => {
       usage: null,
       costUsd: null,
     });
-    // 0/3 on a stable-pass baseline would be a regression at n=5 — but 3
+    // 0/3 on a stable-pass baseline would be a regression at n=5, but 3
     // scored runs is below the verdict floor, so no gate fires.
     expect(report.regressions).toBe(0);
     expect(report.terminal).toContain("2 generation failures");

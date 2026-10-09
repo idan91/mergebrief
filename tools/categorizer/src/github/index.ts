@@ -1,13 +1,11 @@
 /**
  * Folder barrel for the gh-CLI PR-fetch surface. Folder-internal plumbing
- * (execFileAsync, MAX_BUFFER, repoSlug) deliberately stays off it.
+ * (repoSlug) deliberately stays off it.
  */
-export type { FetchedPr, PrFile, PrMetadata } from "./types";
 export type { GhOpenPullRequestParseError } from "./fetch";
 export {
   fetchCompareCommitCount,
   fetchCompareDiff,
-  fetchPr,
   fetchPrDiff,
   fetchPrMetadata,
   isCommitish,
@@ -16,7 +14,6 @@ export {
   parseGhOpenPullRequests,
   resolveFullSha,
 } from "./fetch";
-export { parsePrUrl, type PrLocator } from "./pr-url";
 export {
   fetchReviewComments,
   isCommentOutdated,

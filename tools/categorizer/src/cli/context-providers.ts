@@ -1,12 +1,16 @@
 import type { Result } from "types/utils";
 import type { ConfigError, ContextSourcesConfig } from "generators";
-import { createBuiltInContextProviders } from "../context/registry";
-import { resolveTrackerReads, type TrackerReads } from "../context/trackers";
-import type { TrackerRootDeps } from "../context/trackers/types";
+import {
+  createBuiltInContextProviders,
+  GitHubTransports,
+  NotionTransports,
+  resolveTrackerReads,
+  type ContextProvider,
+  type PrimarySnippet,
+  type TrackerReads,
+  type TrackerRootDeps,
+} from "brief-core";
 import type { TrackerConfig } from "generators/trackers";
-import type { ContextProvider, PrimarySnippet } from "../context/types";
-import { GitHubTransports } from "../context/trackers/github";
-import { NotionTransports } from "../context/trackers/notion";
 
 /**
  * What the CLIs offer a tracker's read: the shared deps (env for tokens by

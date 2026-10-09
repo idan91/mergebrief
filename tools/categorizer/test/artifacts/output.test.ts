@@ -8,7 +8,7 @@ import {
   outName,
   summaryLines,
 } from "../../src/artifacts/output";
-import type { Brief, DeltaBrief } from "../../src/types";
+import type { Brief, DeltaBrief } from "brief-core/types";
 
 const brief: Brief = {
   pr: {

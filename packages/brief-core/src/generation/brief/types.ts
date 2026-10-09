@@ -1,6 +1,6 @@
 import type { Effort, Generator, Logger } from "generators";
 import type { AnchorPlan, CompareFiles } from "../../anchoring/types";
-import type { FetchedPr } from "../../github";
+import type { FetchedPr } from "../../github/types";
 import type { Brief, CommitRange } from "../../types";
 import type { RepoContext } from "../repo-context";
 import type { GenerationWarning } from "../warnings/types";

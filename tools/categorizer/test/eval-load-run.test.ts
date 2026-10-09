@@ -91,8 +91,7 @@ describe("withUsageSink", () => {
     const inner: Generator = {
       generate: async (req) => {
         req.onUsage?.({ inputTokens: 10, outputTokens: 2, cacheReadTokens: 1 });
-        // The Zod schema in the request parses {} fine for this stub.
-        return {};
+        return req.schema.parse({});
       },
       origin: (effort) => ({ provider: "p", model: "m", effort }),
     };

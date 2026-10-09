@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type * as FetchModule from "../../src/github/fetch";
 
-// The port must delegate to the gh functions one-to-one — a drifted binding
+// The port must delegate to the gh functions one-to-one: a drifted binding
 // (e.g. metadata wired to diff) would surface as baffling generation bugs.
 const fetchMocks = vi.hoisted(() => ({
   fetchPrMetadata: vi.fn(async () => ({ title: "m" })),
@@ -15,8 +15,8 @@ const commentMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/github/fetch", async (importOriginal) => ({
-  // Keep the folder-internal plumbing (`execFileAsync` etc.) `comments.ts`
-  // imports at module load; only the port-backed functions are stubbed.
+  // Keep the folder-internal `repoSlug` `comments.ts` imports at module load;
+  // only the port-backed functions are stubbed.
   ...(await importOriginal<typeof FetchModule>()),
   ...fetchMocks,
 }));

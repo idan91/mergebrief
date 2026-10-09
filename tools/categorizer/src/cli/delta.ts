@@ -2,13 +2,25 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildComparisonMarks,
+  buildContextQuery,
+  categorizeDelta,
+  fetchContextSnippets,
+  listReadableTrackers,
+  parsePrUrl,
+  splitDiffByFile,
+  toPrimaryTicket,
+  writeComparisonMarks,
+  type ContextProvider,
+  type FetchContextSnippetsOptions,
+} from "brief-core";
+import type { DeltaBrief } from "brief-core/types";
+import {
   fetchCompareDiff,
   fetchPrMetadata,
   fetchReviewComments,
-  parsePrUrl,
   resolveFullSha,
 } from "../github";
-import { categorizeDelta } from "../generation/categorize";
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
@@ -20,14 +32,6 @@ import {
 import { extractConfigFlag, extractContextFlag } from "./config";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
-  buildContextQuery,
-  fetchContextSnippets,
-  toPrimaryTicket,
-  type ContextProvider,
-  type FetchContextSnippetsOptions,
-} from "../context";
-import { listReadableTrackers } from "../context/trackers";
-import {
   createCliContextProviders,
   createCliRootDeps,
   resolveCliTrackerReads,
@@ -37,9 +41,7 @@ import {
   type TrackerConfig,
 } from "generators/trackers";
 import { readLocalTracker } from "./settings";
-import { splitDiffByFile } from "../diff/file-diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
-import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
 import {
   deltaCommentsName,
   deltaDiffsName,
@@ -47,7 +49,6 @@ import {
   prStem,
   printDeltaSummary,
 } from "../artifacts/output";
-import type { DeltaBrief } from "../types";
 
 const OUT_DIR = "out";
 

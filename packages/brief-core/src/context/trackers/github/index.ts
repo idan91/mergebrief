@@ -19,7 +19,6 @@ export {
   readFailureForStatus,
   type GhExec,
   type GitHubTransport,
-  type InstallationBounds,
   type InstallationIssueApi,
   type IssueLocator,
   type IssueRecord,

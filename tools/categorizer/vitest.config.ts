@@ -5,16 +5,14 @@ import { coverageExclude, coverageReporter } from "../../vitest.shared";
 export default defineConfig({
   test: {
     coverage: {
-      // This package has no `src/`: the harness modules in `eval/` are its
-      // real surface. `eval/cases/` is out — those are fixtures, not code, and
-      // counting them would swamp the number. `scripts/` is out too: one-shot
-      // live-API probes no test can exercise.
-      include: ["eval/*.ts"],
+      // `eval/cases/` and `eval/pair-cases/` are fixtures, not code, and would
+      // swamp the number. `scripts/` holds one-shot live-API probes no test
+      // can exercise.
+      include: ["eval/*.ts", "src/**/*.ts"],
       exclude: coverageExclude,
       reporter: coverageReporter,
-      // TEMPORARY floor: the standard is 75, but this package measured 60.8%
-      // and a floor cannot be set above what already passes. A catch-up ticket
-      // owns raising it — never lower this to absorb a drop.
+      // TEMPORARY floor: the standard is 75, and a catch-up ticket owns
+      // raising it. Never lower this to absorb a drop.
       thresholds: { lines: 60 },
     },
   },

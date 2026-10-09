@@ -10,7 +10,6 @@ export const GitHubTransports = {
 export { createGhTransport, type GhExec } from "./gh";
 export {
   createInstallationTransport,
-  type InstallationBounds,
   type InstallationIssueApi,
 } from "./installation";
 export {

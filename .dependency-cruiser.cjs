@@ -78,11 +78,11 @@ const LEAF_SUBPATH_FILES = [
 // Matches the resolved file and the bare name of an import that did not resolve.
 const PROVIDER_SDKS = "(^|node_modules/)(@anthropic-ai/sdk|openai)(/|$)";
 
-// The adapters, the harness, the dev CLI, the generation engine and the
-// provider SDKs: what an api process must never load.
+// The adapters, the harness, the generation engine and the provider SDKs:
+// what an api process must never load.
 const GENERATION_GRAPH = [
   "^packages/generators/src/(adapters|harness)/",
-  "^packages/brief-core/src/(cli|generation)/",
+  "^packages/brief-core/src/generation/",
   PROVIDER_SDKS,
 ];
 

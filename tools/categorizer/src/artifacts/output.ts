@@ -1,4 +1,4 @@
-import type { Brief, DeltaBrief } from "../types";
+import type { Brief, DeltaBrief } from "brief-core/types";
 
 /** First 8 chars of a SHA, for filenames and summaries. */
 function shortSha(sha: string): string {

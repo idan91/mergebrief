@@ -1,8 +1,8 @@
 import { z } from "zod/v4";
-import { execFileAsync, MAX_BUFFER } from "./exec";
+import type { PrLocator } from "brief-core";
+import { execFileAsync, MAX_BUFFER } from "brief-core/gh-exec";
+import type { ReviewComment } from "brief-core/types";
 import { repoSlug } from "./fetch";
-import type { ReviewComment } from "../types";
-import type { PrLocator } from "./pr-url";
 
 /** Cap on comments fed to generation (prompt-cost bound). Every PrSource
  * implementation must apply it (the octokit source slices with it too). */

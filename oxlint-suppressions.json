@@ -263,16 +263,6 @@
       "count": 2
     }
   },
-  "packages/brief-core/test/artifacts/manifest.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/cli/cli-config.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/brief-core/test/context/fan-out.test.ts": {
     "house/test-title": {
       "count": 2
@@ -325,11 +315,6 @@
   },
   "packages/brief-core/test/generation/salvage.test.ts": {
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/github/source.test.ts": {
-    "house/no-em-dash": {
       "count": 1
     }
   },
@@ -661,27 +646,9 @@
       "count": 2
     }
   },
-  "tools/categorizer/test/eval-fixtures.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/test/eval-report.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "tools/categorizer/test/eval-verdicts.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "tools/categorizer/vitest.config.ts": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "tools/ingest-briefs/src/cli/report.ts": {

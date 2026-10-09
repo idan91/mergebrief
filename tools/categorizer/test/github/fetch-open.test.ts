@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const execFileAsync = vi.fn();
 
-vi.mock("../../src/github/exec", () => ({
+vi.mock("brief-core/gh-exec", () => ({
   execFileAsync: (...args: unknown[]) => execFileAsync(...args),
   MAX_BUFFER: 1024,
 }));

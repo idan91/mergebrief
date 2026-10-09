@@ -1,17 +1,12 @@
 import { z } from "zod/v4";
 import {
-  buildContextQuery,
-  createBuiltInContextProviders,
-  fetchContextSnippets,
-} from "../context";
-import { execFileAsync, MAX_BUFFER } from "./exec";
-import { parsePrUrl, type PrLocator } from "./pr-url";
-import type { ContextProvider } from "../context/types";
-import { createGitHubRead, GitHubTransports } from "../context/trackers/github";
-import { listReadableTrackers, type TrackerReads } from "../context/trackers";
+  attachPrStack,
+  type OpenPullRequest,
+  type PrLocator,
+  type PrMetadata,
+} from "brief-core";
+import { execFileAsync, MAX_BUFFER } from "brief-core/gh-exec";
 import type { Result } from "types/utils";
-import { attachPrStack, type OpenPullRequest } from "../pr-stack";
-import type { FetchedPr, Log, PrMetadata } from "./types";
 
 /** Folder-internal (also used by `comments.ts`); not on the barrel. */
 export function repoSlug(loc: PrLocator): string {
@@ -288,42 +283,4 @@ export async function fetchCompareCommitCount(
     throw new Error(`could not read total_commits for ${baseSha}...${headSha}`);
   }
   return n;
-}
-
-/**
- * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
- * the description, run the context providers over it (best-effort). This is
- * the `gh` source, so the default ticket read is GitHub through `gh`.
- */
-function createGhTrackerReads(): TrackerReads {
-  const read = createGitHubRead(
-    { env: {}, contextSources: [] },
-    GitHubTransports.GH.create(),
-  );
-  return read.ok ? { github: read.value } : {};
-}
-
-export async function fetchPr(
-  url: string,
-  log: Log = () => {},
-  providers: readonly ContextProvider[] = createBuiltInContextProviders(),
-  reads: TrackerReads = createGhTrackerReads(),
-): Promise<FetchedPr> {
-  const locator = parsePrUrl(url);
-  const [diff, meta] = await Promise.all([
-    fetchPrDiff(locator),
-    fetchPrMetadata(locator),
-  ]);
-  const query = buildContextQuery({
-    title: meta.title,
-    body: meta.body,
-    branch: meta.headRef ?? "",
-    repo: locator,
-    trackers: [],
-    readable: listReadableTrackers(reads),
-  });
-  const context = await fetchContextSnippets(query, providers, log, {
-    reads,
-  });
-  return { locator, meta, diff, ...context };
 }

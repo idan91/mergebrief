@@ -339,15 +339,9 @@ importers:
       generators:
         specifier: workspace:*
         version: link:../generators
-      i18n:
-        specifier: workspace:*
-        version: link:../i18n
       types:
         specifier: workspace:*
         version: link:../types
-      yaml:
-        specifier: ^2.9.0
-        version: 2.9.0
       zod:
         specifier: ^3.25.0
         version: 3.25.76
@@ -624,9 +618,15 @@ importers:
       generators:
         specifier: workspace:*
         version: link:../../packages/generators
+      i18n:
+        specifier: workspace:*
+        version: link:../../packages/i18n
       types:
         specifier: workspace:*
         version: link:../../packages/types
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: ^3.25.0
         version: 3.25.76

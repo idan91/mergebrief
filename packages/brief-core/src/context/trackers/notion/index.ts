@@ -11,13 +11,9 @@ export const notionTracker: Tracker<typeof TicketTrackers.NOTION> = {
   createRead: createNotionRead,
 };
 
-export { parseNotionPageId } from "./references";
 export { createNotionRead } from "./read";
 export {
   NotionTransports,
-  createNotionHttpTransport,
-  type NotionFetch,
   type NotionHttpTransportOptions,
-  type NotionSession,
   type NotionTransport,
 } from "./transport";

@@ -21,7 +21,7 @@ describe("assignBriefIndex", () => {
     expect(await assignBriefIndex(dir, stem, "cccc3333")).toBe(3);
   });
 
-  it("is idempotent — a known SHA keeps its index", async () => {
+  it("keeps the index of a known SHA", async () => {
     expect(await assignBriefIndex(dir, stem, "aaaa1111")).toBe(1);
     expect(await assignBriefIndex(dir, stem, "bbbb2222")).toBe(2);
     expect(await assignBriefIndex(dir, stem, "aaaa1111")).toBe(1);

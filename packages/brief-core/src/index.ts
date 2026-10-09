@@ -1,22 +1,5 @@
-/**
- * Public reuse surface of the categorizer engine, the package entry point
- * for other front doors (currently: the web app's server fn) that need the
- * same fetch→categorize→write pipeline the CLI runs, without shelling out to
- * the CLI itself.
- */
-export {
-  parsePrUrl,
-  fetchPr,
-  fetchPrMetadata,
-  ghPrSource,
-  MAX_COMMENTS,
-  normalizeReviewComment,
-  type PrLocator,
-  type PrFile,
-  type PrMetadata,
-  type PrSource,
-  type FetchedPr,
-} from "./github";
+export { parsePrUrl, type PrLocator } from "./github/pr-url";
+export type { FetchedPr, PrFile, PrMetadata } from "./github/types";
 export {
   buildContextQuery,
   collectTicketReferences,
@@ -34,6 +17,7 @@ export {
   type TrackerReads,
   type TrackerRootDeps,
   fetchContextSnippets,
+  type FetchContextSnippetsOptions,
   MAX_SNIPPET_CHARS,
   readFailureForStatus,
   type IssueLocator,
@@ -63,20 +47,6 @@ export {
   type RevisionNarrativeInput,
 } from "./generation/categorize";
 export { splitDiffByFile } from "./diff/file-diff";
-export {
-  assignBriefIndex,
-  lookupBriefIndex,
-  lookupBriefShaByIndex,
-} from "./artifacts/manifest";
-export {
-  prStem,
-  briefId,
-  outName,
-  diffsName,
-  commentsName,
-  revChangesName,
-  revisionNarrativeName,
-} from "./artifacts/output";
 export {
   buildRevisionChanges,
   parseChangedRanges,
@@ -178,7 +148,6 @@ export {
   type PrStackSelf,
   type StoredPrStack,
 } from "./pr-stack";
-export { generateAndWrite, type Range } from "./cli/categorize";
 export { generateBrief } from "./generation/brief";
 export type {
   GenerateBriefOptions,

@@ -486,12 +486,12 @@
         "apps/worker/src/main.ts",
         "apps/web/src/server/env.ts",
         "apps/cli/src/bin.ts",
-        "packages/brief-core/src/cli/categorize.ts",
-        "packages/brief-core/src/cli/delta.ts",
         "tools/baselines/src/main.ts",
         "tools/ingest-briefs/src/main.ts",
         "tools/release/src/main.ts",
         "tools/categorizer/eval/cli.ts",
+        "tools/categorizer/src/cli/categorize.ts",
+        "tools/categorizer/src/cli/delta.ts",
         "tools/categorizer/scripts/**",
         "packages/generators/smoke/**",
         "**/*.config.{ts,js,mjs}",
@@ -517,9 +517,13 @@
       }
     },
     {
-      // The categorize/delta CLI entries (+ their output writer) live in
-      // brief-core — stdout printing is their interface.
-      "files": ["packages/brief-core/src/**"],
+      // The categorize/delta CLI entries and their summary printer: stdout is
+      // their interface.
+      "files": [
+        "tools/categorizer/src/cli/categorize.ts",
+        "tools/categorizer/src/cli/delta.ts",
+        "tools/categorizer/src/artifacts/output.ts"
+      ],
       "rules": {
         "no-console": "off"
       }

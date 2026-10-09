@@ -2,18 +2,38 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnchorStates } from "types/generations";
-import { isCompleteBrief, readStoredBrief } from "../artifact";
 import {
-  ghPrSource,
-  isCommitish,
+  buildComparisonMarks,
+  buildContextQuery,
+  categorizeRevisionNarrative,
+  countChangedLines,
+  fetchContextSnippets,
+  generateBrief,
+  isHugeSpan,
+  listReadableTrackers,
+  parseHugeSpanRatio,
   parsePrUrl,
+  parseRevisionNarrativeFlag,
+  splitDiffByFile,
+  writeComparisonMarks,
+  type ContextProvider,
+  type FetchContextSnippetsOptions,
   type FetchedPr,
+  type PreviousBriefInput,
+  type PrimarySnippet,
   type PrLocator,
-  type PrSource,
-} from "../github";
-import { generateBrief } from "../generation/brief";
-import type { PreviousBriefInput } from "../generation/brief/types";
-import { categorizeRevisionNarrative } from "../generation/categorize";
+  type RevisionChanges,
+  type RevisionNarrativeConfig,
+  type TrackerReads,
+} from "brief-core";
+import { isCompleteBrief, readStoredBrief } from "brief-core/artifact";
+import type {
+  Brief,
+  CommitRange,
+  ReviewComment,
+  RevisionNarrativeSkipped,
+} from "brief-core/types";
+import { ghPrSource, isCommitish, type PrSource } from "../github";
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
@@ -30,13 +50,6 @@ import {
 import type { Mutable } from "types/utils";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
-  buildContextQuery,
-  fetchContextSnippets,
-  type ContextProvider,
-  type FetchContextSnippetsOptions,
-  type PrimarySnippet,
-} from "../context";
-import {
   createCliContextProviders,
   createCliRootDeps,
   resolveCliTrackerReads,
@@ -46,15 +59,7 @@ import {
   type TrackerConfig,
 } from "generators/trackers";
 import { readLocalTracker } from "./settings";
-import { splitDiffByFile } from "../diff/file-diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
-import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
-import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
-import { isHugeSpan, parseHugeSpanRatio } from "../generation/huge-span";
-import {
-  parseRevisionNarrativeFlag,
-  type RevisionNarrativeConfig,
-} from "../generation/config";
 import {
   briefId,
   commentsName,
@@ -65,13 +70,6 @@ import {
   revChangesName,
   revisionNarrativeName,
 } from "../artifacts/output";
-import { listReadableTrackers, type TrackerReads } from "../context/trackers";
-import type {
-  Brief,
-  CommitRange,
-  ReviewComment,
-  RevisionNarrativeSkipped,
-} from "../types";
 
 /** Where artifacts land when `--out` is absent: `out` under the invoking cwd. */
 const DEFAULT_OUT_DIR = "out";

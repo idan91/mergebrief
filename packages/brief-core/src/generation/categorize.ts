@@ -56,7 +56,8 @@ import {
   type PrimaryTicketFacts,
 } from "./validate";
 import type { BriefValidationContext } from "./final-validation/types";
-import type { FetchedPr, PrLocator, PrMetadata } from "../github";
+import type { PrLocator } from "../github/pr-url";
+import type { FetchedPr, PrMetadata } from "../github/types";
 import {
   isLinearPrStack,
   type ForkPrStack,

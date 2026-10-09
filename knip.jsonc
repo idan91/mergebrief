@@ -64,12 +64,7 @@
     },
     "packages/contract": { "entry": ["src/index.ts"] },
     "packages/brief-core": {
-      "entry": [
-        "src/index.ts",
-        "src/types.ts",
-        "src/artifact/index.ts",
-        "src/cli/*.ts",
-      ],
+      "entry": ["src/index.ts", "src/types.ts", "src/artifact/index.ts"],
     },
     "apps/cli": {
       "entry": [
@@ -120,6 +115,8 @@
       // path from the case loader (BRIEF-59), so it is an entry too.
       "entry": [
         "eval/cli.ts",
+        "src/cli/categorize.ts",
+        "src/cli/delta.ts",
         "scripts/*.ts",
         "eval/cases/*/expected.ts",
         "eval/pair-cases/*/expected.ts",

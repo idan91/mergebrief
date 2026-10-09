@@ -1,8 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
 import {
   categorizeDelta,
@@ -15,48 +11,7 @@ import type {
   Generator,
 } from "generators";
 import { BriefSchema, type Brief } from "../../src/types";
-import type * as ContextModule from "../../src/context";
-import type * as GithubModule from "../../src/github";
-import type { PrMetadata } from "../../src/github";
-
-// Mock the github module so generateAndWrite / generateAndWriteDelta never
-// shell out to `gh`, same fixtures serve both the whole-PR and incremental
-// fetches. `parsePrUrl` and friends stay real (pure functions).
-const fetched = vi.hoisted(() => ({
-  meta: undefined as PrMetadata | undefined,
-  prDiff: "",
-  compareDiff: "",
-}));
-vi.mock("../../src/github", async (importOriginal) => {
-  const actual = await importOriginal<typeof GithubModule>();
-  const mocked = {
-    fetchPrMetadata: vi.fn(async () => fetched.meta),
-    fetchPrDiff: vi.fn(async () => fetched.prDiff),
-    fetchCompareDiff: vi.fn(async () => fetched.compareDiff),
-    fetchCompareCommitCount: vi.fn(async () => 1),
-    fetchReviewComments: vi.fn(async () => []),
-    // Fixture SHAs are 16-char; pass them through instead of hitting `gh`.
-    resolveFullSha: vi.fn(async (_loc: unknown, ref: string) => ref),
-  };
-  return {
-    ...actual,
-    ...mocked,
-    // The default PrSource must ride the SAME mocks, the real `ghPrSource`
-    // binds the unmocked gh functions at module init.
-    ghPrSource: { ...actual.ghPrSource, ...mocked },
-  };
-});
-
-vi.mock("../../src/context", async (importOriginal) => {
-  const actual = await importOriginal<typeof ContextModule>();
-  return {
-    ...actual,
-    fetchContextSnippets: vi.fn(async () => ({ links: [] })),
-  };
-});
-
-const { generateAndWrite } = await import("../../src/cli/categorize");
-const { generateAndWriteDelta } = await import("../../src/cli/delta");
+import type { PrMetadata } from "../../src/github/types";
 
 // --- Fixtures ---------------------------------------------------------------
 
@@ -76,25 +31,6 @@ function makeMeta(sha: string): PrMetadata {
     files: [{ path: "src/a.ts", additions: 10, deletions: 0 }],
   };
 }
-
-/** Whole-PR diff: 10 added lines, so a 2-line incremental span is not huge. */
-const wholePrDiff = `diff --git a/src/a.ts b/src/a.ts
---- a/src/a.ts
-+++ b/src/a.ts
-@@ -1,2 +1,12 @@
- ctx
-+l1
-+l2
-+l3
-+l4
-+l5
-+l6
-+l7
-+l8
-+l9
-+l10
- ctx2
-`;
 
 /** Incremental prevHead→head diff: 2 added lines at new-side 6-7. */
 const incrementalDiff = `diff --git a/src/a.ts b/src/a.ts
@@ -213,20 +149,11 @@ const deltaGen = {
 /**
  * Mocked Generator (no API key, no network): routes on the request label and
  * parses the fixture through the request's own schema, so a fixture that
- * drifts from the schema fails loudly. `failLabels` simulates a failed LLM
- * call for specific artifact kinds; `onCall` observes ordering.
+ * drifts from the schema fails loudly.
  */
 class FakeGenerator implements Generator {
-  readonly labels: string[] = [];
   /** Effort of each request, in call order. */
   readonly efforts: (Effort | undefined)[] = [];
-  private readonly failLabels: Set<string>;
-  private readonly onCall: ((label: string) => void) | undefined;
-
-  constructor(failLabels: string[] = [], onCall?: (label: string) => void) {
-    this.failLabels = new Set(failLabels);
-    this.onCall = onCall;
-  }
 
   origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
@@ -235,14 +162,8 @@ class FakeGenerator implements Generator {
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
-    this.labels.push(req.label);
     this.efforts.push(req.effort);
-    this.onCall?.(req.label);
-    if (this.failLabels.has(req.label)) {
-      throw new Error(`simulated ${req.label} failure`);
-    }
     const fixtures: Record<string, unknown> = {
-      brief: briefGen,
       delta: deltaGen,
       "revision narrative": narrativeGen,
     };
@@ -252,10 +173,6 @@ class FakeGenerator implements Generator {
     }
     return req.schema.parse(fixture);
   }
-}
-
-async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8"));
 }
 
 // --- categorizeRevisionNarrative ---------------------------------------------
@@ -584,253 +501,5 @@ describe("text length floor, delta + narrative pipelines", () => {
       new FakeGenerator(),
     );
     expect("lengthViolations" in narrative).toBe(false);
-  });
-});
-
-// --- generateAndWrite wiring --------------------------------------------------
-
-describe("generateAndWrite comparison artifacts", () => {
-  let dir: string;
-
-  beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "narrative-"));
-    fetched.prDiff = wholePrDiff;
-    fetched.compareDiff = incrementalDiff;
-  });
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
-
-  /** Run the first brief (index 1) so a follow-up run gets index 2. */
-  async function firstBrief(generator: Generator): Promise<void> {
-    fetched.meta = makeMeta(HEAD_1);
-    await generateAndWrite(dir, URL, undefined, generator, () => {});
-  }
-
-  it("skips comparison artifacts for a first brief", async () => {
-    const generator = new FakeGenerator();
-    await firstBrief(generator);
-    expect(generator.labels).toEqual(["brief"]);
-    const files = await readdir(dir);
-    expect(files.some((f) => f.endsWith(".comparison.json"))).toBe(false);
-    expect(files.some((f) => f.endsWith(".revision-narrative.json"))).toBe(
-      false,
-    );
-  });
-
-  it("writes marks, the compat alias and the narrative for a non-first brief", async () => {
-    const generator = new FakeGenerator();
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-    await generateAndWrite(dir, URL, undefined, generator, () => {});
-
-    expect(generator.labels).toEqual(["brief", "brief", "revision narrative"]);
-
-    const marksFile = join(
-      dir,
-      "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json",
-    );
-    const marks = (await readJson(marksFile)) as Record<string, unknown>;
-    expect(marks["baselineLabel"]).toBe("previous-brief");
-    expect(marks["baselineSha"]).toBe(HEAD_1);
-    expect(marks["headSha"]).toBe(HEAD_2);
-    expect(marks["baselineIndex"]).toBe(1);
-
-    const compat = (await readJson(
-      join(dir, "o-r-1_2_bbbb2222.revchanges.json"),
-    )) as Record<string, unknown>;
-    expect(compat["prevHeadSha"]).toBe(HEAD_1);
-    expect(compat["prevIndex"]).toBe(1);
-
-    const narrative = (await readJson(
-      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
-    )) as Record<string, unknown>;
-    expect(narrative["artifactKind"]).toBe("revisionNarrative");
-    expect(narrative["prevHeadSha"]).toBe(HEAD_1);
-    expect(narrative["headIndex"]).toBe(2);
-  });
-
-  it("anchors a follow-up brief on the previous brief from disk", async () => {
-    class BriefRecordingGenerator extends FakeGenerator {
-      readonly briefUsers: string[] = [];
-      override async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        if (req.label === "brief") {
-          this.briefUsers.push(req.user);
-        }
-        return super.generate(req);
-      }
-    }
-    const generator = new BriefRecordingGenerator();
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-
-    const brief = await generateAndWrite(
-      dir,
-      URL,
-      undefined,
-      generator,
-      () => {},
-    );
-
-    expect(generator.briefUsers[0]).not.toContain("<anchor_brief");
-    expect(generator.briefUsers[1]).toContain("<anchor_brief");
-    expect(brief.anchor).toEqual({ state: "anchored" });
-  });
-
-  // Pins the CLI call-site wiring of `marksFiles`: if the caller drops it, both
-  // overlap directions silently stop running and no other assertion notices.
-  it("lands coverage warnings when the model under-covers the span", async () => {
-    class UnderCoveringGenerator extends FakeGenerator {
-      override async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        if (req.label === "revision narrative") {
-          return req.schema.parse({ overview: "sparse", chunks: [] });
-        }
-        return super.generate(req);
-      }
-    }
-    const generator = new UnderCoveringGenerator();
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-    await generateAndWrite(dir, URL, undefined, generator, () => {});
-
-    const narrative = (await readJson(
-      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
-    )) as Record<string, unknown>;
-    const warnings = narrative["generationWarnings"];
-    expect(Array.isArray(warnings)).toBe(true);
-    // Incremental-diff marks are src/a.ts added 6-7; the empty narrative covers nothing.
-    expect(
-      (warnings as string[]).some(
-        (w) => w.includes("revision narrative coverage") && w.includes("6-7"),
-      ),
-    ).toBe(true);
-  });
-
-  it("keeps the brief and the on-disk marks when narrative generation fails", async () => {
-    const generator = new FakeGenerator(["revision narrative"]);
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-    const logs: string[] = [];
-    const brief = await generateAndWrite(dir, URL, undefined, generator, (m) =>
-      logs.push(m),
-    );
-
-    expect(brief.index).toBe(2);
-    expect(existsSync(join(dir, "o-r-1_2_bbbb2222.brief.json"))).toBe(true);
-    expect(
-      existsSync(
-        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
-      ),
-    ).toBe(true);
-    expect(
-      existsSync(join(dir, "o-r-1_2_bbbb2222.revision-narrative.json")),
-    ).toBe(false);
-    expect(
-      logs.some((l) => l.includes("revision narrative generation failed")),
-    ).toBe(true);
-  });
-
-  it("writes marks and a span-too-large stub with no LLM call", async () => {
-    const generator = new FakeGenerator();
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-    fetched.compareDiff = wholePrDiff; // incremental span == whole PR → ratio 1
-    await generateAndWrite(dir, URL, undefined, generator, () => {});
-
-    expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(
-      existsSync(
-        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
-      ),
-    ).toBe(true);
-    const stub = (await readJson(
-      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
-    )) as Record<string, unknown>;
-    expect(stub["artifactKind"]).toBe("revisionNarrativeSkipped");
-    expect(stub["skipped"]).toBe("span too large");
-  });
-
-  it("writes marks and a disabled-by-config stub when the gate is off", async () => {
-    const generator = new FakeGenerator();
-    await firstBrief(generator);
-    fetched.meta = makeMeta(HEAD_2);
-    await generateAndWrite(
-      dir,
-      URL,
-      undefined,
-      generator,
-      () => {},
-      undefined,
-      undefined,
-      { revisionNarrative: { enabled: false } },
-    );
-
-    expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(
-      existsSync(
-        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
-      ),
-    ).toBe(true);
-    const stub = (await readJson(
-      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
-    )) as Record<string, unknown>;
-    expect(stub["skipped"]).toBe("disabled by config");
-  });
-});
-
-// --- delta-cli checkpoint marks -------------------------------------------------
-
-describe("generateAndWriteDelta checkpoint marks", () => {
-  let dir: string;
-
-  beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), "delta-marks-"));
-    fetched.meta = makeMeta(HEAD_2);
-    fetched.compareDiff = incrementalDiff;
-  });
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
-
-  const marksFile = (): string =>
-    join(dir, "o-r-1_checkpoint_cccc3333-bbbb2222.comparison.json");
-
-  it("writes checkpoint marks BEFORE the delta LLM call", async () => {
-    let marksExistedAtLlmCall = false;
-    const generator = new FakeGenerator([], (label) => {
-      if (label === "delta") {
-        marksExistedAtLlmCall = existsSync(marksFile());
-      }
-    });
-    await generateAndWriteDelta(
-      dir,
-      URL,
-      CHECKPOINT,
-      HEAD_2,
-      generator,
-      () => {},
-    );
-
-    expect(marksExistedAtLlmCall).toBe(true);
-    const marks = (await readJson(marksFile())) as Record<string, unknown>;
-    expect(marks["baselineLabel"]).toBe("checkpoint");
-    expect(marks["baselineSha"]).toBe(CHECKPOINT);
-    // Neither end briefed in this out dir → null baseline index.
-    expect(marks["baselineIndex"]).toBeNull();
-  });
-
-  it("leaves the marks sidecar on disk when the delta LLM call fails", async () => {
-    const generator = new FakeGenerator(["delta"]);
-    await expect(
-      generateAndWriteDelta(dir, URL, CHECKPOINT, HEAD_2, generator, () => {}),
-    ).rejects.toThrow(/simulated delta failure/);
-
-    expect(existsSync(marksFile())).toBe(true);
-    const files = await readdir(dir);
-    expect(files.some((f) => f.endsWith(".delta.json"))).toBe(false);
   });
 });

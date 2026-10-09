@@ -18,7 +18,7 @@ import type {
   Generator,
 } from "generators";
 import type { Brief } from "../../src/types";
-import type { FetchedPr } from "../../src/github";
+import type { FetchedPr } from "../../src/github/types";
 
 function chunk(
   id: string,
