@@ -1,30 +1,15 @@
-// The isomorphic warn-sink resolver. Shared client/server parsers INJECT their
-// log sink rather than importing `server/logger` (which is `server-only` —
-// importing it from isomorphic code would drag the server entry into the
-// client bundle). This module answers the one question those call sites have:
-// am I the SSR process, and if so what do I log through?
-//
-// `createIsomorphicFn` is REQUIRED here, not stylistic. TanStack Start's
-// `import-protection` plugin walks the CLIENT module graph STATICALLY and
-// denies any edge reaching `@tanstack/react-start/server-only`, including
-// through a dynamic `import()`. A runtime `typeof window` guard does not help:
-// the edge exists whether or not it is taken, and only `vite build` catches it
-// — typecheck, test, and lint all pass. `.server()` is the construct the
-// plugin strips, so the dynamic import must stay syntactically INSIDE it;
-// hoisting it into a named helper re-creates the denied edge.
 import { createIsomorphicFn } from "@tanstack/react-start";
+import type { LogFields } from "logging";
 
-/** The narrow sink shared parsers accept; `packages/logging`'s `Logger` fits. */
 export interface WarnSink {
-  warn(msg: string): void;
+  warn(msg: string, fields?: LogFields): void;
 }
 
 /**
- * The process logger when running server-side (SSR render, route loader),
- * `undefined` in the browser.
- *
- * No sink means silent, which is correct only client-side: a browser has no
- * operator to act on the warning.
+ * The process logger server-side, `undefined` in the browser, which has no
+ * operator to warn. The dynamic import stays inside `.server()`: the build's
+ * import-protection denies any client edge to `server-only`, a dynamic one or
+ * one behind a `typeof window` guard included, and only `vite build` sees it.
  */
 export const getSsrWarnSink = createIsomorphicFn()
   .client(async (): Promise<WarnSink | undefined> => undefined)

@@ -3,6 +3,8 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import type { StoredRevisionNarrative } from "brief-core/artifact";
+
 // ONE artifact store: the workspace-root-anchored dir generation writes to.
 import { localBriefsDir, requireLocalBriefsDir } from "./outDir.server";
 import type {
@@ -16,7 +18,6 @@ import type {
   LocalBriefSummary,
   PreviousBriefComparisonAvailability,
   RevisionChanges,
-  RevisionNarrativeArtifact,
 } from "../types";
 import {
   parseAddressedReviewComments,
@@ -501,7 +502,7 @@ async function readLegacyRevisionChangesAsMarks(
  */
 export async function readRevisionNarrative(
   narrativeId: string,
-): Promise<RevisionNarrativeArtifact | null> {
+): Promise<StoredRevisionNarrative | null> {
   assertValidBriefId(narrativeId);
   let raw: string;
   try {
@@ -522,21 +523,14 @@ export async function readRevisionNarrative(
       error,
     );
   }
-  try {
-    const parsed = parseRevisionNarrativeArtifact(JSON.parse(raw));
-    if (!parsed.ok) {
-      logger.warn(
-        `Ignoring invalid revision narrative for ${narrativeId}: ${parsed.error}`,
-      );
-      return null;
-    }
-    return parsed.value;
-  } catch (error) {
-    logger.warn(
-      `Ignoring unreadable revision narrative for ${narrativeId}: ${String(error)}`,
-    );
+  const parsed = parseRevisionNarrativeArtifact(raw, logger);
+  if (!parsed.ok) {
+    logger.warn(`Ignoring invalid revision narrative for ${narrativeId}`, {
+      reason: parsed.error,
+    });
     return null;
   }
+  return parsed.value;
 }
 
 async function readBriefFile(briefId: string): Promise<Brief> {
@@ -546,8 +540,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
       resolve(requireLocalBriefsDir(), `${briefId}.brief.json`),
       "utf8",
     );
-    const parsedJson: unknown = JSON.parse(raw);
-    const parsedBrief = parseBrief(parsedJson, logger);
+    const parsedBrief = parseBrief(raw, logger);
     if (!parsedBrief.ok) {
       return failRead(
         LocalBriefErrorCodes.UNREADABLE,
@@ -586,17 +579,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
       error,
     );
   }
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(raw);
-  } catch (error) {
-    return failRead(
-      LocalBriefErrorCodes.UNREADABLE,
-      `invalid local delta JSON ${briefId}`,
-      error,
-    );
-  }
-  const parsedDelta = parseDeltaBrief(parsedJson);
+  const parsedDelta = parseDeltaBrief(raw);
   if (!parsedDelta.ok) {
     return failRead(
       LocalBriefErrorCodes.UNREADABLE,

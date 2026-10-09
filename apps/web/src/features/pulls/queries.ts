@@ -32,12 +32,8 @@ import {
   type SessionReadListener,
   type SessionReadSource,
 } from "../review/session";
-import type {
-  Brief,
-  ComparisonMarks,
-  PullStack,
-  RevisionNarrativeArtifact,
-} from "../brief/types";
+import type { StoredRevisionNarrative } from "brief-core/artifact";
+import type { Brief, ComparisonMarks, PullStack } from "../brief/types";
 import { LIVE_POLL_MS } from "./consts";
 import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
 
@@ -100,11 +96,10 @@ export function buildDbBriefQueryOptions(
     queryKey: ["brief", "db", repoId, prNumber, base, head],
     queryFn: async (): Promise<Brief> => {
       const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
-      const body = await apiFetchJson(path);
+      const body = await apiFetchText(path);
       // Route loaders SSR-prefetch this queryFn, so the sink is what keeps a
-      // lenient drop (a malformed optional section on a STORED Brief) from
-      // shipping with zero signal. The browser refetch resolves no sink and
-      // stays silent by design.
+      // repair on a STORED Brief from shipping with zero signal. The browser
+      // refetch resolves no sink and stays silent by design.
       const parsed = parseBrief(body, await getSsrWarnSink());
       if (!parsed.ok) {
         throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
@@ -309,7 +304,7 @@ export function buildDbComparisonMarksQueryOptions(
 /**
  * The pre-warmed delta core for (baseline = checkpoint SHA, head), immutable
  * once written. The body is the DELTA artifact shape (`changedGroups`,
- * `baselineSha`, `commentsAddressed`, `parseDeltaBrief`, NOT `parseBrief`).
+ * `baselineSha`, `commentsAddressed`), read by `parseDeltaBrief`.
  * The caller only mounts this when PR-meta said `deltaAvailable`, so a 404
  * here is a real error, not a tier.
  */
@@ -331,7 +326,7 @@ export function buildDbDeltaQueryOptions(
     queryKey,
     queryFn: async (): Promise<Brief> => {
       const path = `${prPath(repoId, prNumber)}/delta?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
-      const body = await apiFetchJson(path);
+      const body = await apiFetchText(path);
       const parsed = parseDeltaBrief(body);
       if (!parsed.ok) {
         throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
@@ -361,10 +356,13 @@ export function buildDbRevisionNarrativeQueryOptions(
   ];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<RevisionNarrativeArtifact> => {
+    queryFn: async (): Promise<StoredRevisionNarrative> => {
       const path = `${prPath(repoId, prNumber)}/narrative?prevHead=${encodeURIComponent(prevHeadSha)}&head=${encodeURIComponent(headSha)}`;
-      const body = await apiFetchJson(path);
-      const parsed = parseRevisionNarrativeArtifact(body);
+      const body = await apiFetchText(path);
+      const parsed = parseRevisionNarrativeArtifact(
+        body,
+        await getSsrWarnSink(),
+      );
       if (!parsed.ok) {
         throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
       }

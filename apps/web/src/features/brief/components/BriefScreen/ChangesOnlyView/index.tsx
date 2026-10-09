@@ -4,6 +4,8 @@ import {
   Concerns,
   type RevisionNarrativeSkipReason,
   Roles,
+  type RevisionNarrative,
+  type RevisionNarrativeChunk,
 } from "brief-core/types";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -22,8 +24,6 @@ import {
   type BriefChunk,
   type ComparisonMarks,
   GuestHostPrefixes,
-  type RevisionNarrative,
-  type RevisionNarrativeChunk,
 } from "../../../types";
 import { CompareParams, type CompareParam } from "../../../comparison/types";
 import type { ComparisonQuery } from "../../../comparison/comparisonQuery";

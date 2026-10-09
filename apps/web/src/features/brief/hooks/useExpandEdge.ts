@@ -1,3 +1,4 @@
+import type { LineRange } from "brief-core/types";
 import { useState } from "react";
 
 import {
@@ -5,7 +6,6 @@ import {
   type ExpandableEdge,
   type ExpanderStep,
   type FileRangeResultKind,
-  type LineRange,
 } from "../types";
 import { resolveExpanderStep } from "../utils/expansionState";
 import { isExpansionCovered } from "../utils/expansion-rows";

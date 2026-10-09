@@ -15,6 +15,10 @@ import {
   type GroupView,
 } from "./viewModel";
 
+function parseBriefBody(body: object) {
+  return parseBrief(JSON.stringify(body));
+}
+
 function requireAttributed(group: GroupView | undefined): AttributedGroupView {
   if (group === undefined || !isAttributedGroupView(group)) {
     throw new Error("expected an attributed group");
@@ -138,7 +142,7 @@ describe("riskChipView", () => {
 
 describe("buildBriefViewModel", () => {
   it("groups chunks by changeGroupId into core and supporting buckets", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       pr: {
         repo: "Idan91/components",
         number: 4,
@@ -205,7 +209,7 @@ describe("buildBriefViewModel", () => {
   });
 
   it("sums core-only lines beside full group and brief totals", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief(),
       chunks: [
         {
@@ -268,7 +272,7 @@ describe("buildBriefViewModel", () => {
   });
 
   it("falls back to source order when the Brief has no readingOrder", () => {
-    const parsed = parseBrief(twoGroupBrief());
+    const parsed = parseBriefBody(twoGroupBrief());
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       return;
@@ -284,7 +288,7 @@ describe("buildBriefViewModel", () => {
   });
 
   it("attaches step indexes and reasons in valid reading order", () => {
-    const parsed = parseBrief(
+    const parsed = parseBriefBody(
       twoGroupBrief([
         { groupId: "g2", why: "establishes the schema the rest builds on" },
         { groupId: "g1", why: "wires the schema into call sites" },
@@ -312,7 +316,7 @@ describe("buildBriefViewModel", () => {
 
   it("threads a chunk's riskNotes entry onto the matching flag", () => {
     const base = twoGroupBrief();
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...base,
       chunks: [
         {
@@ -346,7 +350,7 @@ describe("buildBriefViewModel", () => {
 
   it("builds a note-less flag for a trio attribute without riskNotes", () => {
     const base = twoGroupBrief();
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...base,
       chunks: [
         base.chunks[0],
@@ -371,7 +375,7 @@ describe("buildBriefViewModel", () => {
     // drops an invalid readingOrder at the parse boundary, this covers a
     // Brief constructed outside that parser, e.g. fixtures or partial mocks).
     const invalid: Brief = {
-      ...(parseBrief(twoGroupBrief()) as { ok: true; value: Brief }).value,
+      ...(parseBriefBody(twoGroupBrief()) as { ok: true; value: Brief }).value,
       readingOrder: [
         { groupId: "g2", why: "only one step, not a permutation" },
       ],
@@ -393,7 +397,7 @@ describe("buildBriefViewModel, repo-config display weight", () => {
     const chunks: { riskSurface: string[] }[] = base.chunks;
     chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
     chunks[1]?.riskSurface.push("touches-auth", "widens-error-handling");
-    const parsed = parseBrief(base);
+    const parsed = parseBriefBody(base);
     if (!parsed.ok) {
       throw new Error(parsed.error);
     }
@@ -465,7 +469,7 @@ describe("buildAttributeRail, jump-rail", () => {
     // g1/c1: custom + quiet built-in; g2/c2: floor + the same custom.
     chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
     chunks[1]?.riskSurface.push("touches-auth", "touches-billing");
-    const parsed = parseBrief(base);
+    const parsed = parseBriefBody(base);
     if (!parsed.ok) {
       throw new Error(parsed.error);
     }
@@ -497,7 +501,7 @@ describe("buildAttributeRail, jump-rail", () => {
     const base = twoGroupBrief();
     const chunks: { riskSurface: string[] }[] = base.chunks;
     chunks[0]?.riskSurface.push("hot-path");
-    const parsed = parseBrief(base);
+    const parsed = parseBriefBody(base);
     if (!parsed.ok) {
       throw new Error(parsed.error);
     }
@@ -509,7 +513,7 @@ describe("buildAttributeRail, jump-rail", () => {
 
 describe("buildBriefViewModel, unattributed", () => {
   it("includes per-file counts and totals in the brief totals", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief(),
       unattributed: [
         {
@@ -571,7 +575,7 @@ describe("buildBriefViewModel, unattributed", () => {
   });
 
   it("exposes zero totals for an empty array and stays absent pre-feature", () => {
-    const withEmpty = parseBrief({ ...twoGroupBrief(), unattributed: [] });
+    const withEmpty = parseBriefBody({ ...twoGroupBrief(), unattributed: [] });
     expect(withEmpty.ok).toBe(true);
     if (!withEmpty.ok) {
       return;
@@ -584,7 +588,7 @@ describe("buildBriefViewModel, unattributed", () => {
     });
     expect(emptyModel.groups.every(isAttributedGroupView)).toBe(true);
 
-    const absent = parseBrief(twoGroupBrief());
+    const absent = parseBriefBody(twoGroupBrief());
     expect(absent.ok).toBe(true);
     if (!absent.ok) {
       return;
@@ -595,7 +599,7 @@ describe("buildBriefViewModel, unattributed", () => {
 
 describe("buildBriefViewModel, remainder group", () => {
   it("appends the remainder after attributed groups in source order", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief(),
       unattributed: [
         {
@@ -632,7 +636,7 @@ describe("buildBriefViewModel, remainder group", () => {
   });
 
   it("places the remainder at step N+1 after a valid reading order", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief([
         { groupId: "g2", why: "establishes the schema the rest builds on" },
         { groupId: "g1", why: "wires the schema into call sites" },
@@ -671,7 +675,7 @@ describe("buildBriefViewModel, remainder group", () => {
   });
 
   it("does not add a remainder when the field is absent", () => {
-    const parsed = parseBrief(twoGroupBrief());
+    const parsed = parseBriefBody(twoGroupBrief());
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       return;
@@ -682,7 +686,7 @@ describe("buildBriefViewModel, remainder group", () => {
 
 describe("buildBriefViewModel, exact totals under overlaps", () => {
   it("prefers diffTotals to overlapping chunk sums", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief(),
       diffTotals: { added: 10, deleted: 3 },
       unattributed: [
@@ -703,7 +707,7 @@ describe("buildBriefViewModel, exact totals under overlaps", () => {
   });
 
   it("falls back to chunk sums + remainder on pre-diffTotals briefs", () => {
-    const parsed = parseBrief({
+    const parsed = parseBriefBody({
       ...twoGroupBrief(),
       unattributed: [
         {

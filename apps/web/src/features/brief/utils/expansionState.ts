@@ -1,3 +1,4 @@
+import type { LineRange } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import type { DiffView } from "@web/components/DiffRows/types";
 import {
@@ -9,7 +10,6 @@ import {
   type ExpansionGap,
   type ExpansionRange,
   type FileRangeSlice,
-  type LineRange,
   type ResolveExpansionRangeParams,
   type SpliceStoredEdgesParams,
   type StoredEdge,

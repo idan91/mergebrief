@@ -1,7 +1,8 @@
+import type { LineRange } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useMemo } from "react";
 
-import type { ExpandableEdge, LineRange } from "../types";
+import type { ExpandableEdge } from "../types";
 import { findExpansionGaps } from "../utils/expandRows";
 import { resolveFileStatus } from "../utils/fileStatus";
 import {

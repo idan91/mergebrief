@@ -1,11 +1,14 @@
 // Closure-free BriefScreen logic: derivations extracted from the screen/hooks
 // so they are unit-testable directly, without rendering.
+import type { StoredRevisionNarrative } from "brief-core/artifact";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { type Result, type ValueOf, type DiffSide, DiffSides } from "types";
 import {
   type RevisionNarrativeSkipReason,
   Specificities,
+  type IntentCheck,
+  type RevisionNarrative,
 } from "brief-core/types";
 import {
   type LineLinkTarget,
@@ -26,13 +29,7 @@ import type { ConversationPlan } from "@web/features/conversation";
 import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
-import {
-  type BriefChunk,
-  type ComparisonAvailability,
-  type IntentCheck,
-  type RevisionNarrative,
-  type RevisionNarrativeArtifact,
-} from "../../types";
+import { type BriefChunk, type ComparisonAvailability } from "../../types";
 import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
   type FilePathDirectory,
@@ -223,7 +220,7 @@ export interface DiscriminatedNarrative {
  * narrative-unavailable with a knowable reason, discriminate on the kind.
  */
 export function discriminateNarrativeArtifact(
-  artifact: RevisionNarrativeArtifact | null,
+  artifact: StoredRevisionNarrative | null,
 ): DiscriminatedNarrative {
   if (artifact === null) {
     return { narrative: null, skipReason: null };

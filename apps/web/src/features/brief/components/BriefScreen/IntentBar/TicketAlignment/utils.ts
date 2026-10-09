@@ -1,4 +1,4 @@
-import type { PrimaryTicket } from "../../../../types";
+import type { PrimaryTicket } from "brief-core/types";
 
 /**
  * The ticket link's visible text: the key; the title for a URL-only

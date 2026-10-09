@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
+import type {
+  PrimaryTicket,
+  TicketAlignment as Alignment,
+} from "brief-core/types";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { TicketAlignment } from ".";
-import type {
-  PrimaryTicket,
-  TicketAlignment as Alignment,
-} from "../../../../types";
 
 afterEach(cleanup);
 

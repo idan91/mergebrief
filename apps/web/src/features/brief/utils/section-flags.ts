@@ -1,4 +1,5 @@
-import type { BriefChunk, LineRange } from "../types";
+import type { LineRange } from "brief-core/types";
+import type { BriefChunk } from "../types";
 import type { RiskFlag } from "./viewModel";
 
 /** One file region a Changes section covers: a narrative or delta chunk's ranges. */

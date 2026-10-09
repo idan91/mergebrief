@@ -7,6 +7,9 @@ import {
   type RiskSurfaceAttribute,
   RiskSurfaceAttributes,
   Roles,
+  type ChangeGroup,
+  type LineRange,
+  type ReadingOrderStep,
 } from "brief-core/types";
 import {
   attributeDisplayMeta,
@@ -24,9 +27,6 @@ import {
 import {
   type Brief,
   type BriefChunk,
-  type ChangeGroup,
-  type LineRange,
-  type ReadingOrderStep,
   type RiskToken,
   type UnattributedFile,
 } from "../types";

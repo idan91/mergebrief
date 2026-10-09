@@ -9,7 +9,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { LineRange } from "../../src/features/brief/types";
+import type { LineRange } from "brief-core/types";
 import {
   parseBrief,
   parseComparisonMarks,
@@ -303,10 +303,13 @@ async function main(): Promise<void> {
   const comparison = buildComparison(chunks);
   const narrative = buildNarrative(scale, chunks);
 
-  assertOk(parseBrief(rev1), "revision-1 brief");
-  assertOk(parseBrief(rev2), "revision-2 brief");
+  assertOk(parseBrief(JSON.stringify(rev1)), "revision-1 brief");
+  assertOk(parseBrief(JSON.stringify(rev2)), "revision-2 brief");
   assertOk(parseComparisonMarks(comparison), "comparison marks");
-  assertOk(parseRevisionNarrativeArtifact(narrative), "revision narrative");
+  assertOk(
+    parseRevisionNarrativeArtifact(JSON.stringify(narrative)),
+    "revision narrative",
+  );
 
   const diffs = chunks.map((chunk) => ({
     file: chunk.file,

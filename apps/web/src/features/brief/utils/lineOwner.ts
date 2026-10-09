@@ -1,7 +1,8 @@
+import type { LineRange } from "brief-core/types";
 import type { TFunction } from "i18next";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 
-import type { BriefChunk, LineRange } from "../types";
+import type { BriefChunk } from "../types";
 import { GroupViewKinds, isUnattributedRemainderChunk } from "./remainder";
 import { resolveGroupName } from "./resolveGroupName";
 import type { BriefViewModel } from "./viewModel";

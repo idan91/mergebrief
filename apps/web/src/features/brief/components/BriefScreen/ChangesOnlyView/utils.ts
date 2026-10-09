@@ -1,3 +1,8 @@
+import type {
+  LengthViolation,
+  LineRange,
+  RevisionNarrativeChunk,
+} from "brief-core/types";
 import type { TFunction } from "i18next";
 
 import { resolveChunkForLine } from "@web/features/review/utils";
@@ -7,13 +12,7 @@ import {
   DiffRowOrigins,
 } from "@web/utils/diffTokens/types";
 
-import type {
-  Brief,
-  BriefChunk,
-  LengthViolation,
-  LineRange,
-  RevisionNarrativeChunk,
-} from "../../../types";
+import type { Brief, BriefChunk } from "../../../types";
 import type { GuestRowOrigin } from "../../../utils/guest-rows";
 import { DiffSides } from "types/comments";
 
@@ -36,7 +35,7 @@ interface OriginRow {
 const HUNK_NEW_RANGE = /\+(\d+)(?:,(\d+))?/;
 
 export function hasLengthViolations(
-  ...artifacts: ({ lengthViolations?: LengthViolation[] } | null)[]
+  ...artifacts: ({ lengthViolations?: LengthViolation[] | undefined } | null)[]
 ): boolean {
   return artifacts.some(
     (artifact) => (artifact?.lengthViolations ?? []).length > 0,

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
+import type { IntentCheck, PrimaryTicket } from "brief-core/types";
 import { act, createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IntentBar, type IntentBarHandle } from ".";
-import type { IntentCheck, PrimaryTicket } from "../../../types";
 
 afterEach(cleanup);
 

@@ -1,13 +1,13 @@
 // Where a line link lands, decided from the brief's own data before anything
 // scrolls: the chunk it names, the row to find, and the hunk-edge read that
 // brings a folded line into the rows.
+import type { LineRange } from "brief-core/types";
 import { type LineLinkTarget, rowId } from "@web/features/review/utils";
 import { type DiffLine } from "@web/utils/diffTokens/types";
 import {
   type BriefChunk,
   type ExpansionGap,
   ExpansionDirections,
-  type LineRange,
 } from "../../types";
 import { findExpansionGaps, formatExpansionKey } from "../../utils/expandRows";
 import { LineLandingKinds, type LineLandingPlan } from "./types";

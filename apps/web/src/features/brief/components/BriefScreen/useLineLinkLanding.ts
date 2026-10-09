@@ -1,3 +1,4 @@
+import type { LineRange } from "brief-core/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { MAX_FILE_RANGE_LINES } from "contract";
 import type { TFunction } from "i18next";
@@ -18,7 +19,6 @@ import {
   type BriefChunk,
   ExpansionDirections,
   FileRangeResultKinds,
-  type LineRange,
 } from "../../types";
 import { isExpansionCovered } from "../../utils/expansion-rows";
 import type { FileRowsCache } from "../../utils/fileRows";

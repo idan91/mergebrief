@@ -1,8 +1,9 @@
 // Pure unified-diff parsing + per-chunk slicing, on the client for both the
 // local sidecar patches and the live proxied diff. No I/O, no framework
 // imports; keep it that way.
+import type { LineRange } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
-import type { Brief, BriefChunk, LineRange } from "../types";
+import type { Brief, BriefChunk } from "../types";
 import type { FileRowsCache } from "./fileRows";
 
 /**

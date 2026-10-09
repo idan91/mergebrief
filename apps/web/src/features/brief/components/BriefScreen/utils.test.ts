@@ -1,3 +1,8 @@
+import type {
+  IntentCheck,
+  RevisionNarrative,
+  RevisionNarrativeSkipped,
+} from "brief-core/types";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { ViewportBands } from "@web/hooks/useViewportBoundary";
 import { describe, expect, it, vi } from "vitest";
@@ -8,9 +13,6 @@ import type {
   BriefChunk,
   ComparisonAvailability,
   ComparisonMarks,
-  IntentCheck,
-  RevisionNarrative,
-  RevisionNarrativeSkipped,
 } from "../../types";
 import {
   conversationGroupIds,

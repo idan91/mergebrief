@@ -1,6 +1,7 @@
 // Hunk-edge expansion, pure. A chunk's rows are a SLICE of the file's diff,
 // so the gaps between them are not always hunk boundaries: every edge here
 // is named by an insertion point into the rows the chunk actually carries.
+import type { LineRange } from "brief-core/types";
 import {
   type DiffLine,
   DiffLineKinds,
@@ -14,7 +15,6 @@ import {
   type ExpansionGap,
   type ExpansionRange,
   type FileRangeSlice,
-  type LineRange,
   type ResolveExpansionRangeParams,
   type SpliceExpandedRowsParams,
 } from "../types";

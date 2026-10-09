@@ -1,3 +1,4 @@
+import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,7 +10,6 @@ import {
 } from "@web/features/review/utils";
 import type { MarkReadyAction } from "@web/features/pulls/transport";
 import { useMarkReady } from "@web/features/pulls/hooks";
-import type { IntentCheck } from "../../types";
 import type { RiskFlag } from "../../utils/viewModel";
 import { PostDraftOutcomes, type PostDraftOutcome } from "./types";
 import {

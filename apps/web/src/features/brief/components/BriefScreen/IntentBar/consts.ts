@@ -1,7 +1,6 @@
 import type { TranslationKey } from "i18n";
 
-import { Specificities } from "brief-core/types";
-import { type IntentCheck } from "../../../types";
+import { Specificities, type IntentCheck } from "brief-core/types";
 
 /** Neutral one-liner shown when the intent source is not checkable. */
 export const UNAVAILABLE_REASON_KEY: Record<

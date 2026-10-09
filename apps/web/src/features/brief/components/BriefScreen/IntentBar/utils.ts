@@ -1,6 +1,5 @@
+import type { IntentCheck, IntentItem } from "brief-core/types";
 import type { TranslationKey } from "i18n";
-
-import type { IntentCheck, IntentItem } from "../../../types";
 
 /**
  * Scheme allowlist for a model-produced URL before it becomes an href. A
@@ -31,7 +30,7 @@ function hasItems(bucket: IntentBucketSpec): boolean {
 /**
  * The split partition: left = nothing pending (accomplished + acknowledged
  * deviations), right = everything still needing the reader. Bucket order is
- * STATIC within each side — never model-ordered, never severity-sorted —
+ * STATIC within each side, never model-ordered, never severity-sorted,
  * and the DOM must ship in this split order (the accessibility tree and
  * focus order depend on it). Empty buckets are omitted.
  */
@@ -39,7 +38,7 @@ export function partitionIntentCheck(intentCheck: IntentCheck): {
   checksOut: IntentBucketSpec[];
   needsALook: IntentBucketSpec[];
 } {
-  // Acknowledged deviations are quiet receipts, not alarms — partitioned
+  // Acknowledged deviations are quiet receipts, not alarms: partitioned
   // rather than sorted, because the halves carry different labels,
   // cautions, and weight.
   const unacknowledged = intentCheck.deviations.filter(

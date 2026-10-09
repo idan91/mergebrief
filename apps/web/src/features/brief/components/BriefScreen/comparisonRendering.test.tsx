@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { RevisionNarrative } from "brief-core/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -16,12 +17,7 @@ import {
   type ComparisonSource,
 } from "../../comparison/runs";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
-import type {
-  Brief,
-  BriefChunk,
-  ComparisonMarks,
-  RevisionNarrative,
-} from "../../types";
+import type { Brief, BriefChunk, ComparisonMarks } from "../../types";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ComparisonCallout } from "./DiffTable/ComparisonCallout";

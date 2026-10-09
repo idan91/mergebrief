@@ -2,10 +2,14 @@
 // active baseline's data. Marks/narrative/delta resolve from ONE source, the
 // injected plan (DB path) or the local sidecar ids; both query sets exist as
 // hooks and `enabled` picks.
+import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import type { RevisionNarrativeSkipReason } from "brief-core/types";
+import type {
+  RevisionNarrativeSkipReason,
+  RevisionNarrative,
+} from "brief-core/types";
 import {
   comparisonAvailability,
   resolveBriefSearch,
@@ -30,13 +34,7 @@ import {
 } from "../../utils/diffSlicing";
 import { createFileRowsCache, type FileRowsCache } from "../../utils/fileRows";
 import { buildBriefTimeline, type BriefTimeline } from "../../utils/timeline";
-import type {
-  Brief,
-  ComparisonMarks,
-  LocalBriefSummary,
-  RevisionNarrative,
-  RevisionNarrativeArtifact,
-} from "../../types";
+import type { Brief, ComparisonMarks, LocalBriefSummary } from "../../types";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "./types";
 import {
   countComparisonRuns,
@@ -56,7 +54,7 @@ export interface BriefComparisonPlan {
   readonly previousBrief?: {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Present when a narrative artifact exists to fetch (may be a skip stub). */
-    readonly narrative?: ComparisonQuery<RevisionNarrativeArtifact>;
+    readonly narrative?: ComparisonQuery<StoredRevisionNarrative>;
     /** Live raw span diff baseline → head (Changes Only "Show raw diff"). */
     readonly rawDiff?: ComparisonQuery<string>;
   };
@@ -185,7 +183,7 @@ export function useComparisonOverlay(
   });
   const planNarrativeOptions =
     planPrevious?.narrative ??
-    disabledComparisonQuery<RevisionNarrativeArtifact>("narrative");
+    disabledComparisonQuery<StoredRevisionNarrative>("narrative");
   const planNarrative = useQuery({
     ...planNarrativeOptions,
     enabled:
@@ -193,7 +191,7 @@ export function useComparisonOverlay(
       activeCompare === CompareParams.PREVIOUS_BRIEF &&
       planPrevious?.narrative !== undefined,
   });
-  const narrativeArtifact: RevisionNarrativeArtifact | null =
+  const narrativeArtifact: StoredRevisionNarrative | null =
     (comparisonPlan === undefined ? localNarrative.data : planNarrative.data) ??
     null;
   const localDelta = useQuery({

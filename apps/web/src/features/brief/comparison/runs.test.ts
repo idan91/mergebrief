@@ -1,3 +1,4 @@
+import type { RevisionNarrative } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
@@ -11,12 +12,7 @@ import {
   groupComparisonRuns,
   markComparisonRows,
 } from "./runs";
-import type {
-  Brief,
-  BriefChunk,
-  RevisionChanges,
-  RevisionNarrative,
-} from "../types";
+import type { Brief, BriefChunk, RevisionChanges } from "../types";
 
 function chunk(file: string, diff: DiffLine[]): BriefChunk {
   return {

@@ -1,7 +1,7 @@
+import type { ConcernRollup } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 
 import { LocSign, LocSigns } from "@web/components/LocSign";
-import type { ConcernRollup } from "../../../types";
 import { SplitSegmentKinds, concernShares } from "./utils";
 import styles from "./ConcernStrip.module.scss";
 

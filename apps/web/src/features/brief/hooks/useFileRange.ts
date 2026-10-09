@@ -1,7 +1,8 @@
+import type { LineRange } from "brief-core/types";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { FileRangeResultKinds, type LineRange } from "../types";
+import { FileRangeResultKinds } from "../types";
 import {
   buildFileRangeQueryOptions,
   isFileRangeReadable,

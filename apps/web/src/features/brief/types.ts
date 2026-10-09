@@ -1,15 +1,10 @@
+import type { StoredBrief } from "brief-core/artifact";
 import type {
-  AlignmentRead,
-  Concern,
-  PrimaryTicketStatus,
-  PrLifecycleState,
-  ReferenceLocation,
-  RevisionNarrativeSkipReason,
-  Role,
-  Specificity,
-  TicketUnreadReason,
+  Chunk,
+  LineRange,
+  UnattributedFile as StoredUnattributedFile,
 } from "brief-core/types";
-import type { ChangeGroupCategory, TicketTracker, ValueOf } from "types";
+import type { ValueOf } from "types";
 import type { DiffLine } from "../../utils/diffTokens/types";
 
 /** Built-in or repo-policy risk token; the closed vocabulary is per-generation. */
@@ -23,28 +18,6 @@ export interface LivePrState {
   stack?: PullStack;
 }
 
-export interface PrRef {
-  repo: string;
-  number: number;
-  title: string;
-  url: string;
-  sha: string;
-  description: string;
-  /**
-   * @description PR lifecycle snapshot stamped at generation time - a
-   * snapshot by design, no staleness hint. Absent on pre-stamping
-   * artifacts; the state badge simply doesn't render.
-   */
-  state?: PrLifecycleState;
-  draft?: boolean;
-  merged?: boolean;
-  /** Head branch name; absent on pre-stamping artifacts. */
-  headRef?: string;
-  /** Base branch name; absent on pre-stamping artifacts. */
-  baseRef?: string;
-  stack?: PrStack;
-}
-
 export interface PrStackMember {
   number: number;
   title: string;
@@ -56,7 +29,7 @@ export interface LinearPrStack {
 }
 
 export interface ForkPrStack {
-  parent?: PrStackMember;
+  parent?: PrStackMember | undefined;
   children: PrStackMember[];
 }
 
@@ -69,26 +42,7 @@ export interface PullStack {
   asOf?: string;
 }
 
-export interface ChunkLoc {
-  added: number;
-  deleted: number;
-}
-
-export interface LineRange {
-  start: number;
-  end: number;
-}
-
-/**
- * @description Changed lines no chunk claims, as per-file ranges ,
- * pipeline-derived, counts always derive from the ranges.
- */
-export interface UnattributedFile {
-  file: string;
-  /** @description New-side changed lines no chunk claims. */
-  addedRanges: LineRange[];
-  /** @description Old-side changed lines no chunk claims. */
-  removedRanges: LineRange[];
+export interface UnattributedFile extends StoredUnattributedFile {
   /**
    * @description Sliced diff rows for the unattributed ranges - attached
    * where the diff is available (server sidecar / live diff), like
@@ -176,67 +130,11 @@ export interface ExpansionGap {
   offset: number;
 }
 
-/**
- * @description One short factual note evidencing a risk-surface attribute on
- * a chunk - e.g. the both-sides citation required for
- * `comment-contradicts-code`.
- */
-export interface RiskNote {
-  attr: RiskToken;
-  note: string;
-}
-
-export interface BriefChunk {
-  id: string;
-  changeGroupId: string;
-  file: string;
-  concern: Concern;
-  role: Role;
-  loc: ChunkLoc;
-  addedRanges: LineRange[];
-  removedRanges: LineRange[];
-  riskSurface: RiskToken[];
-  riskNotes?: RiskNote[];
+/** A full-Brief chunk, or a Delta Brief chunk with its two delta fields. */
+export interface BriefChunk extends Chunk {
   summary?: string;
   addressesComments?: string[];
   diff?: DiffLine[];
-}
-
-export interface ChangeGroup {
-  id: string;
-  title: string;
-  summary: string;
-  dominantCategory: ChangeGroupCategory;
-  secondaryCategories: ChangeGroupCategory[];
-  uncertain: boolean;
-  uncertainBetween: ChangeGroupCategory[];
-}
-
-/**
- * @description One step of a Brief's Reading order: `groupId`
- * references a `ChangeGroup.id`; `why` is a short comprehension-language line
- * on why this group comes next (never importance/priority/severity language).
- */
-export interface ReadingOrderStep {
-  groupId: string;
-  why: string;
-}
-
-export interface ConcernRollup {
-  concern: Concern;
-  added: number;
-  deleted: number;
-}
-
-/**
- * @description The Ticket alignment read against the primary ticket's goal:
- * the read word, the goal quoted verbatim, one factual sentence about the
- * diff. Never a gate.
- */
-export interface TicketAlignment {
-  read: AlignmentRead;
-  goal: string;
-  response: string;
 }
 
 /**
@@ -258,90 +156,6 @@ export const GuestRowReasons = {
 } as const;
 export type GuestRowReason = ValueOf<typeof GuestRowReasons>;
 
-/**
- * @description The one ticket the PR is about, as the harness resolved and
- * read it. Harness-written, never model-produced. `key` is `""` for a
- * URL-only reference; `title` and `header` are `""` when unread; `reason` is
- * `""` when read.
- */
-export interface PrimaryTicket {
-  key: string;
-  url: string;
-  tracker: TicketTracker;
-  foundIn: ReferenceLocation;
-  title: string;
-  header: string;
-  status: PrimaryTicketStatus;
-  reason: TicketUnreadReason | "";
-}
-
-/**
- * @description One item shared by all three intent buckets - a per-bucket
- * shape overflowed the structured-output grammar, so one shape carries every
- * bucket. The per-bucket field rules (`statedButMissing` has no `groupIds`;
- * `doneButUnstated` has no `quote`/`sourceUrl`) are enforced server-side and
- * mirrored in rendering. `sourceUrl` is `""` for a PR title/description citation.
- */
-export interface IntentItem {
-  intent: string;
-  quote: string;
-  sourceUrl: string;
-  groupIds: string[];
-  /**
-   * @description Meaningful only on `deviations` - the PR description
-   * acknowledges the reversal, making the item a quiet receipt rather than an
-   * alarm. Generation forces it `false` in every other bucket; older Briefs
-   * have no such field and read as `false`.
-   */
-  acknowledged: boolean;
-}
-
-/**
- * @description The ticket-gated intent check: did this PR do what
- * its stated intent asked? Factual buckets, never a verdict. Full Brief
- * only - never present on a Delta Brief. Boundary-parsed defensively
- * (`validation.ts`): a malformed field is dropped to `undefined`, so by the
- * time a `Brief` reaches the app this is either well-formed or absent (a
- * pre-feature Brief renders no intent bar).
- */
-export interface IntentCheck {
-  ticketUrls: string[];
-  /**
-   * @description Display title per `ticketUrls` entry, same order and length
-   * (the boundary parser realigns). `""` = no usable title - the renderer
-   * falls back to the id alone. Empty strings throughout on older Briefs.
-   */
-  ticketTitles: string[];
-  specificity: Specificity;
-  scopeNote: string;
-  accomplished: IntentItem[];
-  statedButMissing: IntentItem[];
-  doneButUnstated: IntentItem[];
-  /**
-   * @description Alarm bucket: stated asks the diff moves AGAINST that the
-   * source nowhere retracts. Items whose `acknowledged` is true are quiet
-   * receipts (the description owns the reversal) and render at the tail,
-   * apart from the unacknowledged ones. Empty on an older Brief.
-   */
-  deviations: IntentItem[];
-  /**
-   * @description Alarm bucket: asks the source claims are fixed while the
-   * diff touches only the problem's signal/check path. Empty on an older Brief.
-   */
-  claimedButUnachieved: IntentItem[];
-  /**
-   * @description The primary ticket, when the PR references one. Absent on
-   * older Briefs and when no reference was found; a malformed value drops to
-   * absent at the boundary, never the whole check.
-   */
-  primaryTicket?: PrimaryTicket;
-  /**
-   * @description Absent when there is no primary ticket, it could not be
-   * read, the sources are broad or absent, or the goal did not verify.
-   */
-  alignment?: TicketAlignment;
-}
-
 export interface AddressedReviewComment {
   id: string;
   file: string;
@@ -355,78 +169,18 @@ export interface AddressedReviewComment {
   outdated: boolean;
 }
 
-export interface CommitRange {
-  base: string;
-  head: string;
-  commitCount: number;
-}
-
-export interface Generation {
-  provider: string;
-  model: string;
-  effort: string | null;
-}
-
 /**
- * @description Cross-revision anchor origin, CLI-assigned:
- * `anchored` = incremental regeneration against the previous brief;
- * `fresh-restart` = a deliberate from-scratch run (reason names why, e.g.
- * "model-swap"); `none` = first generation or anchoring off. Absent on
- * pre-feature briefs. Mirrors the server union; unknown states are dropped
- * at the parse boundary (server-enforced vocabulary).
+ * A full Brief or a Delta Brief as the screens render it: a Delta Brief's
+ * `changedGroups` arrive as `changeGroups`, its `concernView` is derived, and
+ * `artifactKind` tells the two apart.
  */
-export interface BriefAnchor {
-  state: "anchored" | "fresh-restart" | "none";
-  reason?: string;
-}
-
-/**
- * @description One text field exceeding the length caps ,
- * pipeline-stamped (warn-only floor), never model-produced. The FE renders
- * a single muted "consider a stronger model" line when any are present;
- * the entries themselves are diagnostic, not itemized in the UI.
- */
-export interface LengthViolation {
-  surface: string;
-  field: string;
-  actual: number;
-  cap: number;
-}
-
-export interface Brief {
+export interface Brief extends Omit<
+  StoredBrief,
+  "chunks" | "unattributed" | "anchoring"
+> {
   artifactKind: "brief" | "delta";
-  pr: PrRef;
-  summary: string;
-  changeGroups: ChangeGroup[];
   chunks: BriefChunk[];
-  concernView: ConcernRollup[];
-  /**
-   * @description Changed lines no chunk claims - pipeline-derived (`[]` =
-   * fully attributed); absent on pre-feature briefs.
-   */
   unattributed?: UnattributedFile[];
-  /**
-   * @description Whole-diff added/removed totals derived from the parsed
-   * diff - exact even when chunk overlaps double-count per-chunk sums.
-   * Absent on pre-feature briefs.
-   */
-  diffTotals?: ChunkLoc;
-  index?: number;
-  commitRange?: CommitRange;
-  generation?: Generation;
-  anchor?: BriefAnchor;
-  /**
-   * @description Warning lines the generation pipeline emitted (salvage,
-   * feedback retry, served-model mismatch) - CLI-collected.
-   * Rendered under the header meta line so a degraded generation is
-   * visible, not just finished.
-   */
-  generationWarnings?: string[];
-  /**
-   * @description Text fields exceeding the length caps - pipeline-stamped;
-   * absent when everything fits.
-   */
-  lengthViolations?: LengthViolation[];
   baselineSha?: string;
   headSha?: string;
   baselineIndex?: number | null;
@@ -434,20 +188,6 @@ export interface Brief {
   commentsAddressed?: string;
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;
-  /**
-   * @description Reading order over `changeGroups`, full Brief
-   * only - never present on a Delta Brief. Boundary-parsed defensively: a
-   * present-but-invalid permutation is dropped client-side (`validation.ts`),
-   * so by the time a `Brief` reaches the rest of the app this is either a
-   * verified permutation of `changeGroups` ids or `undefined`.
-   */
-  readingOrder?: ReadingOrderStep[];
-  /**
-   * @description The ticket-gated intent check, full Brief only.
-   * Absent on pre-feature Briefs and on Delta Briefs - the intent bar
-   * renders only when this is present.
-   */
-  intentCheck?: IntentCheck;
 }
 
 /** Which comparison baseline a mechanical marks sidecar is relative to. */
@@ -476,70 +216,6 @@ export interface ComparisonMarksSummary {
 export interface ComparisonMarks extends ComparisonMarksSummary {
   files: RevisionChangeFile[];
 }
-
-/**
- * @description A revision-narrative chunk: an incremental
- * `prevHead→head` change attached to an existing full-Brief Change-group via
- * `briefChangeGroupId`. `addedRanges`/`removedRanges` are head/old-side coords,
- * same join semantics as the mechanical marks. FE mirror of the categorizer's
- * `RevisionNarrativeChunk`.
- */
-export interface RevisionNarrativeChunk {
-  id: string;
-  briefChangeGroupId: string;
-  file: string;
-  addedRanges: LineRange[];
-  removedRanges: LineRange[];
-  summary: string;
-}
-
-/**
- * @description The shared, per-revision "what changed" narrative for the
- * Previous-Brief comparison. Every chunk attaches to a full-Brief
- * Change-group; it carries no reviewer Checkpoint or `wholePrImpact`.
- */
-export interface RevisionNarrative {
-  artifactKind: "revisionNarrative";
-  pr: PrRef;
-  prevHeadSha: string;
-  headSha: string;
-  prevIndex: number;
-  headIndex: number;
-  generation: Generation;
-  generationWarnings?: string[];
-  /**
-   * @description Text fields exceeding the length caps - pipeline-stamped;
-   * absent when everything fits.
-   */
-  lengthViolations?: LengthViolation[];
-  overview: string;
-  chunks: RevisionNarrativeChunk[];
-}
-
-/**
- * @description Explicit skip stub written when a Previous-Brief span never got
- * a generated narrative (huge span or config-disabled). Distinct from an absent
- * file (generation failed): a stub means "deliberately skipped, retry won't
- * help" and the FE surfaces the reason rather than a failure state.
- */
-export interface RevisionNarrativeSkipped {
-  artifactKind: "revisionNarrativeSkipped";
-  pr: PrRef;
-  prevHeadSha: string;
-  headSha: string;
-  prevIndex: number;
-  headIndex: number;
-  skipped: RevisionNarrativeSkipReason;
-}
-
-/**
- * @description A fetched `.revision-narrative.json`: either a real narrative or
- * a skip stub. `narrativeId`-present in availability only means "an artifact
- * exists to fetch"; callers discriminate on `artifactKind` after fetching.
- */
-export type RevisionNarrativeArtifact =
-  | RevisionNarrative
-  | RevisionNarrativeSkipped;
 
 /**
  * @description Availability of the shared Previous-Brief comparison for one

@@ -1,11 +1,6 @@
+import type { LineRange, RevisionNarrative } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type {
-  Brief,
-  BriefChunk,
-  LineRange,
-  RevisionChangeFile,
-  RevisionNarrative,
-} from "../types";
+import type { Brief, BriefChunk, RevisionChangeFile } from "../types";
 import { isUnattributedRemainderChunk } from "../utils/remainder";
 
 /**

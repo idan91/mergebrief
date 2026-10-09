@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
+import type { StoredRevisionNarrative } from "brief-core/artifact";
+import type { RevisionNarrative } from "brief-core/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
-import type {
-  Brief,
-  ComparisonMarks,
-  RevisionNarrative,
-  RevisionNarrativeArtifact,
-} from "../../types";
+import type { Brief, ComparisonMarks } from "../../types";
 import { DeltaSpanStatuses } from "./types";
 import {
   type BriefComparisonPlan,
@@ -145,7 +142,7 @@ function stubNarrativePlan(
   return {
     previousBrief: {
       marks: stubQuery("prev-marks", () => Promise.resolve(MARKS)),
-      narrative: stubQuery<RevisionNarrativeArtifact>("narrative", () =>
+      narrative: stubQuery<StoredRevisionNarrative>("narrative", () =>
         Promise.resolve(narrative),
       ),
       rawDiff: { ...stubQuery("prev-span", spanFn), enabled: spanEnabled },

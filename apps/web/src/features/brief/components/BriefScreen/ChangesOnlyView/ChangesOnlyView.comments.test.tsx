@@ -11,7 +11,7 @@ import {
   vi,
 } from "vitest";
 
-import { Concerns, Roles } from "brief-core/types";
+import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
@@ -24,11 +24,7 @@ import {
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
 import { appI18n } from "../../../../../i18n/I18nProvider";
-import {
-  type Brief,
-  type BriefChunk,
-  type RevisionNarrative,
-} from "../../../types";
+import { type Brief, type BriefChunk } from "../../../types";
 import { FileRowsProvider } from "../../../hooks/useFileRows";
 import type { FileRowsCache } from "../../../utils/fileRows";
 import { buildLineOwnersByFile } from "../../../utils/lineOwner";

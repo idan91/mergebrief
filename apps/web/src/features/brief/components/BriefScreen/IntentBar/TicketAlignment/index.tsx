@@ -1,9 +1,13 @@
 import { useTranslation } from "react-i18next";
 
-import { Specificities, type Specificity } from "brief-core/types";
+import {
+  Specificities,
+  type Specificity,
+  type IntentCheck,
+  type PrimaryTicket,
+} from "brief-core/types";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Badge } from "@web/components/Badge";
-import { type IntentCheck, type PrimaryTicket } from "../../../../types";
 import { isHttpUrl } from "../utils";
 import styles from "./TicketAlignment.module.scss";
 import { deriveTicketLinkText } from "./utils";

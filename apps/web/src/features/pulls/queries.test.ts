@@ -12,14 +12,19 @@ import type * as ApiFetchModule from "../../data/apiFetch";
 
 vi.mock("../../data/apiFetch", async (importOriginal) => {
   const actual = await importOriginal<typeof ApiFetchModule>();
-  return { ...actual, apiFetch: vi.fn(), apiFetchJson: vi.fn() };
+  return {
+    ...actual,
+    apiFetch: vi.fn(),
+    apiFetchJson: vi.fn(),
+    apiFetchText: vi.fn(),
+  };
 });
 
 // Mocked so these tests never construct the real process logger; the sink's
 // own branch logic is covered in `data/ssrWarnSink*.test.ts`.
 vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
 
-import { apiFetchJson, ApiError } from "../../data/apiFetch";
+import { apiFetchJson, apiFetchText, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   buildDbBriefQueryOptions,
@@ -36,6 +41,11 @@ import {
 } from "../review/session";
 
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
+const apiFetchTextMock = vi.mocked(apiFetchText);
+
+function resolveBodyText(body: object): void {
+  apiFetchTextMock.mockResolvedValue(JSON.stringify(body));
+}
 const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
 
 function runMarks(): Promise<unknown> {
@@ -189,13 +199,13 @@ describe("buildDbDeltaQueryOptions queryFn", () => {
   };
 
   it("parses the delta artifact shape with changedGroups", async () => {
-    // The worker stores `JSON.stringify(delta)` - the delta-CLI shape with
-    // `changedGroups`/`commentsAddressed`/`wholePrImpact`. parseBrief rejects
-    // it, which silently degraded the pane to marks-only.
-    apiFetchJsonMock.mockResolvedValue({
+    resolveBodyText({
       pr: prRef,
       baselineSha: "cp-1",
       headSha: "head-1",
+      baselineIndex: 1,
+      headIndex: 2,
+      generation: { provider: "anthropic", model: "m", effort: null },
       summary: "delta summary",
       commentsAddressed: "none",
       wholePrImpact: "small",
@@ -210,7 +220,7 @@ describe("buildDbDeltaQueryOptions queryFn", () => {
   });
 
   it("throws typed malformed on a whole-brief body at the delta endpoint", async () => {
-    apiFetchJsonMock.mockResolvedValue({
+    resolveBodyText({
       pr: prRef,
       summary: "brief summary",
       changeGroups: [],
@@ -264,19 +274,19 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
     };
   }
 
-  it("routes a lenient drop to the SSR sink so hosted-brief drift is loud", async () => {
-    // The route loaders SSR-prefetch this queryFn
-    // (`repos.$repoId.pulls.$prNumber.tsx`), so this is the ONLY signal an
-    // operator gets when a stored Brief carries a malformed optional section.
+  it("routes a stored-body repair to the SSR sink as code and path", async () => {
+    // The route loaders SSR-prefetch this queryFn, so this is the ONLY signal
+    // an operator gets when a stored Brief needed a repair.
     const warn = vi.fn();
     getSsrWarnSinkMock.mockResolvedValue({ warn });
-    apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
+    resolveBodyText(briefBody("not an array"));
 
     await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]?.[0]).toContain(
-      "parseBrief: dropping readingOrder",
-    );
+    expect(warn.mock.calls[0]?.[1]).toEqual({
+      code: "dropped-section",
+      path: "readingOrder",
+    });
   });
 
   it("routes a malformed session payload to the SSR sink before it throws", async () => {
@@ -301,14 +311,14 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
 
   it("parses fine when the sink is absent on the browser refetch", async () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
-    apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
+    resolveBodyText(briefBody("not an array"));
     await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
   });
 
   it("carries the pr lifecycle snapshot off the wire", async () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
     const body = briefBody(undefined);
-    apiFetchJsonMock.mockResolvedValue({
+    resolveBodyText({
       ...body,
       pr: { ...prRef, state: "open", draft: true, merged: false },
     });

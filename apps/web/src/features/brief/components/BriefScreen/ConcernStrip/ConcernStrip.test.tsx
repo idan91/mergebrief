@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
+import type { ConcernRollup } from "brief-core/types";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { ConcernRollup } from "../../../types";
 import { ConcernStrip } from ".";
 import { concernShares } from "./utils";
 

@@ -1,11 +1,7 @@
 import type { ValueOf } from "types/utils";
 
-import { Concerns, Roles } from "brief-core/types";
-import {
-  type BriefChunk,
-  type LineRange,
-  type UnattributedFile,
-} from "../types";
+import { Concerns, Roles, type LineRange } from "brief-core/types";
+import { type BriefChunk, type UnattributedFile } from "../types";
 
 export const GroupViewKinds = {
   ATTRIBUTED: "attributed",

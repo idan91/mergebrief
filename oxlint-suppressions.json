@@ -122,22 +122,6 @@
       "count": 2
     }
   },
-  "apps/web/src/data/ssrWarnSink.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/utils.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/chunkWindows.test.ts": {
     "house/test-title": {
       "count": 2

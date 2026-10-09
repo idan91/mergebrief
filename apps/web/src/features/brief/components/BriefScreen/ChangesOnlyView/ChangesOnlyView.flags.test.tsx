@@ -10,7 +10,7 @@ import {
 import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Concerns, Roles } from "brief-core/types";
+import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import {
   createReviewFlowStore,
   ReviewFlowProvider,
@@ -21,11 +21,7 @@ import {
 } from "@web/features/review/session";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { appI18n } from "../../../../../i18n/I18nProvider";
-import {
-  type Brief,
-  type BriefChunk,
-  type RevisionNarrative,
-} from "../../../types";
+import { type Brief, type BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { ChangesOnlyView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";

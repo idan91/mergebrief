@@ -1,3 +1,4 @@
+import type { LineRange } from "brief-core/types";
 import type { CSSProperties, ReactNode } from "react";
 import type { ValueOf } from "types/utils";
 
@@ -16,7 +17,6 @@ import type {
   Brief,
   BriefChunk,
   ExpansionDirection,
-  LineRange,
   LivePrState,
   LocalBriefSummary,
   RevisionTimelinePlan,

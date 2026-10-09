@@ -1,8 +1,9 @@
+import type { LineRange } from "brief-core/types";
 import { createContext, useContext, useRef, type ReactNode } from "react";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { EdgeExpansion, LineRange } from "../types";
+import type { EdgeExpansion } from "../types";
 import { unionExpanded } from "../utils/expandRows";
 
 export interface ExpansionState {

@@ -1,3 +1,4 @@
+import type { PrRef } from "brief-core/types";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@web/components/Icon";
@@ -8,7 +9,7 @@ import {
 } from "@web/components/Icon/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { ValueOf } from "types/utils";
-import type { LivePrState, PrRef } from "../../../../types";
+import type { LivePrState } from "../../../../types";
 import styles from "./StateBadge.module.scss";
 
 export interface StateBadgeProps {

@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
 
+import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { briefErrorCode } from "../utils/briefErrors";
 import { getServerLogger } from "../../../server/logger";
 import {
@@ -16,7 +17,6 @@ import type {
   FileDiffPatch,
   LocalBriefSummary,
   RevisionChanges,
-  RevisionNarrativeArtifact,
 } from "../types";
 
 /**
@@ -63,7 +63,7 @@ export interface BriefHandlers {
   getLocalComparisonMarks(id: string): Promise<ComparisonMarks | null>;
   getLocalRevisionNarrative(
     id: string,
-  ): Promise<RevisionNarrativeArtifact | null>;
+  ): Promise<StoredRevisionNarrative | null>;
 }
 
 export const briefHandlers: BriefHandlers = {

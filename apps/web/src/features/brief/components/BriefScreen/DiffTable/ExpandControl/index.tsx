@@ -1,3 +1,4 @@
+import type { LineRange } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
@@ -9,7 +10,6 @@ import {
   type ExpanderStep,
   ExpansionDirections,
   FileRangeResultKinds,
-  type LineRange,
 } from "../../../../types";
 import { resolveReachableLines } from "../../../../utils/expansionState";
 import { EXPAND_STEP } from "../../../../utils/expandRows";
