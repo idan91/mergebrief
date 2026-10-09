@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI. Which file becomes which row is `ingest/consts.ts` — one named regex per family. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
+`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI. `src/normalize-stored-shapes/` is a one-off migration, not the ingest: it rewrites legacy-shape Brief rows (or `--dir` files) into the current shape, legacy membership, missing group ids and the intent-check fields older Briefs lack, and deletes Delta Briefs and narratives the current readers refuse, every tenant at once, through its own SQL so `persistence` keeps its one unscoped read. Dry run by default, `--apply` writes. It is the one place bodies are re-shaped, and it is deleted once the owner has run it. Which file becomes which row is `ingest/consts.ts` — one named regex per family. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
 
 ## Invariants (enforced, don't weaken)
 

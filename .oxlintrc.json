@@ -490,6 +490,7 @@
         "packages/brief-core/src/cli/delta.ts",
         "tools/baselines/src/main.ts",
         "tools/ingest-briefs/src/main.ts",
+        "tools/ingest-briefs/src/normalize-stored-shapes/main.ts",
         "tools/release/src/main.ts",
         "tools/categorizer/eval/cli.ts",
         "tools/categorizer/scripts/**",
