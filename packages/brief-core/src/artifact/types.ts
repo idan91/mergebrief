@@ -12,7 +12,6 @@ import type {
   RevisionNarrativeSkipped,
 } from "../types";
 import type {
-  StoredChangeGroupReadSchema,
   StoredChunkReadSchema,
   StoredSessionFactsReadSchema,
 } from "./schemas";
@@ -23,8 +22,6 @@ export const ArtifactIssueCodes = {
   DROPPED_SECTION: "dropped-section",
   DROPPED_FIELD: "dropped-field",
   UNKNOWN_CHANGE_GROUP: "unknown-change-group",
-  LEGACY_MEMBERSHIP: "legacy-membership",
-  MINTED_GROUP_ID: "minted-group-id",
   SHARED_GROUP_ID: "shared-group-id",
 } as const;
 
@@ -61,8 +58,8 @@ export type StoredBrief = Omit<Brief, StampedSection> & {
 export interface StoredBriefRead {
   brief: StoredBrief;
   /**
-   * Each dropped section, minted or shared group id, normalized membership
-   * and unknown group.
+   * Each dropped section or field, shared group id, and chunk moved to the
+   * remainder.
    */
   issues: ArtifactIssue[];
 }
@@ -80,7 +77,6 @@ export type StoredRevisionNarrativeReadResult = Result<
   ArtifactIssue[]
 >;
 
-export type StoredChangeGroupRead = z.infer<typeof StoredChangeGroupReadSchema>;
 export type StoredChunkRead = z.infer<typeof StoredChunkReadSchema>;
 
 type OptionalShapeKey<Shape> = {
@@ -119,12 +115,6 @@ export interface ReadingOrderRead {
 }
 
 export type SharedGroupIdIssues = ArtifactIssue[];
-
-export interface IdentifiedGroup {
-  stored: StoredChangeGroupRead;
-  /** The stored id, or the one minted for a group that has none. */
-  id: string;
-}
 
 export interface GroupMembership {
   changeGroups: ChangeGroup[];

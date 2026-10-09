@@ -1,6 +1,6 @@
 import { DeltaBriefSchema, type Brief, type ChangeGroup } from "../types";
 import {
-  normalizeGroupMembership,
+  splitGroupMembership,
   reportSharedGroupIds,
 } from "./logic/group-membership";
 import {
@@ -96,11 +96,10 @@ export function checkRevisionNarrativeForWrite(
 }
 
 /**
- * Reads a stored Brief body of any age. Fails on a broken core, drops an
- * invalid optional section, mints a missing group id, keeps groups sharing an
- * id, normalizes legacy group membership, moves a chunk naming no group into
- * the unattributed remainder, and reports every one of those in `issues`. No
- * body makes it throw.
+ * Reads a stored Brief body in the current shape. Fails on a broken core,
+ * drops an invalid optional section, keeps groups sharing an id, moves a chunk
+ * naming no group into the unattributed remainder, and reports every one of
+ * those in `issues`. No body makes it throw.
  */
 export function readStoredBrief(json: string): StoredBriefReadResult {
   const body = parseJsonObject(json);
@@ -116,7 +115,7 @@ export function readStoredBrief(json: string): StoredBriefReadResult {
 
   const { changeGroups, chunks, ...rest } = parsed.value;
   const tokens = dropMalformedRiskTokens(chunks);
-  const membership = normalizeGroupMembership(changeGroups, tokens.chunks);
+  const membership = splitGroupMembership(changeGroups, tokens.chunks);
   const { orphans } = membership;
   const stored: StoredBrief = {
     ...rest,

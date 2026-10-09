@@ -66,28 +66,6 @@ export function makeTwoGroupBrief(): Brief {
   } as Brief;
 }
 
-interface LegacyMembershipBody {
-  changeGroups: Record<string, unknown>[];
-  chunks: Record<string, unknown>[];
-  [section: string]: unknown;
-}
-
-/** The pre-`changeGroupId` shape: groups list their chunks and carry no id. */
-export function makeLegacyMembershipBody(): LegacyMembershipBody {
-  const { id: _groupId, ...legacyGroup } = changeGroup;
-  const { changeGroupId: _first, ...firstChunk } = chunk;
-  const { changeGroupId: _second, ...lastChunk } = secondChunk;
-
-  return structuredClone({
-    ...makeValidBrief(),
-    changeGroups: [
-      { ...legacyGroup, coreChunkIds: ["c1"], supportingChunkIds: [] },
-      { ...legacyGroup, coreChunkIds: [], supportingChunkIds: ["c2"] },
-    ],
-    chunks: [firstChunk, lastChunk],
-  });
-}
-
 export function makeValidDeltaBrief(): DeltaBrief {
   return structuredClone({
     pr,

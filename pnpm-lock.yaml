@@ -649,15 +649,9 @@ importers:
 
   tools/ingest-briefs:
     dependencies:
-      brief-core:
-        specifier: workspace:*
-        version: link:../../packages/brief-core
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
-      pg:
-        specifier: ^8.22.0
-        version: 8.22.0
       types:
         specifier: workspace:*
         version: link:../../packages/types
@@ -668,9 +662,6 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21
-      '@types/pg':
-        specifier: ^8.20.0
-        version: 8.20.0
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)

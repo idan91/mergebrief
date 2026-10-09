@@ -67,6 +67,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - An enum-like map and its `ValueOf` type live in `types.ts`. `z.enum` reads the map, never a literal union.
 - A const map's keys are SHOUT_CASE by default. A map keyed by an existing vocabulary map's values uses that map's members as computed keys (`{ [BadgeVariants.OPEN]: "brief.stateBadge.open" }`), never the values retyped. An object that follows a contract, such as an interface, an HTTP response or a stored row, keeps that contract's casing: camelCase for our own shapes, the source's casing for anything else.
 - Interfaces for object shapes; `type` for unions, intersections and mapped types.
+- Until release, a stored shape only moves forward: a change to what an artifact body or row holds migrates the existing data to the new shape, and no reader keeps code for an older one.
 - Absence: `undefined` means absent. `null` appears only where a wire or DB shape carries it, converted at the boundary. Parse failure and refusal return `Result`. A function never returns both `null` and `undefined`. Loose `== null` is banned; `eqeqeq` holds it.
 - An exported function whose return is an object shape, or a union of shapes, annotates it with a named type declared separately; `T`, `T[]`, `Promise<T>` and `T | undefined` over a primitive or an already-named `T` stay inline. Internals infer.
 - `prop?: T | undefined` is deliberate under `exactOptionalPropertyTypes`. Plain `?:` by default; add `| undefined` only where a caller forwards a maybe-value.

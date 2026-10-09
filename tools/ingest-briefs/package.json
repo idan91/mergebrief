@@ -10,19 +10,15 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "ingest": "tsx src/main.ts",
-    "normalize": "tsx src/normalize-stored-shapes/main.ts"
+    "ingest": "tsx src/main.ts"
   },
   "dependencies": {
-    "brief-core": "workspace:*",
     "persistence": "workspace:*",
-    "pg": "^8.22.0",
     "types": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "^4.1.8",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

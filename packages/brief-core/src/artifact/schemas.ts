@@ -2,7 +2,6 @@ import { z } from "zod/v4";
 import type { Equals } from "types/utils";
 import {
   BriefSchema,
-  ChangeGroupSchema,
   ChunkSchema,
   DeltaBriefSchema,
   DeltaChunkSchema,
@@ -78,18 +77,10 @@ export const StoredChunkReadSchema = ChunkSchema.extend({
   changeGroupId: z.string().optional(),
 });
 
-/** Bodies older than `changeGroupId` list each group's chunks on the group. */
-export const StoredChangeGroupReadSchema = ChangeGroupSchema.extend({
-  id: z.string().optional(),
-  coreChunkIds: z.array(z.string()).optional(),
-  supportingChunkIds: z.array(z.string()).optional(),
-});
-
 export const StoredBriefReadSchema = BriefSchema.extend({
   index: BriefSchema.shape.index.optional(),
   commitRange: BriefSchema.shape.commitRange.optional(),
   generation: BriefSchema.shape.generation.optional(),
-  changeGroups: z.array(StoredChangeGroupReadSchema),
   chunks: z.array(StoredChunkReadSchema),
 });
 

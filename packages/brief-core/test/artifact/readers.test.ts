@@ -10,7 +10,6 @@ import {
 } from "../../src/artifact";
 import { dropUnorderedReadingOrder } from "../../src/artifact/logic/optional-sections";
 import {
-  makeLegacyMembershipBody,
   makeSkippedRevisionNarrative,
   makeTwoGroupBrief,
   makeValidBrief,
@@ -188,15 +187,6 @@ describe("readStoredBrief", () => {
     ]);
   });
 
-  it("takes an empty changeGroupId's group from a legacy list", () => {
-    const body = makeLegacyMembershipBody();
-    body.chunks[0] = { ...body.chunks[0], changeGroupId: "" };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief.chunks[0]?.changeGroupId).toBe("g1");
-  });
-
   it.each([
     ["index", makeBodyWith({ index: "first" })],
     ["commitRange", makeBodyWith({ commitRange: NOT_A_SECTION })],
@@ -332,83 +322,40 @@ describe("readStoredBrief", () => {
     ]);
   });
 
-  it("normalizes legacy membership onto each chunk and reports it", () => {
-    const read = readBodyOrThrow(makeLegacyMembershipBody());
+  it("fails on a group with no id", () => {
+    const brief = makeValidBrief();
+    const { id: _removed, ...group } = brief.changeGroups[0]!;
 
-    expect(read.brief.chunks.map((chunk) => chunk.changeGroupId)).toEqual([
-      "g1",
-      "g2",
-    ]);
-    expect(read.brief.changeGroups[0]).not.toHaveProperty("coreChunkIds");
-    expect(read.brief.changeGroups[1]).not.toHaveProperty("supportingChunkIds");
-    expect(read.issues).toEqual(
-      expect.arrayContaining([
+    expect(readBody({ ...brief, changeGroups: [group] })).toMatchObject({
+      ok: false,
+      error: expect.arrayContaining([
         expect.objectContaining({
-          code: ArtifactIssueCodes.LEGACY_MEMBERSHIP,
-          path: "chunks.0.changeGroupId",
-        }),
-        expect.objectContaining({
-          code: ArtifactIssueCodes.LEGACY_MEMBERSHIP,
-          path: "chunks.1.changeGroupId",
-        }),
-      ]),
-    );
-  });
-
-  it("names a group with no id by its one-based position", () => {
-    const read = readBodyOrThrow(makeLegacyMembershipBody());
-
-    expect(read.brief.changeGroups.map((group) => group.id)).toEqual([
-      "g1",
-      "g2",
-    ]);
-    expect(read.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: ArtifactIssueCodes.MINTED_GROUP_ID,
+          code: ArtifactIssueCodes.INVALID,
           path: "changeGroups.0.id",
         }),
-        expect.objectContaining({
-          code: ArtifactIssueCodes.MINTED_GROUP_ID,
-          path: "changeGroups.1.id",
-        }),
       ]),
-    );
-    expect(read.issues).toHaveLength(4);
-  });
-
-  it("mints an id that skips an explicit id on another group", () => {
-    const body = makeLegacyMembershipBody();
-    body.changeGroups[1] = { ...body.changeGroups[1], id: "g1" };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief.changeGroups.map((group) => group.id)).toEqual([
-      "g2",
-      "g1",
-    ]);
-    expect(read.brief.chunks.map((chunk) => chunk.changeGroupId)).toEqual([
-      "g2",
-      "g1",
-    ]);
-    expect(read.issues).toContainEqual({
-      code: ArtifactIssueCodes.MINTED_GROUP_ID,
-      path: "changeGroups.0.id",
-      message: expect.any(String),
     });
   });
 
-  it("mints an id that skips an id it already minted", () => {
-    const body = makeLegacyMembershipBody();
-    const [firstGroup, lastGroup] = body.changeGroups;
-    body.changeGroups = [firstGroup!, { ...lastGroup, id: "g1" }, lastGroup!];
+  it("ignores a legacy chunk list and moves the chunk to the remainder", () => {
+    const brief = makeValidBrief();
+    const [chunk] = brief.chunks;
+    const { changeGroupId: _removed, ...unlisted } = chunk!;
+    const group = { ...brief.changeGroups[0], coreChunkIds: [chunk!.id] };
 
-    const read = readBodyOrThrow(body);
+    const read = readBodyOrThrow({
+      ...brief,
+      changeGroups: [group],
+      chunks: [unlisted],
+    });
 
-    expect(read.brief.changeGroups.map((group) => group.id)).toEqual([
-      "g2",
-      "g1",
-      "g3",
+    expect(read.brief.chunks).toEqual([]);
+    expect(read.brief.changeGroups[0]).not.toHaveProperty("coreChunkIds");
+    expect(read.issues).toEqual([
+      expect.objectContaining({
+        code: ArtifactIssueCodes.UNKNOWN_CHANGE_GROUP,
+        path: "chunks.0.changeGroupId",
+      }),
     ]);
   });
 
@@ -449,47 +396,6 @@ describe("readStoredBrief", () => {
       ArtifactIssueCodes.SHARED_GROUP_ID,
       ArtifactIssueCodes.DROPPED_SECTION,
     ]);
-  });
-
-  it("gives a chunk two groups list to the first group", () => {
-    const body = makeLegacyMembershipBody();
-    body.changeGroups[1] = { ...body.changeGroups[1], coreChunkIds: ["c1"] };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief.chunks[0]?.changeGroupId).toBe("g1");
-    expect(
-      read.issues.filter((issue) => issue.path === "chunks.0.changeGroupId"),
-    ).toEqual([
-      expect.objectContaining({ code: ArtifactIssueCodes.LEGACY_MEMBERSHIP }),
-    ]);
-  });
-
-  it("keeps a readingOrder that names minted group ids", () => {
-    const readingOrder = [
-      { groupId: "g2", why: "first" },
-      { groupId: "g1", why: "second" },
-    ];
-    const body = { ...makeLegacyMembershipBody(), readingOrder };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief.readingOrder).toEqual(readingOrder);
-    expect(read.issues).not.toContainEqual(
-      expect.objectContaining({ code: ArtifactIssueCodes.DROPPED_SECTION }),
-    );
-  });
-
-  it("lets a chunk's own changeGroupId win over a legacy list", () => {
-    const body = makeLegacyMembershipBody();
-    body.chunks[0] = { ...body.chunks[0], changeGroupId: "g2" };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief.chunks[0]?.changeGroupId).toBe("g2");
-    expect(read.issues).not.toContainEqual(
-      expect.objectContaining({ path: "chunks.0.changeGroupId" }),
-    );
   });
 
   it("moves a chunk naming no group into the unattributed remainder", () => {
