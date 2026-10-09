@@ -12,7 +12,7 @@ import styles from "./NeighbourLink.module.scss";
 export interface NeighbourLinkProps {
   member: PrStackMember;
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId: string | undefined;
   label: string;
 }
@@ -20,7 +20,7 @@ export interface NeighbourLinkProps {
 export function NeighbourLink({
   member,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
   label,
 }: NeighbourLinkProps) {
@@ -42,7 +42,7 @@ export function NeighbourLink({
     );
   }
 
-  const target = resolveNeighbourTarget(member, repoId, prUrl);
+  const target = resolveNeighbourTarget(member, repoId, repoSlug);
   if (target.kind === NeighbourTargetKinds.ROUTE) {
     return (
       <Link

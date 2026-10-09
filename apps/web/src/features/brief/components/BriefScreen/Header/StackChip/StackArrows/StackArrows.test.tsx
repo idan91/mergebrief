@@ -11,7 +11,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const PR_URL = "https://github.com/acme/widgets/pull/13";
+const REPO_SLUG = "acme/widgets";
 const PULL_ROUTE = "/repos/$repoId/pulls/$prNumber";
 
 const LINEAR: LinearPrStack = {
@@ -39,7 +39,7 @@ async function renderArrows(
   return await renderInRouter(
     <StackArrows
       currentNumber={currentNumber}
-      prUrl={PR_URL}
+      repoSlug={REPO_SLUG}
       repoId={repoId}
       stack={stack}
     >

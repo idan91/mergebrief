@@ -21,7 +21,7 @@ import styles from "./StackArrows.module.scss";
 export interface StackArrowsProps {
   stack: PrStack;
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId: string | undefined;
   /** The stack chip the arrows flank. */
   children: ReactNode;
@@ -37,7 +37,7 @@ export interface StackArrowsProps {
 export function StackArrows({
   stack,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
   children,
 }: StackArrowsProps) {
@@ -54,14 +54,14 @@ export function StackArrows({
     StackDirections.PREVIOUS,
     neighbours.previous,
     repoId,
-    prUrl,
+    repoSlug,
   );
   const next = resolveStackArrow(
     t,
     StackDirections.NEXT,
     neighbours.next,
     repoId,
-    prUrl,
+    repoSlug,
   );
   const follow = (target: NeighbourTarget) => {
     if (target.kind === NeighbourTargetKinds.ROUTE) {

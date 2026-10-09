@@ -7,14 +7,14 @@ import styles from "./ForkLists.module.scss";
 export interface ForkListsProps {
   stack: ForkPrStack;
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId: string | undefined;
 }
 
 export function ForkLists({
   stack,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
 }: ForkListsProps) {
   const { t } = useTranslation();
@@ -30,7 +30,7 @@ export function ForkLists({
           <NeighbourList
             currentNumber={currentNumber}
             members={parentMembers}
-            prUrl={prUrl}
+            repoSlug={repoSlug}
             repoId={repoId}
           />
         </>
@@ -39,7 +39,7 @@ export function ForkLists({
       <NeighbourList
         currentNumber={currentNumber}
         members={stack.children}
-        prUrl={prUrl}
+        repoSlug={repoSlug}
         repoId={repoId}
       />
     </>

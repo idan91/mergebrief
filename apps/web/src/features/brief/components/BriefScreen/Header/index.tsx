@@ -24,6 +24,7 @@ import type {
   UnattributedRemainderGroupView,
 } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink";
+import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button";
@@ -198,7 +199,7 @@ export function Header({
   const progressStyle: ProgressBarStyle = {
     "--progress-scale": `${progress / 100}`,
   };
-  const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
+  const prLink = buildGithubPullUrl(brief.pr.repo, brief.pr.number);
   const hasRepoConfig = repoConfig !== null && repoConfig !== undefined;
   const remainderGroup = model.groups.find(
     (group): group is UnattributedRemainderGroupView =>
@@ -249,7 +250,7 @@ export function Header({
               {stackView !== undefined ? (
                 <StackArrows
                   currentNumber={brief.pr.number}
-                  prUrl={brief.pr.url}
+                  repoSlug={brief.pr.repo}
                   repoId={repoId}
                   stack={stackView.stack}
                 >
@@ -257,7 +258,7 @@ export function Header({
                     asOf={stackView.asOf}
                     atGeneration={stackView.atGeneration}
                     currentNumber={brief.pr.number}
-                    prUrl={brief.pr.url}
+                    repoSlug={brief.pr.repo}
                     repoId={repoId}
                     snapshot={stackView.snapshot}
                     stack={stackView.stack}
@@ -501,18 +502,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
 
 interface ProgressBarStyle extends CSSProperties {
   "--progress-scale": string;
-}
-
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string") {
-    return false;
-  }
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 const REPO_CONFIG_ERROR_OUTCOMES = new Set([

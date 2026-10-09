@@ -7,7 +7,7 @@ import styles from "./NeighbourList.module.scss";
 export interface NeighbourListProps {
   members: readonly PrStackMember[];
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId: string | undefined;
   /** Accessible name for the list; absent inside a labelled panel. */
   label?: string | undefined;
@@ -16,7 +16,7 @@ export interface NeighbourListProps {
 export function NeighbourList({
   members,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
   label,
 }: NeighbourListProps) {
@@ -37,7 +37,7 @@ export function NeighbourList({
             currentNumber={currentNumber}
             label={row.label}
             member={row.member}
-            prUrl={prUrl}
+            repoSlug={repoSlug}
             repoId={repoId}
           />
         </li>

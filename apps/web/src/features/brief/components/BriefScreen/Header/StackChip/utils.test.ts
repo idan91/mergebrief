@@ -8,22 +8,7 @@ import {
   resolveStackArrow,
   resolveStackNeighbours,
   resolveStackView,
-  rewritePullUrl,
 } from "./utils";
-
-describe("rewritePullUrl", () => {
-  it("replaces the pull number and keeps the rest of the URL", () => {
-    expect(rewritePullUrl("https://github.com/acme/widgets/pull/7", 12)).toBe(
-      "https://github.com/acme/widgets/pull/12",
-    );
-  });
-
-  it("returns undefined when the URL has no pull number", () => {
-    expect(rewritePullUrl("https://github.com/acme/widgets", 12)).toBe(
-      undefined,
-    );
-  });
-});
 
 describe("isLinearPrStack", () => {
   it("is true only for a members-and-index stack", () => {
@@ -141,7 +126,7 @@ describe("resolveStackView", () => {
   });
 });
 
-const PR_URL = "https://github.com/acme/widgets/pull/2";
+const REPO_SLUG = "acme/widgets";
 const STACK = {
   members: [
     { number: 1, title: "a" },
@@ -180,26 +165,23 @@ describe("resolveNeighbourTarget", () => {
   const member = { number: 3, title: "c" };
 
   it("prefers the app route when the repo is known", () => {
-    expect(resolveNeighbourTarget(member, "42", PR_URL)).toEqual({
+    expect(resolveNeighbourTarget(member, "42", REPO_SLUG)).toEqual({
       kind: "route",
       params: { repoId: "42", prNumber: "3" },
     });
   });
 
-  it("falls back to GitHub, then to nowhere", () => {
-    expect(resolveNeighbourTarget(member, undefined, PR_URL)).toEqual({
+  it("falls back to the member's page on GitHub", () => {
+    expect(resolveNeighbourTarget(member, undefined, REPO_SLUG)).toEqual({
       kind: "github",
       href: "https://github.com/acme/widgets/pull/3",
     });
-    expect(
-      resolveNeighbourTarget(member, undefined, "https://example.com"),
-    ).toEqual({ kind: "none" });
   });
 });
 
 describe("resolveStackArrow", () => {
   it("names an end of the stack as having no neighbour", () => {
-    expect(resolveStackArrow(t, "next", undefined, "42", PR_URL)).toEqual({
+    expect(resolveStackArrow(t, "next", undefined, "42", REPO_SLUG)).toEqual({
       label: "No next PR in stack",
       target: { kind: "none" },
       disabled: true,
@@ -212,7 +194,7 @@ describe("resolveStackArrow", () => {
       "previous",
       { number: 1, title: "a" },
       undefined,
-      PR_URL,
+      REPO_SLUG,
     );
     expect(view.label).toBe("Previous PR in stack, #1: a (opens in a new tab)");
   });

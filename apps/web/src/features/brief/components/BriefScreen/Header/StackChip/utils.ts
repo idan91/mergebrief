@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 
 import { PrStates, type PrState } from "@web/features/pulls/types";
+import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type {
   LinearPrStack,
   PrStack,
@@ -86,34 +87,13 @@ function resolveClosedFallback(
   return { stack: snapshot, atGeneration: true };
 }
 
-/** Swap the pull number in a GitHub PR URL; undefined when the path is not a pull. */
-export function rewritePullUrl(
-  url: string,
-  number: number,
-): string | undefined {
-  try {
-    const parsed = new URL(url);
-    if (!/\/pull\/\d+(?:\/|$)/.test(parsed.pathname)) {
-      return undefined;
-    }
-    parsed.pathname = parsed.pathname.replace(
-      /\/pull\/\d+/,
-      `/pull/${String(number)}`,
-    );
-    return parsed.toString();
-  } catch {
-    return undefined;
-  }
-}
-
 /**
- * The app route when the repo is known, GitHub otherwise, and nothing when
- * the PR URL cannot be rewritten to the member's number.
+ * The app route when the repo is known, the member's page on GitHub otherwise.
  */
 export function resolveNeighbourTarget(
   member: PrStackMember,
   repoId: string | undefined,
-  prUrl: string,
+  repoSlug: string,
 ): NeighbourTarget {
   if (repoId !== undefined) {
     return {
@@ -121,8 +101,8 @@ export function resolveNeighbourTarget(
       params: { repoId, prNumber: String(member.number) },
     };
   }
-  const href = rewritePullUrl(prUrl, member.number);
-  if (href === undefined) {
+  const href = buildGithubPullUrl(repoSlug, member.number);
+  if (href === null) {
     return { kind: NeighbourTargetKinds.NONE };
   }
   return { kind: NeighbourTargetKinds.GITHUB, href };
@@ -164,7 +144,7 @@ export function resolveStackArrow(
   direction: StackDirection,
   member: PrStackMember | undefined,
   repoId: string | undefined,
-  prUrl: string,
+  repoSlug: string,
 ): StackArrowView {
   const previous = direction === StackDirections.PREVIOUS;
   if (member === undefined) {
@@ -182,7 +162,7 @@ export function resolveStackArrow(
   const named = previous
     ? t("brief.header.stackPrevious", values)
     : t("brief.header.stackNext", values);
-  const target = resolveNeighbourTarget(member, repoId, prUrl);
+  const target = resolveNeighbourTarget(member, repoId, repoSlug);
   const disabled = target.kind === NeighbourTargetKinds.NONE;
   if (target.kind === NeighbourTargetKinds.GITHUB) {
     return { label: `${named}${t("a11y.opensInNewTab")}`, target, disabled };

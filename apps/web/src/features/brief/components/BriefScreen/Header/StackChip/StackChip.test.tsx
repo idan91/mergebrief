@@ -56,11 +56,7 @@ async function renderChip(
 describe("StackChip", () => {
   it("shows the linear index over total", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={LINEAR}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     expect(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" })
@@ -75,11 +71,7 @@ describe("StackChip", () => {
 
   it("shows stacked without a fraction on a fork", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={FORK}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={FORK} />,
     );
     const chip = screen.getByRole("button", { name: "Stacked" });
     expect(chip.textContent).toBe("Stacked");
@@ -88,11 +80,7 @@ describe("StackChip", () => {
 
   it("lists titles and keeps the current PR from being a link", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={LINEAR}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
@@ -109,7 +97,7 @@ describe("StackChip", () => {
     await renderChip(
       <StackChip
         currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
+        repoSlug="o/r"
         repoId="424242"
         stack={LINEAR}
       />,
@@ -124,11 +112,7 @@ describe("StackChip", () => {
 
   it("rewrites the GitHub URL when repo identity is absent", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={LINEAR}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
@@ -149,7 +133,7 @@ describe("StackChip", () => {
     await renderChip(
       <StackChip
         currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
+        repoSlug="o/r"
         snapshot={snapshot}
         stack={LINEAR}
       />,
@@ -172,11 +156,7 @@ describe("StackChip", () => {
 
   it("shows no note when the stacks agree", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={LINEAR}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
@@ -191,7 +171,7 @@ describe("StackChip", () => {
       <StackChip
         asOf="2026-09-19T12:00:00.000Z"
         currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
+        repoSlug="o/r"
         stack={LINEAR}
       />,
     );
@@ -206,7 +186,7 @@ describe("StackChip", () => {
       <StackChip
         atGeneration
         currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
+        repoSlug="o/r"
         stack={LINEAR}
       />,
     );
@@ -227,11 +207,7 @@ describe("StackChip", () => {
 
   it("keeps the panel open on the first click after hover", async () => {
     await renderChip(
-      <StackChip
-        currentNumber={13}
-        prUrl="https://github.com/o/r/pull/13"
-        stack={LINEAR}
-      />,
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     const chip = screen.getByRole("button", {
       name: "pull request 2 of 3 in the stack",

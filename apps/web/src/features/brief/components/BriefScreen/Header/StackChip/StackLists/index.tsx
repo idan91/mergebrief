@@ -6,7 +6,7 @@ import { isLinearPrStack } from "../utils";
 export interface StackListsProps {
   stack: PrStack;
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId: string | undefined;
   /** Accessible name for a chain's list; a fork names its lists by lead-in. */
   listLabel?: string | undefined;
@@ -15,7 +15,7 @@ export interface StackListsProps {
 export function StackLists({
   stack,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
   listLabel,
 }: StackListsProps) {
@@ -25,7 +25,7 @@ export function StackLists({
         currentNumber={currentNumber}
         label={listLabel}
         members={stack.members}
-        prUrl={prUrl}
+        repoSlug={repoSlug}
         repoId={repoId}
       />
     );
@@ -33,7 +33,7 @@ export function StackLists({
   return (
     <ForkLists
       currentNumber={currentNumber}
-      prUrl={prUrl}
+      repoSlug={repoSlug}
       repoId={repoId}
       stack={stack}
     />

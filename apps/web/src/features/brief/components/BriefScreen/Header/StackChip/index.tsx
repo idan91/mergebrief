@@ -19,7 +19,7 @@ export interface StackChipProps {
   /** `stack` is the generation-time one, standing in for a closed PR. */
   atGeneration?: boolean | undefined;
   currentNumber: number;
-  prUrl: string;
+  repoSlug: string;
   repoId?: string | undefined;
 }
 
@@ -29,7 +29,7 @@ export function StackChip({
   asOf,
   atGeneration,
   currentNumber,
-  prUrl,
+  repoSlug,
   repoId,
 }: StackChipProps) {
   const { i18n, t } = useTranslation();
@@ -88,7 +88,7 @@ export function StackChip({
             <StackLists
               currentNumber={currentNumber}
               listLabel={listLabel}
-              prUrl={prUrl}
+              repoSlug={repoSlug}
               repoId={repoId}
               stack={stack}
             />
@@ -114,7 +114,7 @@ export function StackChip({
                 <StackLists
                   currentNumber={currentNumber}
                   listLabel={t("brief.header.stackAtGenerationAria")}
-                  prUrl={prUrl}
+                  repoSlug={repoSlug}
                   repoId={repoId}
                   stack={snapshot}
                 />

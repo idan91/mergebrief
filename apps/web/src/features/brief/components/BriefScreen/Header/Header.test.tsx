@@ -136,13 +136,26 @@ describe("Header identity row", () => {
     );
     expect(screen.getByText("acme/widgets")).toBeTruthy();
     const link = screen.getByRole("link", { name: /#7/ });
-    expect(link.getAttribute("href")).toBe("https://example.com/pr/7");
+    expect(link.getAttribute("href")).toBe(
+      "https://github.com/acme/widgets/pull/7",
+    );
     expect(link.getAttribute("target")).toBe("_blank");
     // Artifact identity lives in the Revisions tab, the rest in the details
     // panel.
     expect(screen.queryByText(/local brief @/)).toBeNull();
     expect(screen.queryByText(/brief _3/)).toBeNull();
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
+  });
+
+  it("builds the PR link from repo and number, never the stored url", async () => {
+    const pr = { ...brief.pr, url: "javascript:alert(1)" };
+
+    await renderHeader({ brief: { ...brief, pr } });
+
+    const link = screen.getByRole("link", { name: /#7/ });
+    expect(link.getAttribute("href")).toBe(
+      "https://github.com/acme/widgets/pull/7",
+    );
   });
 
   it("marks itself in focus mode so its styles can quiet it", async () => {
@@ -458,11 +471,11 @@ describe("stack chip", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
     );
-    expect(screen.getByLabelText("#6 Parent")).toBeTruthy();
+    expect(screen.getByLabelText(/^#6 Parent/)).toBeTruthy();
     expect(
       screen.getByLabelText("#7 Tighten the cross-param leak"),
     ).toBeTruthy();
-    expect(screen.getByLabelText("#8 Child")).toBeTruthy();
+    expect(screen.getByLabelText(/^#8 Child/)).toBeTruthy();
   });
 
   it("keeps the current PR from being a link", async () => {
