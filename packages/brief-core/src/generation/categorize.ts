@@ -44,6 +44,7 @@ import {
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
 import {
+  dropUnknownGroupChunks,
   fanOutIntentCheck,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
@@ -622,11 +623,17 @@ export async function categorizeDelta(
     log,
     onWarning: collector.recordGeneratorWarning,
   });
+  const known = dropUnknownGroupChunks(
+    generated.changedGroups,
+    generated.chunks,
+  );
+  collector.reportIssues("unknown group", known.issues);
+
   // Delta chunk loc derives from the incremental diff, same discipline as
   // the full brief; the delta artifact carries no concernView/unattributed.
   const fileDiffs = splitDiffByFile(input.incrementalDiff);
   const chunksWithLoc = deriveChunkLoc(
-    generated.chunks,
+    known.chunks,
     changedRangesFromFileDiffs(fileDiffs),
   );
   collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));

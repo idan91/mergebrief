@@ -850,6 +850,28 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
     expect(delta.generationWarnings).toContain(rejected);
   });
 
+  it("drops a delta chunk naming no changed group and warns", async () => {
+    const [kept, orphan] = deltaBriefGen.chunks;
+    const generator = new WarningGenerator(
+      { ...deltaBriefGen, chunks: [kept, { ...orphan, changeGroupId: "g9" }] },
+      [],
+    );
+
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: pr.diff,
+      },
+      generator,
+    );
+
+    expect(delta.chunks.map((chunk) => chunk.id)).toEqual([kept!.id]);
+    expect(delta.generationWarnings?.join("\n")).toContain("unknown group");
+  });
+
   it("stores a typed generator warning on the revision narrative", async () => {
     const unverified =
       "warning: result envelope carried no modelUsage; served model is unverifiable";
