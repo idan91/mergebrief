@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { LocalBriefSummary } from "contract";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -19,7 +20,6 @@ import {
   buildLocalBriefQueryOptions,
   buildLocalBriefsQueryOptions,
   buildLocalComparisonMarksQueryOptions,
-  buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates, type ViewerState } from "../features/account/types";
@@ -27,7 +27,6 @@ import type {
   Brief,
   BriefChunk,
   ComparisonMarks,
-  LocalBriefSummary,
 } from "../features/brief/model";
 import { routeTree } from "../routeTree.gen";
 import { listRevisionRows, openRevisionsTab } from "../test/revisions";
@@ -297,14 +296,6 @@ function buildQueryClient() {
     );
   }
   queryClient.setQueryData(
-    buildLocalRevisionChangesQueryOptions(headSummary.id).queryKey,
-    null,
-  );
-  queryClient.setQueryData(
-    buildLocalRevisionChangesQueryOptions(lonelySummary.id).queryKey,
-    null,
-  );
-  queryClient.setQueryData(
     buildLocalComparisonMarksQueryOptions("marks-prev-brief-2").queryKey,
     marksPrevious,
   );
@@ -352,10 +343,6 @@ describe("comparison state matrix characterization", () => {
         queryClient.setQueryData(
           buildLocalBriefQueryOptions(prevSummary.id).queryKey,
           headBrief,
-        );
-        queryClient.setQueryData(
-          buildLocalRevisionChangesQueryOptions(prevSummary.id).queryKey,
-          null,
         );
       },
     );

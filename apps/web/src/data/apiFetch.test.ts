@@ -10,10 +10,22 @@ import type { Equals } from "types/utils";
 import {
   ApiError,
   ApiErrorCodes,
+  apiErrorSerializationAdapter,
   apiJsonFromResponse,
   errorFromResponse,
   type ApiErrorCode,
 } from "./apiFetch";
+
+type SerializedApiError = Parameters<
+  typeof apiErrorSerializationAdapter.fromSerializable
+>[0];
+
+/** Through the adapter with a JSON hop between, as dehydration ships it. */
+function runSerializationRoundTrip(error: ApiError): ApiError {
+  const serialized = apiErrorSerializationAdapter.toSerializable(error);
+  const shipped = JSON.parse(JSON.stringify(serialized)) as SerializedApiError;
+  return apiErrorSerializationAdapter.fromSerializable(shipped);
+}
 
 describe("apiJsonFromResponse", () => {
   it("returns the parsed body on 2xx", async () => {
@@ -139,5 +151,48 @@ describe("wire vocabulary", () => {
       wire.toSorted(),
     );
     expect(web).toContain("malformed");
+  });
+});
+
+describe("apiErrorSerializationAdapter", () => {
+  it("rebuilds an ApiError with its code, status and path", () => {
+    const error = new ApiError(
+      ApiErrorCodes.NOT_FOUND,
+      404,
+      "/api/local-briefs/missing",
+    );
+
+    const restored = runSerializationRoundTrip(error);
+
+    expect(restored).toBeInstanceOf(ApiError);
+    expect(restored).toMatchObject({
+      code: ApiErrorCodes.NOT_FOUND,
+      status: 404,
+      path: "/api/local-briefs/missing",
+      params: undefined,
+    });
+    expect(restored.message).toBe(error.message);
+  });
+
+  it("keeps the params a generation-config refusal carries", () => {
+    const error = new ApiError(
+      ApiErrorCodes.GENERATION_CONFIG,
+      503,
+      "/api/generate",
+      { detail: "no provider key" },
+    );
+
+    const restored = runSerializationRoundTrip(error);
+
+    expect(restored.params).toEqual({ detail: "no provider key" });
+  });
+
+  it("claims only ApiError, leaving other errors to the default", () => {
+    const apiError = new ApiError(ApiErrorCodes.NOT_FOUND, 404, "/x");
+
+    expect(apiErrorSerializationAdapter.test(apiError)).toBe(true);
+    expect(apiErrorSerializationAdapter.test(new Error("not-found"))).toBe(
+      false,
+    );
   });
 });

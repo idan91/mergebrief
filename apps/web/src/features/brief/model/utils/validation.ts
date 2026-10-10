@@ -17,15 +17,22 @@ import {
   type IntentItem,
   type LineRange,
 } from "brief-core/types";
+import {
+  LocalBriefKinds,
+  type LocalBriefSummary,
+  type LocalComparisonAvailability,
+  type LocalLastReviewAvailability,
+  type LocalPreviousBriefAvailability,
+} from "contract";
 import type { LogFields } from "logging";
-import type { Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types";
 import type {
   AddressedReviewComment,
   Brief,
   ComparisonMarks,
   ComparisonMarksSummary,
+  FileDiffPatch,
   RevisionChangeFile,
-  RevisionChanges,
 } from "../types";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
@@ -58,6 +65,14 @@ function isNullableInteger(value: unknown): value is number | null {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || isString(value);
+}
+
+function isOptional<Value>(
+  value: unknown,
+  guard: (candidate: unknown) => candidate is Value,
+): value is Value | undefined {
+  const absentOrValid = value === undefined || guard(value);
+  return absentOrValid;
 }
 
 function isOneOf<T extends Record<string, string>>(
@@ -188,29 +203,6 @@ function isCanonicalRanges(ranges: LineRange[]): boolean {
   return true;
 }
 
-export function parseRevisionChanges(value: unknown): Result<RevisionChanges> {
-  if (!isRecord(value)) {
-    return { ok: false, error: "Expected revision changes to be an object" };
-  }
-  const headSha = value["headSha"];
-  const prevHeadSha = value["prevHeadSha"];
-  const prevIndex = value["prevIndex"];
-  if (!isString(headSha) || !isString(prevHeadSha) || !isInteger(prevIndex)) {
-    return {
-      ok: false,
-      error: "Expected revision changes headSha, prevHeadSha, and prevIndex",
-    };
-  }
-  const files = parseArray(value["files"], parseRevisionChangeFile, "files");
-  if (!files.ok) {
-    return files;
-  }
-  return {
-    ok: true,
-    value: { headSha, prevHeadSha, prevIndex, files: files.value },
-  };
-}
-
 const ComparisonBaselineLabels = {
   PREVIOUS_BRIEF: "previous-brief",
   CHECKPOINT: "checkpoint",
@@ -221,7 +213,7 @@ const ComparisonBaselineLabels = {
  * needed for comparison availability, deliberately ignores `files`, which
  * availability scanning never needs.
  */
-export function parseComparisonMarksSummary(
+function parseComparisonMarksSummary(
   value: unknown,
 ): Result<ComparisonMarksSummary> {
   if (!isRecord(value)) {
@@ -441,4 +433,207 @@ export function parseRevisionNarrativeArtifact(
     });
   }
   return { ok: true, value: read.value.narrative };
+}
+
+function parseFileDiffPatch(value: unknown): Result<FileDiffPatch> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected a diffs entry to be an object" };
+  }
+  const file = value["file"];
+  const patch = value["patch"];
+  const malformed = !isString(file) || !isString(patch);
+  if (malformed) {
+    return { ok: false, error: "Expected diffs entry file and patch strings" };
+  }
+  return { ok: true, value: { file, patch } };
+}
+
+/** The diffs sidecar as per-file patches; the rows are sliced client-side. */
+export function parseFileDiffPatches(value: unknown): Result<FileDiffPatch[]> {
+  return parseArray(value, parseFileDiffPatch, "diffs");
+}
+
+function parsePreviousBriefAvailability(
+  value: unknown,
+): Result<LocalPreviousBriefAvailability> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected previousBrief to be an object" };
+  }
+  const marksId = value["marksId"];
+  const narrativeId = value["narrativeId"];
+  const baselineSha = value["baselineSha"];
+  const baselineIndex = value["baselineIndex"];
+  const malformed =
+    !isString(marksId) ||
+    !isOptional(narrativeId, isString) ||
+    !isString(baselineSha) ||
+    !isInteger(baselineIndex);
+  if (malformed) {
+    return {
+      ok: false,
+      error:
+        "Expected previousBrief marksId, narrativeId, baselineSha, and baselineIndex",
+    };
+  }
+
+  const availability: Mutable<LocalPreviousBriefAvailability> = {
+    marksId,
+    baselineSha,
+    baselineIndex,
+  };
+  if (narrativeId !== undefined) {
+    availability.narrativeId = narrativeId;
+  }
+  return { ok: true, value: availability };
+}
+
+function parseLastReviewAvailability(
+  value: unknown,
+): Result<LocalLastReviewAvailability> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected lastReview to be an object" };
+  }
+  const marksId = value["marksId"];
+  const deltaId = value["deltaId"];
+  const baselineSha = value["baselineSha"];
+  const baselineIndex = value["baselineIndex"];
+  const malformed =
+    !isString(marksId) ||
+    !isOptional(deltaId, isString) ||
+    !isString(baselineSha) ||
+    !isNullableInteger(baselineIndex);
+  if (malformed) {
+    return {
+      ok: false,
+      error:
+        "Expected lastReview marksId, deltaId, baselineSha, and baselineIndex",
+    };
+  }
+
+  const availability: Mutable<LocalLastReviewAvailability> = {
+    marksId,
+    baselineSha,
+    baselineIndex,
+  };
+  if (deltaId !== undefined) {
+    availability.deltaId = deltaId;
+  }
+  return { ok: true, value: availability };
+}
+
+function parseComparisonAvailability(
+  value: unknown,
+): Result<LocalComparisonAvailability> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected comparisons to be an object" };
+  }
+  const comparisons: Mutable<LocalComparisonAvailability> = {};
+
+  if (value["previousBrief"] !== undefined) {
+    const previous = parsePreviousBriefAvailability(value["previousBrief"]);
+    if (!previous.ok) {
+      return previous;
+    }
+    comparisons.previousBrief = previous.value;
+  }
+  if (value["lastReview"] !== undefined) {
+    const lastReview = parseLastReviewAvailability(value["lastReview"]);
+    if (!lastReview.ok) {
+      return lastReview;
+    }
+    comparisons.lastReview = lastReview.value;
+  }
+  return { ok: true, value: comparisons };
+}
+
+/** The optional revision fields of a listing row, checked and copied onto it. */
+function assignSummaryRevision(
+  summary: Mutable<LocalBriefSummary>,
+  value: Record<string, unknown>,
+): Result<LocalBriefSummary> {
+  const index = value["index"];
+  const baselineSha = value["baselineSha"];
+  const headSha = value["headSha"];
+  const baselineIndex = value["baselineIndex"];
+  const headIndex = value["headIndex"];
+  const malformed =
+    !isOptional(index, isInteger) ||
+    !isOptional(baselineSha, isString) ||
+    !isOptional(headSha, isString) ||
+    !isOptional(baselineIndex, isNullableInteger) ||
+    !isOptional(headIndex, isNullableInteger);
+  if (malformed) {
+    return {
+      ok: false,
+      error:
+        "Expected local brief index, baselineSha, headSha, baselineIndex, and headIndex",
+    };
+  }
+
+  if (index !== undefined) {
+    summary.index = index;
+  }
+  if (baselineSha !== undefined) {
+    summary.baselineSha = baselineSha;
+  }
+  if (headSha !== undefined) {
+    summary.headSha = headSha;
+  }
+  if (baselineIndex !== undefined) {
+    summary.baselineIndex = baselineIndex;
+  }
+  if (headIndex !== undefined) {
+    summary.headIndex = headIndex;
+  }
+  return { ok: true, value: summary };
+}
+
+function parseLocalBriefSummary(value: unknown): Result<LocalBriefSummary> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected a local brief to be an object" };
+  }
+  const id = value["id"];
+  const artifactKind = value["artifactKind"];
+  const repo = value["repo"];
+  const number = value["number"];
+  const title = value["title"];
+  const sha = value["sha"];
+  const malformed =
+    !isString(id) ||
+    !isOneOf(LocalBriefKinds, artifactKind) ||
+    !isString(repo) ||
+    !isInteger(number) ||
+    !isString(title) ||
+    !isString(sha);
+  if (malformed) {
+    return {
+      ok: false,
+      error:
+        "Expected local brief id, artifactKind, repo, number, title, and sha",
+    };
+  }
+
+  const summary: Mutable<LocalBriefSummary> = {
+    id,
+    artifactKind,
+    repo,
+    number,
+    title,
+    sha,
+  };
+  if (value["comparisons"] !== undefined) {
+    const comparisons = parseComparisonAvailability(value["comparisons"]);
+    if (!comparisons.ok) {
+      return comparisons;
+    }
+    summary.comparisons = comparisons.value;
+  }
+  return assignSummaryRevision(summary, value);
+}
+
+/** `GET /api/local-briefs`: the dev file surface's listing rows. */
+export function parseLocalBriefSummaries(
+  value: unknown,
+): Result<LocalBriefSummary[]> {
+  return parseArray(value, parseLocalBriefSummary, "summaries");
 }

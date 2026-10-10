@@ -131,6 +131,28 @@
   ],
   "overrides": [
     {
+      // apps/web runs no server functions for data: a read or write is an
+      // apps/api route reached through data/apiFetch. An override replaces the
+      // root options, so the zod entries repeat here.
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "Import zod as \"zod/v4\"." },
+              { "name": "zod/v3", "message": "Import zod as \"zod/v4\"." },
+              {
+                "name": "@tanstack/react-start",
+                "importNames": ["createServerFn"],
+                "message": "apps/web runs no server functions: add an apps/api route and read it through data/apiFetch."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       // The logging-boundary scope, stated as paths: every line in these
       // files goes through `packages/logging`, so NO console level survives
       // (the global rule's warn/error/info allowance is client-side only).

@@ -8,13 +8,6 @@ vi.mock("../../data/apiFetch", async (importOriginal) => ({
   ...(await importOriginal()),
   apiFetch,
 }));
-vi.mock("./model/server/brief.functions", () => ({
-  getLocalBrief: vi.fn(),
-  getLocalBriefs: vi.fn(),
-  getLocalComparisonMarks: vi.fn(),
-  getLocalRevisionChanges: vi.fn(),
-  getLocalRevisionNarrative: vi.fn(),
-}));
 
 const { buildFileRangeQueryOptions, isFileRangeReadable } =
   await import("./queries");

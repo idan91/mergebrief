@@ -1,7 +1,7 @@
+import type { LocalBriefSummary } from "contract";
 import { describe, expect, it } from "vitest";
 
 import { resolveLegacyDeltaRedirect } from "./legacyRedirect";
-import type { LocalBriefSummary } from "../types";
 
 const headBrief: LocalBriefSummary = {
   id: "acme-widgets-1_2_head1234",

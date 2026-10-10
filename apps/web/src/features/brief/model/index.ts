@@ -1,8 +1,5 @@
-// Curated model entry for other features and the routes; internal brief files
-// import the modules directly. Route `validateSearch` imports it and is never
-// code-split, so it ships in the client entry chunk: its graph stays free of
-// the Brief screen. Deliberately absent: queries.ts (server-touching modules
-// never sit behind a barrel) and fixtures.ts (test-only).
+// Route `validateSearch` imports this entry and is never code-split, so it
+// ships in the client entry chunk: its graph stays free of the Brief screen.
 export {
   buildBriefSearchParams,
   compareUnavailableTitle,
@@ -30,7 +27,6 @@ export {
   type ForkPrStack,
   type LinearPrStack,
   type LivePrState,
-  type LocalBriefSummary,
   type MarkReadyAction,
   type MarkReadyResult,
   type MarkReadyResultKind,
@@ -42,7 +38,7 @@ export {
   type RevisionPoint,
   type RevisionTimelineView,
 } from "./types";
-export { briefErrorDetail } from "./utils/briefErrors";
+export { briefErrorDetail, prBriefErrorDetail } from "./utils/briefErrors";
 export {
   attachSlicedDiffs,
   parseUnifiedDiffPatch,

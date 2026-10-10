@@ -1,4 +1,4 @@
-import type { ComparisonAvailability, LocalBriefSummary } from "../types";
+import type { LocalBriefSummary, LocalComparisonAvailability } from "contract";
 
 /**
  * @description One timeline point's Compare availability. Always present as an
@@ -10,7 +10,7 @@ export interface BriefTimelinePoint {
   briefId: string;
   headSha: string;
   index: number;
-  comparisons: ComparisonAvailability;
+  comparisons: LocalComparisonAvailability;
 }
 
 export interface BriefTimeline {
@@ -18,7 +18,7 @@ export interface BriefTimeline {
   selectedPoint: BriefTimelinePoint | undefined;
 }
 
-const EMPTY_COMPARISONS: ComparisonAvailability = {};
+const EMPTY_COMPARISONS: LocalComparisonAvailability = {};
 
 export function buildBriefTimeline(
   artifacts: LocalBriefSummary[],

@@ -2,6 +2,7 @@
 // HTTP, through the same authorization gate the browser meets.
 // Do not read persistence directly from a server function.
 // A transport failure returns a sanitized 503 without internal details.
+import { createSerializationAdapter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { ApiErrorCodes } from "contract";
 import type { ValueOf } from "types/utils";
@@ -39,6 +40,7 @@ export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly params: ApiErrorParams | undefined;
   readonly status: number;
+  readonly path: string;
 
   constructor(
     code: ApiErrorCode,
@@ -51,8 +53,38 @@ export class ApiError extends Error {
     this.code = code;
     this.params = params;
     this.status = status;
+    this.path = path;
   }
 }
+
+/** An `ApiError` as SSR dehydration carries it: every constructor argument. */
+interface SerializedApiError {
+  readonly code: ApiErrorCode;
+  readonly status: number;
+  readonly path: string;
+  readonly params: ApiErrorParams | undefined;
+}
+
+/**
+ * Start's default dehydrates any `Error` as a bare `Error(message)`, so a
+ * loader's `ApiError` would hydrate without its class or `code`, and the
+ * error screen's copy would change from the server render to the generic one.
+ */
+export const apiErrorSerializationAdapter = createSerializationAdapter<
+  ApiError,
+  SerializedApiError
+>({
+  key: "api-error",
+  test: (value): value is ApiError => value instanceof ApiError,
+  toSerializable: (error) => ({
+    code: error.code,
+    status: error.status,
+    path: error.path,
+    params: error.params,
+  }),
+  fromSerializable: (value) =>
+    new ApiError(value.code, value.status, value.path, value.params),
+});
 
 function configParams(value: unknown): ApiErrorParams | undefined {
   if (typeof value !== "object" || value === null || !("params" in value)) {

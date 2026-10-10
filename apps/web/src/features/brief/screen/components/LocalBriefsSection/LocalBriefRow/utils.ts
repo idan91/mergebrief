@@ -1,4 +1,4 @@
-import type { LocalBriefSummary } from "../../../../model/types";
+import type { LocalBriefSummary } from "contract";
 
 const SHORT_SHA_LENGTH = 7;
 

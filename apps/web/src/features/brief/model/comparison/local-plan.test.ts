@@ -5,6 +5,7 @@ import {
   Roles,
 } from "brief-core/types";
 import { QueryClient } from "@tanstack/react-query";
+import { ChangeGroupCategories } from "types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -14,15 +15,32 @@ import {
 import type { Brief, ComparisonMarks } from "../types";
 import { buildLocalComparisonPlan } from "./local-plan";
 
-const serverFunctions = vi.hoisted(() => ({
-  getLocalBrief: vi.fn(),
-  getLocalBriefDiffs: vi.fn(),
-  getLocalBriefs: vi.fn(),
-  getLocalComparisonMarks: vi.fn(),
-  getLocalRevisionChanges: vi.fn(),
-  getLocalRevisionNarrative: vi.fn(),
+const apiFetch = vi.hoisted(() => vi.fn());
+vi.mock("../../../../data/apiFetch", async (importOriginal) => ({
+  ...(await importOriginal()),
+  apiFetch,
 }));
-vi.mock("../server/brief.functions", () => serverFunctions);
+
+const MARKS_PREV_PATH = "/api/local-briefs/marks-prev/comparison-marks";
+const NARRATIVE_PATH = "/api/local-briefs/narrative-1/revision-narrative";
+const DELTA_PATH = "/api/local-briefs/delta-1";
+const DELTA_DIFFS_PATH = "/api/local-briefs/delta-1/diffs";
+
+function stubJson(body: unknown): Response {
+  return new Response(JSON.stringify(body), { status: 200 });
+}
+
+function stubStatus(status: number): Response {
+  return new Response(null, { status });
+}
+
+/** Answers each path from `routes`; any other path is a 404. */
+function stubApi(routes: Record<string, () => Promise<Response>>): void {
+  apiFetch.mockImplementation(async (path: string) => {
+    const route = routes[path];
+    return route === undefined ? stubStatus(404) : route();
+  });
+}
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -47,7 +65,17 @@ const DELTA_BRIEF: Brief = {
     description: "",
   },
   summary: "s",
-  changeGroups: [],
+  changeGroups: [
+    {
+      id: "g1",
+      title: "g",
+      summary: "g",
+      dominantCategory: ChangeGroupCategories.BUGFIX,
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
   chunks: [
     {
       id: "chunk-test",
@@ -63,6 +91,8 @@ const DELTA_BRIEF: Brief = {
   ],
   concernView: [],
 };
+
+const DELTA_VIEW = { artifactKind: "brief", body: DELTA_BRIEF };
 
 const SKIPPED_NARRATIVE: StoredRevisionNarrative = {
   artifactKind: "revisionNarrativeSkipped",
@@ -87,7 +117,7 @@ describe("buildLocalComparisonPlan", () => {
   });
 
   it("reads previous-brief marks from the marks sidecar", async () => {
-    serverFunctions.getLocalComparisonMarks.mockResolvedValue(MARKS);
+    stubApi({ [MARKS_PREV_PATH]: async () => stubJson(MARKS) });
     const plan = buildLocalComparisonPlan({
       previousBrief: {
         marksId: "marks-prev",
@@ -98,15 +128,13 @@ describe("buildLocalComparisonPlan", () => {
 
     const marks = await makeQueryClient().fetchQuery(plan.previousBrief!.marks);
 
-    expect(marks).toBe(MARKS);
-    expect(serverFunctions.getLocalComparisonMarks).toHaveBeenCalledWith({
-      data: { id: "marks-prev" },
-    });
+    expect(marks).toEqual(MARKS);
+    expect(apiFetch).toHaveBeenCalledWith(MARKS_PREV_PATH);
     expect(plan.lastReview).toBeUndefined();
   });
 
   it("answers no marks when the named sidecar reads as missing", async () => {
-    serverFunctions.getLocalComparisonMarks.mockResolvedValue(null);
+    stubApi({});
     const plan = buildLocalComparisonPlan({
       previousBrief: {
         marksId: "marks-prev",
@@ -121,7 +149,7 @@ describe("buildLocalComparisonPlan", () => {
   });
 
   it("answers no narrative when the named sidecar reads as missing", async () => {
-    serverFunctions.getLocalRevisionNarrative.mockResolvedValue(null);
+    stubApi({});
     const plan = buildLocalComparisonPlan({
       previousBrief: {
         marksId: "marks-prev",
@@ -150,9 +178,7 @@ describe("buildLocalComparisonPlan", () => {
   });
 
   it("reads the narrative sidecar, skip stubs included", async () => {
-    serverFunctions.getLocalRevisionNarrative.mockResolvedValue(
-      SKIPPED_NARRATIVE,
-    );
+    stubApi({ [NARRATIVE_PATH]: async () => stubJson(SKIPPED_NARRATIVE) });
     const plan = buildLocalComparisonPlan({
       previousBrief: {
         marksId: "marks-prev",
@@ -166,21 +192,22 @@ describe("buildLocalComparisonPlan", () => {
       plan.previousBrief!.narrative!,
     );
 
-    expect(narrative).toBe(SKIPPED_NARRATIVE);
-    expect(serverFunctions.getLocalRevisionNarrative).toHaveBeenCalledWith({
-      data: { id: "narrative-1" },
-    });
+    expect(narrative).toEqual(SKIPPED_NARRATIVE);
+    expect(apiFetch).toHaveBeenCalledWith(NARRATIVE_PATH);
   });
 
   it("offers a marks-only last review when no delta was written", async () => {
-    serverFunctions.getLocalComparisonMarks.mockResolvedValue(MARKS);
+    stubApi({
+      "/api/local-briefs/marks-chk/comparison-marks": async () =>
+        stubJson(MARKS),
+    });
     const plan = buildLocalComparisonPlan({
       lastReview: { marksId: "marks-chk", baselineSha: "c", baselineIndex: 1 },
     });
 
     const marks = await makeQueryClient().fetchQuery(plan.lastReview!.marks);
 
-    expect(marks).toBe(MARKS);
+    expect(marks).toEqual(MARKS);
     expect(plan.lastReview?.delta).toBeUndefined();
     expect(plan.lastReview?.rawDiff).toBeUndefined();
     expect(plan.previousBrief).toBeUndefined();
@@ -198,40 +225,36 @@ describe("buildLocalComparisonPlan delta", () => {
   };
 
   it("slices the delta's rows from its own diffs sidecar", async () => {
-    serverFunctions.getLocalBrief.mockResolvedValue(DELTA_BRIEF);
-    serverFunctions.getLocalBriefDiffs.mockResolvedValue([
-      { file: "src/leak.test.ts", patch: DELTA_TEST_FILE_PATCH },
-    ]);
+    stubApi({
+      [DELTA_PATH]: async () => stubJson(DELTA_VIEW),
+      [DELTA_DIFFS_PATH]: async () =>
+        stubJson([{ file: "src/leak.test.ts", patch: DELTA_TEST_FILE_PATCH }]),
+    });
     const plan = buildLocalComparisonPlan(LAST_REVIEW_WITH_DELTA);
 
     const delta = await makeQueryClient().fetchQuery(plan.lastReview!.delta!);
 
-    expect(serverFunctions.getLocalBrief).toHaveBeenCalledWith({
-      data: { briefId: "delta-1" },
-    });
-    expect(serverFunctions.getLocalBriefDiffs).toHaveBeenCalledWith({
-      data: { briefId: "delta-1" },
-    });
+    expect(apiFetch).toHaveBeenCalledWith(DELTA_PATH);
+    expect(apiFetch).toHaveBeenCalledWith(DELTA_DIFFS_PATH);
     const rows = delta.chunks[0]?.diff ?? [];
     expect(rows.map((row) => row.kind)).toEqual(["hunk", "add"]);
   });
 
   it("stays loading until both delta sidecars have landed", async () => {
     let releaseDiffs: (() => void) | undefined;
-    serverFunctions.getLocalBrief.mockResolvedValue(DELTA_BRIEF);
-    serverFunctions.getLocalBriefDiffs.mockReturnValue(
-      new Promise((resolve) => {
-        releaseDiffs = () => resolve([]);
-      }),
-    );
+    stubApi({
+      [DELTA_PATH]: async () => stubJson(DELTA_VIEW),
+      [DELTA_DIFFS_PATH]: () =>
+        new Promise((resolve) => {
+          releaseDiffs = () => resolve(stubJson([]));
+        }),
+    });
     const client = makeQueryClient();
     const plan = buildLocalComparisonPlan(LAST_REVIEW_WITH_DELTA);
     const descriptor = plan.lastReview!.delta!;
 
     const pending = client.fetchQuery(descriptor);
-    await vi.waitFor(() =>
-      expect(serverFunctions.getLocalBrief).toHaveBeenCalled(),
-    );
+    await vi.waitFor(() => expect(releaseDiffs).toBeDefined());
 
     expect(client.getQueryData(descriptor.queryKey)).toBeUndefined();
     releaseDiffs?.();
@@ -239,15 +262,15 @@ describe("buildLocalComparisonPlan delta", () => {
   });
 
   it("fails rather than answer row-less when the diffs sidecar fails", async () => {
-    serverFunctions.getLocalBrief.mockResolvedValue(DELTA_BRIEF);
-    serverFunctions.getLocalBriefDiffs.mockRejectedValue(
-      new Error("sidecar unreadable"),
-    );
+    stubApi({
+      [DELTA_PATH]: async () => stubJson(DELTA_VIEW),
+      [DELTA_DIFFS_PATH]: async () => stubStatus(500),
+    });
     const plan = buildLocalComparisonPlan(LAST_REVIEW_WITH_DELTA);
 
     await expect(
       makeQueryClient().fetchQuery(plan.lastReview!.delta!),
-    ).rejects.toThrow("sidecar unreadable");
+    ).rejects.toMatchObject({ code: "internal-error" });
   });
 
   it("reuses delta sidecars the cache already holds", async () => {
@@ -265,7 +288,6 @@ describe("buildLocalComparisonPlan delta", () => {
     const delta = await client.fetchQuery(plan.lastReview!.delta!);
 
     expect(delta).toEqual(DELTA_BRIEF);
-    expect(serverFunctions.getLocalBrief).not.toHaveBeenCalled();
-    expect(serverFunctions.getLocalBriefDiffs).not.toHaveBeenCalled();
+    expect(apiFetch).not.toHaveBeenCalled();
   });
 });

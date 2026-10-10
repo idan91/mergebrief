@@ -1198,20 +1198,11 @@
     "unsavedCommentLeavePrompt": "You have an unsaved comment. Leave this page and discard it?"
   },
   "briefError": {
-    "not-found": "That brief isn't on this instance.",
-    "invalid-id": "That brief link isn't valid.",
-    "unreadable": "That brief's files are unreadable — regenerate it.",
     "unexpected": "Something went wrong reading this brief — check the server logs.",
-    "unauthenticated": "Sign in with GitHub to view local briefs.",
-    "local-briefs-disabled": "Local briefs need a development build with MERGEBRIEF_OUT_DIR set to their directory.",
     "not-a-pr-url": "That doesn't look like a GitHub pull request URL — expected https://github.com/OWNER/REPO/pull/NUMBER.",
-    "url-too-long": "That URL is too long to be a GitHub pull request link.",
-    "no-gh-cli": "This deployment has no gh CLI — sign in with GitHub to generate with your account.",
-    "fetch-failed": "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
     "generation-failed": "Couldn't generate the brief for this PR — check the server logs and try again.",
     "sessionExpired": "Your session expired — sign in again to generate.",
-    "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it.",
-    "generatorConfigInvalid": "generator configuration invalid"
+    "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it."
   },
   "home": {
     "personalLine": {

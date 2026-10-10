@@ -1,6 +1,7 @@
+import type { LocalBriefSummary } from "contract";
 import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
-import { type Brief, type LocalBriefSummary } from "./model/types";
+import { type Brief } from "./model/types";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by

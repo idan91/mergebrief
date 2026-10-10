@@ -1,6 +1,6 @@
+import type { LocalBriefSummary } from "contract";
 import { describe, expect, it } from "vitest";
 
-import type { LocalBriefSummary } from "../types";
 import {
   buildRevisionTimeline,
   buildRevisionTimelineView,

@@ -45,12 +45,13 @@ listens. A missing or invalid var stops the process with a `field: reason` line 
 serving a broken webhook — so if `pnpm dev` shows the api pane exiting immediately, that
 line is why.
 
-The web tier needs none of this. It reads `MERGEBRIEF_API_ORIGIN`, `LOG_LEVEL` and the
-dev-only `MERGEBRIEF_OUT_DIR` from `apps/web/.env`. `PUBLIC_BASE_URL` is NOT one of them:
-vite reads it from the ambient environment when the dev server boots, so export it in the
-shell rather than putting it in that file.
-Local briefs are served only to a signed-in session, so the tunnel does not expose
-`MERGEBRIEF_OUT_DIR` to a cookieless visitor; leave it unset and Home lists rows alone.
+The web tier needs none of this. It reads `MERGEBRIEF_API_ORIGIN` and `LOG_LEVEL` from
+`apps/web/.env`. `PUBLIC_BASE_URL` is NOT one of them: vite reads it from the ambient
+environment when the dev server boots, so export it in the shell rather than putting it in
+that file.
+The dev-only `MERGEBRIEF_OUT_DIR` in `apps/api/.env` serves local briefs only to a signed-in
+session, so the tunnel does not expose it to a cookieless visitor; leave it unset and Home
+lists rows alone.
 
 ## 3. Run the app
 

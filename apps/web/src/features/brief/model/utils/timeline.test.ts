@@ -1,7 +1,7 @@
+import type { LocalBriefSummary } from "contract";
 import { describe, expect, it } from "vitest";
 
 import { buildBriefTimeline } from "./timeline";
-import type { LocalBriefSummary } from "../types";
 
 const headSequence = (points: { headSha: string; index: number }[]) =>
   points.map((point) => ({ headSha: point.headSha, index: point.index }));

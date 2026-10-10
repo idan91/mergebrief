@@ -10,9 +10,6 @@ import { setI18n } from "react-i18next";
 
 setI18n(appI18n);
 
-// The file-surface tests write their fixtures into the checkout's out dir.
-process.env["MERGEBRIEF_OUT_DIR"] = "tools/categorizer/out";
-
 // Vitest global setup. jsdom does not implement ResizeObserver, which
 // Header.tsx uses to track its height; without this stub the brief screen
 // throws into its error boundary under test ("Brief failed to load").

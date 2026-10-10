@@ -1,3 +1,4 @@
+import type { LocalComparisonAvailability } from "contract";
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import type { Mutable } from "types/utils";
 
@@ -8,7 +9,7 @@ import {
   buildLocalRevisionNarrativeQueryOptions,
 } from "../../queries";
 import { createFileRowsCache } from "../file-rows/cache";
-import type { Brief, ComparisonAvailability } from "../types";
+import type { Brief } from "../types";
 import { attachSlicedDiffs } from "../utils/diffSlicing";
 import type { ComparisonQuery } from "./comparisonQuery";
 import type { BriefComparisonPlan } from "./types";
@@ -23,7 +24,7 @@ type LastReviewPlan = Mutable<NonNullable<BriefComparisonPlan["lastReview"]>>;
  * sidecars. A local baseline carries no raw span diff.
  */
 export function buildLocalComparisonPlan(
-  comparisons: ComparisonAvailability | undefined,
+  comparisons: LocalComparisonAvailability | undefined,
 ): BriefComparisonPlan {
   const plan: Mutable<BriefComparisonPlan> = {};
 

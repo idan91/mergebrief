@@ -249,15 +249,12 @@ export function buildApiServerEnv(): Record<string, string> {
 }
 
 /**
- * The web process env. No credentials and no database: the tier proxies
- * `/api/*` to the API and reads only the file-backed fixture surface.
+ * The web process env. No credentials, no database and no files: the tier
+ * proxies `/api/*` to the API.
  */
 export function buildWebServerEnv(): Record<string, string> {
   return {
     PUBLIC_BASE_URL: E2E_BASE_URL,
     MERGEBRIEF_API_ORIGIN: E2E_API_ORIGIN,
-    MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
-    MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
-    MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,
   };
 }

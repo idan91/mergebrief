@@ -8,15 +8,6 @@ vi.mock("../../data/apiFetch", async (importOriginal) => ({
   ...(await importOriginal()),
   apiFetch,
 }));
-// The server-fn module is irrelevant here and must not load its
-// createServerFn graph into a node test.
-vi.mock("./model/server/brief.functions", () => ({
-  getLocalBrief: vi.fn(),
-  getLocalBriefs: vi.fn(),
-  getLocalComparisonMarks: vi.fn(),
-  getLocalRevisionChanges: vi.fn(),
-  getLocalRevisionNarrative: vi.fn(),
-}));
 
 const { generateBriefViaApi } = await import("./queries");
 

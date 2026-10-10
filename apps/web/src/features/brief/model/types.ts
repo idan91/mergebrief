@@ -179,67 +179,6 @@ export interface ComparisonMarks extends ComparisonMarksSummary {
   files: RevisionChangeFile[];
 }
 
-/**
- * @description Availability of the shared Previous-Brief comparison for one
- * Brief head: the mechanical marks exist (source of truth), and - when
- * generated - the matching Revision narrative sidecar id (real narrative or
- * skip stub; callers discriminate on `artifactKind` after fetching).
- */
-export interface PreviousBriefComparisonAvailability {
-  marksId: string;
-  /**
-   * @description Present whenever a `.revision-narrative.json` sidecar exists ,
-   * INCLUDING skip stubs (`artifactKind: "revisionNarrativeSkipped"`, written
-   * for huge spans or when disabled by config). narrativeId-present means
-   * "there is a narrative artifact to fetch", NOT "a summary is available":
-   * readers must discriminate on the fetched file's `artifactKind` and treat
-   * a stub as narrative-unavailable with a knowable skip reason.
-   */
-  narrativeId?: string;
-  baselineSha: string;
-  baselineIndex: number;
-}
-
-/**
- * @description Availability of the personal "Your last review" comparison for
- * one Brief head, approximated locally from available Delta artifacts.
- * `deltaId` is optional: `delta-cli` writes checkpoint marks before the Delta
- * LLM call, so marks can exist without a Delta.
- * A marks-only baseline is still "available" - the marks are the comparison.
- */
-export interface LastReviewComparisonAvailability {
-  marksId: string;
-  deltaId?: string;
-  baselineSha: string;
-  baselineIndex: number | null;
-}
-
-/**
- * @description Comparison availability for one Brief head. Absent
- * keys mean that baseline has no mechanical marks for this head - the FE
- * disables the corresponding Compare option.
- */
-export interface ComparisonAvailability {
-  previousBrief?: PreviousBriefComparisonAvailability;
-  lastReview?: LastReviewComparisonAvailability;
-}
-
-export interface LocalBriefSummary {
-  id: string;
-  artifactKind: "brief" | "delta";
-  repo: string;
-  number: number;
-  title: string;
-  sha: string;
-  index?: number;
-  baselineSha?: string;
-  headSha?: string;
-  baselineIndex?: number | null;
-  headIndex?: number | null;
-  /** Only populated for `artifactKind: "brief"` entries. */
-  comparisons?: ComparisonAvailability;
-}
-
 /** One revision of a PR before it becomes a timeline row; route-shaped. */
 export interface RevisionPoint {
   /** The route's own handle for the revision; selection resolves by it. */

@@ -1,3 +1,4 @@
+import type { LocalBriefSummary } from "contract";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,6 @@ import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
 } from "./queries";
-import type { LocalBriefSummary } from "./model/types";
 import { attachSlicedDiffs } from "./model/utils/diffSlicing";
 import { createFileRowsCache } from "./model/file-rows/cache";
 import { buildRevisionTimelineView } from "./model/utils/revision-timeline";

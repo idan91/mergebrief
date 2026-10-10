@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { LocalBriefSummary } from "contract";
 import { QueryClient } from "@tanstack/react-query";
 import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,7 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { renderInRouter } from "../../../../../test/router";
 import { buildLocalBriefsQueryOptions } from "../../../queries";
-import type { LocalBriefSummary } from "../../../model/types";
 import { LocalBriefsSection } from ".";
 
 function renderSection(enabled: boolean, queryClient: QueryClient) {

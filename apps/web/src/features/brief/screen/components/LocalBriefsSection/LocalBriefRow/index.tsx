@@ -1,3 +1,4 @@
+import type { LocalBriefSummary } from "contract";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -7,7 +8,6 @@ import {
   ChipTones,
   ChipVariants,
 } from "@web/components/Chip";
-import type { LocalBriefSummary } from "../../../../model/types";
 import styles from "./LocalBriefRow.module.scss";
 import { describeLocalBriefRevision } from "./utils";
 

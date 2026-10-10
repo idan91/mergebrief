@@ -16,8 +16,8 @@ import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
   buildLocalBriefsQueryOptions,
-  buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
+import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";
 import { appI18n } from "../i18n/I18nProvider";
@@ -26,6 +26,14 @@ import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
 /** Exactly a brief page (`/briefs/<id>`), never a subpath of one. */
 const BRIEF_PATH_PATTERN = /^\/briefs\/[^/]+$/;
+
+/** A missing local Brief becomes a real 404 on SSR, not a 500. */
+function mapLoaderError(error: unknown): never {
+  if (error instanceof ApiError && error.code === ApiErrorCodes.NOT_FOUND) {
+    throw notFound();
+  }
+  throw error;
+}
 
 export const Route = createFileRoute("/briefs/$briefId")({
   validateSearch: parseBriefAddressSearch,
@@ -59,8 +67,8 @@ export const Route = createFileRoute("/briefs/$briefId")({
       });
     }
   },
-  loader: ({ context, params }) =>
-    Promise.all([
+  loader: async ({ context, params }) => {
+    const reads = await Promise.allSettled([
       context.queryClient.ensureQueryData(
         buildLocalBriefQueryOptions(params.briefId),
       ),
@@ -68,10 +76,16 @@ export const Route = createFileRoute("/briefs/$briefId")({
         buildLocalBriefDiffsQueryOptions(params.briefId),
       ),
       context.queryClient.ensureQueryData(buildLocalBriefsQueryOptions()),
-      context.queryClient.ensureQueryData(
-        buildLocalRevisionChangesQueryOptions(params.briefId),
-      ),
-    ]),
+    ]);
+    // First in array order, not first to settle: a missing Brief's diffs read
+    // fails too, and the Brief's own refusal decides the screen.
+    const failed = reads.find(
+      (read): read is PromiseRejectedResult => read.status === "rejected",
+    );
+    if (failed !== undefined) {
+      mapLoaderError(failed.reason);
+    }
+  },
   head: () => {
     const pageName = appI18n.t("shell.pageTitle.localBrief");
 

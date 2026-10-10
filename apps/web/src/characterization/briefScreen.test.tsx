@@ -19,7 +19,6 @@ import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
   buildLocalBriefsQueryOptions,
-  buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates, type ViewerState } from "../features/account/types";
@@ -88,10 +87,6 @@ async function renderBriefScreen(
   queryClient.setQueryData(buildLocalBriefsQueryOptions().queryKey, [
     briefSummaryFixture,
   ]);
-  queryClient.setQueryData(
-    buildLocalRevisionChangesQueryOptions(BRIEF_ID).queryKey,
-    null,
-  );
 
   const router = createRouter({
     routeTree,

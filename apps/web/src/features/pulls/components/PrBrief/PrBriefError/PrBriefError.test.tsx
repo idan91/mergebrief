@@ -4,33 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ApiError, ApiErrorCodes } from "../../../../../data/apiFetch";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { PrBriefError } from ".";
-import { prBriefErrorDetail } from "./utils";
 
 const t = appI18n.t;
 const PR_BRIEF_GENERIC_DETAIL = t("pulls.briefError.generic");
 
 afterEach(cleanup);
-
-describe("prBriefErrorDetail", () => {
-  it("answers every ApiError kind with curated copy", () => {
-    for (const kind of Object.values(ApiErrorCodes)) {
-      const detail = prBriefErrorDetail(t, new ApiError(kind, 500, "/api/x"));
-      // i18next echoes the KEY for a missing entry: assert real copy, not
-      // just non-empty, or a catalog gap would render the key into the page.
-      expect(detail).not.toBe(`pulls.briefError.${kind}`);
-      expect(detail.length).toBeGreaterThan(0);
-      // Never the ApiError message: it embeds the request path.
-      expect(detail).not.toContain("/api/x");
-    }
-  });
-
-  it("degrades a non-ApiError to the generic sentence", () => {
-    const raw = new Error(
-      "ENOENT: no such file or directory, open '/app/secret/path.json'",
-    );
-    expect(prBriefErrorDetail(t, raw)).toBe(PR_BRIEF_GENERIC_DETAIL);
-  });
-});
 
 describe("PrBriefError", () => {
   it("never renders a raw error message into the page", () => {

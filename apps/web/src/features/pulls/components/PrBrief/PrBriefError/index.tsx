@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { prBriefErrorDetail, prBriefErrorNeedsSignIn } from "./utils";
+import { prBriefErrorDetail } from "@web/features/brief/model";
+import { prBriefErrorNeedsSignIn } from "./utils";
 
 export interface PrBriefErrorProps {
   error: Error;

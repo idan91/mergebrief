@@ -1,6 +1,6 @@
+import type { LocalBriefSummary } from "contract";
 import type { BriefSearch } from "../comparison/compareState";
 import { CompareParams } from "../comparison/types";
-import type { LocalBriefSummary } from "../types";
 
 export interface LegacyDeltaRedirect {
   briefId: string;
