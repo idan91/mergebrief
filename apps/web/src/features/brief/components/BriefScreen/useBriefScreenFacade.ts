@@ -36,6 +36,7 @@ import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useChunkDeepLink } from "./useChunkDeepLink";
 import { useFocusAddress } from "./useFocusAddress";
 import { useLineLinkLanding } from "./useLineLinkLanding";
+import { LandPlacements } from "./landing/types";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import { useConversationWiring } from "./useConversationWiring";
@@ -373,7 +374,7 @@ export function useBriefScreenFacade({
   const sessionJumpToChunk = session.jumpToChunk;
   const jumpToChunkUnderStack = useCallback(
     (chunkId: string, behavior?: ScrollBehavior) =>
-      sessionJumpToChunk(chunkId, behavior, "top"),
+      sessionJumpToChunk(chunkId, behavior, LandPlacements.UNDER_STACK),
     [sessionJumpToChunk],
   );
   const conversationWiring = useConversationWiring({

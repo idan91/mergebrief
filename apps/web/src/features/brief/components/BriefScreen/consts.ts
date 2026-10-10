@@ -30,7 +30,7 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
   },
 ];
 
-/** Air between a landed card's head and the pinned stack; the chunk scroller and the landing watch both aim here. */
+/** Air between a landed card's head and the pinned stack; the chunk landing and the conversation landing both aim here. */
 export const CHUNK_LANDING_GAP_PX = 40;
 
 // A smooth scroll can take a few frames to start; stillness before it has

@@ -223,7 +223,10 @@ describe("brief screen characterization", () => {
 
     await waitFor(() =>
       expect(scrollTo).toHaveBeenCalledWith(
-        expect.objectContaining({ behavior: "auto", top: expect.any(Number) }),
+        expect.objectContaining({
+          behavior: "smooth",
+          top: expect.any(Number),
+        }),
       ),
     );
     const lastArg: unknown = scrollTo.mock.lastCall?.[0];

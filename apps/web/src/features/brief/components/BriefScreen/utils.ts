@@ -374,7 +374,7 @@ export function deriveRowLandingCorrection(
 
 /**
  * How far to scroll so a landed card's head sits under the stack where the
- * chunk scroller puts it, 0 while the head is anywhere in the band's upper
+ * chunk landing puts it, 0 while the head is anywhere in the band's upper
  * half. A windowed list's late measurements can push a landed card out.
  */
 export function deriveCardLandingCorrection(
