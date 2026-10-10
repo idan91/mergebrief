@@ -1,2 +1,2 @@
 // Curated hooks entry: the review hooks other features call.
-export { useReviewSubmit } from "./useReviewSubmit";
+export { useReviewSubmit, type UseReviewSubmitValue } from "./useReviewSubmit";

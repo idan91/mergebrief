@@ -95,7 +95,7 @@ export interface UseReadingSessionInput {
   ownDraftActive: boolean;
   repoConfig: RepoConfigContext | null | undefined;
   /** The Brief's open chunks, focus mode and shortcuts overlay. */
-  screen: BriefViewStore;
+  viewStore: BriefViewStore;
   /** Jump routing into windowed chunk lists; null = mounted DOM only. */
   chunkWindows?: ChunkWindowRegistry | null | undefined;
   /** Route-owned; a jump with a history mode leaves Changes scope through it. */
@@ -176,7 +176,7 @@ export function useReadingSession(
     chunkWindows,
     exitChangesScope,
     position,
-    screen,
+    viewStore,
   } = input;
   // Session/domain state lives in the per-brief Review Session store.
   const dispositions = useReviewSession((state) => state.dispositions);
@@ -204,11 +204,11 @@ export function useReadingSession(
     [model.groups],
   );
 
-  const openChunks = useStore(screen, (state) => state.openChunks);
-  const focusMode = useStore(screen, (state) => state.focusMode);
-  const shortcutsOpen = useStore(screen, (state) => state.shortcutsOpen);
+  const openChunks = useStore(viewStore, (state) => state.openChunks);
+  const focusMode = useStore(viewStore, (state) => state.focusMode);
+  const shortcutsOpen = useStore(viewStore, (state) => state.shortcutsOpen);
   const { updateOpenChunks, setFocusMode, setShortcutsOpen } =
-    screen.getState().actions;
+    viewStore.getState().actions;
 
   /** Ensure-open, never a toggle, row-target jumps (conversation threads,
    * revision rails, unresolved submit items) land INSIDE the diff, which
@@ -509,7 +509,7 @@ export function useReadingSession(
     );
   };
   const toggleShortcuts = () =>
-    setShortcutsOpen(!screen.getState().shortcutsOpen);
+    setShortcutsOpen(!viewStore.getState().shortcutsOpen);
   // Stable: Modal's Escape-listener effect deps on `close`, an unstable
   // identity would re-bind a document listener on every session render
   // while the shortcuts modal is open.

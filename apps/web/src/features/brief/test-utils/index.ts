@@ -1,4 +1,9 @@
-export { briefFixture, briefSummaryFixture, makeRowRefs } from "./fixtures";
+export {
+  briefFixture,
+  briefSummaryFixture,
+  makeChunk,
+  makeRowRefs,
+} from "./fixtures";
 export {
   FixtureBriefView,
   mountBriefHost,

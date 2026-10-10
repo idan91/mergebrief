@@ -17,7 +17,10 @@ import {
 import { isExpansionCovered } from "../../../../model/expansion/rows";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import { AddressEventKinds, type AddressHandle } from "../address/types";
-import { ScrollHistories } from "../scroll-to-target/types";
+import {
+  ScrollHistories,
+  type JumpToChunkFromConversation,
+} from "../scroll-to-target/types";
 import { collectSelectionRowIds, planLineLink } from "./line-link-plan";
 import {
   type LineLinkPlan,
@@ -26,7 +29,6 @@ import {
   type LineReadOutcome,
   LineReadOutcomes,
 } from "../types";
-import type { JumpToChunkFromConversation } from "../useConversationWiring/types";
 
 export interface UseLineLinkScrollInput {
   briefId: string;

@@ -1,6 +1,5 @@
 import { findRowByLine } from "@web/components/DiffRows/utils";
 import { revisionJumpSelector } from "../../../../model/comparison/runs";
-import type { ConversationScrollTarget } from "../useConversationWiring/types";
 import {
   deriveGroupHeadingId,
   deriveGroupSectionId,
@@ -17,6 +16,7 @@ import {
 import {
   ScrollTargetKinds,
   type ChunkScrollTarget,
+  type ConversationScrollTarget,
   type RowScrollTarget,
   type ScrollActionInput,
   type ScrollTarget,

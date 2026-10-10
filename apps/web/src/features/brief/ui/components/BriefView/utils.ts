@@ -19,6 +19,7 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
+import { DiffViews } from "@web/components/DiffRows/types";
 import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
 import {
   buildChunkComparisonView,
@@ -28,8 +29,16 @@ import type { ConversationPlan } from "@web/features/conversation";
 import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
-import { type BriefChunk } from "../../../model/types";
+import { type BriefChunk, type ComparisonMarks } from "../../../model/types";
+import { getShortSha } from "../../../model/utils/short-sha";
 import {
+  NO_REVIEW_REASON_KEY,
+  OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
+  SESSION_FROZEN_REASON_KEY,
+} from "./consts";
+import {
+  type ConversationReadOnly,
+  type DiffViewToggleInput,
   type FilePathDirectory,
   type FilePathParts,
   type LinkParamError,
@@ -39,6 +48,8 @@ import {
   type MarkReadyBatch,
   PostDraftOutcomes,
   type PostDraftOutcome,
+  type ReviewCapability,
+  type SinceMarkers,
 } from "./types";
 
 /** Typed placeholder for a plan slot that is absent, always `enabled: false`. */
@@ -97,6 +108,19 @@ export function groupSinceMarkers(
       ).size,
     ]),
   );
+}
+
+export function deriveSinceMarkers(
+  groups: { id: string; chunks: { file: string }[] }[],
+  marks: Pick<ComparisonMarks, "baselineSha" | "files"> | null,
+): SinceMarkers | undefined {
+  const counts = groupSinceMarkers(groups, marks);
+  const nothingToMark = counts === undefined || marks === null;
+  if (nothingToMark) {
+    return undefined;
+  }
+
+  return { counts, baselineShortSha: getShortSha(marks.baselineSha) };
 }
 
 /**
@@ -510,4 +534,68 @@ export function splitFilePath(path: string): FilePathParts {
     directories.push({ key, text: `${part}/` });
   }
   return { directories, basename: path.slice(cut) };
+}
+
+/** A missing review outranks a read-only one, which outranks a frozen session. */
+export function deriveWritesDisabledReason(
+  t: TFunction,
+  review: Pick<ReviewCapability, "readOnly"> | undefined,
+  sessionFrozen: boolean,
+): string | undefined {
+  if (review === undefined) {
+    return t(NO_REVIEW_REASON_KEY);
+  }
+  const readOnlyReason = review.readOnly?.reason;
+  if (readOnlyReason !== undefined) {
+    return readOnlyReason;
+  }
+
+  return sessionFrozen ? t(SESSION_FROZEN_REASON_KEY) : undefined;
+}
+
+export function deriveComposerDisabledReason(
+  t: TFunction,
+  writesDisabledReason: string | undefined,
+  staleOwnDraft: boolean,
+): string | undefined {
+  if (writesDisabledReason !== undefined) {
+    return writesDisabledReason;
+  }
+
+  return staleOwnDraft ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY) : undefined;
+}
+
+export function deriveConversationReadOnly(
+  writesDisabledReason: string | undefined,
+): ConversationReadOnly {
+  return writesDisabledReason === undefined
+    ? {}
+    : { readOnlyReason: writesDisabledReason };
+}
+
+/**
+ * Only the Full scope pairs rows. The Changes scope renders raw span diffs
+ * that never split, so both entry points stand down there rather than
+ * announcing a view the screen cannot show.
+ */
+export function resolveDiffViewToggle({
+  t,
+  view,
+  setView,
+  announce,
+  inChangesScope,
+}: DiffViewToggleInput): (() => void) | undefined {
+  if (inChangesScope) {
+    return undefined;
+  }
+
+  return () => {
+    const next = view === DiffViews.SPLIT ? DiffViews.UNIFIED : DiffViews.SPLIT;
+    setView(next);
+    announce(
+      next === DiffViews.SPLIT
+        ? t("brief.diff.viewSplit")
+        : t("brief.diff.viewUnified"),
+    );
+  };
 }

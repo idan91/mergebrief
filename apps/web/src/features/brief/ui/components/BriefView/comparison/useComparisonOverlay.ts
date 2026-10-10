@@ -1,4 +1,4 @@
-// The comparison-overlay facade hook: resolves the View/Compare state and the
+// The comparison overlay: resolves the View/Compare state and the
 // active baseline's data from the supplied plan's descriptors.
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { useQuery } from "@tanstack/react-query";
@@ -13,31 +13,31 @@ import {
   type BriefSearch,
   type BriefSearchParams,
   type CompareOptionFlags,
-} from "../../../model/comparison/compare-state";
+} from "../../../../model/comparison/compare-state";
 import {
   CompareParams,
   type BriefComparisonPlan,
   type CompareParam,
-} from "../../../model/comparison/types";
-import type { ComparisonSource } from "../../../model/comparison/runs";
-import type { ComparisonOverlayState } from "../../../model/comparison/comparison-overlay";
-import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
+} from "../../../../model/comparison/types";
+import type { ComparisonSource } from "../../../../model/comparison/runs";
+import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
+import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import {
   attachSpanDiffs,
   splitUnifiedDiffByFile,
-} from "../../../model/utils/diff-slicing";
+} from "../../../../model/utils/diff-slicing";
 import {
   createFileRowsCache,
   type FileRowsCache,
-} from "../../../model/file-rows/cache";
-import type { Brief, ComparisonMarks } from "../../../model/types";
-import { type DeltaSpanStatus, DeltaSpanStatuses } from "./types";
+} from "../../../../model/file-rows/cache";
+import type { Brief, ComparisonMarks } from "../../../../model/types";
+import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import {
   countComparisonRuns,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
   hasRemovedLines,
-} from "./utils";
+} from "../utils";
 
 type ActivePlanSlot =
   | BriefComparisonPlan["previousBrief"]

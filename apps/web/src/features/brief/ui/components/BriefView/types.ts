@@ -1,19 +1,38 @@
 import type { LineRange } from "brief-core/types";
-import type { CSSProperties, ReactNode } from "react";
+import type { TFunction } from "i18next";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { ValueOf } from "types/utils";
 
-import type { ConversationPlan } from "@web/features/conversation";
-import type { ConversationFilter } from "@web/features/conversation/utils";
 import type {
+  ConversationPlan,
+  ThreadComposerWiring,
+} from "@web/features/conversation";
+import type {
+  ConversationFilter,
+  DigestRow,
+  DigestThreadRow,
+  ReviewerFacet,
+  VerdictFacet,
+} from "@web/features/conversation/utils";
+import type { UseReviewSubmitValue } from "@web/features/review/hooks";
+import type {
+  ReviewFlowStore,
   ReviewSessionPayload,
   SessionReadSource,
   SessionWrites,
 } from "@web/features/review/session";
 import type {
   LineLinkTarget,
+  LineSelection,
   SubmitReviewAction,
+  UnresolvedItem,
 } from "@web/features/review/utils";
-import type { BriefSearchParams } from "../../../model/comparison/compare-state";
+import type { DiffView } from "@web/components/DiffRows/types";
+import type { ViewportBand } from "@web/hooks/useViewportBoundary";
+import type {
+  BriefSearchParams,
+  ViewParam,
+} from "../../../model/comparison/compare-state";
 import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import type {
   Brief,
@@ -24,11 +43,29 @@ import type {
   RevisionTimelinePlan,
 } from "../../../model/types";
 import type { ExpansionDirection } from "../../../model/expansion/types";
+import type { ExpansionStore } from "../../../model/expansion/useExpansion";
+import type { ExpansionSource } from "../../../model/expansion/useExpansionSource";
 import type { LineTarget } from "../../../model/utils/line-owner";
-import type { BriefViewModel } from "../../../model/utils/view-model";
+import type {
+  AttributeRail,
+  BriefViewModel,
+} from "../../../model/utils/view-model";
 import type { FileRowsCache } from "../../../model/file-rows/cache";
 import type { RepoConfigContext } from "../../../model/utils/repo-config";
+import type { ReviewPosture } from "../../hooks/useReviewPosture";
+import type { RevisionNavigation } from "../../hooks/useRevisionNavigation";
 import type { BriefAddressPort } from "./address/types";
+import type { UseComparisonOverlayValue } from "./comparison/useComparisonOverlay";
+import type { IntentBarHandle } from "./IntentBar";
+import type { UseMarkReadyFlowValue } from "./mark-ready/useMarkReadyFlow";
+import type { ChunkWindowRegistry } from "./reading/chunk-windows";
+import type { ReadingPositionStore } from "./reading/reading-position";
+import type { VisibleRegions } from "./reading/regions";
+import type { UseReadingSessionValue } from "./reading/useReadingSession";
+import type { JumpToChunkFromConversation } from "./scroll-to-target/types";
+import type { SidebarState } from "./Sidebar/useSidebarState";
+import type { BriefViewStore } from "./store";
+import type { SidebarLayout } from "./utils";
 
 /**
  * Where the last-review delta's rows stand: the database path fetches the
@@ -250,4 +287,208 @@ export type PostDraftOutcome = ValueOf<typeof PostDraftOutcomes>;
 export interface MarkReadyBatch {
   current: number;
   total: number;
+}
+
+export type UseComparisonInput = Pick<BriefViewProps, "reading" | "address">;
+
+export interface SinceMarkers {
+  counts: Map<string, number>;
+  baselineShortSha: string;
+}
+
+export interface ComparisonState {
+  attributeRail: AttributeRail;
+  pendingShown: boolean;
+  overlay: UseComparisonOverlayValue;
+  sinceMarkers: SinceMarkers | undefined;
+}
+
+export interface UseReadingInput {
+  props: Pick<BriefViewProps, "reading" | "address" | "pr">;
+  overlay: Pick<UseComparisonOverlayValue, "compareState" | "comparison">;
+  ownDraftActive: boolean;
+}
+
+export interface ReadingState {
+  chunkWindowsRef: RefObject<ChunkWindowRegistry>;
+  readingPosition: ReadingPositionStore;
+  expansion: ExpansionStore;
+  viewStore: BriefViewStore;
+  session: UseReadingSessionValue;
+  jumpToChunkUnderStack: (chunkId: string, behavior?: ScrollBehavior) => void;
+  expansionSource: ExpansionSource | undefined;
+  revisionNav: RevisionNavigation;
+}
+
+export interface UseViewLayoutInput {
+  viewStore: BriefViewStore;
+  readingPosition: ReadingPositionStore;
+  session: Pick<
+    UseReadingSessionValue,
+    "focusMode" | "jumpToGroup" | "jumpToGroupHeading"
+  >;
+  scope: ViewParam;
+}
+
+export interface ViewLayout {
+  regions: VisibleRegions;
+  band: ViewportBand;
+  focusPanel: FocusPanelControl;
+  focusPanelShown: boolean;
+  sidebar: SidebarState;
+  sidebarLayout: SidebarLayout;
+  inChangesScope: boolean;
+  changesPaneMounted: boolean;
+  storyPaneMounted: boolean;
+  queueJumpFromChanges: (groupId: string, heading: boolean) => void;
+}
+
+export interface UseReviewFlowStateInput {
+  t: TFunction;
+  props: Pick<BriefViewProps, "reading" | "review">;
+  viewStore: BriefViewStore;
+  session: Pick<UseReadingSessionValue, "actions" | "reviewComments">;
+  inChangesScope: boolean;
+}
+
+export interface ConversationReadOnly {
+  readOnlyReason?: string;
+}
+
+export interface BriefReviewFlowState {
+  writesDisabledReason: string | undefined;
+  writesDisabled: boolean;
+  conversationReadOnly: ConversationReadOnly;
+  draftCommentCount: number;
+  reanchorArmed: boolean;
+  reanchorLocation: string | undefined;
+  cancelReanchorFromBanner: () => void;
+  submitOpen: boolean;
+  openSubmit: () => void;
+  closeSubmit: () => void;
+  flowStore: ReviewFlowStore;
+  announce: (message: string) => void;
+  toast: string;
+  liveMessage: string;
+  lineSelection: LineSelection | null;
+  riskModalOpen: boolean;
+}
+
+export interface FlowNoticesInput {
+  t: TFunction;
+  flowStore: ReviewFlowStore;
+  toast: string;
+  clearWriteError: () => void;
+}
+
+/** What the toolbar's Filter disclosure needs to draw itself. */
+export interface ConversationFilterFacets {
+  readonly verdicts: readonly VerdictFacet[];
+  readonly reviewers: readonly ReviewerFacet[];
+  readonly hiddenInlineThreads: number;
+  /**
+   * Applied filter with unmatched reviewers removed. Receipts, pressed states and
+   * chip updates share it so ghost logins cannot claim a filter or persist in the URL.
+   */
+  readonly applied: ConversationFilter;
+}
+
+export interface UseConversationRowsValue {
+  conversationByChunk: ReadonlyMap<string, DigestRow[]> | undefined;
+  /** Live threads on lines no chunk renders, per file. */
+  hiddenThreadsByFile: ReadonlyMap<string, DigestThreadRow[]> | undefined;
+  /** Every current line thread of a file; an expanded row shows the one on its line. */
+  lineThreadsByFile: ReadonlyMap<string, DigestThreadRow[]> | undefined;
+  /** Facets for the Filter disclosure; absent until the conversation resolves. */
+  conversationFilterFacets: ConversationFilterFacets | undefined;
+}
+
+export interface ConversationWiring extends UseConversationRowsValue {
+  conversationComposer: ThreadComposerWiring | undefined;
+  conversationGroupIds: Set<string> | undefined;
+  invalidateConversation: (() => void) | undefined;
+  jumpToChunkFromConversation: JumpToChunkFromConversation;
+  jumpToConversation: () => void;
+  open: boolean;
+  toggleOpen: () => void;
+}
+
+export interface UseAddressSyncInput {
+  t: TFunction;
+  props: Pick<BriefViewProps, "reading" | "address" | "conversation">;
+  readingState: Pick<
+    ReadingState,
+    "session" | "readingPosition" | "expansion" | "expansionSource"
+  >;
+  scope: ViewParam;
+  flow: Pick<BriefReviewFlowState, "flowStore" | "announce">;
+  lineSelection: LineSelection | null;
+  conversationWiring: Pick<ConversationWiring, "jumpToChunkFromConversation">;
+}
+
+export interface AddressSync {
+  lineLinkMissed: boolean;
+  dismissLineLinkMiss: () => void;
+  shareChunk: ChunkShare;
+  queueChunkJumpFromChanges: (chunkId: string) => void;
+}
+
+export interface UseReviewCommandsInput {
+  t: TFunction;
+  props: Pick<BriefViewProps, "reading" | "review">;
+  ownDraftActive: boolean;
+  staleHead: boolean;
+  viewStore: BriefViewStore;
+  session: UseReadingSessionValue;
+  flow: Pick<
+    BriefReviewFlowState,
+    | "flowStore"
+    | "announce"
+    | "closeSubmit"
+    | "submitOpen"
+    | "writesDisabled"
+    | "writesDisabledReason"
+  >;
+  riskModalOpen: boolean;
+  conversationWiring: Pick<ConversationWiring, "invalidateConversation">;
+}
+
+export interface ReviewCommands {
+  submitFlow: UseReviewSubmitValue;
+  liveSubmit: boolean;
+  markReady: UseMarkReadyFlowValue;
+  intentBarRef: RefObject<IntentBarHandle | null>;
+  posture: ReviewPosture;
+  submitFromModal: () => void;
+  jumpToSubmitItem: (item: Pick<UnresolvedItem, "targetId">) => void;
+  markViewedFromShortcut: (chunkId: string) => void;
+}
+
+export interface UseViewShortcutsInput {
+  t: TFunction;
+  props: Pick<BriefViewProps, "conversation">;
+  pendingShown: boolean;
+  scope: ViewParam;
+  readingPosition: ReadingPositionStore;
+  session: UseReadingSessionValue;
+  layout: Pick<
+    ViewLayout,
+    "regions" | "band" | "sidebar" | "focusPanel" | "focusPanelShown"
+  >;
+  flow: Pick<BriefReviewFlowState, "flowStore" | "submitOpen">;
+  lineSelection: LineSelection | null;
+  reanchorArmed: boolean;
+  riskModalOpen: boolean;
+  markReady: Pick<UseMarkReadyFlowValue, "gateOpen">;
+  markViewedFromShortcut: (chunkId: string) => void;
+  conversationWiring: Pick<ConversationWiring, "jumpToConversation">;
+  toggleDiffView: (() => void) | undefined;
+}
+
+export interface DiffViewToggleInput {
+  t: TFunction;
+  view: DiffView;
+  setView: (view: DiffView) => void;
+  announce: (message: string) => void;
+  inChangesScope: boolean;
 }

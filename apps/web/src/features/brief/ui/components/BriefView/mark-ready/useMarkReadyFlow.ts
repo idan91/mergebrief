@@ -30,7 +30,7 @@ export interface UseMarkReadyFlowInput {
   /** Page-level live-region channel (clear-then-set). */
   announce: (message: string) => void;
   /** Holds the gate, its checkbox and the batch progress for this Brief. */
-  screen: BriefViewStore;
+  viewStore: BriefViewStore;
   /**
    * Closes every reviewer overlay (drawers, pre-submit, disposition modals)
    * when the own-draft state is entered: must be referentially stable.
@@ -75,7 +75,7 @@ export function useMarkReadyFlow(
   const {
     action,
     announce,
-    screen,
+    viewStore,
     closeReviewerOverlays,
     flagCount,
     intentCheck,
@@ -88,17 +88,17 @@ export function useMarkReadyFlow(
     showIntentBar,
   } = input;
   const markReadyGateOpen = useStore(
-    screen,
+    viewStore,
     (state) => state.markReadyGateOpen,
   );
   // Default UNCHECKED: posting is an outward write.
   const postDraftsOnReady = useStore(
-    screen,
+    viewStore,
     (state) => state.postDraftsOnReady,
   );
-  const markReadyBatch = useStore(screen, (state) => state.markReadyBatch);
+  const markReadyBatch = useStore(viewStore, (state) => state.markReadyBatch);
   const { setMarkReadyGateOpen, setPostDraftsOnReady, setMarkReadyBatch } =
-    screen.getState().actions;
+    viewStore.getState().actions;
 
   // Destructured because the hook returns a fresh object literal per render;
   // `markReady` and `pending` are the stable/primitive dep-safe members.

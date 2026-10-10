@@ -18,7 +18,7 @@ import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
 import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import type { ComparisonMarks } from "../../../model/types";
 import { SinceMarker } from "./StoryView/GroupCard/SinceMarker";
-import { useComparisonOverlay } from "./useComparisonOverlay";
+import { useComparisonOverlay } from "./comparison/useComparisonOverlay";
 import { buildLocalComparisonMarksQueryOptions } from "../../../queries";
 import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
 

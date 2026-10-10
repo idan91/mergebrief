@@ -37,15 +37,12 @@ import type { ChangesReviewWiring } from "./ChangesOnlyView/types";
 import { SummarySection } from "./SummarySection";
 import { ReadingPositionProvider } from "./reading/reading-position";
 import styles from "./BriefView.module.scss";
-import {
-  useBriefViewFacade,
-  OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
-} from "./useBriefViewFacade";
+import { useBriefViewFacade } from "./useBriefViewFacade";
 import type { BriefViewProps, ScopePaneProps, StoryMainStyle } from "./types";
 
 export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY_KEYS } from "./drafts/useOwnDraftFlow";
-export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY };
+export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY } from "./consts";
 export type { BriefViewProps, OwnDraftPlan } from "./types";
 
 const ScopePane = memo(

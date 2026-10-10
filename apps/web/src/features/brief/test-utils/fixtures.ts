@@ -2,7 +2,7 @@ import type { LocalBriefSummary } from "contract";
 import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
 import { type RowRef, RowRefKinds } from "../model/expansion/types";
-import { type Brief } from "../model/types";
+import { type Brief, type BriefChunk } from "../model/types";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
@@ -96,4 +96,20 @@ export function makeRowRefs(
       ? { kind: RowRefKinds.EXPANDED }
       : { kind: RowRefKinds.BASE, baseIndex: entry },
   );
+}
+
+/** One added line at src/a.ts:10, where the conversation fixture puts its threads. */
+export function makeChunk(): BriefChunk {
+  return {
+    id: "c1",
+    changeGroupId: "g1",
+    file: "src/a.ts",
+    concern: Concerns.IMPLEMENTATION,
+    role: Roles.CORE,
+    loc: { added: 1, deleted: 0 },
+    addedRanges: [],
+    removedRanges: [],
+    riskSurface: [],
+    diff: [{ kind: "add", content: "b", newLine: 10 }],
+  };
 }

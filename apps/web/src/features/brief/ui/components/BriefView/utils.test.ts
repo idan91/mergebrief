@@ -17,6 +17,10 @@ import {
   countIntentTensions,
   deriveBriefProgress,
   deriveChunkSizes,
+  deriveComposerDisabledReason,
+  deriveConversationReadOnly,
+  deriveSinceMarkers,
+  deriveWritesDisabledReason,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
   groupSinceMarkers,
@@ -34,8 +38,14 @@ import {
   parseLinkParam,
   resolveLinkChunkId,
   buildReplyRecordingPlan,
+  resolveDiffViewToggle,
   splitFilePath,
 } from "./utils";
+import {
+  NO_REVIEW_REASON_KEY,
+  OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
+  SESSION_FROZEN_REASON_KEY,
+} from "./consts";
 import { LinkParamErrors } from "./types";
 import { DiffSides } from "types/comments";
 
@@ -767,5 +777,113 @@ describe("splitFilePath", () => {
       directories: [],
       basename: "README.md",
     });
+  });
+});
+
+describe("deriveSinceMarkers", () => {
+  const groups = [{ id: "g1", chunks: [{ file: "src/a.ts" }] }];
+  const files = [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 1, end: 2 }],
+      removedRanges: [],
+    },
+  ];
+
+  it("counts changed files per group under the short baseline sha", () => {
+    const markers = deriveSinceMarkers(groups, {
+      baselineSha: "0123456789abcdef",
+      files,
+    });
+    expect(markers?.baselineShortSha).toBe("0123456");
+    expect(markers?.counts.get("g1")).toBe(1);
+  });
+
+  it("is absent without a last-review checkpoint", () => {
+    expect(deriveSinceMarkers(groups, null)).toBeUndefined();
+  });
+});
+
+describe("deriveWritesDisabledReason", () => {
+  it("names the missing review first", () => {
+    expect(deriveWritesDisabledReason(t, undefined, true)).toBe(
+      t(NO_REVIEW_REASON_KEY),
+    );
+  });
+
+  it("prefers the read-only reason over a frozen session", () => {
+    const review = { readOnly: { reason: "base moved" } };
+    expect(deriveWritesDisabledReason(t, review, true)).toBe("base moved");
+  });
+
+  it("names a frozen session when the review is writable", () => {
+    expect(deriveWritesDisabledReason(t, {}, true)).toBe(
+      t(SESSION_FROZEN_REASON_KEY),
+    );
+  });
+
+  it("is absent while writes are live", () => {
+    expect(deriveWritesDisabledReason(t, {}, false)).toBeUndefined();
+  });
+});
+
+describe("deriveComposerDisabledReason", () => {
+  it("keeps the writes reason when there is one", () => {
+    expect(deriveComposerDisabledReason(t, "frozen", true)).toBe("frozen");
+  });
+
+  it("blocks a stale own draft with its own reason", () => {
+    expect(deriveComposerDisabledReason(t, undefined, true)).toBe(
+      t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY),
+    );
+  });
+
+  it("is absent on a live view", () => {
+    expect(deriveComposerDisabledReason(t, undefined, false)).toBeUndefined();
+  });
+});
+
+describe("deriveConversationReadOnly", () => {
+  it("carries the writes reason to the section", () => {
+    expect(deriveConversationReadOnly("frozen")).toEqual({
+      readOnlyReason: "frozen",
+    });
+  });
+
+  it("carries nothing while writes are live", () => {
+    expect(deriveConversationReadOnly(undefined)).toEqual({});
+  });
+});
+
+describe("resolveDiffViewToggle", () => {
+  function stubToggle(view: "split" | "unified", inChangesScope: boolean) {
+    const setView = vi.fn();
+    const announce = vi.fn();
+    const toggle = resolveDiffViewToggle({
+      t,
+      view,
+      setView,
+      announce,
+      inChangesScope,
+    });
+    return { toggle, setView, announce };
+  }
+
+  it("flips unified to split and announces the split view", () => {
+    const { toggle, setView, announce } = stubToggle("unified", false);
+    toggle?.();
+    expect(setView).toHaveBeenCalledWith("split");
+    expect(announce).toHaveBeenCalledWith(t("brief.diff.viewSplit"));
+  });
+
+  it("flips split to unified and announces the unified view", () => {
+    const { toggle, setView, announce } = stubToggle("split", false);
+    toggle?.();
+    expect(setView).toHaveBeenCalledWith("unified");
+    expect(announce).toHaveBeenCalledWith(t("brief.diff.viewUnified"));
+  });
+
+  it("stands down in the Changes scope", () => {
+    expect(stubToggle("unified", true).toggle).toBeUndefined();
   });
 });

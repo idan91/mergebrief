@@ -1,8 +1,8 @@
 import type { ValueOf } from "types/utils";
 
+import type { LineTarget } from "../../../../model/utils/line-owner";
 import type { ChunkWindowRegistry } from "../reading/chunk-windows";
 import type { ScopeExitOptions } from "../types";
-import type { ConversationScrollTarget } from "../useConversationWiring/types";
 import type { ScrollMotion, ScrollPlacement } from "./engine/types";
 
 export const ScrollTargetKinds = {
@@ -14,6 +14,14 @@ export const ScrollTargetKinds = {
 } as const;
 /** @public */
 export type ScrollTargetKind = ValueOf<typeof ScrollTargetKinds>;
+
+/** A thread's own row, addressable wherever the thread renders. */
+export interface ThreadScrollTarget {
+  rowId: string;
+  threadId: number;
+}
+
+export type ConversationScrollTarget = ThreadScrollTarget | LineTarget;
 
 export interface ChunkScrollTarget {
   kind: typeof ScrollTargetKinds.CHUNK;
@@ -88,6 +96,14 @@ export interface ScrollToTarget {
     options: ScrollTargetOptions,
   ) => boolean;
 }
+
+/** False when the scroll could not be scheduled; see `ScrollToTarget`. */
+export type JumpToChunkFromConversation = (
+  chunkId: string,
+  target?: ConversationScrollTarget,
+  behavior?: ScrollBehavior,
+  history?: ScrollHistory,
+) => boolean;
 
 export interface UseScrollToTargetInput {
   /** A scroll in flight or parked never outlives its brief. */

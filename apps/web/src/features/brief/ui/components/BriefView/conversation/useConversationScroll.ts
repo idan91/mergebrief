@@ -8,12 +8,10 @@ import {
 import {
   ScrollHistories,
   ScrollTargetKinds,
+  type JumpToChunkFromConversation,
   type ScrollTargetOptions,
 } from "../scroll-to-target/types";
-import type {
-  JumpToChunkFromConversation,
-  UseConversationScrollInput,
-} from "./types";
+import type { UseConversationScrollInput } from "./types";
 
 /** A row target renders only on an open card; the scroll focuses and flashes it. */
 const ROW_SCROLL: ScrollTargetOptions = {
@@ -31,7 +29,6 @@ const CARD_SCROLL: ScrollTargetOptions = {
   placement: ScrollPlacements.UNDER_STACK,
 };
 
-/** The digest-to-diff jump: a row when the target names one, else the card. */
 export function useConversationScroll({
   scrollToTarget,
   setActiveChunk,

@@ -5,35 +5,22 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
+import { makeChunk } from "@web/features/brief/test-utils";
 import type { ConversationPlan } from "@web/features/conversation";
+import { makeConversation } from "@web/features/conversation/test-utils";
 import type { PrConversation } from "@web/features/conversation/types";
 import {
   parseConversationFilter,
   type ConversationFilter,
 } from "@web/features/conversation/utils";
-import type { Brief, BriefChunk } from "../../../../model/types";
+import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { useScrollToTarget } from "../scroll-to-target";
 import { SCROLL_FLASH_ATTR } from "../scroll-to-target/consts";
-import { useConversationWiring } from "./index";
+import { useConversation } from "./useConversation";
 import type { Mutable } from "types/utils";
 
 afterEach(cleanup);
-
-function chunk(): BriefChunk {
-  return {
-    id: "c1",
-    changeGroupId: "g1",
-    file: "src/a.ts",
-    concern: "implementation",
-    role: "core",
-    loc: { added: 1, deleted: 0 },
-    addedRanges: [],
-    removedRanges: [],
-    riskSurface: [],
-    diff: [{ kind: "add", content: "b", newLine: 10 }],
-  } as BriefChunk;
-}
 
 const brief: Brief = {
   artifactKind: "brief",
@@ -57,40 +44,11 @@ const brief: Brief = {
       uncertainBetween: [],
     },
   ],
-  chunks: [chunk()],
+  chunks: [makeChunk()],
   concernView: [],
 };
 
 const QUERY_KEY = ["conversation", "42", 7] as const;
-
-function conversationWith(authors: readonly string[]): PrConversation {
-  return {
-    threads: authors.map((login, index) => ({
-      rootCommentId: 9000 + index,
-      path: "src/a.ts",
-      line: 10,
-      side: "RIGHT" as const,
-      subjectType: "LINE" as const,
-      isResolved: false,
-      isOutdated: false,
-      comments: [
-        {
-          commentId: 9000 + index,
-          author: { login, isBot: false },
-          body: `note from ${login}`,
-          createdAt: "2026-08-01T00:00:00Z",
-          url: `https://example.test/c/${9000 + index}`,
-        },
-      ],
-      hasMoreComments: false,
-    })),
-    reviews: [],
-    prComments: [],
-    hasMoreThreads: false,
-    hasMoreReviews: false,
-    hasMorePrComments: false,
-  };
-}
 
 function plan(
   resolution?: ConversationPlan["resolution"],
@@ -135,6 +93,15 @@ function renderWiring(
   }
   const openChunk = vi.fn();
   const setActiveChunk = vi.fn();
+  const recordSubmittedReview = vi.fn();
+  const capability =
+    conversation === undefined
+      ? undefined
+      : {
+          plan: conversation,
+          filter: conversationFilter,
+          onFilterChange: vi.fn(),
+        };
   const { result } = renderHook(
     () => {
       const { scrollToTarget } = useScrollToTarget({
@@ -144,16 +111,18 @@ function renderWiring(
         inChangesScope: false,
         exitChangesScope: undefined,
       });
-      return useConversationWiring({
-        conversation,
-        conversationFocusThreadId: undefined,
-        conversationFilter,
-        scrollToTarget,
-        setActiveChunk,
+      const conversationState = useConversation({
+        conversation: capability,
         model: buildBriefViewModel(brief),
-        readingOrderedChunks: [chunk()],
-        submittedReviewIds,
+        session: {
+          actions: { recordSubmittedReview },
+          scrollToTarget,
+          setActiveChunk,
+          readingOrderedChunks: [makeChunk()],
+          submittedReviewIds,
+        },
       });
+      return conversationState.conversationWiring;
     },
     { wrapper },
   );
@@ -165,7 +134,7 @@ function renderWiring(
   };
 }
 
-describe("useConversationWiring, resolution", () => {
+describe("useConversation, resolution", () => {
   it("passes the plan's resolution to the inline composer", () => {
     const setResolved = vi.fn();
     const refetchCapability = vi.fn();
@@ -196,10 +165,10 @@ describe("useConversationWiring, resolution", () => {
 // would notice if this memo stopped filtering (or dropped its filter dep),
 // the section's own tests would stay green while the diff quietly kept every
 // thread.
-describe("useConversationWiring, inline filtering", () => {
+describe("useConversation, inline filtering", () => {
   async function inlineRows(filter?: ConversationFilter) {
     const { result } = renderWiring(
-      plan(undefined, conversationWith(["alice", "bob"])),
+      plan(undefined, makeConversation(["alice", "bob"])),
       filter,
     );
     await waitFor(() =>
@@ -234,10 +203,10 @@ describe("useConversationWiring, inline filtering", () => {
   });
 });
 
-describe("useConversationWiring, own submits", () => {
+describe("useConversation, own submits", () => {
   it("stamps the recorded review ids on every row under the diff", async () => {
     const { result } = renderWiring(
-      plan(undefined, conversationWith(["alice"])),
+      plan(undefined, makeConversation(["alice"])),
       undefined,
       [77],
     );
@@ -260,13 +229,13 @@ describe("useConversationWiring, own submits", () => {
 // The Filter disclosure renders in the toolbar ABOVE the section, outside
 // its disclosure body, so this hook, not the section, owns the facets it
 // draws.
-describe("useConversationWiring, filter facets", () => {
+describe("useConversation, filter facets", () => {
   it("removes ghost reviewers from the filter exposed to the receipt", async () => {
     // `?reviewers=ghost` filters nothing (degrade-to-looser), so the
     // trigger receipt must not count it: `applied` is what the disclosure
     // renders, pressed states and All/None/Clear included.
     const { result } = renderWiring(
-      plan(undefined, conversationWith(["alice", "bob"])),
+      plan(undefined, makeConversation(["alice", "bob"])),
       parseConversationFilter({ reviewers: "ghost,alice" }),
     );
     await waitFor(() =>
@@ -279,7 +248,7 @@ describe("useConversationWiring, filter facets", () => {
 
   it("exposes verdict/reviewer facets and the hidden-inline count", async () => {
     const { result } = renderWiring(
-      plan(undefined, conversationWith(["alice", "bob"])),
+      plan(undefined, makeConversation(["alice", "bob"])),
       parseConversationFilter({ reviewers: "alice" }),
     );
     await waitFor(() =>
@@ -320,7 +289,7 @@ function mountThreadCard(rowTop: number, rowHeight = 44): MountedThreadRow {
 }
 
 // The stub pins the viewport at 1000; under a 190px stack the band runs 190 to 1000.
-describe("useConversationWiring, thread scroll holds the row", () => {
+describe("useConversation, thread scroll holds the row", () => {
   const scrollBy = vi.fn();
   const nativeScrollBy = window.scrollBy;
   const nativeScrollIntoView = Element.prototype.scrollIntoView;
@@ -452,7 +421,7 @@ describe("useConversationWiring, thread scroll holds the row", () => {
   });
 });
 
-describe("useConversationWiring, line scroll", () => {
+describe("useConversation, line scroll", () => {
   afterEach(() => {
     for (const card of document.body.querySelectorAll("section")) {
       card.remove();

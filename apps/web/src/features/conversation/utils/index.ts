@@ -6,6 +6,7 @@ export {
   buildThreadsOutsideChunks,
   splitInlineRows,
   DigestRowKinds,
+  type BuildConversationDigestInput,
   type DigestRow,
   type DigestThreadRow,
 } from "./digest";

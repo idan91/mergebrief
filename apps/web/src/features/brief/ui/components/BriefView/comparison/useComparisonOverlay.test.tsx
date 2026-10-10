@@ -6,10 +6,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
-import type { BriefComparisonPlan } from "../../../model/comparison/types";
-import type { Brief, ComparisonMarks } from "../../../model/types";
-import { DeltaSpanStatuses } from "./types";
+import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
+import type { BriefComparisonPlan } from "../../../../model/comparison/types";
+import type { Brief, ComparisonMarks } from "../../../../model/types";
+import { DeltaSpanStatuses } from "../types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 
 const PR = {

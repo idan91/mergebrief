@@ -76,7 +76,7 @@ function SessionHost({
   initialFocusMode = false,
 }: HostProps) {
   onRender();
-  const [screen] = useState(() =>
+  const [viewStore] = useState(() =>
     createBriefViewStore({
       openChunkIds: listChunkIds(model.groups),
       focusMode: initialFocusMode,
@@ -91,7 +91,7 @@ function SessionHost({
     repoConfig: null,
     position,
     exitChangesScope,
-    screen,
+    viewStore,
   });
   onSession?.(session);
   return null;
