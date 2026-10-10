@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@web/components/Button";
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { renderInRouter } from "../../../../test/router";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView";
+import { FixtureBriefView, mountBriefHost } from "../../test-utils";
 
 afterEach(() => {
   cleanup();
@@ -30,37 +27,29 @@ function Harness() {
     view: "changes",
     compare: "last-review",
   });
-  const [queryClient] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-  );
 
   return (
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <Button
-          onClick={() => setSearch({ view: "full", compare: "last-review" })}
-        >
-          to full
-        </Button>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="fixture-brief-1"
-          comparisonPlan={{
-            lastReview: {
-              marks: {
-                queryKey: ["test-last-review-marks"],
-                queryFn: () => Promise.resolve(lastReviewMarks),
-              },
+    <>
+      <Button
+        onClick={() => setSearch({ view: "full", compare: "last-review" })}
+      >
+        to full
+      </Button>
+      <FixtureBriefView
+        comparisonPlan={{
+          lastReview: {
+            marks: {
+              queryKey: ["test-last-review-marks"],
+              queryFn: () => Promise.resolve(lastReviewMarks),
             },
-          }}
-          exitChangesScope={() =>
-            setSearch({ view: "full", compare: "last-review" })
-          }
-          searchParams={search}
-        />
-      </QueryClientProvider>
-    </I18nProvider>
+          },
+        }}
+        exitChangesScope={() =>
+          setSearch({ view: "full", compare: "last-review" })
+        }
+        searchParams={search}
+      />
+    </>
   );
 }
 
@@ -73,7 +62,7 @@ function viewedBoxes(): HTMLInputElement[] {
 describe("V in Changes scope", () => {
   it("marks nothing viewed in Changes and the active chunk in Full", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    await renderInRouter(<Harness />);
+    await mountBriefHost(<Harness />);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "to full" })).toBeTruthy(),
     );

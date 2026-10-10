@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCallback, useState } from "react";
 import { Button } from "@web/components/Button";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { renderInRouter } from "../../../../test/router";
-import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView";
+import { FixtureBriefView, mountBriefHost } from "../../test-utils";
+
+beforeEach(() => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+});
 
 afterEach(cleanup);
 
@@ -40,32 +40,13 @@ function Host({
     <>
       <Button onClick={() => setLink("chunk-a")}>outside write</Button>
       <Button onClick={switchBrief}>switch brief</Button>
-      <BriefView
-        artifacts={[]}
-        brief={briefFixture}
+      <FixtureBriefView
         briefId={briefId}
         link={link}
         navigateLink={write}
         searchParams={{ view: "full", compare: "off" }}
       />
     </>
-  );
-}
-
-async function renderScreen(
-  navigateLink: (link: string | undefined) => void,
-  initialLink?: string,
-) {
-  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <Host initialLink={initialLink} navigateLink={navigateLink} />
-      </QueryClientProvider>
-    </I18nProvider>,
   );
 }
 
@@ -82,7 +63,7 @@ function findNumberCell(line: string): HTMLElement {
 describe("line selection link", () => {
   it("writes the selection to the link param and drops it on Escape", async () => {
     const navigateLink = vi.fn();
-    await renderScreen(navigateLink);
+    await mountBriefHost(<Host navigateLink={navigateLink} />);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
     if (row === null) {
@@ -121,7 +102,7 @@ describe("line selection link", () => {
       value: { writeText },
     });
     const navigateLink = vi.fn();
-    await renderScreen(navigateLink);
+    await mountBriefHost(<Host navigateLink={navigateLink} />);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
     if (row === null) {
@@ -157,7 +138,9 @@ describe("line selection link", () => {
 
   it("never drops a link it did not write", async () => {
     const navigateLink = vi.fn();
-    await renderScreen(navigateLink, "chunk-a");
+    await mountBriefHost(
+      <Host initialLink="chunk-a" navigateLink={navigateLink} />,
+    );
     await waitFor(() => findNumberCell("10"));
 
     fireEvent.keyDown(window, { key: "Escape" });
@@ -166,7 +149,7 @@ describe("line selection link", () => {
 
   it("never drops a link an outside write replaced", async () => {
     const navigateLink = vi.fn();
-    await renderScreen(navigateLink);
+    await mountBriefHost(<Host navigateLink={navigateLink} />);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
     if (row === null) {
@@ -190,7 +173,7 @@ describe("line selection link", () => {
 
   it("writes the same lines again after a brief switch", async () => {
     const navigateLink = vi.fn();
-    await renderScreen(navigateLink);
+    await mountBriefHost(<Host navigateLink={navigateLink} />);
     const cell = await waitFor(() => findNumberCell("10"));
     const row = cell.closest("tr");
     if (row === null) {

@@ -6,7 +6,6 @@
 // broken, risk flags are a read-only mirror, chunk tracking and drafting stay
 // available, and flipping draft=false under a live session brings the
 // reviewer view back.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   cleanup,
@@ -14,14 +13,13 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   MarkReadyResult,
   PostCommentResult,
 } from "@web/features/pulls/transport";
-import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
+import { appI18n } from "../../../../i18n/I18nProvider";
 
 const MARK_READY_COPY = {
   UPSTREAM: appI18n.t("pulls.markReady.upstream"),
@@ -31,7 +29,6 @@ import type {
   SessionReadSource,
 } from "../../../review/session";
 import { makeSessionReadDriver } from "../../../review/utils";
-import { BriefView } from ".";
 import {
   markReadyBatchFailureCopy,
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
@@ -40,6 +37,7 @@ import {
 } from "../BriefScreen";
 import type { Brief } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
+import { mountBriefView } from "../../test-utils";
 
 afterEach(() => {
   cleanup();
@@ -117,36 +115,23 @@ const flaglessBrief: Brief = {
   chunks: briefFixture.chunks.map((chunk) => ({ ...chunk, riskSurface: [] })),
 };
 
+/** Every render reads the session the drafts were seeded into. */
 async function renderBriefView(
   ownDraft: OwnDraftPlan | undefined,
   brief: Brief = briefFixture,
   staleHead = false,
   sessionReads?: SessionReadSource,
 ) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+  const view = await mountBriefView({
+    brief,
+    ownDraft,
+    session: buildSessionPayload(),
+    sessionReads,
+    staleHead,
   });
-  const view = (plan: OwnDraftPlan | undefined) => (
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={brief}
-          briefId="own-draft-test"
-          searchParams={{}}
-          session={buildSessionPayload()}
-          sessionReads={sessionReads}
-          ownDraft={plan}
-          staleHead={staleHead}
-        />
-      </QueryClientProvider>
-    </I18nProvider>
-  );
-  const stage = await renderStageInRouter(view(ownDraft), [
-    "/briefs/$briefId/summary-preview",
-  ]);
   return {
-    rerenderWith: (plan: OwnDraftPlan | undefined) => stage.update(view(plan)),
+    rerenderWith: (plan: OwnDraftPlan | undefined) =>
+      view.rerender({ ownDraft: plan, session: buildSessionPayload() }),
   };
 }
 

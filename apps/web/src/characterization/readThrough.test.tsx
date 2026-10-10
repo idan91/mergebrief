@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
   fireEvent,
@@ -12,10 +11,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
 import { type Brief, type LocalBriefSummary } from "../features/brief/types";
-import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
-import { I18nProvider } from "../i18n/I18nProvider";
-import { renderInRouter } from "../test/router";
+import { mountBriefView } from "../features/brief/test-utils";
 
 const emptySession = emptySessionPayload();
 
@@ -125,26 +122,15 @@ const summaryFixture: LocalBriefSummary = {
  * route harness could only pin refusals. Read-through IS the write path.
  */
 async function renderReadThroughScreen() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+  await mountBriefView({
+    artifacts: [summaryFixture],
+    brief: readThroughFixture,
+    briefId: summaryFixture.id,
+    session: emptySession,
   });
-  await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[summaryFixture]}
-          brief={readThroughFixture}
-          briefId={summaryFixture.id}
-          searchParams={{}}
-          session={emptySession}
-        />
-      </QueryClientProvider>
-    </I18nProvider>,
-  );
   await waitFor(() =>
     expect(screen.getByText(readThroughFixture.pr.title)).toBeTruthy(),
   );
-  return { queryClient };
 }
 
 function activeChunkId(): string | undefined {

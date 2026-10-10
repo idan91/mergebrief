@@ -5,49 +5,20 @@
 // sticky header (revision controls, lenses) must stay live so the reviewer
 // can keep stepping; a small decorative spinner rides beside the controls.
 // Fast loads (shorter than the appearance delay) must show nothing at all.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
-import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { BriefView } from ".";
 import {
   PENDING_APPEAR_MS,
   PENDING_MIN_HOLD_MS,
 } from "../BriefScreen/useDelayedPending";
-import { briefFixture } from "@web/features/brief/fixtures";
+import { mountBriefView } from "../../test-utils";
 
 afterEach(() => {
   cleanup();
   window.sessionStorage.clear();
 });
-
-async function renderWithPending(revisionPending: boolean) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  const view = (pending: boolean) => (
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="revision-pending-test"
-          searchParams={{}}
-          revisionPending={pending}
-        />
-      </QueryClientProvider>
-    </I18nProvider>
-  );
-  const stage = await renderStageInRouter(view(revisionPending), [
-    "/briefs/$briefId/summary-preview",
-  ]);
-  return {
-    rerenderWith: (pending: boolean) => stage.update(view(pending)),
-  };
-}
 
 function main(): HTMLElement {
   // Two landmarks render (the screen's content region and the summary-preview
@@ -68,18 +39,18 @@ describe("revision-pending treatment", () => {
   });
 
   it("keeps the content fully live when nothing is pending", async () => {
-    await renderWithPending(false);
+    await mountBriefView({ revisionPending: false });
     expect(main().hasAttribute("inert")).toBe(false);
     expect(main().hasAttribute("data-pending")).toBe(false);
     expect(main().getAttribute("aria-busy")).toBeNull();
   });
 
   it("shows nothing for a load faster than the appearance delay", async () => {
-    const { rerenderWith } = await renderWithPending(true);
+    const view = await mountBriefView({ revisionPending: true });
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS - 1);
     });
-    rerenderWith(false);
+    view.rerender({ revisionPending: false });
     act(() => {
       vi.runOnlyPendingTimers();
     });
@@ -88,7 +59,7 @@ describe("revision-pending treatment", () => {
   });
 
   it("dims and inerts ONLY the content region after the delay", async () => {
-    await renderWithPending(true);
+    await mountBriefView({ revisionPending: true });
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });
@@ -105,7 +76,7 @@ describe("revision-pending treatment", () => {
   it("stands the window-level keyboard shortcuts down while pending", async () => {
     // `inert` does not stop a window keydown listener, the shortcut layer
     // must disable itself, or `?`/j/k would act on the stale brief.
-    await renderWithPending(true);
+    await mountBriefView({ revisionPending: true });
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });
@@ -116,7 +87,7 @@ describe("revision-pending treatment", () => {
   });
 
   it("keeps the shortcuts live when nothing is pending", async () => {
-    await renderWithPending(false);
+    await mountBriefView({ revisionPending: false });
     fireEvent.keyDown(window, { key: "?" });
     expect(
       screen.getByText("Keyboard shortcuts").closest("[data-state]"),
@@ -124,13 +95,13 @@ describe("revision-pending treatment", () => {
   });
 
   it("holds the treatment for the minimum once shown, then releases", async () => {
-    const { rerenderWith } = await renderWithPending(true);
+    const view = await mountBriefView({ revisionPending: true });
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });
     expect(main().hasAttribute("inert")).toBe(true);
 
-    rerenderWith(false);
+    view.rerender({ revisionPending: false });
     act(() => {
       vi.advanceTimersByTime(PENDING_MIN_HOLD_MS - 1);
     });

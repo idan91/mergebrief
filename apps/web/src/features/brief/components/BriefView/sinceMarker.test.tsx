@@ -11,11 +11,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { renderInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks, LocalBriefSummary } from "../../types";
-import { BriefView } from ".";
 import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker";
 import {
   useComparisonOverlay,
@@ -23,6 +22,7 @@ import {
 } from "../BriefScreen/useComparisonOverlay";
 import { buildLocalComparisonMarksQueryOptions } from "../../queries";
 import { briefFixture } from "@web/features/brief/fixtures";
+import { mountBriefView } from "../../test-utils";
 
 afterEach(() => {
   cleanup();
@@ -59,28 +59,16 @@ function planWith(marks: ComparisonMarks): BriefComparisonPlan {
   };
 }
 
-async function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  await renderInRouter(
-    <QueryClientProvider client={queryClient}>
-      <BriefView
-        artifacts={[]}
-        brief={briefFixture}
-        briefId="since-marker-test"
-        // Explicit Full Brief + Compare OFF, the state the marker exists
-        // for (with a checkpoint the DEFAULT search is the delta lens).
-        searchParams={{ view: "full", compare: "off" }}
-        {...(comparisonPlan === undefined ? {} : { comparisonPlan })}
-      />
-    </QueryClientProvider>,
-  );
-}
+/** Explicit Full Brief + Compare OFF, the state the marker exists for (with
+ * a checkpoint the DEFAULT search is the delta lens). */
+const FULL_COMPARE_OFF: BriefSearchParams = { view: "full", compare: "off" };
 
 describe("per-group changed-since marker", () => {
   it("shows the changed-file count and checkpoint shortsha with Compare OFF", async () => {
-    await renderBriefView(planWith(checkpointMarks()));
+    await mountBriefView({
+      comparisonPlan: planWith(checkpointMarks()),
+      searchParams: FULL_COMPARE_OFF,
+    });
     // src/leak.ts changed, src/leak.test.ts did not → 1 distinct file.
     expect(
       await screen.findByText(/1 file changed since chk1234/i),
@@ -88,14 +76,17 @@ describe("per-group changed-since marker", () => {
   });
 
   it("says unchanged when no member file moved since the checkpoint", async () => {
-    await renderBriefView(planWith(checkpointMarks([])));
+    await mountBriefView({
+      comparisonPlan: planWith(checkpointMarks([])),
+      searchParams: FULL_COMPARE_OFF,
+    });
     expect(
       await screen.findByText(/unchanged since your last review/i),
     ).toBeTruthy();
   });
 
   it("renders no marker without a checkpoint", async () => {
-    await renderBriefView(undefined);
+    await mountBriefView({ searchParams: FULL_COMPARE_OFF });
     expect(screen.queryByText(/changed since/i)).toBeNull();
     expect(screen.queryByText(/unchanged since your last review/i)).toBeNull();
   });

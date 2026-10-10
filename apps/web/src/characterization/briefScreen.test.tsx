@@ -29,10 +29,8 @@ import {
   briefSummaryFixture,
 } from "@web/features/brief/fixtures";
 import { routeTree } from "../routeTree.gen";
-import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
-import { I18nProvider } from "../i18n/I18nProvider";
-import { renderInRouter } from "../test/router";
+import { mountBriefView } from "../features/brief/test-utils";
 
 const SIGNED_IN_VIEWER: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
@@ -48,23 +46,10 @@ const BRIEF_ID = briefSummaryFixture.id;
  * paths need a harness that has one.
  */
 async function renderWritableScreen() {
-  await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider
-        client={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
-      >
-        <BriefView
-          artifacts={[briefSummaryFixture]}
-          brief={briefFixture}
-          briefId={BRIEF_ID}
-          searchParams={{}}
-          session={emptySessionPayload()}
-        />
-      </QueryClientProvider>
-    </I18nProvider>,
-  );
+  await mountBriefView({
+    artifacts: [briefSummaryFixture],
+    session: emptySessionPayload(),
+  });
   await waitFor(() =>
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
   );

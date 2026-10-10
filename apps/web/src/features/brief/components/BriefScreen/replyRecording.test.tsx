@@ -2,20 +2,24 @@
 // A reply posted from either composer must read as the reviewer's own once
 // the conversation refetches, which only holds while the screen hands both
 // composers the plan that records the reply's review id.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { renderInRouter } from "../../../../test/router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationComment } from "@web/features/conversation/types";
-import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView";
+import { mountBriefView } from "../../test-utils";
 
 const THREAD_ID = 9001;
 const REPLY_BODY = "my own follow-up";
 const REPLY_REVIEW_ID = 555;
+
+beforeEach(() => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  sessionStorage.setItem(
+    `mergebrief.replyDraft.${String(THREAD_ID)}`,
+    REPLY_BODY,
+  );
+});
 
 afterEach(() => {
   cleanup();
@@ -88,30 +92,6 @@ function stubPlan(): ConversationPlan {
   return plan as unknown as ConversationPlan;
 }
 
-async function renderScreen(plan: ConversationPlan) {
-  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  sessionStorage.setItem(
-    `mergebrief.replyDraft.${String(THREAD_ID)}`,
-    REPLY_BODY,
-  );
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="fixture-brief-reply"
-          conversation={plan}
-          searchParams={{}}
-        />
-      </QueryClientProvider>
-    </I18nProvider>,
-  );
-}
-
 async function postReplyFrom(threadRow: HTMLElement) {
   fireEvent.click(threadRow);
   await screen.findByLabelText(/Reply \(posts to GitHub/);
@@ -123,7 +103,7 @@ async function postReplyFrom(threadRow: HTMLElement) {
 
 describe("BriefScreen, a reply posted from the brief", () => {
   it("is not marked new when posted under the diff", async () => {
-    await renderScreen(stubPlan());
+    await mountBriefView({ conversation: stubPlan() });
     const inlineRow = await screen.findByRole("button", {
       name: /This check looks inverted/,
     });
@@ -134,7 +114,7 @@ describe("BriefScreen, a reply posted from the brief", () => {
   });
 
   it("is not marked new when posted from the Conversation section", async () => {
-    await renderScreen(stubPlan());
+    await mountBriefView({ conversation: stubPlan() });
     fireEvent.click(
       await screen.findByRole("button", { name: /Conversation/ }),
     );

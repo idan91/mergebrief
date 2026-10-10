@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 import type { RevisionNarrative } from "brief-core/types";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { renderInRouter } from "../../../../test/router";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { BriefView } from "../BriefView";
+import {
+  FixtureBriefView,
+  mountBriefHost,
+  mountBriefView,
+} from "../../test-utils";
 
 afterEach(() => {
   cleanup();
@@ -40,32 +41,21 @@ describe("Chunk deep link from Changes scope", () => {
   it("leaves the scope by replacing the arrival entry", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const exitChangesScope = vi.fn();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+    await mountBriefView({
+      brief: briefWithRemainder,
+      briefId: "fixture-brief-2",
+      comparisonPlan: {
+        lastReview: {
+          marks: {
+            queryKey: ["test-last-review-marks"],
+            queryFn: () => Promise.resolve(lastReviewMarks),
+          },
+        },
+      },
+      exitChangesScope,
+      link: "chunk-b",
+      searchParams: { view: "changes", compare: "last-review" },
     });
-
-    await renderInRouter(
-      <I18nProvider>
-        <QueryClientProvider client={queryClient}>
-          <BriefView
-            artifacts={[]}
-            brief={briefWithRemainder}
-            briefId="fixture-brief-2"
-            comparisonPlan={{
-              lastReview: {
-                marks: {
-                  queryKey: ["test-last-review-marks"],
-                  queryFn: () => Promise.resolve(lastReviewMarks),
-                },
-              },
-            }}
-            exitChangesScope={exitChangesScope}
-            link="chunk-b"
-            searchParams={{ view: "changes", compare: "last-review" }}
-          />
-        </QueryClientProvider>
-      </I18nProvider>,
-    );
 
     await waitFor(() =>
       expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
@@ -108,38 +98,25 @@ function NarrativeHarness() {
     view: "changes",
     compare: "previous-brief",
   });
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: { queries: { retry: false } },
-      }),
-  );
   return (
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="fixture-brief-1"
-          comparisonPlan={{
-            previousBrief: {
-              marks: {
-                queryKey: ["test-previous-marks"],
-                queryFn: () => Promise.resolve(previousBriefMarks),
-              },
-              narrative: {
-                queryKey: ["test-narrative"],
-                queryFn: () => Promise.resolve(narrative),
-              },
-            },
-          }}
-          exitChangesScope={() =>
-            setSearch({ view: "full", compare: "previous-brief" })
-          }
-          searchParams={search}
-        />
-      </QueryClientProvider>
-    </I18nProvider>
+    <FixtureBriefView
+      comparisonPlan={{
+        previousBrief: {
+          marks: {
+            queryKey: ["test-previous-marks"],
+            queryFn: () => Promise.resolve(previousBriefMarks),
+          },
+          narrative: {
+            queryKey: ["test-narrative"],
+            queryFn: () => Promise.resolve(narrative),
+          },
+        },
+      }}
+      exitChangesScope={() =>
+        setSearch({ view: "full", compare: "previous-brief" })
+      }
+      searchParams={search}
+    />
   );
 }
 
@@ -147,7 +124,7 @@ describe("Flag jump from Changes scope", () => {
   it("exits to Full and lands on the flagged chunk", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    await renderInRouter(<NarrativeHarness />);
+    await mountBriefHost(<NarrativeHarness />);
     const fileButton = await screen.findByRole("button", {
       name: "src/leak.ts",
     });
@@ -162,7 +139,7 @@ describe("Card jump from Changes scope", () => {
   it("exits to Full and lands on the card's owner chunk", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    await renderInRouter(<NarrativeHarness />);
+    await mountBriefHost(<NarrativeHarness />);
     const jump = await screen.findByRole("button", {
       name: "Show in Full brief, src/leak.ts",
     });
@@ -182,38 +159,26 @@ describe("Header Jump from Changes scope", () => {
         view: "changes",
         compare: "last-review",
       });
-      const [queryClient] = useState(
-        () =>
-          new QueryClient({
-            defaultOptions: { queries: { retry: false } },
-          }),
-      );
       return (
-        <I18nProvider>
-          <QueryClientProvider client={queryClient}>
-            <BriefView
-              artifacts={[]}
-              brief={briefWithRemainder}
-              briefId="fixture-brief-1"
-              comparisonPlan={{
-                lastReview: {
-                  marks: {
-                    queryKey: ["test-last-review-marks"],
-                    queryFn: () => Promise.resolve(lastReviewMarks),
-                  },
-                },
-              }}
-              exitChangesScope={() =>
-                setSearch({ view: "full", compare: "last-review" })
-              }
-              searchParams={search}
-            />
-          </QueryClientProvider>
-        </I18nProvider>
+        <FixtureBriefView
+          brief={briefWithRemainder}
+          comparisonPlan={{
+            lastReview: {
+              marks: {
+                queryKey: ["test-last-review-marks"],
+                queryFn: () => Promise.resolve(lastReviewMarks),
+              },
+            },
+          }}
+          exitChangesScope={() =>
+            setSearch({ view: "full", compare: "last-review" })
+          }
+          searchParams={search}
+        />
       );
     }
 
-    await renderInRouter(<Harness />);
+    await mountBriefHost(<Harness />);
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );

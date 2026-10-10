@@ -3,43 +3,17 @@
 // clears `activeCommentAnchor`, and while that is set every key belongs to
 // the composer. The case lives on the DB path because that is where a
 // composer exists at all, a file-backed Brief has no session to write into.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderInRouter } from "../../../../test/router";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import {
-  emptySessionPayload,
-  type ReviewSessionPayload,
-} from "@web/features/review/session";
-import { BriefView } from ".";
-import { briefFixture } from "@web/features/brief/fixtures";
+import { emptySessionPayload } from "@web/features/review/session";
+import { mountBriefView } from "../../test-utils";
 
 afterEach(cleanup);
 
-async function renderScreen(session: ReviewSessionPayload) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="composer-keyboard-test"
-          searchParams={{}}
-          session={session}
-        />
-      </QueryClientProvider>
-    </I18nProvider>,
-  );
-}
-
 it("keeps J/K/Z working after leaving a comment composer via Escape", async () => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  await renderScreen(emptySessionPayload());
+  await mountBriefView({ session: emptySessionPayload() });
 
   // Composer entry is gutter-only, the code column is reserved for text
   // selection.

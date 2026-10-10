@@ -14,18 +14,20 @@ import { type ReactNode, useState } from "react";
 import { Button } from "@web/components/Button";
 import type { LineLinkTarget } from "@web/features/review/utils";
 
-import { I18nProvider } from "../../../../i18n/I18nProvider";
-import { renderInRouter } from "../../../../test/router";
 import { briefFixture } from "@web/features/brief/fixtures";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { FileRangeResult } from "../../queries";
 import { type ComparisonMarks, FileRangeResultKinds } from "../../types";
 import { createFileRowsCache, type FileRowsCache } from "../../utils/fileRows";
-import { BriefView } from "../BriefView";
 import { LandHistories } from "./landing/types";
 import type { ScopeExitOptions } from "./types";
 import { useLineLinkLanding } from "./useLineLinkLanding";
+import {
+  FixtureBriefView,
+  mountBriefHost,
+  mountBriefView,
+} from "../../test-utils";
 
 afterEach(cleanup);
 
@@ -77,27 +79,15 @@ function stubFileRowsCache(): FileRowsCache {
 async function renderWithLink(link: string, withFileRows = false) {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   const navigateLink = vi.fn();
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
   const fileRows = withFileRows
     ? stubFileRowsCache()
     : createFileRowsCache(new Map());
-  await renderInRouter(
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <BriefView
-          artifacts={[]}
-          brief={briefFixture}
-          briefId="fixture-brief"
-          fileRows={fileRows}
-          link={link}
-          navigateLink={navigateLink}
-          searchParams={{ view: "full", compare: "off" }}
-        />
-      </QueryClientProvider>
-    </I18nProvider>,
-  );
+  await mountBriefView({
+    fileRows,
+    link,
+    navigateLink,
+    searchParams: { view: "full", compare: "off" },
+  });
   return navigateLink;
 }
 
@@ -105,24 +95,12 @@ describe("line link landing from Changes scope", () => {
   it("leaves the scope by replacing the arrival entry, then lands", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     const exitChangesScope = vi.fn();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+    await mountBriefView({
+      comparisonPlan: stubLastReviewPlan(),
+      exitChangesScope,
+      link: "chunk-a.R10",
+      searchParams: { view: "changes", compare: "last-review" },
     });
-    await renderInRouter(
-      <I18nProvider>
-        <QueryClientProvider client={queryClient}>
-          <BriefView
-            artifacts={[]}
-            brief={briefFixture}
-            briefId="fixture-brief"
-            comparisonPlan={stubLastReviewPlan()}
-            exitChangesScope={exitChangesScope}
-            link="chunk-a.R10"
-            searchParams={{ view: "changes", compare: "last-review" }}
-          />
-        </QueryClientProvider>
-      </I18nProvider>,
-    );
 
     await waitFor(() =>
       expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
@@ -399,31 +377,21 @@ async function renderInChangesScope(
       view: "changes",
       compare: "last-review",
     });
-    const [queryClient] = useState(
-      () => new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-    );
     return (
-      <I18nProvider>
-        <QueryClientProvider client={queryClient}>
-          <BriefView
-            artifacts={[]}
-            brief={briefFixture}
-            briefId="fixture-brief"
-            comparisonPlan={stubLastReviewPlan()}
-            exitChangesScope={(options) => {
-              exits.push(options);
-              setSearch({ view: "full", compare: "last-review" });
-            }}
-            fileRows={fileRows}
-            link={link}
-            navigateLink={vi.fn()}
-            searchParams={search}
-          />
-        </QueryClientProvider>
-      </I18nProvider>
+      <FixtureBriefView
+        comparisonPlan={stubLastReviewPlan()}
+        exitChangesScope={(options) => {
+          exits.push(options);
+          setSearch({ view: "full", compare: "last-review" });
+        }}
+        fileRows={fileRows}
+        link={link}
+        navigateLink={vi.fn()}
+        searchParams={search}
+      />
     );
   }
-  await renderInRouter(<Harness />);
+  await mountBriefHost(<Harness />);
 
   return exits;
 }
@@ -506,9 +474,6 @@ describe("line link landing", () => {
 
   it("keeps the notice when the brief object changes under the same id", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
     function Host() {
       const [brief, setBrief] = useState(briefFixture);
       return (
@@ -516,10 +481,8 @@ describe("line link landing", () => {
           <Button onClick={() => setBrief({ ...briefFixture })}>
             swap brief
           </Button>
-          <BriefView
-            artifacts={[]}
+          <FixtureBriefView
             brief={brief}
-            briefId="fixture-brief"
             link="nope.R1"
             navigateLink={vi.fn()}
             searchParams={{ view: "full", compare: "off" }}
@@ -527,13 +490,7 @@ describe("line link landing", () => {
         </>
       );
     }
-    await renderInRouter(
-      <I18nProvider>
-        <QueryClientProvider client={queryClient}>
-          <Host />
-        </QueryClientProvider>
-      </I18nProvider>,
-    );
+    await mountBriefHost(<Host />);
     await waitFor(() =>
       expect(screen.getByTestId("line-link-notice")).toBeTruthy(),
     );
