@@ -52,7 +52,7 @@ export function SinceMarker({
       ) : (
         <LinkButton
           className={styles["deltaLink"]}
-          title={t("brief.sinceMarker.titleOpenDeltaLens")}
+          title={t("brief.sinceMarker.titleOpenComparison")}
           onClick={openComparison}
         >
           {label}
