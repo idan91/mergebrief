@@ -445,6 +445,7 @@ export function useBriefScreenFacade({
         ? t(POST_COMMENT_COPY_KEYS.SUBMIT_WHILE_POSTING)
         : undefined,
     trackWrite: actions.trackWrite,
+    flowStore,
   });
   const liveSubmit = submitFlow.available;
   const submitPending = submitFlow.pending;

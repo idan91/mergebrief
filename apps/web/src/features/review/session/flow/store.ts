@@ -58,6 +58,10 @@ export interface ReviewFlowState {
    * deliberately not a reload. */
   reviewComment: string;
   selectedRiskFlags: ReadonlySet<string>;
+  /** The submit failure copy for this brief; empty = none. */
+  submitError: string;
+  /** The receipt note after a degraded post, kept past the toast; empty = none. */
+  submitNote: string;
   /** The page live-region message; empty = hidden. */
   toast: string;
   /** The hidden live-region message for a state change the page already shows; empty = none. */
@@ -128,6 +132,8 @@ export interface ReviewFlowActions {
    * change the page shows on its own, such as a line selection.
    */
   announceQuietly: (message: string) => void;
+  setSubmitError: (copy: string) => void;
+  setSubmitNote: (copy: string) => void;
   clearToast: () => void;
 }
 
@@ -172,6 +178,8 @@ function initialReviewFlowState(): ReviewFlowState {
     expandedConversations: new Map(),
     reviewComment: "",
     selectedRiskFlags: new Set(),
+    submitError: "",
+    submitNote: "",
     toast: "",
     liveMessage: "",
   };
@@ -396,6 +404,12 @@ export function createReviewFlowStore(
         announceQuietly,
         clearToast() {
           set({ toast: "" });
+        },
+        setSubmitError(copy) {
+          set({ submitError: copy });
+        },
+        setSubmitNote(copy) {
+          set({ submitNote: copy });
         },
       },
     };

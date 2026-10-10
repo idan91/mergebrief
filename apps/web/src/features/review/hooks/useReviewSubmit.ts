@@ -2,6 +2,7 @@
 // is injected by the DB route; absent action = the local demo path.
 import { useTranslation } from "react-i18next";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 
@@ -14,6 +15,7 @@ import type { Receipt } from "../utils/receipt";
 import type { ReviewOutcome } from "../utils/state";
 import type { SessionDraftComment } from "../session/serverState";
 import type { ReviewSessionActions } from "../session/store";
+import type { ReviewFlowStore } from "../session/flow/store";
 import {
   buildReviewBody,
   buildSignatureLine,
@@ -60,6 +62,8 @@ export interface UseReviewSubmitInput {
   blockedExternally?: string | undefined;
   /** The session store's write count, held from the request until the flip lands. */
   trackWrite: ReviewSessionActions["trackWrite"];
+  /** The per-Brief flow store: the submit copy lives there, so a switch starts clean. */
+  flowStore: ReviewFlowStore;
 }
 
 export interface UseReviewSubmitValue {
@@ -122,23 +126,19 @@ export function useReviewSubmit(
     resetOutcome,
     blockedExternally,
     trackWrite,
+    flowStore,
   } = input;
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const submitError = useStore(flowStore, (state) => state.submitError);
+  const submitNote = useStore(flowStore, (state) => state.submitNote);
   // Synchronous double-click guard: state updates are async, a ref is not.
   const inFlight = useRef(false);
   // Ids collide across revisions, so settle-time writes compare the click-time
   // briefId against this ref. The durable snapshot write stays unconditional.
   const currentBriefIdRef = useLatestRef(briefId);
-  // A previous revision's failure copy (or degradation note) must not render
-  // over the new one, same render-phase adjustment as the screen's resets.
-  const [displayBriefId, setDisplayBriefId] = useState(briefId);
-  if (displayBriefId !== briefId) {
-    setDisplayBriefId(briefId);
-    setError(null);
-    setNote(null);
-  }
+  // A return to the same brief builds a new flow store, so settle-time copy
+  // goes to the store the screen holds now, not the one from the click.
+  const currentFlowStoreRef = useLatestRef(flowStore);
 
   const signatureLine = useMemo(() => {
     const postedCount =
@@ -182,17 +182,20 @@ export function useReviewSubmit(
     }
     inFlight.current = true;
     setPending(true);
-    setError(null);
-    setNote(null);
+    const clickFlowActions = flowStore.getState().actions;
+    clickFlowActions.setSubmitError("");
+    clickFlowActions.setSubmitNote("");
     // Captured at click time: exactly this set ships, exactly this set flips.
     const drafts = listDraftComments(comments);
     const unplacedAtClick = listUnplacedDrafts(unplacedDrafts);
     const draftIds = [...drafts, ...unplacedAtClick].map((draft) => draft.id);
     const briefCurrent = () => currentBriefIdRef.current === briefId;
+    const readFlowActions = () =>
+      currentFlowStoreRef.current.getState().actions;
     const fail = (copy: string) => {
       // Announce regardless; render inline only on the originating brief.
       if (briefCurrent()) {
-        setError(copy);
+        readFlowActions().setSubmitError(copy);
       }
       announce(copy);
     };
@@ -216,7 +219,9 @@ export function useReviewSubmit(
           total: result.commentsTotal,
         };
         if (briefCurrent()) {
-          setNote(t("review.submitResult.anchorsFolded", counts));
+          readFlowActions().setSubmitNote(
+            t("review.submitResult.anchorsFolded", counts),
+          );
         }
         announce(t("review.submitResult.postedDegraded", counts));
       } else {
@@ -306,6 +311,8 @@ export function useReviewSubmit(
     comments,
     consumeReviewComment,
     currentBriefIdRef,
+    currentFlowStoreRef,
+    flowStore,
     getReviewComment,
     invalidateConversation,
     markSubmitted,
@@ -319,14 +326,17 @@ export function useReviewSubmit(
     t,
   ]);
 
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback(
+    () => flowStore.getState().actions.setSubmitError(""),
+    [flowStore],
+  );
 
   return {
     available: action !== undefined,
     pending,
     blockedReasonWith,
-    error,
-    note,
+    error: submitError === "" ? null : submitError,
+    note: submitNote === "" ? null : submitNote,
     submit,
     clearError,
   };

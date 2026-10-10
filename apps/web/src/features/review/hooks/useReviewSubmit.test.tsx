@@ -13,6 +13,11 @@ import {
 import type { Receipt } from "../utils/receipt";
 import type { SessionDraftComment } from "../session/serverState";
 import {
+  createReviewFlowStore,
+  type ReviewFlowSessionActions,
+  type ReviewFlowStore,
+} from "../session/flow/store";
+import {
   MAX_BODY_LENGTH,
   buildSignatureLine,
   foldDraftsIntoBody,
@@ -57,6 +62,20 @@ function makeDraftWithBody(body: string): ReviewComment {
   return { ...draft("a"), body };
 }
 
+function stubFlowSession(): ReviewFlowSessionActions {
+  return {
+    saveComment: vi.fn(() => Promise.resolve(true)),
+    updateComment: vi.fn(),
+    deleteComment: vi.fn(),
+    toggleComment: vi.fn(),
+    reanchorComment: vi.fn(),
+  };
+}
+
+function makeFlowStore(): ReviewFlowStore {
+  return createReviewFlowStore(stubFlowSession(), (key) => key);
+}
+
 function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   const writeEvents: string[] = [];
   function trackWrite<Value>(write: () => Promise<Value>): Promise<Value> {
@@ -89,6 +108,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     closeSubmit,
     resetOutcome,
     trackWrite,
+    flowStore: makeFlowStore(),
     ...overrides,
   };
   const rendered = renderHook(
@@ -594,5 +614,42 @@ describe("useReviewSubmit", () => {
     expect(neutral.rendered.result.current.error).not.toMatch(
       /your own pull request/i,
     );
+  });
+
+  it("starts a new revision without the previous revision's failure", async () => {
+    const { rendered, input, action } = setup();
+    action.mockResolvedValue({ kind: "rewritten" });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(rendered.result.current.error).toMatch(/reload/i);
+
+    rendered.rerender({
+      ...input,
+      briefId: "db:1:7:base:next",
+      flowStore: makeFlowStore(),
+    });
+    expect(rendered.result.current.error).toBeNull();
+  });
+
+  it("shows a failure that settles after a return to the same revision", async () => {
+    const { rendered, input, action } = setup();
+    let settle: (result: SubmitReviewResult) => void = () => {};
+    action.mockReturnValue(
+      new Promise<SubmitReviewResult>((resolve) => {
+        settle = resolve;
+      }),
+    );
+
+    act(() => rendered.result.current.submit());
+    rendered.rerender({
+      ...input,
+      briefId: "db:1:7:base:next",
+      flowStore: makeFlowStore(),
+    });
+    rendered.rerender({ ...input, flowStore: makeFlowStore() });
+    await act(async () => settle({ kind: "rewritten" }));
+
+    expect(rendered.result.current.error).toMatch(/reload/i);
   });
 });
