@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useStore } from "zustand";
 
 import {
@@ -31,6 +31,7 @@ import type { IntentBarHandle } from "./IntentBar";
 import { INTENT_BAR_ID } from "./IntentBar/consts";
 import { useCreateReadingPositionStore } from "./readingPosition";
 import { deriveVisibleRegions } from "./regions";
+import { useCreateBriefScreenStore } from "./screen-store";
 import { useSidebarState } from "./Sidebar/useSidebarState";
 import type { BriefScreenProps, ChunkShare } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
@@ -134,6 +135,11 @@ export function useBriefScreenFacade({
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
   const readingPosition = useCreateReadingPositionStore(briefId);
   const expansion = useCreateExpansionStore(briefId);
+  const screen = useCreateBriefScreenStore(briefId, {
+    model,
+    initialFocusMode: searchParams.focus === true,
+  });
+  const { markScopeShown, setSubmitOpen } = screen.getState().actions;
   const session = useReadingSession({
     brief,
     briefId,
@@ -144,7 +150,7 @@ export function useBriefScreenFacade({
     chunkWindows: chunkWindowsRef.current,
     exitChangesScope,
     position: readingPosition,
-    initialFocusMode: searchParams.focus === true,
+    screen,
   });
   const {
     actions,
@@ -191,14 +197,20 @@ export function useBriefScreenFacade({
   const inChangesScope = compareState.view === "changes";
   const focusPanelShown = focusMode && !inChangesScope;
 
-  const changesEverShownRef = useRef(false);
-  if (inChangesScope) {
-    changesEverShownRef.current = true;
-  }
-  const storyEverShownRef = useRef(false);
-  if (!inChangesScope) {
-    storyEverShownRef.current = true;
-  }
+  // A pane stays mounted, hidden, once its scope has shown for this Brief,
+  // so a flip back pays no remount.
+  const scope = compareState.view;
+  useEffect(() => {
+    markScopeShown(scope);
+  }, [markScopeShown, scope]);
+  const changesPaneMounted = useStore(
+    screen,
+    (state) => inChangesScope || state.shownScopes.has("changes"),
+  );
+  const storyPaneMounted = useStore(
+    screen,
+    (state) => !inChangesScope || state.shownScopes.has("full"),
+  );
 
   // A gesture from Changes scope leaves it with a history step and lands
   // once the story pane renders.
@@ -210,14 +222,7 @@ export function useBriefScreenFacade({
     jumpToGroup(groupId, LandHistories.PUSH);
   };
 
-  const [submitOpen, setSubmitOpen] = useState(false);
-  const [screenBriefId, setScreenBriefId] = useState(briefId);
-  if (screenBriefId !== briefId) {
-    setScreenBriefId(briefId);
-    setSubmitOpen(false);
-    changesEverShownRef.current = false;
-    storyEverShownRef.current = false;
-  }
+  const submitOpen = useStore(screen, (state) => state.submitOpen);
 
   const inFlight = useInFlightDraftPosts();
   const postingCommentIds = inFlight.ids;
@@ -299,7 +304,7 @@ export function useBriefScreenFacade({
   }, [announce, clearWriteError, t, writeError]);
 
   const openSubmit = () => setSubmitOpen(true);
-  const closeSubmit = useCallback(() => setSubmitOpen(false), []);
+  const closeSubmit = useCallback(() => setSubmitOpen(false), [setSubmitOpen]);
 
   // Identity-stable per plan: both composer wirings memo on it.
   const recordSubmittedReview = actions.recordSubmittedReview;
@@ -481,7 +486,7 @@ export function useBriefScreenFacade({
     setSubmitOpen(false);
     flowActions.setDismissTarget(null);
     flowActions.setEvidenceTarget(null);
-  }, [flowActions]);
+  }, [flowActions, setSubmitOpen]);
 
   // The bar mounts with the story view, so its expand waits a task; the
   // landing waits for the mount on its own.
@@ -499,7 +504,7 @@ export function useBriefScreenFacade({
   const markReady = useMarkReadyFlow({
     action: ownDraft?.markReady,
     announce,
-    briefId,
+    screen,
     closeReviewerOverlays,
     flagCount: model.flags.length,
     intentCheck: brief.intentCheck,
@@ -638,8 +643,8 @@ export function useBriefScreenFacade({
     sidebar,
     sidebarLayout,
     inChangesScope,
-    changesEverShownRef,
-    storyEverShownRef,
+    changesPaneMounted,
+    storyPaneMounted,
     chunkWindowsRef,
     queueJumpFromChanges,
     queueChunkJumpFromChanges,

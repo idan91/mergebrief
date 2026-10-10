@@ -224,3 +224,8 @@ export const PostDraftOutcomes = {
   INDETERMINATE: "indeterminate",
 } as const;
 export type PostDraftOutcome = ValueOf<typeof PostDraftOutcomes>;
+
+export interface MarkReadyBatch {
+  current: number;
+  total: number;
+}

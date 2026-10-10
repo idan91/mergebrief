@@ -27,6 +27,7 @@ import {
   groupSinceMarkers,
   groupStartIndexes,
   hasRemovedLines,
+  listChunkIds,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
   resolveLocalComparisonIds,
@@ -208,6 +209,17 @@ describe("groupStartIndexes", () => {
       { chunks: ["d", "e", "f"] },
     ];
     expect(groupStartIndexes(groups)).toEqual([0, 2, 3]);
+  });
+});
+
+describe("listChunkIds", () => {
+  it("lists chunk ids group by group in reading order", () => {
+    const groups = [
+      { chunks: [{ id: "c2" }, { id: "c1" }] },
+      { chunks: [] },
+      { chunks: [{ id: "c3" }] },
+    ];
+    expect(listChunkIds(groups)).toEqual(["c2", "c1", "c3"]);
   });
 });
 
@@ -446,7 +458,7 @@ describe("markReadyBatchFailureCopy", () => {
 
 describe("markReadyBatchBusyLabel", () => {
   it("returns undefined while no batch runs", () => {
-    expect(markReadyBatchBusyLabel(t, null)).toBeUndefined();
+    expect(markReadyBatchBusyLabel(t, undefined)).toBeUndefined();
   });
 
   it("labels the running batch's progress", () => {

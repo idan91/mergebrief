@@ -37,6 +37,7 @@ import {
   LinkParamErrors,
   type LinkTarget,
   LinkTargetKinds,
+  type MarkReadyBatch,
   PostDraftOutcomes,
   type PostDraftOutcome,
 } from "./types";
@@ -157,6 +158,13 @@ export function groupStartIndexes(
   return boundaries;
 }
 
+/** Chunk ids in the rendered reading order, group by group. */
+export function listChunkIds(
+  groups: readonly { chunks: readonly { id: string }[] }[],
+): string[] {
+  return groups.flatMap((group) => group.chunks.map((chunk) => chunk.id));
+}
+
 export interface DeriveBriefProgressInput {
   /** Own-draft state: flag dispositions are unreachable (read-only mirror), so progress is chunk read-through only. */
   ownDraftActive: boolean;
@@ -262,9 +270,9 @@ export function markReadyBatchFailureCopy(
 /** The running batch's confirm-button pending label, if a batch runs. */
 export function markReadyBatchBusyLabel(
   t: TFunction,
-  batch: { current: number; total: number } | null,
+  batch: MarkReadyBatch | undefined,
 ): string | undefined {
-  return batch !== null
+  return batch !== undefined
     ? t("brief.markReadyBatch.busyLabel", {
         current: batch.current,
         total: batch.total,

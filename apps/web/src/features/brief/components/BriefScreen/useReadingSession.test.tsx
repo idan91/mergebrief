@@ -3,6 +3,7 @@
 // a scroll-spy tick re-renders position SUBSCRIBERS, never the component
 // hosting this hook (the screen shell).
 import { act, cleanup, render } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewSessionProvider } from "@web/features/review/session";
@@ -10,7 +11,12 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import { LandHistories } from "./landing/types";
 import type { ScopeExitOptions } from "./types";
-import { deriveGroupHeadingId, deriveGroupSectionId } from "./utils";
+import { createBriefScreenStore } from "./screen-store";
+import {
+  deriveGroupHeadingId,
+  deriveGroupSectionId,
+  listChunkIds,
+} from "./utils";
 import {
   createReadingPositionStore,
   type ReadingPositionStore,
@@ -70,6 +76,12 @@ function SessionHost({
   initialFocusMode = false,
 }: HostProps) {
   onRender();
+  const [screen] = useState(() =>
+    createBriefScreenStore({
+      openChunkIds: listChunkIds(model.groups),
+      focusMode: initialFocusMode,
+    }),
+  );
   const session = useReadingSession({
     brief: briefFixture,
     briefId: "fixture-brief",
@@ -79,7 +91,7 @@ function SessionHost({
     repoConfig: null,
     position,
     exitChangesScope,
-    initialFocusMode,
+    screen,
   });
   onSession?.(session);
   return null;

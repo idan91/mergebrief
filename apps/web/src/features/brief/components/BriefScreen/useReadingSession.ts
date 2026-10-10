@@ -2,15 +2,9 @@
 // progress/receipt derivation, and the scroll/nav machinery (landing,
 // scroll-spy, focus mode, read-through). Exposes only the members the screen
 // (or a sibling flow hook) consumes.
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { createI18n } from "i18n";
+import { useStore } from "zustand";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useScrollSpy } from "@web/hooks/useScrollSpy";
@@ -38,6 +32,7 @@ import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { ReadingPositionStore } from "./readingPosition";
+import type { BriefScreenStore } from "./screen-store";
 import type { ScopeExitOptions } from "./types";
 import {
   SupportingCollapseStates,
@@ -47,6 +42,7 @@ import {
   deriveBriefProgress,
   deriveGroupHeadingId,
   groupStartIndexes,
+  listChunkIds,
   toggleSetMember,
 } from "./utils";
 import { useLanding } from "./landing";
@@ -88,8 +84,8 @@ export interface UseReadingSessionInput {
    */
   ownDraftActive: boolean;
   repoConfig: RepoConfigContext | null | undefined;
-  /** Focus mode at mount: the URL asked for it, so the first paint reads in it. */
-  initialFocusMode?: boolean;
+  /** The Brief's open chunks, focus mode and shortcuts overlay. */
+  screen: BriefScreenStore;
   /** Jump routing into windowed chunk lists; null = mounted DOM only. */
   chunkWindows?: ChunkWindowRegistry | null | undefined;
   /** Route-owned; a jump with a history mode leaves Changes scope through it. */
@@ -124,7 +120,7 @@ export interface UseReadingSessionValue {
   focusMode: boolean;
   /** The focus pill's measurement target (publishes --focus-indicator-h). */
   focusIndicatorRef: RefObject<HTMLDivElement | null>;
-  openChunks: Set<string>;
+  openChunks: ReadonlySet<string>;
   /** Bulk action over `openChunks`, never an override, derived state. */
   supportingCollapse: SupportingCollapseState;
   toggleCollapseSupporting: () => void;
@@ -170,7 +166,7 @@ export function useReadingSession(
     chunkWindows,
     exitChangesScope,
     position,
-    initialFocusMode = false,
+    screen,
   } = input;
   // Session/domain state lives in the per-brief Review Session store.
   const dispositions = useReviewSession((state) => state.dispositions);
@@ -192,29 +188,29 @@ export function useReadingSession(
     [model.groups],
   );
 
-  const chunkIds = useMemo(
-    () =>
-      model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
-    [model.groups],
-  );
+  const chunkIds = useMemo(() => listChunkIds(model.groups), [model.groups]);
   const groupBoundaries = useMemo(
     () => groupStartIndexes(model.groups),
     [model.groups],
   );
 
-  // Transient UI state stays local and colocated.
-  const [openChunks, setOpenChunks] = useState<Set<string>>(
-    () => new Set(chunkIds),
-  );
+  const openChunks = useStore(screen, (state) => state.openChunks);
+  const focusMode = useStore(screen, (state) => state.focusMode);
+  const shortcutsOpen = useStore(screen, (state) => state.shortcutsOpen);
+  const { updateOpenChunks, setFocusMode, setShortcutsOpen } =
+    screen.getState().actions;
 
   /** Ensure-open, never a toggle, row-target jumps (conversation threads,
    * revision rails, unresolved submit items) land INSIDE the diff, which
    * only exists on an open card. */
-  const openChunk = useCallback((chunkId: string) => {
-    setOpenChunks((current) =>
-      current.has(chunkId) ? current : new Set(current).add(chunkId),
-    );
-  }, []);
+  const openChunk = useCallback(
+    (chunkId: string) => {
+      updateOpenChunks((current) =>
+        current.has(chunkId) ? current : new Set(current).add(chunkId),
+      );
+    },
+    [updateOpenChunks],
+  );
   const { land } = useLanding({
     briefId,
     chunkWindows: chunkWindows ?? undefined,
@@ -244,7 +240,7 @@ export function useReadingSession(
         : SupportingCollapseStates.SOME;
   }
   const toggleCollapseSupporting = useCallback(() => {
-    setOpenChunks((current) => {
+    updateOpenChunks((current) => {
       const next = new Set(current);
       const allCollapsed =
         supportingChunkIds.length > 0 &&
@@ -258,19 +254,7 @@ export function useReadingSession(
       }
       return next;
     });
-  }, [supportingChunkIds]);
-  const [focusMode, setFocusMode] = useState(initialFocusMode);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  // Brief switch without remount: reading posture is per-brief and used to
-  // reset via the subtree remount, adjust during render so the new brief
-  // never paints with the old brief's open set, active chunk, or focus mode.
-  const [sessionBriefId, setSessionBriefId] = useState(briefId);
-  if (sessionBriefId !== briefId) {
-    setSessionBriefId(briefId);
-    setOpenChunks(new Set(chunkIds));
-    setFocusMode(false);
-    setShortcutsOpen(false);
-  }
+  }, [supportingChunkIds, updateOpenChunks]);
   const focusModeRef = useLatestRef(focusMode);
   // The one write path into the reading-position store: chunk and derived
   // group land together, so subscribers never see them disagree.
@@ -406,10 +390,10 @@ export function useReadingSession(
 
   const toggleChunk = useCallback(
     (chunkId: string) => {
-      setOpenChunks((current) => toggleSetMember(current, chunkId));
+      updateOpenChunks((current) => toggleSetMember(current, chunkId));
       setActivePosition(chunkId);
     },
-    [setActivePosition],
+    [setActivePosition, updateOpenChunks],
   );
 
   const markReviewed = useCallback(
@@ -420,11 +404,11 @@ export function useReadingSession(
       if (focusModeRef.current) {
         if (alreadyReviewed) {
           actions.reviewChunk(chunkId);
-          setOpenChunks((current) => new Set(current).add(chunkId));
+          updateOpenChunks((current) => new Set(current).add(chunkId));
           return;
         }
         actions.reviewChunk(chunkId);
-        setOpenChunks((current) => {
+        updateOpenChunks((current) => {
           const next = new Set(current);
           next.delete(chunkId);
           return next;
@@ -440,9 +424,8 @@ export function useReadingSession(
         }
         return;
       }
-      // Collapse-on-review lives here because openChunks is local UI.
       actions.reviewChunk(chunkId);
-      setOpenChunks((current) => {
+      updateOpenChunks((current) => {
         const next = new Set(current);
         next.delete(chunkId);
         return next;
@@ -455,6 +438,7 @@ export function useReadingSession(
       land,
       reviewedChunksRef,
       setActivePosition,
+      updateOpenChunks,
     ],
   );
 
@@ -514,11 +498,15 @@ export function useReadingSession(
       { ...SMOOTH_UNDER_STACK, open: true },
     );
   };
-  const toggleShortcuts = () => setShortcutsOpen((current) => !current);
+  const toggleShortcuts = () =>
+    setShortcutsOpen(!screen.getState().shortcutsOpen);
   // Stable: Modal's Escape-listener effect deps on `close`, an unstable
   // identity would re-bind a document listener on every session render
   // while the shortcuts modal is open.
-  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
+  const closeShortcuts = useCallback(
+    () => setShortcutsOpen(false),
+    [setShortcutsOpen],
+  );
 
   // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
   // active chunk. Under the stack: see toggleFocusMode.
@@ -586,7 +574,7 @@ export function useReadingSession(
   // mode first.
   const exitToStoryView = useCallback(() => {
     setFocusMode(false);
-  }, []);
+  }, [setFocusMode]);
 
   return {
     actions,

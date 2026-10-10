@@ -52,7 +52,7 @@ export interface StoryViewProps {
   lineOwnersByFile: ReadonlyMap<string, FileLineOwners>;
   comparison: ComparisonOverlayState;
   focusMode: boolean;
-  openChunks: Set<string>;
+  openChunks: ReadonlySet<string>;
   addressedReviewComments: AddressedReviewComment[] | undefined;
   jumpToChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;

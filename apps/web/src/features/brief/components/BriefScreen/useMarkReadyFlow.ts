@@ -1,6 +1,7 @@
 import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import {
@@ -11,6 +12,7 @@ import {
 import type { MarkReadyAction } from "@web/features/pulls/transport";
 import { useMarkReady } from "@web/features/pulls/hooks";
 import type { RiskFlag } from "../../utils/viewModel";
+import type { BriefScreenStore } from "./screen-store";
 import { PostDraftOutcomes, type PostDraftOutcome } from "./types";
 import {
   countIntentGaps,
@@ -27,7 +29,8 @@ export interface UseMarkReadyFlowInput {
   action: MarkReadyAction | undefined;
   /** Page-level live-region channel (clear-then-set). */
   announce: (message: string) => void;
-  briefId: string;
+  /** Holds the gate, its checkbox and the batch progress for this Brief. */
+  screen: BriefScreenStore;
   /**
    * Closes every reviewer overlay (drawers, pre-submit, disposition modals)
    * when the own-draft state is entered: must be referentially stable.
@@ -72,7 +75,7 @@ export function useMarkReadyFlow(
   const {
     action,
     announce,
-    briefId,
+    screen,
     closeReviewerOverlays,
     flagCount,
     intentCheck,
@@ -84,22 +87,18 @@ export function useMarkReadyFlow(
     reviewerOverlayOpen,
     showIntentBar,
   } = input;
-  const [markReadyGateOpen, setMarkReadyGateOpen] = useState(false);
+  const markReadyGateOpen = useStore(
+    screen,
+    (state) => state.markReadyGateOpen,
+  );
   // Default UNCHECKED: posting is an outward write.
-  const [postDraftsOnReady, setPostDraftsOnReady] = useState(false);
-  const [markReadyBatch, setMarkReadyBatch] = useState<{
-    current: number;
-    total: number;
-  } | null>(null);
-  // Brief switch without remount: the gate lists the OLD brief's flags and
-  // drafts: close it and drop the batch progress before the new brief paints.
-  const [gateBriefId, setGateBriefId] = useState(briefId);
-  if (gateBriefId !== briefId) {
-    setGateBriefId(briefId);
-    setMarkReadyGateOpen(false);
-    setPostDraftsOnReady(false);
-    setMarkReadyBatch(null);
-  }
+  const postDraftsOnReady = useStore(
+    screen,
+    (state) => state.postDraftsOnReady,
+  );
+  const markReadyBatch = useStore(screen, (state) => state.markReadyBatch);
+  const { setMarkReadyGateOpen, setPostDraftsOnReady, setMarkReadyBatch } =
+    screen.getState().actions;
 
   // Destructured because the hook returns a fresh object literal per render;
   // `markReady` and `pending` are the stable/primitive dep-safe members.
@@ -139,6 +138,7 @@ export function useMarkReadyFlow(
     gateOpenRef,
     overlayWasOpenRef,
     ownDraftActive,
+    setMarkReadyGateOpen,
     t,
   ]);
   // A batch failure closes the gate while the modal still holds focus. The
@@ -183,7 +183,14 @@ export function useMarkReadyFlow(
       document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
     }
     announce(t("pulls.markReady.gateClosed"));
-  }, [announce, gateOpenRef, markReadyAvailable, ownDraftActive, t]);
+  }, [
+    announce,
+    gateOpenRef,
+    markReadyAvailable,
+    ownDraftActive,
+    setMarkReadyGateOpen,
+    t,
+  ]);
   const requestMarkReady = useCallback(() => {
     if (!markReadyAvailable) {
       announce(t("pulls.markReady.historicalRevision"));
@@ -209,16 +216,21 @@ export function useMarkReadyFlow(
     markReady,
     markReadyAvailable,
     markReadyPending,
+    setMarkReadyGateOpen,
+    setPostDraftsOnReady,
     t,
     unpostedDraftComments.length,
   ]);
-  const closeMarkReadyGate = useCallback(() => setMarkReadyGateOpen(false), []);
+  const closeMarkReadyGate = useCallback(
+    () => setMarkReadyGateOpen(false),
+    [setMarkReadyGateOpen],
+  );
   const jumpToFlagFromGate = useCallback(
     (flag: RiskFlag) => {
       setMarkReadyGateOpen(false);
       jumpToChunk(flag.chunkId);
     },
-    [jumpToChunk],
+    [jumpToChunk, setMarkReadyGateOpen],
   );
   const jumpToDraftsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
@@ -230,14 +242,14 @@ export function useMarkReadyFlow(
     if (chunkId !== "") {
       jumpToChunk(chunkId);
     }
-  }, [chunks, jumpToChunk, unpostedDraftComments]);
+  }, [chunks, jumpToChunk, setMarkReadyGateOpen, unpostedDraftComments]);
   // Intent lines never feed the gate's OPEN condition.
   const intentGapCount = countIntentGaps(intentCheck);
   const intentTensionCount = countIntentTensions(intentCheck);
   const jumpToIntentGapsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
     showIntentBar();
-  }, [showIntentBar]);
+  }, [setMarkReadyGateOpen, showIntentBar]);
   // Marks ready only if every post succeeded; any failure stops first. The
   // confirm CTA is aria-disabled while the batch runs, so a click can land
   // before the busy state renders: the guard must be a ref, not state.
@@ -259,7 +271,7 @@ export function useMarkReadyFlow(
           // oxlint-disable-next-line no-await-in-loop
           const outcome = await postDraft(draft, true);
           if (outcome !== PostDraftOutcomes.POSTED) {
-            setMarkReadyBatch(null);
+            setMarkReadyBatch(undefined);
             setMarkReadyGateOpen(false);
             // Per-comment copy is suppressed for the batch, so this summary
             // is the run's only live-region write.
@@ -272,14 +284,21 @@ export function useMarkReadyFlow(
           }
           posted += 1;
         }
-        setMarkReadyBatch(null);
+        setMarkReadyBatch(undefined);
         setMarkReadyGateOpen(false);
         markReady();
       } finally {
         batchInFlight.current = false;
       }
     },
-    [announce, markReady, postDraft, t],
+    [
+      announce,
+      markReady,
+      postDraft,
+      setMarkReadyBatch,
+      setMarkReadyGateOpen,
+      t,
+    ],
   );
   const markReadyAnyway = useCallback(() => {
     if (postDraftsOnReady && unpostedDraftComments.length > 0) {
@@ -288,7 +307,13 @@ export function useMarkReadyFlow(
     }
     setMarkReadyGateOpen(false);
     markReady();
-  }, [markReady, postDraftsOnReady, runMarkReadyBatch, unpostedDraftComments]);
+  }, [
+    markReady,
+    postDraftsOnReady,
+    runMarkReadyBatch,
+    setMarkReadyGateOpen,
+    unpostedDraftComments,
+  ]);
 
   return {
     available: markReadyAvailable,

@@ -103,8 +103,8 @@ export function BriefScreen({
     sidebar,
     sidebarLayout,
     inChangesScope,
-    changesEverShownRef,
-    storyEverShownRef,
+    changesPaneMounted,
+    storyPaneMounted,
     chunkWindowsRef,
     queueJumpFromChanges,
     queueChunkJumpFromChanges,
@@ -375,7 +375,7 @@ export function BriefScreen({
 
                     <div aria-hidden="true" {...{ [CONTENT_START_ATTR]: "" }} />
                     <ChunkWindowProvider registry={chunkWindowsRef.current}>
-                      {changesEverShownRef.current ? (
+                      {changesPaneMounted ? (
                         <div hidden={!inChangesScope || undefined}>
                           <LensPane frozen={!inChangesScope}>
                             <ChangesOnlyView
@@ -401,7 +401,7 @@ export function BriefScreen({
                           </LensPane>
                         </div>
                       ) : null}
-                      {storyEverShownRef.current ? (
+                      {storyPaneMounted ? (
                         <div hidden={inChangesScope || undefined}>
                           <LensPane frozen={inChangesScope}>
                             <StoryView
