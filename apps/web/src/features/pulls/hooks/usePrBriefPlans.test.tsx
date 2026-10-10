@@ -2,15 +2,21 @@
 // The rendered-brief plan assembly: identity pinning (commit_id = the RENDERED
 // span's head, never meta.headSha), own-draft affordance gating, and
 // comparison-availability scoping.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, renderHook } from "@testing-library/react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type * as PostCommentModule from "../transport/postComment";
 
+import { buildPrMetaQueryOptions } from "../queries";
 import type { Span } from "../utils/briefRouteState";
-import type { PrSummary } from "../types";
+import { resolveDbTimeline } from "../utils/dbTimeline";
+import type { PrComparisons, PrSummary } from "../types";
 import { usePrBriefPlans } from "./usePrBriefPlans";
 
 vi.mock("../transport/submitReview", () => ({ submitReview: vi.fn() }));
@@ -184,28 +190,99 @@ describe("usePrBriefPlans", () => {
       });
     });
 
-    it("keeps the plan's identity across poll ticks with equal envelopes", () => {
-      const { result, rerender } = renderHook(
-        ({ tick }: { tick: number }) =>
-          usePrBriefPlans({
-            repoId: "424242",
-            prNumber: 7,
-            span: currentSpan,
-            // A poll tick rebuilds the meta (and its comparisons envelope)
-            // with unchanged content: fresh identities, same values.
-            meta: meta({
-              comparisons: structuredClone(comparisons),
-              updatedAt: `2026-07-06T12:00:0${String(tick)}.000Z`,
-            }),
-            timeline: undefined,
-            revisionJump: undefined,
-          }),
-        { wrapper, initialProps: { tick: 0 } },
-      );
-      const first = result.current.comparisonPlan;
-      rerender({ tick: 1 });
-      expect(result.current.comparisonPlan).toBe(first);
-    });
+    describe.each(["meta", "timeline"] as const)(
+      "polled %s envelope",
+      (source) => {
+        // Every tick serves freshly parsed objects; only the query layer can
+        // hand the hook the envelope identities it held before.
+        async function renderPolledPlans(
+          serveTick: (tick: number) => PrComparisons,
+        ) {
+          const client = new QueryClient();
+          let tick = 0;
+          const options = {
+            ...buildPrMetaQueryOptions("424242", 7),
+            queryFn: async (): Promise<PrSummary> => {
+              const served = structuredClone(serveTick(tick));
+              tick += 1;
+              return meta({
+                updatedAt: `2026-07-06T12:00:0${String(tick)}.000Z`,
+                comparisons: served,
+                revisions: [
+                  {
+                    headSha: "head-2",
+                    baseSha: "base-2",
+                    headIndex: 2,
+                    createdAt: "2026-07-06T12:00:00.000Z",
+                    comparisons: served,
+                  },
+                ],
+              });
+            },
+          };
+          await client.ensureQueryData(options);
+          const rendered = renderHook(
+            () => {
+              const polled = useSuspenseQuery(options).data;
+              const timeline =
+                source === "timeline"
+                  ? resolveDbTimeline(polled.revisions, {})
+                  : undefined;
+              const plans = usePrBriefPlans({
+                repoId: "424242",
+                prNumber: 7,
+                span: currentSpan,
+                meta: polled,
+                timeline,
+                revisionJump: undefined,
+              });
+              return { meta: polled, plans };
+            },
+            { wrapper: wrapperWith(client) },
+          );
+          async function poll() {
+            const before = rendered.result.current.meta;
+            await act(() =>
+              client.refetchQueries({ queryKey: options.queryKey }),
+            );
+            await waitFor(() => {
+              expect(rendered.result.current.meta).not.toBe(before);
+            });
+          }
+          return { result: rendered.result, poll };
+        }
+
+        it("keeps the plan's identity across poll ticks with equal envelopes", async () => {
+          const { result, poll } = await renderPolledPlans(() => comparisons);
+          const first = result.current.plans.comparisonPlan;
+          await poll();
+          expect(result.current.plans.comparisonPlan).toBe(first);
+        });
+
+        it("rebuilds the plan when a tick changes a field the plan reads", async () => {
+          const { result, poll } = await renderPolledPlans((tick) => {
+            if (tick === 0) {
+              return comparisons;
+            }
+            return {
+              ...comparisons,
+              previousBrief: {
+                baselineSha: "head-1",
+                baselineIndex: 1,
+                narrativeAvailable: false,
+              },
+            };
+          });
+          const first = result.current.plans.comparisonPlan;
+          expect(first.previousBrief?.narrative).toBeDefined();
+          await poll();
+          expect(result.current.plans.comparisonPlan).not.toBe(first);
+          expect(
+            result.current.plans.comparisonPlan.previousBrief?.narrative,
+          ).toBeUndefined();
+        });
+      },
+    );
 
     it("an unavailable checkpoint surfaces its honest reason, not a plan", () => {
       const { result } = renderPlans({

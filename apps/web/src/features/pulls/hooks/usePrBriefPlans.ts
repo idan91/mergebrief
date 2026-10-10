@@ -1,5 +1,6 @@
-// PR-meta polls rebuild timeline objects. Keep plans stable so memoized ChunkCards
-// do not rerender for unchanged transport and comparison inputs.
+// The comparison plan keys on the pr-meta cache's own envelope objects, so its
+// identity across equal poll ticks rides on react-query structural sharing;
+// `structuralSharing: false` on that query rebuilds it every tick.
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
@@ -46,20 +47,7 @@ import {
   buildPrMetaQueryOptions,
 } from "../queries";
 import { submitReview } from "../transport/submitReview";
-import type { LastReviewComparison, PrSummary } from "../types";
-
-/** Primitive fingerprint of the last-review envelope, for memo identity. */
-function deriveLastReviewKey(
-  lastReview: LastReviewComparison | undefined,
-): string | undefined {
-  if (lastReview === undefined) {
-    return undefined;
-  }
-  if (lastReview.kind === "available") {
-    return `available|${lastReview.baselineSha}|${String(lastReview.baselineIndex ?? "")}|${String(lastReview.deltaAvailable)}`;
-  }
-  return `unavailable|${lastReview.reason}`;
-}
+import type { PrSummary } from "../types";
 
 export interface UsePrBriefPlansInput {
   repoId: string;
@@ -105,20 +93,8 @@ export function usePrBriefPlans(
   const effectiveComparisons =
     timeline?.selected.comparisons ??
     (currentHead ? meta.comparisons : undefined);
-  // Identity-stabilized on primitive fingerprints: every PR-meta poll tick
-  // rebuilds the timeline envelopes with unchanged content, and the plan built
-  // from them feeds memoized ChunkCards.
-  const rawPrevious = effectiveComparisons?.previousBrief;
-  const previousKey =
-    rawPrevious === undefined
-      ? undefined
-      : `${rawPrevious.baselineSha}|${String(rawPrevious.baselineIndex)}|${String(rawPrevious.narrativeAvailable)}`;
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  const previous = useMemo(() => rawPrevious, [previousKey]);
-  const rawLastReview = effectiveComparisons?.lastReview;
-  const lastReviewKey = deriveLastReviewKey(rawLastReview);
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  const lastReview = useMemo(() => rawLastReview, [lastReviewKey]);
+  const previous = effectiveComparisons?.previousBrief;
+  const lastReview = effectiveComparisons?.lastReview;
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
     const plan: Mutable<BriefComparisonPlan> = {};
 
