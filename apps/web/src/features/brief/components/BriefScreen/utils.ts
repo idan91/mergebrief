@@ -30,7 +30,6 @@ import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import { type BriefChunk, type ComparisonAvailability } from "../../types";
-import { CHUNK_LANDING_GAP_PX } from "./consts";
 import {
   type FilePathDirectory,
   type FilePathParts,
@@ -308,8 +307,13 @@ export function resolveRiskEvidence(
   return note ? { kind, note } : { kind };
 }
 
-/** User inputs that abort an in-flight programmatic landing. */
-export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
+/** User inputs that abort an in-flight programmatic landing; a click or drag in the landed card counts. */
+export const SCROLL_ABORT_EVENTS = [
+  "wheel",
+  "touchstart",
+  "keydown",
+  "pointerdown",
+] as const;
 
 /** The whole pinned stack as one registered length; the header writes it. */
 export const STICKY_STACK_HEIGHT_VAR = "--sticky-stack-h";
@@ -370,27 +374,6 @@ export function deriveRowLandingCorrection(
   }
 
   return extent.top - (stickyStackHeight + bandHeight * ROW_LANDING_BAND_SHARE);
-}
-
-/**
- * How far to scroll so a landed card's head sits under the stack where the
- * chunk landing puts it, 0 while the head is anywhere in the band's upper
- * half. A windowed list's late measurements can push a landed card out.
- */
-export function deriveCardLandingCorrection(
-  extent: VerticalExtent,
-  stickyStackHeight: number,
-  viewportHeight: number,
-): number {
-  const bandMiddle =
-    stickyStackHeight + (viewportHeight - stickyStackHeight) / 2;
-
-  return deriveHeadLandingCorrection(
-    extent,
-    stickyStackHeight,
-    bandMiddle,
-    stickyStackHeight + CHUNK_LANDING_GAP_PX,
-  );
 }
 
 function deriveHeadLandingCorrection(

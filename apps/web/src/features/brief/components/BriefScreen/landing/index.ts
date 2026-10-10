@@ -1,24 +1,38 @@
-import { useCallback, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
-import { armLandingAbort } from "../useConversationWiring/utils";
 import { planLanding } from "./plan";
 import {
   LandingPhases,
   LandPlacements,
-  LandTargetKinds,
+  type ChunkWindowsPort,
+  type Flash,
   type Landing,
   type LandingRequest,
   type LandingState,
+  type LandOptions,
+  type LandTarget,
   type UseLandingInput,
 } from "./types";
 import {
-  deriveLandingElementId,
+  armLandingAbort,
+  createFlash,
   deriveScrollBehavior,
+  deriveTargetChunkId,
+  findFallbackCard,
   focusLandingTarget,
   isSupportedLanding,
   performLandingAction,
   readLanding,
+  refindLandingElement,
+  startFlash,
   startLanding,
+  stopFlash,
 } from "./utils";
 
 interface Flight {
@@ -26,6 +40,16 @@ interface Flight {
   frame: number | undefined;
   /** Removes the user-input abort listeners once the watch has armed them. */
   removeAbort: (() => void) | undefined;
+}
+
+/** What every landing of one hook shares. */
+interface LandingDeps {
+  flightRef: RefObject<Flight | undefined>;
+  liveBriefId: RefObject<string>;
+  flash: Flash;
+  chunkWindows: ChunkWindowsPort | undefined;
+  openChunk: (chunkId: string) => void;
+  cancel: () => void;
 }
 
 function stopFlight(flight: Flight): void {
@@ -42,10 +66,99 @@ function stopFlight(flight: Flight): void {
 }
 
 /**
+ * Runs once, on the first step that finds the target. Never inside `land`:
+ * the caller's own state change has not committed yet, and a card it is about
+ * to reveal is still unrendered, so focus would be silently dropped.
+ */
+function arriveAt(
+  target: LandTarget,
+  options: LandOptions,
+  element: HTMLElement,
+  flash: Flash,
+): void {
+  if (options.focus === true) {
+    focusLandingTarget(target, element);
+  }
+  if (options.flash === true) {
+    startFlash(flash, element);
+  }
+}
+
+/**
+ * The jump waits a task (and two frames under the stack), then each frame
+ * reads, plans and acts until the plan ends or the hook cancels.
+ */
+function launchLanding(
+  target: LandTarget,
+  options: LandOptions,
+  deps: LandingDeps,
+): void {
+  deps.cancel();
+  const chunkId = deriveTargetChunkId(target);
+  if (options.open === true && chunkId !== undefined) {
+    deps.openChunk(chunkId);
+  }
+
+  const placement = options.placement ?? LandPlacements.VIEWPORT_TOP;
+  const request: LandingRequest = {
+    placement,
+    behavior: deriveScrollBehavior(options.motion),
+  };
+  let state: LandingState = startLanding(placement);
+  let element: HTMLElement | undefined;
+  let arrived = false;
+
+  const flight: Flight = {
+    timeout: undefined,
+    frame: undefined,
+    removeAbort: undefined,
+  };
+  deps.flightRef.current = flight;
+  const launchedFor = deps.liveBriefId.current;
+  const end = () => {
+    deps.cancel();
+    const card = findFallbackCard(target, arrived);
+    if (card !== undefined) {
+      const cardOptions = { ...options, placement: LandPlacements.UNDER_STACK };
+      launchLanding(card, cardOptions, deps);
+    }
+  };
+
+  const step = () => {
+    flight.timeout = undefined;
+    flight.frame = undefined;
+    if (deps.liveBriefId.current !== launchedFor) {
+      deps.cancel();
+      return;
+    }
+    element = refindLandingElement(target, element);
+    if (element !== undefined && !arrived) {
+      arrived = true;
+      arriveAt(target, options, element, deps.flash);
+    }
+
+    const plan = planLanding(state, readLanding(element), request);
+    const input = { element, chunkId, chunkWindows: deps.chunkWindows };
+    const kept = performLandingAction(plan.action, input);
+    if (!kept || plan.next === undefined) {
+      end();
+      return;
+    }
+
+    const watching = plan.next.phase === LandingPhases.SETTLE;
+    if (watching && flight.removeAbort === undefined) {
+      flight.removeAbort = armLandingAbort(deps.cancel);
+    }
+    state = plan.next;
+    flight.frame = window.requestAnimationFrame(step);
+  };
+  flight.timeout = window.setTimeout(step, 0);
+}
+
+/**
  * One landing at a time: a second `land` replaces the first, a brief switch
- * or the reader's own wheel, touch or key drops it. The jump waits a task
- * (and two frames under the stack, for the focus pill), then the target is
- * watched until it rests where it belongs.
+ * or the reader's own wheel, touch or key drops it, and a brief switch also
+ * clears the flash. A row that never renders lands on its card instead.
  */
 export function useLanding({
   briefId,
@@ -56,6 +169,7 @@ export function useLanding({
   // A step can run before the brief-switch cleanup does; it checks the id itself.
   const liveBriefId = useRef(briefId);
   liveBriefId.current = briefId;
+  const [flash] = useState(createFlash);
 
   const cancel = useCallback(() => {
     if (flightRef.current === undefined) {
@@ -64,65 +178,31 @@ export function useLanding({
     stopFlight(flightRef.current);
     flightRef.current = undefined;
   }, []);
-  useEffect(() => cancel, [briefId, cancel]);
+  useEffect(
+    () => () => {
+      cancel();
+      stopFlash(flash);
+    },
+    [briefId, cancel, flash],
+  );
 
   const land = useCallback<Landing["land"]>(
     (target, options) => {
-      if (!isSupportedLanding(target, options)) {
+      if (!isSupportedLanding(options)) {
         return false;
       }
-      cancel();
-
-      if (options.open === true && target.kind === LandTargetKinds.CHUNK) {
-        openChunk(target.chunkId);
-      }
-      let focusPending = options.focus === true && !focusLandingTarget(target);
-      const placement = options.placement ?? LandPlacements.VIEWPORT_TOP;
-      const request: LandingRequest = {
-        placement,
-        behavior: deriveScrollBehavior(options.motion),
-      };
-      const elementId = deriveLandingElementId(target);
-      let state: LandingState = startLanding(placement);
-      const flight: Flight = {
-        timeout: undefined,
-        frame: undefined,
-        removeAbort: undefined,
-      };
-      flightRef.current = flight;
-      const launchedFor = liveBriefId.current;
-
-      const step = () => {
-        flight.timeout = undefined;
-        flight.frame = undefined;
-        if (liveBriefId.current !== launchedFor) {
-          cancel();
-          return;
-        }
-        const reading = readLanding(elementId);
-        if (focusPending && reading.target !== undefined) {
-          focusPending = !focusLandingTarget(target);
-        }
-
-        const plan = planLanding(state, reading, request);
-        const kept = performLandingAction(plan.action, target, chunkWindows);
-        if (!kept || plan.next === undefined) {
-          cancel();
-          return;
-        }
-
-        const watching = plan.next.phase === LandingPhases.SETTLE;
-        if (watching && flight.removeAbort === undefined) {
-          flight.removeAbort = armLandingAbort(cancel);
-        }
-        state = plan.next;
-        flight.frame = window.requestAnimationFrame(step);
-      };
-      flight.timeout = window.setTimeout(step, 0);
+      launchLanding(target, options, {
+        flightRef,
+        liveBriefId,
+        flash,
+        chunkWindows,
+        openChunk,
+        cancel,
+      });
       return true;
     },
-    [cancel, chunkWindows, openChunk],
+    [cancel, chunkWindows, flash, openChunk],
   );
 
-  return { land, cancel };
+  return { land };
 }

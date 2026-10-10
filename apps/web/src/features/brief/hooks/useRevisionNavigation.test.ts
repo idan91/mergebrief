@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useLanding } from "../components/BriefScreen/landing";
 import type { ComparisonMarkFiles } from "../comparison/runs";
 import type { BriefChunk } from "../types";
 import {
@@ -202,30 +203,58 @@ const MARKS: ComparisonMarkFiles = {
   ],
 };
 
+interface NavigationHost {
+  chunks?: readonly BriefChunk[];
+  marks?: ComparisonMarkFiles | null;
+  getActiveChunkId?: () => string | null;
+}
+
+/** The hook lands through the real landing module, over stubbed windows. */
 function renderNavigation(
   scrollTowardChunk = vi.fn(() => true),
-  ensureChunkOpen = vi.fn(),
+  openChunk = vi.fn(),
+  host: NavigationHost = {},
 ) {
+  const chunkWindows = { scrollToChunk: scrollTowardChunk };
+  const {
+    chunks = CHUNKS,
+    marks = MARKS,
+    getActiveChunkId = () => null,
+  } = host;
   return {
     scrollTowardChunk,
-    ensureChunkOpen,
-    ...renderHook(() =>
-      useRevisionNavigation({
-        chunks: CHUNKS,
-        marks: MARKS,
-        getActiveChunkId: () => null,
-        scrollTowardChunk,
-        ensureChunkOpen,
-      }),
-    ),
+    openChunk,
+    ...renderHook(() => {
+      const { land } = useLanding({
+        briefId: "brief-a",
+        chunkWindows,
+        openChunk,
+      });
+      return useRevisionNavigation({ chunks, marks, getActiveChunkId, land });
+    }),
   };
 }
 
+function jump(step: () => void) {
+  act(() => {
+    step();
+    vi.advanceTimersByTime(1);
+  });
+}
+
 describe("useRevisionNavigation", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // jsdom has no CSS namespace; the quoted rail keys need no escaping.
+    vi.stubGlobal("CSS", { escape: (value: string) => value });
+  });
+
   afterEach(() => {
-    // Unmount first: the hook's rAF poll must stop before the environment
-    // tears down, or a leaked frame hits CSS.escape on a dead global.
+    // Unmount first: the landing's frames must stop before the environment
+    // tears down.
     cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
     document.body.innerHTML = "";
   });
 
@@ -240,7 +269,7 @@ describe("useRevisionNavigation", () => {
     const scrollTowardChunk = vi.fn(() => true);
     const { result } = renderNavigation(scrollTowardChunk);
 
-    result.current.jumpNext();
+    jump(() => result.current.jumpNext());
 
     expect(scrollTowardChunk).toHaveBeenCalledWith("c3");
   });
@@ -252,21 +281,24 @@ describe("useRevisionNavigation", () => {
     }
     const { result } = renderNavigation();
 
-    result.current.jumpPrev();
+    jump(() => result.current.jumpPrev());
 
     expect(document.activeElement).toBe(rails[1]);
+    expect(rails[1]?.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ block: "center" }),
+    );
   });
 
   it("routes an unmounted target through the window scroll, opening it first", () => {
     document.body.innerHTML = "<main></main>";
     const scrollTowardChunk = vi.fn(() => true);
-    const ensureChunkOpen = vi.fn();
-    const { result } = renderNavigation(scrollTowardChunk, ensureChunkOpen);
+    const openChunk = vi.fn();
+    const { result } = renderNavigation(scrollTowardChunk, openChunk);
 
-    result.current.jumpNext();
+    jump(() => result.current.jumpNext());
 
     // Rails are rows: a collapsed card has no rail to land on.
-    expect(ensureChunkOpen).toHaveBeenCalledWith("c1");
+    expect(openChunk).toHaveBeenCalledWith("c1");
     expect(scrollTowardChunk).toHaveBeenCalledWith("c1");
   });
 
@@ -276,35 +308,26 @@ describe("useRevisionNavigation", () => {
     document.body.innerHTML = "<main></main>";
     const scrollTowardChunk = vi.fn(() => true);
     let active: string | null = null;
-    const { result } = renderHook(() =>
-      useRevisionNavigation({
-        chunks: CHUNKS,
-        marks: MARKS,
-        getActiveChunkId: () => active,
-        scrollTowardChunk,
-        ensureChunkOpen: vi.fn(),
-      }),
-    );
-    result.current.jumpNext();
+    const { result } = renderNavigation(scrollTowardChunk, vi.fn(), {
+      getActiveChunkId: () => active,
+    });
+    jump(() => result.current.jumpNext());
     expect(scrollTowardChunk).toHaveBeenLastCalledWith("c1");
     active = "c2";
-    result.current.jumpNext();
+    jump(() => result.current.jumpNext());
     expect(scrollTowardChunk).toHaveBeenLastCalledWith("c3");
   });
 
   it("does nothing when the model has no targets", () => {
     document.body.innerHTML = "<main></main>";
-    const { result } = renderHook(() =>
-      useRevisionNavigation({
-        chunks: [],
-        marks: null,
-        getActiveChunkId: () => null,
-        scrollTowardChunk: vi.fn(() => true),
-        ensureChunkOpen: vi.fn(),
-      }),
-    );
+    const scrollTowardChunk = vi.fn(() => true);
+    const { result } = renderNavigation(scrollTowardChunk, vi.fn(), {
+      chunks: [],
+      marks: null,
+    });
     expect(() => {
-      result.current.jumpNext();
+      jump(() => result.current.jumpNext());
     }).not.toThrow();
+    expect(scrollTowardChunk).not.toHaveBeenCalled();
   });
 });

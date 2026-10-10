@@ -1,9 +1,11 @@
-import { SCROLL_START_FRAMES } from "../consts";
+import { CHUNK_LANDING_GAP_PX, SCROLL_START_FRAMES } from "../consts";
+import { deriveRowLandingCorrection } from "../utils";
 import {
   CORRECTION_THRESHOLD_PX,
   FAR_JUMP_VIEWPORTS,
   MOUNT_POLL_FRAMES,
   PLACED_DRIFT_PX,
+  PLACEMENT_BLOCKS,
   SETTLE_FRAMES,
   WATCH_FRAMES,
 } from "./consts";
@@ -17,6 +19,7 @@ import {
   type LandingRequest,
   type LandingState,
   type LandingStep,
+  type MountedTarget,
   type SettleState,
   type WaitAction,
 } from "./types";
@@ -43,14 +46,27 @@ export function planLanding(
   return planSettle(state, reading, request);
 }
 
-function pickRestingTop(
+function deriveUnderStackTop(reading: LandingReading): number {
+  return reading.stackHeight + CHUNK_LANDING_GAP_PX;
+}
+
+/** How far to scroll so the target rests where its placement puts it. */
+function deriveCorrection(
+  target: MountedTarget,
   reading: LandingReading,
   request: LandingRequest,
 ): number {
-  if (request.placement === LandPlacements.UNDER_STACK) {
-    return reading.underStackTop;
+  if (request.placement === LandPlacements.READING_BAND) {
+    return deriveRowLandingCorrection(
+      target,
+      reading.stackHeight,
+      reading.viewportHeight,
+    );
   }
-  return 0;
+  if (request.placement === LandPlacements.UNDER_STACK) {
+    return target.top - deriveUnderStackTop(reading);
+  }
+  return target.top;
 }
 
 function planDefer(state: DeferState): LandingStep {
@@ -91,6 +107,7 @@ function planJump(
     return STOP;
   }
 
+  const block = PLACEMENT_BLOCKS[request.placement];
   const far =
     Math.abs(target.top) > reading.viewportHeight * FAR_JUMP_VIEWPORTS;
   if (far) {
@@ -98,21 +115,24 @@ function planJump(
       action: {
         kind: LandingActionKinds.SCROLL_INTO_VIEW,
         behavior: "instant",
+        block,
       },
       next: startSettle(false),
     };
   }
-  if (request.placement === LandPlacements.VIEWPORT_TOP) {
+  if (request.placement !== LandPlacements.UNDER_STACK) {
     return {
       action: {
         kind: LandingActionKinds.SCROLL_INTO_VIEW,
         behavior: request.behavior,
+        block,
       },
-      next: undefined,
+      next: startSettle(true),
     };
   }
 
-  const top = Math.max(0, reading.scrollY + target.top - reading.underStackTop);
+  const underStackTop = deriveUnderStackTop(reading);
+  const top = Math.max(0, reading.scrollY + target.top - underStackTop);
   return {
     action: {
       kind: LandingActionKinds.SCROLL_TO,
@@ -177,7 +197,7 @@ function planSettle(
   let action: LandingAction = WAIT;
   if (stillFrames >= SETTLE_FRAMES && !stayedPlaced) {
     next.placedOffset = offset;
-    const delta = target.top - pickRestingTop(reading, request);
+    const delta = deriveCorrection(target, reading, request);
     if (Math.abs(delta) > CORRECTION_THRESHOLD_PX) {
       action = { kind: LandingActionKinds.SCROLL_BY, top: delta };
       next.lastScrollY = undefined;

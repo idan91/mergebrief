@@ -54,6 +54,7 @@ import {
   LandMotions,
   LandPlacements,
   LandTargetKinds,
+  type Landing,
   type LandOptions,
   type LandPlacement,
 } from "./landing/types";
@@ -134,8 +135,10 @@ export interface UseReadingSessionValue {
     behavior?: ScrollBehavior,
     placement?: LandPlacement,
   ) => void;
-  /** Drops a pending chunk scroll; a row landing takes over from it. */
-  cancelChunkScroll: () => void;
+  /** The page's one landing, for callers that land beyond a chunk jump. */
+  land: Landing["land"];
+  /** The reading position's one write path, for a landing that names a chunk. */
+  setActiveChunk: (chunkId: string) => void;
   /** The keyboard-shortcut jump: under the stack while focus mode is on. */
   jumpToChunkFromShortcut: (chunkId: string) => void;
   /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
@@ -206,7 +209,7 @@ export function useReadingSession(
       current.has(chunkId) ? current : new Set(current).add(chunkId),
     );
   }, []);
-  const { land, cancel: cancelChunkScroll } = useLanding({
+  const { land } = useLanding({
     briefId,
     chunkWindows: chunkWindows ?? undefined,
     openChunk,
@@ -588,7 +591,8 @@ export function useReadingSession(
     toggleChunk,
     markReviewed,
     jumpToChunk,
-    cancelChunkScroll,
+    land,
+    setActiveChunk: setActivePosition,
     jumpToChunkFromShortcut,
     openChunk,
     jumpToGroup,

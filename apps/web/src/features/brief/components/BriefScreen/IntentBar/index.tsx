@@ -1,11 +1,5 @@
 import { Trans, useTranslation } from "react-i18next";
-import {
-  forwardRef,
-  useId,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useId, useImperativeHandle, useState } from "react";
 
 import {
   Specificities,
@@ -20,6 +14,7 @@ import {
   ALARM_GLYPH,
   CLAMP_THRESHOLD,
   CLAMP_VISIBLE,
+  INTENT_BAR_ID,
   UNAVAILABLE_REASON_KEY,
 } from "./consts";
 import { Icon } from "@web/components/Icon";
@@ -49,8 +44,8 @@ export interface IntentBarProps {
 }
 
 export interface IntentBarHandle {
-  /** Expand the body and scroll the bar into view. */
-  expandAndScrollTo: () => void;
+  /** Expand the body; the screen's landing scrolls to `INTENT_BAR_ID`. */
+  expand: () => void;
 }
 
 export interface IntentItemRowProps {
@@ -237,24 +232,11 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
   ) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
-    const sectionRef = useRef<HTMLElement>(null);
     const panelId = useId();
 
-    // Stable handle, `setOpen` and `sectionRef` are referentially fixed, so
-    // the empty dep array keeps the ref identity constant across renders.
-    useImperativeHandle(
-      ref,
-      () => ({
-        expandAndScrollTo: () => {
-          setOpen(true);
-          sectionRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        },
-      }),
-      [],
-    );
+    // Stable handle: `setOpen` is referentially fixed, so the empty dep
+    // array keeps the ref identity constant across renders.
+    useImperativeHandle(ref, () => ({ expand: () => setOpen(true) }), []);
 
     const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
     const available = specificity === Specificities.PRECISE;
@@ -281,7 +263,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     ));
 
     return (
-      <section className={styles["bar"]} data-intent-bar="" ref={sectionRef}>
+      <section className={styles["bar"]} data-intent-bar="" id={INTENT_BAR_ID}>
         <h2 className={styles["heading"]}>
           <ToolbarButton
             aria-controls={panelId}

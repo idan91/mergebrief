@@ -21,7 +21,6 @@ import {
   countIntentTensions,
   deriveBriefProgress,
   deriveChunkSizes,
-  deriveCardLandingCorrection,
   deriveRowLandingCorrection,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
@@ -800,26 +799,6 @@ describe("deriveRowLandingCorrection", () => {
     expect(
       deriveRowLandingCorrection({ top: 800, bottom: 1700 }, 190, 1000),
     ).toBe(594);
-  });
-});
-
-describe("deriveCardLandingCorrection", () => {
-  it("leaves a card whose head sits in the band's upper half", () => {
-    expect(
-      deriveCardLandingCorrection({ top: 300, bottom: 900 }, 190, 1000),
-    ).toBe(0);
-  });
-
-  it("brings back a card the list pushed below the band", () => {
-    expect(
-      deriveCardLandingCorrection({ top: 1176, bottom: 1420 }, 190, 1000),
-    ).toBe(946);
-  });
-
-  it("brings back a card that slid under the stack", () => {
-    expect(
-      deriveCardLandingCorrection({ top: -700, bottom: 300 }, 190, 1000),
-    ).toBe(-930);
   });
 });
 

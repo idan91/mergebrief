@@ -247,7 +247,7 @@
 
 /* A transient highlight on the chunk the digest jumped to. Motion collapses
    to a static ring when the user prefers reduced motion. */
-.chunk[data-conversation-flash] {
+.chunk[data-landing-flash] {
   animation: conversation-flash 1.4s ease-out 1;
 }
 
@@ -262,7 +262,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chunk[data-conversation-flash] {
+  .chunk[data-landing-flash] {
     animation: none;
     box-shadow: var(--shadow-ring-accent);
   }

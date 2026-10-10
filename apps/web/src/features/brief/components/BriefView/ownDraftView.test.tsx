@@ -317,8 +317,8 @@ describe("own-draft Brief view", () => {
     // intent line rides inside, proving the caller's computed intentGapCount
     // flows through. Clicking it dismisses the gate and, after
     // the deferred handle fires, lands the author on the EXPANDED intent bar,
-    // pinning the full jumpToIntentGapsFromGate glue (setFocusMode
-    // + setTimeout → expandAndScrollTo), not just the close.
+    // pinning the full jumpToIntentGapsFromGate glue (setFocusMode, the
+    // deferred expand and the landing), not just the close.
     vi.useFakeTimers();
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
@@ -360,7 +360,7 @@ describe("own-draft Brief view", () => {
     fireEvent.click(screen.getByText("1 stated ask not found in the diff"));
     // The Modal keeps its DOM but goes inert/closed; the gate is dismissed.
     expect(gate?.getAttribute("data-state")).toBe("closed");
-    // The deferred handle fires on the next tick: bar expands + scrolls.
+    // The deferred expand and the landing fire on the next tick.
     act(() => {
       vi.runOnlyPendingTimers();
     });

@@ -174,20 +174,6 @@ describe("useReadingSession heading landing", () => {
     expect(chunk.scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it("drops a deferred chunk scroll once it is cancelled", () => {
-    vi.useFakeTimers();
-    const { chunk } = mountGroup(false);
-    const { session } = renderSession();
-
-    act(() => {
-      session.jumpToChunk(firstChunk.id);
-      session.cancelChunkScroll();
-      vi.advanceTimersByTime(100);
-    });
-
-    expect(chunk.scrollIntoView).not.toHaveBeenCalled();
-  });
-
   it("nudges a far chunk onto its mark once the scroll settles", () => {
     vi.useFakeTimers();
     window.scrollBy = vi.fn();
@@ -200,23 +186,6 @@ describe("useReadingSession heading landing", () => {
     });
 
     expect(window.scrollBy).toHaveBeenCalledTimes(1);
-  });
-
-  it("drops the settle nudge once the chunk scroll is cancelled", () => {
-    vi.useFakeTimers();
-    window.scrollBy = vi.fn();
-    const { chunk } = mountGroup(false);
-    const { session } = renderSession();
-
-    act(() => {
-      session.jumpToChunk(firstChunk.id);
-      vi.advanceTimersByTime(1);
-      session.cancelChunkScroll();
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(chunk.scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(window.scrollBy).not.toHaveBeenCalled();
   });
 
   it("falls back to the chunk jump when the heading is not mounted", () => {

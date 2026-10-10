@@ -2,12 +2,14 @@ import type { ValueOf } from "types/utils";
 
 import type { ChunkWindowRegistry } from "../chunkWindows";
 import type { ConversationLanding } from "../useConversationWiring/types";
+import type { VerticalExtent } from "../utils";
 
 export const LandTargetKinds = {
   CHUNK: "chunk",
   GROUP: "group",
   ROW: "row",
   RAIL: "rail",
+  SECTION: "section",
 } as const;
 
 export interface ChunkLandTarget {
@@ -21,23 +23,35 @@ export interface GroupLandTarget {
   groupId: string;
 }
 
+/**
+ * A row inside the chunk's own card; focus goes to a thread's disclosure or
+ * to the line's row. A row that never renders concedes to its card.
+ */
 export interface RowLandTarget {
   kind: typeof LandTargetKinds.ROW;
   chunkId: string;
   row: ConversationLanding;
 }
 
+/** A revision rail's button, the first one outside a hidden pane. */
 export interface RailLandTarget {
   kind: typeof LandTargetKinds.RAIL;
   chunkId: string;
   railKey: string;
 }
 
+/** A page section outside the chunk lists, by its element id. */
+export interface SectionLandTarget {
+  kind: typeof LandTargetKinds.SECTION;
+  sectionId: string;
+}
+
 export type LandTarget =
   | ChunkLandTarget
   | GroupLandTarget
   | RowLandTarget
-  | RailLandTarget;
+  | RailLandTarget
+  | SectionLandTarget;
 
 export const LandMotions = {
   INSTANT: "instant",
@@ -52,10 +66,15 @@ export const LandHistories = {
 } as const;
 export type LandHistory = ValueOf<typeof LandHistories>;
 
-/** Where the target's head rests: the viewport's top edge, or under the pinned stack. */
+/**
+ * Where the target rests: its head at the viewport's top edge or under the
+ * pinned stack, or, for a row, anywhere it reads in the band under the stack
+ * (whole, top in the upper half), else its top a third of the way down.
+ */
 export const LandPlacements = {
   VIEWPORT_TOP: "viewport-top",
   UNDER_STACK: "under-stack",
+  READING_BAND: "reading-band",
 } as const;
 export type LandPlacement = ValueOf<typeof LandPlacements>;
 
@@ -66,6 +85,7 @@ export interface LandOptions {
   open?: boolean;
   /** Move focus onto the target once it is mounted, without scrolling. */
   focus?: boolean;
+  /** Mark the target once it is mounted, so the eye finds it. */
   flash?: boolean;
   /** Defaults to the viewport's top edge. */
   placement?: LandPlacement;
@@ -74,8 +94,6 @@ export interface LandOptions {
 export interface Landing {
   /** False when the landing could not be scheduled, so an arrival keeps its chance. */
   land: (target: LandTarget, options: LandOptions) => boolean;
-  /** Drops the landing in flight: its deferred jump, its watch and its listeners. */
-  cancel: () => void;
 }
 
 export interface UseLandingInput {
@@ -118,10 +136,8 @@ export interface SettleState {
 
 export type LandingState = DeferState | JumpState | SettleState;
 
-/** The target as mounted and measured on one frame. */
-export interface MountedTarget {
-  /** Viewport-relative top of the target's box. */
-  top: number;
+/** The target as mounted and measured on one frame, viewport-relative. */
+export interface MountedTarget extends VerticalExtent {
   /** Inside a hidden kept-warm pane: it has no box to land on. */
   hidden: boolean;
 }
@@ -130,8 +146,8 @@ export interface LandingReading {
   target: MountedTarget | undefined;
   scrollY: number;
   viewportHeight: number;
-  /** Viewport offset of the line under the pinned stack, landing gap included. */
-  underStackTop: number;
+  /** The pinned stack's height, landing gap excluded. */
+  stackHeight: number;
 }
 
 export interface LandingRequest {
@@ -155,6 +171,7 @@ export interface WaitAction {
 export interface ScrollIntoViewAction {
   kind: typeof LandingActionKinds.SCROLL_INTO_VIEW;
   behavior: ScrollBehavior;
+  block: ScrollLogicalPosition;
 }
 
 export interface ScrollToAction {
@@ -185,4 +202,19 @@ export interface LandingStep {
   action: LandingAction;
   /** Undefined ends the landing after the action. */
   next: LandingState | undefined;
+}
+
+/** The one flashed element: a new flash or a brief switch clears the last. */
+export interface Flash {
+  element: HTMLElement | undefined;
+  frame: number | undefined;
+  timer: number | undefined;
+}
+
+/** What one frame's action acts on. */
+export interface LandingActionInput {
+  element: HTMLElement | undefined;
+  /** The chunk whose card holds the target; undefined outside the chunk lists. */
+  chunkId: string | undefined;
+  chunkWindows: ChunkWindowsPort | undefined;
 }

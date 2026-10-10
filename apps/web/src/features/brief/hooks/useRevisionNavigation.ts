@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 
+import {
+  LandHistories,
+  LandMotions,
+  LandPlacements,
+  LandTargetKinds,
+  type Landing,
+  type LandOptions,
+} from "../components/BriefScreen/landing/types";
 import {
   deriveRevisionJumpTargets,
   REVISION_JUMP_ATTR,
@@ -13,9 +21,8 @@ import type { BriefChunk } from "../types";
  * enumerate the rails anymore, windowed chunk lists only mount
  * viewport-adjacent cards, so `querySelectorAll` silently skips every rail
  * in an unmounted chunk. Mounted rails still supply the precision: the
- * reading-line anchor is measured, and a mounted target is scrolled to
- * directly; an unmounted one routes through the chunk jump and lands on the
- * rail once the card mounts.
+ * reading-line anchor is measured. The landing scrolls to a mounted rail
+ * directly and routes an unmounted one through the chunk windows.
  */
 export interface RevisionNavigation {
   jumpNext: () => void;
@@ -31,25 +38,23 @@ export interface UseRevisionNavigationInput {
   /** Read at jump time (store `getState`): a position change must never
    * re-render the host screen just to keep this hook current. */
   getActiveChunkId: () => string | null;
-  /**
-   * Scroll the windowed lists toward a chunk so its card mounts; false =
-   * nowhere to go. Deliberately NOT the full chunk-jump pipeline: that arms
-   * its own chunk-top settle-correction, which would race this hook's rail
-   * landing and snap the viewport off the centered rail.
-   */
-  scrollTowardChunk: (chunkId: string) => boolean;
-  /** Rails are row targets, and rows only exist on an open card, so a jump
-   * into a collapsed chunk must open it or the rail poll dies silently. */
-  ensureChunkOpen: (chunkId: string) => void;
+  /** The page's one landing; never a chunk jump, whose card line would pull the rail off center. */
+  land: Landing["land"];
 }
 
-const RAIL_POLL_FRAMES = 90;
+/** Rails are row targets: their card opens, and the button takes focus. */
+const RAIL_LANDING: LandOptions = {
+  motion: LandMotions.SMOOTH,
+  history: LandHistories.NONE,
+  open: true,
+  focus: true,
+  placement: LandPlacements.READING_BAND,
+};
 
 interface MountedRail {
   /** Index into the model target list. */
   index: number;
   top: number;
-  element: HTMLButtonElement;
 }
 
 /**
@@ -105,33 +110,13 @@ export function pickRevisionTargetIndex(input: {
   return from <= 0 ? last : from - 1;
 }
 
-function landOnRail(element: HTMLButtonElement): void {
-  element.scrollIntoView({ behavior: "smooth", block: "center" });
-  element.focus();
-}
-
 export function useRevisionNavigation(
   input: UseRevisionNavigationInput,
 ): RevisionNavigation {
-  const {
-    chunks,
-    marks,
-    getActiveChunkId,
-    scrollTowardChunk,
-    ensureChunkOpen,
-  } = input;
-  const pollFrameRef = useRef<number | null>(null);
-  const cancelPoll = useCallback(() => {
-    if (pollFrameRef.current !== null) {
-      window.cancelAnimationFrame(pollFrameRef.current);
-      pollFrameRef.current = null;
-    }
-  }, []);
-  useEffect(() => cancelPoll, [cancelPoll]);
+  const { chunks, marks, getActiveChunkId, land } = input;
 
   const jump = useCallback(
     (direction: 1 | -1) => {
-      cancelPoll();
       // Gesture-time derivation: a jump is rare and the lists are small, so
       // deriving here beats keeping screen-level memos alive per render.
       const targets = deriveRevisionJumpTargets(chunks, marks);
@@ -160,7 +145,6 @@ export function useRevisionNavigation(
           {
             index,
             top: element.getBoundingClientRect().top + window.scrollY,
-            element,
           },
         ];
       });
@@ -201,41 +185,16 @@ export function useRevisionNavigation(
         return;
       }
 
-      const alreadyMounted = mounted.find((rail) => rail.index === targetIndex);
-      if (alreadyMounted) {
-        landOnRail(alreadyMounted.element);
-        return;
-      }
-      ensureChunkOpen(target.chunkId);
-      if (!scrollTowardChunk(target.chunkId)) {
-        return;
-      }
-      let frames = 0;
-      const poll = () => {
-        pollFrameRef.current = null;
-        const element = document.querySelector<HTMLButtonElement>(
-          revisionJumpSelector(target.railKey),
-        );
-        if (element && element.closest("[hidden]") === null) {
-          landOnRail(element);
-          return;
-        }
-        frames += 1;
-        if (frames >= RAIL_POLL_FRAMES) {
-          return;
-        }
-        pollFrameRef.current = window.requestAnimationFrame(poll);
-      };
-      pollFrameRef.current = window.requestAnimationFrame(poll);
+      land(
+        {
+          kind: LandTargetKinds.RAIL,
+          chunkId: target.chunkId,
+          railKey: target.railKey,
+        },
+        RAIL_LANDING,
+      );
     },
-    [
-      cancelPoll,
-      chunks,
-      ensureChunkOpen,
-      getActiveChunkId,
-      marks,
-      scrollTowardChunk,
-    ],
+    [chunks, getActiveChunkId, land, marks],
   );
 
   return {

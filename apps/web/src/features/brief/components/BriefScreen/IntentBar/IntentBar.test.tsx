@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IntentBar, type IntentBarHandle } from ".";
+import { INTENT_BAR_ID } from "./consts";
 
 afterEach(cleanup);
 
@@ -461,18 +462,16 @@ describe("IntentBar", () => {
     expect(container.querySelector("strong")).toBeNull();
   });
 
-  it("exposes an imperative expand+scroll handle for the mark-ready jump", () => {
+  it("exposes an expand handle and a landing id for the mark-ready jump", () => {
     const ref = createRef<IntentBarHandle>();
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
-    render(
+    const { container } = render(
       <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} ref={ref} />,
     );
     const toggle = screen.getByRole("button", { name: /intent check/i });
     expect(toggle).toHaveProperty("ariaExpanded", "false");
-    act(() => ref.current?.expandAndScrollTo());
+    act(() => ref.current?.expand());
     expect(toggle).toHaveProperty("ariaExpanded", "true");
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(container.querySelector(`#${INTENT_BAR_ID}`)).not.toBeNull();
   });
 });
 

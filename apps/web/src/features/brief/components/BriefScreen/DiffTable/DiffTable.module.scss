@@ -84,14 +84,14 @@
 
   /* A landed diff row flashes its cells' background: a ring on a table
      row clips, and the cells already carry inset edge bars. */
-  .diff tr[data-conversation-flash]:not([data-under-row]) > td,
-  .diff td[data-conversation-flash] {
+  .diff tr[data-landing-flash]:not([data-under-row]) > td,
+  .diff td[data-landing-flash] {
     animation: conversation-cell-flash 1.4s ease-out 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .diff tr[data-conversation-flash]:not([data-under-row]) > td,
-    .diff td[data-conversation-flash] {
+    .diff tr[data-landing-flash]:not([data-under-row]) > td,
+    .diff td[data-landing-flash] {
       animation: none;
       background-color: color-mix(
         in srgb,

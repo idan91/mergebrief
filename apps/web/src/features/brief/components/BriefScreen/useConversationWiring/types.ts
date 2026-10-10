@@ -1,5 +1,3 @@
-import type { RefObject } from "react";
-
 import type {
   ConversationPlan,
   ThreadComposerWiring,
@@ -15,9 +13,9 @@ import type { PrConversation } from "@web/features/conversation/types";
 import type { LineTarget } from "../../../utils/lineOwner";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { BriefChunk } from "../../../types";
+import type { Landing } from "../landing/types";
 
 export interface UseConversationWiringInput {
-  briefId: string;
   /** The route's conversation plan; absent on the local path, every output
    * then self-disables. */
   conversation: ConversationPlan | undefined;
@@ -27,12 +25,10 @@ export interface UseConversationWiringInput {
   /** Reviewer/verdict filter, separate from the plan so a chip click cannot
    * churn the plan identity the ChunkCard memos ride on. */
   conversationFilter: ConversationFilter | undefined;
-  jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
-  /** A found row takes the scroll over: the chunk jump's deferred scroll and
-   * settle nudge would otherwise land last and park the row under the stack. */
-  cancelChunkScroll: () => void;
-  /** Conversation landings are row targets, rows only exist on open cards. */
-  ensureChunkOpen: (chunkId: string) => void;
+  /** The page's one landing; it opens the card, since rows exist only on open cards. */
+  land: Landing["land"];
+  /** A conversation landing names its chunk the reading position. */
+  setActiveChunk: (chunkId: string) => void;
   model: BriefViewModel;
   readingOrderedChunks: BriefChunk[];
   submittedReviewIds: number[];
@@ -86,16 +82,8 @@ export interface UseConversationRowsValue {
 
 export type UseConversationLandingInput = Pick<
   UseConversationWiringInput,
-  "briefId" | "jumpToChunk" | "cancelChunkScroll" | "ensureChunkOpen"
+  "land" | "setActiveChunk"
 >;
-
-/** What one landing chain shares with the polls that carry it out. */
-export interface LandingContext {
-  /** The chain's pending frame, so a fresh jump or the user's input cancels it. */
-  readonly frameRef: RefObject<number | null>;
-  readonly flashTarget: (target: HTMLElement) => void;
-  readonly cancelChunkScroll: () => void;
-}
 
 export interface UseConversationWiringValue extends UseConversationRowsValue {
   conversationComposer: ThreadComposerWiring | undefined;

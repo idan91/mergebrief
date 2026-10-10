@@ -21,13 +21,11 @@ export function useConversationWiring(
   input: UseConversationWiringInput,
 ): UseConversationWiringValue {
   const {
-    briefId,
     conversation,
     conversationFocusThreadId,
     conversationFilter,
-    jumpToChunk,
-    cancelChunkScroll,
-    ensureChunkOpen,
+    land,
+    setActiveChunk,
     model,
     readingOrderedChunks,
     submittedReviewIds,
@@ -122,10 +120,8 @@ export function useConversationWiring(
   );
 
   const jumpToChunkFromConversation = useConversationLanding({
-    briefId,
-    jumpToChunk,
-    cancelChunkScroll,
-    ensureChunkOpen,
+    land,
+    setActiveChunk,
   });
 
   return {

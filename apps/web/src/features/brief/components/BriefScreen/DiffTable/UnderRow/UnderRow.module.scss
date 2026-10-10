@@ -42,12 +42,12 @@
 
   /* Inset ring, not an outer box-shadow: one on a table row clips against
      adjacent rows. */
-  .row[data-conversation-flash] > td > * {
+  .row[data-landing-flash] > td > * {
     animation: conversation-row-flash 1.4s ease-out 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .row[data-conversation-flash] > td > * {
+    .row[data-landing-flash] > td > * {
       animation: none;
       box-shadow: var(--shadow-ring-accent);
     }

@@ -13,7 +13,10 @@ import {
 } from "./types";
 
 const VIEWPORT_HEIGHT = 800;
+const STACK_HEIGHT = 110;
+/** The pinned stack plus the 40px landing gap. */
 const STACK_TOP = 150;
+const ROW_HEIGHT = 44;
 
 function makeReading(
   target: MountedTarget | undefined,
@@ -23,12 +26,16 @@ function makeReading(
     target,
     scrollY,
     viewportHeight: VIEWPORT_HEIGHT,
-    underStackTop: STACK_TOP,
+    stackHeight: STACK_HEIGHT,
   };
 }
 
-function makeTarget(top: number, hidden = false): MountedTarget {
-  return { top, hidden };
+function makeTarget(
+  top: number,
+  hidden = false,
+  height = ROW_HEIGHT,
+): MountedTarget {
+  return { top, bottom: top + height, hidden };
 }
 
 function makeSettleState(overrides: Partial<SettleState> = {}): SettleState {
@@ -50,6 +57,10 @@ const UNDER_STACK: LandingRequest = {
 };
 const VIEWPORT_TOP: LandingRequest = {
   placement: LandPlacements.VIEWPORT_TOP,
+  behavior: "smooth",
+};
+const READING_BAND: LandingRequest = {
+  placement: LandPlacements.READING_BAND,
   behavior: "smooth",
 };
 
@@ -89,11 +100,15 @@ describe("planLanding jump", () => {
     });
   });
 
-  it("scrolls a near target into view and ends at the viewport top", () => {
+  it("scrolls a near target to the viewport top, then waits for the glide", () => {
     const step = planLanding(JUMP, makeReading(makeTarget(900)), VIEWPORT_TOP);
     expect(step).toEqual({
-      action: { kind: LandingActionKinds.SCROLL_INTO_VIEW, behavior: "smooth" },
-      next: undefined,
+      action: {
+        kind: LandingActionKinds.SCROLL_INTO_VIEW,
+        behavior: "smooth",
+        block: "start",
+      },
+      next: makeSettleState({ awaitStart: true, lastScrollY: undefined }),
     });
   });
 
@@ -126,6 +141,29 @@ describe("planLanding jump", () => {
     expect(step.action).toEqual({
       kind: LandingActionKinds.SCROLL_INTO_VIEW,
       behavior: "instant",
+      block: "start",
+    });
+    expect(step.next).toEqual(makeSettleState({ lastScrollY: undefined }));
+  });
+
+  it("centers a near row, then waits for the glide", () => {
+    const step = planLanding(JUMP, makeReading(makeTarget(900)), READING_BAND);
+    expect(step.action).toEqual({
+      kind: LandingActionKinds.SCROLL_INTO_VIEW,
+      behavior: "smooth",
+      block: "center",
+    });
+    expect(step.next).toEqual(
+      makeSettleState({ awaitStart: true, lastScrollY: undefined }),
+    );
+  });
+
+  it("jumps instantly to a far row and centers it", () => {
+    const step = planLanding(JUMP, makeReading(makeTarget(9000)), READING_BAND);
+    expect(step.action).toEqual({
+      kind: LandingActionKinds.SCROLL_INTO_VIEW,
+      behavior: "instant",
+      block: "center",
     });
     expect(step.next).toEqual(makeSettleState({ lastScrollY: undefined }));
   });
@@ -217,6 +255,40 @@ describe("planLanding settle", () => {
     );
     expect(step.action).toEqual({ kind: LandingActionKinds.WAIT });
     expect(step.next).toMatchObject({ placedOffset: 1158 });
+  });
+
+  it("leaves a row that rests readable in the band where it is", () => {
+    const step = planLanding(
+      makeSettleState({ stillFrames: 2 }),
+      makeReading(makeTarget(400)),
+      READING_BAND,
+    );
+    expect(step.action).toEqual({ kind: LandingActionKinds.WAIT });
+    expect(step.next).toMatchObject({ placedOffset: 1400 });
+  });
+
+  it("moves a row under the stack a third of the way down the band", () => {
+    const step = planLanding(
+      makeSettleState({ stillFrames: 2 }),
+      makeReading(makeTarget(50)),
+      READING_BAND,
+    );
+    expect(step.action).toEqual({
+      kind: LandingActionKinds.SCROLL_BY,
+      top: -290,
+    });
+  });
+
+  it("puts a row taller than the band head first under the stack", () => {
+    const step = planLanding(
+      makeSettleState({ stillFrames: 2 }),
+      makeReading(makeTarget(-300, false, 900)),
+      READING_BAND,
+    );
+    expect(step.action).toEqual({
+      kind: LandingActionKinds.SCROLL_BY,
+      top: -426,
+    });
   });
 
   it("does not count stillness before a smooth scroll starts", () => {

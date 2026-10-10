@@ -13,6 +13,8 @@ import {
 } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils";
+import { useLanding } from "../landing";
+import { LANDING_FLASH_ATTR } from "../landing/consts";
 import { useConversationWiring } from "./index";
 import type { Mutable } from "types/utils";
 
@@ -131,31 +133,33 @@ function renderWiring(
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
   }
-  const jumpToChunk = vi.fn();
-  const cancelChunkScroll = vi.fn();
-  const ensureChunkOpen = vi.fn();
+  const openChunk = vi.fn();
+  const setActiveChunk = vi.fn();
   const { result } = renderHook(
-    () =>
-      useConversationWiring({
+    () => {
+      const { land } = useLanding({
         briefId: "db:42:7:base:head",
+        chunkWindows: undefined,
+        openChunk,
+      });
+      return useConversationWiring({
         conversation,
         conversationFocusThreadId: undefined,
         conversationFilter,
-        jumpToChunk,
-        cancelChunkScroll,
-        ensureChunkOpen,
+        land,
+        setActiveChunk,
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
         submittedReviewIds,
-      }),
+      });
+    },
     { wrapper },
   );
   return {
     result,
     invalidate,
-    jumpToChunk,
-    cancelChunkScroll,
-    ensureChunkOpen,
+    openChunk,
+    setActiveChunk,
   };
 }
 
@@ -357,13 +361,24 @@ describe("useConversationWiring, thread landing holds the row", () => {
     });
   }
 
-  it("cancels the chunk scroll once the thread row is found", async () => {
+  it("lands a far card on one line, watched once", async () => {
     stubScrolling();
-    mountThreadCard(400);
-    const { result, cancelChunkScroll } = renderWiring(plan());
-    jumpToThread(result);
+    const card = document.createElement("section");
+    card.id = "c1";
+    card.tabIndex = -1;
+    card.getBoundingClientRect = () => ({ top: 9000, bottom: 9300 }) as DOMRect;
+    document.body.append(card);
+    const { result } = renderWiring(plan());
+    act(() => {
+      result.current.jumpToChunkFromConversation("c1");
+    });
 
-    await waitFor(() => expect(cancelChunkScroll).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: 8770 }),
+    );
+    await new Promise((resolve) => window.setTimeout(resolve, 200));
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(card);
   });
 
   it("moves a row that settled under the sticky stack a third down", async () => {
@@ -452,7 +467,7 @@ describe("useConversationWiring, line landing", () => {
       '<table><tbody><tr data-line-kind="add" tabindex="0"><td><button>rail</button></td>' +
       '<td data-line-number=""></td><td data-line-number="" data-line-new="10">10</td><td>b</td></tr></tbody></table>';
     document.body.append(card);
-    const { result, jumpToChunk, ensureChunkOpen } = renderWiring(plan());
+    const { result, openChunk, setActiveChunk } = renderWiring(plan());
     act(() => {
       result.current.jumpToChunkFromConversation("c1", {
         side: "new",
@@ -465,10 +480,10 @@ describe("useConversationWiring, line landing", () => {
     expect(row.getAttribute("tabindex")).toBe("0");
     expect(row.querySelector("button")?.hasAttribute("tabindex")).toBe(false);
     await waitFor(() =>
-      expect(row.hasAttribute("data-conversation-flash")).toBe(true),
+      expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(true),
     );
-    expect(ensureChunkOpen).toHaveBeenCalledWith("c1");
-    expect(jumpToChunk).toHaveBeenCalledWith("c1", "auto");
+    expect(openChunk).toHaveBeenCalledWith("c1");
+    expect(setActiveChunk).toHaveBeenCalledWith("c1");
   });
 
   it("lands a thread target inside its own card, not a span copy", async () => {

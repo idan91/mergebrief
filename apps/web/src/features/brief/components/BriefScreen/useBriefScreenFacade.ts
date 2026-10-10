@@ -28,6 +28,7 @@ import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
 import { buildAttributeRail } from "../../utils/viewModel";
 import { createChunkWindowRegistry } from "./chunkWindows";
 import type { IntentBarHandle } from "./IntentBar";
+import { INTENT_BAR_ID } from "./IntentBar/consts";
 import { useCreateReadingPositionStore } from "./readingPosition";
 import { deriveVisibleRegions } from "./regions";
 import { useSidebarState } from "./Sidebar/useSidebarState";
@@ -36,7 +37,12 @@ import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useChunkDeepLink } from "./useChunkDeepLink";
 import { useFocusAddress } from "./useFocusAddress";
 import { useLineLinkLanding } from "./useLineLinkLanding";
-import { LandPlacements } from "./landing/types";
+import {
+  LandHistories,
+  LandMotions,
+  LandPlacements,
+  LandTargetKinds,
+} from "./landing/types";
 import type { ExpansionSource } from "../../hooks/useExpansionSource";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import { useConversationWiring } from "./useConversationWiring";
@@ -367,9 +373,8 @@ export function useBriefScreenFacade({
     [conversation, recordSubmittedReview],
   );
 
-  // A landing from a link, the conversation or a group's own controls puts
-  // the card's head under the pinned stack, where the landing watch corrects
-  // to. Keyed on the stable jump, not the session object, so the memoized
+  // A landing from a group's own controls puts the card's head under the
+  // pinned stack, where the conversation's card landing rests too. Keyed on the stable jump, not the session object, so the memoized
   // group cards that take it keep their boundary.
   const sessionJumpToChunk = session.jumpToChunk;
   const jumpToChunkUnderStack = useCallback(
@@ -378,13 +383,11 @@ export function useBriefScreenFacade({
     [sessionJumpToChunk],
   );
   const conversationWiring = useConversationWiring({
-    briefId,
     conversation: conversationPlan,
     conversationFocusThreadId,
     conversationFilter,
-    jumpToChunk: jumpToChunkUnderStack,
-    cancelChunkScroll: session.cancelChunkScroll,
-    ensureChunkOpen: session.openChunk,
+    land: session.land,
+    setActiveChunk: session.setActiveChunk,
     model,
     readingOrderedChunks,
     submittedReviewIds,
@@ -481,9 +484,7 @@ export function useBriefScreenFacade({
     chunks: readingOrderedChunks,
     marks: comparison.marks,
     getActiveChunkId: () => readingPosition.getState().activeChunkId,
-    scrollTowardChunk: (chunkId) =>
-      chunkWindowsRef.current.scrollToChunk(chunkId),
-    ensureChunkOpen: session.openChunk,
+    land: session.land,
   });
 
   const unplacedDrafts = useUnplacedDrafts();
@@ -552,12 +553,18 @@ export function useBriefScreenFacade({
     flowActions.setEvidenceTarget(null);
   }, [flowActions]);
 
+  // The bar mounts with the story view, so its expand waits a task; the
+  // landing waits for the mount on its own.
   const intentBarRef = useRef<IntentBarHandle>(null);
-  const exitToStoryView = session.exitToStoryView;
+  const { exitToStoryView, land } = session;
   const showIntentBar = useCallback(() => {
     exitToStoryView();
-    window.setTimeout(() => intentBarRef.current?.expandAndScrollTo(), 0);
-  }, [exitToStoryView]);
+    window.setTimeout(() => intentBarRef.current?.expand(), 0);
+    land(
+      { kind: LandTargetKinds.SECTION, sectionId: INTENT_BAR_ID },
+      { motion: LandMotions.SMOOTH, history: LandHistories.NONE },
+    );
+  }, [exitToStoryView, land]);
 
   const markReady = useMarkReadyFlow({
     action: ownDraft?.markReady,

@@ -2,8 +2,10 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { REVISION_JUMP_ATTR } from "../../../comparison/runs";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "../utils";
 import { useLanding } from ".";
+import { FLASH_MS, LANDING_FLASH_ATTR, MOUNT_POLL_FRAMES } from "./consts";
 import {
   LandHistories,
   LandMotions,
@@ -18,6 +20,8 @@ const nativeScrollTo = window.scrollTo;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // jsdom has no CSS namespace; rail keys here need no escaping.
+  vi.stubGlobal("CSS", { escape: (value: string) => value });
   document.documentElement.style.setProperty("--sticky-stack-h", "110px");
   window.scrollBy = vi.fn();
   window.scrollTo = vi.fn();
@@ -28,6 +32,7 @@ afterEach(() => {
   document.body.innerHTML = "";
   document.documentElement.style.removeProperty("--sticky-stack-h");
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   window.scrollBy = nativeScrollBy;
   window.scrollTo = nativeScrollTo;
 });
@@ -49,6 +54,54 @@ function mountCard(id: string, top: number): HTMLElement {
   card.scrollIntoView = vi.fn();
   document.body.append(card);
   return card;
+}
+
+const FRAME_MS = 16;
+
+const ROW_LANDING: LandOptions = {
+  ...SMOOTH,
+  open: true,
+  focus: true,
+  flash: true,
+  placement: LandPlacements.READING_BAND,
+};
+
+const LINE_ROW = {
+  kind: LandTargetKinds.ROW,
+  chunkId: "chunk-a",
+  row: { side: "new", line: 10 },
+} as const;
+
+function mountLineRow(card: HTMLElement): HTMLElement {
+  card.innerHTML =
+    '<table><tbody><tr data-line-kind="add"><td data-line-number=""></td>' +
+    '<td data-line-number="" data-line-new="10">10</td><td>b</td></tr></tbody></table>';
+  const row = card.querySelector("tr")!;
+  row.getBoundingClientRect = () => makeRect(400);
+  row.scrollIntoView = vi.fn();
+  return row;
+}
+
+/** A browser ignores focus() on an element that is not rendered; jsdom does not. */
+function stubFocusWhenRendered(
+  element: HTMLElement,
+  isRendered: () => boolean,
+): void {
+  const focus = element.focus.bind(element);
+  element.focus = (options) => {
+    if (isRendered()) {
+      focus(options);
+    }
+  };
+}
+
+function mountRail(railKey: string): HTMLButtonElement {
+  const rail = document.createElement("button");
+  rail.setAttribute(REVISION_JUMP_ATTR, railKey);
+  rail.getBoundingClientRect = () => makeRect(400);
+  rail.scrollIntoView = vi.fn();
+  document.body.append(rail);
+  return rail;
 }
 
 interface HostProps {
@@ -144,6 +197,7 @@ describe("useLanding", () => {
         { kind: LandTargetKinds.GROUP, groupId: "g1" },
         { ...SMOOTH, focus: true },
       );
+      vi.advanceTimersByTime(1);
     });
 
     expect(document.activeElement).toBe(heading);
@@ -229,6 +283,32 @@ describe("useLanding", () => {
     expect(window.scrollBy).not.toHaveBeenCalled();
   });
 
+  it("stops re-placing once the reader presses a pointer in the card", () => {
+    const card = mountCard("chunk-a", 9000);
+    const inner = document.createElement("button");
+    card.append(inner);
+    inner.addEventListener("pointerdown", (event) => event.stopPropagation());
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" },
+        { ...SMOOTH, focus: true },
+      );
+      vi.advanceTimersByTime(200);
+    });
+    expect(window.scrollBy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(card);
+
+    inner.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    card.getBoundingClientRect = () => makeRect(9600);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(window.scrollBy).toHaveBeenCalledTimes(1);
+  });
+
   it("lets a second landing replace the first", () => {
     const first = mountCard("chunk-a", 300);
     const second = mountCard("chunk-b", 600);
@@ -269,38 +349,257 @@ describe("useLanding", () => {
     expect(window.scrollBy).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [
-      "a row target",
-      {
-        kind: LandTargetKinds.ROW,
-        chunkId: "chunk-a",
-        row: { side: "new", line: 3 },
-      },
-      SMOOTH,
-    ],
-    [
-      "a rail target",
-      { kind: LandTargetKinds.RAIL, chunkId: "chunk-a", railKey: "r1" },
-      SMOOTH,
-    ],
-    [
-      "a flash",
-      { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" },
-      { ...SMOOTH, flash: true },
-    ],
-    [
-      "a history write",
-      { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" },
-      { ...SMOOTH, history: LandHistories.PUSH },
-    ],
-  ] as const)("refuses %s it cannot land yet", (_what, target, options) => {
+  it("lands on a line's row, focuses it and flashes it", () => {
+    const row = mountLineRow(mountCard("chunk-a", 300));
+    const openChunk = vi.fn();
+    const { result } = renderLanding(undefined, openChunk);
+
+    act(() => {
+      result.current.land(LINE_ROW, ROW_LANDING);
+    });
+    expect(openChunk).toHaveBeenCalledWith("chunk-a");
+
+    act(() => {
+      vi.advanceTimersByTime(FRAME_MS * 2);
+    });
+    expect(document.activeElement).toBe(row);
+    expect(row.getAttribute("tabindex")).toBe("-1");
+    expect(row.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+    });
+    expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(FLASH_MS);
+    });
+    expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(false);
+  });
+
+  it("focuses a thread row's disclosure, not the row", () => {
+    const card = mountCard("chunk-a", 300);
+    card.innerHTML =
+      '<table><tbody><tr data-conversation-thread="7"><td><button>open</button></td></tr></tbody></table>';
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        {
+          kind: LandTargetKinds.ROW,
+          chunkId: "chunk-a",
+          row: { rowId: "chunk-a:0", threadId: 7 },
+        },
+        ROW_LANDING,
+      );
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(document.activeElement).toBe(card.querySelector("button"));
+  });
+
+  it("focuses a row whose card the same click reveals", () => {
+    const card = mountCard("chunk-a", 300);
+    const row = mountLineRow(card);
+    stubFocusWhenRendered(row, () => card.hasAttribute("data-current"));
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(LINE_ROW, ROW_LANDING);
+      card.setAttribute("data-current", "");
+    });
+    act(() => {
+      vi.advanceTimersByTime(FRAME_MS * 2);
+    });
+
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("concedes to the card when the row never renders", () => {
+    const card = mountCard("chunk-a", 300);
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(LINE_ROW, ROW_LANDING);
+      vi.advanceTimersByTime(FRAME_MS * (MOUNT_POLL_FRAMES + 4));
+    });
+
+    expect(document.activeElement).toBe(card);
+    expect(card.hasAttribute(LANDING_FLASH_ATTR)).toBe(true);
+  });
+
+  it("lands on a rail and focuses its button without scrolling", () => {
+    const rail = mountRail("r1");
+    const focus = vi.spyOn(rail, "focus");
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.RAIL, chunkId: "chunk-a", railKey: "r1" },
+        { ...SMOOTH, focus: true, placement: LandPlacements.READING_BAND },
+      );
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(document.activeElement).toBe(rail);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(rail.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+    });
+  });
+
+  it("finds a mounted rail once, not on every watched frame", () => {
+    mountRail("r1");
+    const querySelectorAll = vi.spyOn(document, "querySelectorAll");
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.RAIL, chunkId: "chunk-a", railKey: "r1" },
+        { ...SMOOTH, placement: LandPlacements.READING_BAND },
+      );
+      vi.advanceTimersByTime(FRAME_MS * 60);
+    });
+
+    expect(querySelectorAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("finds the rail again when its node is replaced mid-watch", () => {
+    const first = mountRail("r1");
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.RAIL, chunkId: "chunk-a", railKey: "r1" },
+        { ...SMOOTH, placement: LandPlacements.READING_BAND },
+      );
+      vi.advanceTimersByTime(FRAME_MS * 30);
+    });
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    first.remove();
+    const second = mountRail("r1");
+    second.getBoundingClientRect = () => makeRect(20);
+    act(() => {
+      vi.advanceTimersByTime(FRAME_MS * 10);
+    });
+
+    expect(window.scrollBy).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips a rail inside a hidden pane for its visible copy", () => {
+    const pane = document.createElement("div");
+    pane.hidden = true;
+    const warm = mountRail("r1");
+    pane.append(warm);
+    document.body.append(pane);
+    const rail = mountRail("r1");
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.RAIL, chunkId: "chunk-a", railKey: "r1" },
+        { ...SMOOTH, focus: true, placement: LandPlacements.READING_BAND },
+      );
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(document.activeElement).toBe(rail);
+  });
+
+  it("drops a rail landing in flight when the brief changes", () => {
+    const chunkWindows = { scrollToChunk: vi.fn(() => true) };
+    const { result, rerender } = renderLanding(chunkWindows);
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.RAIL, chunkId: "chunk-far", railKey: "r1" },
+        { ...SMOOTH, focus: true, placement: LandPlacements.READING_BAND },
+      );
+      vi.advanceTimersByTime(1);
+    });
+    expect(chunkWindows.scrollToChunk).toHaveBeenCalledWith("chunk-far");
+    rerender({ briefId: "brief-b" });
+    const rail = mountRail("r1");
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(document.activeElement).not.toBe(rail);
+    expect(rail.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("clears the flash when the brief changes", () => {
+    const row = mountLineRow(mountCard("chunk-a", 300));
+    const { result, rerender } = renderLanding();
+
+    act(() => {
+      result.current.land(LINE_ROW, ROW_LANDING);
+      vi.advanceTimersByTime(FRAME_MS * 2);
+    });
+    expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(true);
+    rerender({ briefId: "brief-b" });
+
+    expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(false);
+  });
+
+  it("waits for a section that mounts after the call", () => {
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.SECTION, sectionId: "intent-bar" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(FRAME_MS * 2);
+    });
+    const section = mountCard("intent-bar", 300);
+    act(() => {
+      vi.advanceTimersByTime(FRAME_MS * 8);
+    });
+
+    expect(window.scrollBy).toHaveBeenCalledWith({
+      behavior: "instant",
+      top: 300,
+    });
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("re-places a section a reflow moved after it reached the top", () => {
+    const section = mountCard("intent-bar", 300);
+    section.scrollIntoView = vi.fn(() => {
+      section.getBoundingClientRect = () => makeRect(0);
+    });
+    const { result } = renderLanding();
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.SECTION, sectionId: "intent-bar" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(FRAME_MS * 20);
+    });
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    section.getBoundingClientRect = () => makeRect(120);
+    act(() => {
+      vi.advanceTimersByTime(FRAME_MS * 10);
+    });
+
+    expect(window.scrollBy).toHaveBeenCalledWith({
+      behavior: "instant",
+      top: 120,
+    });
+  });
+
+  it("refuses a history write it cannot land yet", () => {
     const card = mountCard("chunk-a", 300);
     const { result } = renderLanding();
 
     let scheduled = true;
     act(() => {
-      scheduled = result.current.land(target, options);
+      scheduled = result.current.land(
+        { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" },
+        { ...SMOOTH, history: LandHistories.PUSH },
+      );
       vi.advanceTimersByTime(200);
     });
 
