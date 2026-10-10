@@ -15,7 +15,7 @@ import type {
   RiskEvidence,
   RiskEvidenceKind,
 } from "@web/features/review/utils";
-import type { RiskFlag } from "../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../model/utils/view-model";
 import { resolveRiskEvidence } from "../utils";
 import { useTranslation } from "react-i18next";
 

@@ -2,8 +2,8 @@
 //   jump-far-chunk: toc click on the far group until the scroll settles
 //   jump-landing-offset-px: px the scroll stopped from its target, 0 = clean
 //   scroll-*: scripted full-page scroll, rAF frame-gap distribution
-// Landing offsets are ASSERTED, not just recorded: the windowed jump path
-// (instant scroll + settle-correction) owns landing within the correction
+// Scroll offsets are ASSERTED, not just recorded: the windowed jump path
+// (instant scroll + settle-correction) owns placement within the correction
 // threshold, cold and warmed.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
@@ -12,9 +12,9 @@ import { PERF_ROUTE_REV1 } from "./ids";
 import { p95, report } from "./report";
 
 const SAMPLES = 5;
-/** Matches the scroller's correction threshold: a landing inside it is
+/** Matches the scroller's correction threshold: a scroll inside it is
  * deliberately left uncorrected. */
-const LANDING_TOLERANCE_PX = 8;
+const SCROLL_TOLERANCE_PX = 8;
 
 /** Toc lines carry the group name as their accessible name. */
 function tocButtons(page: Page): Locator {
@@ -64,7 +64,7 @@ async function waitForScrollSettled(page: Page): Promise<void> {
 }
 
 /** Px the element sits outside the viewport (0 = some part visible). */
-async function landingOffset(target: Locator): Promise<number> {
+async function measureScrollOffset(target: Locator): Promise<number> {
   return target.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     if (rect.bottom < 0) {
@@ -92,12 +92,12 @@ test("jump to far chunk timing", async ({ page }) => {
   // The very first far jump navigates over never-revealed diffs whose
   // heights are still estimates, so its miss distance is the honest cold
   // number. Later jumps ride remembered sizes (`contain-intrinsic-block-size:
-  // auto` keeps the real size after first reveal) and land clean.
+  // auto` keeps the real size after first reveal) and place clean.
   await toc.last().click();
   await waitForScrollSettled(page);
-  const coldOffset = await landingOffset(lastTarget);
+  const coldOffset = await measureScrollOffset(lastTarget);
   report("jump-cold-landing-offset-px", [coldOffset]);
-  expect(coldOffset).toBeLessThanOrEqual(LANDING_TOLERANCE_PX);
+  expect(coldOffset).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
   await toc.first().click();
   await waitForScrollSettled(page);
 
@@ -108,18 +108,18 @@ test("jump to far chunk timing", async ({ page }) => {
     await toc.last().click();
     await waitForScrollSettled(page);
     times.push(Date.now() - start);
-    offsets.push(await landingOffset(lastTarget));
+    offsets.push(await measureScrollOffset(lastTarget));
 
     // Return trip resets the starting point; recorded into the same series:
     // the far jump is symmetric and one metric keeps the report readable.
     await toc.first().click();
     await waitForScrollSettled(page);
-    offsets.push(await landingOffset(firstTarget));
+    offsets.push(await measureScrollOffset(firstTarget));
   }
   report("jump-far-chunk", times);
   report("jump-landing-offset-px", offsets);
   for (const offset of offsets) {
-    expect(offset).toBeLessThanOrEqual(LANDING_TOLERANCE_PX);
+    expect(offset).toBeLessThanOrEqual(SCROLL_TOLERANCE_PX);
   }
 });
 

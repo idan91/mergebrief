@@ -9,13 +9,13 @@ import {
   ReviewSessionProvider,
   useReviewSessionActions,
 } from "@web/features/review/session";
-import type { GroupView } from "../../../../../model/utils/viewModel";
+import type { GroupView } from "../../../../../model/utils/view-model";
 import { I18nProvider } from "../../../../../../../i18n/I18nProvider";
-import { buildBriefViewModel } from "../../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../../readingPosition";
+} from "../../reading/reading-position";
 import { ChunkFooter } from ".";
 
 afterEach(cleanup);

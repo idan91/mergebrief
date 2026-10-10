@@ -3,13 +3,13 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BriefSearchParams } from "./model/comparison/compareState";
+import type { BriefSearchParams } from "./model/comparison/compare-state";
 import { buildLocalComparisonPlan } from "./model/comparison/local-plan";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
 } from "./queries";
-import { attachSlicedDiffs } from "./model/utils/diffSlicing";
+import { attachSlicedDiffs } from "./model/utils/diff-slicing";
 import { createFileRowsCache } from "./model/file-rows/cache";
 import { buildRevisionTimelineView } from "./model/utils/revision-timeline";
 import { buildBriefTimeline } from "./model/utils/timeline";
@@ -36,10 +36,10 @@ export type {
   BriefAddressPort,
   NavigateSearch,
 } from "./ui/components/BriefView/address/types";
-export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./model/utils/briefIdentity";
+export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./model/utils/brief-identity";
 export { LocalBriefsSection } from "./ui/components/LocalBriefsSection";
 export { BriefError } from "./ui/components/BriefError";
-export { readDiffView } from "./ui/components/BriefView/diffViewStorage";
+export { readDiffView } from "./ui/components/BriefView/diff-view/diff-view-storage";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

@@ -10,8 +10,8 @@ import {
 } from "@web/hooks/useViewportBoundary";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { RevisionTimelinePlan } from "../../../../model/types";
-import type { GroupView } from "../../../../model/utils/viewModel";
-import { useReadingPosition } from "../readingPosition";
+import type { GroupView } from "../../../../model/utils/view-model";
+import { useReadingPosition } from "../reading/reading-position";
 import { SIDEBAR_PANEL_ID } from "./consts";
 import { GroupLines } from "./GroupLines";
 import { Icon } from "@web/components/Icon";
@@ -45,7 +45,7 @@ const DIFF_VIEW_SWITCH_LABELS = {
 export interface SidebarProps {
   groups: GroupView[];
   jumpToGroup: (groupId: string) => void;
-  /** The keyboard landing: scrolls to and focuses the group heading. */
+  /** The keyboard scroll to target: scrolls to and focuses the group heading. */
   jumpToGroupHeading: (groupId: string) => void;
   conversationGroupIds?: ReadonlySet<string> | undefined;
   state: SidebarState;
@@ -146,8 +146,8 @@ export function Sidebar({
     chevronRef.current?.focus();
   };
 
-  // Same landing as a group jump on the narrow band: the sheet closes and
-  // focus returns to the bar. The column stays as it is.
+  // Same scroll to target as a group jump on the narrow band: the sheet
+  // closes and focus returns to the bar. The column stays as it is.
   const afterRevision = () => {
     if (narrow) {
       collapseToChevron();

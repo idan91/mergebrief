@@ -13,7 +13,7 @@ import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import { I18nProvider } from "@web/i18n/I18nProvider";
 import { renderInRouter } from "@web/test/router";
-import type { BriefSearchParams } from "../model/comparison/compareState";
+import type { BriefSearchParams } from "../model/comparison/compare-state";
 import type { LivePrState } from "../model/types";
 import type {
   BriefAddress,

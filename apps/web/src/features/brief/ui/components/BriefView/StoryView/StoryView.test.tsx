@@ -13,14 +13,14 @@ import {
   createExpansionStore,
   ExpansionProvider,
 } from "../../../../model/expansion/useExpansion";
-import type { ComparisonOverlayState } from "../../../../model/comparison/comparisonOverlay";
+import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildLineOwnersByFile } from "../../../../model/utils/lineOwner";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildLineOwnersByFile } from "../../../../model/utils/line-owner";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../readingPosition";
+} from "../reading/reading-position";
 import { StoryView } from ".";
 import { STORY_CHUNKS_ATTR } from "./StorySplitter/consts";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";

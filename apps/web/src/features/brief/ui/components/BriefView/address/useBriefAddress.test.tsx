@@ -2,7 +2,7 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BriefAddressSearch } from "../../../../model/comparison/compareState";
+import type { BriefAddressSearch } from "../../../../model/comparison/compare-state";
 import type { NavigateSearch, SearchNavigation } from "./types";
 import { useBriefAddress } from "./useBriefAddress";
 

@@ -32,12 +32,12 @@ import {
 } from "@web/features/conversation/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { type ReactNode, useState } from "react";
-import type { ComparisonQuery } from "../../../../../model/comparison/comparisonQuery";
+import type { ComparisonQuery } from "../../../../../model/comparison/comparison-query";
 import { FileRowsProvider } from "../../../../../model/file-rows/useFileRows";
 import { type Brief, type BriefChunk } from "../../../../../model/types";
 import type { FileRowsCache } from "../../../../../model/file-rows/cache";
-import { buildLineOwnersByFile } from "../../../../../model/utils/lineOwner";
-import { buildBriefViewModel } from "../../../../../model/utils/viewModel";
+import { buildLineOwnersByFile } from "../../../../../model/utils/line-owner";
+import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import { DiffTable } from "../../DiffTable";
 import type { ChangesReviewWiring } from "../types";
 import { RawSpanDiff } from ".";

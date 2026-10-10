@@ -3,7 +3,7 @@ import {
   isLineCommentAnchor,
   type ReviewComment,
 } from "@web/features/review/utils";
-import type { RiskFlag } from "../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../model/utils/view-model";
 
 /**
  * The comments a group's card can need to render: those anchored on its own

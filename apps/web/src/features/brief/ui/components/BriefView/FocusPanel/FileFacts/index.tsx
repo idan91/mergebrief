@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { BriefChunk } from "../../../../../model/types";
 import { isUnattributedRemainderChunk } from "../../../../../model/utils/remainder";
-import type { AttributeDisplayMeta } from "../../../../../model/utils/repoConfig";
+import type { AttributeDisplayMeta } from "../../../../../model/utils/repo-config";
 import { splitFilePath } from "../../utils";
 import { ChunkRisks } from "./ChunkRisks";
 import styles from "./FileFacts.module.scss";

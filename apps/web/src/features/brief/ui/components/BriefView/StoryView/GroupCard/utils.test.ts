@@ -10,7 +10,7 @@ import {
   ReviewCommentStatuses,
   type ReviewComment,
 } from "@web/features/review/utils";
-import type { RiskFlag } from "../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../model/utils/view-model";
 import { selectGroupReviewComments } from "./utils";
 
 function comment(id: string, chunkId: string): ReviewComment {

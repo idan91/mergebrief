@@ -1,5 +1,5 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { parseUnifiedDiffPatch } from "../utils/diffSlicing";
+import { parseUnifiedDiffPatch } from "../utils/diff-slicing";
 
 /**
  * A PR's per-file patches, parsed into rows on first read and kept for the

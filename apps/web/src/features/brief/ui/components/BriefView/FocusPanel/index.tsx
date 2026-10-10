@@ -4,7 +4,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton, IconButtonSizes } from "@web/components/IconButton";
 import { Kbd, KbdSizes } from "@web/components/Kbd";
-import type { BriefViewModel } from "../../../../model/utils/viewModel";
+import type { BriefViewModel } from "../../../../model/utils/view-model";
 import { PanelContent } from "./PanelContent";
 import { useFocusPanelFacade } from "./useFocusPanelFacade";
 import styles from "./FocusPanel.module.scss";

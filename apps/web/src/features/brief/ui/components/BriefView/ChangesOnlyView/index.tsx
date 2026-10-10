@@ -13,12 +13,12 @@ import { IconButton } from "@web/components/IconButton";
 import { Markdown } from "@web/components/Markdown";
 import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
-import { estimateNarrativeCardHeight } from "../chunkHeightModel";
-import { useGroupWindow } from "../useGroupWindow";
+import { estimateNarrativeCardHeight } from "../reading/chunk-height-model";
+import { useGroupWindow } from "../reading/useGroupWindow";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import { getCategoryLabel } from "../../../../model/utils/viewModel";
-import type { BriefViewModel } from "../../../../model/utils/viewModel";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { getCategoryLabel } from "../../../../model/utils/view-model";
+import type { BriefViewModel } from "../../../../model/utils/view-model";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
   type Brief,
   type BriefChunk,
@@ -29,7 +29,7 @@ import {
   CompareParams,
   type CompareParam,
 } from "../../../../model/comparison/types";
-import type { ComparisonQuery } from "../../../../model/comparison/comparisonQuery";
+import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import { DeltaContext } from "../DeltaContext";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";

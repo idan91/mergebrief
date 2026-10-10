@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import type { AttributeDisplayMeta } from "../../../../model/utils/repoConfig";
+import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
 import { Badge, BadgeColors } from "@web/components/Badge";
 import styles from "./RiskBadge.module.scss";
 

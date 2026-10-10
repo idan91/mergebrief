@@ -6,9 +6,9 @@ import {
   type ExpandableEdge,
   RowRefKinds,
 } from "../../../../model/expansion/types";
-import type { DiffRowView } from "./diffRowView";
+import type { DiffRowView } from "./diff-row-view";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
-import type { SiblingSpan } from "../../../../model/utils/siblingSpans";
+import type { SiblingSpan } from "../../../../model/utils/sibling-spans";
 import { RailSides } from "./types";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
 import { makeRowRefs } from "@web/features/brief/test-utils";

@@ -25,38 +25,40 @@ import { useCreateExpansionStore } from "../../../model/expansion/useExpansion";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
-import { buildAttributeRail } from "../../../model/utils/viewModel";
-import { createChunkWindowRegistry } from "./chunkWindows";
+import { buildAttributeRail } from "../../../model/utils/view-model";
+import { createChunkWindowRegistry } from "./reading/chunk-windows";
 import type { IntentBarHandle } from "./IntentBar";
 import { INTENT_BAR_ID } from "./IntentBar/consts";
-import { useCreateReadingPositionStore } from "./readingPosition";
-import { deriveVisibleRegions } from "./regions";
+import { useCreateReadingPositionStore } from "./reading/reading-position";
+import { deriveVisibleRegions } from "./reading/regions";
 import { useCreateBriefViewStore } from "./store";
 import { useSidebarState } from "./Sidebar/useSidebarState";
 import type { BriefViewProps, ChunkShare } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useAddress } from "./address";
 import { AddressEventKinds } from "./address/types";
-import { useChunkDeepLink } from "./useChunkDeepLink";
-import { useFocusArrival } from "./useFocusArrival";
-import { useLineLinkLanding } from "./useLineLinkLanding";
+import { useChunkDeepLink } from "./address/useChunkDeepLink";
+import { useFocusArrival } from "./address/useFocusArrival";
+import { useLineLinkScroll } from "./line-links/useLineLinkScroll";
 import {
-  LandHistories,
-  LandMotions,
-  LandPlacements,
-  LandTargetKinds,
-} from "./landing/types";
+  ScrollMotions,
+  ScrollPlacements,
+} from "./scroll-to-target/engine/types";
+import { ScrollHistories, ScrollTargetKinds } from "./scroll-to-target/types";
 import type { ExpansionSource } from "../../../model/expansion/useExpansionSource";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import { useConversationWiring } from "./useConversationWiring";
-import { useDelayedPending } from "./useDelayedPending";
-import { useDiffViewPreference } from "./useDiffViewPreference";
-import { useStoryCardTrack } from "./useStoryCardTrack";
-import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
-import { useMarkReadyFlow } from "./useMarkReadyFlow";
-import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
-import { useFocusPanel } from "./useFocusPanel";
-import { useReadingSession } from "./useReadingSession";
+import { useDelayedPending } from "../../hooks/useDelayedPending";
+import { useDiffViewPreference } from "./diff-view/useDiffViewPreference";
+import { useStoryCardTrack } from "./reading/useStoryCardTrack";
+import { useInFlightDraftPosts } from "./drafts/useInFlightDraftPosts";
+import { useMarkReadyFlow } from "./mark-ready/useMarkReadyFlow";
+import {
+  POST_COMMENT_COPY_KEYS,
+  useOwnDraftFlow,
+} from "./drafts/useOwnDraftFlow";
+import { useFocusPanel } from "./FocusPanel/useFocusPanel";
+import { useReadingSession } from "./reading/useReadingSession";
 import {
   buildReplyRecordingPlan,
   deriveShareUrl,
@@ -209,10 +211,10 @@ export function useBriefViewFacade({
   // once the story pane renders.
   const queueJumpFromChanges = (groupId: string, heading: boolean) => {
     if (heading) {
-      session.jumpToGroupHeading(groupId, LandHistories.PUSH);
+      session.jumpToGroupHeading(groupId, ScrollHistories.PUSH);
       return;
     }
-    jumpToGroup(groupId, LandHistories.PUSH);
+    jumpToGroup(groupId, ScrollHistories.PUSH);
   };
 
   const submitOpen = useStore(screen, (state) => state.submitOpen);
@@ -315,14 +317,14 @@ export function useBriefViewFacade({
   const sessionJumpToChunk = session.jumpToChunk;
   const jumpToChunkUnderStack = useCallback(
     (chunkId: string, behavior?: ScrollBehavior) =>
-      sessionJumpToChunk(chunkId, behavior, LandPlacements.UNDER_STACK),
+      sessionJumpToChunk(chunkId, behavior, ScrollPlacements.UNDER_STACK),
     [sessionJumpToChunk],
   );
   const conversationWiring = useConversationWiring({
     conversation: conversationPlan,
     conversationFocusThreadId,
     conversationFilter: conversation?.filter,
-    land: session.land,
+    scrollToTarget: session.scrollToTarget,
     setActiveChunk: session.setActiveChunk,
     model,
     readingOrderedChunks,
@@ -343,16 +345,16 @@ export function useBriefViewFacade({
       chunkId,
       undefined,
       "instant",
-      LandHistories.PUSH,
+      ScrollHistories.PUSH,
     );
   };
-  const landOnDeepLink = useCallback(
+  const scrollToDeepLink = useCallback(
     (chunkId: string): boolean =>
       jumpToChunkFromConversation(
         chunkId,
         undefined,
         "instant",
-        LandHistories.REPLACE,
+        ScrollHistories.REPLACE,
       ),
     [jumpToChunkFromConversation],
   );
@@ -364,7 +366,7 @@ export function useBriefViewFacade({
     }
     return { repoId, prNumber: brief.pr.number, ref: brief.pr.sha };
   }, [repoId, brief.pr.number, brief.pr.sha]);
-  const lineLanding = useLineLinkLanding({
+  const lineLinkScroll = useLineLinkScroll({
     briefId,
     chunks: readingOrderedChunks,
     fileRows,
@@ -383,8 +385,8 @@ export function useBriefViewFacade({
     chunkIds: session.chunkIds,
     link,
     enabled: conversationFocusThreadId === undefined,
-    land: landOnDeepLink,
-    landLine: lineLanding.landLine,
+    scrollToChunk: scrollToDeepLink,
+    scrollToLine: lineLinkScroll.scrollToLine,
     address: addressHandle,
   });
 
@@ -412,7 +414,7 @@ export function useBriefViewFacade({
     chunks: readingOrderedChunks,
     marks: comparison.marks,
     getActiveChunkId: () => readingPosition.getState().activeChunkId,
-    land: session.land,
+    scrollToTarget: session.scrollToTarget,
   });
 
   const unplacedDrafts = useUnplacedDrafts();
@@ -485,15 +487,15 @@ export function useBriefViewFacade({
   // The bar mounts with the story view, so its expand waits a task; the
   // landing waits for the mount on its own.
   const intentBarRef = useRef<IntentBarHandle>(null);
-  const { exitToStoryView, land } = session;
+  const { exitToStoryView, scrollToTarget } = session;
   const showIntentBar = useCallback(() => {
     exitToStoryView();
     window.setTimeout(() => intentBarRef.current?.expand(), 0);
-    land(
-      { kind: LandTargetKinds.SECTION, sectionId: INTENT_BAR_ID },
-      { motion: LandMotions.SMOOTH, history: LandHistories.NONE },
+    scrollToTarget(
+      { kind: ScrollTargetKinds.SECTION, sectionId: INTENT_BAR_ID },
+      { motion: ScrollMotions.SMOOTH, history: ScrollHistories.NONE },
     );
-  }, [exitToStoryView, land]);
+  }, [exitToStoryView, scrollToTarget]);
 
   const markReady = useMarkReadyFlow({
     action: ownDraft?.markReady,
@@ -668,8 +670,8 @@ export function useBriefViewFacade({
     toggleDiffView,
     cardTrack,
     expansionSource,
-    lineLinkMissed: lineLanding.missed,
-    dismissLineLinkMiss: lineLanding.dismissMiss,
+    lineLinkMissed: lineLinkScroll.missed,
+    dismissLineLinkMiss: lineLinkScroll.dismissMiss,
     shareChunk,
     jumpToChunkUnderStack,
     staleHead,

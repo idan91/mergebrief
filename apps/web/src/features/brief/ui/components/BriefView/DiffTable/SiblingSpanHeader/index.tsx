@@ -13,7 +13,7 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type {
   LineTarget,
   SpanOwner,
-} from "../../../../../model/utils/lineOwner";
+} from "../../../../../model/utils/line-owner";
 import styles from "./SiblingSpanHeader.module.scss";
 import { type DiffSide, DiffSides } from "types/comments";
 
@@ -57,7 +57,7 @@ export function SiblingSpanHeader({
         href={deriveChunkUrl(owner.chunkId)}
         onClick={(event: MouseEvent<HTMLAnchorElement>) => {
           // A modified click keeps its link meaning (new tab, new
-          // window); a plain one runs the in-app landing, which finds
+          // window); a plain one runs the in-app scroll to target, which finds
           // a windowed card without a page load.
           if (isModifiedClick(event)) {
             return;

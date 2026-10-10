@@ -12,7 +12,7 @@ import {
   type AttributedGroupView,
   type BriefViewModel,
   type RiskFlag,
-} from "../../../../../../model/utils/viewModel";
+} from "../../../../../../model/utils/view-model";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 

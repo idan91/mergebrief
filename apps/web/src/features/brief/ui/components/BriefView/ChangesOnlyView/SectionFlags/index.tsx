@@ -7,7 +7,7 @@ import {
 import type {
   AttributedGroupView,
   RiskFlag,
-} from "../../../../../model/utils/viewModel";
+} from "../../../../../model/utils/view-model";
 import { RiskSurface } from "../../StoryView/GroupCard/AttributedGroupCard/RiskSurface";
 import styles from "./SectionFlags.module.scss";
 

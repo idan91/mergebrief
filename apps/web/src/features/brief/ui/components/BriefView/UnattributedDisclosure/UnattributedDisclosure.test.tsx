@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import type { UnattributedRemainderGroupView } from "../../../../model/utils/viewModel";
+import type { UnattributedRemainderGroupView } from "../../../../model/utils/view-model";
 import { UnattributedDisclosure } from ".";
 
 afterEach(cleanup);
@@ -132,7 +132,7 @@ describe("UnattributedDisclosure", () => {
     outside.remove();
   });
 
-  it("a pointer Jump takes the plain group landing", () => {
+  it("a pointer Jump takes the plain group scroll", () => {
     const { jumpToGroup, jumpToGroupHeading } = renderDisclosure();
     fireEvent.click(screen.getByTestId("unattributed-disclosure"));
     fireEvent.click(
@@ -147,7 +147,7 @@ describe("UnattributedDisclosure", () => {
     expect(jumpToGroupHeading).not.toHaveBeenCalled();
   });
 
-  it("a keyboard Jump takes the heading landing", () => {
+  it("a keyboard Jump takes the heading scroll", () => {
     const { jumpToGroup, jumpToGroupHeading } = renderDisclosure();
     fireEvent.click(screen.getByTestId("unattributed-disclosure"));
     fireEvent.click(

@@ -12,11 +12,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { briefFixture } from "@web/features/brief/test-utils";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../readingPosition";
+} from "../reading/reading-position";
 import { Button } from "@web/components/Button";
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { Sidebar } from ".";
@@ -240,7 +240,7 @@ describe("Sidebar", () => {
     window.removeEventListener("keydown", windowListener);
   });
 
-  it("a keyboard-activated row takes the heading landing and never collapses", () => {
+  it("a keyboard-activated row takes the heading scroll and never collapses", () => {
     const jumpToGroup = vi.fn();
     const jumpToGroupHeading = vi.fn();
     renderSidebar({ jumpToGroup, jumpToGroupHeading });

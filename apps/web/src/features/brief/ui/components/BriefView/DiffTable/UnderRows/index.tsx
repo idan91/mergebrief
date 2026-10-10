@@ -13,7 +13,7 @@ import {
 } from "@web/features/review";
 import type { LineCommentAnchor } from "@web/features/review/utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { DiffRowView } from "../diffRowView";
+import type { DiffRowView } from "../diff-row-view";
 import { ReasonRow } from "../ReasonRow";
 import { SpanEndRow } from "../SpanEndRow";
 import type { UnderRowLayout } from "../types";

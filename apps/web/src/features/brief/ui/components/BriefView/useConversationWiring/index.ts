@@ -13,7 +13,7 @@ import type {
   UseConversationWiringInput,
   UseConversationWiringValue,
 } from "./types";
-import { useConversationLanding } from "./useConversationLanding";
+import { useConversationScroll } from "./useConversationScroll";
 import { useConversationRows } from "./useConversationRows";
 import { focusConversationHeading } from "./utils";
 
@@ -24,7 +24,7 @@ export function useConversationWiring(
     conversation,
     conversationFocusThreadId,
     conversationFilter,
-    land,
+    scrollToTarget,
     setActiveChunk,
     model,
     readingOrderedChunks,
@@ -119,8 +119,8 @@ export function useConversationWiring(
     [conversation, queryClient],
   );
 
-  const jumpToChunkFromConversation = useConversationLanding({
-    land,
+  const jumpToChunkFromConversation = useConversationScroll({
+    scrollToTarget,
     setActiveChunk,
   });
 

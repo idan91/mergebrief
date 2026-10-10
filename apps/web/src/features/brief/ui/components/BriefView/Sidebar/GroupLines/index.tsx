@@ -3,9 +3,9 @@ import { useState } from "react";
 
 import { Callout } from "@web/components/Callout";
 import { GroupViewKinds } from "../../../../../model/utils/remainder";
-import { getCategoryLabel } from "../../../../../model/utils/viewModel";
-import type { GroupView } from "../../../../../model/utils/viewModel";
-import { resolveGroupName } from "../../../../../model/utils/resolveGroupName";
+import { getCategoryLabel } from "../../../../../model/utils/view-model";
+import type { GroupView } from "../../../../../model/utils/view-model";
+import { resolveGroupName } from "../../../../../model/utils/resolve-group-name";
 import type { JumpFromSidebar } from "../types";
 import styles from "./GroupLines.module.scss";
 

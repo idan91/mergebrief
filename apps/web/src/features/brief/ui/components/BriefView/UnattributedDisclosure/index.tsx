@@ -12,8 +12,8 @@ import { Button } from "@web/components/Button";
 import { Callout } from "@web/components/Callout";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import { resolveGroupName } from "../../../../model/utils/resolveGroupName";
-import type { UnattributedRemainderGroupView } from "../../../../model/utils/viewModel";
+import { resolveGroupName } from "../../../../model/utils/resolve-group-name";
+import type { UnattributedRemainderGroupView } from "../../../../model/utils/view-model";
 import styles from "./UnattributedDisclosure.module.scss";
 
 export interface UnattributedDisclosureProps {

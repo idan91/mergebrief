@@ -17,7 +17,7 @@ import {
   anchorEndsOnRow,
   isCommentableLine,
   type DiffRowView,
-} from "./diffRowView";
+} from "./diff-row-view";
 import type { BriefChunk, GuestRowReason } from "../../../../model/types";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
@@ -52,7 +52,7 @@ import {
   type DigestThreadRow,
   demotedSubmittedCommentIds,
 } from "@web/features/conversation/utils";
-import type { SiblingSpan } from "../../../../model/utils/siblingSpans";
+import type { SiblingSpan } from "../../../../model/utils/sibling-spans";
 import type {
   GuestRowOrigin,
   GuestRowResolution,

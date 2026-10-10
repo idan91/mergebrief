@@ -10,9 +10,9 @@ import {
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../../model/types";
-import type { FileLineOwners } from "../../../../model/utils/lineOwner";
-import { resolveSpanOwner } from "../../../../model/utils/lineOwner";
-import { groupSiblingSpans } from "../../../../model/utils/siblingSpans";
+import type { FileLineOwners } from "../../../../model/utils/line-owner";
+import { resolveSpanOwner } from "../../../../model/utils/line-owner";
+import { groupSiblingSpans } from "../../../../model/utils/sibling-spans";
 import {
   type GuestRowResolution,
   type GuestRowsInput,

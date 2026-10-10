@@ -5,7 +5,7 @@ import { LocSign, LocSigns } from "@web/components/LocSign";
 import {
   isAttributedGroupView,
   type GroupView,
-} from "../../../../../model/utils/viewModel";
+} from "../../../../../model/utils/view-model";
 import { CoreLinesDisclosure } from "../../CoreLinesDisclosure";
 import styles from "./MetaRow.module.scss";
 

@@ -2,11 +2,11 @@ import type { ReactNode, Ref } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ChangeGroupCategory } from "types";
-import { resolveGroupName } from "../../../../model/utils/resolveGroupName";
+import { resolveGroupName } from "../../../../model/utils/resolve-group-name";
 import {
   isAttributedGroupView,
   type GroupView,
-} from "../../../../model/utils/viewModel";
+} from "../../../../model/utils/view-model";
 import { CategoryFacts } from "./CategoryFacts";
 import type { GroupFactsSurface } from "./types";
 import { splitInlineCode } from "./utils";

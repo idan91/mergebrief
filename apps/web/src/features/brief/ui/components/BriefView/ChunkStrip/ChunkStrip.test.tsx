@@ -17,7 +17,7 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
   type ReadingPositionStore,
-} from "../readingPosition";
+} from "../reading/reading-position";
 import { ChunkStrip } from ".";
 
 afterEach(cleanup);

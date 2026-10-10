@@ -2,7 +2,7 @@ import type { StoredRevisionNarrative } from "brief-core/artifact";
 import type { ValueOf } from "types/utils";
 
 import type { Brief, ComparisonMarks } from "../types";
-import type { ComparisonQuery } from "./comparisonQuery";
+import type { ComparisonQuery } from "./comparison-query";
 
 /**
  * @description The **Compare** control. Canonical values match the marks artifact's `baselineLabel` for `previous-brief`;

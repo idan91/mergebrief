@@ -4,7 +4,7 @@ import { Concerns, Roles } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { GuestRowReasons, type BriefChunk } from "../../model/types";
 import { GroupViewKinds } from "../../model/utils/remainder";
-import type { FileLineOwners } from "../../model/utils/lineOwner";
+import type { FileLineOwners } from "../../model/utils/line-owner";
 import { resolveChunkForLine } from "@web/features/review/utils";
 import {
   type GuestRowsInput,

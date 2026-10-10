@@ -7,7 +7,7 @@ import {
 } from "react";
 
 import type { BriefChunk } from "../../../../model/types";
-import { useReadingPosition } from "../readingPosition";
+import { useReadingPosition } from "../reading/reading-position";
 import { deriveChunkMarks, findMarkIndex, moveRovingIndex } from "./utils";
 
 export interface ChunkStripFacadeOptions {

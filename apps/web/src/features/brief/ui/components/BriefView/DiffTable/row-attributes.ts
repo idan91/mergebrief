@@ -17,7 +17,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { RowRef } from "../../../../model/expansion/types";
 import type { BriefChunk, GuestRowReason } from "../../../../model/types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
-import type { DiffRowView } from "./diffRowView";
+import type { DiffRowView } from "./diff-row-view";
 import { REANCHOR_HINT_ID } from "../consts";
 import { COMMENT_ANCHOR_SELECTOR, SELECT_ANCHOR_SELECTOR } from "./consts";
 import { deriveRowIntent } from "./gestures";

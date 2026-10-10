@@ -13,7 +13,7 @@ import type { GroupCardProps } from "../types";
 import {
   getCategoryLabel,
   type AttributedGroupView,
-} from "../../../../../../model/utils/viewModel";
+} from "../../../../../../model/utils/view-model";
 import { RiskSurface } from "./RiskSurface";
 import { useAttributedGroupCardFacade } from "./useAttributedGroupCardFacade";
 

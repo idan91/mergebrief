@@ -10,8 +10,8 @@ import {
 } from "../../queries";
 import { createFileRowsCache } from "../file-rows/cache";
 import type { Brief } from "../types";
-import { attachSlicedDiffs } from "../utils/diffSlicing";
-import type { ComparisonQuery } from "./comparisonQuery";
+import { attachSlicedDiffs } from "../utils/diff-slicing";
+import type { ComparisonQuery } from "./comparison-query";
 import type { BriefComparisonPlan } from "./types";
 
 type PreviousBriefPlan = Mutable<

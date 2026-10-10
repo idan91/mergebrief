@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { BriefChunk } from "../../../../../../model/types";
-import type { AttributeDisplayMeta } from "../../../../../../model/utils/repoConfig";
+import type { AttributeDisplayMeta } from "../../../../../../model/utils/repo-config";
 import { RiskBadge } from "../../../RiskBadge";
 import { RiskChipDisclosure } from "../../../RiskChipDisclosure";
 import { RiskDetailList } from "../../../RiskDetailList";

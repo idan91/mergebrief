@@ -4,9 +4,9 @@ import { LocSign, LocSigns } from "@web/components/LocSign";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 
 import { GroupViewKinds } from "../../../../../../model/utils/remainder";
-import { getCategoryLabel } from "../../../../../../model/utils/viewModel";
-import type { GroupView } from "../../../../../../model/utils/viewModel";
-import { resolveGroupName } from "../../../../../../model/utils/resolveGroupName";
+import { getCategoryLabel } from "../../../../../../model/utils/view-model";
+import type { GroupView } from "../../../../../../model/utils/view-model";
+import { resolveGroupName } from "../../../../../../model/utils/resolve-group-name";
 import type { JumpFromSidebar } from "../../types";
 import styles from "./ThisPr.module.scss";
 

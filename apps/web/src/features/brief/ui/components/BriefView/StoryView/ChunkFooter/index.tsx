@@ -2,8 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { ButtonVariants } from "@web/components/Button";
 import { useReviewSession } from "@web/features/review/session";
-import type { GroupView } from "../../../../../model/utils/viewModel";
-import { useReadingPosition } from "../../readingPosition";
+import type { GroupView } from "../../../../../model/utils/view-model";
+import { useReadingPosition } from "../../reading/reading-position";
 import { StepButton } from "./StepButton";
 import { deriveChunkSteps } from "./utils";
 import styles from "./ChunkFooter.module.scss";

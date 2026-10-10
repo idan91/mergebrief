@@ -13,7 +13,7 @@ import {
   type ReviewFlowStore,
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
 
 afterEach(cleanup);

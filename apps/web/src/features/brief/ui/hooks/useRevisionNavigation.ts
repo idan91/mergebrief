@@ -1,13 +1,15 @@
 import { useCallback } from "react";
 
 import {
-  LandHistories,
-  LandMotions,
-  LandPlacements,
-  LandTargetKinds,
-  type Landing,
-  type LandOptions,
-} from "../components/BriefView/landing/types";
+  ScrollMotions,
+  ScrollPlacements,
+} from "../components/BriefView/scroll-to-target/engine/types";
+import {
+  ScrollHistories,
+  ScrollTargetKinds,
+  type ScrollTargetOptions,
+  type ScrollToTarget,
+} from "../components/BriefView/scroll-to-target/types";
 import {
   deriveRevisionJumpTargets,
   REVISION_JUMP_ATTR,
@@ -21,7 +23,7 @@ import type { BriefChunk } from "../../model/types";
  * enumerate the rails anymore, windowed chunk lists only mount
  * viewport-adjacent cards, so `querySelectorAll` silently skips every rail
  * in an unmounted chunk. Mounted rails still supply the precision: the
- * reading-line anchor is measured. The landing scrolls to a mounted rail
+ * reading-line anchor is measured. The scroll to target goes to a mounted rail
  * directly and routes an unmounted one through the chunk windows.
  */
 export interface RevisionNavigation {
@@ -38,17 +40,17 @@ export interface UseRevisionNavigationInput {
   /** Read at jump time (store `getState`): a position change must never
    * re-render the host screen just to keep this hook current. */
   getActiveChunkId: () => string | null;
-  /** The page's one landing; never a chunk jump, whose card line would pull the rail off center. */
-  land: Landing["land"];
+  /** The page's one scroll to target; never a chunk jump, whose card line would pull the rail off center. */
+  scrollToTarget: ScrollToTarget["scrollToTarget"];
 }
 
 /** Rails are row targets: their card opens, and the button takes focus. */
-const RAIL_LANDING: LandOptions = {
-  motion: LandMotions.SMOOTH,
-  history: LandHistories.NONE,
+const RAIL_SCROLL: ScrollTargetOptions = {
+  motion: ScrollMotions.SMOOTH,
+  history: ScrollHistories.NONE,
   open: true,
   focus: true,
-  placement: LandPlacements.READING_BAND,
+  placement: ScrollPlacements.READING_BAND,
 };
 
 interface MountedRail {
@@ -113,7 +115,7 @@ export function pickRevisionTargetIndex(input: {
 export function useRevisionNavigation(
   input: UseRevisionNavigationInput,
 ): RevisionNavigation {
-  const { chunks, marks, getActiveChunkId, land } = input;
+  const { chunks, marks, getActiveChunkId, scrollToTarget } = input;
 
   const jump = useCallback(
     (direction: 1 | -1) => {
@@ -185,16 +187,16 @@ export function useRevisionNavigation(
         return;
       }
 
-      land(
+      scrollToTarget(
         {
-          kind: LandTargetKinds.RAIL,
+          kind: ScrollTargetKinds.RAIL,
           chunkId: target.chunkId,
           railKey: target.railKey,
         },
-        RAIL_LANDING,
+        RAIL_SCROLL,
       );
     },
-    [chunks, getActiveChunkId, land, marks],
+    [chunks, getActiveChunkId, scrollToTarget, marks],
   );
 
   return {

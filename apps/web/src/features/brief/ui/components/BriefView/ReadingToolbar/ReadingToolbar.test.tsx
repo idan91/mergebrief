@@ -5,12 +5,12 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 
 import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils";
-import type { ComparisonOverlayState } from "../../../../model/comparison/comparisonOverlay";
-import type { AttributeRail } from "../../../../model/utils/viewModel";
+import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
+import type { AttributeRail } from "../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../readingPosition";
+} from "../reading/reading-position";
 import { ReadingToolbar, type ReadingToolbarProps } from ".";
 
 afterEach(() => {

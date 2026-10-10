@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { BriefViewModel } from "@web/features/brief/model/utils/viewModel";
+import type { BriefViewModel } from "@web/features/brief/model/utils/view-model";
 import type { CarriedItem } from "@web/features/review/utils";
 import { AttentionList } from "./AttentionList";
 import styles from "./CarryOver.module.scss";

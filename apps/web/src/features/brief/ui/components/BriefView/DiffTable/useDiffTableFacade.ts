@@ -11,7 +11,7 @@ import {
   type DiffRowView,
   getDiffRowView,
   resolveStrandedRows,
-} from "./diffRowView";
+} from "./diff-row-view";
 import {
   EMPTY_EXPANDED_THREADS,
   NO_DIFF,

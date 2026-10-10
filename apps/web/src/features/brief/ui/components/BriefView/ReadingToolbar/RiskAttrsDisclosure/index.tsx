@@ -5,7 +5,7 @@ import { Popover } from "@web/components/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import { RiskBadge } from "../../RiskBadge";
-import type { AttributeRail } from "../../../../../model/utils/viewModel";
+import type { AttributeRail } from "../../../../../model/utils/view-model";
 import { DISCLOSURE_OFFSET_PX } from "../consts";
 import styles from "./RiskAttrsDisclosure.module.scss";
 

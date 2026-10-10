@@ -13,7 +13,7 @@ import type {
   LineLinkTarget,
   SubmitReviewAction,
 } from "@web/features/review/utils";
-import type { BriefSearchParams } from "../../../model/comparison/compareState";
+import type { BriefSearchParams } from "../../../model/comparison/compare-state";
 import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import type {
   Brief,
@@ -24,10 +24,10 @@ import type {
   RevisionTimelinePlan,
 } from "../../../model/types";
 import type { ExpansionDirection } from "../../../model/expansion/types";
-import type { LineTarget } from "../../../model/utils/lineOwner";
-import type { BriefViewModel } from "../../../model/utils/viewModel";
+import type { LineTarget } from "../../../model/utils/line-owner";
+import type { BriefViewModel } from "../../../model/utils/view-model";
 import type { FileRowsCache } from "../../../model/file-rows/cache";
-import type { RepoConfigContext } from "../../../model/utils/repoConfig";
+import type { RepoConfigContext } from "../../../model/utils/repo-config";
 import type { BriefAddressPort } from "./address/types";
 
 /**
@@ -72,14 +72,14 @@ export interface ScopePaneProps {
 }
 
 /** What a line link resolves to before anything scrolls. */
-export const LineLandingKinds = {
+export const LineLinkPlanKinds = {
   /** No such chunk, or a line the brief cannot show. */
   MISS: "miss",
   /** The chunk's rows are not attached yet; the link keeps its chance. */
   PENDING: "pending",
   /** The rows never came: the chunk's card is shown without the line. */
   CARD: "card",
-  LAND: "land",
+  ROW: "row",
 } as const;
 
 /** How a hunk-edge read for a line link ended. */
@@ -94,7 +94,7 @@ export const LineReadOutcomes = {
 export type LineReadOutcome = ValueOf<typeof LineReadOutcomes>;
 
 /** The hunk-edge read that brings a folded line into the rows. */
-export interface LineLandingRead {
+export interface LineLinkRead {
   edgeKey: string;
   direction: ExpansionDirection;
   /** In new-side lines, from the edge to the far folded line. */
@@ -103,15 +103,15 @@ export interface LineLandingRead {
   coversStart: boolean;
 }
 
-export type LineLandingPlan =
-  | { kind: typeof LineLandingKinds.MISS }
-  | { kind: typeof LineLandingKinds.PENDING }
-  | { kind: typeof LineLandingKinds.CARD; chunk: BriefChunk }
+export type LineLinkPlan =
+  | { kind: typeof LineLinkPlanKinds.MISS }
+  | { kind: typeof LineLinkPlanKinds.PENDING }
+  | { kind: typeof LineLinkPlanKinds.CARD; chunk: BriefChunk }
   | {
-      kind: typeof LineLandingKinds.LAND;
+      kind: typeof LineLinkPlanKinds.ROW;
       chunk: BriefChunk;
       row: LineTarget;
-      read?: LineLandingRead;
+      read?: LineLinkRead;
     };
 
 /** The chunk link glyph: the URL to copy, and what the page does once it is copied. */

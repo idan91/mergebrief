@@ -15,7 +15,7 @@ export {
   type BriefSearchParams,
   type CompareOptionFlags,
   type ViewParam,
-} from "./comparison/compareState";
+} from "./comparison/compare-state";
 export { CompareParams, type CompareParam } from "./comparison/types";
 export {
   MarkReadyResultKinds,
@@ -38,19 +38,19 @@ export {
   type RevisionPoint,
   type RevisionTimelineView,
 } from "./types";
-export { briefErrorDetail, prBriefErrorDetail } from "./utils/briefErrors";
+export { briefErrorDetail, prBriefErrorDetail } from "./utils/brief-errors";
 export {
   attachSlicedDiffs,
   parseUnifiedDiffPatch,
   splitUnifiedDiffByFile,
-} from "./utils/diffSlicing";
+} from "./utils/diff-slicing";
 export { createFileRowsCache } from "./file-rows/cache";
-export { resolveLegacyDeltaRedirect } from "./utils/legacyRedirect";
+export { resolveLegacyDeltaRedirect } from "./utils/legacy-redirect";
 export {
   GroupViewKinds,
   isUnattributedRemainderChunk,
 } from "./utils/remainder";
-export { parseBriefContext, type RepoConfigContext } from "./utils/repoConfig";
+export { parseBriefContext, type RepoConfigContext } from "./utils/repo-config";
 export { buildRevisionTimeline } from "./utils/revision-timeline";
 export {
   parseBrief,
@@ -62,4 +62,4 @@ export {
   buildBriefViewModel,
   type BriefViewModel,
   type RiskFlag,
-} from "./utils/viewModel";
+} from "./utils/view-model";

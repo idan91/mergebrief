@@ -10,7 +10,7 @@ import {
   isAttributedGroupView,
   type BriefViewModel,
   type GroupView,
-} from "../../../../../model/utils/viewModel";
+} from "../../../../../model/utils/view-model";
 import { ChunkStrip } from "../../ChunkStrip";
 import { GroupFacts } from "../../GroupFacts";
 import { MetaRow } from "../../GroupFacts/MetaRow";

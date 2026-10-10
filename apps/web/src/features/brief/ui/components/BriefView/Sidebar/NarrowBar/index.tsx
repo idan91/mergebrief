@@ -3,8 +3,8 @@ import type { RefObject } from "react";
 
 import { IconButton } from "@web/components/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import type { GroupView } from "../../../../../model/utils/viewModel";
-import { resolveGroupName } from "../../../../../model/utils/resolveGroupName";
+import type { GroupView } from "../../../../../model/utils/view-model";
+import { resolveGroupName } from "../../../../../model/utils/resolve-group-name";
 import { Icon } from "@web/components/Icon";
 import {
   IconNames,

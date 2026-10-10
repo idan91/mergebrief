@@ -1,4 +1,4 @@
-import type { GroupView } from "../../../../../model/utils/viewModel";
+import type { GroupView } from "../../../../../model/utils/view-model";
 import type { ChunkSteps } from "./types";
 
 /** The chunks J and K land on from the active one, in reading order. */

@@ -4,7 +4,7 @@
 import { DismissModal } from "@web/features/review";
 import { EvidenceModal } from "@web/features/review";
 import { useReviewSession } from "@web/features/review/session";
-import type { RiskFlag } from "../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../model/utils/view-model";
 import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
 
 export interface RiskFlagModalsProps {

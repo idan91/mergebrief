@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import type { ExpandableEdge, RowRef } from "./types";
 import { findExpansionGaps } from "./gaps";
-import { resolveFileStatus } from "../utils/fileStatus";
+import { resolveFileStatus } from "../utils/file-status";
 import {
   buildExpansionKey,
   collectStoredEdges,

@@ -4,8 +4,8 @@ import type { LineSelection } from "@web/features/review/utils";
 import type {
   BriefSearchParams,
   ViewParam,
-} from "../../../../model/comparison/compareState";
-import type { ReadingPositionStore } from "../readingPosition";
+} from "../../../../model/comparison/compare-state";
+import type { ReadingPositionStore } from "../reading/reading-position";
 import type { ScopeExitOptions } from "../types";
 
 /** What the URL's `l` and `focus` params say. */

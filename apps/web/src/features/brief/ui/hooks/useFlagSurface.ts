@@ -9,7 +9,7 @@ import {
   useReviewSession,
   useReviewSessionActions,
 } from "@web/features/review/session";
-import type { RiskFlag } from "../../model/utils/viewModel";
+import type { RiskFlag } from "../../model/utils/view-model";
 import { useReviewPosture } from "./useReviewPosture";
 
 /**

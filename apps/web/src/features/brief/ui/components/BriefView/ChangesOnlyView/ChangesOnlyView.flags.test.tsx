@@ -22,7 +22,7 @@ import {
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { type Brief, type BriefChunk } from "../../../../model/types";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { ChangesOnlyView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";

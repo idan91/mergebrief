@@ -43,14 +43,14 @@ import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import type {
   FileLineOwners,
   LineTarget,
-} from "../../../../model/utils/lineOwner";
+} from "../../../../model/utils/line-owner";
 import type {
   ChunkComparisonView,
   ComparisonRun,
 } from "../../../../model/comparison/runs";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../../model/types";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
@@ -763,7 +763,7 @@ describe("DiffTable sibling spans", () => {
     expect(rows[4]?.querySelector("td[data-span]")).toBeNull();
   });
 
-  it("links to the owning chunk and lands in the app on click", async () => {
+  it("links to the owning chunk and scrolls to it in the app on click", async () => {
     const { jumpToLine } = await expandIntoSiblings("unified");
     const control = screen.getByRole("link", {
       name: "Go to chunk in Fix the leak",
@@ -783,7 +783,7 @@ describe("DiffTable sibling spans", () => {
     ).toBe("/repos/1/pulls/2?rev=1&l=u-1");
   });
 
-  it("keeps a modified click a link, not an in-app landing", async () => {
+  it("keeps a modified click a link, not an in-app scroll to target", async () => {
     const { jumpToLine } = await expandIntoSiblings("unified");
     const control = screen.getByRole("link", {
       name: "Go to chunk in Fix the leak",

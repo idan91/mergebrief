@@ -1,6 +1,6 @@
 /**
  * The heading exists whether or not the section is expanded, so focus and
- * scroll land on it a frame later, after the expand has rendered.
+ * scroll reach it a frame later, after the expand has rendered.
  */
 export function focusConversationHeading(): void {
   window.requestAnimationFrame(() => {

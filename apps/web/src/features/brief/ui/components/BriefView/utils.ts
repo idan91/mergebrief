@@ -19,7 +19,7 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
-import type { ComparisonQuery } from "../../../model/comparison/comparisonQuery";
+import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
 import {
   buildChunkComparisonView,
   type ComparisonMarkFiles,
@@ -281,14 +281,6 @@ export function resolveRiskEvidence(
   return note ? { kind, note } : { kind };
 }
 
-/** User inputs that abort an in-flight programmatic landing; a click or drag in the landed card counts. */
-export const SCROLL_ABORT_EVENTS = [
-  "wheel",
-  "touchstart",
-  "keydown",
-  "pointerdown",
-] as const;
-
 /** The whole pinned stack as one registered length; the header writes it. */
 export const STICKY_STACK_HEIGHT_VAR = "--sticky-stack-h";
 
@@ -301,68 +293,6 @@ export function readNumericCssVar(name: string): number {
     .getPropertyValue(name);
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-export interface VerticalExtent {
-  top: number;
-  bottom: number;
-}
-
-/** Air between a corrected head and the pinned stack. */
-const ROW_LANDING_GAP_PX = 16;
-/** Where a corrected row's top lands, as a share of the band below the stack. */
-const ROW_LANDING_BAND_SHARE = 1 / 3;
-
-/**
- * How far to scroll so a landed row reads, 0 when it already does. The band
- * runs from the pinned stack to the viewport bottom; a row is readable when
- * it is whole in the band with its top in the upper half. Any other row
- * moves so its top sits a third of the way down the band, so a landing never
- * leaves the row at the viewport's edge. A row taller than the band can
- * never fit: its head goes under the stack, and counts as readable anywhere
- * in the band's upper half.
- */
-export function deriveRowLandingCorrection(
-  extent: VerticalExtent,
-  stickyStackHeight: number,
-  viewportHeight: number,
-): number {
-  const bandHeight = viewportHeight - stickyStackHeight;
-  const bandMiddle = stickyStackHeight + bandHeight / 2;
-  const rowHeight = extent.bottom - extent.top;
-
-  if (rowHeight > bandHeight) {
-    return deriveHeadLandingCorrection(
-      extent,
-      stickyStackHeight,
-      bandMiddle,
-      stickyStackHeight + ROW_LANDING_GAP_PX,
-    );
-  }
-  const readable =
-    extent.top >= stickyStackHeight &&
-    extent.top <= bandMiddle &&
-    extent.bottom <= viewportHeight;
-  if (readable) {
-    return 0;
-  }
-
-  return extent.top - (stickyStackHeight + bandHeight * ROW_LANDING_BAND_SHARE);
-}
-
-function deriveHeadLandingCorrection(
-  extent: VerticalExtent,
-  stickyStackHeight: number,
-  bandMiddle: number,
-  restingTop: number,
-): number {
-  const headReadable =
-    extent.top >= stickyStackHeight && extent.top <= bandMiddle;
-  if (headReadable) {
-    return 0;
-  }
-
-  return extent.top - restingTop;
 }
 
 /**
@@ -382,13 +312,13 @@ export function deriveGroupSectionId(groupId: string): string {
   return `${groupId}-section`;
 }
 
-/** The search param that names a chunk, or lines inside one, to land on. */
+/** The search param that names a chunk, or lines inside one, to scroll to. */
 export const LINK_PARAM = "l";
 const CHUNK_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 /** Between the chunk id and the lines; both encoders leave it as it is. */
 const LINK_LINES_SEPARATOR = ".";
 
-/** The search param that names a thread to open; its landing owns the arrival. */
+/** The search param that names a thread to open; its own scroll owns the arrival. */
 const THREAD_PARAM = "thread";
 
 /** The page's address with the link param set to `link`, ready to share. */

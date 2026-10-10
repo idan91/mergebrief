@@ -44,7 +44,7 @@ export interface IntentBarProps {
 }
 
 export interface IntentBarHandle {
-  /** Expand the body; the screen's landing scrolls to `INTENT_BAR_ID`. */
+  /** Expand the body; the view's scroll to target goes to `INTENT_BAR_ID`. */
   expand: () => void;
 }
 

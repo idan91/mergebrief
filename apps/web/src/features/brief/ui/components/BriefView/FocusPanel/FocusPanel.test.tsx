@@ -19,7 +19,7 @@ import {
 } from "@web/features/review/session";
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
   ViewportBands,
   type ViewportBand,
@@ -28,8 +28,8 @@ import {
   createReadingPositionStore,
   ReadingPositionProvider,
   type ReadingPositionStore,
-} from "../readingPosition";
-import { useFocusPanel } from "../useFocusPanel";
+} from "../reading/reading-position";
+import { useFocusPanel } from "./useFocusPanel";
 import { FocusPanel } from ".";
 
 afterEach(cleanup);

@@ -1,4 +1,4 @@
-import type { SiblingSpan } from "../../../../model/utils/siblingSpans";
+import type { SiblingSpan } from "../../../../model/utils/sibling-spans";
 import type { GuestRowResolution } from "../../../utils/guest-rows";
 import type { TranslationKey } from "i18n";
 import { type GuestRowReason, GuestRowReasons } from "../../../../model/types";

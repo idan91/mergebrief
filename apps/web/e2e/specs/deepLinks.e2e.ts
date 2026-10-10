@@ -96,7 +96,7 @@ test("the Revisions tab navigates between the fixture's revisions", async ({
   ).toBeVisible();
 });
 
-test("a rev link lands on that revision", async ({ page }) => {
+test("a rev link opens that revision", async ({ page }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV1);
 
   await expect(
@@ -107,7 +107,7 @@ test("a rev link lands on that revision", async ({ page }) => {
   await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
 });
 
-test("an old span link lands on its revision and is rewritten to rev", async ({
+test("an old span link opens its revision and is rewritten to rev", async ({
   page,
 }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV1_LEGACY_SPAN);
@@ -122,9 +122,9 @@ test("an old span link lands on its revision and is rewritten to rev", async ({
   await expect(page).not.toHaveURL(/base=/);
 });
 
-test("a chunk link lands on that chunk's card", async ({ page }) => {
+test("a chunk link scrolls to that chunk's card", async ({ page }) => {
   // Plain goto: the interactive wait opens and closes the shortcuts dialog,
-  // which would move focus off the landed card.
+  // which would move focus off the target card.
   await page.goto(`${FIXTURE_ROUTE_REV1}&l=c3`);
 
   const card = page.locator("#c3");
@@ -133,7 +133,7 @@ test("a chunk link lands on that chunk's card", async ({ page }) => {
   await expect(card).toBeInViewport();
 });
 
-test("a chunk link lands after leaving Changes Only", async ({ page }) => {
+test("a chunk link scrolls after leaving Changes Only", async ({ page }) => {
   await page.goto(
     `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief&l=c2`,
   );
@@ -152,7 +152,7 @@ function findRowShowing(page: Page, side: "old" | "new", line: number) {
   return page.locator(`tr:has(> td[data-line-${side}="${String(line)}"])`);
 }
 
-test("a line link lands on that line, selected and focused", async ({
+test("a line link scrolls to that line, selected and focused", async ({
   page,
 }) => {
   await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R45`);
@@ -181,7 +181,7 @@ test("an old-side range link selects every line of the range", async ({
   await expect(findRowShowing(page, "old", 295)).toBeFocused();
 });
 
-test("a context line the chunk shows lands like a changed one", async ({
+test("a context line the chunk shows scrolls like a changed one", async ({
   page,
 }) => {
   await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R43`);
@@ -191,7 +191,9 @@ test("a context line the chunk shows lands like a changed one", async ({
   await expect(row).toBeFocused();
 });
 
-test("a folded line expands its hunk edge before landing", async ({ page }) => {
+test("a folded line expands its hunk edge before scrolling", async ({
+  page,
+}) => {
   // 150 sits in the gap between the chunk's first two hunks.
   await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R150`);
 
@@ -200,7 +202,7 @@ test("a folded line expands its hunk edge before landing", async ({ page }) => {
   await expect(row).toBeFocused();
 });
 
-test("a line link this brief cannot land drops the param and says so", async ({
+test("a line link this brief cannot scroll to drops the param and says so", async ({
   page,
 }) => {
   await page.goto(`${FIXTURE_ROUTE_REV1}&l=c9.R1`);

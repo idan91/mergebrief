@@ -12,11 +12,11 @@ import {
   isAttributedGroupView,
   type AttributedGroupView,
   type RiskFlag,
-} from "../../../../../../../model/utils/viewModel";
+} from "../../../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../../../../readingPosition";
+} from "../../../../reading/reading-position";
 import { RiskSurface } from ".";
 
 afterEach(cleanup);

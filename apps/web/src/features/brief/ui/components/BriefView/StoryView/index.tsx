@@ -13,14 +13,14 @@ import {
   type FocusEvent,
 } from "react";
 
-import type { ComparisonOverlayState } from "../../../../model/comparison/comparisonOverlay";
+import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
 import type {
   AddressedReviewComment,
   Brief,
   BriefChunk,
 } from "../../../../model/types";
 import { countExpandedRows } from "../../../../model/expansion/edges";
-import type { BriefViewModel } from "../../../../model/utils/viewModel";
+import type { BriefViewModel } from "../../../../model/utils/view-model";
 import type {
   DigestRow,
   DigestThreadRow,
@@ -36,16 +36,19 @@ import { ChunkCard } from "./ChunkCard";
 import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
-import { estimateChunkCardHeight } from "../chunkHeightModel";
+import { estimateChunkCardHeight } from "../reading/chunk-height-model";
 import { useExpansion } from "../../../../model/expansion/useExpansion";
 import { useFileRows } from "../../../../model/file-rows/useFileRows";
 import {
   type FileLineOwners,
   type LineTarget,
-} from "../../../../model/utils/lineOwner";
-import { useChunkWindows } from "../chunkWindows";
-import { useReadingPosition } from "../readingPosition";
-import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
+} from "../../../../model/utils/line-owner";
+import { useChunkWindows } from "../reading/chunk-windows";
+import { useReadingPosition } from "../reading/reading-position";
+import {
+  CHUNK_WINDOW_INDEX_ATTR,
+  useGroupWindow,
+} from "../reading/useGroupWindow";
 import { deriveGroupSectionId, type SidebarLayout } from "../utils";
 import styles from "./StoryView.module.scss";
 
@@ -72,7 +75,7 @@ export interface StoryViewProps {
   hiddenThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
   /** Every current line thread per file; expanded rows show theirs. */
   lineThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
-  /** Lands on one line of a chunk; a sibling span's control uses it. */
+  /** Scrolls to one line of a chunk; a sibling span's control uses it. */
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
   /** Writes a chunk's hash and answers the URL to copy. */
   shareChunk?: ChunkShare | undefined;

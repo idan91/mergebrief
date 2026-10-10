@@ -6,8 +6,8 @@ import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import { CompareParams } from "../../../../model/comparison/types";
-import type { ComparisonOverlayState } from "../../../../model/comparison/comparisonOverlay";
-import type { AttributeRail } from "../../../../model/utils/viewModel";
+import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
+import type { AttributeRail } from "../../../../model/utils/view-model";
 import {
   FilterDisclosure,
   type FilterDisclosureProps,

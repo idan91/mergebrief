@@ -6,7 +6,7 @@ import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { Brief } from "../../../../../model/types";
-import type { RepoConfigContext } from "../../../../../model/utils/repoConfig";
+import type { RepoConfigContext } from "../../../../../model/utils/repo-config";
 import { Icon } from "@web/components/Icon";
 import {
   IconNames,

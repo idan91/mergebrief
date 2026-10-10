@@ -1,7 +1,7 @@
 import {
   buildBriefSearchParams,
   type BriefSearchParams,
-} from "../../../../model/comparison/compareState";
+} from "../../../../model/comparison/compare-state";
 import type { BriefAddress, ScopeExitOptions } from "../types";
 import type { BriefAddressPort } from "./types";
 

@@ -307,9 +307,9 @@ release`.
       - the anchor sha was never briefed (common, the debounce): the
         affordance is disabled with a reachable reason and a GitHub
         permalink fallback, no nearest-revision guessing;
-      - reduced motion: the landing snaps instead of smooth-scrolling (the
+      - reduced motion: the scroll to target snaps instead of smooth-scrolling (the
         suite pins this contract on the brief's own scroller; the
-        thread-landing path is not reachable there).
+        thread scroll path is not reachable there).
       Any defect becomes its own fix PR.
 - [ ] Review submit: comments post to GitHub, the checkpoint is written by
       the webhook (commit_id pinned, bots filtered), submitted comments go

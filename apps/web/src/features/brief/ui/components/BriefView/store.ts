@@ -1,8 +1,8 @@
 import { useRef } from "react";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { ViewParam } from "../../../model/comparison/compareState";
-import type { BriefViewModel } from "../../../model/utils/viewModel";
+import type { ViewParam } from "../../../model/comparison/compare-state";
+import type { BriefViewModel } from "../../../model/utils/view-model";
 import type { MarkReadyBatch } from "./types";
 import { listChunkIds } from "./utils";
 

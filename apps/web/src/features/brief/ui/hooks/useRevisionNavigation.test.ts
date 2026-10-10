@@ -3,7 +3,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useLanding } from "../components/BriefView/landing";
+import { useScrollToTarget } from "../components/BriefView/scroll-to-target";
 import type { ComparisonMarkFiles } from "../../model/comparison/runs";
 import type { BriefChunk } from "../../model/types";
 import {
@@ -209,7 +209,7 @@ interface NavigationHost {
   getActiveChunkId?: () => string | null;
 }
 
-/** The hook lands through the real landing module, over stubbed windows. */
+/** The hook scrolls through the real scroll-to-target module, over stubbed windows. */
 function renderNavigation(
   scrollTowardChunk = vi.fn(() => true),
   openChunk = vi.fn(),
@@ -225,14 +225,19 @@ function renderNavigation(
     scrollTowardChunk,
     openChunk,
     ...renderHook(() => {
-      const { land } = useLanding({
+      const { scrollToTarget } = useScrollToTarget({
         briefId: "brief-a",
         chunkWindows,
         openChunk,
         inChangesScope: false,
         exitChangesScope: undefined,
       });
-      return useRevisionNavigation({ chunks, marks, getActiveChunkId, land });
+      return useRevisionNavigation({
+        chunks,
+        marks,
+        getActiveChunkId,
+        scrollToTarget,
+      });
     }),
   };
 }
@@ -252,7 +257,7 @@ describe("useRevisionNavigation", () => {
   });
 
   afterEach(() => {
-    // Unmount first: the landing's frames must stop before the environment
+    // Unmount first: the scroll's frames must stop before the environment
     // tears down.
     cleanup();
     vi.useRealTimers();
@@ -299,7 +304,7 @@ describe("useRevisionNavigation", () => {
 
     jump(() => result.current.jumpNext());
 
-    // Rails are rows: a collapsed card has no rail to land on.
+    // Rails are rows: a collapsed card has no rail to scroll to.
     expect(openChunk).toHaveBeenCalledWith("c1");
     expect(scrollTowardChunk).toHaveBeenCalledWith("c1");
   });

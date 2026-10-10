@@ -23,7 +23,7 @@ import {
 import { createCommentAnchor } from "@web/features/review/utils";
 import type { AddressedReviewComment } from "../../../../model/types";
 import type { Brief, BriefChunk } from "../../../../model/types";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 import {

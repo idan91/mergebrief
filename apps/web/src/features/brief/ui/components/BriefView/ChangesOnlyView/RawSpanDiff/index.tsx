@@ -9,8 +9,8 @@ import { useReviewActions, useReviewFlow } from "@web/features/review/session";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, type SyntheticEvent, useMemo, useState } from "react";
 
-import type { ComparisonQuery } from "../../../../../model/comparison/comparisonQuery";
-import { buildRawSpanDiffChunks } from "../../../../../model/utils/rawSpanDiff";
+import type { ComparisonQuery } from "../../../../../model/comparison/comparison-query";
+import { buildRawSpanDiffChunks } from "../../../../../model/utils/raw-span-diff";
 import type { BriefChunk } from "../../../../../model/types";
 import { GuestDiff } from "../GuestDiff";
 import { GuestDiffVariants } from "../GuestDiff/types";

@@ -6,7 +6,7 @@ import { Tabs } from "@web/components/Tabs";
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@web/hooks/useFocusTrap";
 import type { RevisionTimelinePlan } from "../../../../../model/types";
-import type { GroupView } from "../../../../../model/utils/viewModel";
+import type { GroupView } from "../../../../../model/utils/view-model";
 import { SIDEBAR_PANEL_ID } from "../consts";
 import { Revisions } from "../Tabs/Revisions";
 import { ThisPr } from "../Tabs/ThisPr";

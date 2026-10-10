@@ -8,8 +8,8 @@ import { Button } from "@web/components/Button";
 import type {
   AttributedGroupView,
   RiskFlag,
-} from "../../../../../../../model/utils/viewModel";
-import { useReadingPositionIfMounted } from "../../../../readingPosition";
+} from "../../../../../../../model/utils/view-model";
+import { useReadingPositionIfMounted } from "../../../../reading/reading-position";
 import cardStyles from "../../GroupCard.module.scss";
 import { FileRow } from "./FileRow";
 import { ResolvedFold } from "./ResolvedFold";

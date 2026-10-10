@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCallback, useState } from "react";
 import { Button } from "@web/components/Button";
 
-import type { BriefSearchParams } from "../../../../model/comparison/compareState";
+import type { BriefSearchParams } from "../../../../model/comparison/compare-state";
 import {
   briefFixture,
   FixtureBriefView,

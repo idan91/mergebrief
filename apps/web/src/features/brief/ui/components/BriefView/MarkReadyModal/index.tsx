@@ -12,7 +12,7 @@ import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { RowButton } from "@web/components/RowButton";
 import { Modal } from "@web/components/Modal";
-import type { RiskFlag } from "@web/features/brief/model/utils/viewModel";
+import type { RiskFlag } from "@web/features/brief/model/utils/view-model";
 import styles from "@web/components/Modal/Modal.module.scss";
 
 export interface MarkReadyModalProps {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@web/components/Button";
-import type { BriefSearchParams } from "../../../model/comparison/compareState";
+import type { BriefSearchParams } from "../../../model/comparison/compare-state";
 import type { ComparisonMarks } from "../../../model/types";
 import {
   briefFixture,

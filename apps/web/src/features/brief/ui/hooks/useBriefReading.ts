@@ -4,7 +4,7 @@ import type {
   BriefReading,
   BriefReadingSource,
 } from "../components/BriefView/types";
-import { buildBriefViewModel } from "../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../model/utils/view-model";
 
 /** The model keeps its identity while the Brief and repo config do: the session store and every memo'd card key on it. */
 export function useBriefReading(source: BriefReadingSource): BriefReading {

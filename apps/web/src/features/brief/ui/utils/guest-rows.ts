@@ -6,7 +6,7 @@ import {
   type GuestRowReason,
   GuestRowReasons,
 } from "../../model/types";
-import type { FileLineOwners } from "../../model/utils/lineOwner";
+import type { FileLineOwners } from "../../model/utils/line-owner";
 import { type DiffSide, DiffSides } from "types/comments";
 
 /** The owner's own row a guest row came from, when it came from the owner's diff. */

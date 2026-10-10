@@ -82,16 +82,16 @@
     user-select: none;
   }
 
-  /* A landed diff row flashes its cells' background: a ring on a table
+  /* A scrolled-to diff row flashes its cells' background: a ring on a table
      row clips, and the cells already carry inset edge bars. */
-  .diff tr[data-landing-flash]:not([data-under-row]) > td,
-  .diff td[data-landing-flash] {
+  .diff tr[data-scroll-flash]:not([data-under-row]) > td,
+  .diff td[data-scroll-flash] {
     animation: conversation-cell-flash 1.4s ease-out 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .diff tr[data-landing-flash]:not([data-under-row]) > td,
-    .diff td[data-landing-flash] {
+    .diff tr[data-scroll-flash]:not([data-under-row]) > td,
+    .diff td[data-scroll-flash] {
       animation: none;
       background-color: color-mix(
         in srgb,

@@ -3,11 +3,11 @@
 // flags on the current head's Brief (no read-tracking filter), plus the
 // unposted-drafts reminder when any exist. "Mark ready anyway" is one click
 // and records nothing. The zero-flag bypass (modal skipped entirely) is the
-// CALLER's contract, pinned in ownDraftView.test.tsx.
+// CALLER's contract, pinned in own-draft-view.test.tsx.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { RiskFlag } from "@web/features/brief/model/utils/viewModel";
+import type { RiskFlag } from "@web/features/brief/model/utils/view-model";
 import { MarkReadyModal } from ".";
 
 afterEach(cleanup);

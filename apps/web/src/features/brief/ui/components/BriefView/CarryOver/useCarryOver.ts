@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { ProductActionIds } from "contract";
 
-import type { BriefViewModel } from "@web/features/brief/model/utils/viewModel";
+import type { BriefViewModel } from "@web/features/brief/model/utils/view-model";
 import {
   getChunkRegions,
   useReviewActions,

@@ -1,4 +1,4 @@
-import type { UnattributedRemainderGroupView } from "../../../../../../model/utils/viewModel";
+import type { UnattributedRemainderGroupView } from "../../../../../../model/utils/view-model";
 import { ChunkStrip } from "../../../ChunkStrip";
 import { GroupFacts } from "../../../GroupFacts";
 import { MetaRow } from "../../../GroupFacts/MetaRow";

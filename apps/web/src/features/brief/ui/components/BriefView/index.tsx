@@ -12,7 +12,7 @@ import {
   ReviewSessionProvider,
 } from "@web/features/review/session";
 import { MarkReadyModal } from "./MarkReadyModal";
-import { ChunkWindowProvider } from "./chunkWindows";
+import { ChunkWindowProvider } from "./reading/chunk-windows";
 import { ChangesOnlyView } from "./ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip";
 import { FocusIndicator } from "./FocusIndicator";
@@ -31,11 +31,11 @@ import { BRIEF_SHORTCUT_SECTIONS } from "./consts";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView";
 import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
-import { buildLineOwnersByFile } from "../../../model/utils/lineOwner";
+import { buildLineOwnersByFile } from "../../../model/utils/line-owner";
 import { CompareParams } from "../../../model/comparison/types";
 import type { ChangesReviewWiring } from "./ChangesOnlyView/types";
 import { SummarySection } from "./SummarySection";
-import { ReadingPositionProvider } from "./readingPosition";
+import { ReadingPositionProvider } from "./reading/reading-position";
 import styles from "./BriefView.module.scss";
 import {
   useBriefViewFacade,
@@ -44,7 +44,7 @@ import {
 import type { BriefViewProps, ScopePaneProps, StoryMainStyle } from "./types";
 
 export { markReadyBatchFailureCopy } from "./utils";
-export { POST_COMMENT_COPY_KEYS } from "./useOwnDraftFlow";
+export { POST_COMMENT_COPY_KEYS } from "./drafts/useOwnDraftFlow";
 export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY };
 export type { BriefViewProps, OwnDraftPlan } from "./types";
 

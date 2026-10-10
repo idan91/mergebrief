@@ -9,7 +9,7 @@ import {
   type BriefSearch,
   type CompareOptionFlags,
   type ViewParam,
-} from "../../../../../model/comparison/compareState";
+} from "../../../../../model/comparison/compare-state";
 import {
   CompareParams,
   type CompareParam,

@@ -12,9 +12,9 @@ import {
   type ConversationFilter,
 } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../../model/types";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
-import { useLanding } from "../landing";
-import { LANDING_FLASH_ATTR } from "../landing/consts";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
+import { useScrollToTarget } from "../scroll-to-target";
+import { SCROLL_FLASH_ATTR } from "../scroll-to-target/consts";
 import { useConversationWiring } from "./index";
 import type { Mutable } from "types/utils";
 
@@ -137,7 +137,7 @@ function renderWiring(
   const setActiveChunk = vi.fn();
   const { result } = renderHook(
     () => {
-      const { land } = useLanding({
+      const { scrollToTarget } = useScrollToTarget({
         briefId: "db:42:7:base:head",
         chunkWindows: undefined,
         openChunk,
@@ -148,7 +148,7 @@ function renderWiring(
         conversation,
         conversationFocusThreadId: undefined,
         conversationFilter,
-        land,
+        scrollToTarget,
         setActiveChunk,
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
@@ -320,7 +320,7 @@ function mountThreadCard(rowTop: number, rowHeight = 44): MountedThreadRow {
 }
 
 // The stub pins the viewport at 1000; under a 190px stack the band runs 190 to 1000.
-describe("useConversationWiring, thread landing holds the row", () => {
+describe("useConversationWiring, thread scroll holds the row", () => {
   const scrollBy = vi.fn();
   const nativeScrollBy = window.scrollBy;
   const nativeScrollIntoView = Element.prototype.scrollIntoView;
@@ -363,7 +363,7 @@ describe("useConversationWiring, thread landing holds the row", () => {
     });
   }
 
-  it("lands a far card on one line, watched once", async () => {
+  it("scrolls to a far card on one line, watched once", async () => {
     stubScrolling();
     const card = document.createElement("section");
     card.id = "c1";
@@ -452,14 +452,14 @@ describe("useConversationWiring, thread landing holds the row", () => {
   });
 });
 
-describe("useConversationWiring, line landing", () => {
+describe("useConversationWiring, line scroll", () => {
   afterEach(() => {
     for (const card of document.body.querySelectorAll("section")) {
       card.remove();
     }
   });
 
-  it("lands on the owner card's row for the line and moves focus there", async () => {
+  it("scrolls to the owner card's row for the line and moves focus there", async () => {
     Element.prototype.scrollIntoView = vi.fn();
     const card = document.createElement("section");
     card.id = "c1";
@@ -481,14 +481,12 @@ describe("useConversationWiring, line landing", () => {
     await waitFor(() => expect(document.activeElement).toBe(row));
     expect(row.getAttribute("tabindex")).toBe("0");
     expect(row.querySelector("button")?.hasAttribute("tabindex")).toBe(false);
-    await waitFor(() =>
-      expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(true),
-    );
+    await waitFor(() => expect(row.hasAttribute(SCROLL_FLASH_ATTR)).toBe(true));
     expect(openChunk).toHaveBeenCalledWith("c1");
     expect(setActiveChunk).toHaveBeenCalledWith("c1");
   });
 
-  it("lands a thread target inside its own card, not a span copy", async () => {
+  it("scrolls to a thread target inside its own card, not a span copy", async () => {
     Element.prototype.scrollIntoView = vi.fn();
     const copy = document.createElement("section");
     copy.id = "c0";
@@ -512,7 +510,7 @@ describe("useConversationWiring, line landing", () => {
     expect(disclosure.hasAttribute("tabindex")).toBe(false);
   });
 
-  it("gives a row without a tab stop one only for the landing", async () => {
+  it("gives a row without a tab stop one only for the scroll", async () => {
     Element.prototype.scrollIntoView = vi.fn();
     const card = document.createElement("section");
     card.id = "c1";

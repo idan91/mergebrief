@@ -11,7 +11,7 @@ import {
 } from "@web/features/review/session";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { Brief, BriefChunk } from "../../../../model/types";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { AttributeDisplayMeta } from "../../../../model/utils/repoConfig";
+import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
 import { RiskBadge } from "../RiskBadge";
 import styles from "./RiskDetailList.module.scss";
 

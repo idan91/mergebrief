@@ -1,7 +1,7 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { prBriefErrorDetail } from "../../../model/utils/briefErrors";
+import { prBriefErrorDetail } from "../../../model/utils/brief-errors";
 import styles from "./BriefError.module.scss";
 
 /** The screen a brief route shows when its read failed; the copy is curated, never the raw message. */

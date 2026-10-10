@@ -23,11 +23,11 @@ import {
   type SessionWrites,
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildBriefViewModel } from "../../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../../readingPosition";
+} from "../../reading/reading-position";
 import { GroupCard } from ".";
 import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../utils/review-posture";

@@ -4,7 +4,7 @@ import type { ChangeGroupCategory } from "types";
 import {
   getCategoryLabel,
   type AttributedGroupView,
-} from "../../../../../model/utils/viewModel";
+} from "../../../../../model/utils/view-model";
 import styles from "./CategoryFacts.module.scss";
 
 export interface CategoryFactsProps {

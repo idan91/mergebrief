@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildBriefViewModel } from "../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { buildReadThroughSegments } from ".";
 
 const model = buildBriefViewModel(briefFixture);

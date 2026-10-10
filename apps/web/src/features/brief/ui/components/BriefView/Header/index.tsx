@@ -13,15 +13,15 @@ import {
 import type {
   BriefSearch,
   CompareOptionFlags,
-} from "../../../../model/comparison/compareState";
+} from "../../../../model/comparison/compare-state";
 import type { ProgressTotals } from "../../../utils/progress";
-import type { RepoConfigContext } from "../../../../model/utils/repoConfig";
+import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { Brief, LivePrState } from "../../../../model/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
   BriefViewModel,
   UnattributedRemainderGroupView,
-} from "../../../../model/utils/viewModel";
+} from "../../../../model/utils/view-model";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { PRODUCT_NAME } from "@web/components/Header/consts";

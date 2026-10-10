@@ -7,7 +7,7 @@ import { LocSign, LocSigns } from "@web/components/LocSign";
 import {
   pathOnlyFileCommentsForChunk,
   reviewCommentsForChunk,
-} from "../../../../../model/utils/reviewComments";
+} from "../../../../../model/utils/review-comments";
 import { buildChunkComparisonView } from "../../../../../model/comparison/runs";
 import { isUnattributedRemainderChunk } from "../../../../../model/utils/remainder";
 import type {
@@ -16,19 +16,19 @@ import type {
   RiskKey,
 } from "../../../../../model/types";
 import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
-import { resolveFileStatus } from "../../../../../model/utils/fileStatus";
+import { resolveFileStatus } from "../../../../../model/utils/file-status";
 import type {
   FileLineOwners,
   LineTarget,
-} from "../../../../../model/utils/lineOwner";
-import type { AttributeDisplayMeta } from "../../../../../model/utils/repoConfig";
-import type { ComparisonOverlayState } from "../../../../../model/comparison/comparisonOverlay";
+} from "../../../../../model/utils/line-owner";
+import type { AttributeDisplayMeta } from "../../../../../model/utils/repo-config";
+import type { ComparisonOverlayState } from "../../../../../model/comparison/comparison-overlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
 import {
   useChunkReviewComments,
   useReviewSession,
 } from "@web/features/review/session";
-import { riskChipView } from "../../../../../model/utils/viewModel";
+import { riskChipView } from "../../../../../model/utils/view-model";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { RiskBadge } from "../../RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure";
@@ -57,7 +57,7 @@ import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../../types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
-import { useReadingPosition } from "../../readingPosition";
+import { useReadingPosition } from "../../reading/reading-position";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {

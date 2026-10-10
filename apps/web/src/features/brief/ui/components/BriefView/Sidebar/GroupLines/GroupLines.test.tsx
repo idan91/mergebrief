@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { GroupViewKinds } from "../../../../../model/utils/remainder";
-import { buildBriefViewModel } from "../../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import { GroupLines } from ".";
 
 const model = buildBriefViewModel(briefFixture);

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Disposition } from "@web/features/review/session";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
-import type { RiskFlag } from "../../../../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../../../../model/utils/view-model";
 import { pickPathJumpChunkId, type FileFlagRow } from "../utils";
 import { ResolvedFlagItem } from "./ResolvedFlagItem";
 import styles from "./ResolvedFold.module.scss";

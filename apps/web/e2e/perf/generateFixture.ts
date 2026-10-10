@@ -16,7 +16,7 @@ import {
   parseComparisonMarks,
   parseRevisionNarrativeArtifact,
 } from "../../src/features/brief/model/utils/validation";
-import { parseUnifiedDiffPatch } from "../../src/features/brief/model/utils/diffSlicing";
+import { parseUnifiedDiffPatch } from "../../src/features/brief/model/utils/diff-slicing";
 
 import {
   PERF_COMPARISON_ID,

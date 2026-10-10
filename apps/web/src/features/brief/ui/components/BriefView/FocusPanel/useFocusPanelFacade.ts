@@ -13,8 +13,8 @@ import { isTypingTarget } from "@web/utils/typingTarget";
 import {
   isAttributedGroupView,
   type BriefViewModel,
-} from "../../../../model/utils/viewModel";
-import { useReadingPosition } from "../readingPosition";
+} from "../../../../model/utils/view-model";
+import { useReadingPosition } from "../reading/reading-position";
 
 type FocusReturn = "heading" | "tab";
 

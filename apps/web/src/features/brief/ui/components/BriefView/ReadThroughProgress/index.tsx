@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { GroupView } from "../../../../model/utils/viewModel";
-import { resolveGroupName } from "../../../../model/utils/resolveGroupName";
-import { useReadingPosition } from "../readingPosition";
+import type { GroupView } from "../../../../model/utils/view-model";
+import { resolveGroupName } from "../../../../model/utils/resolve-group-name";
+import { useReadingPosition } from "../reading/reading-position";
 import { deriveFillStyle, revealSegment } from "./utils";
 import styles from "./ReadThroughProgress.module.scss";
 

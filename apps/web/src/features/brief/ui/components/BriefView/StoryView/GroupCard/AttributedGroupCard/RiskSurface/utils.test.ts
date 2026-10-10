@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Disposition } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import type { RiskFlag } from "../../../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../../../model/utils/view-model";
 import {
   capitalizeSentence,
   getChunkFile,

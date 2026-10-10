@@ -5,9 +5,9 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import type { GroupView } from "../../../../model/utils/viewModel";
+import type { GroupView } from "../../../../model/utils/view-model";
 import { ReadThroughProgress } from "../ReadThroughProgress";
-import { useReadingPosition } from "../readingPosition";
+import { useReadingPosition } from "../reading/reading-position";
 import styles from "./FocusIndicator.module.scss";
 
 export interface FocusIndicatorProps {

@@ -1,6 +1,6 @@
 import type { Disposition } from "@web/features/review/session";
 import type { BriefChunk } from "../../../../../../../model/types";
-import type { RiskFlag } from "../../../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../../../model/utils/view-model";
 
 export interface FileFlagRow {
   file: string;

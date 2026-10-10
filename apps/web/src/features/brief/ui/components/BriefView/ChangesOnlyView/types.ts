@@ -1,7 +1,7 @@
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 
-import type { FileLineOwners } from "../../../../model/utils/lineOwner";
+import type { FileLineOwners } from "../../../../model/utils/line-owner";
 
 /**
  * What a guest table in Changes scope needs to take a comment: the full

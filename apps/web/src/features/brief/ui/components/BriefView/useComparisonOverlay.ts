@@ -13,19 +13,19 @@ import {
   type BriefSearch,
   type BriefSearchParams,
   type CompareOptionFlags,
-} from "../../../model/comparison/compareState";
+} from "../../../model/comparison/compare-state";
 import {
   CompareParams,
   type BriefComparisonPlan,
   type CompareParam,
 } from "../../../model/comparison/types";
 import type { ComparisonSource } from "../../../model/comparison/runs";
-import type { ComparisonOverlayState } from "../../../model/comparison/comparisonOverlay";
-import type { ComparisonQuery } from "../../../model/comparison/comparisonQuery";
+import type { ComparisonOverlayState } from "../../../model/comparison/comparison-overlay";
+import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
 import {
   attachSpanDiffs,
   splitUnifiedDiffByFile,
-} from "../../../model/utils/diffSlicing";
+} from "../../../model/utils/diff-slicing";
 import {
   createFileRowsCache,
   type FileRowsCache,

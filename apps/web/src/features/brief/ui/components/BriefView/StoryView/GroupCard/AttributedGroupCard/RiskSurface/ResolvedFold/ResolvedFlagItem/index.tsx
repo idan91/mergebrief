@@ -4,7 +4,7 @@ import type { Disposition } from "@web/features/review/session";
 import { LinkButton } from "@web/components/LinkButton";
 import { RiskBadge } from "../../../../../../RiskBadge";
 import { RiskChipDisclosure } from "../../../../../../RiskChipDisclosure";
-import type { RiskFlag } from "../../../../../../../../../model/utils/viewModel";
+import type { RiskFlag } from "../../../../../../../../../model/utils/view-model";
 import { CatalogChipDetail } from "../../CatalogChipDetail";
 import { getFlagDispositionKind } from "../../utils";
 import styles from "./ResolvedFlagItem.module.scss";

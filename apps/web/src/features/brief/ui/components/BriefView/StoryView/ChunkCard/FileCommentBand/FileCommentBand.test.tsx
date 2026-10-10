@@ -27,17 +27,17 @@ import {
   createExpansionStore,
   ExpansionProvider,
 } from "../../../../../../model/expansion/useExpansion";
-import type { ComparisonOverlayState } from "../../../../../../model/comparison/comparisonOverlay";
+import type { ComparisonOverlayState } from "../../../../../../model/comparison/comparison-overlay";
 import type {
   AddressedReviewComment,
   Brief,
   BriefChunk,
 } from "../../../../../../model/types";
-import { buildBriefViewModel } from "../../../../../../model/utils/viewModel";
+import { buildBriefViewModel } from "../../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../../../readingPosition";
+} from "../../../reading/reading-position";
 import { ChunkCard, type ChunkCardProps } from "..";
 import { CommentAnchorKinds } from "types/comments";
 import { ReviewCommentStatuses } from "@web/features/review/utils";
