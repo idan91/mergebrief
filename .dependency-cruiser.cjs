@@ -291,6 +291,62 @@ module.exports = {
       },
     },
     {
+      name: "web-brief-model-imports-no-feature",
+      comment:
+        "The Brief model and the queries module beside it are the bottom layer: they import no other feature and nothing of the Brief screen. Type-only imports included.",
+      severity: "error",
+      from: {
+        path: "^apps/web/src/features/brief/(model/|queries\\.ts$)",
+      },
+      to: {
+        path: "^apps/web/src/features/",
+        pathNot: [
+          "^apps/web/src/features/brief/model/",
+          "^apps/web/src/features/brief/queries\\.ts$",
+        ],
+      },
+    },
+    {
+      name: "web-review-imports-brief-model-only",
+      comment:
+        "Review sits beside the Brief screen, not above it: it reaches the Brief feature through the model index and the test fixtures only.",
+      severity: "error",
+      from: { path: "^apps/web/src/features/review/" },
+      to: {
+        path: "^apps/web/src/features/brief/",
+        pathNot: [
+          "^apps/web/src/features/brief/model/index\\.ts$",
+          "^apps/web/src/features/brief/fixtures\\.ts$",
+        ],
+      },
+    },
+    {
+      name: "web-pulls-imports-brief-entries-only",
+      comment:
+        "Pulls composes the Brief screen: it reaches the Brief feature through its entry, the model index, the queries module and the test fixtures, never a screen or model file directly.",
+      severity: "error",
+      from: { path: "^apps/web/src/features/pulls/" },
+      to: {
+        path: "^apps/web/src/features/brief/",
+        pathNot: [
+          "^apps/web/src/features/brief/index\\.tsx$",
+          "^apps/web/src/features/brief/model/index\\.ts$",
+          "^apps/web/src/features/brief/(queries|fixtures)\\.ts$",
+        ],
+      },
+    },
+    {
+      name: "web-brief-never-imports-pulls",
+      comment:
+        "Pulls composes the Brief screen, so the screen and the Brief entry never import pulls. web-brief-model-imports-no-feature holds the model.",
+      severity: "error",
+      from: {
+        path: "^apps/web/src/features/brief/",
+        pathNot: "^apps/web/src/features/brief/model/",
+      },
+      to: { path: "^apps/web/src/features/pulls/" },
+    },
+    {
       name: "web-global-never-imports-features",
       comment:
         "Global src folders never import src/features; routes may import feature indexes.",
