@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
 import { buildFileRangeQueryKey } from "../../queries";
-import { makeRowRefs } from "./fixtures";
+import { makeRowRefs } from "../../test-utils/fixtures";
 import { RowRefKinds } from "./types";
 import { useExpandedRows } from "./useExpandedRows";
 import { createExpansionStore, ExpansionProvider } from "./useExpansion";

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
 import { ReviewCommentStatuses, type ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";

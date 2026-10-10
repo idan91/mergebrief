@@ -21,7 +21,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,

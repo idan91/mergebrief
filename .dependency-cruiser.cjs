@@ -65,6 +65,12 @@ const appDirs = APPS.map((app) => `apps/${app}`);
 const WEB_FEATURE_PUBLIC_SHAPES =
   "^apps/web/src/features/[^/]+/(index\\.tsx?|[^/]+\\.tsx?|[^/]+/index\\.tsx?)$";
 
+// A module inside a test-utils folder, or one named test-utils.
+const TEST_UTILS_MODULE = "/test-utils(/|\\.tsx?$)";
+
+// The Brief data fixtures: a model-layer module model tests may import.
+const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
+
 // The files behind the leaf subpaths of brief-core and generators: what a
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
@@ -305,37 +311,41 @@ module.exports = {
     {
       name: "web-brief-model-imports-no-feature",
       comment:
-        "The Brief model and the queries module beside it are the bottom layer: they import no other feature and nothing of the Brief screen. Type-only imports included.",
+        "The Brief model, the queries module and the data fixtures are the bottom layer: they import no other feature and nothing of the Brief ui layer. A model test reaches test-utils/fixtures only, never the test-utils index that loads the render helpers. Type-only imports included.",
       severity: "error",
       from: {
-        path: "^apps/web/src/features/brief/(model/|queries\\.ts$)",
+        path: [
+          "^apps/web/src/features/brief/(model/|queries\\.ts$)",
+          BRIEF_FIXTURES,
+        ],
       },
       to: {
         path: "^apps/web/src/features/",
         pathNot: [
           "^apps/web/src/features/brief/model/",
           "^apps/web/src/features/brief/queries\\.ts$",
+          BRIEF_FIXTURES,
         ],
       },
     },
     {
       name: "web-review-imports-brief-model-only",
       comment:
-        "Review sits beside the Brief screen, not above it: it reaches the Brief feature through the model index and the test fixtures only.",
+        "Review sits beside the Brief ui layer, not above it: it reaches the Brief feature through the model index and the test-utils index only.",
       severity: "error",
       from: { path: "^apps/web/src/features/review/" },
       to: {
         path: "^apps/web/src/features/brief/",
         pathNot: [
           "^apps/web/src/features/brief/model/index\\.ts$",
-          "^apps/web/src/features/brief/fixtures\\.ts$",
+          "^apps/web/src/features/brief/test-utils/index\\.ts$",
         ],
       },
     },
     {
       name: "web-pulls-imports-brief-entries-only",
       comment:
-        "Pulls composes the Brief screen: it reaches the Brief feature through its entry, the model index, the queries module and the test fixtures, never a screen or model file directly.",
+        "Pulls composes the Brief ui layer: it reaches the Brief feature through its entry, the model index, the queries module and the test-utils index, never a ui or model file directly.",
       severity: "error",
       from: { path: "^apps/web/src/features/pulls/" },
       to: {
@@ -343,20 +353,31 @@ module.exports = {
         pathNot: [
           "^apps/web/src/features/brief/index\\.tsx$",
           "^apps/web/src/features/brief/model/index\\.ts$",
-          "^apps/web/src/features/brief/(queries|fixtures)\\.ts$",
+          "^apps/web/src/features/brief/(queries|test-utils/index)\\.ts$",
         ],
       },
     },
     {
       name: "web-brief-never-imports-pulls",
       comment:
-        "Pulls composes the Brief screen, so the screen and the Brief entry never import pulls. web-brief-model-imports-no-feature holds the model.",
+        "Pulls composes the Brief ui layer, so that layer and the Brief entry never import pulls. web-brief-model-imports-no-feature holds the model.",
       severity: "error",
       from: {
         path: "^apps/web/src/features/brief/",
         pathNot: "^apps/web/src/features/brief/model/",
       },
       to: { path: "^apps/web/src/features/pulls/" },
+    },
+    {
+      name: "web-test-utils-only-in-tests",
+      comment:
+        "Test-utils modules hold test helpers and fixtures: only a test file or another test-utils module imports one, so none reaches a bundle.",
+      severity: "error",
+      from: {
+        path: "^apps/web/",
+        pathNot: ["\\.test\\.tsx?$", TEST_UTILS_MODULE],
+      },
+      to: { path: `^apps/web/.*${TEST_UTILS_MODULE}` },
     },
     {
       name: "web-global-never-imports-features",

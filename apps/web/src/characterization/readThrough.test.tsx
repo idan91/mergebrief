@@ -13,7 +13,7 @@ import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
 import { type Brief } from "../features/brief/model";
 import { emptySessionPayload } from "../features/review/session";
-import { mountBriefView } from "../features/brief/test-utils";
+import { mountBriefView } from "@web/features/brief/test-utils";
 
 const emptySession = emptySessionPayload();
 

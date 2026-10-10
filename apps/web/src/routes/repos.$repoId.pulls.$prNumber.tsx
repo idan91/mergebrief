@@ -198,7 +198,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
 const PR_BRIEF_PATH_PATTERN = /^\/repos\/[^/]+\/pulls\/[^/]+$/;
 
 function PrBriefRoute() {
-  // Route-level so BriefScreen itself stays renderable without a router.
+  // Route-level so BriefView itself stays renderable without a router.
   useUnsavedComposerBlocker();
   const params = Route.useParams();
   const prNumber = parsePrNumber(params.prNumber);

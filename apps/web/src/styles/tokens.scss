@@ -343,7 +343,7 @@
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --chunk-head-reserve: 0px;
 
-    // The width the Sidebar currently reserves; BriefScreen sets it from the
+    // The width the Sidebar currently reserves; BriefView sets it from the
     // reading column's state.
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-w: 0px;

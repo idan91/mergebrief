@@ -258,12 +258,11 @@ describe("apps/web Brief layers", () => {
     expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
-  it("rejects the Brief model importing the Brief screen", () => {
+  it("rejects the Brief model importing the Brief ui", () => {
     const run = cruiseFiles({
       "apps/web/src/features/brief/model/a.ts":
-        'export { value } from "../screen/utils";\n',
-      "apps/web/src/features/brief/screen/utils.ts":
-        "export const value = 1;\n",
+        'export { value } from "../ui/utils";\n',
+      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
     });
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("web-brief-model-imports-no-feature");
@@ -278,12 +277,11 @@ describe("apps/web Brief layers", () => {
     expect(run.status).toBe(0);
   });
 
-  it("rejects review importing the Brief screen", () => {
+  it("rejects review importing the Brief ui", () => {
     const run = cruiseFiles({
       "apps/web/src/features/review/a.ts":
-        'export { value } from "../brief/screen";\n',
-      "apps/web/src/features/brief/screen/index.ts":
-        "export const value = 1;\n",
+        'export { value } from "../brief/ui";\n',
+      "apps/web/src/features/brief/ui/index.ts": "export const value = 1;\n",
     });
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("web-review-imports-brief-model-only");
@@ -298,12 +296,11 @@ describe("apps/web Brief layers", () => {
     expect(run.status).toBe(0);
   });
 
-  it("rejects pulls importing the Brief screen past its entry", () => {
+  it("rejects pulls importing the Brief ui past its entry", () => {
     const run = cruiseFiles({
       "apps/web/src/features/pulls/a.ts":
-        'export { value } from "../brief/screen";\n',
-      "apps/web/src/features/brief/screen/index.ts":
-        "export const value = 1;\n",
+        'export { value } from "../brief/ui";\n',
+      "apps/web/src/features/brief/ui/index.ts": "export const value = 1;\n",
     });
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("web-pulls-imports-brief-entries-only");
@@ -317,9 +314,9 @@ describe("apps/web Brief layers", () => {
     expect(run.status).toBe(0);
   });
 
-  it("rejects the Brief screen importing pulls", () => {
+  it("rejects the Brief ui importing pulls", () => {
     const run = cruiseFiles({
-      "apps/web/src/features/brief/screen/a.ts":
+      "apps/web/src/features/brief/ui/a.ts":
         'export { value } from "../../pulls";\n',
       "apps/web/src/features/pulls/index.ts": "export const value = 1;\n",
     });
@@ -327,37 +324,38 @@ describe("apps/web Brief layers", () => {
     expect(run.stdout).toContain("web-brief-never-imports-pulls");
   });
 
-  it("rejects the Brief queries importing the Brief screen", () => {
+  it("rejects the Brief queries importing the Brief ui", () => {
     const run = cruiseFiles({
       "apps/web/src/features/brief/queries.ts":
-        'export { value } from "./screen/utils";\n',
-      "apps/web/src/features/brief/screen/utils.ts":
-        "export const value = 1;\n",
+        'export { value } from "./ui/utils";\n',
+      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
     });
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
-  it("allows review to import the Brief fixtures", () => {
+  it("allows review tests to import the Brief test-utils index", () => {
     const run = cruiseFiles({
-      "apps/web/src/features/review/a.ts":
-        'export { value } from "../brief/fixtures";\n',
-      "apps/web/src/features/brief/fixtures.ts": "export const value = 1;\n",
+      "apps/web/src/features/review/a.test.ts":
+        'export { value } from "../brief/test-utils";\n',
+      "apps/web/src/features/brief/test-utils/index.ts":
+        "export const value = 1;\n",
     });
     expect(run.status).toBe(0);
   });
 
-  it("allows pulls to import the Brief model, queries and fixtures", () => {
+  it("allows pulls tests to import the Brief model, queries and test-utils", () => {
     const run = cruiseFiles({
-      "apps/web/src/features/pulls/a.ts": [
+      "apps/web/src/features/pulls/a.test.ts": [
         'export { model } from "../brief/model";',
         'export { queries } from "../brief/queries";',
-        'export { fixtures } from "../brief/fixtures";',
+        'export { fixtures } from "../brief/test-utils";',
         "",
       ].join("\n"),
       "apps/web/src/features/brief/model/index.ts": "export const model = 1;\n",
       "apps/web/src/features/brief/queries.ts": "export const queries = 1;\n",
-      "apps/web/src/features/brief/fixtures.ts": "export const fixtures = 1;\n",
+      "apps/web/src/features/brief/test-utils/index.ts":
+        "export const fixtures = 1;\n",
     });
     expect(run.status).toBe(0);
   });
@@ -370,5 +368,82 @@ describe("apps/web Brief layers", () => {
     });
     expect(run.status).toBe(1);
     expect(run.stdout).toContain("web-brief-never-imports-pulls");
+  });
+});
+
+describe("apps/web test-utils modules", () => {
+  it("rejects a production file importing test-utils", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/brief/ui/a.ts":
+        'export { value } from "../test-utils/render";\n',
+      "apps/web/src/features/brief/test-utils/render.tsx":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain("web-test-utils-only-in-tests");
+  });
+
+  it("rejects another feature's source importing the Brief test-utils", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/review/a.ts":
+        'export { value } from "../brief/test-utils";\n',
+      "apps/web/src/features/brief/test-utils/index.ts":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain("web-test-utils-only-in-tests");
+  });
+
+  it("rejects a model test importing the test-utils index", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/brief/model/a.test.ts":
+        'export { value } from "../test-utils";\n',
+      "apps/web/src/features/brief/test-utils/index.ts":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
+  });
+
+  it("allows a model test to import the Brief fixtures", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/brief/model/a.test.ts":
+        'export { value } from "../test-utils/fixtures";\n',
+      "apps/web/src/features/brief/test-utils/fixtures.ts":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("no dependency violations found");
+  });
+
+  it("rejects the Brief fixtures importing the Brief ui", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/brief/test-utils/fixtures.ts":
+        'export { value } from "../ui/utils";\n',
+      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
+  });
+
+  it("allows the test-utils index to import its members", () => {
+    const run = cruiseFiles({
+      "apps/web/src/features/brief/test-utils/index.ts":
+        'export { value } from "./fixtures";\n',
+      "apps/web/src/features/brief/test-utils/fixtures.ts":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(0);
+  });
+
+  it("allows a test outside the features to import a feature's test-utils", () => {
+    const run = cruiseFiles({
+      "apps/web/src/characterization/a.test.tsx":
+        'export { value } from "../features/brief/test-utils";\n',
+      "apps/web/src/features/brief/test-utils/index.ts":
+        "export const value = 1;\n",
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("no dependency violations found");
   });
 });

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import { Roles } from "brief-core/types";
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import {
   buildBriefViewModel,
   GroupViewKinds,

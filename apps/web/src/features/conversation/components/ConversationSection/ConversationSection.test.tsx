@@ -1028,7 +1028,7 @@ describe("ConversationSection outdated-thread revision jump", () => {
     ).not.toBeNull();
     // …and NOT the inline diff rows' attribute: the section renders above
     // the change groups, so sharing `data-conversation-thread` would shadow
-    // the diff row for BriefScreen's "Jump to comment" landing.
+    // the diff row for BriefView's "Jump to comment" landing.
     expect(document.querySelector("[data-conversation-thread]")).toBeNull();
   });
 

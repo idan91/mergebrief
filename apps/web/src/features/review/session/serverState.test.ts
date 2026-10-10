@@ -8,7 +8,7 @@ import type {
   LineDraftCommentPayload,
 } from "contract";
 import { CommentAnchorKinds, type Equals, DiffSides } from "types";
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   createFileCommentAnchor,

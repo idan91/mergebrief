@@ -8,7 +8,7 @@ import {
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,

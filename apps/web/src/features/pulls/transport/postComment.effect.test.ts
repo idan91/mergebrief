@@ -9,7 +9,7 @@
 // not a re-test of a single action in isolation.
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "@web/features/brief/fixtures";
+import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
 import {
   ReviewCommentStatuses,

@@ -13,39 +13,39 @@ import { attachSlicedDiffs } from "./model/utils/diffSlicing";
 import { createFileRowsCache } from "./model/file-rows/cache";
 import { buildRevisionTimelineView } from "./model/utils/revision-timeline";
 import { buildBriefTimeline } from "./model/utils/timeline";
-import type { BriefAddressPort } from "./screen/components/BriefScreen/address/types";
-import { buildFileAddress } from "./screen/components/BriefScreen/address/utils";
-import { BriefView } from "./screen/components/BriefView";
-import { useBriefReading } from "./screen/hooks/useBriefReading";
+import type { BriefAddressPort } from "./ui/components/BriefView/address/types";
+import { buildFileAddress } from "./ui/components/BriefView/address/utils";
+import { BriefView } from "./ui/components/BriefView";
+import { useBriefReading } from "./ui/hooks/useBriefReading";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
 // Internal brief files import their targets directly, never this index.
-export { BriefView } from "./screen/components/BriefView";
-export { useBriefReading } from "./screen/hooks/useBriefReading";
-export { buildBriefAddress } from "./screen/components/BriefScreen/address/utils";
+export { BriefView } from "./ui/components/BriefView";
+export { useBriefReading } from "./ui/hooks/useBriefReading";
+export { buildBriefAddress } from "./ui/components/BriefView/address/utils";
 export type { BriefComparisonPlan } from "./model/comparison/types";
 export type {
   ConversationCapability,
   OwnDraftPlan,
   ReviewCapability,
   ScopeExitOptions,
-} from "./screen/components/BriefScreen/types";
-export { useBriefAddress } from "./screen/components/BriefScreen/address/useBriefAddress";
+} from "./ui/components/BriefView/types";
+export { useBriefAddress } from "./ui/components/BriefView/address/useBriefAddress";
 export type {
   BriefAddressPort,
   NavigateSearch,
-} from "./screen/components/BriefScreen/address/types";
+} from "./ui/components/BriefView/address/types";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./model/utils/briefIdentity";
-export { LocalBriefsSection } from "./screen/components/LocalBriefsSection";
-export { BriefError } from "./screen/components/BriefError";
-export { readDiffView } from "./screen/components/BriefScreen/diffViewStorage";
+export { LocalBriefsSection } from "./ui/components/LocalBriefsSection";
+export { BriefError } from "./ui/components/BriefError";
+export { readDiffView } from "./ui/components/BriefView/diffViewStorage";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
   briefId: string;
   /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
-   * resolved against comparison availability in BriefScreen's comparison overlay hook. */
+   * resolved against comparison availability in BriefView's comparison overlay hook. */
   searchParams: BriefSearchParams;
   /** The route's URL writes; the Scope exit rides on its `navigateSearch`. */
   address: BriefAddressPort;

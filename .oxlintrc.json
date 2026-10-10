@@ -384,7 +384,7 @@
       // frozen format.
       "files": [
         "apps/web/src/routes/__root.tsx",
-        "apps/web/src/features/brief/fixtures.ts",
+        "apps/web/src/features/brief/test-utils/fixtures.ts",
         "apps/web/src/features/review/utils/receipt.ts",
         "apps/web/src/features/review/utils/submit.ts",
         "**/characterization/**"
