@@ -11,7 +11,11 @@ import { useCallback, useMemo } from "react";
 
 import {
   BriefView,
+  buildBriefAddress,
   readDiffView,
+  useBriefReading,
+  type BriefAddressPort,
+  type ConversationCapability,
   type ScopeExitOptions,
 } from "@web/features/brief";
 import {
@@ -53,6 +57,7 @@ import type { PrSummary } from "../../../types";
 import { useBehindNoticeFacade } from "./DbBriefControls/BehindNotice/useBehindNoticeFacade";
 import { DbBriefControls } from "./DbBriefControls";
 import { WarmingChip } from "../WarmingChip";
+import { buildPrReview } from "./utils";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 
 export interface PrBriefContentProps {
@@ -61,18 +66,8 @@ export interface PrBriefContentProps {
   span: Span;
   meta: PrSummary;
   searchParams: BriefSearchParams;
-  onNavigateSearch: (
-    next: BriefSearchParams,
-    options?: ScopeExitOptions,
-  ) => void;
-  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
-  clearDiffParam?: (() => void) | undefined;
-  /** The link param the URL carries: a chunk, or lines, to land on. */
-  link?: string | undefined;
-  /** Writes or drops the link param with replace; route-owned. */
-  navigateLink?: ((link: string | undefined) => void) | undefined;
-  /** Writes the focus param with replace; route-owned. */
-  setFocusParam?: ((focus: boolean) => void) | undefined;
+  /** The route's URL writes. */
+  address: BriefAddressPort;
   readOnly?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
@@ -84,7 +79,7 @@ export interface PrBriefContentProps {
   conversationFocusThreadId?: number | undefined;
   /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
-  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
+  onConversationFilterChange: (next: ConversationFilter) => void;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
 }
@@ -95,11 +90,7 @@ export function PrBriefContent({
   span,
   meta,
   searchParams,
-  onNavigateSearch,
-  clearDiffParam,
-  link,
-  navigateLink,
-  setFocusParam,
+  address: port,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -147,13 +138,6 @@ export function PrBriefContent({
       sessionReads,
     ),
   );
-  // No session in hand = writes off, whether the read failed or has not
-  // landed. A failed BACKGROUND refetch keeps the session that is already
-  // rendered, only an absent one closes the screen.
-  const sessionReadOnly =
-    session.data === undefined
-      ? { reason: t("brief.screen.sessionUnavailable") }
-      : undefined;
   // One transport per span, so every store action fires exactly one
   // operation against the Brief it was read from.
   const writes = useMemo(
@@ -207,6 +191,7 @@ export function PrBriefContent({
   const searchDiff = searchParams.diff;
   const previousBriefAvailable = availability.previousBrief;
   const lastReviewAvailable = availability.lastReview;
+  const navigateRouteSearch = port.navigateSearch;
   // Every View/Compare write lands through here so a default never reaches
   // the URL; the stored diff preference is read at write time, on the client.
   const navigateSearch = useCallback(
@@ -215,7 +200,7 @@ export function PrBriefContent({
         previousBrief: previousBriefAvailable,
         lastReview: lastReviewAvailable,
       };
-      onNavigateSearch(
+      navigateRouteSearch(
         stripDefaultSearch(
           buildBriefSearchParams(next.view, next.compare, searchDiff),
           flags,
@@ -224,7 +209,12 @@ export function PrBriefContent({
         options,
       );
     },
-    [lastReviewAvailable, onNavigateSearch, previousBriefAvailable, searchDiff],
+    [
+      lastReviewAvailable,
+      navigateRouteSearch,
+      previousBriefAvailable,
+      searchDiff,
+    ],
   );
   const openDeltaLens = useCallback(() => {
     const flags = {
@@ -297,6 +287,38 @@ export function PrBriefContent({
             }
           },
         };
+  const reading = useBriefReading({
+    brief: assembled,
+    briefId,
+    fileRows,
+    comparisonPlan,
+    repoConfig: repoConfig.data ?? null,
+    revisions,
+  });
+  const address = buildBriefAddress({
+    port,
+    searchParams,
+    exitChangesScope,
+    revisionPending: revisionPending === true,
+  });
+  // A failed BACKGROUND refetch keeps the session that is already rendered,
+  // only an absent one closes the screen.
+  const review = buildPrReview({
+    submitReview: submitAction,
+    readOnly,
+    staleHead: staleHead === true,
+    ownDraft,
+    session: session.data,
+    sessionReads,
+    writes,
+    sessionUnavailableReason: t("brief.screen.sessionUnavailable"),
+  });
+  const conversation: ConversationCapability = {
+    plan: conversationPlan,
+    focusThreadId: conversationFocusThreadId,
+    filter: conversationFilter,
+    onFilterChange: onConversationFilterChange,
+  };
   // Renders in the STICKY header's control slot so the controls are never
   // scrolled out of reach by the selection focus effect.
   const headerControls = (
@@ -310,7 +332,7 @@ export function PrBriefContent({
       note={
         timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined
       }
-      readOnly={(readOnly ?? sessionReadOnly) !== undefined}
+      readOnly={review.readOnly !== undefined}
       staleHead={staleHead}
       behind={behind}
       {...(onGoToNewest ? { onGoToNewest } : {})}
@@ -326,36 +348,13 @@ export function PrBriefContent({
         <WarmingChip />
       ) : null}
       <BriefView
+        reading={reading}
+        address={address}
         // Live webhook state, the badge never shows the artifact's stale
         // snapshot.
-        livePrState={livePrState}
-        brief={assembled}
-        fileRows={fileRows}
-        repoConfig={repoConfig.data ?? null}
-        briefId={briefId}
-        repoId={repoId}
-        comparisonPlan={comparisonPlan}
-        conversation={conversationPlan}
-        conversationFilter={conversationFilter}
-        onConversationFilterChange={onConversationFilterChange}
-        conversationFocusThreadId={conversationFocusThreadId}
-        headerControls={headerControls}
-        openDeltaLens={openDeltaLens}
-        exitChangesScope={exitChangesScope}
-        clearDiffParam={clearDiffParam}
-        link={link}
-        navigateLink={navigateLink}
-        setFocusParam={setFocusParam}
-        ownDraft={ownDraft}
-        readOnly={readOnly ?? sessionReadOnly}
-        revisionPending={revisionPending}
-        revisions={revisions}
-        session={session.data}
-        sessionReads={sessionReads}
-        writes={session.data === undefined ? undefined : writes}
-        searchParams={searchParams}
-        staleHead={staleHead}
-        submitReview={submitAction}
+        pr={{ livePrState, repoId, openDeltaLens, headerControls }}
+        review={review}
+        conversation={conversation}
       />
     </>
   );

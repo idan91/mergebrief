@@ -5,6 +5,11 @@ import type { ValueOf } from "types/utils";
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import type {
+  ReviewSessionPayload,
+  SessionReadSource,
+  SessionWrites,
+} from "@web/features/review/session";
+import type {
   LineLinkTarget,
   SubmitReviewAction,
 } from "@web/features/review/utils";
@@ -22,9 +27,10 @@ import type {
   RevisionTimelinePlan,
 } from "../../types";
 import type { LineTarget } from "../../utils/lineOwner";
-import type { buildBriefViewModel } from "../../utils/viewModel";
+import type { BriefViewModel } from "../../utils/viewModel";
 import type { FileRowsCache } from "../../utils/fileRows";
 import type { RepoConfigContext } from "../../utils/repoConfig";
+import type { BriefAddressPort } from "./address/types";
 import type { BriefComparisonPlan } from "./useComparisonOverlay";
 
 /**
@@ -123,52 +129,73 @@ export interface ScopeExitOptions {
   replace: boolean;
 }
 
-export interface BriefScreenProps {
-  /** DB route; absent on the file path. */
-  livePrState?: LivePrState | undefined;
-  artifacts: LocalBriefSummary[];
+/** What a route has loaded for the reader to read. */
+export interface BriefReadingSource {
   brief: Brief;
-  repoConfig?: RepoConfigContext | null | undefined;
   briefId: string;
-  /** DB route identity for in-app neighbour links; absent on the file path. */
-  repoId?: string | undefined;
-  comparisonPlan?: BriefComparisonPlan | undefined;
-  /** The PR diff's rows per file; absent leaves every hunk edge folded. */
+  /** The diff's rows per file; absent leaves every hunk edge folded. */
   fileRows?: FileRowsCache | undefined;
-  model: ReturnType<typeof buildBriefViewModel>;
-  searchParams: BriefSearchParams;
-  submitReview?: SubmitReviewAction | undefined;
-  conversation?: ConversationPlan | undefined;
-  readOnly?: { reason: string } | undefined;
-  conversationFocusThreadId?: number | undefined;
-  conversationFilter?: ConversationFilter | undefined;
-  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
-  headerControls?: ReactNode | undefined;
-  ownDraft?: OwnDraftPlan | undefined;
-  /** Composer stays live; Submit gates behind an ack. */
-  staleHead?: boolean | undefined;
-  openDeltaLens?: (() => void) | undefined;
-  /**
-   * Screen never touches the router. IntentBar and Header Jump leave Changes
-   * through this; absent where no navigation is wired.
-   */
-  exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
-  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
-  clearDiffParam?: (() => void) | undefined;
-  /** The link param as the URL carries it: a chunk, or lines, to land on once per brief. */
-  link?: string | undefined;
-  /**
-   * Writes the link param with replace, undefined dropping it; the line
-   * selection rides through here. Route-owned, absent where no navigation
-   * is wired.
-   */
-  navigateLink?: ((link: string | undefined) => void) | undefined;
-  /** Writes the focus param with replace; route-owned, absent where no navigation is wired. */
-  setFocusParam?: ((focus: boolean) => void) | undefined;
-  /** Content goes inert; the sticky header stays live. */
-  revisionPending?: boolean | undefined;
-  /** The PR's revisions for the Sidebar tab; route-owned, absent hides it. */
+  comparisonPlan?: BriefComparisonPlan | undefined;
+  /** Absent or null renders as if no repo config exists. */
+  repoConfig?: RepoConfigContext | null | undefined;
+  /** The local Briefs a file Brief compares against; the DB route compares through `comparisonPlan`. */
+  artifacts?: LocalBriefSummary[] | undefined;
+  /** The Brief's revisions for the Sidebar tab; absent hides it. */
   revisions?: RevisionTimelinePlan | undefined;
+}
+
+export interface BriefReading extends BriefReadingSource {
+  model: BriefViewModel;
+}
+
+/** Where the reader is and how the screen moves them; the route's router supplies all of it. */
+export interface BriefAddress extends Omit<BriefAddressPort, "navigateSearch"> {
+  searchParams: BriefSearchParams;
+  /** IntentBar and Header Jump leave Changes Scope through this. */
+  exitChangesScope: (options?: ScopeExitOptions) => void;
+  /** A navigation to another Brief is in flight: content goes inert, the header stays live. */
+  revisionPending: boolean;
+}
+
+/** Present only where the Brief belongs to a live pull request. */
+export interface PullRequestContext {
+  livePrState: LivePrState;
+  /** Identity for in-app neighbour links and the hunk-edge file reads. */
+  repoId: string;
+  openDeltaLens: () => void;
+  headerControls: ReactNode;
+}
+
+/** Present only where the reader has a review session to write to; absent reads only. */
+export interface ReviewCapability {
+  /** Absent leaves Submit a local mockup. */
+  submitReview?: SubmitReviewAction | undefined;
+  /** Base drift: anchors can land wrong, so nothing is written. */
+  readOnly?: { reason: string } | undefined;
+  /** Head drift: the composer stays live, Submit gates behind an ack. */
+  staleHead: boolean;
+  ownDraft?: OwnDraftPlan | undefined;
+  session?: ReviewSessionPayload | undefined;
+  /** Every session read after the first. */
+  sessionReads?: SessionReadSource | undefined;
+  writes?: SessionWrites | undefined;
+}
+
+/** Present only where the Brief has a pull request conversation to show. */
+export interface ConversationCapability {
+  plan: ConversationPlan;
+  focusThreadId?: number | undefined;
+  filter?: ConversationFilter | undefined;
+  onFilterChange: (next: ConversationFilter) => void;
+}
+
+/** Grouped by supplier: the file route supplies `reading` and `address` only. */
+export interface BriefScreenProps {
+  reading: BriefReading;
+  address: BriefAddress;
+  pr?: PullRequestContext;
+  review?: ReviewCapability;
+  conversation?: ConversationCapability;
 }
 
 /** What the link param names: a chunk, or lines inside one. */

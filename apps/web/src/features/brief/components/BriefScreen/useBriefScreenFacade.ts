@@ -25,6 +25,7 @@ import { useCreateExpansionStore } from "../../hooks/useExpansion";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
+import type { LocalBriefSummary } from "../../types";
 import { buildAttributeRail } from "../../utils/viewModel";
 import { createChunkWindowRegistry } from "./chunkWindows";
 import type { IntentBarHandle } from "./IntentBar";
@@ -72,34 +73,32 @@ import {
 export const OWN_DRAFT_STALE_COMPOSER_REASON_KEY: TranslationKey =
   "brief.screen.staleRevisionReason";
 
+/** Without a review there is no session to save work to. */
+const NO_REVIEW_REASON_KEY: TranslationKey = "brief.screen.fileBriefReadOnly";
+
+/** One frozen default so the overlay's input keeps its identity across renders. */
+const NO_ARTIFACTS: LocalBriefSummary[] = [];
+
 export function useBriefScreenFacade({
-  artifacts,
-  brief,
-  repoConfig,
-  briefId,
-  repoId,
-  fileRows,
-  comparisonPlan,
-  model,
-  searchParams,
+  reading,
+  address,
+  pr,
+  review,
   conversation,
-  conversationFocusThreadId,
-  conversationFilter,
-  exitChangesScope,
-  clearDiffParam,
-  link,
-  navigateLink,
-  setFocusParam,
-  ownDraft,
-  readOnly,
-  revisionPending,
-  staleHead,
-  submitReview,
 }: BriefScreenProps) {
   const { t } = useTranslation();
+  const { brief, briefId, model, fileRows, comparisonPlan, repoConfig } =
+    reading;
+  const artifacts = reading.artifacts ?? NO_ARTIFACTS;
+  const { searchParams, link, exitChangesScope, clearDiffParam } = address;
+  const ownDraft = review?.ownDraft;
+  const staleHead = review?.staleHead === true;
+  const conversationFocusThreadId = conversation?.focusThreadId;
+  const conversationSource = conversation?.plan;
+  const repoId = pr?.repoId;
 
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
-  const pendingShown = useDelayedPending(revisionPending === true);
+  const pendingShown = useDelayedPending(address.revisionPending);
 
   const overlay = useComparisonOverlay({
     artifacts,
@@ -124,11 +123,13 @@ export function useBriefScreenFacade({
   const frozenReason = sessionFrozen
     ? t("brief.screen.sessionFrozen")
     : undefined;
-  const writesDisabledReason = readOnly?.reason ?? frozenReason;
+  const reviewReason =
+    review === undefined ? t(NO_REVIEW_REASON_KEY) : review.readOnly?.reason;
+  const writesDisabledReason = reviewReason ?? frozenReason;
   const writesDisabled = writesDisabledReason !== undefined;
   const composerDisabledReason =
     writesDisabledReason ??
-    (ownDraftActive && staleHead === true
+    (ownDraftActive && staleHead
       ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)
       : undefined);
 
@@ -256,15 +257,15 @@ export function useBriefScreenFacade({
     flowActions.clearLineSelection();
     flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
   };
-  const address = useAddress({
+  const addressHandle = useAddress({
     briefId,
     lineSelection: lineSelection ?? undefined,
     focusMode,
     scope: compareState.view,
     position: readingPosition,
     url: { link, focus: searchParams.focus === true },
-    navigateLink,
-    setFocusParam,
+    navigateLink: address.navigateLink,
+    setFocusParam: address.setFocusParam,
   });
   useFocusArrival({
     focusInUrl: searchParams.focus === true,
@@ -310,10 +311,10 @@ export function useBriefScreenFacade({
   const recordSubmittedReview = actions.recordSubmittedReview;
   const conversationPlan = useMemo(
     () =>
-      conversation === undefined
+      conversationSource === undefined
         ? undefined
-        : buildReplyRecordingPlan(conversation, recordSubmittedReview),
-    [conversation, recordSubmittedReview],
+        : buildReplyRecordingPlan(conversationSource, recordSubmittedReview),
+    [conversationSource, recordSubmittedReview],
   );
 
   // A landing from a group's own controls puts the card's head under the
@@ -328,7 +329,7 @@ export function useBriefScreenFacade({
   const conversationWiring = useConversationWiring({
     conversation: conversationPlan,
     conversationFocusThreadId,
-    conversationFilter,
+    conversationFilter: conversation?.filter,
     land: session.land,
     setActiveChunk: session.setActiveChunk,
     model,
@@ -382,7 +383,7 @@ export function useBriefScreenFacade({
     expandEdge: expansion.getState().actions.expandEdge,
     announce,
     announceQuietly: flowActions.announceQuietly,
-    address,
+    address: addressHandle,
     t,
   });
   useChunkDeepLink({
@@ -392,20 +393,20 @@ export function useBriefScreenFacade({
     enabled: conversationFocusThreadId === undefined,
     land: landOnDeepLink,
     landLine: lineLanding.landLine,
-    address,
+    address: addressHandle,
   });
 
   // The chunk glyph: once the URL names the chunk, a line selection stands
   // down in the same task, so it never writes its lines back.
   const commitChunkShare = useCallback(
     (chunkId: string): void => {
-      address.send({ kind: AddressEventKinds.CHUNK_SHARED, chunkId });
+      addressHandle.send({ kind: AddressEventKinds.CHUNK_SHARED, chunkId });
       if (flowStore.getState().lineSelection !== null) {
         flowActions.clearLineSelection();
         flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
       }
     },
-    [address, flowActions, flowStore, t],
+    [addressHandle, flowActions, flowStore, t],
   );
   const shareChunk = useMemo<ChunkShare>(
     () => ({
@@ -424,7 +425,7 @@ export function useBriefScreenFacade({
 
   const unplacedDrafts = useUnplacedDrafts();
   const submitFlow = useReviewSubmit({
-    action: submitReview,
+    action: review?.submitReview,
     briefId,
     outcome: reviewOutcome,
     comments: reviewComments,
@@ -676,7 +677,8 @@ export function useBriefScreenFacade({
     expansionSource,
     lineLinkMissed: lineLanding.missed,
     dismissLineLinkMiss: lineLanding.dismissMiss,
-    shareChunk: navigateLink === undefined ? undefined : shareChunk,
+    shareChunk,
     jumpToChunkUnderStack,
+    staleHead,
   };
 }

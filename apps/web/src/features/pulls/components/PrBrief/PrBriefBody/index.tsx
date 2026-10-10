@@ -3,7 +3,7 @@
 // presentational; the announcement is owned here.
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import type { ScopeExitOptions } from "@web/features/brief";
+import type { BriefAddressPort } from "@web/features/brief";
 import type { BriefSearchParams } from "@web/features/brief/comparison";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
@@ -88,18 +88,8 @@ export interface PrBriefBodyProps {
   meta: PrSummary;
   state: BriefRouteState;
   searchParams: BriefSearchParams;
-  onNavigateSearch: (
-    next: BriefSearchParams,
-    options?: ScopeExitOptions,
-  ) => void;
-  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
-  clearDiffParam?: (() => void) | undefined;
-  /** The link param the URL carries: a chunk, or lines, to land on. */
-  link?: string | undefined;
-  /** Writes or drops the link param with replace; route-owned. */
-  navigateLink?: ((link: string | undefined) => void) | undefined;
-  /** Writes the focus param with replace; route-owned. */
-  setFocusParam?: ((focus: boolean) => void) | undefined;
+  /** The route's URL writes. */
+  address: BriefAddressPort;
   /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
   /**
@@ -118,7 +108,7 @@ export interface PrBriefBodyProps {
   conversationFocusThreadId?: number | undefined;
   /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
-  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
+  onConversationFilterChange: (next: ConversationFilter) => void;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
 }
@@ -129,11 +119,7 @@ function PrBriefBodyState({
   meta,
   state,
   searchParams,
-  onNavigateSearch,
-  clearDiffParam,
-  link,
-  navigateLink,
-  setFocusParam,
+  address,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -155,11 +141,7 @@ function PrBriefBodyState({
           conversationFocusThreadId={conversationFocusThreadId}
           onConversationFilterChange={onConversationFilterChange}
           meta={meta}
-          onNavigateSearch={onNavigateSearch}
-          clearDiffParam={clearDiffParam}
-          link={link}
-          navigateLink={navigateLink}
-          setFocusParam={setFocusParam}
+          address={address}
           onSelectRevision={onSelectRevision}
           prNumber={prNumber}
           readOnly={readOnly}

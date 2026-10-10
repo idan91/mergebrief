@@ -2,10 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  buildBriefSearchParams,
-  type BriefSearchParams,
-} from "./comparison/compareState";
+import type { BriefSearchParams } from "./comparison/compareState";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
@@ -15,15 +12,24 @@ import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
 import { buildRevisionTimelineView } from "./utils/revision-timeline";
 import { buildBriefTimeline } from "./utils/timeline";
-import type { ScopeExitOptions } from "./components/BriefScreen/types";
+import type { BriefAddressPort } from "./components/BriefScreen/address/types";
+import { buildFileAddress } from "./components/BriefScreen/address/utils";
 import { BriefView } from "./components/BriefView";
+import { useBriefReading } from "./hooks/useBriefReading";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
 // Internal brief files import their targets directly, never this index.
-export { BriefView, type BriefViewProps } from "./components/BriefView";
+export { BriefView } from "./components/BriefView";
+export { useBriefReading } from "./hooks/useBriefReading";
+export { buildBriefAddress } from "./components/BriefScreen/address/utils";
 export type { BriefComparisonPlan } from "./components/BriefScreen/useComparisonOverlay";
-export type { ScopeExitOptions } from "./components/BriefScreen/types";
+export type {
+  ConversationCapability,
+  OwnDraftPlan,
+  ReviewCapability,
+  ScopeExitOptions,
+} from "./components/BriefScreen/types";
 export { useBriefAddress } from "./components/BriefScreen/address/useBriefAddress";
 export type {
   BriefAddressPort,
@@ -40,20 +46,10 @@ export interface BriefPageProps {
   /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
    * resolved against comparison availability in BriefScreen's comparison overlay hook. */
   searchParams: BriefSearchParams;
-  /** Writes the View/Compare/diff trio; route-owned. The Scope exit rides on it. */
-  navigateSearch?:
-    | ((next: BriefSearchParams, options?: ScopeExitOptions) => void)
-    | undefined;
-  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
-  clearDiffParam?: (() => void) | undefined;
-  /** The link param the URL carries: a chunk, or lines, to land on. */
-  link?: string | undefined;
-  /** Writes or drops the link param with replace; route-owned. */
-  navigateLink?: ((link: string | undefined) => void) | undefined;
-  /** Writes the focus param with replace; route-owned. */
-  setFocusParam?: ((focus: boolean) => void) | undefined;
+  /** The route's URL writes; the Scope exit rides on its `navigateSearch`. */
+  address: BriefAddressPort;
   /** A revision navigation is in flight (router pending); route-owned. */
-  revisionPending?: boolean | undefined;
+  revisionPending: boolean;
   /** Goes to another brief of this PR by id; route-owned. */
   selectRevision?: ((briefId: string) => void) | undefined;
 }
@@ -63,26 +59,11 @@ export function BriefPage({
   artifacts,
   briefId,
   searchParams,
-  navigateSearch,
-  clearDiffParam,
-  link,
-  navigateLink,
-  setFocusParam,
+  address: port,
   revisionPending,
   selectRevision,
 }: BriefPageProps) {
   const { t } = useTranslation();
-  // Keeps Compare and diff as the URL has them, so the exit writes `full`
-  // and nothing else.
-  function exitScope(options?: ScopeExitOptions): void {
-    const next = buildBriefSearchParams(
-      "full",
-      searchParams.compare,
-      searchParams.diff,
-    );
-    navigateSearch?.(next, options);
-  }
-  const exitChangesScope = navigateSearch === undefined ? undefined : exitScope;
   const artifact = useSuspenseQuery(buildLocalBriefQueryOptions(briefId)).data;
   const patches = useSuspenseQuery(
     buildLocalBriefDiffsQueryOptions(briefId),
@@ -122,29 +103,22 @@ export function BriefPage({
     selectRevision === undefined
       ? undefined
       : { view: revisionView, selectRevision };
+  const reading = useBriefReading({
+    artifacts,
+    brief,
+    briefId,
+    fileRows,
+    revisions,
+  });
+  const address = buildFileAddress({ port, searchParams, revisionPending });
   // A file-backed Brief has no `brief` row, no installation and no reviewer,
-  // so it carries no Review Session, and with nowhere to keep the work the
-  // screen reads rather than writes.
+  // so it supplies no review, and the screen reads rather than writes.
   return (
     <>
       <span aria-live="polite" className="sr-only" role="status">
         {viewingAnnouncement}
       </span>
-      <BriefView
-        artifacts={artifacts}
-        brief={brief}
-        briefId={briefId}
-        fileRows={fileRows}
-        readOnly={{ reason: t("brief.screen.fileBriefReadOnly") }}
-        searchParams={searchParams}
-        exitChangesScope={exitChangesScope}
-        clearDiffParam={clearDiffParam}
-        link={link}
-        navigateLink={navigateLink}
-        setFocusParam={setFocusParam}
-        revisionPending={revisionPending}
-        revisions={revisions}
-      />
+      <BriefView reading={reading} address={address} />
     </>
   );
 }

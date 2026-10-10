@@ -112,11 +112,7 @@ function BriefRoute() {
       artifacts={artifacts}
       briefId={briefId}
       searchParams={searchParams}
-      navigateSearch={address.navigateSearch}
-      clearDiffParam={address.clearDiffParam}
-      link={address.link}
-      navigateLink={address.navigateLink}
-      setFocusParam={address.setFocusParam}
+      address={address}
       revisionPending={revisionPending}
       selectRevision={selectRevision}
     />

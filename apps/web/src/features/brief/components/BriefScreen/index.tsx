@@ -43,11 +43,10 @@ import {
 } from "./useBriefScreenFacade";
 import type { BriefScreenProps, LensPaneProps, StoryMainStyle } from "./types";
 
-export type { BriefComparisonPlan } from "./useComparisonOverlay";
 export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY_KEYS } from "./useOwnDraftFlow";
 export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY };
-export type { BriefScreenProps, OwnDraftPlan, ScopeExitOptions } from "./types";
+export type { BriefScreenProps, OwnDraftPlan } from "./types";
 
 const LensPane = memo(
   function LensPane({ children }: LensPaneProps) {
@@ -56,35 +55,9 @@ const LensPane = memo(
   (_previous, next) => next.frozen,
 );
 
-export function BriefScreen({
-  livePrState,
-  artifacts,
-  brief,
-  repoConfig,
-  briefId,
-  repoId,
-  comparisonPlan,
-  fileRows,
-  model,
-  searchParams,
-  conversation,
-  conversationFocusThreadId,
-  conversationFilter,
-  onConversationFilterChange,
-  headerControls,
-  openDeltaLens,
-  exitChangesScope,
-  clearDiffParam,
-  link,
-  navigateLink,
-  setFocusParam,
-  ownDraft,
-  readOnly,
-  revisionPending,
-  revisions,
-  staleHead,
-  submitReview,
-}: BriefScreenProps) {
+export function BriefScreen(props: BriefScreenProps) {
+  const { reading, pr, conversation } = props;
+  const { brief, briefId, model, fileRows, repoConfig } = reading;
   const {
     t,
     chunkFooter,
@@ -139,34 +112,8 @@ export function BriefScreen({
     dismissLineLinkMiss,
     shareChunk,
     jumpToChunkUnderStack,
-  } = useBriefScreenFacade({
-    livePrState,
-    artifacts,
-    brief,
-    repoConfig,
-    briefId,
-    repoId,
-    fileRows,
-    comparisonPlan,
-    model,
-    searchParams,
-    conversation,
-    conversationFocusThreadId,
-    conversationFilter,
-    onConversationFilterChange,
-    headerControls,
-    openDeltaLens,
-    exitChangesScope,
-    clearDiffParam,
-    link,
-    navigateLink,
-    setFocusParam,
-    ownDraft,
-    readOnly,
-    revisionPending,
     staleHead,
-    submitReview,
-  });
+  } = useBriefScreenFacade(props);
 
   // The provider memoizes on this identity, so it has to be stable itself.
   const chunkSizes = useMemo(
@@ -213,10 +160,10 @@ export function BriefScreen({
                     toggleShortcuts={session.toggleShortcuts}
                     focusMode={session.focusMode}
                     brief={brief}
-                    livePrState={livePrState}
+                    livePrState={pr?.livePrState}
                     repoConfig={repoConfig}
                     briefId={briefId}
-                    repoId={repoId}
+                    repoId={pr?.repoId}
                     model={model}
                     totals={session.totals}
                     progress={session.progress}
@@ -224,7 +171,7 @@ export function BriefScreen({
                     draftCommentCount={draftCommentCount}
                     availability={overlay.availability}
                     compareState={overlay.compareState}
-                    controlsSlot={headerControls}
+                    controlsSlot={pr?.headerControls}
                     revisionPending={pendingShown}
                     jumpToGroup={(groupId) =>
                       queueJumpFromChanges(groupId, false)
@@ -323,7 +270,6 @@ export function BriefScreen({
                         }
                         filter={
                           conversation !== undefined &&
-                          onConversationFilterChange !== undefined &&
                           conversationWiring.conversationFilterFacets !==
                             undefined
                             ? {
@@ -339,7 +285,7 @@ export function BriefScreen({
                                 verdicts:
                                   conversationWiring.conversationFilterFacets
                                     .verdicts,
-                                onChange: onConversationFilterChange,
+                                onChange: conversation.onFilterChange,
                               }
                             : undefined
                         }
@@ -357,8 +303,8 @@ export function BriefScreen({
                         key={`conversation-${briefId}`}
                         {...conversationReadOnly}
                         chunks={session.readingOrderedChunks}
-                        filter={conversationFilter}
-                        focusThreadId={conversationFocusThreadId}
+                        filter={conversation?.filter}
+                        focusThreadId={conversation?.focusThreadId}
                         jumpToChunk={
                           conversationWiring.jumpToChunkFromConversation
                         }
@@ -413,7 +359,7 @@ export function BriefScreen({
                               focusMode={session.focusMode}
                               sidebar={sidebarLayout}
                               cardTrack={cardTrack}
-                              openDeltaLens={openDeltaLens}
+                              openDeltaLens={pr?.openDeltaLens}
                               sinceMarkers={sinceMarkers}
                               openChunks={session.openChunks}
                               addressedReviewComments={brief.reviewComments}
@@ -459,7 +405,7 @@ export function BriefScreen({
                       toggleShortcuts={session.toggleShortcuts}
                       diffView={diffView}
                       toggleDiffView={toggleDiffView}
-                      revisions={revisions}
+                      revisions={reading.revisions}
                     />
                   ) : null}
                   {ownDraftActive ? null : (
@@ -494,7 +440,7 @@ export function BriefScreen({
                             : null
                         }
                         submitNote={liveSubmit ? submitFlow.note : null}
-                        staleHead={staleHead === true}
+                        staleHead={staleHead}
                       />
                     </>
                   )}

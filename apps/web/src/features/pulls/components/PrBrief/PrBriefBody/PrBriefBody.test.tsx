@@ -5,6 +5,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { WaitReasons } from "contract";
 import { afterEach, describe, expect, it } from "vitest";
+import type { BriefAddressPort } from "@web/features/brief";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import type { GenerationSummary, PrSummary } from "../../../types";
@@ -47,6 +48,14 @@ function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
 
 function ignoreNavigation(): void {}
 
+const IGNORED_ADDRESS: BriefAddressPort = {
+  link: undefined,
+  navigateLink: ignoreNavigation,
+  setFocusParam: ignoreNavigation,
+  clearDiffParam: ignoreNavigation,
+  navigateSearch: ignoreNavigation,
+};
+
 /** A fresh meta object per call, the way each poll hands the route a new one. */
 function makeBody(generation: Partial<GenerationSummary>) {
   const meta = makeMeta(generation);
@@ -54,7 +63,8 @@ function makeBody(generation: Partial<GenerationSummary>) {
     <I18nProvider>
       <PrBriefBody
         meta={meta}
-        onNavigateSearch={ignoreNavigation}
+        address={IGNORED_ADDRESS}
+        onConversationFilterChange={ignoreNavigation}
         prNumber={7}
         repoId="424242"
         searchParams={{}}

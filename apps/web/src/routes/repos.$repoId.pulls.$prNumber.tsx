@@ -226,11 +226,7 @@ function PrBriefRoute() {
     >
       <PrBriefBody
         meta={page.meta}
-        onNavigateSearch={address.navigateSearch}
-        clearDiffParam={address.clearDiffParam}
-        link={address.link}
-        navigateLink={address.navigateLink}
-        setFocusParam={address.setFocusParam}
+        address={address}
         conversationFilter={page.conversationFilter}
         onConversationFilterChange={page.onConversationFilterChange}
         conversationFocusThreadId={page.conversationFocusThreadId}
