@@ -141,6 +141,8 @@ function renderWiring(
         briefId: "db:42:7:base:head",
         chunkWindows: undefined,
         openChunk,
+        inChangesScope: false,
+        exitChangesScope: undefined,
       });
       return useConversationWiring({
         conversation,

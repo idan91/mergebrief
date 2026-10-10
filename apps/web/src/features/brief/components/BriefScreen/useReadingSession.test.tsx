@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../utils/viewModel";
+import { LandHistories } from "./landing/types";
+import type { ScopeExitOptions } from "./types";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "./utils";
 import {
   createReadingPositionStore,
@@ -54,18 +56,30 @@ interface HostProps {
   position: ReadingPositionStore;
   onRender: () => void;
   onSession?: ((session: UseReadingSessionValue) => void) | undefined;
+  compareViewFull?: boolean;
+  exitChangesScope?: ((options: ScopeExitOptions) => void) | undefined;
+  initialFocusMode?: boolean;
 }
 
-function SessionHost({ position, onRender, onSession }: HostProps) {
+function SessionHost({
+  position,
+  onRender,
+  onSession,
+  compareViewFull = true,
+  exitChangesScope,
+  initialFocusMode = false,
+}: HostProps) {
   onRender();
   const session = useReadingSession({
     brief: briefFixture,
     briefId: "fixture-brief",
-    compareViewFull: true,
+    compareViewFull,
     model,
     ownDraftActive: false,
     repoConfig: null,
     position,
+    exitChangesScope,
+    initialFocusMode,
   });
   onSession?.(session);
   return null;
@@ -199,6 +213,99 @@ describe("useReadingSession heading landing", () => {
     });
 
     expect(position.getState().activeChunkId).toBe(firstChunk.id);
+    expect(chunk.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
+describe("useReadingSession heading jump from Changes scope", () => {
+  const group = requireFirst(model.groups, "groups");
+  const firstChunk = requireFirst(group.chunks, "chunks");
+
+  function mountStoryGroup() {
+    const section = document.createElement("section");
+    section.id = deriveGroupSectionId(group.id);
+    section.getBoundingClientRect = () => rectAt(9000, 9600);
+    section.scrollIntoView = vi.fn();
+    const chunk = document.createElement("article");
+    chunk.id = firstChunk.id;
+    chunk.getBoundingClientRect = () => rectAt(9100, 9400);
+    chunk.scrollIntoView = vi.fn();
+    section.append(chunk);
+    document.body.append(section);
+    return { section, chunk };
+  }
+
+  function mountHeading(section: HTMLElement): HTMLElement {
+    const heading = document.createElement("h2");
+    heading.id = deriveGroupHeadingId(group.id);
+    heading.tabIndex = -1;
+    section.prepend(heading);
+    return heading;
+  }
+
+  function renderInChanges(initialFocusMode: boolean) {
+    const position = createReadingPositionStore();
+    const exitChangesScope = vi.fn();
+    let session: UseReadingSessionValue | null = null;
+    const makeHost = (compareViewFull: boolean) => (
+      <ReviewSessionProvider briefId="fixture-brief" model={model}>
+        <SessionHost
+          position={position}
+          onRender={() => {}}
+          onSession={(value) => {
+            session = value;
+          }}
+          compareViewFull={compareViewFull}
+          exitChangesScope={exitChangesScope}
+          initialFocusMode={initialFocusMode}
+        />
+      </ReviewSessionProvider>
+    );
+    const { rerender } = render(makeHost(false));
+    const showStory = () => rerender(makeHost(true));
+    const jump = () =>
+      session?.jumpToGroupHeading(group.id, LandHistories.PUSH);
+    return { exitChangesScope, jump, showStory };
+  }
+
+  it("leaves the scope, then focuses the heading the story pane shows", () => {
+    vi.useFakeTimers();
+    const { exitChangesScope, jump, showStory } = renderInChanges(false);
+
+    act(() => {
+      jump();
+    });
+    expect(exitChangesScope).toHaveBeenCalledWith({ replace: false });
+    const { section } = mountStoryGroup();
+    const heading = mountHeading(section);
+    act(() => {
+      showStory();
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(document.activeElement).toBe(heading);
+    expect(section.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("lands on the first chunk in focus mode, where no heading shows", () => {
+    vi.useFakeTimers();
+    const { exitChangesScope, jump, showStory } = renderInChanges(true);
+
+    act(() => {
+      jump();
+    });
+    expect(exitChangesScope).toHaveBeenCalledWith({ replace: false });
+    const { section, chunk } = mountStoryGroup();
+    act(() => {
+      showStory();
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
     expect(chunk.scrollIntoView).toHaveBeenCalledTimes(1);
     expect(section.scrollIntoView).not.toHaveBeenCalled();
   });

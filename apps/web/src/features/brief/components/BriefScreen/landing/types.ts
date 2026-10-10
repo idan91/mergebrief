@@ -1,6 +1,7 @@
 import type { ValueOf } from "types/utils";
 
 import type { ChunkWindowRegistry } from "../chunkWindows";
+import type { ScopeExitOptions } from "../types";
 import type { ConversationLanding } from "../useConversationWiring/types";
 import type { VerticalExtent } from "../utils";
 
@@ -80,6 +81,10 @@ export type LandPlacement = ValueOf<typeof LandPlacements>;
 
 export interface LandOptions {
   motion: LandMotion;
+  /**
+   * How a landing asked in Changes scope leaves it: push for a gesture,
+   * replace for an arrival. None never leaves and lands where the target is.
+   */
   history: LandHistory;
   /** Ensure the target's chunk card is open before the scroll. */
   open?: boolean;
@@ -97,11 +102,21 @@ export interface Landing {
 }
 
 export interface UseLandingInput {
-  /** A landing in flight never outlives its brief. */
+  /** A landing in flight or parked never outlives its brief. */
   briefId: string;
   /** Jump routing into windowed chunk lists; absent = mounted DOM only. */
   chunkWindows: ChunkWindowsPort | undefined;
   openChunk: (chunkId: string) => void;
+  /** Changes scope renders no story pane: a landing that leaves it parks until it renders. */
+  inChangesScope: boolean;
+  /** Route-owned; absent, a landing that must leave Changes scope is refused. */
+  exitChangesScope: ((options: ScopeExitOptions) => void) | undefined;
+}
+
+/** The one landing waiting for the story pane. */
+export interface ParkedLanding {
+  target: LandTarget;
+  options: LandOptions;
 }
 
 export type ChunkWindowsPort = Pick<ChunkWindowRegistry, "scrollToChunk">;

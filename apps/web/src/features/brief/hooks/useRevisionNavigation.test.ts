@@ -229,6 +229,8 @@ function renderNavigation(
         briefId: "brief-a",
         chunkWindows,
         openChunk,
+        inChangesScope: false,
+        exitChangesScope: undefined,
       });
       return useRevisionNavigation({ chunks, marks, getActiveChunkId, land });
     }),

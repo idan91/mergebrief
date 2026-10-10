@@ -6,8 +6,10 @@ import {
   type RefObject,
 } from "react";
 
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import { planLanding } from "./plan";
 import {
+  LandHistories,
   LandingPhases,
   LandPlacements,
   type ChunkWindowsPort,
@@ -17,6 +19,7 @@ import {
   type LandingState,
   type LandOptions,
   type LandTarget,
+  type ParkedLanding,
   type UseLandingInput,
 } from "./types";
 import {
@@ -26,7 +29,6 @@ import {
   deriveTargetChunkId,
   findFallbackCard,
   focusLandingTarget,
-  isSupportedLanding,
   performLandingAction,
   readLanding,
   refindLandingElement,
@@ -159,19 +161,28 @@ function launchLanding(
  * One landing at a time: a second `land` replaces the first, a brief switch
  * or the reader's own wheel, touch or key drops it, and a brief switch also
  * clears the flash. A row that never renders lands on its card instead.
+ * In Changes scope a landing with a history mode parks, leaves the scope in
+ * that mode and lands once the story pane renders; parked counts as the one
+ * landing, so a newer one or a brief switch drops it.
  */
 export function useLanding({
   briefId,
   chunkWindows,
   openChunk,
+  inChangesScope,
+  exitChangesScope,
 }: UseLandingInput): Landing {
   const flightRef = useRef<Flight | undefined>(undefined);
   // A step can run before the brief-switch cleanup does; it checks the id itself.
   const liveBriefId = useRef(briefId);
   liveBriefId.current = briefId;
+  const parkedRef = useRef<ParkedLanding | undefined>(undefined);
+  const inChangesScopeRef = useLatestRef(inChangesScope);
+  const exitChangesScopeRef = useLatestRef(exitChangesScope);
   const [flash] = useState(createFlash);
 
   const cancel = useCallback(() => {
+    parkedRef.current = undefined;
     if (flightRef.current === undefined) {
       return;
     }
@@ -186,11 +197,8 @@ export function useLanding({
     [briefId, cancel, flash],
   );
 
-  const land = useCallback<Landing["land"]>(
-    (target, options) => {
-      if (!isSupportedLanding(options)) {
-        return false;
-      }
+  const launch = useCallback(
+    (target: LandTarget, options: LandOptions) => {
       launchLanding(target, options, {
         flightRef,
         liveBriefId,
@@ -199,9 +207,37 @@ export function useLanding({
         openChunk,
         cancel,
       });
-      return true;
     },
     [cancel, chunkWindows, flash, openChunk],
+  );
+
+  useEffect(() => {
+    const parked = parkedRef.current;
+    if (inChangesScope || parked === undefined) {
+      return;
+    }
+    launch(parked.target, parked.options);
+  }, [inChangesScope, launch]);
+
+  const land = useCallback<Landing["land"]>(
+    (target, options) => {
+      const leavesScope =
+        options.history !== LandHistories.NONE && inChangesScopeRef.current;
+      if (!leavesScope) {
+        launch(target, options);
+        return true;
+      }
+      const exit = exitChangesScopeRef.current;
+      if (exit === undefined) {
+        return false;
+      }
+
+      cancel();
+      parkedRef.current = { target, options };
+      exit({ replace: options.history === LandHistories.REPLACE });
+      return true;
+    },
+    [cancel, exitChangesScopeRef, inChangesScopeRef, launch],
   );
 
   return { land };

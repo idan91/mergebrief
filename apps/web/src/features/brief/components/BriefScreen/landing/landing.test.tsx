@@ -3,6 +3,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { REVISION_JUMP_ATTR } from "../../../comparison/runs";
+import type { ScopeExitOptions } from "../types";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "../utils";
 import { useLanding } from ".";
 import { FLASH_MS, LANDING_FLASH_ATTR, MOUNT_POLL_FRAMES } from "./consts";
@@ -41,6 +42,8 @@ const SMOOTH: LandOptions = {
   motion: LandMotions.SMOOTH,
   history: LandHistories.NONE,
 };
+const PUSH: LandOptions = { ...SMOOTH, history: LandHistories.PUSH };
+const REPLACE: LandOptions = { ...SMOOTH, history: LandHistories.REPLACE };
 
 function makeRect(top: number): DOMRect {
   return new DOMRect(0, top, 0, 300);
@@ -106,6 +109,7 @@ function mountRail(railKey: string): HTMLButtonElement {
 
 interface HostProps {
   briefId: string;
+  inChangesScope: boolean;
 }
 
 function renderLanding(
@@ -113,11 +117,36 @@ function renderLanding(
   openChunk: (chunkId: string) => void = vi.fn(),
 ) {
   return renderHook(
-    ({ briefId }: HostProps) =>
-      useLanding({ briefId, chunkWindows, openChunk }),
-    { initialProps: { briefId: "brief-a" } },
+    ({ briefId, inChangesScope }: HostProps) =>
+      useLanding({
+        briefId,
+        chunkWindows,
+        openChunk,
+        inChangesScope,
+        exitChangesScope: undefined,
+      }),
+    { initialProps: { briefId: "brief-a", inChangesScope: false } },
   );
 }
+
+/** Starts in Changes scope, where the story pane is not rendered. */
+function renderChangesLanding(
+  exitChangesScope: ((options: ScopeExitOptions) => void) | undefined,
+) {
+  return renderHook(
+    ({ briefId, inChangesScope }: HostProps) =>
+      useLanding({
+        briefId,
+        chunkWindows: undefined,
+        openChunk: vi.fn(),
+        inChangesScope,
+        exitChangesScope,
+      }),
+    { initialProps: { briefId: "brief-a", inChangesScope: true } },
+  );
+}
+
+const CHUNK_A = { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" } as const;
 
 describe("useLanding", () => {
   it("scrolls a near chunk into view once the jump is due", () => {
@@ -340,7 +369,7 @@ describe("useLanding", () => {
         SMOOTH,
       );
     });
-    rerender({ briefId: "brief-b" });
+    rerender({ briefId: "brief-b", inChangesScope: false });
     act(() => {
       vi.advanceTimersByTime(200);
     });
@@ -518,7 +547,7 @@ describe("useLanding", () => {
       vi.advanceTimersByTime(1);
     });
     expect(chunkWindows.scrollToChunk).toHaveBeenCalledWith("chunk-far");
-    rerender({ briefId: "brief-b" });
+    rerender({ briefId: "brief-b", inChangesScope: false });
     const rail = mountRail("r1");
     act(() => {
       vi.advanceTimersByTime(200);
@@ -537,7 +566,7 @@ describe("useLanding", () => {
       vi.advanceTimersByTime(FRAME_MS * 2);
     });
     expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(true);
-    rerender({ briefId: "brief-b" });
+    rerender({ briefId: "brief-b", inChangesScope: false });
 
     expect(row.hasAttribute(LANDING_FLASH_ATTR)).toBe(false);
   });
@@ -590,16 +619,155 @@ describe("useLanding", () => {
     });
   });
 
-  it("refuses a history write it cannot land yet", () => {
+  it("lands a push landing at once outside Changes scope", () => {
     const card = mountCard("chunk-a", 300);
     const { result } = renderLanding();
 
+    let scheduled = false;
+    act(() => {
+      scheduled = result.current.land(CHUNK_A, PUSH);
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(scheduled).toBe(true);
+    expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useLanding from Changes scope", () => {
+  it("parks a landing and leaves the scope with a history step", () => {
+    const card = mountCard("chunk-a", 300);
+    const exitChangesScope = vi.fn();
+    const { result } = renderChangesLanding(exitChangesScope);
+
+    let scheduled = false;
+    act(() => {
+      scheduled = result.current.land(CHUNK_A, PUSH);
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(scheduled).toBe(true);
+    expect(exitChangesScope).toHaveBeenCalledWith({ replace: false });
+    expect(card.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("leaves the scope by replace for an arrival", () => {
+    const exitChangesScope = vi.fn();
+    const { result } = renderChangesLanding(exitChangesScope);
+
+    act(() => {
+      result.current.land(CHUNK_A, REPLACE);
+    });
+
+    expect(exitChangesScope).toHaveBeenCalledWith({ replace: true });
+  });
+
+  it("lands the parked target once the story pane renders", () => {
+    const card = mountCard("chunk-a", 300);
+    const { result, rerender } = renderChangesLanding(vi.fn());
+
+    act(() => {
+      result.current.land(CHUNK_A, PUSH);
+    });
+    rerender({ briefId: "brief-a", inChangesScope: false });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(card.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+
+  it("lets a newer landing replace the parked one", () => {
+    const first = mountCard("chunk-a", 300);
+    const second = mountCard("chunk-b", 600);
+    const { result, rerender } = renderChangesLanding(vi.fn());
+
+    act(() => {
+      result.current.land(CHUNK_A, PUSH);
+      result.current.land(
+        { kind: LandTargetKinds.CHUNK, chunkId: "chunk-b" },
+        PUSH,
+      );
+    });
+    rerender({ briefId: "brief-a", inChangesScope: false });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(first.scrollIntoView).not.toHaveBeenCalled();
+    expect(second.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a parked landing when the brief changes", () => {
+    const card = mountCard("chunk-a", 300);
+    const { result, rerender } = renderChangesLanding(vi.fn());
+
+    act(() => {
+      result.current.land(CHUNK_A, { ...REPLACE, focus: true });
+    });
+    rerender({ briefId: "brief-b", inChangesScope: false });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(card.scrollIntoView).not.toHaveBeenCalled();
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(card);
+  });
+
+  it("focuses a parked group's heading once it lands", () => {
+    const { result, rerender } = renderChangesLanding(vi.fn());
+
+    act(() => {
+      result.current.land(
+        { kind: LandTargetKinds.GROUP, groupId: "g1" },
+        { ...PUSH, focus: true, placement: LandPlacements.UNDER_STACK },
+      );
+    });
+    const section = document.createElement("section");
+    section.id = deriveGroupSectionId("g1");
+    section.getBoundingClientRect = () => makeRect(300);
+    const heading = document.createElement("h2");
+    heading.id = deriveGroupHeadingId("g1");
+    heading.tabIndex = -1;
+    section.append(heading);
+    document.body.append(section);
+    expect(document.activeElement).not.toBe(heading);
+    rerender({ briefId: "brief-a", inChangesScope: false });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it("lands a history-free landing where it is, without leaving", () => {
+    const card = mountCard("chunk-a", 300);
+    const exitChangesScope = vi.fn();
+    const { result } = renderChangesLanding(exitChangesScope);
+
+    act(() => {
+      result.current.land(CHUNK_A, SMOOTH);
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(exitChangesScope).not.toHaveBeenCalled();
+    expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a landing that must leave Changes scope without an exit", () => {
+    const card = mountCard("chunk-a", 300);
+    const { result, rerender } = renderChangesLanding(undefined);
+
     let scheduled = true;
     act(() => {
-      scheduled = result.current.land(
-        { kind: LandTargetKinds.CHUNK, chunkId: "chunk-a" },
-        { ...SMOOTH, history: LandHistories.PUSH },
-      );
+      scheduled = result.current.land(CHUNK_A, PUSH);
+    });
+    rerender({ briefId: "brief-a", inChangesScope: false });
+    act(() => {
       vi.advanceTimersByTime(200);
     });
 

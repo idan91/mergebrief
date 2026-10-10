@@ -38,6 +38,7 @@ import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { ReadingPositionStore } from "./readingPosition";
+import type { ScopeExitOptions } from "./types";
 import {
   SupportingCollapseStates,
   type SupportingCollapseState,
@@ -55,6 +56,7 @@ import {
   LandPlacements,
   LandTargetKinds,
   type Landing,
+  type LandHistory,
   type LandOptions,
   type LandPlacement,
 } from "./landing/types";
@@ -90,6 +92,8 @@ export interface UseReadingSessionInput {
   initialFocusMode?: boolean;
   /** Jump routing into windowed chunk lists; null = mounted DOM only. */
   chunkWindows?: ChunkWindowRegistry | null | undefined;
+  /** Route-owned; a jump with a history mode leaves Changes scope through it. */
+  exitChangesScope?: ((options: ScopeExitOptions) => void) | undefined;
   /**
    * The reading-position store this session WRITES (scroll-spy + explicit
    * nav). Never subscribed here, position consumers subscribe themselves, so
@@ -134,6 +138,7 @@ export interface UseReadingSessionValue {
     chunkId: string,
     behavior?: ScrollBehavior,
     placement?: LandPlacement,
+    history?: LandHistory,
   ) => void;
   /** The page's one landing, for callers that land beyond a chunk jump. */
   land: Landing["land"];
@@ -143,9 +148,9 @@ export interface UseReadingSessionValue {
   jumpToChunkFromShortcut: (chunkId: string) => void;
   /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
   openChunk: (chunkId: string) => void;
-  jumpToGroup: (groupId: string) => void;
-  /** A keyboard jump from the Sidebar: lands and focuses the group heading. */
-  jumpToGroupHeading: (groupId: string) => void;
+  jumpToGroup: (groupId: string, history?: LandHistory) => void;
+  /** A keyboard jump to a group: lands and focuses the group heading. */
+  jumpToGroupHeading: (groupId: string, history?: LandHistory) => void;
   toggleFocusMode: () => void;
   startReadThrough: () => void;
   /** Exit focus mode into the story view (the intent-bar landing path). */
@@ -163,6 +168,7 @@ export function useReadingSession(
     ownDraftActive,
     repoConfig,
     chunkWindows,
+    exitChangesScope,
     position,
     initialFocusMode = false,
   } = input;
@@ -213,6 +219,8 @@ export function useReadingSession(
     briefId,
     chunkWindows: chunkWindows ?? undefined,
     openChunk,
+    inChangesScope: !compareViewFull,
+    exitChangesScope,
   });
 
   // Derived, never stored: mirrors openChunks, so collapse-on-review and
@@ -455,6 +463,7 @@ export function useReadingSession(
       chunkId: string,
       behavior: ScrollBehavior = "smooth",
       placement: LandPlacement = LandPlacements.VIEWPORT_TOP,
+      history: LandHistory = LandHistories.NONE,
     ) => {
       setActivePosition(chunkId);
       // Focus mode must open the target, every other card is display:none,
@@ -465,7 +474,7 @@ export function useReadingSession(
         { kind: LandTargetKinds.CHUNK, chunkId },
         {
           motion: deriveLandMotion(behavior),
-          history: LandHistories.NONE,
+          history,
           open: focusModeRef.current,
           placement,
         },
@@ -527,38 +536,50 @@ export function useReadingSession(
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(
-    (groupId: string) => {
+    (groupId: string, history: LandHistory = LandHistories.NONE) => {
       const group = model.groups.find((candidate) => candidate.id === groupId);
       const target = group?.chunks[0];
       if (target) {
-        jumpToChunk(target.id);
+        jumpToChunk(target.id, "smooth", LandPlacements.VIEWPORT_TOP, history);
       }
     },
     [jumpToChunk, model.groups],
   );
 
   // The section is in flow at every width where the card can be sticky, so
-  // it is the landing; the heading only takes focus.
+  // it is the landing; the heading only takes focus. A parked jump lands once
+  // the story pane renders, whose group card shows the heading outside focus
+  // mode.
   const jumpToGroupHeading = useCallback(
-    (groupId: string) => {
+    (groupId: string, history: LandHistory = LandHistories.NONE) => {
       const group = model.groups.find((candidate) => candidate.id === groupId);
       const target = group?.chunks[0];
-      const heading = document.getElementById(deriveGroupHeadingId(groupId));
       if (!target) {
         return;
       }
-      if (!heading) {
-        jumpToChunk(target.id);
+      const parks = !compareViewFull && history !== LandHistories.NONE;
+      const headingShown = parks
+        ? !focusModeRef.current
+        : document.getElementById(deriveGroupHeadingId(groupId)) !== null;
+      if (!headingShown) {
+        jumpToChunk(target.id, "smooth", LandPlacements.VIEWPORT_TOP, history);
         return;
       }
 
       setActivePosition(target.id);
       land(
         { kind: LandTargetKinds.GROUP, groupId },
-        { ...SMOOTH_UNDER_STACK, focus: true },
+        { ...SMOOTH_UNDER_STACK, focus: true, history },
       );
     },
-    [jumpToChunk, land, model.groups, setActivePosition],
+    [
+      compareViewFull,
+      focusModeRef,
+      jumpToChunk,
+      land,
+      model.groups,
+      setActivePosition,
+    ],
   );
 
   // The intent bar lives in the full-compare story view, so leave focus

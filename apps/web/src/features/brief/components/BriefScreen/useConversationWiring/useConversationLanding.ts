@@ -35,17 +35,19 @@ export function useConversationLanding({
   setActiveChunk,
 }: UseConversationLandingInput): JumpToChunkFromConversation {
   return useCallback<JumpToChunkFromConversation>(
-    (chunkId, target, behavior = "smooth") => {
+    (chunkId, target, behavior = "smooth", history = LandHistories.NONE) => {
       setActiveChunk(chunkId);
       if (target !== undefined) {
-        land({ kind: LandTargetKinds.ROW, chunkId, row: target }, ROW_LANDING);
-        return;
+        return land(
+          { kind: LandTargetKinds.ROW, chunkId, row: target },
+          { ...ROW_LANDING, history },
+        );
       }
 
       const motion = deriveLandMotion(behavior);
-      land(
+      return land(
         { kind: LandTargetKinds.CHUNK, chunkId },
-        { ...CARD_LANDING, motion },
+        { ...CARD_LANDING, motion, history },
       );
     },
     [land, setActiveChunk],

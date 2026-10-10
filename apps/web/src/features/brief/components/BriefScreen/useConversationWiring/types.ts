@@ -13,7 +13,7 @@ import type { PrConversation } from "@web/features/conversation/types";
 import type { LineTarget } from "../../../utils/lineOwner";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { BriefChunk } from "../../../types";
-import type { Landing } from "../landing/types";
+import type { Landing, LandHistory } from "../landing/types";
 
 export interface UseConversationWiringInput {
   /** The route's conversation plan; absent on the local path, every output
@@ -54,11 +54,13 @@ export interface ThreadLanding {
 
 export type ConversationLanding = ThreadLanding | LineTarget;
 
+/** False when the landing could not be scheduled; see `Landing`. */
 export type JumpToChunkFromConversation = (
   chunkId: string,
   target?: ConversationLanding,
   behavior?: ScrollBehavior,
-) => void;
+  history?: LandHistory,
+) => boolean;
 
 export interface UseConversationRowsInput {
   /** The resolved conversation; absent until it loads and on the local path. */

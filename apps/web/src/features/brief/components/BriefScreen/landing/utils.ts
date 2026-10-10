@@ -12,7 +12,6 @@ import {
 } from "../utils";
 import { FLASH_MS, LANDING_FLASH_ATTR, PLACEMENT_DEFER_FRAMES } from "./consts";
 import {
-  LandHistories,
   LandingActionKinds,
   LandingPhases,
   LandMotions,
@@ -24,7 +23,6 @@ import {
   type LandingReading,
   type LandingState,
   type LandMotion,
-  type LandOptions,
   type LandPlacement,
   type LandTarget,
   type MountedTarget,
@@ -34,10 +32,6 @@ import {
 /** The pinned stack's height plus the landing gap, read as one registered length. */
 export function readUnderStackTop(): number {
   return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_LANDING_GAP_PX;
-}
-
-export function isSupportedLanding(options: LandOptions): boolean {
-  return options.history === LandHistories.NONE;
 }
 
 /** The chunk whose card holds the target; undefined outside the chunk lists. */

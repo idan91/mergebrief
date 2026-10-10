@@ -142,6 +142,7 @@ export function useBriefScreenFacade({
     ownDraftActive,
     repoConfig,
     chunkWindows: chunkWindowsRef.current,
+    exitChangesScope,
     position: readingPosition,
     initialFocusMode: searchParams.focus === true,
   });
@@ -187,10 +188,6 @@ export function useBriefScreenFacade({
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [regions.sidebar]);
 
-  const [pendingScopeJump, setPendingScopeJump] = useState<{
-    groupId: string;
-    heading: boolean;
-  } | null>(null);
   const inChangesScope = compareState.view === "changes";
   const focusPanelShown = focusMode && !inChangesScope;
 
@@ -203,48 +200,14 @@ export function useBriefScreenFacade({
     storyEverShownRef.current = true;
   }
 
-  const jumpToGroupHeading = session.jumpToGroupHeading;
-  useEffect(() => {
-    if (pendingScopeJump === null || inChangesScope) {
-      return;
-    }
-    if (pendingScopeJump.heading) {
-      jumpToGroupHeading(pendingScopeJump.groupId);
-    } else {
-      jumpToGroup(pendingScopeJump.groupId);
-    }
-    setPendingScopeJump(null);
-  }, [inChangesScope, jumpToGroup, jumpToGroupHeading, pendingScopeJump]);
-
+  // A gesture from Changes scope leaves it with a history step and lands
+  // once the story pane renders.
   const queueJumpFromChanges = (groupId: string, heading: boolean) => {
-    if (!inChangesScope) {
-      if (heading) {
-        jumpToGroupHeading(groupId);
-        return;
-      }
-      jumpToGroup(groupId);
+    if (heading) {
+      session.jumpToGroupHeading(groupId, LandHistories.PUSH);
       return;
     }
-    if (exitChangesScope === undefined) {
-      return;
-    }
-    setPendingScopeJump({ groupId, heading });
-    exitChangesScope();
-  };
-
-  // A chunk parked by a deep-link arrival in Changes scope, or by a flag's
-  // jump from a Changes section, landed once the story pane renders.
-  const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
-  const queueChunkJumpFromChanges = (chunkId: string) => {
-    if (!inChangesScope) {
-      jumpToChunk(chunkId);
-      return;
-    }
-    if (exitChangesScope === undefined) {
-      return;
-    }
-    setPendingDeepLink(chunkId);
-    exitChangesScope();
+    jumpToGroup(groupId, LandHistories.PUSH);
   };
 
   // The link param follows the selection with replace. The ref remembers
@@ -255,8 +218,6 @@ export function useBriefScreenFacade({
   if (screenBriefId !== briefId) {
     setScreenBriefId(briefId);
     setSubmitOpen(false);
-    setPendingScopeJump(null);
-    setPendingDeepLink(null);
     changesEverShownRef.current = false;
     storyEverShownRef.current = false;
     writtenLinkRef.current = undefined;
@@ -396,32 +357,29 @@ export function useBriefScreenFacade({
   // A link naming a chunk lands through the conversation landing: open the
   // card, scroll, focus, flash. Instant, not smooth: the windowed lists
   // mount and measure cards as the viewport passes, and each measurement
-  // scroll-adjustment cancels a smooth scroll in flight. Cards exist only
-  // in the story pane, so an arrival in Changes scope leaves it first,
-  // replacing the URL since that scope was never a chosen destination, and
-  // lands once the pane renders. A thread target owns its own arrival.
+  // scroll-adjustment cancels a smooth scroll in flight. An arrival in
+  // Changes scope leaves it by replace, since that scope was never a chosen
+  // destination. A thread target owns its own arrival. A Changes section's
+  // jump lands the same way, with a history step: its button leaves with the
+  // pane, so focus goes to the card.
   const { jumpToChunkFromConversation } = conversationWiring;
-  useEffect(() => {
-    if (pendingDeepLink === null || inChangesScope) {
-      return;
-    }
-    jumpToChunkFromConversation(pendingDeepLink, undefined, "instant");
-    setPendingDeepLink(null);
-  }, [inChangesScope, jumpToChunkFromConversation, pendingDeepLink]);
+  const queueChunkJumpFromChanges = (chunkId: string) => {
+    jumpToChunkFromConversation(
+      chunkId,
+      undefined,
+      "instant",
+      LandHistories.PUSH,
+    );
+  };
   const landOnDeepLink = useCallback(
-    (chunkId: string): boolean => {
-      if (!inChangesScope) {
-        jumpToChunkFromConversation(chunkId, undefined, "instant");
-        return true;
-      }
-      if (exitChangesScope === undefined) {
-        return false;
-      }
-      setPendingDeepLink(chunkId);
-      exitChangesScope({ replace: true });
-      return true;
-    },
-    [exitChangesScope, inChangesScope, jumpToChunkFromConversation],
+    (chunkId: string): boolean =>
+      jumpToChunkFromConversation(
+        chunkId,
+        undefined,
+        "instant",
+        LandHistories.REPLACE,
+      ),
+    [jumpToChunkFromConversation],
   );
   // Hunk-edge expansion reads the file at the head sha through the pull's
   // API route; the local path has no route, so its edges stay folded.
