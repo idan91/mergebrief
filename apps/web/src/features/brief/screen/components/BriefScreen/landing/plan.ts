@@ -47,7 +47,8 @@ export function planLanding(
 }
 
 function deriveUnderStackTop(reading: LandingReading): number {
-  return reading.stackHeight + CHUNK_LANDING_GAP_PX;
+  const underStackTop = reading.stackHeight + CHUNK_LANDING_GAP_PX;
+  return underStackTop;
 }
 
 /** How far to scroll so the target rests where its placement puts it. */
@@ -64,7 +65,8 @@ function deriveCorrection(
     );
   }
   if (request.placement === LandPlacements.UNDER_STACK) {
-    return target.top - deriveUnderStackTop(reading);
+    const correction = target.top - deriveUnderStackTop(reading);
+    return correction;
   }
   return target.top;
 }
@@ -147,10 +149,10 @@ function hasStayedPlaced(
   offset: number,
   placedOffset: number | undefined,
 ): boolean {
-  return (
+  const withinDrift =
     placedOffset !== undefined &&
-    Math.abs(offset - placedOffset) <= PLACED_DRIFT_PX
-  );
+    Math.abs(offset - placedOffset) <= PLACED_DRIFT_PX;
+  return withinDrift;
 }
 
 /**
@@ -167,7 +169,8 @@ function planSettle(
   const { target } = reading;
   const placed = state.placedOffset !== undefined;
   if (target === undefined) {
-    if (placed || frames >= MOUNT_POLL_FRAMES) {
+    const stopsWaiting = placed || frames >= MOUNT_POLL_FRAMES;
+    if (stopsWaiting) {
       return STOP;
     }
     return { action: WAIT, next: { ...state, frames } };
@@ -180,13 +183,15 @@ function planSettle(
   const moved =
     state.lastScrollY !== undefined && reading.scrollY !== state.lastScrollY;
   const stayedPlaced = hasStayedPlaced(offset, state.placedOffset);
-  if (moved && stayedPlaced) {
+  const foreignScroll = moved && stayedPlaced;
+  if (foreignScroll) {
     return STOP;
   }
 
   const hasMoved = state.hasMoved || moved;
   const started = !state.awaitStart || hasMoved || frames > SCROLL_START_FRAMES;
-  const stillFrames = moved || !started ? 0 : state.stillFrames + 1;
+  const resting = !moved && started;
+  const stillFrames = resting ? state.stillFrames + 1 : 0;
   const next: SettleState = {
     ...state,
     frames,
@@ -195,7 +200,8 @@ function planSettle(
     lastScrollY: reading.scrollY,
   };
   let action: LandingAction = WAIT;
-  if (stillFrames >= SETTLE_FRAMES && !stayedPlaced) {
+  const placesNow = stillFrames >= SETTLE_FRAMES && !stayedPlaced;
+  if (placesNow) {
     next.placedOffset = offset;
     const delta = deriveCorrection(target, reading, request);
     if (Math.abs(delta) > CORRECTION_THRESHOLD_PX) {

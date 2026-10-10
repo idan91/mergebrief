@@ -37,7 +37,8 @@ function dropOwnChunkLink(state: AddressState, step: LinkStep): LinkStep {
     !isLineLink(step.link);
   const focusLeft = !state.focusMode && state.url.focus;
   const focusInChanges = state.focusMode && state.scope === "changes";
-  if (ownChunkLink && (focusLeft || focusInChanges)) {
+  const staleChunkLink = ownChunkLink && (focusLeft || focusInChanges);
+  if (staleChunkLink) {
     return { link: undefined, writtenLink: undefined };
   }
   return step;
@@ -49,7 +50,8 @@ function followActiveChunk(state: AddressState, step: LinkStep): LinkStep {
     state.focusMode &&
     state.lineSelection === undefined &&
     state.scope === "full";
-  if (!following || activeChunkId === undefined) {
+  const nothingToFollow = !following || activeChunkId === undefined;
+  if (nothingToFollow) {
     return step;
   }
 

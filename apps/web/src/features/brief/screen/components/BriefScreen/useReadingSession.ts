@@ -69,7 +69,8 @@ const SMOOTH_UNDER_STACK: LandOptions = {
 /** The spy reads the chunk at the line an under-stack jump parks a head on,
  * so a landing never hands the position to the chunk above it. */
 function readingLineOffset(): number {
-  return readUnderStackTop() + 1;
+  const lineOffset = readUnderStackTop() + 1;
+  return lineOffset;
 }
 
 export interface UseReadingSessionInput {

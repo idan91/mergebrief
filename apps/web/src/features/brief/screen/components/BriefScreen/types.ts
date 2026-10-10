@@ -188,9 +188,9 @@ export interface ConversationCapability {
 export interface BriefScreenProps {
   reading: BriefReading;
   address: BriefAddress;
-  pr?: PullRequestContext;
-  review?: ReviewCapability;
-  conversation?: ConversationCapability;
+  pr?: PullRequestContext | undefined;
+  review?: ReviewCapability | undefined;
+  conversation?: ConversationCapability | undefined;
 }
 
 /** What the link param names: a chunk, or lines inside one. */

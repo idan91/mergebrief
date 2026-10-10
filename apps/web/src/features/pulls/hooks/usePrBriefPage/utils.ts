@@ -27,9 +27,10 @@ export function deriveRevisionPosture(
   const newerRevisionSelectable =
     timeline === undefined ||
     timeline.selectedIndex < timeline.points.length - 1;
+  const baseDrift = selectedHeadIsCurrent && !selectedBaseIsCurrent;
 
   return {
-    baseDrift: selectedHeadIsCurrent && !selectedBaseIsCurrent,
+    baseDrift,
     staleHead,
     newerRevisionSelectable,
   };
@@ -67,8 +68,9 @@ export function shouldPinRev(
     return false;
   }
   const legacySpan = search.head !== undefined || search.base !== undefined;
+  const rewrites = search.rev !== pinnedRev || legacySpan;
 
-  return search.rev !== pinnedRev || legacySpan;
+  return rewrites;
 }
 
 /** A string, so an equal timeline from a later poll keeps the jump's identity. */

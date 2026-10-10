@@ -184,12 +184,14 @@ export function isExpansionCovered(
     if (row.newLine === undefined || row.kind === DiffLineKinds.HUNK) {
       continue;
     }
-    if (row.newLine >= range.start && row.newLine <= range.end) {
+    const inRange = row.newLine >= range.start && row.newLine <= range.end;
+    if (inRange) {
       covered.add(row.newLine);
     }
   }
 
-  return covered.size === range.end - range.start + 1;
+  const lineCount = range.end - range.start + 1;
+  return covered.size === lineCount;
 }
 
 function collectCarriedDeletions(base: readonly DiffLine[]): Set<number> {
@@ -207,11 +209,13 @@ function readSliceLine(
   slice: FileRangeSlice,
   line: number,
 ): string | undefined {
-  if (line < slice.start || line > slice.end) {
+  const outsideSlice = line < slice.start || line > slice.end;
+  if (outsideSlice) {
     return undefined;
   }
 
-  return slice.lines[line - slice.start];
+  const index = line - slice.start;
+  return slice.lines[index];
 }
 
 function readOffsetAfter(row: DiffLine, offset: number): number {

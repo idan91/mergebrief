@@ -97,7 +97,8 @@ function launchLanding(
 ): void {
   deps.cancel();
   const chunkId = deriveTargetChunkId(target);
-  if (options.open === true && chunkId !== undefined) {
+  const opensChunk = options.open === true && chunkId !== undefined;
+  if (opensChunk) {
     deps.openChunk(chunkId);
   }
 
@@ -133,25 +134,30 @@ function launchLanding(
       deps.cancel();
       return;
     }
-    element = refindLandingElement(target, element);
-    if (element !== undefined && !arrived) {
+    const found = refindLandingElement(target, element);
+    element = found;
+    const firstArrival = found !== undefined && !arrived;
+    if (firstArrival) {
       arrived = true;
-      arriveAt(target, options, element, deps.flash);
+      arriveAt(target, options, found, deps.flash);
     }
 
     const plan = planLanding(state, readLanding(element), request);
     const input = { element, chunkId, chunkWindows: deps.chunkWindows };
     const kept = performLandingAction(plan.action, input);
-    if (!kept || plan.next === undefined) {
+    const { next } = plan;
+    const ended = !kept || next === undefined;
+    if (ended) {
       end();
       return;
     }
 
-    const watching = plan.next.phase === LandingPhases.SETTLE;
-    if (watching && flight.removeAbort === undefined) {
+    const watching = next.phase === LandingPhases.SETTLE;
+    const armsAbort = watching && flight.removeAbort === undefined;
+    if (armsAbort) {
       flight.removeAbort = armLandingAbort(deps.cancel);
     }
-    state = plan.next;
+    state = next;
     flight.frame = window.requestAnimationFrame(step);
   };
   flight.timeout = window.setTimeout(step, 0);
@@ -221,7 +227,8 @@ export function useLanding({
 
   useEffect(() => {
     const parked = parkedRef.current;
-    if (inChangesScope || parked === undefined) {
+    const nothingToLaunch = inChangesScope || parked === undefined;
+    if (nothingToLaunch) {
       return;
     }
     launch(parked.target, parked.options);

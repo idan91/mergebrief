@@ -76,7 +76,8 @@ export function useDragSelection({
       if (drag === undefined) {
         return undefined;
       }
-      if (drag.current === index && drag.currentSide === side) {
+      const samePosition = drag.current === index && drag.currentSide === side;
+      if (samePosition) {
         return drag;
       }
       return { ...drag, current: index, currentSide: side };

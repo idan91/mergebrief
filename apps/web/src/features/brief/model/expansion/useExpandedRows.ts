@@ -67,10 +67,11 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
         ? NO_RANGES
         : stored
             .flatMap((edge) => edge.expansion.ranges)
-            .filter(
-              (range) =>
-                fileRows === undefined || !isExpansionCovered(fileRows, range),
-            ),
+            .filter((range) => {
+              const needsRead =
+                fileRows === undefined || !isExpansionCovered(fileRows, range);
+              return needsRead;
+            }),
     [stored, fileRows],
   );
   const lines = useFileRange({ source, path, ranges });

@@ -151,11 +151,11 @@ export function placeExpandableEdges(
 
 /** The other edge of the same gap: opposite direction, same lines. */
 function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
-  return (
+  const mirrored =
     left.edge.direction !== right.edge.direction &&
     left.start === right.start &&
-    left.end === right.end
-  );
+    left.end === right.end;
+  return mirrored;
 }
 
 function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
@@ -169,7 +169,8 @@ function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
     return inner.end === undefined;
   }
 
-  return inner.end !== undefined && inner.end <= outer.end;
+  const endsWithin = inner.end !== undefined && inner.end <= outer.end;
+  return endsWithin;
 }
 
 /**

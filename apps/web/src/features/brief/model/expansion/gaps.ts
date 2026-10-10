@@ -224,11 +224,11 @@ function reconcileGaps(
 }
 
 function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
-  return (
+  const mirrored =
     left.edge.direction !== right.edge.direction &&
     left.start === right.start &&
-    left.end === right.end
-  );
+    left.end === right.end;
+  return mirrored;
 }
 
 function isDownward(entry: ExpansionApplication): boolean {
@@ -546,7 +546,8 @@ function stopBelow(range: LineRange, blocked: readonly LineRange[]): LineRange {
   let end = range.end;
 
   for (const block of blocked) {
-    if (block.end < range.start || block.start > end) {
+    const disjoint = block.end < range.start || block.start > end;
+    if (disjoint) {
       continue;
     }
     end = Math.min(end, block.start - 1);
@@ -559,7 +560,8 @@ function stopAbove(range: LineRange, blocked: readonly LineRange[]): LineRange {
   let start = range.start;
 
   for (const block of blocked) {
-    if (block.start > range.end || block.end < start) {
+    const disjoint = block.start > range.end || block.end < start;
+    if (disjoint) {
       continue;
     }
     start = Math.max(start, block.end + 1);
@@ -609,7 +611,8 @@ function closesGap(gap: ExpansionGap, range: LineRange): boolean {
     return false;
   }
 
-  return range.start <= gap.start && range.end >= gap.end;
+  const spansGap = range.start <= gap.start && range.end >= gap.end;
+  return spansGap;
 }
 
 /**

@@ -103,16 +103,21 @@ export function useCreateBriefScreenStore(
   briefId: string,
   input: BriefScreenStoreInput,
 ): BriefScreenStore {
-  const storeRef = useRef<{ briefId: string; store: BriefScreenStore } | null>(
-    null,
-  );
-  if (storeRef.current === null || storeRef.current.briefId !== briefId) {
-    const mounting = storeRef.current === null;
-    const store = createBriefScreenStore({
-      openChunkIds: listChunkIds(input.model.groups),
-      focusMode: mounting && input.initialFocusMode,
-    });
-    storeRef.current = { briefId, store };
+  const storeRef = useRef<
+    { briefId: string; store: BriefScreenStore } | undefined
+  >(undefined);
+  const current = storeRef.current;
+  const reusable = current !== undefined && current.briefId === briefId;
+  if (reusable) {
+    return current.store;
   }
-  return storeRef.current.store;
+
+  const mounting = current === undefined;
+  const focusMode = mounting && input.initialFocusMode;
+  const store = createBriefScreenStore({
+    openChunkIds: listChunkIds(input.model.groups),
+    focusMode,
+  });
+  storeRef.current = { briefId, store };
+  return store;
 }

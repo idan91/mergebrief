@@ -41,10 +41,11 @@ function resolveGapForLines(
     const newLines = lines.map((line) =>
       side === DiffSides.OLD ? line - gap.offset : line,
     );
-    const inside = newLines.every(
-      (newLine) =>
-        newLine >= gap.start && (gap.end === undefined || newLine <= gap.end),
-    );
+    const inside = newLines.every((newLine) => {
+      const inGap =
+        newLine >= gap.start && (gap.end === undefined || newLine <= gap.end);
+      return inGap;
+    });
     if (!inside) {
       continue;
     }

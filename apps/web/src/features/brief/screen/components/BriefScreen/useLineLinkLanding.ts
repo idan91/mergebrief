@@ -179,7 +179,9 @@ export function useLineLinkLanding(
   const readIntoEdge = useCallback(
     async (path: string, read: LineLandingRead): Promise<LineReadOutcome> => {
       const known = fileRows?.getFileRows(path);
-      if (known !== undefined && isExpansionCovered(known, read.range)) {
+      const alreadyCovered =
+        known !== undefined && isExpansionCovered(known, read.range);
+      if (alreadyCovered) {
         expandEdge(read.edgeKey, read.range, undefined, path);
         return LineReadOutcomes.LANDED;
       }
@@ -253,7 +255,9 @@ export function useLineLinkLanding(
         miss();
         return;
       }
-      if (outcome === LineReadOutcomes.UNAVAILABLE && read.coversStart) {
+      const landsOnCard =
+        outcome === LineReadOutcomes.UNAVAILABLE && read.coversStart;
+      if (landsOnCard) {
         landOnCard(plan.chunk);
         return;
       }

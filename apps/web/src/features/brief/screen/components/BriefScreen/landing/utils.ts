@@ -31,7 +31,9 @@ import {
 
 /** The pinned stack's height plus the landing gap, read as one registered length. */
 export function readUnderStackTop(): number {
-  return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_LANDING_GAP_PX;
+  const underStackTop =
+    readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_LANDING_GAP_PX;
+  return underStackTop;
 }
 
 /** The chunk whose card holds the target; undefined outside the chunk lists. */
@@ -154,7 +156,8 @@ export function findFallbackCard(
   target: LandTarget,
   arrived: boolean,
 ): ChunkLandTarget | undefined {
-  if (arrived || target.kind !== LandTargetKinds.ROW) {
+  const concedes = !arrived && target.kind === LandTargetKinds.ROW;
+  if (!concedes) {
     return undefined;
   }
   return findMountedCard(target);

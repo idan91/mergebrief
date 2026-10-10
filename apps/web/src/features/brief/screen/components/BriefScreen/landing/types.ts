@@ -12,6 +12,8 @@ export const LandTargetKinds = {
   RAIL: "rail",
   SECTION: "section",
 } as const;
+/** @public */
+export type LandTargetKind = ValueOf<typeof LandTargetKinds>;
 
 export interface ChunkLandTarget {
   kind: typeof LandTargetKinds.CHUNK;
@@ -126,6 +128,8 @@ export const LandingPhases = {
   JUMP: "jump",
   SETTLE: "settle",
 } as const;
+/** @public */
+export type LandingPhase = ValueOf<typeof LandingPhases>;
 
 export interface DeferState {
   phase: typeof LandingPhases.DEFER;
@@ -178,6 +182,8 @@ export const LandingActionKinds = {
   ASK_WINDOWS: "ask-windows",
   SCROLL_BY: "scroll-by",
 } as const;
+/** @public */
+export type LandingActionKind = ValueOf<typeof LandingActionKinds>;
 
 export interface WaitAction {
   kind: typeof LandingActionKinds.WAIT;

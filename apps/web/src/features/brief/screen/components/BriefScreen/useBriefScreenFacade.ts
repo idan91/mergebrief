@@ -120,11 +120,10 @@ export function useBriefScreenFacade({
     review === undefined ? t(NO_REVIEW_REASON_KEY) : review.readOnly?.reason;
   const writesDisabledReason = reviewReason ?? frozenReason;
   const writesDisabled = writesDisabledReason !== undefined;
+  const staleOwnDraft = ownDraftActive && staleHead;
   const composerDisabledReason =
     writesDisabledReason ??
-    (ownDraftActive && staleHead
-      ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)
-      : undefined);
+    (staleOwnDraft ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY) : undefined);
 
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
   const readingPosition = useCreateReadingPositionStore(briefId);
@@ -197,14 +196,14 @@ export function useBriefScreenFacade({
   useEffect(() => {
     markScopeShown(scope);
   }, [markScopeShown, scope]);
-  const changesPaneMounted = useStore(
-    screen,
-    (state) => inChangesScope || state.shownScopes.has("changes"),
-  );
-  const storyPaneMounted = useStore(
-    screen,
-    (state) => !inChangesScope || state.shownScopes.has("full"),
-  );
+  const changesPaneMounted = useStore(screen, (state) => {
+    const mounted = inChangesScope || state.shownScopes.has("changes");
+    return mounted;
+  });
+  const storyPaneMounted = useStore(screen, (state) => {
+    const mounted = !inChangesScope || state.shownScopes.has("full");
+    return mounted;
+  });
 
   // A gesture from Changes scope leaves it with a history step and lands
   // once the story pane renders.

@@ -123,8 +123,14 @@ function buildFixtureScreenProps(
   return props;
 }
 
+export interface FixtureBriefScreenProps {
+  overrides: BriefViewOverrides;
+}
+
 /** BriefView over the brief fixture: the one place a test builds the screen's props. */
-export function FixtureBriefView(overrides: BriefViewOverrides): ReactElement {
+function FixtureBriefScreen({
+  overrides,
+}: FixtureBriefScreenProps): ReactElement {
   const reading = useBriefReading({
     brief: overrides.brief ?? briefFixture,
     briefId: overrides.briefId ?? briefSummaryFixture.id,
@@ -133,8 +139,21 @@ export function FixtureBriefView(overrides: BriefViewOverrides): ReactElement {
     repoConfig: overrides.repoConfig,
     revisions: overrides.revisions,
   });
+  const props = buildFixtureScreenProps(reading, overrides);
 
-  return <BriefView {...buildFixtureScreenProps(reading, overrides)} />;
+  return (
+    <BriefView
+      reading={props.reading}
+      address={props.address}
+      pr={props.pr}
+      review={props.review}
+      conversation={props.conversation}
+    />
+  );
+}
+
+export function FixtureBriefView(overrides: BriefViewOverrides): ReactElement {
+  return <FixtureBriefScreen overrides={overrides} />;
 }
 
 /** Mounts a test's own host around FixtureBriefView in the screen's shell. */
@@ -157,7 +176,7 @@ export async function mountBriefView(
   function Stage() {
     const [props, setState] = useState(overrides);
     setProps = setState;
-    return <FixtureBriefView {...props} />;
+    return <FixtureBriefScreen overrides={props} />;
   }
 
   const mounted = await mountBriefHost(<Stage />, options);

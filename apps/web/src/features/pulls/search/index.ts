@@ -22,7 +22,8 @@ function readPositiveInteger(value: unknown): number | undefined {
   if (typeof value === "string") {
     parsed = Number(value);
   }
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  const positiveInteger = Number.isInteger(parsed) && parsed > 0;
+  return positiveInteger ? parsed : undefined;
 }
 
 function readRevisionKeys(search: Record<string, unknown>): PrBriefSearch {
@@ -37,7 +38,8 @@ function readRevisionKeys(search: Record<string, unknown>): PrBriefSearch {
   if (isNonEmptyString(head)) {
     keys.head = head;
   }
-  if (isNonEmptyString(head) && isNonEmptyString(base)) {
+  const spanGiven = isNonEmptyString(head) && isNonEmptyString(base);
+  if (spanGiven) {
     keys.base = base;
   }
 
