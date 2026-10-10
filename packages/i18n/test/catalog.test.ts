@@ -85,6 +85,8 @@ describe("hard-fail catalog gates", () => {
       "brief.reanchorBanner.hint": 3,
       "shell.attach.hint": 1,
       "shell.signInPrompt": 1,
+      "shell.versionNotice.available": 1,
+      "shell.versionNotice.security": 1,
       "tokens.disclaimer": 1,
       "tokens.intro": 1,
     });
