@@ -2,13 +2,7 @@ import type { LineRange } from "brief-core/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { MAX_FILE_RANGE_LINES } from "contract";
 import type { TFunction } from "i18next";
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LineLinkTarget, LineSelection } from "@web/features/review/utils";
 import type { ReviewFlowActions } from "@web/features/review/session";
@@ -22,6 +16,7 @@ import {
 } from "../../types";
 import { isExpansionCovered } from "../../utils/expansion-rows";
 import type { FileRowsCache } from "../../utils/fileRows";
+import { AddressEventKinds, type AddressHandle } from "./address/types";
 import { LandHistories } from "./landing/types";
 import { collectSelectionRowIds, planLineLanding } from "./line-landing";
 import {
@@ -32,7 +27,6 @@ import {
   LineReadOutcomes,
 } from "./types";
 import type { JumpToChunkFromConversation } from "./useConversationWiring/types";
-import { deriveLineLink } from "./utils";
 
 export interface UseLineLinkLandingInput {
   briefId: string;
@@ -49,9 +43,8 @@ export interface UseLineLinkLandingInput {
   announce: (message: string) => void;
   /** The selection itself is on the page, so it is announced without a toast. */
   announceQuietly: (message: string) => void;
-  navigateLink: ((link: string | undefined) => void) | undefined;
-  /** Shared with the link sync: a landed link is the page's own now. */
-  writtenLink: RefObject<string | undefined>;
+  /** A miss drops the link through it. */
+  address: Pick<AddressHandle, "send">;
   t: TFunction;
 }
 
@@ -129,8 +122,7 @@ export function useLineLinkLanding(
     expandEdge,
     announce,
     announceQuietly,
-    navigateLink,
-    writtenLink,
+    address,
     t,
   } = input;
   const queryClient = useQueryClient();
@@ -154,10 +146,9 @@ export function useLineLinkLanding(
 
   const miss = useCallback(() => {
     setMissedFor(liveBriefId.current);
-    writtenLink.current = undefined;
-    navigateLink?.(undefined);
+    address.send({ kind: AddressEventKinds.LINE_LINK_MISSED });
     announce(t("brief.lineLink.missing"));
-  }, [announce, navigateLink, t, writtenLink]);
+  }, [address, announce, t]);
 
   const readStep = useCallback(
     async (path: string, read: LineLandingRead, step: LineRange) => {
@@ -246,7 +237,6 @@ export function useLineLinkLanding(
         return false;
       }
 
-      writtenLink.current = deriveLineLink(target);
       selectLines(buildSelection(plan, target));
       announceQuietly(
         target.startLine === target.endLine
@@ -258,7 +248,7 @@ export function useLineLinkLanding(
       );
       return true;
     },
-    [announceQuietly, jumpToChunkFromConversation, selectLines, t, writtenLink],
+    [announceQuietly, jumpToChunkFromConversation, selectLines, t],
   );
 
   const readThenLand = useCallback(

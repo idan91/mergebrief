@@ -1,94 +1,153 @@
-import { deriveLineLink, isLineLink, resolveLinkChunkId } from "../utils";
-import {
-  type AddressEvent,
-  AddressEventKinds,
-  type AddressOutcome,
-  type AddressState,
+import { useCallback, useEffect, useMemo, useRef } from "react";
+
+import { deriveAddress } from "./derive";
+import type {
+  Address,
+  AddressEvent,
+  AddressHandle,
+  AddressState,
+  UseAddressInput,
 } from "./types";
 
-interface LinkStep {
-  link: string | undefined;
+interface FieldWrite<Value> {
+  url: Value;
+  value: Value;
+}
+
+interface FieldStep<Value> {
+  write: boolean;
+  last: FieldWrite<Value> | undefined;
+}
+
+interface AddressMemory {
+  briefId: string;
   writtenLink: string | undefined;
+  lastLink: FieldWrite<string | undefined> | undefined;
+  lastFocus: FieldWrite<boolean> | undefined;
 }
 
-function followLineSelection(state: AddressState): LinkStep {
-  const { lineSelection, url, writtenLink } = state;
-  if (lineSelection !== undefined) {
-    const selected = deriveLineLink(lineSelection);
-    if (selected === writtenLink) {
-      return { link: url.link, writtenLink };
-    }
-    return { link: selected, writtenLink: selected };
-  }
-
-  if (!isLineLink(writtenLink)) {
-    return { link: url.link, writtenLink };
-  }
-  if (writtenLink === url.link) {
-    return { link: undefined, writtenLink: undefined };
-  }
-  return { link: url.link, writtenLink: undefined };
+function createMemory(briefId: string): AddressMemory {
+  return {
+    briefId,
+    writtenLink: undefined,
+    lastLink: undefined,
+    lastFocus: undefined,
+  };
 }
 
-function dropOwnChunkLink(state: AddressState, step: LinkStep): LinkStep {
-  const ownChunkLink =
-    step.link !== undefined &&
-    step.link === step.writtenLink &&
-    !isLineLink(step.link);
-  const focusLeft = !state.focusMode && state.url.focus;
-  const focusInChanges = state.focusMode && state.scope === "changes";
-  if (ownChunkLink && (focusLeft || focusInChanges)) {
-    return { link: undefined, writtenLink: undefined };
+/** A write the URL has not answered yet is not sent again. */
+function planFieldWrite<Value>(
+  next: Value,
+  url: Value,
+  last: FieldWrite<Value> | undefined,
+): FieldStep<Value> {
+  if (next === url) {
+    return { write: false, last: undefined };
   }
-  return step;
+  const repeated =
+    last !== undefined && last.url === url && last.value === next;
+  if (repeated) {
+    return { write: false, last };
+  }
+
+  return { write: true, last: { url, value: next } };
 }
 
-function followActiveChunk(state: AddressState, step: LinkStep): LinkStep {
-  const { activeChunkId } = state;
-  const following =
-    state.focusMode &&
-    state.lineSelection === undefined &&
-    state.scope === "full";
-  if (!following || activeChunkId === undefined) {
-    return step;
-  }
-
-  const named =
-    resolveLinkChunkId(step.link) === activeChunkId ||
-    resolveLinkChunkId(step.writtenLink) === activeChunkId;
-  if (named) {
-    return step;
-  }
-  return { link: activeChunkId, writtenLink: activeChunkId };
+function readAddressState(
+  input: UseAddressInput,
+  writtenLink: string | undefined,
+): AddressState {
+  return {
+    lineSelection: input.lineSelection,
+    focusMode: input.focusMode,
+    scope: input.scope,
+    activeChunkId: input.position.getState().activeChunkId ?? undefined,
+    url: input.url,
+    writtenLink,
+  };
 }
 
-function deriveEventStep(event: AddressEvent): LinkStep {
-  if (event.kind === AddressEventKinds.CHUNK_SHARED) {
-    return { link: event.chunkId, writtenLink: event.chunkId };
+function writeAddress(
+  input: UseAddressInput,
+  next: Address,
+  memory: AddressMemory,
+): void {
+  const link = planFieldWrite(next.link, input.url.link, memory.lastLink);
+  memory.lastLink = link.last;
+  if (link.write) {
+    input.navigateLink?.(next.link);
   }
-  return { link: undefined, writtenLink: undefined };
-}
 
-function deriveSteadyStep(state: AddressState): LinkStep {
-  const selected = followLineSelection(state);
-
-  return followActiveChunk(state, dropOwnChunkLink(state, selected));
+  const focus = planFieldWrite(next.focus, input.url.focus, memory.lastFocus);
+  memory.lastFocus = focus.last;
+  if (focus.write) {
+    input.setFocusParam?.(next.focus);
+  }
 }
 
 /**
- * The Address reading state asks for. An event answers alone; after a
- * CHUNK_SHARED the caller stands the line selection down before the next
- * derive, or the selection writes its lines back.
+ * The one writer of the `l` and `focus` params. Each change to the reading
+ * state or the URL derives the Address once and replaces only the fields
+ * that differ; what the page wrote is forgotten on every Brief.
  */
-export function deriveAddress(
-  state: AddressState,
-  event?: AddressEvent,
-): AddressOutcome {
-  const step =
-    event === undefined ? deriveSteadyStep(state) : deriveEventStep(event);
+export function useAddress(input: UseAddressInput): AddressHandle {
+  const latest = useRef(input);
+  latest.current = input;
+  const memory = useRef(createMemory(input.briefId));
+  if (memory.current.briefId !== input.briefId) {
+    memory.current = createMemory(input.briefId);
+  }
 
-  return {
-    address: { link: step.link, focus: state.focusMode },
-    writtenLink: step.writtenLink,
-  };
+  const apply = useCallback((event?: AddressEvent) => {
+    const current = latest.current;
+    const remembered = memory.current;
+    const state = readAddressState(current, remembered.writtenLink);
+
+    const outcome = deriveAddress(state, event);
+    remembered.writtenLink = outcome.writtenLink;
+    writeAddress(current, outcome.address, remembered);
+  }, []);
+
+  const {
+    briefId,
+    lineSelection,
+    focusMode,
+    scope,
+    position,
+    url,
+    navigateLink,
+    setFocusParam,
+  } = input;
+  useEffect(() => {
+    apply();
+  }, [
+    apply,
+    briefId,
+    lineSelection,
+    focusMode,
+    scope,
+    url.link,
+    url.focus,
+    navigateLink,
+    setFocusParam,
+  ]);
+  useEffect(
+    () =>
+      position.subscribe((state, previous) => {
+        if (state.activeChunkId !== previous.activeChunkId) {
+          apply();
+        }
+      }),
+    [apply, position],
+  );
+
+  return useMemo(
+    () => ({
+      send: (event: AddressEvent) => {
+        apply(event);
+      },
+      isOwnLink: (link: string) => memory.current.writtenLink === link,
+    }),
+    [apply],
+  );
 }

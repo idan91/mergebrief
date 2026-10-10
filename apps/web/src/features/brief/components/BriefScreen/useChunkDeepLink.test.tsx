@@ -2,9 +2,19 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AddressEventKinds } from "./address/types";
 import { useChunkDeepLink } from "./useChunkDeepLink";
 
 afterEach(cleanup);
+
+const UNPARSED = { kind: AddressEventKinds.LINK_UNPARSED };
+
+function stubAddress(ownLink?: string) {
+  return {
+    send: vi.fn(),
+    isOwnLink: (link: string) => link === ownLink,
+  };
+}
 
 describe("useChunkDeepLink", () => {
   it("lands once on the chunk the link names when the brief mounts", () => {
@@ -188,7 +198,7 @@ describe("useChunkDeepLink", () => {
         enabled: true,
         land: () => true,
         landLine,
-        writtenLink: { current: "c1.R12" },
+        address: stubAddress("c1.R12"),
       }),
     );
 
@@ -216,7 +226,7 @@ describe("useChunkDeepLink", () => {
   it("drops an unparseable link from the URL, once per brief", () => {
     const land = vi.fn(() => true);
     const landLine = vi.fn(() => true);
-    const navigateLink = vi.fn();
+    const address = stubAddress();
     const { rerender } = renderHook(
       ({ briefId }) =>
         useChunkDeepLink({
@@ -226,24 +236,24 @@ describe("useChunkDeepLink", () => {
           enabled: true,
           land,
           landLine,
-          navigateLink,
+          address,
         }),
       { initialProps: { briefId: "brief-a" } },
     );
     rerender({ briefId: "brief-a" });
 
-    expect(navigateLink).toHaveBeenCalledTimes(1);
-    expect(navigateLink).toHaveBeenCalledWith(undefined);
+    expect(address.send).toHaveBeenCalledTimes(1);
+    expect(address.send).toHaveBeenCalledWith(UNPARSED);
     expect(land).not.toHaveBeenCalled();
     expect(landLine).not.toHaveBeenCalled();
 
     rerender({ briefId: "brief-b" });
 
-    expect(navigateLink).toHaveBeenCalledTimes(2);
+    expect(address.send).toHaveBeenCalledTimes(2);
   });
 
   it("drops an unparseable link even while a thread owns the arrival", () => {
-    const navigateLink = vi.fn();
+    const address = stubAddress();
     renderHook(() =>
       useChunkDeepLink({
         briefId: "brief-a",
@@ -251,15 +261,15 @@ describe("useChunkDeepLink", () => {
         link: "c1/R12",
         enabled: false,
         land: () => true,
-        navigateLink,
+        address,
       }),
     );
 
-    expect(navigateLink).toHaveBeenCalledWith(undefined);
+    expect(address.send).toHaveBeenCalledWith(UNPARSED);
   });
 
   it("leaves a parseable link it cannot land yet in the URL", () => {
-    const navigateLink = vi.fn();
+    const address = stubAddress();
     renderHook(() =>
       useChunkDeepLink({
         briefId: "brief-a",
@@ -267,11 +277,11 @@ describe("useChunkDeepLink", () => {
         link: "c9",
         enabled: true,
         land: () => true,
-        navigateLink,
+        address,
       }),
     );
 
-    expect(navigateLink).not.toHaveBeenCalled();
+    expect(address.send).not.toHaveBeenCalled();
   });
 
   it("spends the one chance on the first link, not on a later one", () => {

@@ -20,6 +20,7 @@ import type { BriefSearchParams } from "../../comparison/compareState";
 import type { FileRangeResult } from "../../queries";
 import { type ComparisonMarks, FileRangeResultKinds } from "../../types";
 import { createFileRowsCache, type FileRowsCache } from "../../utils/fileRows";
+import { AddressEventKinds } from "./address/types";
 import { LandHistories } from "./landing/types";
 import type { ScopeExitOptions } from "./types";
 import { useLineLinkLanding } from "./useLineLinkLanding";
@@ -238,7 +239,7 @@ describe("useLineLinkLanding", () => {
       await Promise.resolve();
     });
 
-    expect(input.navigateLink).not.toHaveBeenCalled();
+    expect(input.address.send).not.toHaveBeenCalled();
     expect(input.announce).not.toHaveBeenCalled();
   });
 
@@ -285,7 +286,9 @@ describe("useLineLinkLanding", () => {
       await Promise.resolve();
     });
 
-    expect(input.navigateLink).toHaveBeenCalledWith(undefined);
+    expect(input.address.send).toHaveBeenCalledWith({
+      kind: AddressEventKinds.LINE_LINK_MISSED,
+    });
     expect(input.announce).toHaveBeenCalledWith("brief.lineLink.missing");
     expect(result.current.missed).toBe(true);
     expect(input.selectLines).not.toHaveBeenCalled();
@@ -351,8 +354,7 @@ function stubLineLinkInput() {
     expandEdge: vi.fn(),
     announce: vi.fn(),
     announceQuietly: vi.fn(),
-    navigateLink: vi.fn(),
-    writtenLink: { current: undefined },
+    address: { send: vi.fn() },
     t: ((key: string) => key) as unknown as TFunction,
   };
   return {

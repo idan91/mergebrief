@@ -1,6 +1,7 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { LineLinkTarget } from "@web/features/review/utils";
+import { AddressEventKinds, type AddressHandle } from "./address/types";
 import { LinkTargetKinds } from "./types";
 import { parseLinkParam } from "./utils";
 
@@ -18,10 +19,8 @@ export interface UseChunkDeepLinkInput {
   land: (chunkId: string) => boolean;
   /** Lands on the lines a line link names; the same false keeps the chance. */
   landLine?: ((target: LineLinkTarget) => boolean) | undefined;
-  /** The link this page last wrote itself; arriving on it is not an arrival. */
-  writtenLink?: RefObject<string | undefined> | undefined;
-  /** Replaces the link param; undefined drops it. */
-  navigateLink?: ((link: string | undefined) => void) | undefined;
+  /** A link this page wrote is no arrival; one that does not parse drops here. */
+  address?: AddressHandle | undefined;
 }
 
 /**
@@ -39,8 +38,7 @@ export function useChunkDeepLink({
   enabled,
   land,
   landLine,
-  writtenLink,
-  navigateLink,
+  address,
 }: UseChunkDeepLinkInput): void {
   const landedFor = useRef<string | undefined>(undefined);
 
@@ -48,14 +46,14 @@ export function useChunkDeepLink({
     if (landedFor.current === briefId || link === undefined) {
       return;
     }
-    if (writtenLink?.current === link) {
+    if (address?.isOwnLink(link) === true) {
       landedFor.current = briefId;
       return;
     }
     const parsed = parseLinkParam(link);
     if (!parsed.ok) {
       landedFor.current = briefId;
-      navigateLink?.(undefined);
+      address?.send({ kind: AddressEventKinds.LINK_UNPARSED });
       return;
     }
     if (!enabled) {
@@ -72,14 +70,5 @@ export function useChunkDeepLink({
     if (landLine !== undefined && landLine(parsed.value.lines)) {
       landedFor.current = briefId;
     }
-  }, [
-    briefId,
-    chunkIds,
-    enabled,
-    land,
-    landLine,
-    link,
-    navigateLink,
-    writtenLink,
-  ]);
+  }, [address, briefId, chunkIds, enabled, land, landLine, link]);
 }

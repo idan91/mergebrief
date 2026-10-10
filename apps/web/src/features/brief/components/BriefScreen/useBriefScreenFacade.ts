@@ -34,8 +34,10 @@ import { deriveVisibleRegions } from "./regions";
 import { useSidebarState } from "./Sidebar/useSidebarState";
 import type { BriefScreenProps, ChunkShare } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
+import { useAddress } from "./address";
+import { AddressEventKinds } from "./address/types";
 import { useChunkDeepLink } from "./useChunkDeepLink";
-import { useFocusAddress } from "./useFocusAddress";
+import { useFocusArrival } from "./useFocusArrival";
 import { useLineLinkLanding } from "./useLineLinkLanding";
 import {
   LandHistories,
@@ -56,10 +58,8 @@ import { useFocusPanel } from "./useFocusPanel";
 import { useReadingSession } from "./useReadingSession";
 import {
   buildReplyRecordingPlan,
-  deriveLineLink,
   deriveShareUrl,
   groupSinceMarkers,
-  isLineLink,
   resolveSidebarLayout,
 } from "./utils";
 
@@ -210,9 +210,6 @@ export function useBriefScreenFacade({
     jumpToGroup(groupId, LandHistories.PUSH);
   };
 
-  // The link param follows the selection with replace. The ref remembers
-  // what this page wrote, so a clear never drops a link the reader arrived on.
-  const writtenLinkRef = useRef<string | undefined>(undefined);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [screenBriefId, setScreenBriefId] = useState(briefId);
   if (screenBriefId !== briefId) {
@@ -220,7 +217,6 @@ export function useBriefScreenFacade({
     setSubmitOpen(false);
     changesEverShownRef.current = false;
     storyEverShownRef.current = false;
-    writtenLinkRef.current = undefined;
   }
 
   const inFlight = useInFlightDraftPosts();
@@ -255,39 +251,20 @@ export function useBriefScreenFacade({
     flowActions.clearLineSelection();
     flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
   };
-  useEffect(() => {
-    if (navigateLink === undefined) {
-      return;
-    }
-    const next =
-      lineSelection === null ? undefined : deriveLineLink(lineSelection);
-    const written = writtenLinkRef.current;
-    // A clear only takes back a line link still in the URL; a chunk link
-    // this page wrote outlives the selection it stood down.
-    const ownLineLink = isLineLink(written) && written === link;
-    if (next === undefined && !ownLineLink) {
-      if (isLineLink(written)) {
-        writtenLinkRef.current = undefined;
-      }
-      return;
-    }
-    if (written === next) {
-      return;
-    }
-    writtenLinkRef.current = next;
-    navigateLink(next);
-  }, [lineSelection, link, navigateLink]);
-  useFocusAddress({
+  const address = useAddress({
+    briefId,
+    lineSelection: lineSelection ?? undefined,
     focusMode,
-    focusInUrl: searchParams.focus === true,
-    setFocusParam,
-    link,
-    navigateLink,
-    writtenLink: writtenLinkRef,
-    chunkIds,
+    scope: compareState.view,
     position: readingPosition,
-    lineSelected: lineSelection !== null,
-    inChangesScope,
+    url: { link, focus: searchParams.focus === true },
+    navigateLink,
+    setFocusParam,
+  });
+  useFocusArrival({
+    focusInUrl: searchParams.focus === true,
+    link,
+    chunkIds,
     startReadThrough: session.startReadThrough,
   });
   const composerOpen = useStore(
@@ -400,8 +377,7 @@ export function useBriefScreenFacade({
     expandEdge: expansion.getState().actions.expandEdge,
     announce,
     announceQuietly: flowActions.announceQuietly,
-    navigateLink,
-    writtenLink: writtenLinkRef,
+    address,
     t,
   });
   useChunkDeepLink({
@@ -411,23 +387,20 @@ export function useBriefScreenFacade({
     enabled: conversationFocusThreadId === undefined,
     land: landOnDeepLink,
     landLine: lineLanding.landLine,
-    writtenLink: writtenLinkRef,
-    navigateLink,
+    address,
   });
 
-  // The chunk glyph: the URL names the chunk, so once it is copied a line
-  // selection stands down and its link goes with it; the write is the
-  // page's own.
+  // The chunk glyph: once the URL names the chunk, a line selection stands
+  // down in the same task, so it never writes its lines back.
   const commitChunkShare = useCallback(
     (chunkId: string): void => {
-      writtenLinkRef.current = chunkId;
+      address.send({ kind: AddressEventKinds.CHUNK_SHARED, chunkId });
       if (flowStore.getState().lineSelection !== null) {
         flowActions.clearLineSelection();
         flowActions.announceQuietly(t("review.announce.lineSelectionCleared"));
       }
-      navigateLink?.(chunkId);
     },
-    [flowActions, flowStore, navigateLink, t],
+    [address, flowActions, flowStore, t],
   );
   const shareChunk = useMemo<ChunkShare>(
     () => ({

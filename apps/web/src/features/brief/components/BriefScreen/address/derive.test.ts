@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DiffSides } from "types";
 import type { LineSelection } from "@web/features/review/utils";
-import { deriveAddress } from "./index";
+import { deriveAddress } from "./derive";
 import { AddressEventKinds, type AddressState } from "./types";
 
 const SELECTION: LineSelection = {
@@ -214,6 +214,26 @@ describe("deriveAddress", () => {
     expect(outcome.writtenLink).toBeUndefined();
   });
 
+  it("keeps its own line link on leaving Focus or entering Changes scope", () => {
+    const selectedInFocus = makeState({
+      lineSelection: SELECTION,
+      activeChunkId: "c1",
+      url: { link: SELECTION_LINK, focus: true },
+      writtenLink: SELECTION_LINK,
+    });
+    const left = deriveAddress(selectedInFocus);
+    const inChanges = deriveAddress({
+      ...selectedInFocus,
+      focusMode: true,
+      scope: "changes",
+    });
+
+    expect(left.address.link).toBe(SELECTION_LINK);
+    expect(left.writtenLink).toBe(SELECTION_LINK);
+    expect(inChanges.address.link).toBe(SELECTION_LINK);
+    expect(inChanges.writtenLink).toBe(SELECTION_LINK);
+  });
+
   it("focusMode differs from focus in URL", () => {
     const entered = deriveAddress(makeState({ focusMode: true }));
     const left = deriveAddress(
@@ -250,6 +270,16 @@ describe("deriveAddress", () => {
     const outcome = deriveAddress(
       makeState({ url: { link: "c9.R4", focus: false } }),
       { kind: AddressEventKinds.LINE_LINK_MISSED },
+    );
+
+    expect(outcome.address.link).toBeUndefined();
+    expect(outcome.writtenLink).toBeUndefined();
+  });
+
+  it("drops an arrived link that does not parse", () => {
+    const outcome = deriveAddress(
+      makeState({ url: { link: "c1 R12", focus: false } }),
+      { kind: AddressEventKinds.LINK_UNPARSED },
     );
 
     expect(outcome.address.link).toBeUndefined();
