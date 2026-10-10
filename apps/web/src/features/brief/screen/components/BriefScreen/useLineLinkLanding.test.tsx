@@ -18,14 +18,12 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefSearchParams } from "../../../model/comparison/compareState";
 import type { FileRangeResult } from "../../../queries";
-import {
-  type ComparisonMarks,
-  FileRangeResultKinds,
-} from "../../../model/types";
+import { type ComparisonMarks } from "../../../model/types";
+import { FileRangeResultKinds } from "../../../model/expansion/types";
 import {
   createFileRowsCache,
   type FileRowsCache,
-} from "../../../model/utils/fileRows";
+} from "../../../model/file-rows/cache";
 import { AddressEventKinds } from "./address/types";
 import { LandHistories } from "./landing/types";
 import type { ScopeExitOptions } from "./types";

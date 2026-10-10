@@ -3,8 +3,8 @@ import { createContext, useContext, useRef, type ReactNode } from "react";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { EdgeExpansion } from "../types";
-import { unionExpanded } from "../utils/expandRows";
+import type { EdgeExpansion } from "./types";
+import { unionExpanded } from "./gaps";
 
 export interface ExpansionState {
   /**

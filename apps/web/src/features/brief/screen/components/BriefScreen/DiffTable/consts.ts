@@ -1,11 +1,8 @@
 import type { SiblingSpan } from "../../../../model/utils/siblingSpans";
 import type { GuestRowResolution } from "../../../utils/guest-rows";
 import type { TranslationKey } from "i18n";
-import {
-  type ExpandableEdge,
-  type GuestRowReason,
-  GuestRowReasons,
-} from "../../../../model/types";
+import { type GuestRowReason, GuestRowReasons } from "../../../../model/types";
+import { type ExpandableEdge } from "../../../../model/expansion/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { SplitRow } from "@web/components/DiffRows/types";
 import type { DragSelection } from "./types";

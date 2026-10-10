@@ -7,7 +7,7 @@ import { Button } from "@web/components/Button";
 import type { BriefSearchParams } from "../../../model/comparison/compareState";
 import type { ComparisonMarks } from "../../../model/types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { createFileRowsCache } from "../../../model/utils/fileRows";
+import { createFileRowsCache } from "../../../model/file-rows/cache";
 import { FixtureBriefView, mountBriefHost } from "../../../test-utils";
 
 afterEach(() => {

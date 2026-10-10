@@ -1,9 +1,9 @@
 import { memo, useMemo } from "react";
 
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
-import { ExpansionProvider } from "../../../model/hooks/useExpansion";
-import { ExpansionSourceProvider } from "../../../model/hooks/useExpansionSource";
-import { FileRowsProvider } from "../../../model/hooks/useFileRows";
+import { ExpansionProvider } from "../../../model/expansion/useExpansion";
+import { ExpansionSourceProvider } from "../../../model/expansion/useExpansionSource";
+import { FileRowsProvider } from "../../../model/file-rows/useFileRows";
 import { ReviewPostureProvider } from "../../hooks/useReviewPosture";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";

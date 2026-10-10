@@ -12,8 +12,8 @@ import {
   resolveExpansionRange,
   spliceAllExpandedRows,
   spliceExpandedRows,
-} from "./expandRows";
-import { ExpansionDirections, type ExpansionGap } from "../types";
+} from "./gaps";
+import { ExpansionDirections, type ExpansionGap } from "./types";
 
 function makeHunk(oldStart: number, newStart: number): DiffLine {
   return {
@@ -47,9 +47,9 @@ function makeDel(oldLine: number): DiffLine {
   };
 }
 
-function makeLines(from: number, to: number): string[] {
+function makeLines(start: number, end: number): string[] {
   const lines: string[] = [];
-  for (let line = from; line <= to; line += 1) {
+  for (let line = start; line <= end; line += 1) {
     lines.push(`file ${String(line)}`);
   }
   return lines;
@@ -64,13 +64,13 @@ describe("findExpansionGaps", () => {
     expect(gaps).toEqual([
       {
         edge: { rowIndex: 1, direction: ExpansionDirections.UP },
-        from: 1,
-        to: 9,
+        start: 1,
+        end: 9,
         offset: 0,
       },
       {
         edge: { rowIndex: 3, direction: ExpansionDirections.DOWN },
-        from: 12,
+        start: 12,
         offset: -1,
       },
     ]);
@@ -86,19 +86,19 @@ describe("findExpansionGaps", () => {
     ];
 
     const gaps = findExpansionGaps(diff);
-    const inner = gaps.filter((gap) => gap.from === 2);
+    const inner = gaps.filter((gap) => gap.start === 2);
 
     expect(inner).toEqual([
       {
         edge: { rowIndex: 3, direction: ExpansionDirections.DOWN },
-        from: 2,
-        to: 38,
+        start: 2,
+        end: 38,
         offset: 1,
       },
       {
         edge: { rowIndex: 4, direction: ExpansionDirections.UP },
-        from: 2,
-        to: 38,
+        start: 2,
+        end: 38,
         offset: 1,
       },
     ]);
@@ -109,17 +109,17 @@ describe("findExpansionGaps", () => {
 
     const gaps = findExpansionGaps(diff);
 
-    expect(gaps.filter((gap) => gap.from === 2)).toEqual([
+    expect(gaps.filter((gap) => gap.start === 2)).toEqual([
       {
         edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-        from: 2,
-        to: 8,
+        start: 2,
+        end: 8,
         offset: 0,
       },
       {
         edge: { rowIndex: 2, direction: ExpansionDirections.UP },
-        from: 2,
-        to: 8,
+        start: 2,
+        end: 8,
         offset: 0,
       },
     ]);
@@ -132,8 +132,8 @@ describe("findExpansionGaps", () => {
 
     expect(gaps[0]).toEqual({
       edge: { rowIndex: 0, direction: ExpansionDirections.UP },
-      from: 1,
-      to: 4,
+      start: 1,
+      end: 4,
       offset: 5,
     });
   });
@@ -149,19 +149,19 @@ describe("findExpansionGaps", () => {
     ];
 
     const gaps = findExpansionGaps(diff);
-    const inner = gaps.filter((gap) => gap.from === 4);
+    const inner = gaps.filter((gap) => gap.start === 4);
 
     expect(inner).toEqual([
       {
         edge: { rowIndex: 4, direction: ExpansionDirections.DOWN },
-        from: 4,
-        to: 49,
+        start: 4,
+        end: 49,
         offset: -1,
       },
       {
         edge: { rowIndex: 4, direction: ExpansionDirections.UP },
-        from: 4,
-        to: 49,
+        start: 4,
+        end: 49,
         offset: -4,
       },
     ]);
@@ -172,7 +172,7 @@ describe("findExpansionGaps", () => {
 
     expect(findExpansionGaps(diff).at(-1)).toEqual({
       edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-      from: 7,
+      start: 7,
       offset: 4,
     });
   });
@@ -183,7 +183,7 @@ describe("findExpansionGaps", () => {
     expect(findExpansionGaps(diff)).toEqual([
       {
         edge: { rowIndex: 3, direction: ExpansionDirections.DOWN },
-        from: 4,
+        start: 4,
         offset: -1,
       },
     ]);
@@ -200,19 +200,19 @@ describe("findExpansionGaps at a run that opens on deletions", () => {
     ];
     const gaps = findExpansionGaps(diff);
     const up = gaps.find(
-      (gap) => gap.edge.direction === ExpansionDirections.UP && gap.from === 4,
+      (gap) => gap.edge.direction === ExpansionDirections.UP && gap.start === 4,
     );
 
     expect(up).toMatchObject({
       edge: { rowIndex: 2 },
-      from: 4,
-      to: 49,
+      start: 4,
+      end: 49,
       offset: -4,
     });
     const rows = spliceExpandedRows({
       diff,
       gap: up!,
-      slice: { from: 45, to: 49, lines: makeLines(45, 49) },
+      slice: { start: 45, end: 49, lines: makeLines(45, 49) },
     });
     expect(rows[2]).toMatchObject({
       kind: "ctx",
@@ -225,7 +225,7 @@ describe("findExpansionGaps at a run that opens on deletions", () => {
 
   it("keeps both edges above a deletion that belongs to the run below", () => {
     const diff = [makeCtx(2, 3), makeDel(46), makeCtx(47, 50)];
-    const gaps = findExpansionGaps(diff).filter((gap) => gap.from === 4);
+    const gaps = findExpansionGaps(diff).filter((gap) => gap.start === 4);
 
     expect(gaps.map((gap) => gap.edge.rowIndex)).toEqual([1, 1]);
     expect(gaps.map((gap) => gap.offset)).toEqual([-1, -4]);
@@ -243,8 +243,8 @@ describe("findExpansionGaps at a run that opens on deletions", () => {
 
     expect(first).toMatchObject({
       edge: { rowIndex: 0, direction: "up" },
-      from: 1,
-      to: 49,
+      start: 1,
+      end: 49,
       offset: -4,
     });
   });
@@ -254,13 +254,13 @@ describe("spliceAllExpandedRows on one gap from both sides", () => {
   const diff = [makeCtx(3, 3), makeHunk(50, 50), makeCtx(50, 50)];
 
   function readsFor(downTo: number) {
-    const [down, up] = findExpansionGaps(diff).filter((gap) => gap.from === 4);
+    const [down, up] = findExpansionGaps(diff).filter((gap) => gap.start === 4);
     return [
       {
         gap: down!,
-        slice: { from: 4, to: downTo, lines: makeLines(4, downTo) },
+        slice: { start: 4, end: downTo, lines: makeLines(4, downTo) },
       },
-      { gap: up!, slice: { from: 30, to: 49, lines: makeLines(30, 49) } },
+      { gap: up!, slice: { start: 30, end: 49, lines: makeLines(30, 49) } },
     ];
   }
 
@@ -294,13 +294,13 @@ describe("spliceAllExpandedRows on a gap whose run below opens on deletions", ()
   const diff = [makeCtx(2, 3), makeHunk(46, 50), makeDel(46), makeCtx(47, 50)];
 
   function readsFor(downTo: number) {
-    const [down, up] = findExpansionGaps(diff).filter((gap) => gap.from === 4);
+    const [down, up] = findExpansionGaps(diff).filter((gap) => gap.start === 4);
     return [
       {
         gap: down!,
-        slice: { from: 4, to: downTo, lines: makeLines(4, downTo) },
+        slice: { start: 4, end: downTo, lines: makeLines(4, downTo) },
       },
-      { gap: up!, slice: { from: 30, to: 49, lines: makeLines(30, 49) } },
+      { gap: up!, slice: { start: 30, end: 49, lines: makeLines(30, 49) } },
     ];
   }
 
@@ -345,48 +345,48 @@ describe("formatExpansionKey", () => {
 describe("resolveExpansionRange", () => {
   const gap: ExpansionGap = {
     edge: { rowIndex: 3, direction: ExpansionDirections.DOWN },
-    from: 10,
-    to: 200,
+    start: 10,
+    end: 200,
     offset: 0,
   };
 
   it("takes one step down from the top of the gap", () => {
-    expect(resolveExpansionRange({ gap })).toEqual({ from: 10, to: 29 });
+    expect(resolveExpansionRange({ gap })).toEqual({ start: 10, end: 29 });
   });
 
   it("continues below what is already expanded", () => {
     expect(
       resolveExpansionRange({ gap, expanded: { start: 10, end: 29 } }),
-    ).toEqual({ from: 30, to: 49 });
+    ).toEqual({ start: 30, end: 49 });
   });
 
   it("takes the whole remainder when a step or less is left", () => {
-    const short = { ...gap, to: 25 };
+    const short = { ...gap, end: 25 };
 
     expect(resolveExpansionRange({ gap: short })).toEqual({
-      from: 10,
-      to: 25,
+      start: 10,
+      end: 25,
     });
   });
 
   it("takes one step up from the bottom of the gap", () => {
     const upward: ExpansionGap = {
       edge: { rowIndex: 3, direction: ExpansionDirections.UP },
-      from: 10,
-      to: 200,
+      start: 10,
+      end: 200,
       offset: 0,
     };
 
     expect(resolveExpansionRange({ gap: upward })).toEqual({
-      from: 181,
-      to: 200,
+      start: 181,
+      end: 200,
     });
   });
 
   it("stops where the other edge of the gap already read", () => {
     expect(
       resolveExpansionRange({ gap, blocked: [{ start: 15, end: 40 }] }),
-    ).toEqual({ from: 10, to: 14 });
+    ).toEqual({ start: 10, end: 14 });
   });
 
   it("refuses an edge whose every line the other edge read", () => {
@@ -396,7 +396,7 @@ describe("resolveExpansionRange", () => {
   });
 
   it("refuses an edge with nothing left to read", () => {
-    const short = { ...gap, to: 12 };
+    const short = { ...gap, end: 12 };
 
     expect(
       resolveExpansionRange({ gap: short, expanded: { start: 10, end: 12 } }),
@@ -418,15 +418,15 @@ describe("spliceExpandedRows", () => {
     ];
     const gap: ExpansionGap = {
       edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 39,
+      start: 2,
+      end: 39,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 2, to: 4, lines: makeLines(2, 4) },
+      slice: { start: 2, end: 4, lines: makeLines(2, 4) },
     });
 
     expect(rows.slice(2, 5)).toEqual([
@@ -464,15 +464,15 @@ describe("spliceExpandedRows", () => {
     ];
     const gap: ExpansionGap = {
       edge: { rowIndex: 3, direction: ExpansionDirections.UP },
-      from: 2,
-      to: 39,
+      start: 2,
+      end: 39,
       offset: -2,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 38, to: 39, lines: makeLines(38, 39) },
+      slice: { start: 38, end: 39, lines: makeLines(38, 39) },
     });
 
     expect(rows.slice(3, 5).map((row) => [row.oldLine, row.newLine])).toEqual([
@@ -485,15 +485,15 @@ describe("spliceExpandedRows", () => {
     const diff = [makeCtx(1, 1), makeCtx(9, 9)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 8,
+      start: 2,
+      end: 8,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 1, to: 9, lines: makeLines(1, 9) },
+      slice: { start: 1, end: 9, lines: makeLines(1, 9) },
     });
 
     expect(rows.map((row) => row.newLine)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -503,15 +503,15 @@ describe("spliceExpandedRows", () => {
     const diff = [makeHunk(1, 1), makeCtx(1, 1), makeHunk(3, 3), makeCtx(3, 3)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 2,
+      start: 2,
+      end: 2,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 2, to: 2, lines: makeLines(2, 2) },
+      slice: { start: 2, end: 2, lines: makeLines(2, 2) },
     });
 
     expect(rows.map((row) => [row.kind, row.origin])).toEqual([
@@ -526,15 +526,15 @@ describe("spliceExpandedRows", () => {
     const diff = [makeHunk(1, 1), makeCtx(1, 1), makeHunk(9, 9), makeCtx(9, 9)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 8,
+      start: 2,
+      end: 8,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 2, to: 3, lines: makeLines(2, 3) },
+      slice: { start: 2, end: 3, lines: makeLines(2, 3) },
     });
 
     expect(rows.some((row) => row.kind === DiffLineKinds.HUNK)).toBe(true);
@@ -544,15 +544,15 @@ describe("spliceExpandedRows", () => {
     const diff = [makeCtx(1, 1), makeCtx(9, 9)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 8,
+      start: 2,
+      end: 8,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 20, to: 21, lines: makeLines(20, 21) },
+      slice: { start: 20, end: 21, lines: makeLines(20, 21) },
     });
 
     expect(rows).toEqual(diff);
@@ -562,15 +562,15 @@ describe("spliceExpandedRows", () => {
     const diff = [makeCtx(1, 1), makeCtx(30, 30)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
-      from: 2,
-      to: 29,
+      start: 2,
+      end: 29,
       offset: 0,
     };
 
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 2, to: 21, lines: makeLines(2, 21) },
+      slice: { start: 2, end: 21, lines: makeLines(2, 21) },
     });
 
     expect(rows.map((row) => row.newLine)).toEqual([
@@ -588,20 +588,20 @@ describe("spliceAllExpandedRows", () => {
       {
         gap: {
           edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
-          from: 2,
-          to: 8,
+          start: 2,
+          end: 8,
           offset: 0,
         },
-        slice: { from: 2, to: 3, lines: makeLines(2, 3) },
+        slice: { start: 2, end: 3, lines: makeLines(2, 3) },
       },
       {
         gap: {
           edge: { rowIndex: 2, direction: ExpansionDirections.DOWN },
-          from: 10,
-          to: 29,
+          start: 10,
+          end: 29,
           offset: 0,
         },
-        slice: { from: 10, to: 11, lines: makeLines(10, 11) },
+        slice: { start: 10, end: 11, lines: makeLines(10, 11) },
       },
     ]);
 
@@ -614,20 +614,20 @@ describe("spliceAllExpandedRows", () => {
       {
         gap: {
           edge: { rowIndex: 1, direction: ExpansionDirections.UP },
-          from: 2,
-          to: 29,
+          start: 2,
+          end: 29,
           offset: 0,
         },
-        slice: { from: 28, to: 29, lines: makeLines(28, 29) },
+        slice: { start: 28, end: 29, lines: makeLines(28, 29) },
       },
       {
         gap: {
           edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
-          from: 2,
-          to: 29,
+          start: 2,
+          end: 29,
           offset: 0,
         },
-        slice: { from: 2, to: 3, lines: makeLines(2, 3) },
+        slice: { start: 2, end: 3, lines: makeLines(2, 3) },
       },
     ]);
 
@@ -656,12 +656,12 @@ describe("spliceExpandedRows from the file's own rows", () => {
 
   it("splices a hunk's add and del rows where the range overlaps it", () => {
     const gap = findExpansionGaps(diff).find(
-      (candidate) => candidate.from === 1,
+      (candidate) => candidate.start === 1,
     )!;
     const rows = spliceExpandedRows({
       diff,
       gap,
-      slice: { from: 20, to: 39, lines: makeLines(20, 39) },
+      slice: { start: 20, end: 39, lines: makeLines(20, 39) },
       fileRows,
     });
 
@@ -682,11 +682,11 @@ describe("spliceExpandedRows from the file's own rows", () => {
 
   it("still drops the seam header when the reads meet through a hunk", () => {
     const gaps = findExpansionGaps(diff);
-    const up = gaps.find((gap) => gap.from === 1)!;
+    const up = gaps.find((gap) => gap.start === 1)!;
     const rows = spliceAllExpandedRows(diff, [
       {
         gap: up,
-        slice: { from: 1, to: 39, lines: makeLines(1, 39) },
+        slice: { start: 1, end: 39, lines: makeLines(1, 39) },
         fileRows,
       },
     ]);
@@ -701,30 +701,30 @@ describe("spliceExpandedRows from the file's own rows", () => {
 
   it("takes each side of a gap through a hunk once and drops the seam", () => {
     const gaps = findExpansionGaps(diff);
-    const up = gaps.find((gap) => gap.from === 1)!;
+    const up = gaps.find((gap) => gap.start === 1)!;
     const gappedDiff = [makeHunk(1, 1), makeCtx(1, 1), ...diff];
     const gapEdges = findExpansionGaps(gappedDiff);
     const down = gapEdges.find(
       (gap) =>
-        gap.from === 2 && gap.edge.direction === ExpansionDirections.DOWN,
+        gap.start === 2 && gap.edge.direction === ExpansionDirections.DOWN,
     )!;
     const upEdge = gapEdges.find(
-      (gap) => gap.from === 2 && gap.edge.direction === ExpansionDirections.UP,
+      (gap) => gap.start === 2 && gap.edge.direction === ExpansionDirections.UP,
     )!;
     const rows = spliceAllExpandedRows(gappedDiff, [
       {
         gap: down,
-        slice: { from: 2, to: 21, lines: makeLines(2, 21) },
+        slice: { start: 2, end: 21, lines: makeLines(2, 21) },
         fileRows,
       },
       {
         gap: upEdge,
-        slice: { from: 22, to: 39, lines: makeLines(22, 39) },
+        slice: { start: 22, end: 39, lines: makeLines(22, 39) },
         fileRows,
       },
     ]);
 
-    expect(up.from).toBe(1);
+    expect(up.start).toBe(1);
     expect(rows.filter((row) => row.kind === DiffLineKinds.HUNK)).toHaveLength(
       1,
     );

@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
-import { createFileRowsCache } from "../utils/fileRows";
+import { createFileRowsCache } from "./cache";
 import { FileRowsProvider, useFileRows } from "./useFileRows";
 
 describe("useFileRows", () => {

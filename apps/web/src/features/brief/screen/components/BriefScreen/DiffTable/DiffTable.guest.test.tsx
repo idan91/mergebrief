@@ -24,7 +24,7 @@ import {
 } from "@web/features/conversation/utils";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
-import type { ExpandedRows } from "../../../../model/hooks/useExpandedRows";
+import type { ExpandedRows } from "../../../../model/expansion/useExpandedRows";
 import { type Brief, type BriefChunk } from "../../../../model/types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { FileLineOwners } from "../../../../model/utils/lineOwner";

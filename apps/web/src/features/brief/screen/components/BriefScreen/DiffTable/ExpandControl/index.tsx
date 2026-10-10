@@ -7,17 +7,17 @@ import { useId, type MouseEvent, type ReactNode } from "react";
 import { IconButton } from "@web/components/IconButton";
 import {
   type ExpandableEdge,
+  type ExpandFailure,
   type ExpanderStep,
   ExpansionDirections,
   FileRangeResultKinds,
-} from "../../../../../model/types";
-import { resolveReachableLines } from "../../../../../model/utils/expansionState";
-import { EXPAND_STEP } from "../../../../../model/utils/expandRows";
+} from "../../../../../model/expansion/types";
+import { resolveReachableLines } from "../../../../../model/expansion/edges";
+import { EXPAND_STEP } from "../../../../../model/expansion/gaps";
 import {
   useExpandEdge,
   type ExpandEdgeControl,
-  type ExpandFailure,
-} from "../../../../../model/hooks/useExpandEdge";
+} from "../../../../../model/expansion/useExpandEdge";
 import { Icon } from "@web/components/Icon";
 import {
   IconNames,
@@ -55,8 +55,8 @@ const NO_EDGE: ExpandableEdge = {
   rowIndex: -1,
   gap: {
     edge: { rowIndex: -1, direction: ExpansionDirections.UP },
-    from: 1,
-    to: 0,
+    start: 1,
+    end: 0,
     offset: 0,
   },
   edgeKey: "",
@@ -224,7 +224,7 @@ async function startExpansion(
   const row = event.currentTarget.closest("tr");
   onExpanded({
     edgeKey: edge.edgeKey,
-    range: { start: step.range.from, end: step.range.to },
+    range: step.range,
     top: row?.getBoundingClientRect().top ?? 0,
     row,
   });
@@ -299,7 +299,7 @@ function resolveArrowLabel(
   if (step === undefined) {
     return "";
   }
-  const span = step.range.to - step.range.from + 1;
+  const span = step.range.end - step.range.start + 1;
   if (step.takesAll) {
     return t(isUp ? "brief.diff.expandAllUp" : "brief.diff.expandAllDown", {
       count: span,
@@ -345,8 +345,8 @@ function nearestEdge(
   const up = edges.find(
     (edge) => edge.gap.edge.direction === ExpansionDirections.UP,
   );
-  const downStart = down?.expansion?.range.end ?? down?.gap.from;
-  const upEnd = up?.expansion?.range.start ?? up?.gap.to;
+  const downStart = down?.expansion?.range.end ?? down?.gap.start;
+  const upEnd = up?.expansion?.range.start ?? up?.gap.end;
   const fromTop = downStart === undefined ? Infinity : nearestLine - downStart;
   const fromBottom = upEnd === undefined ? Infinity : upEnd - farthestLine;
 

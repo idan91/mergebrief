@@ -4,13 +4,13 @@ import {
   DiffLineKinds,
   DiffRowOrigins,
 } from "@web/utils/diffTokens/types";
+import type { LineRange } from "brief-core/types";
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type {
   CollectExpansionRowsParams,
-  ExpansionRange,
   FileRangeSlice,
   ExpansionRowSources,
-} from "../types";
+} from "./types";
 
 const HUNK_HEADER =
   /^@@ -(?<oldStart>\d+)(?:,\d+)? \+(?<newStart>\d+)(?:,\d+)? @@/;
@@ -113,10 +113,10 @@ function visitExpansionRows(
   const carried = collectCarriedDeletions(base);
   let oldOffset = 0;
   let anchor: number | undefined;
-  let nextReadLine = range.from;
+  let nextReadLine = range.start;
 
   const fillFromRead = (upTo: number): void => {
-    const last = Math.min(upTo, range.to);
+    const last = Math.min(upTo, range.end);
     while (nextReadLine <= last) {
       visitor.onReadLine(nextReadLine, oldOffset);
       nextReadLine += 1;
@@ -129,7 +129,7 @@ function visitExpansionRows(
       if (header === undefined) {
         continue;
       }
-      if (header.newStart > range.to) {
+      if (header.newStart > range.end) {
         break;
       }
 
@@ -141,8 +141,9 @@ function visitExpansionRows(
 
     if (row.kind === DiffLineKinds.DEL) {
       const anchorInRange =
-        anchor !== undefined && anchor >= range.from && anchor <= range.to;
-      const anchorAboveGap = anchor === gapStart - 1 && range.from === gapStart;
+        anchor !== undefined && anchor >= range.start && anchor <= range.end;
+      const anchorAboveGap =
+        anchor === gapStart - 1 && range.start === gapStart;
       const shown =
         (anchorInRange || anchorAboveGap) &&
         row.oldLine !== undefined &&
@@ -158,37 +159,37 @@ function visitExpansionRows(
     if (row.newLine === undefined) {
       continue;
     }
-    if (row.newLine > range.to) {
+    if (row.newLine > range.end) {
       break;
     }
 
     fillFromRead(row.newLine - 1);
-    if (row.newLine >= range.from) {
+    if (row.newLine >= range.start) {
       visitor.onFileRow(row);
       nextReadLine = row.newLine + 1;
     }
     anchor = row.newLine;
     oldOffset = readOffsetAfter(row, oldOffset);
   }
-  fillFromRead(range.to);
+  fillFromRead(range.end);
 }
 
 /** Whether every line of the range has a row in the file's diff. */
 export function isExpansionCovered(
   fileRows: readonly DiffLine[],
-  range: ExpansionRange,
+  range: LineRange,
 ): boolean {
   const covered = new Set<number>();
   for (const row of fileRows) {
     if (row.newLine === undefined || row.kind === DiffLineKinds.HUNK) {
       continue;
     }
-    if (row.newLine >= range.from && row.newLine <= range.to) {
+    if (row.newLine >= range.start && row.newLine <= range.end) {
       covered.add(row.newLine);
     }
   }
 
-  return covered.size === range.to - range.from + 1;
+  return covered.size === range.end - range.start + 1;
 }
 
 function collectCarriedDeletions(base: readonly DiffLine[]): Set<number> {
@@ -206,11 +207,11 @@ function readSliceLine(
   slice: FileRangeSlice,
   line: number,
 ): string | undefined {
-  if (line < slice.from || line > slice.to) {
+  if (line < slice.start || line > slice.end) {
     return undefined;
   }
 
-  return slice.lines[line - slice.from];
+  return slice.lines[line - slice.start];
 }
 
 function readOffsetAfter(row: DiffLine, offset: number): number {

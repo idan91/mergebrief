@@ -1,8 +1,12 @@
 import type { LineRange } from "brief-core/types";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import {
+  useQueries,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { FileRangeResultKinds } from "../types";
+import { FileRangeResultKinds, type FileRangeRead } from "./types";
 import {
   buildFileRangeQueryOptions,
   isFileRangeReadable,
@@ -48,19 +52,46 @@ export function useFileRange(input: UseFileRangeInput): FileRangeLines {
 export function useFileRangeReader(
   source: ExpansionSource | undefined,
   path: string,
-): (range: LineRange) => Promise<FileRangeResult | undefined> {
+): (range: LineRange) => Promise<FileRangeRead | undefined> {
   const queryClient = useQueryClient();
 
-  return async (range) => {
-    if (source === undefined) {
-      return undefined;
-    }
-    const params = buildParams(source, path, range);
-    if (!isFileRangeReadable(params)) {
-      return undefined;
-    }
+  return (range) => fetchFileRange(queryClient, source, path, range);
+}
 
-    return queryClient.fetchQuery(buildFileRangeQueryOptions(params));
+/**
+ * One range read through the query cache, undefined where no read can be
+ * made: no source, or a range the route refuses outright.
+ */
+export async function fetchFileRange(
+  queryClient: QueryClient,
+  source: ExpansionSource | undefined,
+  path: string,
+  range: LineRange,
+): Promise<FileRangeRead | undefined> {
+  if (source === undefined) {
+    return undefined;
+  }
+  const params = buildParams(source, path, range);
+  if (!isFileRangeReadable(params)) {
+    return undefined;
+  }
+
+  const result = await queryClient.fetchQuery(
+    buildFileRangeQueryOptions(params),
+  );
+  return readFileRangeResult(result);
+}
+
+function readFileRangeResult(result: FileRangeResult): FileRangeRead {
+  if (result.kind !== FileRangeResultKinds.READY) {
+    return { kind: result.kind };
+  }
+  const { from, to, totalLines } = result.range;
+
+  return {
+    kind: FileRangeResultKinds.READY,
+    range: { start: from, end: to },
+    totalLines,
   };
 }
 

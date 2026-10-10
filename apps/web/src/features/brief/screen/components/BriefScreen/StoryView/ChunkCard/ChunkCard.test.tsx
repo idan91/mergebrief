@@ -20,7 +20,7 @@ import {
 import {
   createExpansionStore,
   ExpansionProvider,
-} from "../../../../../model/hooks/useExpansion";
+} from "../../../../../model/expansion/useExpansion";
 import type { ComparisonOverlayState } from "../../../../../model/comparison/comparisonOverlay";
 import type { Brief, BriefChunk } from "../../../../../model/types";
 import { buildBriefViewModel } from "../../../../../model/utils/viewModel";

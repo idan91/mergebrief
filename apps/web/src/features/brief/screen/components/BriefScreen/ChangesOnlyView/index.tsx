@@ -30,7 +30,7 @@ import {
   type CompareParam,
 } from "../../../../model/comparison/types";
 import type { ComparisonQuery } from "../../../../model/comparison/comparisonQuery";
-import type { FileRowsCache } from "../../../../model/utils/fileRows";
+import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import { DeltaContext } from "../DeltaContext";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import { GuestDiff } from "./GuestDiff";

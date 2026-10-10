@@ -13,12 +13,11 @@ import {
   ExpansionDirections,
   type ExpansionEdge,
   type ExpansionGap,
-  type ExpansionRange,
   type FileRangeSlice,
   type ResolveExpansionRangeParams,
   type SpliceExpandedRowsParams,
-} from "../types";
-import { collectExpansionRows } from "./expansion-rows";
+} from "./types";
+import { collectExpansionRows } from "./rows";
 
 /** Lines one click reads; a gap with no more than this left opens whole. */
 export const EXPAND_STEP = 20;
@@ -100,7 +99,7 @@ export function findExpansionGaps(diff: readonly DiffLine[]): ExpansionGap[] {
  */
 export function resolveExpansionRange(
   params: ResolveExpansionRangeParams,
-): ExpansionRange | undefined {
+): LineRange | undefined {
   const direction = params.gap.edge.direction;
   const remaining = resolveRemaining(params.gap, params.expanded);
   if (remaining === undefined) {
@@ -128,12 +127,12 @@ export function spliceExpandedRows(
   params: SpliceExpandedRowsParams,
 ): DiffLine[] {
   const { diff, gap, slice } = params;
-  const limit = gap.to ?? Number.POSITIVE_INFINITY;
+  const limit = gap.end ?? Number.POSITIVE_INFINITY;
   const bounded = {
-    from: Math.max(slice.from, gap.from),
-    to: Math.min(slice.to, limit),
+    start: Math.max(slice.start, gap.start),
+    end: Math.min(slice.end, limit),
   };
-  if (bounded.from > bounded.to) {
+  if (bounded.start > bounded.end) {
     return [...diff];
   }
 
@@ -143,7 +142,7 @@ export function spliceExpandedRows(
       : collectExpansionRows({
           fileRows: params.fileRows,
           range: bounded,
-          gapStart: gap.from,
+          gapStart: gap.start,
           base: diff,
           slice,
         });
@@ -153,7 +152,10 @@ export function spliceExpandedRows(
 
   const index = gap.edge.rowIndex;
   const next = [...diff.slice(0, index), ...rows, ...diff.slice(index)];
-  const covered = { from: bounded.from, to: params.coveredTo ?? bounded.to };
+  const covered = {
+    start: bounded.start,
+    end: params.coveredTo ?? bounded.end,
+  };
   if (!closesGap(gap, covered)) {
     return next;
   }
@@ -224,8 +226,8 @@ function reconcileGaps(
 function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
   return (
     left.edge.direction !== right.edge.direction &&
-    left.from === right.from &&
-    left.to === right.to
+    left.start === right.start &&
+    left.end === right.end
   );
 }
 
@@ -238,33 +240,33 @@ function joinGapReads(
   down: ExpansionApplication,
   up: ExpansionApplication,
 ): ExpansionApplication[] {
-  const upFrom = Math.max(up.slice.from, down.slice.to + 1);
-  const clipped = { ...up, slice: sliceRange(up.slice, upFrom, up.slice.to) };
-  const meet = down.slice.to + 1 >= up.slice.from;
+  const upStart = Math.max(up.slice.start, down.slice.end + 1);
+  const clipped = { ...up, slice: sliceRange(up.slice, upStart, up.slice.end) };
+  const meet = down.slice.end + 1 >= up.slice.start;
   const covers =
-    down.gap.to !== undefined &&
-    down.slice.from <= down.gap.from &&
-    up.slice.to >= down.gap.to;
+    down.gap.end !== undefined &&
+    down.slice.start <= down.gap.start &&
+    up.slice.end >= down.gap.end;
   if (!meet || !covers) {
     return [down, clipped];
   }
 
-  return [{ ...down, coveredTo: up.slice.to }, clipped];
+  return [{ ...down, coveredTo: up.slice.end }, clipped];
 }
 
 function sliceRange(
   slice: FileRangeSlice,
-  from: number,
-  to: number,
+  start: number,
+  end: number,
 ): FileRangeSlice {
-  if (from > to) {
-    return { from, to, lines: [] };
+  if (start > end) {
+    return { start, end, lines: [] };
   }
 
   return {
-    from,
-    to,
-    lines: slice.lines.slice(from - slice.from, to - slice.from + 1),
+    start,
+    end,
+    lines: slice.lines.slice(start - slice.start, end - slice.start + 1),
   };
 }
 
@@ -305,14 +307,14 @@ function findInnerGaps(
     }
 
     const header = findHeaderBetween(diff, above.index, below.index);
-    const from = above.newLine + 1;
-    const to = below.newLine - 1;
+    const start = above.newLine + 1;
+    const end = below.newLine - 1;
     const runStart = findRunStart(diff, above.index, header);
     const downIndex = header ?? runStart;
     const down = { rowIndex: downIndex, direction: ExpansionDirections.DOWN };
     const up = { rowIndex: runStart, direction: ExpansionDirections.UP };
-    gaps.push(shapeGap(down, from, to, readOffset(trail, downIndex - 1)));
-    gaps.push(shapeGap(up, from, to, readRunOffset(diff, runStart, trail)));
+    gaps.push(shapeGap(down, start, end, readOffset(trail, downIndex - 1)));
+    gaps.push(shapeGap(up, start, end, readRunOffset(diff, runStart, trail)));
   }
 
   return gaps;
@@ -386,13 +388,13 @@ function readRunOffset(
 
 function shapeGap(
   edge: ExpansionEdge,
-  from: number,
-  to: number | undefined,
+  start: number,
+  end: number | undefined,
   offset: number,
 ): ExpansionGap {
-  const gap: ExpansionGap = { edge, from, offset };
-  if (to !== undefined) {
-    gap.to = to;
+  const gap: ExpansionGap = { edge, start, offset };
+  if (end !== undefined) {
+    gap.end = end;
   }
 
   return gap;
@@ -487,12 +489,12 @@ function findHeaderBetween(
 function resolveRemaining(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionRange | undefined {
+): LineRange | undefined {
   const range =
     gap.edge.direction === ExpansionDirections.DOWN
       ? resolveRemainingBelow(gap, expanded)
       : resolveRemainingAbove(gap, expanded);
-  if (range.from > range.to) {
+  if (range.start > range.end) {
     return undefined;
   }
 
@@ -502,99 +504,91 @@ function resolveRemaining(
 function resolveRemainingBelow(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionRange {
-  const from = expanded === undefined ? gap.from : expanded.end + 1;
+): LineRange {
+  const start = expanded === undefined ? gap.start : expanded.end + 1;
   // An open-ended tail has no known last line, so it can only ever take one
   // step: the read itself reports where the file ends.
-  const to = gap.to ?? from + EXPAND_STEP - 1;
+  const end = gap.end ?? start + EXPAND_STEP - 1;
 
-  return { from, to };
+  return { start, end };
 }
 
 function resolveRemainingAbove(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionRange {
-  const to = expanded === undefined ? (gap.to ?? gap.from) : expanded.start - 1;
+): LineRange {
+  const end =
+    expanded === undefined ? (gap.end ?? gap.start) : expanded.start - 1;
 
-  return { from: gap.from, to };
+  return { start: gap.start, end };
 }
 
 function applyStopRule(
-  range: ExpansionRange,
+  range: LineRange,
   direction: ExpansionDirection,
   blocked: readonly LineRange[],
-): ExpansionRange | undefined {
-  if (range.from > range.to) {
+): LineRange | undefined {
+  if (range.start > range.end) {
     return undefined;
   }
   const bounded =
     direction === ExpansionDirections.DOWN
       ? stopBelow(range, blocked)
       : stopAbove(range, blocked);
-  if (bounded.from > bounded.to) {
+  if (bounded.start > bounded.end) {
     return undefined;
   }
 
   return bounded;
 }
 
-function stopBelow(
-  range: ExpansionRange,
-  blocked: readonly LineRange[],
-): ExpansionRange {
-  let to = range.to;
+function stopBelow(range: LineRange, blocked: readonly LineRange[]): LineRange {
+  let end = range.end;
 
   for (const block of blocked) {
-    if (block.end < range.from || block.start > to) {
+    if (block.end < range.start || block.start > end) {
       continue;
     }
-    to = Math.min(to, block.start - 1);
+    end = Math.min(end, block.start - 1);
   }
 
-  return { from: range.from, to };
+  return { start: range.start, end };
 }
 
-function stopAbove(
-  range: ExpansionRange,
-  blocked: readonly LineRange[],
-): ExpansionRange {
-  let from = range.from;
+function stopAbove(range: LineRange, blocked: readonly LineRange[]): LineRange {
+  let start = range.start;
 
   for (const block of blocked) {
-    if (block.start > range.to || block.end < from) {
+    if (block.start > range.end || block.end < start) {
       continue;
     }
-    from = Math.max(from, block.end + 1);
+    start = Math.max(start, block.end + 1);
   }
 
-  return { from, to: range.to };
+  return { start, end: range.end };
 }
 
-function takeStep(
-  range: ExpansionRange,
-  direction: ExpansionDirection,
-): ExpansionRange {
-  const span = range.to - range.from + 1;
+function takeStep(range: LineRange, direction: ExpansionDirection): LineRange {
+  const span = range.end - range.start + 1;
   if (span <= EXPAND_STEP) {
     return range;
   }
   if (direction === ExpansionDirections.DOWN) {
-    return { from: range.from, to: range.from + EXPAND_STEP - 1 };
+    return { start: range.start, end: range.start + EXPAND_STEP - 1 };
   }
 
-  return { from: range.to - EXPAND_STEP + 1, to: range.to };
+  return { start: range.end - EXPAND_STEP + 1, end: range.end };
 }
 
 function buildExpandedRows(
-  range: ExpansionRange,
+  range: LineRange,
   slice: FileRangeSlice,
   offset: number,
 ): DiffLine[] {
   const rows: DiffLine[] = [];
 
-  for (let line = range.from; line <= range.to; line += 1) {
-    const content = slice.lines[line - slice.from];
+  for (let line = range.start; line <= range.end; line += 1) {
+    const content = slice.lines[line - slice.start];
     if (content === undefined) {
       continue;
     }
@@ -610,12 +604,12 @@ function buildExpandedRows(
   return rows;
 }
 
-function closesGap(gap: ExpansionGap, range: ExpansionRange): boolean {
-  if (gap.to === undefined) {
+function closesGap(gap: ExpansionGap, range: LineRange): boolean {
+  if (gap.end === undefined) {
     return false;
   }
 
-  return range.from <= gap.from && range.to >= gap.to;
+  return range.start <= gap.start && range.end >= gap.end;
 }
 
 /**

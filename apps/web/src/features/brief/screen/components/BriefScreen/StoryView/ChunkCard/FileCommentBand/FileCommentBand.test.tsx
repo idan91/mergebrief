@@ -26,7 +26,7 @@ import {
 import {
   createExpansionStore,
   ExpansionProvider,
-} from "../../../../../../model/hooks/useExpansion";
+} from "../../../../../../model/expansion/useExpansion";
 import type { ComparisonOverlayState } from "../../../../../../model/comparison/comparisonOverlay";
 import type {
   AddressedReviewComment,

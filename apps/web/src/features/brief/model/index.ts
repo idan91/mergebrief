@@ -48,7 +48,7 @@ export {
   parseUnifiedDiffPatch,
   splitUnifiedDiffByFile,
 } from "./utils/diffSlicing";
-export { createFileRowsCache } from "./utils/fileRows";
+export { createFileRowsCache } from "./file-rows/cache";
 export { resolveLegacyDeltaRedirect } from "./utils/legacyRedirect";
 export {
   GroupViewKinds,

@@ -43,7 +43,7 @@ import { isContextKind } from "@web/utils/diffTokens/utils";
 import {
   type ExpandableEdge,
   ExpansionDirections,
-} from "../../../../model/types";
+} from "../../../../model/expansion/types";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
 import {
   type DigestThreadRow,

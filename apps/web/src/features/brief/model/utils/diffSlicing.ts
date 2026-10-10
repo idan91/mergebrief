@@ -4,7 +4,7 @@
 import type { LineRange } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import type { Brief, BriefChunk } from "../types";
-import type { FileRowsCache } from "./fileRows";
+import type { FileRowsCache } from "../file-rows/cache";
 
 /**
  * Slice a file's parsed diff down to the rows a chunk claims: changed rows

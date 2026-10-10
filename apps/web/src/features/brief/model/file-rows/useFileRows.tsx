@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 
-import type { FileRowsCache } from "../utils/fileRows";
+import type { FileRowsCache } from "./cache";
 
 const FileRowsContext = createContext<FileRowsCache | undefined>(undefined);
 

@@ -4,15 +4,15 @@
 import type { LineRange } from "brief-core/types";
 import { type LineLinkTarget, rowId } from "@web/features/review/utils";
 import { type DiffLine } from "@web/utils/diffTokens/types";
+import { type BriefChunk } from "../../../model/types";
 import {
-  type BriefChunk,
   type ExpansionGap,
   ExpansionDirections,
-} from "../../../model/types";
+} from "../../../model/expansion/types";
 import {
   findExpansionGaps,
   formatExpansionKey,
-} from "../../../model/utils/expandRows";
+} from "../../../model/expansion/gaps";
 import { LineLandingKinds, type LineLandingPlan } from "./types";
 import { DiffSides, type DiffSide } from "types/comments";
 
@@ -43,7 +43,7 @@ function resolveGapForLines(
     );
     const inside = newLines.every(
       (newLine) =>
-        newLine >= gap.from && (gap.to === undefined || newLine <= gap.to),
+        newLine >= gap.start && (gap.end === undefined || newLine <= gap.end),
     );
     if (!inside) {
       continue;
@@ -52,8 +52,8 @@ function resolveGapForLines(
     const farthest = Math.max(...newLines);
     const distance =
       gap.edge.direction === ExpansionDirections.UP
-        ? (gap.to ?? nearest) - nearest
-        : farthest - gap.from;
+        ? (gap.end ?? nearest) - nearest
+        : farthest - gap.start;
     if (best === undefined || distance < best.distance) {
       best = { gap, newLines, distance };
     }
@@ -67,10 +67,10 @@ function shapeReadRange(match: GapMatch): LineRange {
   const nearest = Math.min(...match.newLines);
   const farthest = Math.max(...match.newLines);
   if (match.gap.edge.direction === ExpansionDirections.UP) {
-    return { start: nearest, end: match.gap.to ?? farthest };
+    return { start: nearest, end: match.gap.end ?? farthest };
   }
 
-  return { start: match.gap.from, end: farthest };
+  return { start: match.gap.start, end: farthest };
 }
 
 /**

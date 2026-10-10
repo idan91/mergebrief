@@ -2,8 +2,8 @@ import type { LineRange } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useMemo } from "react";
 
-import type { ExpandableEdge } from "../types";
-import { findExpansionGaps } from "../utils/expandRows";
+import type { ExpandableEdge } from "./types";
+import { findExpansionGaps } from "./gaps";
 import { resolveFileStatus } from "../utils/fileStatus";
 import {
   buildExpansionKey,
@@ -11,12 +11,12 @@ import {
   mapBaseIndexes,
   placeExpandableEdges,
   spliceStoredEdges,
-} from "../utils/expansionState";
-import { isExpansionCovered } from "../utils/expansion-rows";
+} from "./edges";
+import { isExpansionCovered } from "./rows";
 import { useFileRange } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
 import { useExpansion } from "./useExpansion";
-import { useFileRows } from "./useFileRows";
+import { useFileRows } from "../file-rows/useFileRows";
 
 export interface UseExpandedRowsInput {
   chunkId: string;
@@ -69,11 +69,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
             .flatMap((edge) => edge.expansion.ranges)
             .filter(
               (range) =>
-                fileRows === undefined ||
-                !isExpansionCovered(fileRows, {
-                  from: range.start,
-                  to: range.end,
-                }),
+                fileRows === undefined || !isExpansionCovered(fileRows, range),
             ),
     [stored, fileRows],
   );

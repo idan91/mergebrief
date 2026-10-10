@@ -8,19 +8,18 @@ import {
   type ExpansionApplication,
   ExpansionDirections,
   type ExpansionGap,
-  type ExpansionRange,
   type FileRangeSlice,
   type ResolveExpansionRangeParams,
   type SpliceStoredEdgesParams,
   type StoredEdge,
-} from "../types";
+} from "./types";
 import {
   EXPAND_STEP,
   formatExpansionKey,
   resolveExpansionRange,
   spliceAllExpandedRows,
-} from "./expandRows";
-import { countExpansionRows } from "./expansion-rows";
+} from "./gaps";
+import { countExpansionRows } from "./rows";
 
 /** The base gaps paired with what the store holds for each, if anything. */
 export function collectStoredEdges(
@@ -71,7 +70,7 @@ function sliceLines(
     content.push(lines.get(line) ?? "");
   }
 
-  return { from: range.start, to: range.end, lines: content };
+  return { start: range.start, end: range.end, lines: content };
 }
 
 /**
@@ -147,8 +146,8 @@ export function placeExpandableEdges(
 function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
   return (
     left.edge.direction !== right.edge.direction &&
-    left.from === right.from &&
-    left.to === right.to
+    left.start === right.start &&
+    left.end === right.end
   );
 }
 
@@ -156,14 +155,14 @@ function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
   if (outer.edge.direction !== inner.edge.direction) {
     return false;
   }
-  if (inner.from < outer.from) {
+  if (inner.start < outer.start) {
     return false;
   }
-  if (outer.to === undefined) {
-    return inner.to === undefined;
+  if (outer.end === undefined) {
+    return inner.end === undefined;
   }
 
-  return inner.to !== undefined && inner.to <= outer.to;
+  return inner.end !== undefined && inner.end <= outer.end;
 }
 
 /**
@@ -191,7 +190,7 @@ export function countExpandedRows(
       continue;
     }
     count += countExpansionRows(
-      { fileRows, range: { from: start, to: end }, gapStart: start, base },
+      { fileRows, range: expansion.range, gapStart: start, base },
       view,
     );
   }
@@ -241,11 +240,11 @@ export function resolveExpanderStep(
   if (bounded === undefined) {
     return undefined;
   }
-  const span = bounded.to - bounded.from + 1;
+  const span = bounded.end - bounded.start + 1;
   const openEnded =
-    edge.gap.to === undefined &&
+    edge.gap.end === undefined &&
     edge.gap.edge.direction === ExpansionDirections.DOWN;
-  const reachesEnd = edge.fileEnd !== undefined && bounded.to === edge.fileEnd;
+  const reachesEnd = edge.fileEnd !== undefined && bounded.end === edge.fileEnd;
 
   return {
     range: bounded,
@@ -255,27 +254,27 @@ export function resolveExpanderStep(
 
 /** Once any read has named the file end, the last step reads exactly to it. */
 function clampToFileEnd(
-  range: ExpansionRange,
+  range: LineRange,
   edge: ExpandableEdge,
-): ExpansionRange | undefined {
+): LineRange | undefined {
   if (edge.fileEnd === undefined) {
     return range;
   }
   if (edge.gap.edge.direction !== ExpansionDirections.DOWN) {
     return range;
   }
-  if (range.from > edge.fileEnd) {
+  if (range.start > edge.fileEnd) {
     return undefined;
   }
 
-  return { from: range.from, to: Math.min(range.to, edge.fileEnd) };
+  return { start: range.start, end: Math.min(range.end, edge.fileEnd) };
 }
 
 function isPastFileEnd(edge: ExpandableEdge): boolean {
   if (edge.gap.edge.direction !== ExpansionDirections.DOWN) {
     return false;
   }
-  if (edge.fileEnd !== undefined && edge.gap.from > edge.fileEnd) {
+  if (edge.fileEnd !== undefined && edge.gap.start > edge.fileEnd) {
     return true;
   }
   const expansion = edge.expansion;
@@ -297,8 +296,8 @@ export function resolveReachableLines(
   if (first === undefined) {
     return [];
   }
-  const gapStart = first.gap.from;
-  const gapEnd = first.gap.to ?? Number.POSITIVE_INFINITY;
+  const gapStart = first.gap.start;
+  const gapEnd = first.gap.end ?? Number.POSITIVE_INFINITY;
   const reachable: LineRange[] = [];
   const down = edges.find(
     (edge) => edge.gap.edge.direction === ExpansionDirections.DOWN,

@@ -9,7 +9,7 @@ import {
 } from "./queries";
 import type { LocalBriefSummary } from "./model/types";
 import { attachSlicedDiffs } from "./model/utils/diffSlicing";
-import { createFileRowsCache } from "./model/utils/fileRows";
+import { createFileRowsCache } from "./model/file-rows/cache";
 import { buildRevisionTimelineView } from "./model/utils/revision-timeline";
 import { buildBriefTimeline } from "./model/utils/timeline";
 import type { BriefAddressPort } from "./screen/components/BriefScreen/address/types";

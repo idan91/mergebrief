@@ -29,17 +29,17 @@ import {
   buildFileRangeQueryKey,
   type FileRangeResult,
 } from "../../../../queries";
-import { useExpandedRows } from "../../../../model/hooks/useExpandedRows";
+import { useExpandedRows } from "../../../../model/expansion/useExpandedRows";
 import {
   createExpansionStore,
   ExpansionProvider,
-} from "../../../../model/hooks/useExpansion";
+} from "../../../../model/expansion/useExpansion";
 import {
   ExpansionSourceProvider,
   type ExpansionSource,
-} from "../../../../model/hooks/useExpansionSource";
-import { FileRowsProvider } from "../../../../model/hooks/useFileRows";
-import type { FileRowsCache } from "../../../../model/utils/fileRows";
+} from "../../../../model/expansion/useExpansionSource";
+import { FileRowsProvider } from "../../../../model/file-rows/useFileRows";
+import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import type {
   FileLineOwners,
   LineTarget,

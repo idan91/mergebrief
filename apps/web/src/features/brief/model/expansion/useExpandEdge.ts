@@ -1,24 +1,17 @@
-import type { LineRange } from "brief-core/types";
 import { useState } from "react";
 
 import {
   FileRangeResultKinds,
   type ExpandableEdge,
+  type ExpandFailure,
   type ExpanderStep,
-  type FileRangeResultKind,
-} from "../types";
-import { resolveExpanderStep } from "../utils/expansionState";
-import { isExpansionCovered } from "../utils/expansion-rows";
+} from "./types";
+import { resolveExpanderStep } from "./edges";
+import { isExpansionCovered } from "./rows";
 import { useFileRangeReader } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
 import { useExpansionActions } from "./useExpansion";
-import { useFileRows } from "./useFileRows";
-
-/** Why an edge cannot expand; the file-range read's refusals, curated. */
-export type ExpandFailure = Exclude<
-  FileRangeResultKind,
-  typeof FileRangeResultKinds.READY
->;
+import { useFileRows } from "../file-rows/useFileRows";
 
 export interface UseExpandEdgeInput {
   edge: ExpandableEdge;
@@ -57,20 +50,13 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
     }
     // The diff already holds every line of this range: nothing to read.
     if (fileRows !== undefined && isExpansionCovered(fileRows, step.range)) {
-      const range: LineRange = {
-        start: step.range.from,
-        end: step.range.to,
-      };
-      expandEdge(edge.edgeKey, range, undefined, path);
+      expandEdge(edge.edgeKey, step.range, undefined, path);
       setFailure(undefined);
       return true;
     }
     setBusy(true);
     try {
-      const result = await readRange({
-        start: step.range.from,
-        end: step.range.to,
-      });
+      const result = await readRange(step.range);
       if (result === undefined) {
         return false;
       }
@@ -78,13 +64,9 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
         setFailure(result.kind);
         return false;
       }
-      // An empty range (from = totalLines + 1) records no line and still
+      // An empty range (start = totalLines + 1) records no line and still
       // pins the file end, which is what spends the edge.
-      const read: LineRange = {
-        start: result.range.from,
-        end: result.range.to,
-      };
-      expandEdge(edge.edgeKey, read, result.range.totalLines, path);
+      expandEdge(edge.edgeKey, result.range, result.totalLines, path);
       setFailure(undefined);
       return true;
     } catch (error) {

@@ -14,7 +14,7 @@ import type {
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { ValueOf, DiffSide } from "types";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
-import type { ExpandedRows } from "../../../../model/hooks/useExpandedRows";
+import type { ExpandedRows } from "../../../../model/expansion/useExpandedRows";
 import type { DiffRowView } from "./diffRowView";
 import type {
   FileLineOwners,

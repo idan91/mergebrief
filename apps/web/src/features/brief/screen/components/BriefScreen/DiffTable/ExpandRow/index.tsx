@@ -1,4 +1,4 @@
-import type { ExpandableEdge } from "../../../../../model/types";
+import type { ExpandableEdge } from "../../../../../model/expansion/types";
 import { ExpandControl, type ExpandedEvent } from "../ExpandControl";
 
 export interface ExpandRowProps {

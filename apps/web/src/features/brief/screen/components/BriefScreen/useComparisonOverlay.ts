@@ -38,7 +38,7 @@ import {
 import {
   createFileRowsCache,
   type FileRowsCache,
-} from "../../../model/utils/fileRows";
+} from "../../../model/file-rows/cache";
 import {
   buildBriefTimeline,
   type BriefTimeline,

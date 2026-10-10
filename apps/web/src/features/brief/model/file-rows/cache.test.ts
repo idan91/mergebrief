@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createFileRowsCache } from "./fileRows";
+import { createFileRowsCache } from "./cache";
 
 const APP_PATCH = [
   "diff --git a/src/app.ts b/src/app.ts",

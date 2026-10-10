@@ -19,7 +19,7 @@ import type {
   Brief,
   BriefChunk,
 } from "../../../../model/types";
-import { countExpandedRows } from "../../../../model/utils/expansionState";
+import { countExpandedRows } from "../../../../model/expansion/edges";
 import type { BriefViewModel } from "../../../../model/utils/viewModel";
 import type {
   DigestRow,
@@ -37,8 +37,8 @@ import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
-import { useExpansion } from "../../../../model/hooks/useExpansion";
-import { useFileRows } from "../../../../model/hooks/useFileRows";
+import { useExpansion } from "../../../../model/expansion/useExpansion";
+import { useFileRows } from "../../../../model/file-rows/useFileRows";
 import {
   type FileLineOwners,
   type LineTarget,

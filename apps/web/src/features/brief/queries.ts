@@ -23,7 +23,7 @@ import {
   getLocalRevisionChanges,
   getLocalRevisionNarrative,
 } from "./model/server/brief.functions";
-import { FileRangeResultKinds } from "./model/types";
+import { FileRangeResultKinds } from "./model/expansion/types";
 
 function stringField(value: unknown, key: string): string | undefined {
   if (typeof value !== "object" || value === null) {

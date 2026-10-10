@@ -8,7 +8,7 @@ import {
   sliceChunkDiff,
   splitUnifiedDiffByFile,
 } from "./diffSlicing";
-import { createFileRowsCache } from "./fileRows";
+import { createFileRowsCache } from "../file-rows/cache";
 import type { Brief, BriefChunk } from "../types";
 
 const PATCH = [

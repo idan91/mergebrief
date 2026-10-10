@@ -10,7 +10,7 @@ import {
 import { buildSnippetKey } from "@web/utils/diffTokens/utils";
 
 import type { ChunkComparisonView } from "../../../../../model/comparison/runs";
-import { useFileRows } from "../../../../../model/hooks/useFileRows";
+import { useFileRows } from "../../../../../model/file-rows/useFileRows";
 import type {
   AddressedReviewComment,
   BriefChunk,

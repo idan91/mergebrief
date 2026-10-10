@@ -1,8 +1,8 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
-import type { EdgeExpansion } from "../types";
-import { findExpansionGaps } from "./expandRows";
+import type { EdgeExpansion } from "./types";
+import { findExpansionGaps } from "./gaps";
 import {
   buildExpansionKey,
   collectStoredEdges,
@@ -11,7 +11,7 @@ import {
   placeExpandableEdges,
   resolveExpanderStep,
   spliceStoredEdges,
-} from "./expansionState";
+} from "./edges";
 
 // Old numbers run three ahead of new: a wrong offset would show here.
 const base: DiffLine[] = [
@@ -25,9 +25,9 @@ const base: DiffLine[] = [
   { kind: "ctx", content: "f", oldLine: 64, newLine: 61 },
 ];
 
-function stubLines(from: number, to: number): Map<number, string> {
+function stubLines(start: number, end: number): Map<number, string> {
   const lines = new Map<number, string>();
-  for (let line = from; line <= to; line += 1) {
+  for (let line = start; line <= end; line += 1) {
     lines.set(line, `L${line}`);
   }
   return lines;
@@ -114,7 +114,7 @@ describe("placeExpandableEdges", () => {
     );
 
     const top = placed.find((edge) => edge.edgeKey === "c1:1:up");
-    expect(top).toMatchObject({ rowIndex: 1, gap: { from: 1, to: 29 } });
+    expect(top).toMatchObject({ rowIndex: 1, gap: { start: 1, end: 29 } });
     expect(top?.expansion?.range).toEqual({ start: 10, end: 29 });
     const lower = placed.find((edge) => edge.edgeKey === "c1:6:up");
     expect(lower).toMatchObject({ rowIndex: 26, expansion: undefined });
@@ -129,11 +129,11 @@ describe("resolveExpanderStep", () => {
     const lower = placed.find((edge) => edge.edgeKey === "c1:6:up")!;
 
     expect(resolveExpanderStep(top)).toEqual({
-      range: { from: 10, to: 29 },
+      range: { start: 10, end: 29 },
       takesAll: false,
     });
     expect(resolveExpanderStep(lower)).toEqual({
-      range: { from: 40, to: 59 },
+      range: { start: 40, end: 59 },
       takesAll: false,
     });
   });
@@ -155,7 +155,7 @@ describe("resolveExpanderStep", () => {
     const tail = placed.find((edge) => edge.edgeKey === "c1:8:down")!;
 
     expect(resolveExpanderStep(tail)).toEqual({
-      range: { from: 62, to: 81 },
+      range: { start: 62, end: 81 },
       takesAll: false,
     });
   });
@@ -231,8 +231,8 @@ describe("two edges of one gap", () => {
     const edge = placed.find((candidate) => candidate.edgeKey === edgeKey)!;
     const step = resolveExpanderStep(edge)!;
     const current = edges.get(edgeKey)?.range;
-    const start = Math.min(current?.start ?? Infinity, step.range.from);
-    const end = Math.max(current?.end ?? -Infinity, step.range.to);
+    const start = Math.min(current?.start ?? Infinity, step.range.start);
+    const end = Math.max(current?.end ?? -Infinity, step.range.end);
     edges.set(edgeKey, stubExpansion(start, end));
     return { step, spliced };
   }
@@ -242,11 +242,11 @@ describe("two edges of one gap", () => {
     const down = "c1:2:down";
     const up = "c1:3:up";
 
-    expect(click(edges, down).step.range).toEqual({ from: 100, to: 119 });
-    expect(click(edges, up).step.range).toEqual({ from: 125, to: 144 });
+    expect(click(edges, down).step.range).toEqual({ start: 100, end: 119 });
+    expect(click(edges, up).step.range).toEqual({ start: 125, end: 144 });
     const last = click(edges, down);
     expect(last.step).toEqual({
-      range: { from: 120, to: 124 },
+      range: { start: 120, end: 124 },
       takesAll: true,
     });
 
@@ -276,7 +276,7 @@ describe("file end", () => {
       findExpansionGaps(TAIL_ONLY),
       new Map(),
       3,
-    ).find((candidate) => candidate.gap.to === undefined);
+    ).find((candidate) => candidate.gap.end === undefined);
 
     expect(edge?.fileEnd).toBe(3);
     expect(edge && resolveExpanderStep(edge)).toBeUndefined();
@@ -289,10 +289,10 @@ describe("file end", () => {
       findExpansionGaps(TAIL_ONLY),
       new Map(),
       12,
-    ).find((candidate) => candidate.gap.to === undefined);
+    ).find((candidate) => candidate.gap.end === undefined);
 
     expect(edge && resolveExpanderStep(edge)).toEqual({
-      range: { from: 4, to: 12 },
+      range: { start: 4, end: 12 },
       takesAll: true,
     });
   });
@@ -304,11 +304,11 @@ describe("file end", () => {
       findExpansionGaps(TAIL_ONLY),
       new Map(),
       40,
-    ).find((candidate) => candidate.gap.to === undefined);
+    ).find((candidate) => candidate.gap.end === undefined);
 
     expect(edge && resolveExpanderStep(edge)?.range).toEqual({
-      from: 4,
-      to: 23,
+      start: 4,
+      end: 23,
     });
   });
 });

@@ -5,7 +5,7 @@ import {
   collectExpansionRows,
   countExpansionRows,
   isExpansionCovered,
-} from "./expansion-rows";
+} from "./rows";
 
 // Three deletions in the first hunk put old numbers three ahead of new.
 const FILE_ROWS: DiffLine[] = [
@@ -23,19 +23,19 @@ const FILE_ROWS: DiffLine[] = [
   { kind: "ctx", content: "d", oldLine: 35, newLine: 32 },
 ];
 
-function stubSlice(from: number, to: number) {
+function stubSlice(start: number, end: number) {
   const lines: string[] = [];
-  for (let line = from; line <= to; line += 1) {
+  for (let line = start; line <= end; line += 1) {
     lines.push(`L${String(line)}`);
   }
-  return { from, to, lines };
+  return { start, end, lines };
 }
 
 describe("collectExpansionRows", () => {
   it("takes a hunk's real rows with the diff's own numbers", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 10, to: 12 },
+      range: { start: 10, end: 12 },
       gapStart: 1,
       base: [],
       slice: stubSlice(10, 12),
@@ -72,7 +72,7 @@ describe("collectExpansionRows", () => {
   it("fills lines no hunk covers from the range, numbered by the hunk trail", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 8, to: 14 },
+      range: { start: 8, end: 14 },
       gapStart: 1,
       base: [],
       slice: stubSlice(8, 14),
@@ -97,7 +97,7 @@ describe("collectExpansionRows", () => {
   it("keeps a deletion whose anchor line sits just above the gap's top", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 11, to: 12 },
+      range: { start: 11, end: 12 },
       gapStart: 11,
       base: [],
       slice: stubSlice(11, 12),
@@ -115,7 +115,7 @@ describe("collectExpansionRows", () => {
   it("leaves a deletion above the range out when the gap starts lower", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 11, to: 12 },
+      range: { start: 11, end: 12 },
       gapStart: 5,
       base: [],
       slice: stubSlice(11, 12),
@@ -127,7 +127,7 @@ describe("collectExpansionRows", () => {
   it("never repeats a deletion the chunk already carries", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 10, to: 12 },
+      range: { start: 10, end: 12 },
       gapStart: 1,
       base: [{ kind: DiffLineKinds.DEL, content: "gone 12", oldLine: 12 }],
       slice: stubSlice(10, 12),
@@ -141,10 +141,10 @@ describe("collectExpansionRows", () => {
   it("skips a range line the read did not deliver", () => {
     const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      range: { from: 40, to: 42 },
+      range: { start: 40, end: 42 },
       gapStart: 33,
       base: [],
-      slice: { from: 40, to: 41, lines: ["L40", "L41"] },
+      slice: { start: 40, end: 41, lines: ["L40", "L41"] },
     });
 
     expect(rows.map((row) => [row.oldLine, row.newLine])).toEqual([
@@ -156,20 +156,20 @@ describe("collectExpansionRows", () => {
 
 describe("isExpansionCovered", () => {
   it("is true when every line of the range has a row in the file diff", () => {
-    expect(isExpansionCovered(FILE_ROWS, { from: 10, to: 12 })).toBe(true);
-    expect(isExpansionCovered(FILE_ROWS, { from: 30, to: 32 })).toBe(true);
+    expect(isExpansionCovered(FILE_ROWS, { start: 10, end: 12 })).toBe(true);
+    expect(isExpansionCovered(FILE_ROWS, { start: 30, end: 32 })).toBe(true);
   });
 
   it("is false when any line falls between hunks", () => {
-    expect(isExpansionCovered(FILE_ROWS, { from: 12, to: 13 })).toBe(false);
-    expect(isExpansionCovered(FILE_ROWS, { from: 40, to: 41 })).toBe(false);
+    expect(isExpansionCovered(FILE_ROWS, { start: 12, end: 13 })).toBe(false);
+    expect(isExpansionCovered(FILE_ROWS, { start: 40, end: 41 })).toBe(false);
   });
 });
 
 describe("countExpansionRows", () => {
   const params = {
     fileRows: FILE_ROWS,
-    range: { from: 8, to: 14 },
+    range: { start: 8, end: 14 },
     gapStart: 1,
     base: [],
   };
@@ -179,7 +179,7 @@ describe("countExpansionRows", () => {
   });
 
   it("pairs a deletion run with the addition run after it in split", () => {
-    const range = { from: 30, to: 32 };
+    const range = { start: 30, end: 32 };
     const built = collectExpansionRows({
       ...params,
       range,

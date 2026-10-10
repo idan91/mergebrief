@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { BriefChunk, ExpandableEdge } from "../../../../model/types";
+import type { BriefChunk } from "../../../../model/types";
+import type { ExpandableEdge } from "../../../../model/expansion/types";
 import type { DiffRowView } from "./diffRowView";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import type { SiblingSpan } from "../../../../model/utils/siblingSpans";

@@ -12,8 +12,8 @@ import {
   ExpansionSourceProvider,
   type ExpansionSource,
 } from "./useExpansionSource";
-import { FileRowsProvider } from "./useFileRows";
-import type { FileRowsCache } from "../utils/fileRows";
+import { FileRowsProvider } from "../file-rows/useFileRows";
+import type { FileRowsCache } from "../file-rows/cache";
 
 const HEAD = "b".repeat(40);
 const SOURCE: ExpansionSource = { repoId: "repo-1", prNumber: 7, ref: HEAD };
@@ -100,7 +100,7 @@ describe("useExpandedRows", () => {
     expect(result.current.baseIndexOf).toEqual([0, -1, -1, -1, -1, -1, 1, 2]);
     expect(result.current.expansionKey).toBe("c1:1:up=25-29");
     const up = result.current.edges.find((edge) => edge.edgeKey === "c1:1:up");
-    expect(up).toMatchObject({ rowIndex: 1, gap: { from: 1, to: 29 } });
+    expect(up).toMatchObject({ rowIndex: 1, gap: { start: 1, end: 29 } });
   });
 
   it("splices a hunk's rows from the file diff without a range read", () => {

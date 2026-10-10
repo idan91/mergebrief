@@ -17,16 +17,16 @@ import type { BriefSearchParams } from "../../../model/comparison/compareState";
 import type {
   Brief,
   BriefChunk,
-  ExpansionDirection,
   LivePrState,
   LocalBriefSummary,
   MarkReadyAction,
   PostCommentResult,
   RevisionTimelinePlan,
 } from "../../../model/types";
+import type { ExpansionDirection } from "../../../model/expansion/types";
 import type { LineTarget } from "../../../model/utils/lineOwner";
 import type { BriefViewModel } from "../../../model/utils/viewModel";
-import type { FileRowsCache } from "../../../model/utils/fileRows";
+import type { FileRowsCache } from "../../../model/file-rows/cache";
 import type { RepoConfigContext } from "../../../model/utils/repoConfig";
 import type { BriefAddressPort } from "./address/types";
 import type { BriefComparisonPlan } from "./useComparisonOverlay";

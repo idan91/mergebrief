@@ -6,19 +6,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LineLinkTarget, LineSelection } from "@web/features/review/utils";
 import type { ReviewFlowActions } from "@web/features/review/session";
-import type { ExpansionActions } from "../../../model/hooks/useExpansion";
-import type { ExpansionSource } from "../../../model/hooks/useExpansionSource";
+import type { ExpansionActions } from "../../../model/expansion/useExpansion";
+import type { ExpansionSource } from "../../../model/expansion/useExpansionSource";
+import { fetchFileRange } from "../../../model/expansion/useFileRange";
+import { type BriefChunk } from "../../../model/types";
 import {
-  buildFileRangeQueryOptions,
-  isFileRangeReadable,
-} from "../../../queries";
-import {
-  type BriefChunk,
   ExpansionDirections,
   FileRangeResultKinds,
-} from "../../../model/types";
-import { isExpansionCovered } from "../../../model/utils/expansion-rows";
-import type { FileRowsCache } from "../../../model/utils/fileRows";
+} from "../../../model/expansion/types";
+import { isExpansionCovered } from "../../../model/expansion/rows";
+import type { FileRowsCache } from "../../../model/file-rows/cache";
 import { AddressEventKinds, type AddressHandle } from "./address/types";
 import { LandHistories } from "./landing/types";
 import { collectSelectionRowIds, planLineLanding } from "./line-landing";
@@ -155,35 +152,21 @@ export function useLineLinkLanding(
 
   const readStep = useCallback(
     async (path: string, read: LineLandingRead, step: LineRange) => {
-      if (expansionSource === undefined) {
-        return LineReadOutcomes.UNAVAILABLE;
-      }
-      const params = {
-        ...expansionSource,
-        path,
-        from: step.start,
-        to: step.end,
-      };
-      if (!isFileRangeReadable(params)) {
-        return LineReadOutcomes.UNAVAILABLE;
-      }
       try {
-        const result = await queryClient.fetchQuery(
-          buildFileRangeQueryOptions(params),
+        const result = await fetchFileRange(
+          queryClient,
+          expansionSource,
+          path,
+          step,
         );
-        if (result.kind !== FileRangeResultKinds.READY) {
+        if (result?.kind !== FileRangeResultKinds.READY) {
           return LineReadOutcomes.UNAVAILABLE;
         }
         // The source clamps to the file's end: a line past it is not there.
-        if (result.range.to < step.end) {
+        if (result.range.end < step.end) {
           return LineReadOutcomes.SHORT;
         }
-        expandEdge(
-          read.edgeKey,
-          { start: result.range.from, end: result.range.to },
-          result.range.totalLines,
-          path,
-        );
+        expandEdge(read.edgeKey, result.range, result.totalLines, path);
         return LineReadOutcomes.LANDED;
       } catch (error) {
         console.error(error);
@@ -196,8 +179,7 @@ export function useLineLinkLanding(
   const readIntoEdge = useCallback(
     async (path: string, read: LineLandingRead): Promise<LineReadOutcome> => {
       const known = fileRows?.getFileRows(path);
-      const whole = { from: read.range.start, to: read.range.end };
-      if (known !== undefined && isExpansionCovered(known, whole)) {
+      if (known !== undefined && isExpansionCovered(known, read.range)) {
         expandEdge(read.edgeKey, read.range, undefined, path);
         return LineReadOutcomes.LANDED;
       }

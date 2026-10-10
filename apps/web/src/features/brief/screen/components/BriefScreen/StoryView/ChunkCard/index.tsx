@@ -15,7 +15,7 @@ import type {
   BriefChunk,
   RiskToken,
 } from "../../../../../model/types";
-import { useExpandedRows } from "../../../../../model/hooks/useExpandedRows";
+import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
 import { resolveFileStatus } from "../../../../../model/utils/fileStatus";
 import type {
   FileLineOwners,

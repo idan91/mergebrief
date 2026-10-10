@@ -21,7 +21,7 @@ import {
   ViewportBands,
 } from "@web/hooks/useViewportBoundary";
 import { DiffViews } from "@web/components/DiffRows/types";
-import { useCreateExpansionStore } from "../../../model/hooks/useExpansion";
+import { useCreateExpansionStore } from "../../../model/expansion/useExpansion";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
@@ -47,7 +47,7 @@ import {
   LandPlacements,
   LandTargetKinds,
 } from "./landing/types";
-import type { ExpansionSource } from "../../../model/hooks/useExpansionSource";
+import type { ExpansionSource } from "../../../model/expansion/useExpansionSource";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
