@@ -214,7 +214,7 @@ export function PrBriefContent({
       searchDiff,
     ],
   );
-  const openDeltaLens = useCallback(() => {
+  const openComparison = useCallback(() => {
     const flags = {
       previousBrief: previousBriefAvailable,
       lastReview: lastReviewAvailable,
@@ -350,7 +350,7 @@ export function PrBriefContent({
         address={address}
         // Live webhook state, the badge never shows the artifact's stale
         // snapshot.
-        pr={{ livePrState, repoId, openDeltaLens, headerControls }}
+        pr={{ livePrState, repoId, openComparison, headerControls }}
         review={review}
         conversation={conversation}
       />

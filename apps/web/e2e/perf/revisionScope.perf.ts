@@ -1,7 +1,7 @@
-// Revision and lens interaction timing on the generated large fixture
+// Revision and scope interaction timing on the generated large fixture
 // (`pnpm perf:fixture` first). revision-nav picks a revision in the sidebar
-// and waits for its content; lens-flip clicks a View lens radio and waits
-// for the lens to commit. Samples are click-to-visible wall time with
+// and waits for its content; scope-flip clicks a View radio and waits
+// for the scope to commit. Samples are click-to-visible wall time with
 // protocol overhead, so compare before and after, never read them as
 // absolute. Brief queries never go stale, so warm revision-nav samples hit
 // the cache and isolate the key={briefId} remount. Each metric prints one
@@ -62,8 +62,8 @@ test("revision navigation timing", async ({ page }) => {
   report("revision-nav-next", nextSamples);
 });
 
-test("lens flip timing", async ({ page }) => {
-  // Rev 2 carries previous-brief marks, so the Changes Only lens is live.
+test("scope flip timing", async ({ page }) => {
+  // Rev 2 carries previous-brief marks, so the Changes scope is live.
   // Hydration gate: the radios are controlled inputs, so a pre-hydration click
   // toggles nothing (the known lost-keystroke window `waitForInteractive`
   // exists for).
@@ -80,7 +80,7 @@ test("lens flip timing", async ({ page }) => {
     "Changes Only · since the previous Brief",
   );
 
-  // Warmup: both lens paths render once before timing.
+  // Warmup: both scope paths render once before timing.
   await changesRadio.click();
   await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
   await fullRadio.click();
@@ -94,7 +94,7 @@ test("lens flip timing", async ({ page }) => {
     await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
     toChanges.push(Date.now() - changesStart);
 
-    // Settle on a full-view-only signal: group headings exist in BOTH lenses
+    // Settle on a full-view-only signal: group headings exist in BOTH scopes
     // (ChangesOnlyView renders the same titles), so waiting on one would pass
     // against the stale changes-view DOM and time nothing. The eyebrow leaves
     // the tree in the same commit that renders the full view.
@@ -110,7 +110,7 @@ test("lens flip timing", async ({ page }) => {
 test("the hidden story pane keeps its windowed cards across a flip", async ({
   page,
 }) => {
-  // Keep-warm latch proof. Lens radios NAVIGATE (compare rides the URL), so
+  // Keep-warm latch proof. Scope radios NAVIGATE (compare rides the URL), so
   // the router resets scroll to top on every flip, a pre-existing product
   // behavior, deliberately not asserted here. What the latch owns: while the
   // story pane is hidden its windowed DOM must stay exactly as it was (no

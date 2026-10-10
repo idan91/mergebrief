@@ -246,7 +246,7 @@ describe("DB brief route revision timeline", () => {
     expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
 
-  it("the notice returns to the latest revision, keeping the lens", async () => {
+  it("the notice returns to the latest revision, keeping the scope", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&view=changes&thread=42`,
     );
@@ -258,7 +258,7 @@ describe("DB brief route revision timeline", () => {
       // A jump target is spent once a revision is selected.
       expect(search["thread"]).toBeUndefined();
       // The rev is dropped, then re-pinned by the resolve effect, landing
-      // on latest either way; the lens must survive the round trip.
+      // on latest either way; the scope must survive the round trip.
       expect(search["rev"]).toBe(2);
       expect(search["head"]).toBeUndefined();
       expect(search["view"]).toBe("changes");
@@ -376,10 +376,10 @@ describe("DB brief route revision timeline", () => {
     expect(ack).toHaveProperty("checked", true);
   });
 
-  it("group since-marker links into the delta lens", async () => {
+  it("group since-marker links into the last-review comparison", async () => {
     // A checkpoint exists on the latest revision; the viewer is on Full
     // Brief with Compare OFF, the marker must still show and its link
-    // must flip the search to the delta lens.
+    // must flip the search to the last-review comparison.
     const metaValue = timelineMeta({
       revisions: [
         REV1,
@@ -468,7 +468,7 @@ describe("DB brief route revision timeline", () => {
 
   it("keeps the selected historical rev when view or compare changes", async () => {
     // The Brief view/compare controls navigate through a FUNCTIONAL search
-    // updater that replaces only the lens keys, so changing a lens must
+    // updater that replaces only the view and compare keys, so changing either must
     // never drop rev and silently re-resolve to latest.
     // The selection must be a HISTORICAL revision: on the latest one, a
     // regression that drops rev would re-resolve to that same span and
@@ -510,7 +510,7 @@ describe("DB brief route revision timeline", () => {
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
       expect(search["compare"]).toBe("previous-brief");
-      // The explicit selection survives the lens change…
+      // The explicit selection survives the comparison change…
       expect(search["rev"]).toBe(2);
     });
     // …and the stale-but-writable posture survives too: head-2 is behind the
@@ -546,7 +546,7 @@ describe("DB brief route revision timeline", () => {
     });
   });
 
-  it("rewrites a legacy span link to its rev, keeping the lens", async () => {
+  it("rewrites a legacy span link to its rev, keeping the scope", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}&view=changes`,
     );

@@ -2,7 +2,7 @@
 @use "mixins";
 
 @layer components {
-  // The two segmented lens controls sit co-linear in the header toolbar; the
+  // The scope and comparison controls sit co-linear in the header toolbar; the
   // header is the surface, so no full-width strip chrome.
   .bar {
     display: flex;

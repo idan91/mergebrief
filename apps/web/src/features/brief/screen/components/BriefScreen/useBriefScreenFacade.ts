@@ -559,7 +559,7 @@ export function useBriefScreenFacade({
     );
   };
 
-  // Only the story lens pairs rows. The Changes lens renders raw span diffs
+  // Only the Full scope pairs rows. The Changes scope renders raw span diffs
   // that never split, so both entry points stand down there rather than
   // announcing a view the screen cannot show.
   const toggleDiffView = inChangesScope ? undefined : requestOtherDiffView;

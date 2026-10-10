@@ -31,7 +31,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
   jumpToChunk,
   sinceChangedFileCount,
   sinceBaselineShortSha,
-  openDeltaLens,
+  openComparison,
 }: AttributedGroupCardProps) {
   const { t } = useTranslation();
   const {
@@ -61,7 +61,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
       <SinceMarker
         baselineShortSha={sinceBaselineShortSha}
         changedFileCount={sinceChangedFileCount ?? 0}
-        openDeltaLens={openDeltaLens}
+        openComparison={openComparison}
       />
     );
 

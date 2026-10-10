@@ -105,9 +105,9 @@ describe("getCategoryLabel", () => {
   it("labels every ChangeGroupCategory from the catalog", () => {
     for (const category of Object.values(ChangeGroupCategories)) {
       const label = getCategoryLabel(appI18n.t, category);
-      const spokenToken = category.replaceAll("-", " ");
+      const spokenKey = category.replaceAll("-", " ");
 
-      expect(label).toBe(spokenToken);
+      expect(label).toBe(spokenKey);
     }
   });
 });

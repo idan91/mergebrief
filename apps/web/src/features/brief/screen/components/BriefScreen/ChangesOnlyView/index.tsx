@@ -70,7 +70,7 @@ export interface ChangesOnlyViewProps {
   delta: Brief | null;
   /**
    * The live span-diff descriptor for the ACTIVE compare baseline → selected
-   * head. Present only on the DB timeline path while a compare lens is active,
+   * head. Present only on the DB timeline path while a comparison is active,
    * it drives the "Show raw diff" toggle. Absent → just the summary.
    */
   rawSpanDiff?: ComparisonQuery<string> | undefined;
@@ -114,9 +114,9 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
   if (props.rawSpanDiff === undefined) {
     return summary;
   }
-  // Key on the LENS plus the addressed span so a lens switch or revision
-  // change remounts and resets to the summary, both lenses can resolve to
-  // the SAME span, and a lens switch is still a view change.
+  // Key on the COMPARISON plus the addressed span so a comparison switch or
+  // revision change remounts and resets to the summary, both comparisons can
+  // resolve to the SAME span, and a comparison switch is still a view change.
   return (
     <RawSpanDiff
       key={`${props.compare}:${JSON.stringify(props.rawSpanDiff.queryKey)}`}
@@ -495,7 +495,7 @@ interface LastReviewChangesProps {
   review: ChangesReviewWiring | undefined;
 }
 
-/** The over-length muted line, shared by both compare lenses. */
+/** The over-length muted line, shared by both comparisons. */
 function LengthGuidanceNote() {
   const { t } = useTranslation();
   return (

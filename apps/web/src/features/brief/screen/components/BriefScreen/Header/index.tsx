@@ -42,7 +42,7 @@ import { StackArrows } from "./StackChip/StackArrows";
 import { resolveStackView } from "./StackChip/utils";
 import { StateBadge } from "./StateBadge";
 import { SubmitReviewCta } from "./SubmitReviewCta";
-import { LensControls } from "./LensControls";
+import { ComparisonControls } from "./ComparisonControls";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./Header.module.scss";
@@ -68,7 +68,7 @@ export interface HeaderProps {
   compareState: BriefSearch;
   /**
    * The DB route's notices and compare controls: rendered in the local
-   * LensControls' slot so BOTH paths keep their controls in the sticky
+   * ComparisonControls' slot so BOTH paths keep their controls in the sticky
    * header, discoverable and never scrolled out of reach.
    */
   controlsSlot?: ReactNode | undefined;
@@ -78,7 +78,7 @@ export interface HeaderProps {
   jumpToGroupHeading: (groupId: string) => void;
   /** The Account menu's Keyboard shortcuts row opens the shortcuts modal. */
   toggleShortcuts: () => void;
-  /** Focus mode quiets the header and drops its lens row and progress bar. */
+  /** Focus mode quiets the header and drops its comparison row and progress bar. */
   focusMode: boolean;
 }
 
@@ -326,14 +326,14 @@ export function Header({
         />
         <AccountMenu onOpenShortcuts={toggleShortcuts} />
       </div>
-      {/* Tier 2, the lens toolbar: everything that changes WHAT is on
+      {/* Tier 2, the comparison toolbar: everything that changes WHAT is on
           screen (Scope, Compare), flattened to one wrappable line, plus the
           quiet stats group parked at the far end. */}
-      <div className={styles["lensRow"]}>
+      <div className={styles["comparisonRow"]}>
         {controlsSlot !== undefined ? (
-          <div className={styles["lensCluster"]}>{controlsSlot}</div>
+          <div className={styles["comparisonCluster"]}>{controlsSlot}</div>
         ) : (
-          <LensControls
+          <ComparisonControls
             availability={availability}
             briefId={briefId}
             compareState={compareState}

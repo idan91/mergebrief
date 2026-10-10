@@ -302,7 +302,7 @@
     --header-meta-font: var(--font-size-md);
     --header-meta-font-sm: var(--font-size-sm);
     --header-identity-min: #{functions.to-rem(52px)};
-    --header-lens-min: #{functions.to-rem(44px)};
+    --header-comparison-min: #{functions.to-rem(44px)};
 
     // The identity row's action controls share one box in both header states.
     --header-control-h: #{functions.to-rem(32px)};
@@ -324,7 +324,7 @@
     // Pre-hydration fallback only; the ResizeObserver publishes the measured
     // value on mount.
     --top-bar-h: calc(
-      var(--header-identity-tier) + var(--header-lens-min) + 1px
+      var(--header-identity-tier) + var(--header-comparison-min) + 1px
     );
     --banner-stack-h: calc(
       var(--focus-indicator-h, 0px) + var(--reanchor-banner-h, 0px)

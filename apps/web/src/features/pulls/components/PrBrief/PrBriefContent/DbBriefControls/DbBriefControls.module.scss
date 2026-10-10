@@ -1,7 +1,7 @@
 @use "functions";
 
 @layer components {
-  // One flat line in the header's lens toolbar; wrapping is the narrow-width
+  // One flat line in the header's comparison toolbar; wrapping is the narrow-width
   // fallback — the header re-measures --top-bar-h as it grows.
   .controls {
     display: flex;
@@ -13,7 +13,7 @@
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
   }
 
-  .lensRegion {
+  .comparisonRegion {
     display: flex;
     align-items: center;
     flex-wrap: wrap;

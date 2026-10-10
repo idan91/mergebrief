@@ -27,7 +27,7 @@ import {
 import {
   type Brief,
   type BriefChunk,
-  type RiskToken,
+  type RiskKey,
   type UnattributedFile,
 } from "../types";
 
@@ -68,7 +68,7 @@ export function isAttributedGroupView(
 
 export interface RiskFlag {
   id: string;
-  attr: RiskToken;
+  attr: RiskKey;
   chunkId: string;
   file: string;
   groupId: string;
@@ -333,9 +333,9 @@ const MAX_HEADER_RISK_CHIPS = 2;
 
 export interface RiskChipView {
   /** Attributes rendered as individual chips (at most MAX_HEADER_RISK_CHIPS). */
-  shown: RiskToken[];
+  shown: RiskKey[];
   /** Attributes folded into the "+N" overflow chip (empty when all fit). */
-  overflow: RiskToken[];
+  overflow: RiskKey[];
 }
 
 /**
@@ -343,7 +343,7 @@ export interface RiskChipView {
  * the rest fold into a "+N" chip (full list in its tooltip). The rail stays
  * the canonical risk surface; the header only routes attention.
  */
-export function riskChipView(risks: RiskToken[]): RiskChipView {
+export function riskChipView(risks: RiskKey[]): RiskChipView {
   if (risks.length <= MAX_HEADER_RISK_CHIPS) {
     return { shown: risks, overflow: [] };
   }
@@ -476,7 +476,7 @@ function buildUnattributedView(
 
 /** One jump-rail entry: an attribute + its carrying groups. */
 export interface AttributeRailEntry {
-  attr: RiskToken;
+  attr: RiskKey;
   source: AttributeSource;
   floor: boolean;
   /** Groups with at least one LOUD firing, in story (display) order. */
@@ -491,7 +491,7 @@ export interface AttributeRail {
 
 interface LoudFiring {
   groupId: string;
-  attr: RiskToken;
+  attr: RiskKey;
   source: AttributeSource;
 }
 
@@ -530,8 +530,8 @@ function listLoudFirings(model: BriefViewModel): LoudFiring[] {
  * an attribute only via a loud firing). Attribute-keyed, never group-ranked.
  */
 export function buildAttributeRail(model: BriefViewModel): AttributeRail {
-  const groupsByAttr = new Map<RiskToken, string[]>();
-  const sourceByAttr = new Map<RiskToken, AttributeSource>();
+  const groupsByAttr = new Map<RiskKey, string[]>();
+  const sourceByAttr = new Map<RiskKey, AttributeSource>();
   for (const firing of listLoudFirings(model)) {
     const groupIds = groupsByAttr.get(firing.attr) ?? [];
     if (!groupIds.includes(firing.groupId)) {

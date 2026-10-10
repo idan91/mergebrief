@@ -1,5 +1,5 @@
-// Review from the Changes Only view, on the Previous brief lens: the fixture
-// seeds no checkpoint, so the Your last review lens is covered at the
+// Review from the Changes Only view, on the Previous brief comparison: the fixture
+// seeds no checkpoint, so the Your last review comparison is covered at the
 // component level.
 //
 // The first write here materializes the viewer's review session on the

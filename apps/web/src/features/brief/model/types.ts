@@ -8,8 +8,8 @@ import type { ValueOf } from "types";
 import type { PostedComment } from "../../../data/postedComment";
 import type { DiffLine } from "../../../utils/diffTokens/types";
 
-/** Built-in or repo-policy risk token; the closed vocabulary is per-generation. */
-export type RiskToken = string;
+/** Built-in or repo-policy risk key; the closed vocabulary is per-generation. */
+export type RiskKey = string;
 
 /** Live DB-route PR state. When present it supersedes the artifact stamp. */
 export interface LivePrState {

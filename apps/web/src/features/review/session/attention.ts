@@ -8,7 +8,7 @@ import { CommentAnchorKinds, type ValueOf } from "types";
 
 /**
  * The displayed kind. `missing-evidence` is the persistence vocabulary's own
- * token rather than a new name: a carried decision whose evidence target is
+ * key rather than a new name: a carried decision whose evidence target is
  * gone lands in exactly the condition the submit list already names.
  */
 export const AttentionItemKinds = {

@@ -47,11 +47,11 @@ describe("ProviderBadge", () => {
     },
   );
 
-  it("codex takes the named fallback: generic glyph + visible token, CLI tag", () => {
+  it("codex takes the named fallback: generic glyph + visible key, CLI tag", () => {
     // No standalone official Codex mark exists, so no brand approximation
     // ships, the pill names the provider in text instead. The model id
-    // deliberately does NOT contain the provider token, so this pins the
-    // visible token itself, not the model cell.
+    // deliberately does NOT contain the provider key, so this pins the
+    // visible key itself, not the model cell.
     render(
       <ProviderBadge
         generation={{ provider: "codex", model: "gpt-5.2", effort: null }}
@@ -74,7 +74,7 @@ describe("ProviderBadge", () => {
     expect(badge().textContent).not.toContain("CLI");
   });
 
-  it("inherited-object tokens read as unknown with no mark or tag", () => {
+  it("inherited-object keys read as unknown with no mark or tag", () => {
     render(
       <ProviderBadge
         generation={{ provider: "toString", model: "m-1", effort: null }}

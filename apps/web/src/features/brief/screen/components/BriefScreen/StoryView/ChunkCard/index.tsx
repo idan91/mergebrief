@@ -13,7 +13,7 @@ import { isUnattributedRemainderChunk } from "../../../../../model/utils/remaind
 import type {
   AddressedReviewComment,
   BriefChunk,
-  RiskToken,
+  RiskKey,
 } from "../../../../../model/types";
 import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
 import { resolveFileStatus } from "../../../../../model/utils/fileStatus";
@@ -101,7 +101,7 @@ function OverflowRiskChip({
   attrs,
   riskMeta,
 }: {
-  attrs: RiskToken[];
+  attrs: RiskKey[];
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
 }) {
   return (

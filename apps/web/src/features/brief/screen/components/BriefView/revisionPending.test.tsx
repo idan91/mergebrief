@@ -2,7 +2,7 @@
 // The revision-pending treatment: while a revision navigation outlasts the
 // pending delay, the stale content stays visible but goes non-interactive,
 // dim (data-pending) + inert + aria-busy on the content region ONLY. The
-// sticky header (revision controls, lenses) must stay live so the reviewer
+// sticky header (revision, scope and comparison controls) must stay live so the reviewer
 // can keep stepping; a small decorative spinner rides beside the controls.
 // Fast loads (shorter than the appearance delay) must show nothing at all.
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";

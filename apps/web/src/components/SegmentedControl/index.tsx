@@ -1,4 +1,4 @@
-// A one-of-N lens control: native radios in a fieldset, so the browser
+// A one-of-N choice control: native radios in a fieldset, so the browser
 // supplies group semantics, one tab stop, and arrow-key movement. The inputs
 // are visually hidden; the labels carry the chrome.
 import { useId, useState } from "react";

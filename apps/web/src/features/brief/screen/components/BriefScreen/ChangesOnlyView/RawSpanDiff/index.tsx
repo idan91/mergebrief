@@ -1,6 +1,6 @@
 // Inside the Changes Only pane, a switch that swaps the netted-out comparison
 // summary for the raw diff of the SAME span. The toggle is ephemeral: the
-// parent keys this component by the span descriptor, so switching compare lens
+// parent keys this component by the span descriptor, so switching the comparison
 // or revision resets it to off. The span diff is fetched when the toggle
 // first opens.
 import { useTranslation } from "react-i18next";

@@ -1,7 +1,7 @@
 @use "functions";
 
 @layer components {
-  .lensRegion {
+  .comparisonRegion {
     display: flex;
     flex: 0 1 auto;
     align-items: center;
@@ -12,7 +12,7 @@
 
   // SegmentedControl owns the bordered group; this only carries the metrics
   // this surface had before the control was shared.
-  .lens {
+  .scope {
     display: flex;
     margin: 0;
     padding: 0;
@@ -21,7 +21,7 @@
 
   // Faint prefix label OUTSIDE the bordered group — inside it, it reads as
   // a selectable option. The accessible name stays on the sr-only legend.
-  .labeledLens {
+  .labeledComparison {
     display: flex;
     align-items: center;
     gap: functions.to-rem(6px);

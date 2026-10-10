@@ -48,7 +48,7 @@
       block-size var(--header-collapse-ease);
   }
 
-  // Fallback/unknown providers show the token as text inside the cell —
+  // Fallback/unknown providers show the key as text inside the cell,
   // artifact-controlled, so capped with ellipsis.
   .markName {
     overflow: hidden;

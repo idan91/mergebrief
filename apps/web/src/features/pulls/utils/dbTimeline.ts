@@ -1,4 +1,4 @@
-// Timeline points represent brief heads; a Delta is a comparison lens.
+// Timeline points represent brief heads; a Delta is a comparison.
 // The selected revision's own base drives the brief GET because bases can drift.
 import type { PrComparisons, RevisionSummary } from "../types";
 import type { Mutable } from "types/utils";

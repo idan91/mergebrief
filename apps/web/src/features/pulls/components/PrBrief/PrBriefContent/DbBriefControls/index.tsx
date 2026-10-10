@@ -1,4 +1,4 @@
-// View/Compare lenses + revision notices, rendered inside the sticky page
+// Scope and comparison controls + revision notices, rendered inside the sticky page
 // Header's control slot: the header measures itself into --top-bar-h, so the
 // controls stay reachable after the focus-to-heading selection effect.
 import { useTranslation } from "react-i18next";
@@ -9,7 +9,7 @@ import { StaleRevisionChip } from "./StaleRevisionChip";
 import styles from "./DbBriefControls.module.scss";
 
 export interface DbBriefControlsProps {
-  /** The View/Compare lens wiring. */
+  /** The scope and comparison wiring. */
   compare: DbCompareBarProps;
   /**
    * Compact status line under the controls (e.g. a degraded revision link).
@@ -51,7 +51,7 @@ export function DbBriefControls({
           {behind.announcement}
         </span>
       )}
-      <div className={styles["lensRegion"]}>
+      <div className={styles["comparisonRegion"]}>
         <DbCompareBar {...compare} />
         {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
       </div>

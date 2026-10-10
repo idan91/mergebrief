@@ -615,7 +615,7 @@ describe("Changes Only raw span diff toggle", () => {
     expect(screen.queryByRole("button", { name: /raw diff/i })).toBeNull();
   });
 
-  it("offers the toggle when a compare lens supplies the descriptor", () => {
+  it("offers the toggle when a comparison supplies the descriptor", () => {
     render(
       withClient(
         <ChangesOnlyView
@@ -633,7 +633,7 @@ describe("Changes Only raw span diff toggle", () => {
     expect(screen.getByRole("button", { name: "Raw diff" })).toBeTruthy();
   });
 
-  it("resets the ephemeral toggle when the compare lens changes", async () => {
+  it("resets the ephemeral toggle when the comparison changes", async () => {
     const { rerender } = render(
       withClient(
         <ChangesOnlyView
@@ -655,8 +655,8 @@ describe("Changes Only raw span diff toggle", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
 
-    // Switching to the last-review lens swaps the descriptor's baseline, the
-    // component is keyed by the lens+span, so the toggle remounts back to off.
+    // Switching to the last-review comparison swaps the descriptor's baseline, the
+    // component is keyed by the comparison+span, so the toggle remounts back to off.
     rerender(
       withClient(
         <ChangesOnlyView
@@ -678,9 +678,9 @@ describe("Changes Only raw span diff toggle", () => {
     ).toBe("false");
   });
 
-  it("resets the toggle on a lens switch even when both share the span", async () => {
+  it("resets the toggle on a comparison switch even when both share the span", async () => {
     // checkpoint == previous head: both descriptors carry an identical
-    // queryKey, so the span alone cannot distinguish the views: the lens is
+    // queryKey, so the span alone cannot distinguish the views: the comparison is
     // part of the remount key.
     const { rerender } = render(
       withClient(

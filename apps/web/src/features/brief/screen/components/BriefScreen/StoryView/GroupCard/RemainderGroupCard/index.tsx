@@ -19,7 +19,7 @@ export function RemainderGroupCard({
   jumpToChunk,
   sinceChangedFileCount,
   sinceBaselineShortSha,
-  openDeltaLens,
+  openComparison,
 }: RemainderGroupCardProps) {
   const headingId = deriveGroupHeadingId(group.id);
   const sinceMarker =
@@ -27,7 +27,7 @@ export function RemainderGroupCard({
       <SinceMarker
         baselineShortSha={sinceBaselineShortSha}
         changedFileCount={sinceChangedFileCount ?? 0}
-        openDeltaLens={openDeltaLens}
+        openComparison={openComparison}
       />
     );
 

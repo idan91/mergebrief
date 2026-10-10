@@ -8,11 +8,11 @@ export interface SinceMarkerProps {
   /** The checkpoint's short SHA, already truncated for display. */
   baselineShortSha: string;
   /**
-   * Opens the delta lens (Compare = Your last review). Route-owned, absent
+   * Opens the last-review comparison (Compare = Your last review). Route-owned, absent
    * where no navigation is wired (the local demo path); the marker then
    * renders as plain text.
    */
-  openDeltaLens?: (() => void) | undefined;
+  openComparison?: (() => void) | undefined;
 }
 
 /**
@@ -23,7 +23,7 @@ export interface SinceMarkerProps {
 export function SinceMarker({
   changedFileCount,
   baselineShortSha,
-  openDeltaLens,
+  openComparison,
 }: SinceMarkerProps) {
   const { t } = useTranslation();
   if (changedFileCount === 0) {
@@ -47,13 +47,13 @@ export function SinceMarker({
       data-state="changed"
       data-testid="group-since-marker"
     >
-      {openDeltaLens === undefined ? (
+      {openComparison === undefined ? (
         label
       ) : (
         <LinkButton
           className={styles["deltaLink"]}
           title={t("brief.sinceMarker.titleOpenDeltaLens")}
-          onClick={openDeltaLens}
+          onClick={openComparison}
         >
           {label}
         </LinkButton>

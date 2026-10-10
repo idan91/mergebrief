@@ -84,8 +84,8 @@ export interface StoryViewProps {
   sinceMarkers?:
     | { counts: ReadonlyMap<string, number>; baselineShortSha: string }
     | undefined;
-  /** Opens the delta lens; route-owned, absent on the local path. */
-  openDeltaLens?: (() => void) | undefined;
+  /** Opens the last-review comparison; route-owned, absent on the local path. */
+  openComparison?: (() => void) | undefined;
   /** Sidebar layout the stacked breakpoints key on. */
   sidebar?: SidebarLayout | undefined;
   /** Card column width control; absent leaves the groups without a splitter. */
@@ -192,7 +192,7 @@ export function StoryView(props: StoryViewProps) {
                 jumpToChunk={props.jumpToChunk}
                 sinceBaselineShortSha={props.sinceMarkers?.baselineShortSha}
                 sinceChangedFileCount={props.sinceMarkers?.counts.get(group.id)}
-                openDeltaLens={props.openDeltaLens}
+                openComparison={props.openComparison}
               />
             )}
           </section>

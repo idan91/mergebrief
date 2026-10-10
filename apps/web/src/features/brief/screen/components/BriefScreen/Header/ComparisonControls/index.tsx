@@ -19,9 +19,9 @@ import {
   SegmentedDensities,
   type SegmentedOption,
 } from "@web/components/SegmentedControl";
-import styles from "./LensControls.module.scss";
+import styles from "./ComparisonControls.module.scss";
 
-export interface LensControlsProps {
+export interface ComparisonControlsProps {
   /** Compare availability at this brief. */
   availability: CompareOptionFlags;
   briefId: string;
@@ -47,11 +47,11 @@ function keepLink(
   return kept;
 }
 
-export function LensControls({
+export function ComparisonControls({
   availability,
   briefId,
   compareState,
-}: LensControlsProps) {
+}: ComparisonControlsProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -103,9 +103,9 @@ export function LensControls({
   ];
 
   return (
-    <div className={styles["lensRegion"]}>
+    <div className={styles["comparisonRegion"]}>
       <SegmentedControl
-        className={styles["lens"]}
+        className={styles["scope"]}
         density={SegmentedDensities.ROOMY}
         legend={t("brief.timeline.viewLegend")}
         name="local-brief-view"
@@ -114,7 +114,7 @@ export function LensControls({
         value={compareState.view ?? "full"}
       />
       <SegmentedControl
-        className={styles["labeledLens"]}
+        className={styles["labeledComparison"]}
         density={SegmentedDensities.ROOMY}
         legend={t("brief.timeline.compareLegend")}
         name="local-brief-compare"

@@ -13,7 +13,7 @@ import { ApiError, ApiErrorCodes } from "../../../../data/apiFetch";
  * The closed set of CODES this path may surface to a browser. The server
  * functions throw the code; the client renders `briefError.<code>` from the
  * catalog, so the cross-boundary allowlist check stays an identity test on
- * a stable token instead of on translatable prose.
+ * a stable code instead of on translatable prose.
  */
 export const LocalBriefErrorCodes = {
   /** No artifact for that id, the browser gets a 404-shaped sentence. */

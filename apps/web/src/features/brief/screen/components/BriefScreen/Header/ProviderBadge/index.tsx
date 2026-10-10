@@ -10,7 +10,7 @@ import {
 } from "./types";
 
 /**
- * Adapter CLASS per provider token: a harness-CLI run must be visibly
+ * Adapter CLASS per provider key: a harness-CLI run must be visibly
  * distinct from an API/SDK run: the CLI owns routing and auth, so
  * "claude-code" and "anthropic" are different trust shapes even when the
  * same model served. Carried in TEXT (the end tag), never color alone.
@@ -78,7 +78,7 @@ export function ProviderBadge({ generation }: ProviderBadgeProps) {
             <ScreenReaderOnly>{providerConfig.name}</ScreenReaderOnly>
           </>
         ) : (
-          // Named fallback: the terminal glyph plus the provider token as
+          // Named fallback: the terminal glyph plus the provider key as
           // visible text, never a hand-drawn brand approximation.
           <>
             <Icon

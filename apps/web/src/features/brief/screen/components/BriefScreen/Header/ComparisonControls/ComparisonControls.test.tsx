@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { renderInRouter } from "../../../../../../../test/router";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import { LensControls } from ".";
+import { ComparisonControls } from ".";
 
 afterEach(() => {
   cleanup();
@@ -21,9 +21,9 @@ beforeEach(() => {
   setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
 });
 
-function renderLens(initialEntry = "/") {
+function renderControls(initialEntry = "/") {
   return renderInRouter(
-    <LensControls
+    <ComparisonControls
       availability={{ previousBrief: false, lastReview: false }}
       briefId="brief-2"
       compareState={{ view: "full", compare: "off" }}
@@ -34,9 +34,9 @@ function renderLens(initialEntry = "/") {
   );
 }
 
-describe("LensControls", () => {
+describe("ComparisonControls", () => {
   it("offers View and Compare and no revision stepper", async () => {
-    await renderLens();
+    await renderControls();
 
     expect(screen.getByRole("radio", { name: /full brief/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /changes only/i })).toBeTruthy();
@@ -44,8 +44,8 @@ describe("LensControls", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
   });
 
-  it("keeps the link on a lens write", async () => {
-    const { router } = await renderLens("/?l=c2.R4");
+  it("keeps the link on a scope write", async () => {
+    const { router } = await renderControls("/?l=c2.R4");
 
     await act(async () => {
       fireEvent.click(screen.getByRole("radio", { name: /changes only/i }));

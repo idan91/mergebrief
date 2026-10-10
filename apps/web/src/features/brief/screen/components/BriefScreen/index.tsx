@@ -38,15 +38,15 @@ import {
   useBriefScreenFacade,
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
 } from "./useBriefScreenFacade";
-import type { BriefScreenProps, LensPaneProps, StoryMainStyle } from "./types";
+import type { BriefScreenProps, ScopePaneProps, StoryMainStyle } from "./types";
 
 export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY_KEYS } from "./useOwnDraftFlow";
 export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY };
 export type { BriefScreenProps, OwnDraftPlan } from "./types";
 
-const LensPane = memo(
-  function LensPane({ children }: LensPaneProps) {
+const ScopePane = memo(
+  function ScopePane({ children }: ScopePaneProps) {
     return children;
   },
   (_previous, next) => next.frozen,
@@ -320,7 +320,7 @@ export function BriefScreen(props: BriefScreenProps) {
                     <ChunkWindowProvider registry={chunkWindowsRef.current}>
                       {changesPaneMounted ? (
                         <div hidden={!inChangesScope || undefined}>
-                          <LensPane frozen={!inChangesScope}>
+                          <ScopePane frozen={!inChangesScope}>
                             <ChangesOnlyView
                               key={`changes-${briefId}`}
                               compare={
@@ -341,12 +341,12 @@ export function BriefScreen(props: BriefScreenProps) {
                               jumpToChunk={queueChunkJumpFromChanges}
                               review={changesReview}
                             />
-                          </LensPane>
+                          </ScopePane>
                         </div>
                       ) : null}
                       {storyPaneMounted ? (
                         <div hidden={inChangesScope || undefined}>
-                          <LensPane frozen={inChangesScope}>
+                          <ScopePane frozen={inChangesScope}>
                             <StoryView
                               brief={brief}
                               diffView={diffView}
@@ -356,7 +356,7 @@ export function BriefScreen(props: BriefScreenProps) {
                               focusMode={session.focusMode}
                               sidebar={sidebarLayout}
                               cardTrack={cardTrack}
-                              openDeltaLens={pr?.openDeltaLens}
+                              openComparison={pr?.openComparison}
                               sinceMarkers={sinceMarkers}
                               openChunks={session.openChunks}
                               addressedReviewComments={brief.reviewComments}
@@ -382,7 +382,7 @@ export function BriefScreen(props: BriefScreenProps) {
                               toggleChunk={session.toggleChunk}
                               chunkFooter={chunkFooter}
                             />
-                          </LensPane>
+                          </ScopePane>
                         </div>
                       ) : null}
                     </ChunkWindowProvider>

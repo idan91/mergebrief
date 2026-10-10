@@ -2,7 +2,7 @@
 // search-state helpers as the local route's controls, so the two surfaces
 // cannot drift semantically.
 //
-// Both lenses are one-of-N choices, so both are radio groups (SegmentedControl)
+// Scope and comparison are one-of-N choices, so both are radio groups (SegmentedControl)
 // rather than toggle-button rows: the browser then supplies group semantics,
 // a single tab stop, and arrow-key movement.
 import { useTranslation } from "react-i18next";

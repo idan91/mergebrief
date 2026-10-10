@@ -67,7 +67,7 @@ interface LiveRefs {
 /**
  * Windows one group's chunk-card list against the page scroll.
  *
- * Hidden-pane latch: a frozen lens pane cannot receive props (the memo
+ * Hidden-pane latch: a frozen scope pane cannot receive props (the memo
  * skips the delivering render), so hiddenness is observed from the DOM.
  * While hidden the virtualizer is disabled, its measurements are
  * snapshotted (disabling wipes virtual-core's cache), and the last visible

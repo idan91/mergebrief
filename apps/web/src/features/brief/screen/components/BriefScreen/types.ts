@@ -67,7 +67,7 @@ export interface ProgressFillStyle extends CSSProperties {
   "--fill": string;
 }
 
-export interface LensPaneProps {
+export interface ScopePaneProps {
   frozen: boolean;
   children: ReactNode;
 }
@@ -160,7 +160,7 @@ export interface PullRequestContext {
   livePrState: LivePrState;
   /** Identity for in-app neighbour links and the hunk-edge file reads. */
   repoId: string;
-  openDeltaLens: () => void;
+  openComparison: () => void;
   headerControls: ReactNode;
 }
 

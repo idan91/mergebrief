@@ -14,7 +14,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-/** Carries a Previous Brief comparison, the Changes lens's precondition. */
+/** Carries a Previous Brief comparison, the Changes scope's precondition. */
 const artifactSummaries: LocalBriefSummary[] = [
   {
     id: "brief-a",
@@ -128,7 +128,7 @@ describe("announcing the diff view", () => {
   });
 });
 
-describe("the diff view toggle in the Changes lens", () => {
+describe("the diff view toggle in the Changes scope", () => {
   const changesScope: BriefSearchParams = {
     view: "changes",
     compare: "previous-brief",

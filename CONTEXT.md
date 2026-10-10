@@ -327,7 +327,7 @@ The list on **Home**: every pull request the **Reviewer** reaches, across every 
 _Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
 
 **Header**:
-The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (View and Compare, the revision notices, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
+The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the comparison row (View and Compare, the revision notices, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
 
 **Account menu**:

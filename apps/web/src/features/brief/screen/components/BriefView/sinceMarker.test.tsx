@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Per-group changed-since marker: when a reviewer checkpoint exists, each
 // group header says whether anything in it changed since that checkpoint,
-// WITHOUT the Compare lens being active. The delta data was always computed;
+// WITHOUT a comparison being active. The delta data was always computed;
 // this pins that it is finally visible where people read.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -60,7 +60,7 @@ function planWith(marks: ComparisonMarks): BriefComparisonPlan {
 }
 
 /** Explicit Full Brief + Compare OFF, the state the marker exists for (with
- * a checkpoint the DEFAULT search is the delta lens). */
+ * a checkpoint the DEFAULT search is the last-review comparison). */
 const FULL_COMPARE_OFF: BriefSearchParams = { view: "full", compare: "off" };
 
 describe("per-group changed-since marker", () => {
@@ -92,7 +92,7 @@ describe("per-group changed-since marker", () => {
   });
 
   it("local sidecar path: since-marks resolve with Compare OFF", async () => {
-    // Hook-level (a full BriefView mounts LensControls, whose navigation
+    // Hook-level (a full BriefView mounts ComparisonControls, whose navigation
     // needs a RouterProvider): no comparisonPlan → the
     // marks resolve from the artifact's last-review sidecar id even though
     // the active Compare baseline is off.
@@ -145,7 +145,7 @@ describe("per-group changed-since marker", () => {
   });
 
   it("renders plain text, never a button, without a navigation callback", async () => {
-    // The local demo path passes no openDeltaLens, unlinked by design.
+    // The local demo path passes no openComparison, unlinked by design.
     render(<SinceMarker baselineShortSha="chk1234" changedFileCount={2} />);
     expect(screen.getByText(/2 files changed since chk1234/i)).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();

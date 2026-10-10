@@ -24,14 +24,14 @@
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
   }
 
-  .lensRow {
+  .comparisonRow {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: functions.to-rem(8px)
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
-    min-block-size: var(--header-lens-min);
+    min-block-size: var(--header-comparison-min);
     padding-block: functions.to-rem(5px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--color-outline-1);
@@ -245,7 +245,7 @@
     margin-inline-start: functions.to-rem(14px);
   }
 
-  .lensCluster {
+  .comparisonCluster {
     display: flex;
     flex: 1;
     min-inline-size: 0;
@@ -275,7 +275,7 @@
       opacity: 1;
     }
 
-    .lensRow,
+    .comparisonRow,
     .progressBar {
       display: none;
     }
@@ -453,12 +453,12 @@
       display: none;
     }
 
-    .lensRow {
+    .comparisonRow {
       padding-inline: functions.to-rem(18px);
     }
 
     // Narrow: each region owns its own line instead of competing for one.
-    .lensRow > * {
+    .comparisonRow > * {
       flex-basis: 100%;
     }
 

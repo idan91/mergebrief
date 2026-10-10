@@ -104,13 +104,13 @@ function buildFixtureScreenProps(
   const prGiven =
     overrides.repoId !== undefined ||
     overrides.livePrState !== undefined ||
-    overrides.openDeltaLens !== undefined ||
+    overrides.openComparison !== undefined ||
     overrides.headerControls !== undefined;
   if (prGiven) {
     props.pr = {
       livePrState: overrides.livePrState ?? FIXTURE_LIVE_STATE,
       repoId: overrides.repoId ?? FIXTURE_REPO_ID,
-      openDeltaLens: overrides.openDeltaLens ?? ignoreWrite,
+      openComparison: overrides.openComparison ?? ignoreWrite,
       headerControls: overrides.headerControls,
     };
   }

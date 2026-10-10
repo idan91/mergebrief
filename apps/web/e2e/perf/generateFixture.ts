@@ -2,7 +2,7 @@
 // consumer needing a big local brief, e.g. list-virtualization work). Emits a
 // two-revision artifact set shaped exactly like the committed e2e fixtures,
 // in the ingest tool's filename grammar, but at
-// a size where revision/lens interaction cost is measurable. Output is
+// a size where revision/scope interaction cost is measurable. Output is
 // self-validated through the app's own parsers before writing: a drifted
 // schema fails generation, never the measurement run.
 import { mkdir, rm, writeFile } from "node:fs/promises";

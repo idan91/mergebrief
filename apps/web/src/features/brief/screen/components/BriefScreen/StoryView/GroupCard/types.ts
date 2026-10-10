@@ -18,6 +18,6 @@ export interface GroupCardProps {
    */
   sinceChangedFileCount?: number | undefined;
   sinceBaselineShortSha?: string | undefined;
-  /** Opens the delta lens; route-owned, stable (memo boundary rides on it). */
-  openDeltaLens?: (() => void) | undefined;
+  /** Opens the last-review comparison; route-owned, stable (memo boundary rides on it). */
+  openComparison?: (() => void) | undefined;
 }

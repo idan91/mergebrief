@@ -649,7 +649,7 @@ describe("generation warnings chip", () => {
 });
 
 describe("Header menu and stats", () => {
-  it("shows progress facts on the lens row with core-lines LOC", async () => {
+  it("shows progress facts on the comparison row with core-lines LOC", async () => {
     await renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");

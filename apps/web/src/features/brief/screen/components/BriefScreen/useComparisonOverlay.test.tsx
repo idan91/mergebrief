@@ -278,7 +278,7 @@ describe("useComparisonOverlay delta rows on the database path", () => {
     expect(result.current.deltaSpanStatus).toBe(DeltaSpanStatuses.ABSENT);
   });
 
-  it("never fetches the span under the Previous brief lens", async () => {
+  it("never fetches the span under the Previous brief comparison", async () => {
     const spanFn = vi.fn(async () => SPAN_DIFF);
     const { result } = renderOverlay(stubPlan(spanFn), "previous-brief");
 
@@ -342,12 +342,12 @@ describe("useComparisonOverlay narrative span gate", () => {
     expect(result.current.narrativeSpanRows).toBeUndefined();
   });
 
-  it("never fetches the previous-brief span under the last-review lens", async () => {
+  it("never fetches the previous-brief span under the last-review comparison", async () => {
     const spanFn = vi.fn(async () => SPAN_DIFF);
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // A narrative read under Previous brief stays cached after a lens switch.
+    // A narrative read under Previous brief stays cached after a comparison switch.
     client.setQueryData(["narrative"], NARRATIVE);
     const { result } = renderOverlay(
       stubNarrativePlan(spanFn, NARRATIVE),
