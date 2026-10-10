@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { BriefSearchParams } from "./model/comparison/compareState";
+import { buildLocalComparisonPlan } from "./model/comparison/local-plan";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
@@ -23,7 +24,7 @@ import { useBriefReading } from "./screen/hooks/useBriefReading";
 export { BriefView } from "./screen/components/BriefView";
 export { useBriefReading } from "./screen/hooks/useBriefReading";
 export { buildBriefAddress } from "./screen/components/BriefScreen/address/utils";
-export type { BriefComparisonPlan } from "./screen/components/BriefScreen/useComparisonOverlay";
+export type { BriefComparisonPlan } from "./model/comparison/types";
 export type {
   ConversationCapability,
   OwnDraftPlan,
@@ -90,6 +91,11 @@ export function BriefPage({
     [timeline],
   );
   const selectedPoint = timeline.selectedPoint;
+  const comparisons = selectedPoint?.comparisons;
+  const comparisonPlan = useMemo(
+    () => buildLocalComparisonPlan(comparisons),
+    [comparisons],
+  );
   // Moving to another brief keeps this page mounted, so the text changes and
   // the polite region announces it; the first render stays silent.
   const viewingAnnouncement =
@@ -104,9 +110,9 @@ export function BriefPage({
       ? undefined
       : { view: revisionView, selectRevision };
   const reading = useBriefReading({
-    artifacts,
     brief,
     briefId,
+    comparisonPlan,
     fileRows,
     revisions,
   });

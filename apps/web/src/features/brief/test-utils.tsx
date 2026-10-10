@@ -134,7 +134,6 @@ export function FixtureBriefView(overrides: BriefViewOverrides): ReactElement {
     fileRows: overrides.fileRows,
     comparisonPlan: overrides.comparisonPlan,
     repoConfig: overrides.repoConfig,
-    artifacts: overrides.artifacts,
     revisions: overrides.revisions,
   });
 

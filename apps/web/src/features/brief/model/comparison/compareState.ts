@@ -1,7 +1,6 @@
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
-import type { BriefTimelinePoint } from "../utils/timeline";
 import { CompareParams, type CompareParam } from "./types";
 
 /**
@@ -135,16 +134,6 @@ export function parseBriefAddressSearch(
   }
 
   return parsed;
-}
-
-/** Comparison availability for a timeline point's Compare control. */
-export function comparisonAvailability(
-  point: BriefTimelinePoint | undefined,
-): CompareOptionFlags {
-  return {
-    previousBrief: Boolean(point?.comparisons.previousBrief),
-    lastReview: Boolean(point?.comparisons.lastReview),
-  };
 }
 
 /**

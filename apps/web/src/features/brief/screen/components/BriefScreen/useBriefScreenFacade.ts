@@ -25,7 +25,6 @@ import { useCreateExpansionStore } from "../../../model/expansion/useExpansion";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { isGuestHost } from "../../utils/guest-rows";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
-import type { LocalBriefSummary } from "../../../model/types";
 import { buildAttributeRail } from "../../../model/utils/viewModel";
 import { createChunkWindowRegistry } from "./chunkWindows";
 import type { IntentBarHandle } from "./IntentBar";
@@ -76,9 +75,6 @@ export const OWN_DRAFT_STALE_COMPOSER_REASON_KEY: TranslationKey =
 /** Without a review there is no session to save work to. */
 const NO_REVIEW_REASON_KEY: TranslationKey = "brief.screen.fileBriefReadOnly";
 
-/** One frozen default so the overlay's input keeps its identity across renders. */
-const NO_ARTIFACTS: LocalBriefSummary[] = [];
-
 export function useBriefScreenFacade({
   reading,
   address,
@@ -89,7 +85,6 @@ export function useBriefScreenFacade({
   const { t } = useTranslation();
   const { brief, briefId, model, fileRows, comparisonPlan, repoConfig } =
     reading;
-  const artifacts = reading.artifacts ?? NO_ARTIFACTS;
   const { searchParams, link, exitChangesScope, clearDiffParam } = address;
   const ownDraft = review?.ownDraft;
   const staleHead = review?.staleHead === true;
@@ -101,9 +96,7 @@ export function useBriefScreenFacade({
   const pendingShown = useDelayedPending(address.revisionPending);
 
   const overlay = useComparisonOverlay({
-    artifacts,
     brief,
-    briefId,
     comparisonPlan,
     searchParams,
   });

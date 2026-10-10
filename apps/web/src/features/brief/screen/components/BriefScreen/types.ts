@@ -14,11 +14,11 @@ import type {
   SubmitReviewAction,
 } from "@web/features/review/utils";
 import type { BriefSearchParams } from "../../../model/comparison/compareState";
+import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import type {
   Brief,
   BriefChunk,
   LivePrState,
-  LocalBriefSummary,
   MarkReadyAction,
   PostCommentResult,
   RevisionTimelinePlan,
@@ -29,7 +29,6 @@ import type { BriefViewModel } from "../../../model/utils/viewModel";
 import type { FileRowsCache } from "../../../model/file-rows/cache";
 import type { RepoConfigContext } from "../../../model/utils/repoConfig";
 import type { BriefAddressPort } from "./address/types";
-import type { BriefComparisonPlan } from "./useComparisonOverlay";
 
 /**
  * Where the last-review delta's rows stand: the database path fetches the
@@ -136,8 +135,6 @@ export interface BriefReadingSource {
   comparisonPlan?: BriefComparisonPlan | undefined;
   /** Absent or null renders as if no repo config exists. */
   repoConfig?: RepoConfigContext | null | undefined;
-  /** The local Briefs a file Brief compares against; the DB route compares through `comparisonPlan`. */
-  artifacts?: LocalBriefSummary[] | undefined;
   /** The Brief's revisions for the Sidebar tab; absent hides it. */
   revisions?: RevisionTimelinePlan | undefined;
 }

@@ -3,10 +3,9 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import { briefFixture } from "@web/features/brief/fixtures";
 import { DIFF_VIEW_STORAGE_KEY } from "../BriefScreen/diffViewStorage";
 import type { BriefSearchParams } from "../../../model/comparison/compareState";
-import type { LocalBriefSummary } from "../../../model/types";
+import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
 import { mountBriefView, type BriefViewOverrides } from "../../../test-utils";
 
 afterEach(() => {
@@ -15,29 +14,18 @@ afterEach(() => {
 });
 
 /** Carries a Previous Brief comparison, the Changes scope's precondition. */
-const artifactSummaries: LocalBriefSummary[] = [
-  {
-    id: "brief-a",
-    artifactKind: "brief",
-    repo: briefFixture.pr.repo,
-    number: briefFixture.pr.number,
-    title: briefFixture.pr.title,
-    sha: briefFixture.pr.sha,
-    index: 1,
-    comparisons: {
-      previousBrief: {
-        marksId: "marks-a",
-        baselineSha: "0".repeat(40),
-        baselineIndex: 0,
-      },
-    },
+const PREVIOUS_BRIEF_PLAN = buildLocalComparisonPlan({
+  previousBrief: {
+    marksId: "marks-a",
+    baselineSha: "0".repeat(40),
+    baselineIndex: 0,
   },
-];
+});
 
 /** brief-a with its Previous Brief comparison available. */
 const COMPARABLE_BRIEF: BriefViewOverrides = {
-  artifacts: artifactSummaries,
   briefId: "brief-a",
+  comparisonPlan: PREVIOUS_BRIEF_PLAN,
 };
 
 function readStampedView(): string | null {

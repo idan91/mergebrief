@@ -1,4 +1,5 @@
 // Flat at the feature root: it touches server/ and must stay out of the barrels.
+import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import {
   MAX_FILE_RANGE_LINES,
@@ -24,6 +25,7 @@ import {
   getLocalRevisionNarrative,
 } from "./model/server/brief.functions";
 import { FileRangeResultKinds } from "./model/expansion/types";
+import type { ComparisonMarks } from "./model/types";
 
 function stringField(value: unknown, key: string): string | undefined {
   if (typeof value !== "object" || value === null) {
@@ -98,23 +100,51 @@ export function buildLocalRevisionChangesQueryOptions(briefId: string) {
   });
 }
 
+/**
+ * A sidecar the listing named but the read found missing rejects, once:
+ * an errored query counts as stale, so focus and remount must not read it again.
+ */
 export function buildLocalComparisonMarksQueryOptions(marksId: string) {
+  const queryKey: QueryKey = ["comparisonMarks", "local", marksId];
   return queryOptions({
-    queryKey: ["comparisonMarks", "local", marksId],
-    queryFn: () => getLocalComparisonMarks({ data: { id: marksId } }),
+    queryKey,
+    queryFn: async (): Promise<ComparisonMarks> => {
+      const marks = await getLocalComparisonMarks({ data: { id: marksId } });
+      if (marks === null) {
+        throw new Error("comparison marks sidecar missing");
+      }
+      return marks;
+    },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,
+    retryOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
+/**
+ * A sidecar the listing named but the read found missing rejects, once:
+ * an errored query counts as stale, so focus and remount must not read it again.
+ */
 export function buildLocalRevisionNarrativeQueryOptions(narrativeId: string) {
+  const queryKey: QueryKey = ["revisionNarrative", "local", narrativeId];
   return queryOptions({
-    queryKey: ["revisionNarrative", "local", narrativeId],
-    queryFn: () => getLocalRevisionNarrative({ data: { id: narrativeId } }),
+    queryKey,
+    queryFn: async (): Promise<StoredRevisionNarrative> => {
+      const narrative = await getLocalRevisionNarrative({
+        data: { id: narrativeId },
+      });
+      if (narrative === null) {
+        throw new Error("revision narrative sidecar missing");
+      }
+      return narrative;
+    },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,
+    retryOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 

@@ -47,7 +47,6 @@ const BRIEF_ID = briefSummaryFixture.id;
  */
 async function renderWritableScreen() {
   await mountBriefView({
-    artifacts: [briefSummaryFixture],
     session: emptySessionPayload(),
   });
   await waitFor(() =>

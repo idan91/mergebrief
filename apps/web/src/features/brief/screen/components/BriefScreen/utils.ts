@@ -19,10 +19,6 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
-import {
-  CompareParams,
-  type CompareParam,
-} from "../../../model/comparison/types";
 import type { ComparisonQuery } from "../../../model/comparison/comparisonQuery";
 import {
   buildChunkComparisonView,
@@ -32,10 +28,7 @@ import type { ConversationPlan } from "@web/features/conversation";
 import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
-import {
-  type BriefChunk,
-  type ComparisonAvailability,
-} from "../../../model/types";
+import { type BriefChunk } from "../../../model/types";
 import {
   type FilePathDirectory,
   type FilePathParts,
@@ -188,39 +181,6 @@ export function deriveBriefProgress(input: DeriveBriefProgressInput): number {
     ? totals.reviewed
     : totals.reviewed + totals.flagsResolved;
   return totalWork === 0 ? 0 : (done / totalWork) * 100;
-}
-
-export interface LocalComparisonIds {
-  marksId: string | undefined;
-  narrativeId: string | undefined;
-  deltaId: string | undefined;
-}
-
-/**
- * The active baseline's local sidecar ids: marks follow the baseline;
- * narrative is previous-brief-only, delta last-review-only.
- */
-export function resolveLocalComparisonIds(
-  compare: CompareParam,
-  comparisons: ComparisonAvailability | undefined,
-): LocalComparisonIds {
-  const marksIdByCompare: Record<CompareParam, string | undefined> = {
-    [CompareParams.PREVIOUS_BRIEF]: comparisons?.previousBrief?.marksId,
-    [CompareParams.LAST_REVIEW]: comparisons?.lastReview?.marksId,
-    [CompareParams.OFF]: undefined,
-  };
-
-  return {
-    marksId: marksIdByCompare[compare],
-    narrativeId:
-      compare === CompareParams.PREVIOUS_BRIEF
-        ? comparisons?.previousBrief?.narrativeId
-        : undefined,
-    deltaId:
-      compare === CompareParams.LAST_REVIEW
-        ? comparisons?.lastReview?.deltaId
-        : undefined,
-  };
 }
 
 export interface DiscriminatedNarrative {

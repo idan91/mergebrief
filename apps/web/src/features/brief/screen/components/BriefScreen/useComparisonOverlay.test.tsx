@@ -7,12 +7,10 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ComparisonQuery } from "../../../model/comparison/comparisonQuery";
+import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import type { Brief, ComparisonMarks } from "../../../model/types";
 import { DeltaSpanStatuses } from "./types";
-import {
-  type BriefComparisonPlan,
-  useComparisonOverlay,
-} from "./useComparisonOverlay";
+import { useComparisonOverlay } from "./useComparisonOverlay";
 
 const PR = {
   repo: "acme/widgets",
@@ -165,9 +163,7 @@ function renderOverlay(
   const rendered = renderHook(
     () =>
       useComparisonOverlay({
-        artifacts: [],
         brief: BRIEF,
-        briefId: "brief-1",
         comparisonPlan: plan,
         searchParams: { view, compare },
       }),

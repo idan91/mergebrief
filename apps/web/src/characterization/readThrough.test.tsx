@@ -123,7 +123,6 @@ const summaryFixture: LocalBriefSummary = {
  */
 async function renderReadThroughScreen() {
   await mountBriefView({
-    artifacts: [summaryFixture],
     brief: readThroughFixture,
     briefId: summaryFixture.id,
     session: emptySession,

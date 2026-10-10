@@ -8,7 +8,7 @@ import type { BriefSearchParams } from "../../../../model/comparison/compareStat
 import { briefFixture } from "../../../../fixtures";
 import { FixtureBriefView, mountBriefHost } from "../../../../test-utils";
 import type { ComparisonMarks } from "../../../../model/types";
-import type { BriefComparisonPlan } from "../useComparisonOverlay";
+import type { BriefComparisonPlan } from "../../../../model/comparison/types";
 
 const lastReviewMarks: ComparisonMarks = {
   baselineSha: "chk1234",

@@ -14,12 +14,11 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { BriefSearchParams } from "../../../model/comparison/compareState";
-import type { ComparisonMarks, LocalBriefSummary } from "../../../model/types";
+import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
+import type { BriefComparisonPlan } from "../../../model/comparison/types";
+import type { ComparisonMarks } from "../../../model/types";
 import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker";
-import {
-  useComparisonOverlay,
-  type BriefComparisonPlan,
-} from "../BriefScreen/useComparisonOverlay";
+import { useComparisonOverlay } from "../BriefScreen/useComparisonOverlay";
 import { buildLocalComparisonMarksQueryOptions } from "../../../queries";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { mountBriefView } from "../../../test-utils";
@@ -91,27 +90,16 @@ describe("per-group changed-since marker", () => {
     expect(screen.queryByText(/unchanged since your last review/i)).toBeNull();
   });
 
-  it("local sidecar path: since-marks resolve with Compare OFF", async () => {
-    // Hook-level (a full BriefView mounts ComparisonControls, whose navigation
-    // needs a RouterProvider): no comparisonPlan → the
-    // marks resolve from the artifact's last-review sidecar id even though
-    // the active Compare baseline is off.
-    const artifact: LocalBriefSummary = {
-      id: "since-marker-test",
-      artifactKind: "brief",
-      repo: briefFixture.pr.repo,
-      number: briefFixture.pr.number,
-      title: briefFixture.pr.title,
-      sha: briefFixture.pr.sha,
-      index: 1,
-      comparisons: {
-        lastReview: {
-          marksId: "marks-1",
-          baselineSha: "chk1234deadbeef00",
-          baselineIndex: 1,
-        },
+  it("local plan: since-marks resolve with Compare off", async () => {
+    // Hook-level: the marks resolve from the last-review sidecar id even
+    // though the active Compare baseline is off.
+    const comparisonPlan = buildLocalComparisonPlan({
+      lastReview: {
+        marksId: "marks-1",
+        baselineSha: "chk1234deadbeef00",
+        baselineIndex: 1,
       },
-    };
+    });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -122,10 +110,8 @@ describe("per-group changed-since marker", () => {
     const { result } = renderHook(
       () =>
         useComparisonOverlay({
-          artifacts: [artifact],
           brief: briefFixture,
-          briefId: "since-marker-test",
-          comparisonPlan: undefined,
+          comparisonPlan,
           searchParams: { view: "full", compare: "off" },
         }),
       {

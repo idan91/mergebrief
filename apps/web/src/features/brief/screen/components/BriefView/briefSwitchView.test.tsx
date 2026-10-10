@@ -17,12 +17,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EXPANDED_ROW_SELECTOR } from "@web/components/DiffRows/consts";
 import { emptySessionPayload } from "@web/features/review/session";
 import { makeSessionReadDriver } from "@web/features/review/utils";
+import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
+import type { BriefComparisonPlan } from "../../../model/comparison/types";
 import { buildFileRangeQueryKey, type FileRangeResult } from "../../../queries";
-import type {
-  Brief,
-  LocalBriefSummary,
-  PostCommentResult,
-} from "../../../model/types";
+import type { Brief, PostCommentResult } from "../../../model/types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { mountBriefView } from "../../../test-utils";
 
@@ -251,44 +249,25 @@ describe("hunk edge expansion through the screen", () => {
   });
 });
 
-/** One timeline summary granting brief-a a previous-brief comparison,
- * a single point, so the router-dependent prev/next links never render. */
-const artifactSummaries: LocalBriefSummary[] = [
-  {
-    id: "brief-a",
-    artifactKind: "brief",
-    repo: briefFixture.pr.repo,
-    number: briefFixture.pr.number,
-    title: briefFixture.pr.title,
-    sha: briefFixture.pr.sha,
-    index: 1,
-    comparisons: {
-      previousBrief: {
-        marksId: "marks-a",
-        baselineSha: "0".repeat(40),
-        baselineIndex: 0,
-      },
-    },
+/** Brief-a's previous-brief comparison. */
+const BRIEF_A_PLAN = buildLocalComparisonPlan({
+  previousBrief: {
+    marksId: "marks-a",
+    baselineSha: "0".repeat(40),
+    baselineIndex: 0,
   },
-];
+});
 
 /** The second revision on the same timeline, with its own previous-brief comparison. */
-const briefBSummary: LocalBriefSummary = {
-  id: "brief-b",
-  artifactKind: "brief",
-  repo: briefFixture.pr.repo,
-  number: briefFixture.pr.number,
-  title: briefFixture.pr.title,
-  sha: briefB.pr.sha,
-  index: 2,
-  comparisons: {
-    previousBrief: {
-      marksId: "marks-b",
-      baselineSha: briefFixture.pr.sha,
-      baselineIndex: 1,
-    },
+const BRIEF_B_PLAN = buildLocalComparisonPlan({
+  previousBrief: {
+    marksId: "marks-b",
+    baselineSha: briefFixture.pr.sha,
+    baselineIndex: 1,
   },
-};
+});
+
+const NO_BASELINE_PLAN: BriefComparisonPlan = {};
 
 describe("kept-warm scope panes", () => {
   // The pane's marker: with no narrative fetchable in jsdom, the changes
@@ -303,8 +282,8 @@ describe("kept-warm scope panes", () => {
 
   it("keeps the changes pane hidden after leaving scope, drops it on switch", async () => {
     const view = await mountBriefView({
-      artifacts: artifactSummaries,
       briefId: "brief-a",
+      comparisonPlan: BRIEF_A_PLAN,
       searchParams: { view: "changes", compare: "previous-brief" },
     });
     expect(changesPane()).not.toBeNull();
@@ -318,7 +297,12 @@ describe("kept-warm scope panes", () => {
 
     // Latches reset on a brief switch: the hidden pane is unmounted, never
     // kept against the re-derived stores.
-    view.rerender({ brief: briefB, briefId: "brief-b", searchParams: {} });
+    view.rerender({
+      brief: briefB,
+      briefId: "brief-b",
+      comparisonPlan: NO_BASELINE_PLAN,
+      searchParams: {},
+    });
     expect(changesPane()).toBeNull();
   });
 
@@ -330,8 +314,8 @@ describe("kept-warm scope panes", () => {
       compare: "previous-brief",
     } as const;
     const view = await mountBriefView({
-      artifacts: [...artifactSummaries, briefBSummary],
       briefId: "brief-a",
+      comparisonPlan: BRIEF_A_PLAN,
     });
     expect(queryStoryChunk()).not.toBeNull();
 
@@ -342,6 +326,7 @@ describe("kept-warm scope panes", () => {
     view.rerender({
       brief: briefB,
       briefId: "brief-b",
+      comparisonPlan: BRIEF_B_PLAN,
       searchParams: changesSearch,
     });
     expect(changesPane()).not.toBeNull();

@@ -20,7 +20,6 @@ import {
   buildLocalBriefsQueryOptions,
   buildLocalComparisonMarksQueryOptions,
   buildLocalRevisionChangesQueryOptions,
-  buildLocalRevisionNarrativeQueryOptions,
 } from "../features/brief/queries";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates, type ViewerState } from "../features/account/types";
@@ -312,10 +311,6 @@ function buildQueryClient() {
   queryClient.setQueryData(
     buildLocalComparisonMarksQueryOptions("marks-chk-brief-2").queryKey,
     marksCheckpoint,
-  );
-  queryClient.setQueryData(
-    buildLocalRevisionNarrativeQueryOptions("").queryKey,
-    null,
   );
   return queryClient;
 }

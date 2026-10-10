@@ -9,11 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ProgressTotals } from "../../utils/progress";
-import type {
-  BriefChunk,
-  ComparisonAvailability,
-  ComparisonMarks,
-} from "../../../model/types";
+import type { BriefChunk, ComparisonMarks } from "../../../model/types";
 import {
   conversationGroupIds,
   countComparisonRuns,
@@ -30,7 +26,6 @@ import {
   listChunkIds,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
-  resolveLocalComparisonIds,
   resolveRiskEvidence,
   toggleSetMember,
   resolveSidebarLayout,
@@ -299,55 +294,6 @@ describe("deriveBriefProgress", () => {
         flagCount: 2,
       }),
     ).toBeCloseTo((2 / 3) * 100);
-  });
-});
-
-describe("resolveLocalComparisonIds", () => {
-  const comparisons: ComparisonAvailability = {
-    previousBrief: {
-      marksId: "prev-marks",
-      narrativeId: "prev-narrative",
-      baselineSha: "sha-prev",
-      baselineIndex: 0,
-    },
-    lastReview: {
-      marksId: "review-marks",
-      deltaId: "review-delta",
-      baselineSha: "sha-review",
-      baselineIndex: 1,
-    },
-  };
-
-  it("resolves nothing while Compare is off", () => {
-    expect(resolveLocalComparisonIds("off", comparisons)).toEqual({
-      marksId: undefined,
-      narrativeId: undefined,
-      deltaId: undefined,
-    });
-  });
-
-  it("resolves nothing without a selected point", () => {
-    expect(resolveLocalComparisonIds("previous-brief", undefined)).toEqual({
-      marksId: undefined,
-      narrativeId: undefined,
-      deltaId: undefined,
-    });
-  });
-
-  it("resolves previous-brief marks + narrative, never a delta", () => {
-    expect(resolveLocalComparisonIds("previous-brief", comparisons)).toEqual({
-      marksId: "prev-marks",
-      narrativeId: "prev-narrative",
-      deltaId: undefined,
-    });
-  });
-
-  it("resolves last-review marks + delta, never a narrative", () => {
-    expect(resolveLocalComparisonIds("last-review", comparisons)).toEqual({
-      marksId: "review-marks",
-      narrativeId: undefined,
-      deltaId: "review-delta",
-    });
   });
 });
 
