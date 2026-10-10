@@ -16,6 +16,7 @@ import {
 } from "persistence";
 import { createApp } from "./app";
 import { createBootLogger, exitOnConfigError, loadBootConfig } from "./boot";
+import { resolveLocalBriefsDir } from "./boot/local-briefs-dir";
 import { ExitCodes } from "./boot/types";
 import { SESSION_KEY_REF } from "./config";
 import { handleHealthRequest } from "./health";
@@ -79,6 +80,12 @@ async function main(): Promise<void> {
     log: logger,
   });
 
+  const configuredOutDir = boot.api.localBriefsDir;
+  const localBriefsDir =
+    configuredOutDir === undefined
+      ? undefined
+      : resolveLocalBriefsDir(configuredOutDir, process.cwd());
+
   const app = createApp({
     handle,
     webhookSecret: boot.github.webhookSecret,
@@ -94,6 +101,7 @@ async function main(): Promise<void> {
     operatorToken: boot.github.operatorToken,
     githubAppSlug: boot.github.appSlug,
     attachmentQuota: boot.api.attachmentQuota,
+    localBriefsDir,
     auth: {
       oauthClientId: boot.github.oauthClientId,
       oauthClientSecret: boot.github.oauthClientSecret,

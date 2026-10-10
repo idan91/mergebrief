@@ -81,6 +81,12 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/inbox",
   },
   {
+    id: "list-local-briefs",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/local-briefs",
+  },
+  {
     id: "list-repos",
     kind: "query",
     classification: "read",
@@ -158,6 +164,30 @@ const EXPECTED_CATALOG = [
     kind: "query",
     classification: "read",
     endpoint: "GET /api/repos/:repoId/pulls/:prNumber/file-range",
+  },
+  {
+    id: "read-local-brief",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/local-briefs/:briefId",
+  },
+  {
+    id: "read-local-brief-diffs",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/local-briefs/:briefId/diffs",
+  },
+  {
+    id: "read-local-comparison-marks",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/local-briefs/:briefId/comparison-marks",
+  },
+  {
+    id: "read-local-revision-narrative",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/local-briefs/:briefId/revision-narrative",
   },
   {
     id: "read-marks",

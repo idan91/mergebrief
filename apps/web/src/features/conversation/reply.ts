@@ -70,6 +70,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_FAILED]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_CONFIG]: ReplyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.INTERNAL_ERROR]: ReplyResultKinds.UPSTREAM,
   // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: ReplyResultKinds.UPSTREAM,

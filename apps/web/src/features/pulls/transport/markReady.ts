@@ -74,6 +74,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_FAILED]: MarkReadyResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: MarkReadyResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_CONFIG]: MarkReadyResultKinds.UPSTREAM,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: MarkReadyResultKinds.UPSTREAM,
   [ApiErrorCodes.INTERNAL_ERROR]: MarkReadyResultKinds.UPSTREAM,
   // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: MarkReadyResultKinds.UPSTREAM,

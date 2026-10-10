@@ -3,7 +3,8 @@
 // owns. Every other config block comes from the package that owns it.
 import { ATTACHMENT_MAX_BYTES } from "contract";
 import { isHttpUrl, parseServerVersion } from "persistence";
-import type { Result, ValueOf } from "types/utils";
+import { Runtimes } from "types/runtime";
+import type { Mutable, Result, ValueOf } from "types/utils";
 import { z } from "zod/v4";
 import {
   BYTES_PER_MB,
@@ -44,6 +45,8 @@ export interface ApiConfig {
   readonly updateCheckUrl: string;
   /** `MERGEBRIEF_ATTACHMENT_QUOTA_*`: what one reviewer may upload per window. */
   readonly attachmentQuota: UploadQuotaLimits;
+  /** `MERGEBRIEF_OUT_DIR`, as written; never set in production. */
+  readonly localBriefsDir?: string;
 }
 
 const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
@@ -116,6 +119,8 @@ const PortSchema = z
     "MERGEBRIEF_API_PORT must be a port",
   );
 
+const PRODUCTION_NODE_ENV = "production";
+
 const PUBLIC_BASE_URL_REQUIRED =
   "PUBLIC_BASE_URL is required for reviewer auth";
 
@@ -149,7 +154,27 @@ const ConfigSchema = z.object({
   MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: parseEnvPositiveInt(
     DEFAULT_UPLOAD_QUOTA_WINDOW_MINUTES,
   ),
+  MERGEBRIEF_OUT_DIR: z.string().optional(),
+  MERGEBRIEF_RUNTIME: z.string().optional(),
+  NODE_ENV: z.string().optional(),
 });
+type ParsedConfig = z.infer<typeof ConfigSchema>;
+
+/**
+ * The dev file surface. The shipped image bakes its runtime marker, so the
+ * image never serves it whatever else the environment says.
+ */
+function readLocalBriefsDir(value: ParsedConfig): string | undefined {
+  const runsShippedImage = value.MERGEBRIEF_RUNTIME === Runtimes.COMPOSE_WORKER;
+  const runsProduction =
+    runsShippedImage || value.NODE_ENV === PRODUCTION_NODE_ENV;
+  if (runsProduction) {
+    return undefined;
+  }
+
+  const dir = value.MERGEBRIEF_OUT_DIR?.trim();
+  return dir === "" ? undefined : dir;
+}
 
 function buildConfigError(issues: readonly string[]): ConfigError {
   return { code: ConfigErrorCodes.INVALID, issues };
@@ -193,22 +218,25 @@ export function loadConfig(
   }
 
   const value = parsed.data;
-  return {
-    ok: true,
-    value: {
-      host: value.MERGEBRIEF_API_HOST ?? DEFAULT_API_HOST,
-      port: value.MERGEBRIEF_API_PORT ?? DEFAULT_API_PORT,
-      publicBaseUrl: value.PUBLIC_BASE_URL,
-      serverVersion: serverVersion.value,
-      updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
-      updateCheckUrl:
-        value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,
-      attachmentQuota: {
-        maxFiles: value.MERGEBRIEF_ATTACHMENT_QUOTA_FILES,
-        maxBytes: value.MERGEBRIEF_ATTACHMENT_QUOTA_MB * BYTES_PER_MB,
-        windowMs:
-          value.MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES * MS_PER_MINUTE,
-      },
+  const config: Mutable<ApiConfig> = {
+    host: value.MERGEBRIEF_API_HOST ?? DEFAULT_API_HOST,
+    port: value.MERGEBRIEF_API_PORT ?? DEFAULT_API_PORT,
+    publicBaseUrl: value.PUBLIC_BASE_URL,
+    serverVersion: serverVersion.value,
+    updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
+    updateCheckUrl:
+      value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,
+    attachmentQuota: {
+      maxFiles: value.MERGEBRIEF_ATTACHMENT_QUOTA_FILES,
+      maxBytes: value.MERGEBRIEF_ATTACHMENT_QUOTA_MB * BYTES_PER_MB,
+      windowMs:
+        value.MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES * MS_PER_MINUTE,
     },
   };
+
+  const localBriefsDir = readLocalBriefsDir(value);
+  if (localBriefsDir !== undefined) {
+    config.localBriefsDir = localBriefsDir;
+  }
+  return { ok: true, value: config };
 }

@@ -22,6 +22,11 @@ export const ProductQueryIds = {
   READ_FILE_RANGE: "read-file-range",
   READ_STACK: "read-stack",
   READ_ATTACHMENT: "read-attachment",
+  LIST_LOCAL_BRIEFS: "list-local-briefs",
+  READ_LOCAL_BRIEF: "read-local-brief",
+  READ_LOCAL_BRIEF_DIFFS: "read-local-brief-diffs",
+  READ_LOCAL_COMPARISON_MARKS: "read-local-comparison-marks",
+  READ_LOCAL_REVISION_NARRATIVE: "read-local-revision-narrative",
 } as const;
 export type ProductQueryId = ValueOf<typeof ProductQueryIds>;
 

@@ -63,6 +63,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_FAILED]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_CONFIG]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.INTERNAL_ERROR]: PostCommentResultKinds.UPSTREAM,
   // Web-local; never on the wire, errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: PostCommentResultKinds.UPSTREAM,

@@ -189,6 +189,40 @@ describe("loadConfig SERVER_VERSION", () => {
   });
 });
 
+describe("loadConfig local Briefs dir", () => {
+  const BASE = {
+    PUBLIC_BASE_URL: "https://brief.example.test",
+    MERGEBRIEF_OUT_DIR: "tools/categorizer/out",
+  };
+
+  function readDir(env: Record<string, string>): string | undefined {
+    const result = loadConfig(env);
+    if (!result.ok) {
+      throw new Error("expected a valid config");
+    }
+    return result.value.localBriefsDir;
+  }
+
+  it("takes the dir as written outside production", () => {
+    expect(readDir(BASE)).toBe("tools/categorizer/out");
+    expect(readDir({ ...BASE, NODE_ENV: "development" })).toBe(
+      "tools/categorizer/out",
+    );
+  });
+
+  it("reads unset and blank as no dir", () => {
+    expect(readDir({ PUBLIC_BASE_URL: BASE.PUBLIC_BASE_URL })).toBeUndefined();
+    expect(readDir({ ...BASE, MERGEBRIEF_OUT_DIR: "  " })).toBeUndefined();
+  });
+
+  it("never sets a dir in the shipped image or under NODE_ENV=production", () => {
+    expect(
+      readDir({ ...BASE, MERGEBRIEF_RUNTIME: "compose-worker" }),
+    ).toBeUndefined();
+    expect(readDir({ ...BASE, NODE_ENV: "production" })).toBeUndefined();
+  });
+});
+
 describe("loadConfig refusals never echo the value", () => {
   const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
   const MARKER = "leak-marker";

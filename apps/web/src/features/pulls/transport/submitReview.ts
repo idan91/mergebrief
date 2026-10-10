@@ -72,6 +72,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_FAILED]: SubmitReviewResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: SubmitReviewResultKinds.UPSTREAM,
   [ApiErrorCodes.GENERATION_CONFIG]: SubmitReviewResultKinds.UPSTREAM,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: SubmitReviewResultKinds.UPSTREAM,
   [ApiErrorCodes.INTERNAL_ERROR]: SubmitReviewResultKinds.UPSTREAM,
   // Web-local; never on the wire, errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: SubmitReviewResultKinds.UPSTREAM,

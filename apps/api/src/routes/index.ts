@@ -15,6 +15,7 @@ import { createAccessibleInstallationsResolver } from "./auth/accessible-install
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { inboxRoutes } from "./inbox";
+import { localBriefsRoutes } from "./local-briefs";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { OperatorTokenConfig } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
@@ -64,6 +65,8 @@ export interface AppDeps {
   readonly githubAppSlug?: string | undefined;
   /** Per-reviewer attachment upload limits; omitted = the defaults. */
   readonly attachmentQuota?: UploadQuotaLimits;
+  /** The dev-only local Brief directory, absolute; absent answers its paths 404. */
+  readonly localBriefsDir?: string | undefined;
 }
 
 /** Compose the `/api` router over injected deps. */
@@ -99,5 +102,6 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
     "/inbox",
     inboxRoutes(deps, installations, resolver, inboxOpenPullsCache),
   );
+  app.route("/local-briefs", localBriefsRoutes(deps));
   return app;
 }

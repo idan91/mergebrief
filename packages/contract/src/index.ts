@@ -63,6 +63,15 @@ export {
 } from "./inbox";
 export { WaitReasons, type WaitReason } from "./generation";
 export {
+  LocalBriefKinds,
+  type LocalBriefKind,
+  type LocalBriefSummary,
+  type LocalBriefView,
+  type LocalComparisonAvailability,
+  type LocalLastReviewAvailability,
+  type LocalPreviousBriefAvailability,
+} from "./local-briefs";
+export {
   ProductActionIds,
   ProductQueryIds,
   type ProductActionId,

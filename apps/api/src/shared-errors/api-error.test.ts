@@ -49,6 +49,7 @@ describe("ApiError classes", () => {
     new BadRequest(ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE),
     new TooManyRequests(ApiErrorCodes.ATTACHMENT_LIMIT_REACHED),
     new InternalError(),
+    new InternalError(ApiErrorCodes.ARTIFACT_UNREADABLE),
     new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE),
     new BadGateway(ApiErrorCodes.GENERATION_FAILED),
     new ServiceUnavailable(ApiErrorCodes.GENERATION_UNAVAILABLE),

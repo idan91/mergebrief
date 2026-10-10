@@ -38,6 +38,7 @@
     "generation-failed": "generation failed",
     "generation-unavailable": "url generation unavailable",
     "generation-config": "{{detail}}",
+    "artifact-unreadable": "artifact unreadable",
     "internal-error": "internal error"
   },
   "generationError": {
@@ -149,6 +150,7 @@
       "generation-unavailable": "Brief generation isn't available on this server right now.",
       "generation-config": "The generator on this server is misconfigured — check the server logs.",
       "github-unavailable": "The MergeBrief backend is unreachable right now — try again shortly.",
+      "artifact-unreadable": "This brief's files on disk could not be read. Check the server logs.",
       "internal-error": "The MergeBrief backend is unreachable right now — try again shortly.",
       "malformed": "The MergeBrief backend returned something this page couldn't read — check the server logs.",
       "generic": "Something went wrong loading this brief — check the server logs."

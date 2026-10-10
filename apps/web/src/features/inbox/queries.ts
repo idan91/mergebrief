@@ -101,6 +101,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_FAILED]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.GENERATION_CONFIG]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.INTERNAL_ERROR]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.MALFORMED]: RowWriteResultKinds.FAILED,
 } as const satisfies Record<ApiErrorCode, RowWriteFailureKind>;

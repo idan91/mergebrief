@@ -45,6 +45,8 @@ Every catalog domain is a folder with a closed role set at root; new endpoints f
 
 A handler or controller body is orchestration only (~40 lines); computed logic extracts to a named, unit-testable function in `logic/`. Sibling routes sharing a path segment mount under one prefix in one routes file.
 
+`routes/local-briefs` is dev-only: it serves `MERGEBRIEF_OUT_DIR`, which `loadConfig` drops in the shipped image (`MERGEBRIEF_RUNTIME`) or under `NODE_ENV=production`; with no dir its paths answer as unmounted, while its queries stay in the catalog.
+
 No per-domain repository files — persistence's tenant-scoped stores are called directly. Reviewer-identity GitHub calls go through the per-request `ReviewerGitHubClient` (`createReviewerGitHubClient`, factory beside `refreshSessionToken`). Its `run(call, isExpired?)` refreshes the token at most once per request and re-runs; hand-rolled refresh locals are banned. Every user-token octokit comes from the client (`createOctokit`, `createMutationOctokit`), which builds it with the injected `AuthDeps.createUserOctokit`; nothing under `src/` but `main.ts` imports the factory, and a test swaps it there instead of mocking `github`.
 
 Tests: full-URL wire suites stay in `test/` (the byte-identity proof); unit tests colocate (`controller.test.ts`, `logic/x.test.ts`). The tell is whether the file imports `app.request`.

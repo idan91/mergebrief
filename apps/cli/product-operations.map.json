@@ -50,6 +50,12 @@
   "list-inbox": {
     "command": "mergebrief pr"
   },
+  "list-local-briefs": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "idan"
+    }
+  },
   "list-repos": {
     "command": "mergebrief repos"
   },
@@ -101,6 +107,30 @@
   "read-file-range": {
     "webOnly": {
       "reason": "The hunk-edge expander is a diff-viewer affordance; the CLI has no rendered diff to expand around",
+      "owner": "idan"
+    }
+  },
+  "read-local-brief": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "idan"
+    }
+  },
+  "read-local-brief-diffs": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "idan"
+    }
+  },
+  "read-local-comparison-marks": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "idan"
+    }
+  },
+  "read-local-revision-narrative": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
       "owner": "idan"
     }
   },

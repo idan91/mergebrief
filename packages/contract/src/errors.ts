@@ -42,6 +42,7 @@ export const ApiErrorCodes = {
   GENERATION_FAILED: "generation-failed",
   GENERATION_UNAVAILABLE: "generation-unavailable",
   GENERATION_CONFIG: "generation-config",
+  ARTIFACT_UNREADABLE: "artifact-unreadable",
   INTERNAL_ERROR: "internal-error",
 } as const;
 export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
@@ -108,6 +109,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.GENERATION_FAILED]: HttpStatuses.BAD_GATEWAY,
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: HttpStatuses.SERVICE_UNAVAILABLE,
   [ApiErrorCodes.GENERATION_CONFIG]: HttpStatuses.SERVICE_UNAVAILABLE,
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: HttpStatuses.INTERNAL_SERVER_ERROR,
   [ApiErrorCodes.INTERNAL_ERROR]: HttpStatuses.INTERNAL_SERVER_ERROR,
 } as const satisfies Record<ApiErrorCode, HttpStatus>;
 
@@ -169,5 +171,6 @@ export const ApiErrorEnglishByCode = {
   [ApiErrorCodes.GENERATION_FAILED]: "generation failed",
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "url generation unavailable",
   [ApiErrorCodes.GENERATION_CONFIG]: "{{detail}}",
+  [ApiErrorCodes.ARTIFACT_UNREADABLE]: "artifact unreadable",
   [ApiErrorCodes.INTERNAL_ERROR]: "internal error",
 } as const satisfies Record<ApiErrorCode, string>;
