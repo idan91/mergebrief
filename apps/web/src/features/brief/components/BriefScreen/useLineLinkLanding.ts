@@ -22,6 +22,7 @@ import {
 } from "../../types";
 import { isExpansionCovered } from "../../utils/expansion-rows";
 import type { FileRowsCache } from "../../utils/fileRows";
+import { LandHistories } from "./landing/types";
 import { collectSelectionRowIds, planLineLanding } from "./line-landing";
 import {
   type LineLandingPlan,
@@ -29,7 +30,6 @@ import {
   type LineLandingRead,
   type LineReadOutcome,
   LineReadOutcomes,
-  type ScopeExitOptions,
 } from "./types";
 import type { JumpToChunkFromConversation } from "./useConversationWiring/types";
 import { deriveLineLink } from "./utils";
@@ -42,8 +42,7 @@ export interface UseLineLinkLandingInput {
   /** The PR diff has answered, with rows or without. */
   rowsSettled: boolean;
   expansionSource: ExpansionSource | undefined;
-  inChangesScope: boolean;
-  exitChangesScope: ((options?: ScopeExitOptions) => void) | undefined;
+  /** Lands by replace: an arrival in Changes scope leaves it without a history step. */
   jumpToChunkFromConversation: JumpToChunkFromConversation;
   selectLines: ReviewFlowActions["selectLines"];
   expandEdge: ExpansionActions["expandEdge"];
@@ -67,11 +66,6 @@ type LandPlan = Extract<
   LineLandingPlan,
   { kind: typeof LineLandingKinds.LAND }
 >;
-
-interface PendingLanding {
-  plan: LandPlan;
-  target: LineLinkTarget;
-}
 
 const MAIN_CONTENT_ID = "main-content";
 
@@ -118,7 +112,8 @@ function splitReadRange(read: LineLandingRead): LineRange[] {
  * landing, a folded line reads its hunk edge first, and the range becomes
  * the selection, so the link the reader arrived on is the one the page
  * would write. A miss drops the link and says so; a read the source could
- * not serve keeps the link and shows the chunk instead.
+ * not serve keeps the link and shows the chunk instead. The read runs before
+ * the landing, so one landing carries the final target out of Changes scope.
  */
 export function useLineLinkLanding(
   input: UseLineLinkLandingInput,
@@ -129,8 +124,6 @@ export function useLineLinkLanding(
     fileRows,
     rowsSettled,
     expansionSource,
-    inChangesScope,
-    exitChangesScope,
     jumpToChunkFromConversation,
     selectLines,
     expandEdge,
@@ -141,21 +134,26 @@ export function useLineLinkLanding(
     t,
   } = input;
   const queryClient = useQueryClient();
-  const [missed, setMissed] = useState(false);
-  const [pending, setPending] = useState<PendingLanding | undefined>();
-  const [seenBriefId, setSeenBriefId] = useState(briefId);
-  if (seenBriefId !== briefId) {
-    setSeenBriefId(briefId);
-    setPending(undefined);
-    setMissed(false);
-  }
+  const [missedFor, setMissedFor] = useState<string | undefined>();
   // A read that settles after the brief moved on must not act on the new
-  // brief's rows.
+  // brief's rows, nor navigate from a page that is gone.
   const liveBriefId = useRef(briefId);
   liveBriefId.current = briefId;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // The screen outlives a revision switch; a miss belongs to the brief it
+  // happened on and is gone once the reader leaves it.
+  useEffect(() => {
+    setMissedFor((current) => (current === briefId ? current : undefined));
+  }, [briefId]);
 
   const miss = useCallback(() => {
-    setMissed(true);
+    setMissedFor(liveBriefId.current);
     writtenLink.current = undefined;
     navigateLink?.(undefined);
     announce(t("brief.lineLink.missing"));
@@ -221,31 +219,33 @@ export function useLineLinkLanding(
   );
 
   const landOnCard = useCallback(
-    (chunk: BriefChunk) => {
-      jumpToChunkFromConversation(chunk.id, undefined, "instant");
-      announce(t("brief.lineLink.readFailed"));
+    (chunk: BriefChunk): boolean => {
+      const scheduled = jumpToChunkFromConversation(
+        chunk.id,
+        undefined,
+        "instant",
+        LandHistories.REPLACE,
+      );
+      if (scheduled) {
+        announce(t("brief.lineLink.readFailed"));
+      }
+      return scheduled;
     },
     [announce, jumpToChunkFromConversation, t],
   );
 
-  const perform = useCallback(
-    async (plan: LandPlan, target: LineLinkTarget): Promise<void> => {
-      const started = liveBriefId.current;
-      if (plan.read !== undefined) {
-        const outcome = await readIntoEdge(plan.chunk.file, plan.read);
-        if (liveBriefId.current !== started) {
-          return;
-        }
-        if (outcome === LineReadOutcomes.SHORT) {
-          miss();
-          return;
-        }
-        if (outcome === LineReadOutcomes.UNAVAILABLE && plan.read.coversStart) {
-          landOnCard(plan.chunk);
-          return;
-        }
+  const landOnLines = useCallback(
+    (plan: LandPlan, target: LineLinkTarget): boolean => {
+      const scheduled = jumpToChunkFromConversation(
+        plan.chunk.id,
+        plan.row,
+        "instant",
+        LandHistories.REPLACE,
+      );
+      if (!scheduled) {
+        return false;
       }
-      jumpToChunkFromConversation(plan.chunk.id, plan.row, "instant");
+
       writtenLink.current = deriveLineLink(target);
       selectLines(buildSelection(plan, target));
       announceQuietly(
@@ -256,28 +256,36 @@ export function useLineLinkLanding(
               end: target.endLine,
             }),
       );
+      return true;
     },
-    [
-      announceQuietly,
-      jumpToChunkFromConversation,
-      landOnCard,
-      miss,
-      readIntoEdge,
-      selectLines,
-      t,
-      writtenLink,
-    ],
+    [announceQuietly, jumpToChunkFromConversation, selectLines, t, writtenLink],
   );
 
-  // A landing parked by an arrival in Changes scope, run once the story
-  // pane renders.
-  useEffect(() => {
-    if (pending === undefined || inChangesScope) {
-      return;
-    }
-    setPending(undefined);
-    void perform(pending.plan, pending.target);
-  }, [inChangesScope, pending, perform]);
+  const readThenLand = useCallback(
+    async (
+      plan: LandPlan,
+      read: LineLandingRead,
+      target: LineLinkTarget,
+    ): Promise<void> => {
+      const started = liveBriefId.current;
+      const outcome = await readIntoEdge(plan.chunk.file, read);
+      const stale = !mounted.current || liveBriefId.current !== started;
+      if (stale) {
+        return;
+      }
+
+      if (outcome === LineReadOutcomes.SHORT) {
+        miss();
+        return;
+      }
+      if (outcome === LineReadOutcomes.UNAVAILABLE && read.coversStart) {
+        landOnCard(plan.chunk);
+        return;
+      }
+      landOnLines(plan, target);
+    },
+    [landOnCard, landOnLines, miss, readIntoEdge],
+  );
 
   const landLine = useCallback(
     (target: LineLinkTarget): boolean => {
@@ -290,37 +298,24 @@ export function useLineLinkLanding(
         return true;
       }
       if (plan.kind === LineLandingKinds.CARD) {
-        landOnCard(plan.chunk);
-        return true;
+        return landOnCard(plan.chunk);
       }
-      if (!inChangesScope) {
-        void perform(plan, target);
-        return true;
+      if (plan.read === undefined) {
+        return landOnLines(plan, target);
       }
-      if (exitChangesScope === undefined) {
-        return false;
-      }
-      setPending({ plan, target });
-      exitChangesScope({ replace: true });
+
+      void readThenLand(plan, plan.read, target);
       return true;
     },
-    [
-      chunks,
-      exitChangesScope,
-      inChangesScope,
-      landOnCard,
-      miss,
-      perform,
-      rowsSettled,
-    ],
+    [chunks, landOnCard, landOnLines, miss, readThenLand, rowsSettled],
   );
 
   // Dismiss unmounts the button under focus; the page's main landmark
   // takes it so Tab does not restart at the top.
   const dismissMiss = useCallback(() => {
-    setMissed(false);
+    setMissedFor(undefined);
     document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   }, []);
 
-  return { landLine, missed, dismissMiss };
+  return { landLine, missed: missedFor === briefId, dismissMiss };
 }

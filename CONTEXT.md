@@ -362,6 +362,14 @@ _Avoid_: group header, panel (that is the **Context panel**), rail (that is the 
 Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions: the summary plus the changed lines, reviewable in place. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
 _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)
 
+**Landing**:
+Putting the reader on a chunk, group, row, rail or section target, once, with the page settled: the card opened, the viewport scrolled, focus placed, the target flashed. One landing at a time; a new **Brief** cancels the one in flight.
+_Avoid_: scroll-to (one step of it), jump (the gesture that asks for one), deep link (the URL that asks for one)
+
+**Address**:
+What the URL's `l` and `focus` params say, as a pure function of reading state: the selected lines, else the **Focus mode** chunk, else nothing. State writes the Address; the Address never writes state.
+_Avoid_: link param (one field of it), URL sync, route state
+
 **Span diff**:
 The live diff from the active **Comparison baseline** to the selected head, fetched when the reader asks for it in Changes **Scope**. Its right side is head; its left side is the baseline, so a left-side row has no line at head and takes no comment. Every row it shows is a guest row of the full **Brief** chunk that owns the line, resolved the way a **Sibling span** resolves its owner.
 _Avoid_: raw diff (the toggle's label, not the concept), whole-PR diff, span patch

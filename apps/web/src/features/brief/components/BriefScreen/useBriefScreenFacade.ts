@@ -395,8 +395,6 @@ export function useBriefScreenFacade({
     fileRows,
     rowsSettled: fileRows !== undefined,
     expansionSource,
-    inChangesScope,
-    exitChangesScope,
     jumpToChunkFromConversation,
     selectLines: flowActions.selectLines,
     expandEdge: expansion.getState().actions.expandEdge,
@@ -414,6 +412,7 @@ export function useBriefScreenFacade({
     land: landOnDeepLink,
     landLine: lineLanding.landLine,
     writtenLink: writtenLinkRef,
+    navigateLink,
   });
 
   // The chunk glyph: the URL names the chunk, so once it is copied a line

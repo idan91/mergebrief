@@ -163,7 +163,8 @@ function launchLanding(
  * clears the flash. A row that never renders lands on its card instead.
  * In Changes scope a landing with a history mode parks, leaves the scope in
  * that mode and lands once the story pane renders; parked counts as the one
- * landing, so a newer one or a brief switch drops it.
+ * landing, so a newer one or a brief switch drops it. After unmount `land`
+ * refuses, so a late caller never navigates from a page that is gone.
  */
 export function useLanding({
   briefId,
@@ -177,6 +178,13 @@ export function useLanding({
   const liveBriefId = useRef(briefId);
   liveBriefId.current = briefId;
   const parkedRef = useRef<ParkedLanding | undefined>(undefined);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const inChangesScopeRef = useLatestRef(inChangesScope);
   const exitChangesScopeRef = useLatestRef(exitChangesScope);
   const [flash] = useState(createFlash);
@@ -221,6 +229,9 @@ export function useLanding({
 
   const land = useCallback<Landing["land"]>(
     (target, options) => {
+      if (!mountedRef.current) {
+        return false;
+      }
       const leavesScope =
         options.history !== LandHistories.NONE && inChangesScopeRef.current;
       if (!leavesScope) {

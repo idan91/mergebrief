@@ -774,4 +774,24 @@ describe("useLanding from Changes scope", () => {
     expect(scheduled).toBe(false);
     expect(card.scrollIntoView).not.toHaveBeenCalled();
   });
+
+  it("refuses a landing asked after the page unmounted", () => {
+    const card = mountCard("chunk-a", 300);
+    const exitChangesScope = vi.fn();
+    const { result, unmount } = renderChangesLanding(exitChangesScope);
+    const { land } = result.current;
+    unmount();
+
+    let scheduled = true;
+    act(() => {
+      scheduled = land(CHUNK_A, REPLACE);
+      scheduled = land(CHUNK_A, SMOOTH) || scheduled;
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(scheduled).toBe(false);
+    expect(exitChangesScope).not.toHaveBeenCalled();
+    expect(card.scrollIntoView).not.toHaveBeenCalled();
+    expect(window.scrollBy).not.toHaveBeenCalled();
+  });
 });

@@ -20,6 +20,8 @@ export interface UseChunkDeepLinkInput {
   landLine?: ((target: LineLinkTarget) => boolean) | undefined;
   /** The link this page last wrote itself; arriving on it is not an arrival. */
   writtenLink?: RefObject<string | undefined> | undefined;
+  /** Replaces the link param; undefined drops it. */
+  navigateLink?: ((link: string | undefined) => void) | undefined;
 }
 
 /**
@@ -27,7 +29,8 @@ export interface UseChunkDeepLinkInput {
  * windowed cards mount as the viewport passes, so the landing goes through
  * the app's jump, which asks the windows to mount the card. The one chance
  * is spent by a scheduled landing or by yielding to another arrival, never
- * by a chunk list that does not carry the id yet.
+ * by a chunk list that does not carry the id yet. A link that does not
+ * parse spends it by leaving the URL.
  */
 export function useChunkDeepLink({
   briefId,
@@ -37,6 +40,7 @@ export function useChunkDeepLink({
   land,
   landLine,
   writtenLink,
+  navigateLink,
 }: UseChunkDeepLinkInput): void {
   const landedFor = useRef<string | undefined>(undefined);
 
@@ -50,6 +54,8 @@ export function useChunkDeepLink({
     }
     const parsed = parseLinkParam(link);
     if (!parsed.ok) {
+      landedFor.current = briefId;
+      navigateLink?.(undefined);
       return;
     }
     if (!enabled) {
@@ -66,5 +72,14 @@ export function useChunkDeepLink({
     if (landLine !== undefined && landLine(parsed.value.lines)) {
       landedFor.current = briefId;
     }
-  }, [briefId, chunkIds, enabled, land, landLine, link, writtenLink]);
+  }, [
+    briefId,
+    chunkIds,
+    enabled,
+    land,
+    landLine,
+    link,
+    navigateLink,
+    writtenLink,
+  ]);
 }

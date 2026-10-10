@@ -213,6 +213,67 @@ describe("useChunkDeepLink", () => {
     expect(land).toHaveBeenCalledTimes(2);
   });
 
+  it("drops an unparseable link from the URL, once per brief", () => {
+    const land = vi.fn(() => true);
+    const landLine = vi.fn(() => true);
+    const navigateLink = vi.fn();
+    const { rerender } = renderHook(
+      ({ briefId }) =>
+        useChunkDeepLink({
+          briefId,
+          chunkIds: ["c1"],
+          link: "c1 R12",
+          enabled: true,
+          land,
+          landLine,
+          navigateLink,
+        }),
+      { initialProps: { briefId: "brief-a" } },
+    );
+    rerender({ briefId: "brief-a" });
+
+    expect(navigateLink).toHaveBeenCalledTimes(1);
+    expect(navigateLink).toHaveBeenCalledWith(undefined);
+    expect(land).not.toHaveBeenCalled();
+    expect(landLine).not.toHaveBeenCalled();
+
+    rerender({ briefId: "brief-b" });
+
+    expect(navigateLink).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops an unparseable link even while a thread owns the arrival", () => {
+    const navigateLink = vi.fn();
+    renderHook(() =>
+      useChunkDeepLink({
+        briefId: "brief-a",
+        chunkIds: ["c1"],
+        link: "c1/R12",
+        enabled: false,
+        land: () => true,
+        navigateLink,
+      }),
+    );
+
+    expect(navigateLink).toHaveBeenCalledWith(undefined);
+  });
+
+  it("leaves a parseable link it cannot land yet in the URL", () => {
+    const navigateLink = vi.fn();
+    renderHook(() =>
+      useChunkDeepLink({
+        briefId: "brief-a",
+        chunkIds: ["c1"],
+        link: "c9",
+        enabled: true,
+        land: () => true,
+        navigateLink,
+      }),
+    );
+
+    expect(navigateLink).not.toHaveBeenCalled();
+  });
+
   it("spends the one chance on the first link, not on a later one", () => {
     const land = vi.fn(() => true);
     const { rerender } = renderHook(
