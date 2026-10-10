@@ -269,6 +269,18 @@ module.exports = {
       to: { path: "^tools/" },
     },
     {
+      name: "no-circular",
+      comment:
+        "An import cycle whose edges are all runtime imports is an error. A cycle with a type-only hop erases at build and passes, the way a types.ts reads the types of its sibling schemas.ts. Depcruise checks one cycle per edge, so a runtime cycle that also has a type-only path around it can go unreported.",
+      severity: "error",
+      from: {},
+      to: {
+        circular: true,
+        dependencyTypesNot: ["type-only"],
+        viaOnly: { dependencyTypesNot: ["type-only"] },
+      },
+    },
+    {
       name: "web-feature-imports-through-index",
       comment:
         "Another feature is imported through its index or one segment below it.",
@@ -364,6 +376,7 @@ module.exports = {
     exclude: {
       path: [
         "\\.gen\\.",
+        "^(apps|packages|tools)/[^/]+/dist/",
         "^apps/web/e2e/",
         "^tools/oxlint-plugin-house/test/fixtures/",
         "^packages/persistence/drizzle/",
