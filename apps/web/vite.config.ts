@@ -77,6 +77,14 @@ export default defineConfig({
   // The token worker code-splits one chunk per grammar, so it must ship as an
   // ES module; vite's default iife worker format cannot carry a dynamic import.
   worker: { format: "es" },
+  // The dependency scan never follows `new Worker(new URL(...))`, so a graph
+  // reachable only from a worker stays unscanned: a cold dev server then
+  // discovers it on the first brief visit, re-optimizes and full-reloads the
+  // page. Every worker entry is listed here; these concatenate with the
+  // client and router entries TanStack Start sets for the client environment.
+  optimizeDeps: {
+    entries: ["src/utils/diffTokens/worker.ts"],
+  },
   resolve: {
     alias: {
       "@web": fileURLToPath(new URL("./src", import.meta.url)),
