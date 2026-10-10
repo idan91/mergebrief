@@ -23,7 +23,7 @@ $line-active: 5px;
     cursor: col-resize;
     touch-action: none;
 
-    // Pinned and capped exactly like the card in base.scss, so the line sits
+    // Pinned and capped exactly like the card in StoryView, so the line sits
     // beside the card wherever the group is scrolled to.
     &::before {
       content: "";

@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 
 import { ButtonVariants } from "@web/components/Button";
@@ -65,7 +64,7 @@ export function ChunkFooter({
   return (
     <div
       aria-label={t("brief.chunkFooter.ariaLabel")}
-      className={clsx("chunk-footer", styles["footer"])}
+      className={styles["footer"]}
       data-testid="chunk-footer"
       role="group"
     >

@@ -21,9 +21,9 @@ function tocButtons(page: Page): Locator {
   return page.getByRole("button", { name: /^Group \d+: rework synthetic/ });
 }
 
-/** First chunk card of a story-group section (GroupCard is outside `.group-chunks`). */
+/** First chunk card of a story-group section. */
 function getFirstChunk(section: Locator): Locator {
-  return section.locator(".group-chunks article[id]").first();
+  return section.getByTestId("brief-chunk").first();
 }
 
 /**
@@ -82,7 +82,7 @@ test("jump to far chunk timing", async ({ page }) => {
     timeout: 90_000,
   });
 
-  const sections = page.locator("main section.story-group");
+  const sections = page.locator("main").getByTestId("story-group");
   const toc = tocButtons(page);
   expect(await toc.count()).toBeGreaterThan(1);
 

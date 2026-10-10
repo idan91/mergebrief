@@ -8,8 +8,14 @@ export const STORY_CARD_KEYBOARD_STEP_PX = 16;
 /** Pointer travel before a press counts as a resize rather than a click. */
 export const STORY_DRAG_SLOP_PX = 2;
 
-/** The custom property on `.main` the card track reads; base.scss clamps it. */
+/** The custom property on `.main` the card track reads; StoryView clamps it. */
 export const STORY_CARD_TRACK_PROPERTY = "--story-card-track";
+
+/**
+ * Behavioural attribute StoryView writes on each group's chunk column, the
+ * pane the splitter measures beside the card. Nothing styles or tests on it.
+ */
+export const STORY_CHUNKS_ATTR = "data-story-chunks";
 
 /**
  * Behavioural attribute on `.main` while a handle is being dragged. Every

@@ -186,7 +186,7 @@ test("render work per pure scroll-spy tick", async ({ page }) => {
     // crosses it on a ±80px wiggle, flipping the spy's answer, while the
     // virtualizer's rendered range stays put (card heights >> 160px).
     const cards = [
-      ...document.querySelectorAll<HTMLElement>(".group-chunks article[id]"),
+      ...document.querySelectorAll<HTMLElement>('[data-testid="brief-chunk"]'),
     ];
     const boundary = cards
       .map((card) => card.getBoundingClientRect().top + window.scrollY)

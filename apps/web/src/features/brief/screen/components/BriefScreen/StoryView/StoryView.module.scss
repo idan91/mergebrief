@@ -1,9 +1,142 @@
 @use "functions";
+@use "layout";
 @use "mixins";
+
+$story-diff-reserve: layout.$story-diff-floor + layout.$story-diff-headroom;
+$story-gap-rem: functions.to-rem(layout.$story-group-gap);
+
+// The card stacks under the diff once the reading column falls below 1124px.
+// Each threshold is that column plus 96px of gutters plus the sidebar's
+// reserve; StackedQueries in StorySplitter/types.ts mirrors all three.
+@mixin stack-split {
+  display: flex;
+
+  .chunks {
+    order: 2;
+  }
+
+  > article {
+    position: static;
+    order: 1;
+    max-block-size: none;
+  }
+}
 
 @layer components {
   .storyView {
     display: flex;
     flex-direction: column;
   }
+
+  .group {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(14px);
+    margin-block-end: functions.to-rem(40px);
+
+    .chunks {
+      order: 2;
+    }
+  }
+
+  :global(.main) .group {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      clamp(
+        #{layout.$story-card-floor},
+        var(--story-card-track, max(#{functions.to-rem(450px)}, 28%)),
+        min(
+          #{layout.$story-card-ceiling},
+          calc(100% - #{$story-diff-reserve} - #{$story-gap-rem})
+        )
+      );
+    position: relative;
+    align-items: start;
+    gap: $story-gap-rem;
+
+    .chunks {
+      order: initial;
+      grid-column: 1;
+      min-inline-size: 0;
+    }
+  }
+
+  // A viewport-capped flex column, so GroupCard's .body can be the inner
+  // scroll region under a fixed head.
+  :global(.main) .group > article {
+    position: sticky;
+    inset-block-start: var(--sticky-stack-h);
+    display: flex;
+    flex-direction: column;
+    order: initial;
+    grid-column: 2;
+    max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
+  }
+
+  @media (width <= 1220px) {
+    :global(.main) .group {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1268px) {
+    :global(.main[data-sidebar="collapsed"]) .group {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1644px) {
+    :global(.main[data-sidebar="expanded"]) .group {
+      @include stack-split;
+    }
+  }
+
+  // No :has(): it would re-run on every scroll-spy data-current toggle and
+  // tank scroll performance.
+  [data-zen="on"] .group:not([data-active-group]) {
+    display: none;
+  }
+
+  // Child only: a thread comment inside the current chunk is an article too.
+  [data-zen="on"] .chunks > article:not([data-current]) {
+    display: none;
+  }
+
+  // Paints the page into the sticky chunk head's rounded top corners; the
+  // z-index sits one under the head's 10 in ChunkCard.
+  [data-zen="on"] .chunks article[data-current]::before {
+    content: "";
+    position: sticky;
+    inset-block-start: var(--sticky-stack-h);
+    z-index: 9;
+    display: block;
+    block-size: var(--radius-panel);
+    margin-block-end: calc(-1 * var(--radius-panel));
+    background: var(--focus-page-bg);
+  }
+
+  // margin-inline: auto inside the story view's flex column shrinks the
+  // section to its content without the explicit inline-size.
+  [data-zen="on"] .group {
+    display: block;
+    inline-size: 100%;
+    max-inline-size: var(--focus-max);
+    margin-inline: auto;
+    padding-inline: var(--focus-gutter);
+    margin-block-end: 0;
+    transition: translate 260ms var(--ease-out);
+  }
+
+  // translate, not transform: the .reveal animation owns transform and
+  // replays when a hidden group shows.
+  :global(.main[data-focus-panel="open"]) .group {
+    translate: calc(-1 * var(--focus-shift)) 0;
+  }
+
+  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
+  :global(.main[data-focus-panel="open"]) .chunks article[data-current] {
+    --chunk-head-reserve: max(0px, var(--focus-overlap));
+  }
+  /* stylelint-enable length-zero-no-unit */
 }

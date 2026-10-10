@@ -22,6 +22,7 @@ import {
   ReadingPositionProvider,
 } from "../readingPosition";
 import { StoryView } from ".";
+import { STORY_CHUNKS_ATTR } from "./StorySplitter/consts";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
 
@@ -91,4 +92,20 @@ describe("StoryView chunk footer", () => {
     renderStory(false);
     expect(screen.queryByTestId("chunk-footer")).toBeNull();
   });
+});
+
+describe("StoryView chunk column", () => {
+  it.each([false, true])(
+    "marks each group's chunk column for the splitter, focus %s",
+    (focusMode) => {
+      renderStory(focusMode);
+      const groups = screen.getAllByTestId("story-group");
+
+      expect(groups).toHaveLength(model.groups.length);
+      for (const group of groups) {
+        const column = group.querySelector(`:scope > [${STORY_CHUNKS_ATTR}]`);
+        expect(column).not.toBeNull();
+      }
+    },
+  );
 });

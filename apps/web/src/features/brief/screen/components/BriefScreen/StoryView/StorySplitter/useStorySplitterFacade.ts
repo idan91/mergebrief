@@ -14,6 +14,7 @@ import {
   STORY_CARD_FLOOR_PX,
   STORY_CARD_KEYBOARD_STEP_PX,
   STORY_CARD_TRACK_PROPERTY,
+  STORY_CHUNKS_ATTR,
   STORY_DRAG_ATTR,
   STORY_DRAG_SLOP_PX,
 } from "./consts";
@@ -82,7 +83,7 @@ function useGroupMeasure(handle: HTMLElement | null): MeasuredGroup {
 
   useEffect(() => {
     const group = handle?.parentElement;
-    const chunks = group?.querySelector(":scope > .group-chunks");
+    const chunks = group?.querySelector(`:scope > [${STORY_CHUNKS_ATTR}]`);
     const card = group?.querySelector(":scope > article");
     const main = group?.closest(".main");
     const observable =

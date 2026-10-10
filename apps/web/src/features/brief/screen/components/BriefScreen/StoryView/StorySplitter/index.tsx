@@ -37,7 +37,7 @@ export function StorySplitter({
   return (
     <div
       ref={splitter.setHandle}
-      className={`${styles["splitter"]} story-splitter`}
+      className={styles["splitter"]}
       role="separator"
       data-state={splitter.dragging ? "dragging" : undefined}
       aria-orientation="vertical"

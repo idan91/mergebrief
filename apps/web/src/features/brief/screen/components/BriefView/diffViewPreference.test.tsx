@@ -49,9 +49,9 @@ function readStampedView(): string | null {
 }
 
 function readGroupViews(): string[] {
-  return Array.from(document.querySelectorAll("section.story-group")).map(
-    (section) => section.getAttribute("data-diff-view") ?? "",
-  );
+  return screen
+    .queryAllByTestId("story-group")
+    .map((section) => section.getAttribute("data-diff-view") ?? "");
 }
 
 function readToast(): string {

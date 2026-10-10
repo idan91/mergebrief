@@ -130,14 +130,19 @@ export function StoryView(props: StoryViewProps) {
         const cardId = `${sectionId}-card`;
         return (
           <section
-            className="story-group reveal"
+            className={`${styles["group"]} reveal`}
             id={sectionId}
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
             data-diff-view={groupView}
+            data-testid="story-group"
           >
             {props.focusMode ? (
-              <div className="group-chunks" ref={splitWidth.attachWrapper}>
+              <div
+                className={styles["chunks"]}
+                data-story-chunks=""
+                ref={splitWidth.attachWrapper}
+              >
                 {/**
                  * Focus mode hides sections with CSS, which the windowing latch cannot detect.
                  * Use a plain list to avoid a fixed-height empty track, and mount only
@@ -396,7 +401,8 @@ function WindowedChunkList({
 
   return (
     <div
-      className="group-chunks"
+      className={styles["chunks"]}
+      data-story-chunks=""
       ref={listRef}
       style={{
         position: "relative",

@@ -1,5 +1,16 @@
 {
   "extends": ["stylelint-config-standard-scss"],
+  "overrides": [
+    {
+      "files": ["**/*.module.scss"],
+      "rules": {
+        "selector-pseudo-class-no-unknown": [
+          true,
+          { "ignorePseudoClasses": ["global"] }
+        ]
+      }
+    }
+  ],
   "rules": {
     "custom-property-pattern": null,
     "selector-class-pattern": null,

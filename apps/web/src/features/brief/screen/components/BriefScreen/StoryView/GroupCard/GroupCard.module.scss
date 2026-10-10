@@ -67,7 +67,7 @@
     gap: functions.to-rem(6px);
   }
 
-  // The scroll region under the fixed head (base.scss makes the sticky card
+  // The scroll region under the fixed head (StoryView makes the sticky card
   // a viewport-capped flex column). Bottom corners follow the card's radius
   // so the scroller doesn't poke square corners out of the rounded card.
   .body {

@@ -16,4 +16,24 @@
     gap: functions.to-rem(8px);
     margin-inline-start: auto;
   }
+
+  [data-zen="on"] .footer {
+    inline-size: 100%;
+    max-inline-size: var(--focus-max);
+    margin-inline: auto;
+    padding-inline: var(--focus-gutter)
+      calc(var(--focus-gutter) + var(--chunk-head-reserve));
+    transition: translate 260ms var(--ease-out);
+  }
+
+  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
+  :global(.main[data-focus-panel="open"]) .footer {
+    --chunk-head-reserve: max(
+      0px,
+      calc(var(--focus-overlap) + var(--focus-panel-inset))
+    );
+
+    translate: calc(-1 * var(--focus-shift)) 0;
+  }
+  /* stylelint-enable length-zero-no-unit */
 }

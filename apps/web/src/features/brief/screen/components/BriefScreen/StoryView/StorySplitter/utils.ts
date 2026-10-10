@@ -48,7 +48,7 @@ export function stepTrack(
   return Math.min(bounds.ceiling, Math.max(bounds.floor, next));
 }
 
-/** Mirrors the clamp ceiling in styles/base.scss; the gap is measured. */
+/** Mirrors the clamp ceiling in StoryView.module.scss; the gap is measured. */
 export function deriveCardCeiling(columnWidth: number, gap: number): number {
   const diffReserve = SPLIT_MIN_WIDTH_PX + STORY_DIFF_HEADROOM_PX + gap;
   const ceiling = Math.min(STORY_CARD_CEILING_PX, columnWidth - diffReserve);

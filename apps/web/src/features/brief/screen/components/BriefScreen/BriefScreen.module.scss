@@ -1,6 +1,58 @@
 @use "functions";
 
 @layer components {
+  // Set on :root because the toast and VersionNotice read the reserve
+  // outside the reading column.
+  :root {
+    &:has(.readingColumn[data-sidebar="collapsed"]) {
+      --sidebar-w: var(--sidebar-w-collapsed);
+    }
+
+    &:has(.readingColumn[data-sidebar="expanded"]) {
+      --sidebar-w: var(--sidebar-w-expanded);
+    }
+
+    &:has(.readingColumn[data-sidebar="bar"]) {
+      --sidebar-reserve-bottom: var(--sidebar-bar-h);
+    }
+
+    @media (width <= 1120px) {
+      &:has(.readingColumn[data-sidebar]) {
+        /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+        --sidebar-w: 0px;
+      }
+    }
+  }
+
+  .readingColumn {
+    &[data-sidebar-motion] {
+      transition:
+        opacity var(--motion-fast) ease,
+        padding-inline-end var(--motion-base) var(--ease-in-out),
+        max-inline-size var(--motion-base) var(--ease-in-out);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &[data-sidebar-motion] {
+        transition: opacity var(--motion-fast) ease;
+      }
+    }
+
+    &[data-pending] {
+      opacity: 0.6;
+    }
+
+    // The focus pill's dock takes no layout, so the column reserves it.
+    &[data-zen="on"] {
+      padding-block-start: var(--focus-indicator-h);
+      padding-inline: 0;
+    }
+  }
+
+  body:has(.readingColumn[data-zen="on"]) {
+    background: var(--focus-page-bg);
+  }
+
   .toast {
     position: fixed;
     inset-block-end: calc(

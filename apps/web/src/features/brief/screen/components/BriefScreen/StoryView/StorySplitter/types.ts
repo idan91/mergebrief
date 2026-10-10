@@ -1,7 +1,7 @@
 import type { ValueOf } from "types/utils";
 
 // Values are the media queries themselves; they track the stack-split
-// breakpoints in styles/base.scss.
+// breakpoints in StoryView.module.scss.
 export const StackedQueries = {
   BARE: "(width <= 1220px)",
   SIDEBAR_COLLAPSED: "(width <= 1268px)",

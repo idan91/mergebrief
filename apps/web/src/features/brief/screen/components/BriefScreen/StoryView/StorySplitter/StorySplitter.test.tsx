@@ -59,8 +59,8 @@ function stubHarness({
   vi.stubGlobal("ResizeObserver", StubResizeObserver);
   render(
     <main className="main" dir={direction}>
-      <section className="story-group" data-testid="group">
-        <div className="group-chunks" data-testid="chunks" />
+      <section data-testid="group">
+        <div data-story-chunks="" data-testid="chunks" />
         <StorySplitter
           sidebar={sidebar}
           cardId="group-1-card"
@@ -218,8 +218,8 @@ describe("StorySplitter", () => {
     vi.stubGlobal("ResizeObserver", StubResizeObserver);
     render(
       <main className="main">
-        <section className="story-group" data-testid="group">
-          <div className="group-chunks" />
+        <section data-testid="group">
+          <div data-story-chunks="" />
           <StorySplitter
             sidebar={undefined}
             cardId="card-1"
@@ -228,8 +228,8 @@ describe("StorySplitter", () => {
           />
           <article data-testid="card" id="card-1" />
         </section>
-        <section className="story-group" data-testid="group-2">
-          <div className="group-chunks" />
+        <section data-testid="group-2">
+          <div data-story-chunks="" />
           <StorySplitter
             sidebar={undefined}
             cardId="card-2"

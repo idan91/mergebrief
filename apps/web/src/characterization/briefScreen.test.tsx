@@ -147,7 +147,9 @@ describe("brief screen characterization", () => {
 
     await waitFor(() =>
       expect(
-        document.querySelector(".story-group[data-active-group]"),
+        document.querySelector(
+          '[data-testid="story-group"][data-active-group]',
+        ),
       ).toBeTruthy(),
     );
     expect(document.querySelector("article[data-current]")).toBeTruthy();

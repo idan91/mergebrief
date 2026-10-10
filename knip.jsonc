@@ -53,6 +53,9 @@
         // pnpm script.
         "e2e/harness/seed.ts",
         "e2e/perf/generateFixture.ts",
+        // Module stylesheets `@use` these partials through vite's Sass
+        // `loadPaths`, which knip does not resolve.
+        "src/styles/_*.scss",
       ],
     },
     "apps/api": {

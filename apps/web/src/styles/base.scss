@@ -1,9 +1,5 @@
 @use "functions";
-@use "layout";
 @use "mixins";
-
-$story-diff-reserve: layout.$story-diff-floor + layout.$story-diff-headroom;
-$story-gap-rem: functions.to-rem(layout.$story-group-gap);
 
 @layer base {
   * {
@@ -137,29 +133,6 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
 }
 
 @layer layout {
-  // The Sidebar's reserve on the reading column's end edge: the column
-  // narrows instead of sliding under it, and the toast centres on what is left.
-  :root {
-    &:has(.main[data-sidebar="collapsed"]) {
-      --sidebar-w: var(--sidebar-w-collapsed);
-    }
-
-    &:has(.main[data-sidebar="expanded"]) {
-      --sidebar-w: var(--sidebar-w-expanded);
-    }
-
-    &:has(.main[data-sidebar="bar"]) {
-      --sidebar-reserve-bottom: var(--sidebar-bar-h);
-    }
-
-    @media (width <= 1120px) {
-      &:has(.main[data-sidebar]) {
-        /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
-        --sidebar-w: 0px;
-      }
-    }
-  }
-
   .main {
     --main-gutter: #{functions.to-rem(48px)};
 
@@ -175,121 +148,10 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
       calc(var(--main-gutter) + var(--sidebar-w));
     margin-inline: auto;
     transition: opacity var(--motion-fast) ease;
-
-    &[data-sidebar-motion] {
-      transition:
-        opacity var(--motion-fast) ease,
-        padding-inline-end var(--motion-base) var(--ease-in-out),
-        max-inline-size var(--motion-base) var(--ease-in-out);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      &[data-sidebar-motion] {
-        transition: opacity var(--motion-fast) ease;
-      }
-    }
-
-    // A revision load outlasted the pending delay: the stale content dims
-    // but stays readable; `inert` on the element blocks interaction.
-    &[data-pending] {
-      opacity: 0.6;
-    }
   }
 
   .reveal {
     animation: rise var(--motion-slow) var(--ease-out) backwards;
-  }
-
-  .story-group {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(14px);
-    margin-block-end: functions.to-rem(40px);
-
-    .group-chunks {
-      order: 2;
-    }
-  }
-
-  .main .story-group {
-    display: grid;
-    grid-template-columns:
-      minmax(0, 1fr)
-      clamp(
-        #{layout.$story-card-floor},
-        var(--story-card-track, max(#{functions.to-rem(450px)}, 28%)),
-        min(
-          #{layout.$story-card-ceiling},
-          calc(100% - #{$story-diff-reserve} - #{$story-gap-rem})
-        )
-      );
-    position: relative;
-    align-items: start;
-    gap: $story-gap-rem;
-
-    .group-chunks {
-      order: initial;
-      grid-column: 1;
-      min-inline-size: 0;
-    }
-  }
-
-  // Sticky, viewport-capped column; the card is a flex column so its body
-  // (GroupCard .body) can be the inner scroll region while the head stays
-  // fixed — the card itself never scrolls.
-  .main .story-group > article {
-    position: sticky;
-
-    // The pinned stack, not a constant. This was 132px — the header plus a
-    // 35px toolbar, both of which have since changed — so the card pinned
-    // 34px too high and its own top edge sat under the toolbar, leaving the
-    // first row inside it looking like the top of the box.
-    inset-block-start: var(--sticky-stack-h);
-    display: flex;
-    flex-direction: column;
-    order: initial;
-    grid-column: 2;
-    max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
-  }
-
-  // The card stacks under the diff once the reading column falls below
-  // 1124px, the width it stacked at before the gutters widened. Each
-  // threshold is that column plus the 96px of gutters plus the sidebar's
-  // reserve.
-  @mixin stack-split {
-    display: flex;
-
-    .group-chunks {
-      order: 2;
-    }
-
-    > article {
-      position: static;
-      order: 1;
-      max-block-size: none;
-    }
-
-    .story-splitter {
-      display: none;
-    }
-  }
-
-  @media (width <= 1220px) {
-    .main .story-group {
-      @include stack-split;
-    }
-  }
-
-  @media (width <= 1268px) {
-    .main[data-sidebar="collapsed"] .story-group {
-      @include stack-split;
-    }
-  }
-
-  @media (width <= 1644px) {
-    .main[data-sidebar="expanded"] .story-group {
-      @include stack-split;
-    }
   }
 
   @keyframes rise {
@@ -302,78 +164,6 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
       opacity: 1;
       transform: none;
     }
-  }
-
-  // Focus mode isolates the group holding the active chunk, and within it the
-  // active chunk only. No :has() — it would re-run on every scroll-spy
-  // data-current toggle and tank scroll performance.
-  [data-zen="on"] .story-group:not([data-active-group]) {
-    display: none;
-  }
-
-  [data-zen="on"] .group-chunks article:not([data-current]) {
-    display: none;
-  }
-
-  // Sticks with the chunk head and paints the page into its rounded top
-  // corners, so the diff scrolling under the head never shows its edges
-  // there. Its z-index sits one under the head's 10 in ChunkCard.
-  [data-zen="on"] .group-chunks article[data-current]::before {
-    content: "";
-    position: sticky;
-    inset-block-start: var(--sticky-stack-h);
-    z-index: 9;
-    display: block;
-    block-size: var(--radius-panel);
-    margin-block-end: calc(-1 * var(--radius-panel));
-    background: var(--focus-page-bg);
-  }
-
-  // The pill's dock takes no layout, so the top of the page reserves it.
-  .main[data-zen="on"] {
-    padding-block-start: var(--focus-indicator-h);
-    padding-inline: 0;
-  }
-
-  // margin-inline: auto inside the story view's flex column shrinks the
-  // section to its content without the explicit inline-size.
-  [data-zen="on"] .story-group,
-  [data-zen="on"] .chunk-footer {
-    display: block;
-    inline-size: 100%;
-    max-inline-size: var(--focus-max);
-    margin-inline: auto;
-    padding-inline: var(--focus-gutter);
-    margin-block-end: 0;
-    transition: translate 260ms var(--ease-out);
-  }
-
-  // translate, not transform: the .reveal animation owns transform and
-  // replays when a hidden group shows.
-  .main[data-focus-panel="open"] .story-group,
-  .main[data-focus-panel="open"] .chunk-footer {
-    translate: calc(-1 * var(--focus-shift)) 0;
-  }
-
-  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
-  .main[data-focus-panel="open"] .group-chunks article[data-current] {
-    --chunk-head-reserve: max(0px, var(--focus-overlap));
-  }
-
-  .main[data-focus-panel="open"] .chunk-footer {
-    --chunk-head-reserve: max(
-      0px,
-      calc(var(--focus-overlap) + var(--focus-panel-inset))
-    );
-  }
-  /* stylelint-enable length-zero-no-unit */
-
-  [data-zen="on"] .chunk-footer {
-    padding-inline-end: calc(var(--focus-gutter) + var(--chunk-head-reserve));
-  }
-
-  body:has(.main[data-zen="on"]) {
-    background: var(--focus-page-bg);
   }
 }
 

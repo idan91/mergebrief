@@ -205,7 +205,7 @@ export function BriefScreen(props: BriefScreenProps) {
                     />
                   ) : null}
                   <main
-                    className="main"
+                    className={`main ${styles["readingColumn"]}`}
                     style={mainStyle}
                     data-diff-view={diffView}
                     id="main-content"
