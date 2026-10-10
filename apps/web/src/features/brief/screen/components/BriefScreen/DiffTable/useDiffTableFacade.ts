@@ -27,6 +27,7 @@ import { useExpandLanding } from "./useExpandLanding";
 import { useRailHover } from "./useRailHover";
 import { useComposerHostUnmount } from "./useComposerHostUnmount";
 import { useReasonRow } from "./useReasonRow";
+import { RowRefKinds } from "../../../../model/expansion/types";
 import type { GuestRowReason } from "../../../../model/types";
 import {
   buildExpandedRowView,
@@ -42,6 +43,7 @@ import {
   placementForAnchor,
   resolveDragSelection,
   resolvePlacement,
+  resolveRowRef,
 } from "./utils";
 
 /**
@@ -71,12 +73,13 @@ export function useDiffTableFacade({
   // A guest table's rows came from another diff already; it splices nothing.
   const expansion = guest === undefined ? ownExpansion : undefined;
   // Rendered rows are the spliced ones; comments, marks and threads stay
-  // keyed on base indexes and translate through `baseIndexOf`.
+  // keyed on base indexes and translate through `rowRefs`.
   const rows = expansion?.rows ?? baseRows;
-  const baseIndexOf = expansion?.baseIndexOf;
+  const rowRefs = expansion?.rowRefs;
   const edges = expansion?.edges ?? NO_EDGES;
   const edgesByRow = useMemo(() => groupEdgesByRow(edges), [edges]);
-  const hasExpandedRows = baseIndexOf?.includes(-1) === true;
+  const hasExpandedRows =
+    rowRefs?.some((ref) => ref.kind === RowRefKinds.EXPANDED) === true;
   const model = useDiffTableModel({
     rows,
     chunk,
@@ -174,15 +177,9 @@ export function useDiffTableFacade({
     );
   }, [activeCommentAnchor, chunk.id, rows, model.spanOwnerByRow]);
 
-  const dragSelection = resolveDragSelection(
-    model.pairs,
-    drag.dragStart,
-    drag.dragCurrent,
-    drag.dragSide,
-    drag.dragCurrentSide,
-  );
+  const dragSelection = resolveDragSelection(model.pairs, drag.inFlight);
   const dragIndexes = new Set(dragSelection.indexes);
-  const dragBaseIndexes = collectDragBaseIndexes(dragIndexes, baseIndexOf);
+  const dragBaseIndexes = collectDragBaseIndexes(dragIndexes, rowRefs);
   const activePlacement =
     activeCommentAnchor === null
       ? undefined
@@ -210,8 +207,8 @@ export function useDiffTableFacade({
         activeIndexes: activeSpanIndexes,
       });
     }
-    const baseIndex = baseIndexOf?.[index] ?? index;
-    if (baseIndex < 0) {
+    const ref = resolveRowRef(rowRefs, index);
+    if (ref.kind === RowRefKinds.EXPANDED) {
       return buildExpandedRowView({
         line,
         index,
@@ -226,7 +223,7 @@ export function useDiffTableFacade({
     }
     return getDiffRowView({
       line,
-      index: baseIndex,
+      index: ref.baseIndex,
       chunk,
       overlayActive,
       comparisonView,
@@ -244,7 +241,7 @@ export function useDiffTableFacade({
     chunk,
     rows,
     baseRows,
-    baseIndexOf,
+    rowRefs,
     hasExpandedRows,
     pairs: model.pairs,
     rowViews,
@@ -279,7 +276,7 @@ export function useDiffTableFacade({
   return {
     t,
     rows,
-    baseIndexOf,
+    rowRefs,
     hasExpandedRows,
     edgesByRow,
     hiddenThreadLines,

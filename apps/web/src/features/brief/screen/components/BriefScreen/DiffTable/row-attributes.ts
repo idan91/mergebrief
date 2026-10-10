@@ -1,3 +1,4 @@
+import type { KeyboardEvent, MouseEvent, SyntheticEvent } from "react";
 import type {
   LineCommentAnchor,
   LineSelection,
@@ -13,12 +14,31 @@ import {
 } from "@web/components/DiffRows/types";
 import { rangeBetween } from "@web/utils/collections";
 import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { RowRef } from "../../../../model/expansion/types";
 import type { BriefChunk, GuestRowReason } from "../../../../model/types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
 import type { DiffRowView } from "./diffRowView";
 import { REANCHOR_HINT_ID } from "../consts";
 import { COMMENT_ANCHOR_SELECTOR, SELECT_ANCHOR_SELECTOR } from "./consts";
-import { type DragMode, DragModes, type DragSelection } from "./types";
+import { deriveRowIntent } from "./gestures";
+import {
+  type DragMode,
+  DragModes,
+  type DragSelection,
+  type LineRowState,
+  type RangeDrag,
+  type ReasonRowState,
+  type RowDragState,
+  type RowEffect,
+  RowEffects,
+  type RowGesture,
+  RowGestureKinds,
+  type RowMouseEnter,
+  type RowState,
+  RowStateKinds,
+  type RowTarget,
+  RowTargets,
+} from "./types";
 import {
   buildGuestLineSelection,
   buildLineAnchor,
@@ -37,7 +57,7 @@ export interface RowAttributesDeps {
   chunk: BriefChunk;
   rows: DiffLine[];
   baseRows: DiffLine[];
-  baseIndexOf: readonly number[] | undefined;
+  rowRefs: readonly RowRef[] | undefined;
   hasExpandedRows: boolean;
   pairs: SplitRow[];
   rowViews: readonly (DiffRowView | undefined)[];
@@ -54,9 +74,7 @@ export interface RowAttributesDeps {
   composerDisabledReasonId: string;
   expandedReasonId: string;
   drag: {
-    dragStart: number | null;
-    dragSide: SplitSide | undefined;
-    dragMode: DragMode | undefined;
+    inFlight: RangeDrag | undefined;
     beginDrag: (
       index: number,
       side: SplitSide | undefined,
@@ -85,11 +103,46 @@ export interface RowAttributesDeps {
 }
 
 const BUTTON_SELECTOR = "button";
-/** Either gutter anchor: the line numbers or the sign. */
-const ANCHOR_SELECTOR = `${SELECT_ANCHOR_SELECTOR}, ${COMMENT_ANCHOR_SELECTOR}`;
+
+/** One end of a range: a rendered row, and its side in split view. */
+interface RangeEnd {
+  index: number;
+  side: SplitSide | undefined;
+}
+
+/** The row a gesture landed on. */
+interface RowContext extends RangeEnd {
+  view: DiffRowView | undefined;
+}
+
+type RowEffectRunner = (row: RowContext, opener: HTMLElement) => void;
+
+type GestureHandlers = Required<
+  Pick<
+    DiffRowAttributes,
+    "onKeyDown" | "onMouseDown" | "onMouseEnter" | "onMouseUp"
+  >
+>;
+
+const MOUSE_ENTER: RowMouseEnter = { kind: RowGestureKinds.MOUSE_ENTER };
 
 function isInside(target: EventTarget | null, selector: string): boolean {
   return target instanceof Element && target.closest(selector) !== null;
+}
+
+/** A row's own button wins, then the numbers, then the sign. */
+function readRowTarget(target: EventTarget | null): RowTarget {
+  if (isInside(target, BUTTON_SELECTOR)) {
+    return RowTargets.BUTTON;
+  }
+  if (isInside(target, SELECT_ANCHOR_SELECTOR)) {
+    return RowTargets.NUMBERS;
+  }
+  if (isInside(target, COMMENT_ANCHOR_SELECTOR)) {
+    return RowTargets.SIGN;
+  }
+
+  return RowTargets.CODE;
 }
 
 /** A non-collapsed text selection with an end inside this row's table. */
@@ -105,6 +158,33 @@ function hasTextSelectionIn(row: Element): boolean {
   );
 }
 
+function readKeyGesture(event: KeyboardEvent<HTMLElement>): RowGesture {
+  return {
+    kind: RowGestureKinds.KEY_DOWN,
+    key: event.key,
+    shift: event.shiftKey,
+    target: readRowTarget(event.target),
+  };
+}
+
+function readPressGesture(event: MouseEvent<HTMLElement>): RowGesture {
+  return {
+    kind: RowGestureKinds.MOUSE_DOWN,
+    shift: event.shiftKey,
+    target: readRowTarget(event.target),
+  };
+}
+
+function readReleaseGesture(event: MouseEvent<HTMLElement>): RowGesture {
+  return {
+    kind: RowGestureKinds.MOUSE_UP,
+    primary: event.button === 0,
+    shift: event.shiftKey,
+    target: readRowTarget(event.target),
+    textSelected: hasTextSelectionIn(event.currentTarget),
+  };
+}
+
 /**
  * The per-row attribute slot DiffRows calls: which rows can host a comment,
  * which are selected, and the pointer and keyboard handlers that turn a
@@ -118,7 +198,7 @@ export function buildRowAttributesFor(
     chunk,
     rows,
     baseRows,
-    baseIndexOf,
+    rowRefs,
     hasExpandedRows,
     pairs,
     rowViews,
@@ -164,7 +244,7 @@ export function buildRowAttributesFor(
     if (guest !== undefined) {
       return resolveGuestAnchor(indexes, guest);
     }
-    const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
+    const baseIndexes = mapToBaseIndexes(indexes, rowRefs);
     if (baseIndexes !== undefined) {
       return buildLineAnchor(chunk.id, chunk.file, baseRows, baseIndexes, side);
     }
@@ -221,6 +301,19 @@ export function buildRowAttributesFor(
     };
   }
 
+  /** Where a range ending on this row starts: the drag's start, else here. */
+  function resolveRangeStart(
+    rowIndex: number,
+    side: SplitSide | undefined,
+  ): RangeEnd {
+    const inFlight = drag.inFlight;
+    if (inFlight === undefined) {
+      return { index: rowIndex, side };
+    }
+
+    return { index: inFlight.start, side: inFlight.startSide };
+  }
+
   function finishSelection(rowIndex: number, side?: SplitSide): void {
     // Read-only revision: composer entry is inert (the affordance itself is
     // aria-disabled with the reason, which guards the activation path).
@@ -231,11 +324,10 @@ export function buildRowAttributesFor(
     if (rowViews[rowIndex]?.isCommentable !== true) {
       return;
     }
-    const startIndex = drag.dragStart ?? rowIndex;
-    const startSide = drag.dragStart === null ? side : drag.dragSide;
+    const start = resolveRangeStart(rowIndex, side);
     drag.clearDrag();
 
-    const anchor = resolveAnchor(startIndex, startSide, rowIndex, side);
+    const anchor = resolveAnchor(start.index, start.side, rowIndex, side);
     if (anchor) {
       openComposer(anchor, chunk.id);
     }
@@ -271,7 +363,7 @@ export function buildRowAttributesFor(
     }
     const placement = resolveSelectionSide(side);
     const baseIndexes =
-      guest === undefined ? mapToBaseIndexes(picked, baseIndexOf) : undefined;
+      guest === undefined ? mapToBaseIndexes(picked, rowRefs) : undefined;
     const anchor =
       baseIndexes === undefined
         ? resolveAnchor(first, placement, last, placement)
@@ -323,16 +415,15 @@ export function buildRowAttributesFor(
       rows,
       indexes,
       side,
-      baseIndexOf,
+      rowRefs,
     );
   }
 
   function finishLineSelection(rowIndex: number, side?: SplitSide): void {
-    const startIndex = drag.dragStart ?? rowIndex;
-    const startSide = drag.dragStart === null ? side : drag.dragSide;
+    const start = resolveRangeStart(rowIndex, side);
     drag.clearDrag();
 
-    const selection = buildSelection(startIndex, startSide, rowIndex, side);
+    const selection = buildSelection(start.index, start.side, rowIndex, side);
     if (selection !== null) {
       selectLines(selection);
     }
@@ -386,6 +477,126 @@ export function buildRowAttributesFor(
     return dragged || active;
   }
 
+  function readDragState(index: number): RowDragState | undefined {
+    const inFlight = drag.inFlight;
+    if (inFlight === undefined) {
+      return undefined;
+    }
+
+    return { mode: inFlight.mode, startedHere: inFlight.start === index };
+  }
+
+  function readLineState(row: RowContext, commentable: boolean): LineRowState {
+    return {
+      kind: RowStateKinds.LINE,
+      drag: readDragState(row.index),
+      composerOpen,
+      hasSelection: selectionIndexes.size > 0,
+      reanchorArmed,
+      lineSelected: isLineSelected(row.index, row.side),
+      commentable,
+      split: row.side !== undefined,
+    };
+  }
+
+  function readReasonState(
+    row: RowContext,
+    reasonOpen: boolean,
+  ): ReasonRowState {
+    return {
+      kind: RowStateKinds.REASON,
+      drag: readDragState(row.index),
+      composerOpen,
+      hasSelection: selectionIndexes.size > 0,
+      reasonOpen,
+    };
+  }
+
+  const effectRunners: Record<RowEffect, RowEffectRunner> = {
+    [RowEffects.DROP_TEXT_SELECTION]: () => {
+      window.getSelection()?.removeAllRanges();
+    },
+    [RowEffects.BEGIN_SELECT_DRAG]: ({ index, side }) => {
+      drag.beginDrag(index, side, DragModes.SELECT);
+    },
+    [RowEffects.BEGIN_COMMENT_DRAG]: ({ index, side }) => {
+      drag.beginDrag(index, side, DragModes.COMMENT);
+    },
+    [RowEffects.MOVE_DRAG]: ({ index, side }) => {
+      drag.moveDrag(index, side);
+    },
+    [RowEffects.CLEAR_DRAG]: () => {
+      drag.clearDrag();
+    },
+    [RowEffects.MARK_SELECTING_SIDE]: ({ side }) => {
+      if (side !== undefined) {
+        drag.markSelectingSide(side);
+      }
+    },
+    [RowEffects.SELECT_RANGE]: ({ index, side }) => {
+      finishLineSelection(index, side);
+    },
+    [RowEffects.EXTEND_SELECTION]: ({ index, side }) => {
+      extendLineSelection(index, side);
+    },
+    [RowEffects.CLEAR_SELECTION]: () => {
+      clearLineSelection();
+    },
+    [RowEffects.COMMENT_RANGE]: ({ index, side }) => {
+      finishSelection(index, side);
+    },
+    [RowEffects.COMMENT_SELECTION]: ({ side }) => {
+      openComposerOnSelection(side);
+    },
+    [RowEffects.TOGGLE_REASON]: ({ view }, opener) => {
+      if (view !== undefined) {
+        toggleReasonRow(view.id, opener);
+      }
+    },
+    [RowEffects.CLOSE_REASON]: () => {
+      closeReasonRow();
+    },
+  };
+
+  function handleGesture(
+    gesture: RowGesture,
+    state: RowState,
+    row: RowContext,
+    event: SyntheticEvent<HTMLElement>,
+  ): void {
+    const intent = deriveRowIntent(gesture, state);
+    if (intent.preventDefault) {
+      event.preventDefault();
+    }
+    if (intent.stopPropagation) {
+      event.stopPropagation();
+    }
+    for (const effect of intent.effects) {
+      effectRunners[effect](row, event.currentTarget);
+    }
+  }
+
+  /** A row's pointer and key handlers; the state is read as a gesture lands. */
+  function buildGestureHandlers(
+    row: RowContext,
+    readState: () => RowState,
+  ): GestureHandlers {
+    return {
+      onKeyDown: (event) => {
+        handleGesture(readKeyGesture(event), readState(), row, event);
+      },
+      onMouseDown: (event) => {
+        handleGesture(readPressGesture(event), readState(), row, event);
+      },
+      onMouseEnter: (event) => {
+        handleGesture(MOUSE_ENTER, readState(), row, event);
+      },
+      onMouseUp: (event) => {
+        handleGesture(readReleaseGesture(event), readState(), row, event);
+      },
+    };
+  }
+
   /**
    * A guest row GitHub cannot hold a comment on: focusable, described by
    * its reason, and Enter, Space or a primary click on the line numbers or
@@ -403,7 +614,7 @@ export function buildRowAttributesFor(
     side: SplitSide | undefined,
   ): DiffRowAttributes {
     const isOpen = openReasonRowId === view.id;
-    const toggle = (opener: HTMLElement) => toggleReasonRow(view.id, opener);
+    const row: RowContext = { index, side, view };
     const reasonId = reasonIdFor(reason);
     const attributes: DiffRowAttributes = {
       commentable: false,
@@ -415,88 +626,7 @@ export function buildRowAttributesFor(
       focusable: isSideFocusable(line, side),
       revision: view.revMark,
       selected: false,
-      onKeyDown: (event) => {
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        if (event.key === "Enter") {
-          event.preventDefault();
-          toggle(event.currentTarget);
-          return;
-        }
-        if (event.key === " ") {
-          event.preventDefault();
-          if (event.shiftKey) {
-            extendLineSelection(index, side);
-          } else {
-            toggle(event.currentTarget);
-          }
-          return;
-        }
-        if (event.key !== "Escape") {
-          return;
-        }
-        if (isOpen) {
-          event.stopPropagation();
-          closeReasonRow();
-        } else if (!composerOpen && selectionIndexes.size > 0) {
-          event.stopPropagation();
-          clearLineSelection();
-        }
-      },
-      onMouseDown: (event) => {
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        if (!isInside(event.target, ANCHOR_SELECTOR)) {
-          if (selectionIndexes.size > 0) {
-            clearLineSelection();
-          }
-          return;
-        }
-        window.getSelection()?.removeAllRanges();
-        event.preventDefault();
-        if (!isInside(event.target, SELECT_ANCHOR_SELECTOR)) {
-          return;
-        }
-        if (event.shiftKey) {
-          extendLineSelection(index, side);
-          return;
-        }
-        drag.beginDrag(index, side, DragModes.SELECT);
-      },
-      onMouseEnter: () => {
-        if (drag.dragStart !== null) {
-          drag.moveDrag(index, side);
-        }
-      },
-      onMouseUp: (event) => {
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        // A press and release on this row's own numbers is a click, which
-        // toggles; a drag from elsewhere finishes as the drag it is, and a
-        // Shift click already extended the selection on the press.
-        if (drag.dragStart !== null && drag.dragStart !== index) {
-          if (drag.dragMode === DragModes.SELECT) {
-            finishLineSelection(index, side);
-          } else {
-            finishSelection(index, side);
-          }
-          return;
-        }
-        drag.clearDrag();
-        if (event.button !== 0 || event.shiftKey) {
-          return;
-        }
-        if (!isInside(event.target, ANCHOR_SELECTOR)) {
-          return;
-        }
-        if (hasTextSelectionIn(event.currentTarget)) {
-          return;
-        }
-        toggle(event.currentTarget);
-      },
+      ...buildGestureHandlers(row, () => readReasonState(row, isOpen)),
     };
     return attributes;
   }
@@ -528,133 +658,13 @@ export function buildRowAttributesFor(
     }
     const outsideDiff = view?.isCommentable !== true;
     const commentable = composerDisabledReason === undefined && !outsideDiff;
+    const row: RowContext = { index, side, view };
     const attributes: DiffRowAttributes = {
       commentable,
       focusable: isSideFocusable(line, side),
       revision: view?.revMark,
       selected: isSideSelected(view, index, side),
-      onKeyDown: (event) => {
-        // A button inside the row (the rail jump, a link glyph) owns its
-        // own keys.
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        if (event.key === "Enter") {
-          if (isLineSelected(index, side) && !reanchorArmed) {
-            openComposerOnSelection(side);
-          } else {
-            finishSelection(index, side);
-          }
-          return;
-        }
-        if (event.key === " ") {
-          event.preventDefault();
-          if (reanchorArmed) {
-            finishSelection(index, side);
-          } else if (event.shiftKey) {
-            extendLineSelection(index, side);
-          } else {
-            finishLineSelection(index, side);
-          }
-          return;
-        }
-        // The row owns Escape only while it has a selection to clear and no
-        // composer is open, so the composer's own Escape and the screen's
-        // (focus mode) still reach the window.
-        if (
-          event.key === "Escape" &&
-          !composerOpen &&
-          selectionIndexes.size > 0
-        ) {
-          event.stopPropagation();
-          clearLineSelection();
-        }
-      },
-      onMouseDown: (event) => {
-        // A button inside the row owns its gesture.
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        // The line numbers start a selection, the +/− sign a comment range,
-        // and the code text stays natively selectable and drops a live
-        // selection.
-        if (isInside(event.target, SELECT_ANCHOR_SELECTOR)) {
-          window.getSelection()?.removeAllRanges();
-          event.preventDefault();
-          if (reanchorArmed) {
-            drag.beginDrag(index, side, DragModes.COMMENT);
-            return;
-          }
-          if (event.shiftKey) {
-            extendLineSelection(index, side);
-            return;
-          }
-          drag.beginDrag(index, side, DragModes.SELECT);
-          return;
-        }
-        if (!isInside(event.target, COMMENT_ANCHOR_SELECTOR)) {
-          if (selectionIndexes.size > 0) {
-            clearLineSelection();
-          }
-          if (side !== undefined) {
-            drag.markSelectingSide(side);
-          }
-          return;
-        }
-        if (!commentable) {
-          return;
-        }
-        // Anchoring intent: drop any stale text selection, preventDefault
-        // keeps it alive otherwise, and it would trip the mouseup
-        // suppression guard.
-        window.getSelection()?.removeAllRanges();
-        event.preventDefault();
-        // Inside the live selection the click is a comment on all of it;
-        // the mouseup resolves it, no drag begins.
-        if (isLineSelected(index, side)) {
-          return;
-        }
-        drag.beginDrag(index, side, DragModes.COMMENT);
-      },
-      onMouseEnter: () => {
-        if (drag.dragStart !== null) {
-          drag.moveDrag(index, side);
-        }
-      },
-      onMouseUp: (event) => {
-        // An anchor-initiated drag is unambiguous intent (the mousedown
-        // cleared any text selection): a selection from the numbers, a
-        // comment from the sign.
-        if (drag.dragStart !== null) {
-          if (drag.dragMode === DragModes.SELECT) {
-            finishLineSelection(index, side);
-          } else {
-            finishSelection(index, side);
-          }
-          return;
-        }
-        // A release on a button with no drag in flight is the button's click.
-        if (isInside(event.target, BUTTON_SELECTOR)) {
-          return;
-        }
-        // Plain mouseup: composer entry is sign-only, the code text is
-        // reserved for selection, so a double-click word-select never pops
-        // the composer. Keyboard entry stays row-level (Enter).
-        if (!isInside(event.target, COMMENT_ANCHOR_SELECTOR)) {
-          return;
-        }
-        // A text-selection drag released over the gutter: if either endpoint
-        // of a non-collapsed selection touches this table, the reviewer was
-        // selecting text.
-        if (hasTextSelectionIn(event.currentTarget)) {
-          return;
-        }
-        if (isLineSelected(index, side)) {
-          openComposerOnSelection(side);
-          return;
-        }
-        finishSelection(index, side);
-      },
+      ...buildGestureHandlers(row, () => readLineState(row, commentable)),
     };
     if (composerDisabledReason !== undefined) {
       attributes.describedById = composerDisabledReasonId;

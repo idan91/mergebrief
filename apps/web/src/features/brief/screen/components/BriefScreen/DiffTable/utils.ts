@@ -32,6 +32,7 @@ import {
 } from "@web/components/DiffRows/consts";
 import {
   type DragSelection,
+  type RangeDrag,
   RailSides,
   type RailView,
   type SelectionGlyphPlacement,
@@ -43,6 +44,8 @@ import { isContextKind } from "@web/utils/diffTokens/utils";
 import {
   type ExpandableEdge,
   ExpansionDirections,
+  type RowRef,
+  RowRefKinds,
 } from "../../../../model/expansion/types";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
 import {
@@ -236,14 +239,12 @@ export function isSideFocusable(
 
 export function resolveDragSelection(
   pairs: SplitRow[],
-  start: number | null,
-  current: number | null,
-  startSide: SplitSide | undefined,
-  currentSide: SplitSide | undefined,
+  drag: RangeDrag | undefined,
 ): DragSelection {
-  if (start === null || current === null) {
+  if (drag === undefined) {
     return NO_SELECTION;
   }
+  const { start, current, startSide, currentSide } = drag;
   if (startSide !== undefined && startSide === currentSide) {
     return {
       indexes: collectSideIndexes(pairs, startSide, start, current),
@@ -866,36 +867,54 @@ export function collectSpannedRows(
   return spanned;
 }
 
+/** A rendered row's ref; with nothing spliced, every row is its own base row. */
+export function resolveRowRef(
+  rowRefs: readonly RowRef[] | undefined,
+  index: number,
+): RowRef {
+  return rowRefs?.[index] ?? { kind: RowRefKinds.BASE, baseIndex: index };
+}
+
 /**
  * Base rows anchor on base indexes; a range holding an expanded row has no
  * base index and is answered by the span path instead.
  */
 export function mapToBaseIndexes(
   indexes: readonly number[],
-  baseIndexOf: readonly number[] | undefined,
+  rowRefs: readonly RowRef[] | undefined,
 ): number[] | undefined {
-  if (baseIndexOf === undefined) {
+  if (rowRefs === undefined) {
     return [...indexes];
   }
-  const mapped = indexes.map((index) => baseIndexOf[index] ?? -1);
+  const mapped: number[] = [];
+  for (const index of indexes) {
+    const ref = rowRefs[index];
+    if (ref?.kind !== RowRefKinds.BASE) {
+      return undefined;
+    }
+    mapped.push(ref.baseIndex);
+  }
 
-  return mapped.includes(-1) ? undefined : mapped;
+  return mapped;
 }
 
 /** The base rows a drag covers; expanded rows drop out. */
 export function collectDragBaseIndexes(
   dragIndexes: ReadonlySet<number>,
-  baseIndexOf: readonly number[] | undefined,
+  rowRefs: readonly RowRef[] | undefined,
 ): Set<number> {
-  if (baseIndexOf === undefined) {
+  if (rowRefs === undefined) {
     return new Set(dragIndexes);
   }
+  const baseIndexes = new Set<number>();
+  for (const index of dragIndexes) {
+    const ref = rowRefs[index];
+    if (ref?.kind === RowRefKinds.BASE) {
+      baseIndexes.add(ref.baseIndex);
+    }
+  }
 
-  return new Set(
-    [...dragIndexes]
-      .map((index) => baseIndexOf[index] ?? -1)
-      .filter((index) => index >= 0),
-  );
+  return baseIndexes;
 }
 
 /**
@@ -990,13 +1009,13 @@ export function buildLineSelection(
   rows: DiffLine[],
   indexes: number[],
   side: SplitSide | undefined,
-  baseIndexOf: readonly number[] | undefined,
+  rowRefs: readonly RowRef[] | undefined,
 ): LineSelection | null {
   const anchor = buildLineAnchor(chunkId, file, rows, indexes, side);
   if (anchor === null) {
     return null;
   }
-  const baseIndexes = mapToBaseIndexes(indexes, baseIndexOf);
+  const baseIndexes = mapToBaseIndexes(indexes, rowRefs);
   const rowIds =
     baseIndexes === undefined
       ? []

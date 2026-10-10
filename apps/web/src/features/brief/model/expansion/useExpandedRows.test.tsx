@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
 import { buildFileRangeQueryKey } from "../../queries";
+import { makeRowRefs } from "./fixtures";
+import { RowRefKinds } from "./types";
 import { useExpandedRows } from "./useExpandedRows";
 import { createExpansionStore, ExpansionProvider } from "./useExpansion";
 import {
@@ -15,6 +17,7 @@ import {
 import { FileRowsProvider } from "../file-rows/useFileRows";
 import type { FileRowsCache } from "../file-rows/cache";
 
+const EXPANDED = RowRefKinds.EXPANDED;
 const HEAD = "b".repeat(40);
 const SOURCE: ExpansionSource = { repoId: "repo-1", prNumber: 7, ref: HEAD };
 const rows: DiffLine[] = [
@@ -51,7 +54,7 @@ describe("useExpandedRows", () => {
     expect(result.current.rows).toEqual(rows);
     expect(result.current.edges).toEqual([]);
     expect(result.current.expansionKey).toBeUndefined();
-    expect(result.current.baseIndexOf).toEqual([0, 1, 2]);
+    expect(result.current.rowRefs).toEqual(makeRowRefs([0, 1, 2]));
   });
 
   it("splices a stored edge from the cached range and names the state", () => {
@@ -97,7 +100,9 @@ describe("useExpandedRows", () => {
       newLine: 25,
       content: "v",
     });
-    expect(result.current.baseIndexOf).toEqual([0, -1, -1, -1, -1, -1, 1, 2]);
+    expect(result.current.rowRefs).toEqual(
+      makeRowRefs([0, ...Array<typeof EXPANDED>(5).fill(EXPANDED), 1, 2]),
+    );
     expect(result.current.expansionKey).toBe("c1:1:up=25-29");
     const up = result.current.edges.find((edge) => edge.edgeKey === "c1:1:up");
     expect(up).toMatchObject({ rowIndex: 1, gap: { start: 1, end: 29 } });
@@ -136,7 +141,9 @@ describe("useExpandedRows", () => {
       ["ctx", undefined],
       ["add", undefined],
     ]);
-    expect(result.current.baseIndexOf).toEqual([0, -1, -1, -1, -1, 1, 2]);
+    expect(result.current.rowRefs).toEqual(
+      makeRowRefs([0, ...Array<typeof EXPANDED>(4).fill(EXPANDED), 1, 2]),
+    );
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });
 });

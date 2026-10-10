@@ -10,6 +10,8 @@ import {
   type ExpansionGap,
   type FileRangeSlice,
   type ResolveExpansionRangeParams,
+  type RowRef,
+  RowRefKinds,
   type SpliceStoredEdgesParams,
   type StoredEdge,
 } from "./types";
@@ -74,30 +76,35 @@ function sliceLines(
 }
 
 /**
- * For each spliced row, its index in the base rows, or -1 for an expanded
- * row. Comments, marks and threads are keyed on base indexes; the splice
- * keeps base rows in order and may drop a seam header, nothing else.
+ * For each spliced row, the base row it is or that it is expanded context.
+ * Comments, marks and threads are keyed on base indexes; the splice keeps
+ * base rows in order and may drop a seam header, nothing else, so a row
+ * not found among the base rows has no base index either.
  */
-export function mapBaseIndexes(
+export function mapRowRefs(
   base: readonly DiffLine[],
   spliced: readonly DiffLine[],
-): number[] {
-  const indexes: number[] = [];
+): RowRef[] {
+  const refs: RowRef[] = [];
   let cursor = 0;
 
   for (const row of spliced) {
     if (row.origin === DiffRowOrigins.EXPANDED) {
-      indexes.push(-1);
+      refs.push({ kind: RowRefKinds.EXPANDED });
       continue;
     }
     while (cursor < base.length && base[cursor] !== row) {
       cursor += 1;
     }
-    indexes.push(cursor < base.length ? cursor : -1);
+    if (cursor < base.length) {
+      refs.push({ kind: RowRefKinds.BASE, baseIndex: cursor });
+    } else {
+      refs.push({ kind: RowRefKinds.EXPANDED });
+    }
     cursor += 1;
   }
 
-  return indexes;
+  return refs;
 }
 
 /**

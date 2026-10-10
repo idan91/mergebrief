@@ -2,7 +2,7 @@ import { type RefObject, useEffect, useState } from "react";
 
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { DragMode } from "./types";
+import type { DragMode, RangeDrag } from "./types";
 
 export interface DragSelectionInput {
   /** The row model a drag belongs to; a change under it ends the drag. */
@@ -12,30 +12,20 @@ export interface DragSelectionInput {
 }
 
 /**
- * The range-anchoring drag: where it started, where the pointer is, and the
- * side each end sits on in split view. A text selection begun on one side
- * rides the table as an attribute set by hand, because a state write on the
- * pointer-down of a text selection would re-render every row.
+ * The range-anchoring drag in flight, if any. A text selection begun on one
+ * side rides the table as an attribute set by hand, because a state write
+ * on the pointer-down of a text selection would re-render every row.
  */
 export function useDragSelection({
   chunkDiff,
   resolvedView,
   tableRef,
 }: DragSelectionInput) {
-  const [dragStart, setDragStart] = useState<number | null>(null);
-  const [dragCurrent, setDragCurrent] = useState<number | null>(null);
-  const [dragSide, setDragSide] = useState<SplitSide | undefined>(undefined);
-  const [dragCurrentSide, setDragCurrentSide] = useState<SplitSide | undefined>(
-    undefined,
-  );
-  const [dragMode, setDragMode] = useState<DragMode | undefined>(undefined);
+  const [inFlight, setInFlight] = useState<RangeDrag | undefined>(undefined);
+  const dragging = inFlight !== undefined;
 
   const clearDrag = () => {
-    setDragStart(null);
-    setDragCurrent(null);
-    setDragSide(undefined);
-    setDragCurrentSide(undefined);
-    setDragMode(undefined);
+    setInFlight(undefined);
   };
 
   // The row model a drag was resolved against can change under it: the view
@@ -43,30 +33,22 @@ export function useDragSelection({
   // switch rebuilds the rows. Either way the drag goes with the model it
   // belonged to, rather than anchoring a comment on rows it never covered.
   useEffect(() => {
-    setDragStart(null);
-    setDragCurrent(null);
-    setDragSide(undefined);
-    setDragCurrentSide(undefined);
-    setDragMode(undefined);
+    setInFlight(undefined);
     tableRef.current?.removeAttribute("data-selecting");
   }, [chunkDiff, resolvedView, tableRef]);
 
   // Reset the drag when the mouse is released anywhere. Without this, releasing
   // outside a commentable row leaves the selection highlight stuck on.
   useEffect(() => {
-    if (dragStart === null) {
+    if (!dragging) {
       return;
     }
     const reset = () => {
-      setDragStart(null);
-      setDragCurrent(null);
-      setDragSide(undefined);
-      setDragCurrentSide(undefined);
-      setDragMode(undefined);
+      setInFlight(undefined);
     };
     window.addEventListener("mouseup", reset);
     return () => window.removeEventListener("mouseup", reset);
-  }, [dragStart]);
+  }, [dragging]);
 
   useEffect(() => {
     const release = () => tableRef.current?.removeAttribute("data-selecting");
@@ -79,26 +61,33 @@ export function useDragSelection({
     side: SplitSide | undefined,
     mode: DragMode,
   ) => {
-    setDragStart(index);
-    setDragCurrent(index);
-    setDragSide(side);
-    setDragCurrentSide(side);
-    setDragMode(mode);
+    setInFlight({
+      mode,
+      start: index,
+      startSide: side,
+      current: index,
+      currentSide: side,
+    });
   };
+  // Entering the other cell of the row the pointer is already on keeps the
+  // same state, so the table does not re-render.
   const moveDrag = (index: number, side: SplitSide | undefined) => {
-    setDragCurrent(index);
-    setDragCurrentSide(side);
+    setInFlight((drag) => {
+      if (drag === undefined) {
+        return undefined;
+      }
+      if (drag.current === index && drag.currentSide === side) {
+        return drag;
+      }
+      return { ...drag, current: index, currentSide: side };
+    });
   };
   const markSelectingSide = (side: SplitSide) => {
     tableRef.current?.setAttribute("data-selecting", side);
   };
 
   return {
-    dragStart,
-    dragCurrent,
-    dragSide,
-    dragCurrentSide,
-    dragMode,
+    inFlight,
     beginDrag,
     moveDrag,
     clearDrag,

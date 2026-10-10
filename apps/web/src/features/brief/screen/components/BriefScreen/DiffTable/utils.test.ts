@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../../model/types";
-import type { ExpandableEdge } from "../../../../model/expansion/types";
+import {
+  type ExpandableEdge,
+  RowRefKinds,
+} from "../../../../model/expansion/types";
 import type { DiffRowView } from "./diffRowView";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import type { SiblingSpan } from "../../../../model/utils/siblingSpans";
 import { RailSides } from "./types";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
+import { makeRowRefs } from "../../../../model/expansion/fixtures";
 import { GuestRowReasons } from "../../../../model/types";
 import type { GuestRowResolution } from "../../../utils/guest-rows";
 import {
@@ -22,6 +26,7 @@ import {
   resolveSpanLines,
   resolveSpanRangeOwner,
   mapToBaseIndexes,
+  resolveRowRef,
   unzipPairsByOwner,
 } from "./utils";
 
@@ -158,25 +163,52 @@ describe("unzipPairsByOwner", () => {
   });
 });
 
+const EXPANDED = RowRefKinds.EXPANDED;
+
+describe("resolveRowRef", () => {
+  it("names every row its own base row when nothing is spliced", () => {
+    expect(resolveRowRef(undefined, 3)).toEqual({
+      kind: RowRefKinds.BASE,
+      baseIndex: 3,
+    });
+  });
+
+  it("reads the row's ref through the splice", () => {
+    const refs = makeRowRefs([0, EXPANDED, 1]);
+
+    expect(resolveRowRef(refs, 1)).toEqual({ kind: RowRefKinds.EXPANDED });
+    expect(resolveRowRef(refs, 2)).toEqual({
+      kind: RowRefKinds.BASE,
+      baseIndex: 1,
+    });
+  });
+});
+
 describe("mapToBaseIndexes", () => {
   it("returns the indexes untouched when nothing is spliced", () => {
     expect(mapToBaseIndexes([2, 3], undefined)).toEqual([2, 3]);
   });
 
   it("maps rendered indexes to base ones through the splice", () => {
-    expect(mapToBaseIndexes([1, 2], [0, 5, 6, -1])).toEqual([5, 6]);
+    const refs = makeRowRefs([0, 5, 6, EXPANDED]);
+
+    expect(mapToBaseIndexes([1, 2], refs)).toEqual([5, 6]);
   });
 
   it("answers nothing when a picked row is expanded context", () => {
-    expect(mapToBaseIndexes([2, 3], [0, 5, 6, -1])).toBeUndefined();
+    const refs = makeRowRefs([0, 5, 6, EXPANDED]);
+
+    expect(mapToBaseIndexes([2, 3], refs)).toBeUndefined();
   });
 });
 
 describe("collectDragBaseIndexes", () => {
   it("keeps the base rows of a drag and drops the expanded ones", () => {
-    expect([
-      ...collectDragBaseIndexes(new Set([0, 1, 3]), [4, -1, 5, 6]),
-    ]).toEqual([4, 6]);
+    const refs = makeRowRefs([4, EXPANDED, 5, 6]);
+
+    expect([...collectDragBaseIndexes(new Set([0, 1, 3]), refs)]).toEqual([
+      4, 6,
+    ]);
   });
 });
 

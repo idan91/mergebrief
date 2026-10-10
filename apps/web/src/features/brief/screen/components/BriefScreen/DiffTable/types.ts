@@ -106,6 +106,127 @@ export const DragModes = {
 } as const;
 export type DragMode = ValueOf<typeof DragModes>;
 
+/** The range-anchoring drag in flight: where it started, where the pointer is. */
+export interface RangeDrag {
+  mode: DragMode;
+  start: number;
+  /** The side each end sits on in split view; absent in unified. */
+  startSide: SplitSide | undefined;
+  current: number;
+  currentSide: SplitSide | undefined;
+}
+
+/** What a gesture landed on: a row's own button owns the gesture itself. */
+export const RowTargets = {
+  BUTTON: "button",
+  NUMBERS: "numbers",
+  SIGN: "sign",
+  CODE: "code",
+} as const;
+export type RowTarget = ValueOf<typeof RowTargets>;
+
+export const RowGestureKinds = {
+  KEY_DOWN: "key-down",
+  MOUSE_DOWN: "mouse-down",
+  MOUSE_ENTER: "mouse-enter",
+  MOUSE_UP: "mouse-up",
+} as const;
+/** @public */
+export type RowGestureKind = ValueOf<typeof RowGestureKinds>;
+
+export interface RowKeyDown {
+  kind: typeof RowGestureKinds.KEY_DOWN;
+  key: string;
+  shift: boolean;
+  target: RowTarget;
+}
+
+export interface RowMouseDown {
+  kind: typeof RowGestureKinds.MOUSE_DOWN;
+  shift: boolean;
+  target: RowTarget;
+}
+
+export interface RowMouseEnter {
+  kind: typeof RowGestureKinds.MOUSE_ENTER;
+}
+
+export interface RowMouseUp {
+  kind: typeof RowGestureKinds.MOUSE_UP;
+  /** The primary button was released. */
+  primary: boolean;
+  shift: boolean;
+  target: RowTarget;
+  /** A non-collapsed text selection has an end inside this table. */
+  textSelected: boolean;
+}
+
+export type RowGesture = RowKeyDown | RowMouseDown | RowMouseEnter | RowMouseUp;
+
+/**
+ * How a row answers a gesture: a line a selection or comment starts on, or
+ * a guest row GitHub cannot hold a comment on, whose pick shows the reason.
+ */
+export const RowStateKinds = {
+  LINE: "line",
+  REASON: "reason",
+} as const;
+/** @public */
+export type RowStateKind = ValueOf<typeof RowStateKinds>;
+
+/** The drag in flight as one row sees it. */
+export interface RowDragState {
+  mode: DragMode;
+  startedHere: boolean;
+}
+
+interface RowStateBase {
+  drag: RowDragState | undefined;
+  composerOpen: boolean;
+  hasSelection: boolean;
+}
+
+export interface LineRowState extends RowStateBase {
+  kind: typeof RowStateKinds.LINE;
+  reanchorArmed: boolean;
+  /** The live selection covers this row on this side. */
+  lineSelected: boolean;
+  commentable: boolean;
+  split: boolean;
+}
+
+export interface ReasonRowState extends RowStateBase {
+  kind: typeof RowStateKinds.REASON;
+  reasonOpen: boolean;
+}
+
+export type RowState = LineRowState | ReasonRowState;
+
+/** One step a row takes for a gesture, run in order. */
+export const RowEffects = {
+  DROP_TEXT_SELECTION: "drop-text-selection",
+  BEGIN_SELECT_DRAG: "begin-select-drag",
+  BEGIN_COMMENT_DRAG: "begin-comment-drag",
+  MOVE_DRAG: "move-drag",
+  CLEAR_DRAG: "clear-drag",
+  MARK_SELECTING_SIDE: "mark-selecting-side",
+  SELECT_RANGE: "select-range",
+  EXTEND_SELECTION: "extend-selection",
+  CLEAR_SELECTION: "clear-selection",
+  COMMENT_RANGE: "comment-range",
+  COMMENT_SELECTION: "comment-selection",
+  TOGGLE_REASON: "toggle-reason",
+  CLOSE_REASON: "close-reason",
+} as const;
+export type RowEffect = ValueOf<typeof RowEffects>;
+
+export interface RowIntent {
+  effects: RowEffect[];
+  preventDefault: boolean;
+  /** The row consumes the key, so the composer's and the screen's never see it. */
+  stopPropagation: boolean;
+}
+
 /** Where the selection's link glyph renders: a rendered row on one side. */
 export interface SelectionGlyphPlacement {
   index: number;

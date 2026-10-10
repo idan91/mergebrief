@@ -26,11 +26,13 @@ import {
   deriveSideRail,
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
+  resolveRowRef,
   resolveSpanLines,
   showsThreadOnGuestRow,
   showsThreadOnRow,
 } from "./utils";
 import { RailSides } from "./types";
+import { type RowRef, RowRefKinds } from "../../../../model/expansion/types";
 import type { DiffSide } from "types/comments";
 
 export function DiffTable(props: DiffTableProps) {
@@ -230,16 +232,16 @@ export function DiffTable(props: DiffTableProps) {
 
   function resolveForeignThreads(
     line: DiffLine,
-    baseIndex: number,
+    ref: RowRef,
   ): DigestThreadRow[] {
     if (guest !== undefined) {
       return fileThreads.filter((row) => showsThreadOnGuestRow(row, line));
     }
-    if (baseIndex < 0) {
+    if (ref.kind === RowRefKinds.EXPANDED) {
       return fileThreads.filter((row) => showsThreadOnRow(row, line));
     }
 
-    return conversationThreadsByRow?.get(baseIndex) ?? [];
+    return conversationThreadsByRow?.get(ref.baseIndex) ?? [];
   }
 
   function buildUnderRow(
@@ -252,10 +254,10 @@ export function DiffTable(props: DiffTableProps) {
     if (view === undefined) {
       return null;
     }
-    const baseIndex = table.baseIndexOf?.[index] ?? index;
+    const ref = resolveRowRef(table.rowRefs, index);
     // An expanded or guest row has no base index: its threads are the
     // file's whose line it now shows, a sibling's or a hidden one.
-    const conversationRows = resolveForeignThreads(line, baseIndex);
+    const conversationRows = resolveForeignThreads(line, ref);
     return (
       <UnderRows
         activeCommentAnchor={review.activeCommentAnchor}

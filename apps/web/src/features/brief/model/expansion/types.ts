@@ -41,6 +41,30 @@ export interface ExpansionGap {
   offset: number;
 }
 
+/**
+ * What a rendered row is to its chunk: one of the chunk's own diff rows,
+ * where comments, marks and threads are keyed, or context the reader
+ * expanded, which has no place in the diff.
+ */
+export const RowRefKinds = {
+  BASE: "base",
+  EXPANDED: "expanded",
+} as const;
+/** @public */
+export type RowRefKind = ValueOf<typeof RowRefKinds>;
+
+export interface BaseRowRef {
+  kind: typeof RowRefKinds.BASE;
+  /** The row's index in the chunk's `diff`. */
+  baseIndex: number;
+}
+
+export interface ExpandedRowRef {
+  kind: typeof RowRefKinds.EXPANDED;
+}
+
+export type RowRef = BaseRowRef | ExpandedRowRef;
+
 export interface ResolveExpansionRangeParams {
   gap: ExpansionGap;
   /** Head-file lines this edge has already taken. */

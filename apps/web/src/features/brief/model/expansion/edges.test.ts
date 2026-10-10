@@ -1,13 +1,14 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
-import type { EdgeExpansion } from "./types";
+import { makeRowRefs } from "./fixtures";
+import { type EdgeExpansion, RowRefKinds } from "./types";
 import { findExpansionGaps } from "./gaps";
 import {
   buildExpansionKey,
   collectStoredEdges,
   countExpandedRows,
-  mapBaseIndexes,
+  mapRowRefs,
   placeExpandableEdges,
   resolveExpanderStep,
   spliceStoredEdges,
@@ -70,8 +71,8 @@ describe("spliceStoredEdges", () => {
   });
 });
 
-describe("mapBaseIndexes", () => {
-  it("maps spliced rows back to base rows and expanded rows to -1", () => {
+describe("mapRowRefs", () => {
+  it("maps spliced rows back to base rows and marks expanded ones", () => {
     const spliced: DiffLine[] = [
       base[0]!,
       {
@@ -85,13 +86,18 @@ describe("mapBaseIndexes", () => {
       base[2]!,
     ];
 
-    expect(mapBaseIndexes(base, spliced)).toEqual([0, -1, 1, 2]);
+    expect(mapRowRefs(base, spliced)).toEqual([
+      { kind: RowRefKinds.BASE, baseIndex: 0 },
+      { kind: RowRefKinds.EXPANDED },
+      { kind: RowRefKinds.BASE, baseIndex: 1 },
+      { kind: RowRefKinds.BASE, baseIndex: 2 },
+    ]);
   });
 
   it("skips a base row the splice dropped", () => {
     const spliced: DiffLine[] = [base[4]!, base[6]!];
 
-    expect(mapBaseIndexes(base, spliced)).toEqual([4, 6]);
+    expect(mapRowRefs(base, spliced)).toEqual(makeRowRefs([4, 6]));
   });
 });
 

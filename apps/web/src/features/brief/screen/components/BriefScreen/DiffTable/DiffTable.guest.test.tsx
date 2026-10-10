@@ -24,6 +24,8 @@ import {
 } from "@web/features/conversation/utils";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
+import { makeRowRefs } from "../../../../model/expansion/fixtures";
+import { RowRefKinds } from "../../../../model/expansion/types";
 import type { ExpandedRows } from "../../../../model/expansion/useExpandedRows";
 import { type Brief, type BriefChunk } from "../../../../model/types";
 import type { GuestRowsInput } from "../../../utils/guest-rows";
@@ -245,7 +247,10 @@ function stubForeignExpansion(): ExpandedRows {
       { kind: "ctx", content: "spliced", oldLine: 1, newLine: 1 },
       ...stubGuestRows(),
     ],
-    baseIndexOf: [-1, ...stubGuestRows().map((_row, index) => index)],
+    rowRefs: makeRowRefs([
+      RowRefKinds.EXPANDED,
+      ...stubGuestRows().map((_row, index) => index),
+    ]),
     edges: [],
     expansionKey: "expanded",
   };

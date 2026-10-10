@@ -2,13 +2,13 @@ import type { LineRange } from "brief-core/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useMemo } from "react";
 
-import type { ExpandableEdge } from "./types";
+import type { ExpandableEdge, RowRef } from "./types";
 import { findExpansionGaps } from "./gaps";
 import { resolveFileStatus } from "../utils/fileStatus";
 import {
   buildExpansionKey,
   collectStoredEdges,
-  mapBaseIndexes,
+  mapRowRefs,
   placeExpandableEdges,
   spliceStoredEdges,
 } from "./edges";
@@ -26,8 +26,8 @@ export interface UseExpandedRowsInput {
 
 export interface ExpandedRows {
   rows: DiffLine[];
-  /** For each row, its index in the base rows, or -1 for an expanded one. */
-  baseIndexOf: number[];
+  /** For each row, the base row it is or that it is expanded context. */
+  rowRefs: RowRef[];
   edges: ExpandableEdge[];
   /** Names the expansion state; undefined when nothing is expanded. */
   expansionKey: string | undefined;
@@ -98,7 +98,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
 
     return {
       rows: spliced,
-      baseIndexOf: mapBaseIndexes(rows, spliced),
+      rowRefs: mapRowRefs(rows, spliced),
       edges,
       expansionKey,
     };
