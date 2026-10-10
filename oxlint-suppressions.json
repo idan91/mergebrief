@@ -122,42 +122,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/chunkWindows.test.ts": {
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/useDelayedPending.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/useInFlightDraftPosts.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/server/legacyRevchangesAlias.server.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/utils/legacyRedirect.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
-  "apps/web/src/features/brief/utils/timeline.test.ts": {
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ReplyComposer/utils.test.ts": {
     "house/no-em-dash": {
       "count": 1

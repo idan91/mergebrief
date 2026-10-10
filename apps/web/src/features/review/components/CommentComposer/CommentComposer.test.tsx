@@ -13,8 +13,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
-import type { Brief } from "@web/features/brief/types";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import {
   ReviewCommentStatuses,
   type CommentAnchor,

@@ -11,7 +11,7 @@ import {
 import {
   lastReviewUnavailableReasonTitle,
   type CompareOptionFlags,
-} from "@web/features/brief/comparison";
+} from "@web/features/brief/model";
 import {
   buildSubmitPayload,
   type SubmitDraftInput,

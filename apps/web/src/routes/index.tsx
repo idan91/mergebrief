@@ -15,7 +15,7 @@ import { LocalBriefsSection } from "@web/features/brief";
 import { NoticeSurfaces, VersionNotice } from "@web/features/version";
 import { buildVersionQueryOptions } from "../features/version/queries";
 import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
-import { briefErrorDetail } from "@web/features/brief/utils";
+import { briefErrorDetail } from "@web/features/brief/model";
 import {
   Controls,
   EmptyInbox,

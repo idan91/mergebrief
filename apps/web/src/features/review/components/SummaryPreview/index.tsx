@@ -3,8 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { Roles } from "brief-core/types";
-import { type Brief } from "@web/features/brief/types";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import {
   buildReceipt,
   RECEIPT_NOT_CHECKED_KEYS,

@@ -1,6 +1,6 @@
 // Digest sorting follows brief reading order, never bot self-assigned severity.
 import { describe, expect, it } from "vitest";
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import {
   buildConversationDigest,
   buildInlineThreads,

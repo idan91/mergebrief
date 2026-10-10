@@ -19,13 +19,16 @@ import {
 } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
+  type Brief,
+  type ComparisonMarks,
   parseBrief,
   parseBriefContext,
   parseComparisonMarks,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
+  type PullStack,
   type RepoConfigContext,
-} from "@web/features/brief/utils";
+} from "@web/features/brief/model";
 import {
   parseReviewSessionPayload,
   type ReviewSessionPayload,
@@ -33,7 +36,6 @@ import {
   type SessionReadSource,
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
-import type { Brief, ComparisonMarks, PullStack } from "../brief/types";
 import { LIVE_POLL_MS } from "./consts";
 import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
 

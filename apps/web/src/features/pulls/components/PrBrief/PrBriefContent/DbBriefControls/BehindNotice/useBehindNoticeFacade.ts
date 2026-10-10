@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAnnouncer } from "@web/hooks/useAnnouncer";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../../brief/queries";
-import { briefErrorDetail } from "../../../../../../brief/utils";
+import { briefErrorDetail } from "../../../../../../brief/model";
 import { buildPrMetaQueryOptions } from "../../../../../queries";
 import { draftPolicyNotice } from "../../../../../utils/ownDraft";
 import { GenerationStatuses, type PrSummary } from "../../../../../types";

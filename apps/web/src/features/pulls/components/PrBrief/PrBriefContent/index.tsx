@@ -20,21 +20,19 @@ import {
 } from "@web/features/brief";
 import {
   attachSlicedDiffs,
-  createFileRowsCache,
-  splitUnifiedDiffByFile,
-} from "@web/features/brief/utils";
-import type { LivePrState } from "@web/features/brief/types";
-import { createSessionWrites } from "@web/features/review/session";
-import {
-  type BriefSearch,
-  type BriefSearchParams,
   buildBriefSearchParams,
   CompareParams,
+  createFileRowsCache,
   resolveBriefSearch,
+  splitUnifiedDiffByFile,
   stripDefaultSearch,
   withCompare,
   withView,
-} from "@web/features/brief/comparison";
+  type BriefSearch,
+  type BriefSearchParams,
+  type LivePrState,
+} from "@web/features/brief/model";
+import { createSessionWrites } from "@web/features/review/session";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";

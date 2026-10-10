@@ -11,8 +11,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Brief, BriefChunk } from "@web/features/brief/types";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import {
+  buildBriefViewModel,
+  type Brief,
+  type BriefChunk,
+} from "@web/features/brief/model";
 import {
   createReviewFlowStore,
   ReviewSessionProvider,

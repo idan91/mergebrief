@@ -13,8 +13,8 @@ import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import { I18nProvider } from "@web/i18n/I18nProvider";
 import { renderInRouter } from "@web/test/router";
-import type { BriefSearchParams } from "./comparison/compareState";
-import type { LivePrState } from "./types";
+import type { BriefSearchParams } from "./model/comparison/compareState";
+import type { LivePrState } from "./model/types";
 import type {
   BriefAddress,
   BriefReading,
@@ -22,10 +22,10 @@ import type {
   BriefScreenProps,
   PullRequestContext,
   ReviewCapability,
-} from "./components/BriefScreen/types";
-import { BriefView } from "./components/BriefView";
+} from "./screen/components/BriefScreen/types";
+import { BriefView } from "./screen/components/BriefView";
 import { briefFixture, briefSummaryFixture } from "./fixtures";
-import { useBriefReading } from "./hooks/useBriefReading";
+import { useBriefReading } from "./screen/hooks/useBriefReading";
 
 const NO_SEARCH_PARAMS: BriefSearchParams = {};
 const FIXTURE_LIVE_STATE: LivePrState = { state: "open", draft: false };

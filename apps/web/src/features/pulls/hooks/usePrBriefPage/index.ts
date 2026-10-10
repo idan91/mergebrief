@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildBriefSearchParams } from "@web/features/brief/comparison";
+import { buildBriefSearchParams } from "@web/features/brief/model";
 import { buildPrMetaQueryOptions } from "../../queries";
 import { readExplicitSpan, readRevisionRequest } from "../../search";
 import {

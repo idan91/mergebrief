@@ -9,7 +9,7 @@ import {
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
-import type { BriefViewModel } from "@web/features/brief/utils";
+import type { BriefViewModel } from "@web/features/brief/model";
 import {
   countDraftComments,
   isFileCommentAnchor,

@@ -11,7 +11,7 @@ import {
   type ConversationReview,
   type PrConversation,
 } from "../types";
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 
 /**
  * The verdict states that earn a chip, in render order. DISMISSED is absent,

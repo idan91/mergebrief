@@ -9,7 +9,7 @@ import type {
 } from "contract";
 import { CommentAnchorKinds, type Equals, DiffSides } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
+import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   createFileCommentAnchor,
   isLineCommentAnchor,

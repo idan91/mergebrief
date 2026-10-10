@@ -13,7 +13,7 @@ import {
   parsePullStack,
   type LastReviewComparison,
 } from "./types";
-import type { PullStack } from "@web/features/brief/types";
+import type { PullStack } from "@web/features/brief/model";
 
 const ROW = {
   repoId: "424242",

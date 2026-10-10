@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CommentAnchorKinds, DiffSides } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { buildBriefViewModel } from "@web/features/brief/model";
 import {
   ReviewCommentStatuses,
   type CommentAnchor,

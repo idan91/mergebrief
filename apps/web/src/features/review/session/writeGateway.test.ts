@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { buildBriefViewModel } from "@web/features/brief/model";
 import { createSessionWriteGateway } from "./writeGateway";
 import type { SessionWrites } from "./writes";
 import { CommentAnchorKinds } from "types/comments";

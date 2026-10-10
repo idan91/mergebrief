@@ -20,9 +20,10 @@ import {
 import { buildPrMetaQueryOptions } from "../queries";
 import {
   MarkReadyResultKinds,
+  type MarkReadyAction,
   type MarkReadyResult,
   type MarkReadyResultKind,
-} from "./types";
+} from "@web/features/brief/model";
 
 type MarkReadyFailureKind = Exclude<
   MarkReadyResultKind,
@@ -77,9 +78,6 @@ const KindForCode = {
   // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: MarkReadyResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
-
-/** The route-injected action shape the Brief screen's own-draft flow calls. */
-export type MarkReadyAction = () => Promise<MarkReadyResult>;
 
 function isReadyBody(value: unknown): value is { draft: false } {
   return (

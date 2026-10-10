@@ -2,8 +2,11 @@ import { Roles } from "brief-core/types";
 import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
-import { type BriefChunk } from "../../brief/types";
-import { GroupViewKinds, type RiskFlag } from "@web/features/brief/utils";
+import {
+  type BriefChunk,
+  GroupViewKinds,
+  type RiskFlag,
+} from "@web/features/brief/model";
 import { ReviewCommentStatuses, type ReviewComment } from "./comments";
 import type {
   AttentionItemKind,

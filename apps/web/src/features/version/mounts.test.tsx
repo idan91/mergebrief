@@ -105,7 +105,7 @@ describe("version notice mounts", () => {
     const source = readFileSync(
       join(
         process.cwd(),
-        "src/features/brief/components/BriefScreen/index.tsx",
+        "src/features/brief/screen/components/BriefScreen/index.tsx",
       ),
       "utf8",
     );

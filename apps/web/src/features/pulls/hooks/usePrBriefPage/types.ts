@@ -1,5 +1,5 @@
 import type { NavigateSearch } from "@web/features/brief";
-import type { BriefSearchParams } from "@web/features/brief/comparison";
+import type { BriefSearchParams } from "@web/features/brief/model";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import type { PrBriefSearch } from "../../search/types";

@@ -6,7 +6,7 @@
 // fresh threads land inline at their chunk row; outdated threads are
 // digest-only, their coordinates describe the ANCHOR-TIME diff, so no row
 // match is ever attempted. Unanchored threads render only in the digest.
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import { rowId } from "@web/features/review/utils";
 import type { ValueOf } from "types/utils";
 import {

@@ -1,6 +1,5 @@
-import type { BriefViewModel } from "@web/features/brief/utils";
+import type { BriefChunk, BriefViewModel } from "@web/features/brief/model";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { BriefChunk } from "../../../brief/types";
 import { rowId } from "../../utils/comments";
 import { resolveChunkForLine } from "../../utils/chunk-for-line";
 import type { RiskEvidence } from "../../utils/state";

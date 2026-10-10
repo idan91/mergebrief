@@ -4,8 +4,11 @@ import { CommentAnchorKinds, DiffSides } from "types/comments";
 
 import { Roles } from "brief-core/types";
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
-import { type Brief } from "@web/features/brief/types";
+import {
+  buildBriefViewModel,
+  GroupViewKinds,
+  type Brief,
+} from "@web/features/brief/model";
 import type { SessionSnapshot } from "../session";
 import { ReviewCommentStatuses } from "./comments";
 import { buildReceipt } from "./receipt";

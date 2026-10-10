@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../brief/queries";
-import { briefErrorDetail } from "../../../../../brief/utils";
+import { briefErrorDetail } from "../../../../../brief/model";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import { archivePull, unarchivePull } from "../../../../queries";
 import { RowWriteResultKinds, type InboxItem } from "../../../../types";

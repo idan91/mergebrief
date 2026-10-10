@@ -1,10 +1,10 @@
 import type { TFunction } from "i18next";
 import { Roles } from "brief-core/types";
-import { type BriefChunk } from "../../brief/types";
 import {
+  type BriefChunk,
   isUnattributedRemainderChunk,
   type RiskFlag,
-} from "@web/features/brief/utils";
+} from "@web/features/brief/model";
 import { CommentAnchorKinds } from "types/comments";
 import {
   ReviewCommentStatuses,

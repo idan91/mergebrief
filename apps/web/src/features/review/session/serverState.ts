@@ -4,7 +4,7 @@ import type {
   DiffSide,
   Result,
 } from "types";
-import type { BriefViewModel } from "@web/features/brief/utils";
+import type { BriefViewModel } from "@web/features/brief/model";
 import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import {

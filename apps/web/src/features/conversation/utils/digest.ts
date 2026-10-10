@@ -1,7 +1,7 @@
 // Bot groups collapse but remain accessible; sorting never uses their stated severity.
 // Outdated threads need revision labels because anchor-time coordinates are untrusted.
 // Unanchored fresh threads and PR-level comments belong in the general group.
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import {
   placeThread,
   ThreadPlacementKinds,

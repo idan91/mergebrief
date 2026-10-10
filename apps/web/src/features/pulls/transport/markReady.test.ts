@@ -14,7 +14,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 
 import { apiFetch, ApiError } from "../../../data/apiFetch";
 import { createMarkReadyAction, markPrReady } from "./markReady";
-import type { MarkReadyResult } from "./types";
+import type { MarkReadyResult } from "@web/features/brief/model";
 
 const apiFetchMock = vi.mocked(apiFetch);
 

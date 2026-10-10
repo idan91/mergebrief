@@ -9,8 +9,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Brief } from "../../brief/types";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
 import { CommentAnchorKinds } from "types/comments";
 import { ReviewCommentStatuses } from "../utils/comments";
 import { ReviewSessionProvider, useReviewSession, useUnplacedDrafts } from ".";

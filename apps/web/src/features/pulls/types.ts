@@ -14,7 +14,7 @@ import type {
   PrStack,
   PullStack,
   PrStackMember,
-} from "@web/features/brief/types";
+} from "@web/features/brief/model";
 
 type Result<T> = SharedResult<T, string>;
 

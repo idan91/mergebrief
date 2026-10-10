@@ -4,7 +4,7 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { BriefAddressPort } from "@web/features/brief";
-import type { BriefSearchParams } from "@web/features/brief/comparison";
+import type { BriefSearchParams } from "@web/features/brief/model";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 import type { deriveBriefRouteState } from "../../../utils/briefRouteState";

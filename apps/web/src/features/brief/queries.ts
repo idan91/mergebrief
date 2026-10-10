@@ -22,8 +22,8 @@ import {
   getLocalComparisonMarks,
   getLocalRevisionChanges,
   getLocalRevisionNarrative,
-} from "./server/brief.functions";
-import { FileRangeResultKinds } from "./types";
+} from "./model/server/brief.functions";
+import { FileRangeResultKinds } from "./model/types";
 
 function stringField(value: unknown, key: string): string | undefined {
   if (typeof value !== "object" || value === null) {

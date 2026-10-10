@@ -1,4 +1,4 @@
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import { getChunkRegion } from "./state";
 import { type DiffSide, DiffSides } from "types/comments";
 

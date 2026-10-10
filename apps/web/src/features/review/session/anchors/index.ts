@@ -1,6 +1,5 @@
-import type { BriefViewModel } from "@web/features/brief/utils";
+import type { BriefChunk, BriefViewModel } from "@web/features/brief/model";
 import { CommentAnchorKinds } from "types";
-import type { BriefChunk } from "../../../brief/types";
 import {
   createFileCommentAnchor,
   isFileCommentAnchor,

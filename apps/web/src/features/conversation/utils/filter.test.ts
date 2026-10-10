@@ -18,7 +18,7 @@ import {
   withReviewerSelection,
   withVerdictSelection,
 } from "./filter";
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import type {
   ConversationReview,
   ConversationThread,

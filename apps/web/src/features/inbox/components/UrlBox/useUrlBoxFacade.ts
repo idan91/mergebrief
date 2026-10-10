@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { generateBriefViaApi } from "../../../brief/queries";
-import { briefErrorDetail } from "../../../brief/utils";
+import { briefErrorDetail } from "../../../brief/model";
 import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
 

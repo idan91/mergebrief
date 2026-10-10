@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { prefersReducedMotion } from "@web/utils/motion";
 import { toggleSet } from "@web/utils/collections";
-import type { BriefChunk } from "@web/features/brief/types";
+import type { BriefChunk } from "@web/features/brief/model";
 import type { ReviewComment } from "@web/features/review/utils";
 import { buildConversationDigest } from "../../utils/digest";
 import {

@@ -1,6 +1,6 @@
 import type { Mutable } from "types/utils";
 
-import { parseBriefAddressSearch } from "@web/features/brief/comparison";
+import { parseBriefAddressSearch } from "@web/features/brief/model";
 import {
   conversationFilterSearch,
   parseConversationFilter,

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown";
-import type { AddressedReviewComment } from "@web/features/brief/types";
+import type { AddressedReviewComment } from "@web/features/brief/model";
 import { addressedCommentRange } from "../AddressedComments";
 import styles from "./AddressedDiffComment.module.scss";
 

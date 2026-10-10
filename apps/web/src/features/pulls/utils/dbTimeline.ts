@@ -2,11 +2,11 @@
 // The selected revision's own base drives the brief GET because bases can drift.
 import type { PrComparisons, RevisionSummary } from "../types";
 import type { Mutable } from "types/utils";
-import { buildRevisionTimeline } from "@web/features/brief/utils";
-import type {
-  RevisionPoint,
-  RevisionTimelineView,
-} from "@web/features/brief/types";
+import {
+  buildRevisionTimeline,
+  type RevisionPoint,
+  type RevisionTimelineView,
+} from "@web/features/brief/model";
 
 export interface DbTimelinePoint {
   readonly headSha: string;

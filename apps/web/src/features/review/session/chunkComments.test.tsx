@@ -6,8 +6,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { Brief } from "../../brief/types";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
 import { ReviewCommentStatuses, type CommentAnchor } from "../utils/comments";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {

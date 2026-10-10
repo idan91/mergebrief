@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Roles } from "brief-core/types";
-import { type Brief } from "@web/features/brief/types";
+import { type Brief } from "@web/features/brief/model";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { I18nProvider } from "@web/i18n/I18nProvider";
 import type { SessionSnapshot } from "../../session";

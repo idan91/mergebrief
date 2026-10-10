@@ -2,7 +2,7 @@ import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { ChangeGroupCategory } from "types";
-import { type BriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
+import { type BriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   isFileCommentAnchor,
   ReviewCommentStatuses,

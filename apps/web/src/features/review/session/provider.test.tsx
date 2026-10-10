@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
-import { buildBriefViewModel } from "@web/features/brief/utils";
+import { buildBriefViewModel } from "@web/features/brief/model";
 import {
   emptySessionPayload,
   ReviewSessionProvider,

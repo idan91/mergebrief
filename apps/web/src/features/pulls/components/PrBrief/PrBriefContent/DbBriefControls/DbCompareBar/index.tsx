@@ -16,7 +16,7 @@ import {
   type CompareOptionFlags,
   type CompareParam,
   type ViewParam,
-} from "@web/features/brief/comparison";
+} from "@web/features/brief/model";
 import {
   SegmentedControl,
   type SegmentedOption,

@@ -2,43 +2,43 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BriefSearchParams } from "./comparison/compareState";
+import type { BriefSearchParams } from "./model/comparison/compareState";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
 } from "./queries";
-import type { LocalBriefSummary } from "./types";
-import { attachSlicedDiffs } from "./utils/diffSlicing";
-import { createFileRowsCache } from "./utils/fileRows";
-import { buildRevisionTimelineView } from "./utils/revision-timeline";
-import { buildBriefTimeline } from "./utils/timeline";
-import type { BriefAddressPort } from "./components/BriefScreen/address/types";
-import { buildFileAddress } from "./components/BriefScreen/address/utils";
-import { BriefView } from "./components/BriefView";
-import { useBriefReading } from "./hooks/useBriefReading";
+import type { LocalBriefSummary } from "./model/types";
+import { attachSlicedDiffs } from "./model/utils/diffSlicing";
+import { createFileRowsCache } from "./model/utils/fileRows";
+import { buildRevisionTimelineView } from "./model/utils/revision-timeline";
+import { buildBriefTimeline } from "./model/utils/timeline";
+import type { BriefAddressPort } from "./screen/components/BriefScreen/address/types";
+import { buildFileAddress } from "./screen/components/BriefScreen/address/utils";
+import { BriefView } from "./screen/components/BriefView";
+import { useBriefReading } from "./screen/hooks/useBriefReading";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
 // Internal brief files import their targets directly, never this index.
-export { BriefView } from "./components/BriefView";
-export { useBriefReading } from "./hooks/useBriefReading";
-export { buildBriefAddress } from "./components/BriefScreen/address/utils";
-export type { BriefComparisonPlan } from "./components/BriefScreen/useComparisonOverlay";
+export { BriefView } from "./screen/components/BriefView";
+export { useBriefReading } from "./screen/hooks/useBriefReading";
+export { buildBriefAddress } from "./screen/components/BriefScreen/address/utils";
+export type { BriefComparisonPlan } from "./screen/components/BriefScreen/useComparisonOverlay";
 export type {
   ConversationCapability,
   OwnDraftPlan,
   ReviewCapability,
   ScopeExitOptions,
-} from "./components/BriefScreen/types";
-export { useBriefAddress } from "./components/BriefScreen/address/useBriefAddress";
+} from "./screen/components/BriefScreen/types";
+export { useBriefAddress } from "./screen/components/BriefScreen/address/useBriefAddress";
 export type {
   BriefAddressPort,
   NavigateSearch,
-} from "./components/BriefScreen/address/types";
-export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
-export { LocalBriefsSection } from "./components/LocalBriefsSection";
-export { BriefError } from "./components/BriefError";
-export { readDiffView } from "./components/BriefScreen/diffViewStorage";
+} from "./screen/components/BriefScreen/address/types";
+export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./model/utils/briefIdentity";
+export { LocalBriefsSection } from "./screen/components/LocalBriefsSection";
+export { BriefError } from "./screen/components/BriefError";
+export { readDiffView } from "./screen/components/BriefScreen/diffViewStorage";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

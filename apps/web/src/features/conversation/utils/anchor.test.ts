@@ -2,7 +2,7 @@
 // new to RIGHT outbound map, over the same DiffLine rows createCommentAnchor
 // reads.
 import { describe, expect, it } from "vitest";
-import type { BriefChunk } from "../../brief/types";
+import type { BriefChunk } from "../../brief/model";
 import {
   ThreadSubjectTypes,
   ThreadSides,

@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
-import { type Brief, type LocalBriefSummary } from "../features/brief/types";
+import { type Brief, type LocalBriefSummary } from "../features/brief/model";
 import { emptySessionPayload } from "../features/review/session";
 import { mountBriefView } from "../features/brief/test-utils";
 

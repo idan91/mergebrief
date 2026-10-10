@@ -1,4 +1,4 @@
-import type { BriefAddressSearch } from "@web/features/brief/comparison";
+import type { BriefAddressSearch } from "@web/features/brief/model";
 import type { ConversationFilterSearch } from "@web/features/conversation/utils";
 
 /** The PR page's search: the screen's params, the revision keys, the filters. */

@@ -8,7 +8,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => ({
   ...(await importOriginal()),
   apiFetch,
 }));
-vi.mock("./server/brief.functions", () => ({
+vi.mock("./model/server/brief.functions", () => ({
   getLocalBrief: vi.fn(),
   getLocalBriefs: vi.fn(),
   getLocalComparisonMarks: vi.fn(),

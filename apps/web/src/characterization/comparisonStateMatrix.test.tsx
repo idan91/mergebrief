@@ -29,7 +29,7 @@ import type {
   BriefChunk,
   ComparisonMarks,
   LocalBriefSummary,
-} from "../features/brief/types";
+} from "../features/brief/model";
 import { routeTree } from "../routeTree.gen";
 import { listRevisionRows, openRevisionsTab } from "../test/revisions";
 

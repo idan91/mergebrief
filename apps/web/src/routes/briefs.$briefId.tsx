@@ -8,8 +8,10 @@ import {
 } from "@tanstack/react-router";
 
 import { BriefError, BriefPage, useBriefAddress } from "@web/features/brief";
-import { parseBriefAddressSearch } from "@web/features/brief/comparison";
-import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
+import {
+  parseBriefAddressSearch,
+  resolveLegacyDeltaRedirect,
+} from "@web/features/brief/model";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,

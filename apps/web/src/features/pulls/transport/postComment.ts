@@ -14,7 +14,7 @@ import {
   PostCommentResultKinds,
   type PostCommentResult,
   type PostCommentResultKind,
-} from "./types";
+} from "@web/features/brief/model";
 
 type PostCommentFailureKind = Exclude<
   PostCommentResultKind,

@@ -28,7 +28,7 @@ import {
 } from "@web/test/attachments";
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { setMediaQueryMatches } from "@web/test/setup";
-import type { ComparisonMarks } from "@web/features/brief/types";
+import type { ComparisonMarks } from "@web/features/brief/model";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,

@@ -1,10 +1,10 @@
 import type { TranslationKey } from "i18n";
 import type { TFunction } from "i18next";
 import type {
+  Brief,
   BriefViewModel,
   RepoConfigContext,
-} from "@web/features/brief/utils";
-import type { Brief } from "../../brief/types";
+} from "@web/features/brief/model";
 import { CommentAnchorKinds, type DiffSide } from "types/comments";
 import {
   isFileCommentAnchor,
