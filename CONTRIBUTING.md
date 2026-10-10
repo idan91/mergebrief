@@ -105,7 +105,7 @@ renames, or removes one) must update the mirrors in the same PR:
 
 - `packages/brief-core/src/types.ts` — the closed enums the output schema validates against.
 - `packages/brief-core/src/generation/prompt.ts` — the description maps interpolated into the prompt.
-- `apps/web/src/features/brief/types.ts` — the FE copy of the vocabularies.
+- `apps/web/src/features/brief/model/types.ts` — the FE copy of the vocabularies.
 
 Token changes touch the generation surface, so the eval harness applies
 (`pnpm -C tools/categorizer eval` — see `tools/categorizer/eval/README.md`).
