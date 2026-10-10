@@ -173,6 +173,26 @@ describe("Menu", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("Escape on the panel or the trigger never reaches window", async () => {
+    renderMenu();
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("keydown", onWindowKeyDown);
+    const trigger = await openMenu();
+
+    await act(async () => {
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await openMenu();
+    await act(async () => {
+      fireEvent.keyDown(trigger, { key: "Escape" });
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", onWindowKeyDown);
+  });
+
   it("typeahead follows a relabel while the menu stays open", async () => {
     const { onSelect, view } = renderMenu("en");
     await openMenu();

@@ -31,9 +31,6 @@ const NO_SEARCH_PARAMS: BriefSearchParams = {};
 const FIXTURE_LIVE_STATE: LivePrState = { state: "open", draft: false };
 const FIXTURE_REPO_ID = "repo-1";
 
-/** Routes the screen's own links point at, stubbed so they resolve. */
-const SCREEN_LINK_STUBS = ["/briefs/$briefId/summary-preview"];
-
 /**
  * The screen's inputs as a test states them, flat; an unset one takes the
  * fixture default. Every mount carries a writable review; `pr` rides with
@@ -148,7 +145,6 @@ export async function mountBriefHost(
   return await renderInRouter(
     <I18nProvider>{host}</I18nProvider>,
     options.queryClient,
-    SCREEN_LINK_STUBS,
   );
 }
 

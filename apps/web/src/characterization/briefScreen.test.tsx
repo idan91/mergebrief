@@ -6,7 +6,6 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -106,7 +105,7 @@ async function renderBriefScreen(
     </QueryClientProvider>,
   );
   await waitFor(() => expect(screen.getByText(brief.pr.title)).toBeTruthy());
-  return { queryClient, router };
+  return { queryClient };
 }
 
 /**
@@ -303,37 +302,6 @@ describe("brief screen characterization", () => {
     await renderBriefScreen();
     expect(statText("flags")).toBe("0/2");
     expect(screen.queryByText("Dismiss…")).toBeNull();
-  });
-
-  it("opens Summary preview from the header menu on the local path", async () => {
-    const { router } = await renderBriefScreen();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    });
-    const item = screen.getByRole("menuitem", { name: /^summary preview$/i });
-    await act(async () => {
-      fireEvent.click(item);
-    });
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe(
-        `/briefs/${BRIEF_ID}/summary-preview`,
-      ),
-    );
-  });
-
-  it("keeps the skip-link target on the standalone summary-preview page", async () => {
-    const { router } = await renderBriefScreen();
-    await router.navigate({
-      to: "/briefs/$briefId/summary-preview",
-      params: { briefId: BRIEF_ID },
-    });
-    await waitFor(() => {
-      const main = document.getElementById("main-content");
-      expect(main?.tagName).toBe("MAIN");
-      expect(main?.getAttribute("tabindex")).toBe("-1");
-    });
-    // Still exactly one main landmark after the route switch.
-    expect(document.querySelectorAll("main").length).toBe(1);
   });
 
   it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {

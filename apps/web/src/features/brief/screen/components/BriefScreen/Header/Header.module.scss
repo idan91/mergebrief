@@ -255,11 +255,6 @@
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
   }
 
-  .menuWrap {
-    position: relative;
-    flex: none;
-  }
-
   .header[data-focus] {
     border-block-end-color: transparent;
     background: var(--focus-page-bg);
@@ -436,11 +431,6 @@
     .identityRow > [data-terminal-slot] {
       align-self: center;
       grid-area: cta;
-    }
-
-    .menuWrap {
-      align-self: center;
-      grid-area: menu;
     }
 
     .titleBlock {

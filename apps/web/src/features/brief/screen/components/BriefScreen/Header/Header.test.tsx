@@ -87,13 +87,8 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   };
 }
 
-const HEADER_STUB_PATHS = [
-  "/briefs/$briefId/summary-preview",
-  "/repos/$repoId/pulls/$prNumber",
-] as const;
+const HEADER_STUB_PATHS = ["/repos/$repoId/pulls/$prNumber"] as const;
 
-// The menu's summary-preview entry navigates, so the harness mounts the
-// header at "/" plus the two routes it links to.
 async function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const openSubmit = vi.fn();
   const props: HeaderProps = {
@@ -118,12 +113,8 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     focusMode: false,
     ...overrides,
   };
-  const { router } = await renderInRouter(
-    <Header {...props} />,
-    undefined,
-    HEADER_STUB_PATHS,
-  );
-  return { openSubmit, router };
+  await renderInRouter(<Header {...props} />, undefined, HEADER_STUB_PATHS);
+  return { openSubmit };
 }
 
 describe("Header identity row", () => {
@@ -703,74 +694,8 @@ describe("Header menu and stats", () => {
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
-  it("keeps rare actions in a menu and the preview entry navigates", async () => {
-    const { router } = await renderHeader();
-    expect(
-      screen.queryByRole("button", { name: /^summary preview$/i }),
-    ).toBeNull();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
-
-    await act(async () => {
-      fireEvent.click(trigger);
-    });
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    const items = screen.getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual(["Summary preview"]);
-
-    await act(async () => {
-      fireEvent.click(items[0]!);
-    });
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe(
-        "/briefs/test-brief/summary-preview",
-      ),
-    );
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("keeps Escape inside the menu, on the trigger and on the panel", async () => {
+  it("offers no more-actions menu on a file brief", async () => {
     await renderHeader();
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    await act(async () => {
-      fireEvent.click(trigger);
-    });
-    await act(async () => {
-      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
-    });
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
-    await act(async () => {
-      fireEvent.click(trigger);
-    });
-    await act(async () => {
-      fireEvent.keyDown(trigger, { key: "Escape" });
-    });
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", onWindowKeyDown);
-  });
-
-  it("closes the menu on Escape and returns focus to the trigger", async () => {
-    await renderHeader();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    await act(async () => {
-      fireEvent.click(trigger);
-    });
-    const menu = screen.getByRole("menu");
-    await act(async () => {
-      fireEvent.keyDown(menu, { key: "Escape" });
-    });
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
-    await waitFor(() => expect(document.activeElement).toBe(trigger));
-  });
-
-  it("offers no summary-preview entry on a DB brief", async () => {
-    // The standalone preview route resolves through the local file store;
-    // a db: id gets no menu entry; the submit flow is its receipt surface.
-    await renderHeader({ briefId: "db:acme/widgets:7:base:head" });
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 

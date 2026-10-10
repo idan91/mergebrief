@@ -181,9 +181,6 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText(/review receipt/i)).toBeNull();
     // The advisory ("Before you submit") view is unmounted too.
     expect(screen.queryByText(/before you submit/i)).toBeNull();
-    // No menu path back into submit: Summary preview was the overflow menu's
-    // only entry, so the whole menu is gone.
-    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
   it("renders risk flags as a read-only mirror, no disposition controls", async () => {

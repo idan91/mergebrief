@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { CONTENT_START_ATTR } from "../utils";
 import {
   useEffect,
@@ -17,7 +17,6 @@ import type {
 import type { ProgressTotals } from "../../../utils/progress";
 import type { RepoConfigContext } from "../../../../model/utils/repoConfig";
 import type { Brief, LivePrState } from "../../../../model/types";
-import { isDbBriefId } from "../../../../model/utils/briefIdentity";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
   BriefViewModel,
@@ -28,8 +27,6 @@ import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button";
-import { IconButton } from "@web/components/IconButton";
-import { Menu } from "@web/components/Menu";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
@@ -216,7 +213,7 @@ export function Header({
       <div className={styles["identityRow"]}>
         {/* Lead is inert on wide viewports (display: contents, one flex
             line); at ≤880px it becomes the grid's content row, with the CTA +
-            overflow column beside it. */}
+            account menu columns beside it. */}
         <div className={styles["lead"]}>
           <Link className={styles["wordmark"]} to="/">
             {PRODUCT_NAME}
@@ -320,10 +317,6 @@ export function Header({
             }}
           />
         )}
-        <HeaderMenu
-          briefId={briefId}
-          hideSummaryPreview={ownDraft !== undefined}
-        />
         <AccountMenu onOpenShortcuts={toggleShortcuts} />
       </div>
       {/* Tier 2, the comparison toolbar: everything that changes WHAT is on
@@ -455,48 +448,6 @@ function SelfReviewChip() {
         </span>
       </span>
     </span>
-  );
-}
-
-interface HeaderMenuProps {
-  briefId: string;
-  hideSummaryPreview: boolean;
-}
-
-function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  if (hideSummaryPreview || isDbBriefId(briefId)) {
-    return null;
-  }
-
-  const openSummaryPreview = () => {
-    void navigate({
-      to: "/briefs/$briefId/summary-preview",
-      params: { briefId },
-    });
-  };
-
-  return (
-    <div className={styles["menuWrap"]}>
-      <Menu placement="bottom-end">
-        <Menu.Trigger>
-          <IconButton
-            label={t("brief.header.ariaLabelMoreActions")}
-            size="md"
-            variant="ghost"
-          >
-            <Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />
-          </IconButton>
-        </Menu.Trigger>
-        <Menu.Content>
-          <Menu.Item onSelect={openSummaryPreview}>
-            {t("brief.header.summaryPreview")}
-          </Menu.Item>
-        </Menu.Content>
-      </Menu>
-    </div>
   );
 }
 

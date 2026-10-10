@@ -324,7 +324,7 @@ export function useReadingSession(
     reviewComments,
     reviewedChunks,
   ]);
-  // Frozen snapshot + Receipt: the inputs the drawer and summary preview render.
+  // Frozen snapshot + Receipt: the inputs the drawer renders.
   const snapshot = useMemo(
     () =>
       serializeSnapshot(briefId, {

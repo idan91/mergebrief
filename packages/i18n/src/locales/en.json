@@ -230,8 +230,6 @@
       "selfReviewChip": "Self-review — your draft",
       "ariaLabelAboutSelfReview": "About self-review",
       "selfReviewTooltip": "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
-      "ariaLabelMoreActions": "More actions",
-      "summaryPreview": "Summary preview",
       "submitReviewCta": "Submit",
       "ariaLabelSubmitReview_one": "Submit review, {{count}} draft comment",
       "ariaLabelSubmitReview_other": "Submit review, {{count}} draft comments",
@@ -796,19 +794,12 @@
       "comment": "Comment"
     },
     "summary": {
-      "kicker": "Frozen preview · interview demo",
-      "heading": "Review Summary",
-      "byline": "Reviewed by @you · {{repo}} #{{number}} · {{sha}}",
-      "badge": "Tool receipt, not an approval",
       "outcomeLabel": "Review outcome",
       "signature": "Reviewed with MergeBrief / review — summary: {{reviewedChunks}} chunks read, {{addressedRisks}} risks addressed, {{dismissedRisks}} dismissed.",
       "coveredHeading": "What the reviewer covered",
       "chunksReviewed": "Chunks reviewed",
-      "coreChunks": "Core chunks",
-      "supportingChunks": "Supporting chunks",
       "inlineComments": "Inline comments",
       "noComments": "No draft comments in this preview.",
-      "dispositionHeading": "Risk surface disposition",
       "addressedRisks": "Addressed risks",
       "dismissedRisks": "Dismissed risks",
       "openRisks": "Open risks at submit",
@@ -1140,7 +1131,6 @@
       "failed": "The image could not be uploaded. It was not attached; try again."
     },
     "skipToContent": "Skip to content",
-    "backToReview": "Back to review",
     "backToBriefs": "← Back to Briefs",
     "ariaLabelBreadcrumb": "Breadcrumb",
     "localBriefs": "Local briefs",
@@ -1155,8 +1145,7 @@
       "prNumber": "#{{number}}",
       "home": "Briefs",
       "settings": "Settings",
-      "localBrief": "Local brief",
-      "summaryPreview": "Summary preview"
+      "localBrief": "Local brief"
     },
     "markdownToolbar": {
       "bold": "Bold",

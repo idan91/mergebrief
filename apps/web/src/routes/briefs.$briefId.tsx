@@ -89,8 +89,7 @@ function BriefRoute() {
   const navigate = Route.useNavigate();
   // Pending only while a navigation targeting another brief page runs its
   // loader (revision links land on another briefId of the same route):
-  // leaving the page, including to the summary-preview subpath, never
-  // dims the brief.
+  // leaving the page never dims the brief.
   const revisionPending = useRouterState({
     select: (state) =>
       state.status === "pending" &&

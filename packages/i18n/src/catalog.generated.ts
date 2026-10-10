@@ -204,7 +204,6 @@ export type Catalog = typeof en & {
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {
-      byline: "Reviewed by @you · {{repo}} #{{number}} · {{sha}}";
       signature: "Reviewed with MergeBrief / review — summary: {{reviewedChunks}} chunks read, {{addressedRisks}} risks addressed, {{dismissedRisks}} dismissed.";
       evidenceLinkedComment: "linked comment {{location}}";
       evidenceChunkReviewed: "reviewed related chunk {{file}}";
