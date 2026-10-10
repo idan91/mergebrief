@@ -29,6 +29,12 @@ export interface BriefSearchParams {
   focus?: true;
 }
 
+/** The search params the Brief screen reads and writes on every route. */
+export interface BriefAddressSearch extends BriefSearchParams {
+  /** A chunk, or lines inside one, to land on; the screen parses it. */
+  l?: string;
+}
+
 /**
  * Selectable options derived from ComparisonAvailability artifact ids.
  */
@@ -107,6 +113,28 @@ export function parseCompareParam(value: unknown): CompareParam | undefined {
     value === CompareParams.OFF
     ? value
     : undefined;
+}
+
+/**
+ * The screen's search vocabulary. Unrecognized or absent keys are omitted,
+ * not defaulted, so the page can tell "nothing chosen yet" from a choice.
+ */
+export function parseBriefAddressSearch(
+  search: Record<string, unknown>,
+): BriefAddressSearch {
+  const link = search["l"];
+  const parsed: BriefAddressSearch = buildBriefSearchParams(
+    parseViewParam(search["view"]),
+    parseCompareParam(search["compare"]),
+    parseDiffParam(search["diff"]),
+    parseFocusParam(search["focus"]),
+  );
+
+  if (typeof link === "string" && link.length > 0) {
+    parsed.l = link;
+  }
+
+  return parsed;
 }
 
 /** Comparison availability for a timeline point's Compare control. */

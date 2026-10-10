@@ -6,6 +6,7 @@ import {
   isCompareAvailable,
   lastReviewUnavailableReasonTitle,
   normalizeBriefSearch,
+  parseBriefAddressSearch,
   parseCompareParam,
   parseViewParam,
   resolveBriefSearch,
@@ -42,6 +43,52 @@ describe("parseViewParam / parseCompareParam", () => {
     expect(parseCompareParam("last-review")).toBe("last-review");
     expect(parseCompareParam("off")).toBe("off");
     expect(parseCompareParam("delta")).toBeUndefined();
+  });
+});
+
+describe("parseBriefAddressSearch", () => {
+  it("reads view, compare, diff, focus and the link", () => {
+    expect(
+      parseBriefAddressSearch({
+        view: "changes",
+        compare: "last-review",
+        diff: "split",
+        focus: true,
+        l: "c1.R10-R12",
+      }),
+    ).toEqual({
+      view: "changes",
+      compare: "last-review",
+      diff: "split",
+      focus: true,
+      l: "c1.R10-R12",
+    });
+  });
+
+  it("reads focus spelled as the string true", () => {
+    expect(parseBriefAddressSearch({ focus: "true" })).toEqual({ focus: true });
+  });
+
+  it("omits invalid values instead of defaulting them", () => {
+    expect(
+      parseBriefAddressSearch({
+        view: "everything",
+        compare: "yesterday",
+        diff: "sideways",
+        focus: false,
+        l: "",
+      }),
+    ).toEqual({});
+  });
+
+  it("drops a link that is not a string", () => {
+    expect(parseBriefAddressSearch({ l: 42 })).toEqual({});
+  });
+
+  it("drops params outside the vocabulary", () => {
+    expect(parseBriefAddressSearch({ rev: 2, thread: 9, utm: "x" })).toEqual(
+      {},
+    );
   });
 });
 

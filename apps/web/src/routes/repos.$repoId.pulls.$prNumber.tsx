@@ -1,34 +1,27 @@
-import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
   notFound,
   redirect,
   useRouterState,
 } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
+import { useBriefAddress } from "@web/features/brief";
 import {
-  buildBriefSearchParams,
-  parseCompareParam,
-  parseDiffParam,
-  parseFocusParam,
-  parseViewParam,
-  type BriefSearchParams,
-} from "@web/features/brief/comparison";
-import {
-  type DbTimelinePoint,
   resolveDbTimeline,
-  resolveMetaPollMs,
-  type RevisionRequest,
   selectBriefRouteState,
   type Span,
 } from "@web/features/pulls/utils";
-import type { ScopeExitOptions } from "@web/features/brief";
 import { AttachmentScopeProvider } from "@web/components/Markdown/context";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
+import { usePrBriefPage } from "@web/features/pulls/hooks";
+import {
+  parsePrSearch,
+  readExplicitSpan,
+  readRevisionRequest,
+} from "@web/features/pulls/search";
 import {
   buildDbBriefQueryOptions,
   buildPrMetaQueryOptions,
@@ -36,58 +29,8 @@ import {
 } from "../features/pulls/queries";
 import type { PrSummary } from "../features/pulls/types";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
-import {
-  conversationFilterSearch,
-  parseConversationFilter,
-  type ConversationFilter,
-  type ConversationFilterSearch,
-} from "@web/features/conversation/utils";
 import { buildPrPageTitle, type PrPageTitleInput } from "@web/utils/pageTitle";
 import { buildVersionQueryOptions } from "../features/version/queries";
-import type { Mutable } from "types/utils";
-
-interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
-  /** The brief's index on this PR; the one revision key fresh links carry. */
-  rev?: number;
-  /** Legacy span keys, read only: an old Entry-comment link still lands. */
-  base?: string;
-  head?: string;
-  /** This route reserves the param; the conversation section reads it. */
-  thread?: number;
-  /** A chunk, or lines inside one, to land on; the brief screen parses it. */
-  l?: string;
-}
-
-function nonEmpty(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-/** Both-or-neither: a lone base/head cannot address a span (fallback path). */
-function spanFromSearch(search: PrBriefSearch): Span | undefined {
-  return search.base !== undefined && search.head !== undefined
-    ? { base: search.base, head: search.head }
-    : undefined;
-}
-
-function coerceNumber(value: unknown): number {
-  if (typeof value === "number") {
-    return value;
-  }
-  if (typeof value === "string") {
-    return Number(value);
-  }
-  return NaN;
-}
-
-function resolvePositiveInteger(value: unknown): number | undefined {
-  const parsed = coerceNumber(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-/** Full-span identity: duplicate-head revisions differ only by base. */
-function buildSpanKey(baseSha: string, headSha: string): string {
-  return `${baseSha} ${headSha}`;
-}
 
 function parsePrNumber(raw: string): number {
   const value = Number(raw);
@@ -167,72 +110,13 @@ function prefetchSession(
 }
 
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
-  validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
-    const base = search["base"];
-    const head = search["head"];
-    // `rev` selects a revision; a legacy head still does, with its base
-    // retained only beside it. Unknown revisions degrade to latest, not 404.
-    const rev = resolvePositiveInteger(search["rev"]);
-    const view = parseViewParam(search["view"]);
-    const compare = parseCompareParam(search["compare"]);
-    const diff = parseDiffParam(search["diff"]);
-    const focus = parseFocusParam(search["focus"]);
-    const thread = resolvePositiveInteger(search["thread"]);
-    const link = search["l"];
-    const parsed: PrBriefSearch = {};
-
-    if (rev !== undefined) {
-      parsed.rev = rev;
-    }
-    if (nonEmpty(head)) {
-      parsed.head = head;
-    }
-    if (nonEmpty(head) && nonEmpty(base)) {
-      parsed.base = base;
-    }
-    if (view !== undefined) {
-      parsed.view = view;
-    }
-    if (compare !== undefined) {
-      parsed.compare = compare;
-    }
-    if (diff !== undefined) {
-      parsed.diff = diff;
-    }
-    if (focus !== undefined) {
-      parsed.focus = focus;
-    }
-    if (thread !== undefined) {
-      parsed.thread = thread;
-    }
-    if (nonEmpty(link)) {
-      parsed.l = link;
-    }
-
-    return {
-      ...parsed,
-      ...conversationFilterSearch(parseConversationFilter(search)),
-    };
-  },
-  loaderDeps: ({ search }) => {
-    const deps: Mutable<RevisionRequest> = {};
-
-    if (search.rev !== undefined) {
-      deps.rev = search.rev;
-    }
-    if (search.base !== undefined) {
-      deps.base = search.base;
-    }
-    if (search.head !== undefined) {
-      deps.head = search.head;
-    }
-
-    return deps;
-  },
+  validateSearch: parsePrSearch,
+  loaderDeps: ({ search }) => readRevisionRequest(search),
   loader: async ({ context, params, deps }) => {
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
-    const explicit = deps.rev === undefined ? spanFromSearch(deps) : undefined;
+    const explicit =
+      deps.rev === undefined ? readExplicitSpan(deps) : undefined;
     // The version notice sits above the content: prefetched so the band
     // renders with the page instead of shifting it after scroll restore.
     const versionPrefetch = context.queryClient.prefetchQuery({
@@ -314,11 +198,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
 const PR_BRIEF_PATH_PATTERN = /^\/repos\/[^/]+\/pulls\/[^/]+$/;
 
 function PrBriefRoute() {
-  const { t } = useTranslation();
   // Route-level so BriefScreen itself stays renderable without a router.
   useUnsavedComposerBlocker();
   const params = Route.useParams();
-  const repoId = params.repoId;
   const prNumber = parsePrNumber(params.prNumber);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -328,347 +210,41 @@ function PrBriefRoute() {
       state.status === "pending" &&
       PR_BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
-  const explicit = useMemo(
-    () =>
-      search.base !== undefined && search.head !== undefined
-        ? { base: search.base, head: search.head }
-        : undefined,
-    [search.base, search.head],
-  );
-
-  const meta = useSuspenseQuery({
-    ...buildPrMetaQueryOptions(repoId, prNumber),
-    refetchInterval: (query) => {
-      const loaded = query.state.data;
-      if (loaded === undefined) {
-        return false;
-      }
-      return resolveMetaPollMs(loaded);
-    },
-  }).data;
-
-  const timeline = useMemo(() => {
-    const request: Mutable<RevisionRequest> = {};
-
-    if (search.rev !== undefined) {
-      request.rev = search.rev;
-    }
-    if (search.head !== undefined) {
-      request.head = search.head;
-    }
-    if (search.base !== undefined) {
-      request.base = search.base;
-    }
-
-    return resolveDbTimeline(meta.revisions, request);
-  }, [meta.revisions, search.base, search.head, search.rev]);
-
-  const selectedSpanKey =
-    timeline === undefined
-      ? undefined
-      : buildSpanKey(timeline.selected.baseSha, timeline.selected.headSha);
-
-  const state = useMemo(
-    () =>
-      selectBriefRouteState(meta, timeline, {
-        explicitSpan: explicit,
-        rev: search.rev,
-      }),
-    [explicit, meta, search.rev, timeline],
-  );
-
-  // Base drift stays read-only because the rendered anchors may be wrong;
-  // head drift only needs an acknowledgement.
-  const selectedHeadIsCurrent =
-    timeline !== undefined && timeline.selected.headSha === meta.headSha;
-  const selectedBaseIsCurrent =
-    timeline !== undefined &&
-    (meta.baseSha === null || timeline.selected.baseSha === meta.baseSha);
-  const baseDrift = selectedHeadIsCurrent && !selectedBaseIsCurrent;
-  const renderedHead = state.kind === "render" ? state.span.head : undefined;
-  const staleHead =
-    renderedHead !== undefined &&
-    meta.headSha !== null &&
-    meta.headSha !== renderedHead;
-  const newerRevisionSelectable =
-    timeline === undefined ||
-    timeline.selectedIndex < timeline.points.length - 1;
-  // The one hard read-only reason: a superseded BASE renders a diff that is
-  // not the PR's current one, so line anchors can land wrong or nowhere on
-  // GitHub. Head-mismatch staleness is writable behind a submit ack instead.
-  // An inline literal busts every ChunkCard's memo boundary per poll tick.
-  const readOnly = useMemo(
-    () => (baseDrift ? { reason: t("brief.baseDriftReason") } : undefined),
-    [baseDrift, t],
-  );
-
-  const briefSearch = useMemo<BriefSearchParams>(
-    () =>
-      buildBriefSearchParams(
-        search.view,
-        search.compare,
-        search.diff,
-        search.focus,
-      ),
-    [search.view, search.compare, search.diff, search.focus],
-  );
-
-  /** Drop the pinned revision so it re-resolves to latest. */
-  const goToNewest = useCallback(() => {
-    void navigate({
-      search: ({
-        rev: _rev,
-        head: _h,
-        base: _b,
-        thread: _spent,
-        l: _link,
-        ...rest
-      }) => rest,
-      replace: false,
-      resetScroll: false,
-    });
-  }, [navigate]);
-
-  const selectRevision = useCallback(
-    (point: DbTimelinePoint) => {
-      void navigate({
-        // A jump target (`thread`, `l`) is spent once a revision is selected,
-        // and a legacy span never survives a write: drop the keys entirely
-        // (exactOptionalPropertyTypes forbids `undefined`).
-        search: ({
-          thread: _spent,
-          l: _link,
-          head: _h,
-          base: _b,
-          ...rest
-        }) => ({
-          ...rest,
-          rev: point.headIndex,
-        }),
-        replace: false,
-        // A revision is a lateral move, not a new page.
-        resetScroll: false,
-      });
-    },
-    [navigate],
-  );
-
-  // Hex SHAs and integers cannot collide with the separators.
-  const revisionSpansKey = useMemo(
-    () =>
-      timeline === undefined
-        ? undefined
-        : timeline.points
-            .map((p) => `${p.headSha} ${String(p.headIndex)}`)
-            .join("\n"),
-    [timeline],
-  );
-  const revisionJump = useMemo(() => {
-    if (revisionSpansKey === undefined) {
-      return undefined;
-    }
-    const spans = revisionSpansKey.split("\n").map((line) => {
-      const [headSha = "", headIndex = ""] = line.split(" ");
-      return { headSha, headIndex: Number(headIndex) };
-    });
-    return {
-      knownHeads: new Set(spans.map((span) => span.headSha)),
-      onJump: (anchorSha: string, threadId: number) => {
-        // Duplicate heads: the HIGHEST-index row wins, matching the backend's
-        // current-entry choice for the same ambiguity.
-        const span = spans.findLast((s) => s.headSha === anchorSha);
-        void navigate({
-          search: ({ rev: _rev, head: _h, base: _b, l: _link, ...rest }) => {
-            const next: PrBriefSearch = { ...rest };
-
-            // Key order is URL param order: rev lands before thread.
-            if (span !== undefined) {
-              next.rev = span.headIndex;
-            }
-            next.thread = threadId;
-
-            return next;
-          },
-          replace: false,
-        });
-      },
-    };
-  }, [navigate, revisionSpansKey]);
-
-  // Pin the selected revision into the URL: a bare or legacy-span link is
-  // rewritten to its `rev`. A DEGRADED (unknown) request is left in place,
-  // the page shows latest with a stable note rather than silently rewriting
-  // the address the reviewer followed.
-  const pinnedRev =
-    timeline !== undefined && !timeline.degraded
-      ? timeline.selected.headIndex
-      : undefined;
-  useEffect(() => {
-    if (pinnedRev === undefined) {
-      return;
-    }
-    const legacySpan = search.head !== undefined || search.base !== undefined;
-    if (search.rev === pinnedRev && !legacySpan) {
-      return;
-    }
-    void navigate({
-      search: ({ head: _h, base: _b, ...rest }) => ({
-        ...rest,
-        rev: pinnedRev,
-      }),
-      replace: true,
-    });
-  }, [navigate, pinnedRev, search.base, search.head, search.rev]);
-
-  // Re-anchor onto the brief only when focus was left NOWHERE. A pick from
-  // the Revisions tab hands focus back to the Sidebar (its row, or the bar's
-  // chevron on the narrow band) once the next brief is live; this catches
-  // what nothing claims. Never scrolls.
-  useEffect(() => {
-    const active = document.activeElement;
-    const focusSurvived =
-      active instanceof HTMLElement &&
-      active !== document.body &&
-      active.isConnected;
-    if (focusSurvived) {
-      return;
-    }
-    document.getElementById("main-content")?.focus({ preventScroll: true });
-  }, [state.kind, selectedSpanKey]);
-
-  // Stable across renders (navigate is): GroupCard's memo boundary rides on
-  // the identity PrBriefContent derives from this.
-  // `next` is the whole View/Compare/diff trio: a key it leaves out is
-  // dropped, which is how a default leaves the URL.
-  const onNavigateSearch = useCallback(
-    (next: BriefSearchParams, options?: ScopeExitOptions) => {
-      void navigate({
-        search: ({ view: _v, compare: _c, diff: _d, ...rest }) => ({
-          ...rest,
-          ...next,
-        }),
-        replace: options?.replace ?? false,
-      });
-    },
-    [navigate],
-  );
-
-  // Dropping the key, not blanking it: the stored preference only shows once
-  // the deep link stops naming a view. A posture gesture, so no history step.
-  const clearDiffParam = useCallback(() => {
-    void navigate({
-      search: ({ diff: _diff, ...rest }) => rest,
-      replace: true,
-    });
-  }, [navigate]);
-
-  // The line selection's address. Replace, and no scroll reset: the rows
-  // the reader is looking at are the ones the link names.
-  const navigateLink = useCallback(
-    (link: string | undefined) => {
-      void navigate({
-        search: ({ l: _link, ...rest }) => {
-          const next: PrBriefSearch = { ...rest };
-          if (link !== undefined) {
-            next.l = link;
-          }
-
-          return next;
-        },
-        replace: true,
-        resetScroll: false,
-      });
-    },
-    [navigate],
-  );
-
-  // Focus mode's address. Replace: a toggle is a posture, not a page.
-  const setFocusParam = useCallback(
-    (focus: boolean) => {
-      void navigate({
-        search: ({ focus: _focus, ...rest }) => {
-          const next: PrBriefSearch = { ...rest };
-          if (focus) {
-            next.focus = true;
-          }
-
-          return next;
-        },
-        replace: true,
-        resetScroll: false,
-      });
-    },
-    [navigate],
-  );
-
-  // Identity is stabilized on the raw param STRINGS: the parsed filter holds
-  // fresh Sets every render, and it rides into the memo boundaries that keep
-  // inline threads off the render path.
-  const conversationFilter = useMemo(() => {
-    const filterSearch: Mutable<ConversationFilterSearch> = {};
-
-    if (search.verdicts !== undefined) {
-      filterSearch.verdicts = search.verdicts;
-    }
-    if (search.reviewers !== undefined) {
-      filterSearch.reviewers = search.reviewers;
-    }
-    if (search.reviews !== undefined) {
-      filterSearch.reviews = search.reviews;
-    }
-
-    return parseConversationFilter(filterSearch);
-  }, [search.reviewers, search.reviews, search.verdicts]);
-  // `replace`: a filter is a triage gesture, not a destination, ten chip
-  // clicks must not become ten back-button steps.
-  const onConversationFilterChange = useCallback(
-    (next: ConversationFilter) => {
-      void navigate({
-        // The three filter keys are DROPPED before the projection is laid
-        // down, so clearing a family removes its key instead of stranding a
-        // stale one.
-        search: ({
-          verdicts: _verdicts,
-          reviewers: _reviewers,
-          reviews: _reviews,
-          ...rest
-        }) => ({
-          ...rest,
-          ...conversationFilterSearch(next),
-        }),
-        replace: true,
-      });
-    },
-    [navigate],
-  );
+  const address = useBriefAddress(search, navigate);
+  const page = usePrBriefPage({
+    repoId: params.repoId,
+    prNumber,
+    search,
+    navigate,
+  });
 
   return (
     <AttachmentScopeProvider
-      installed={meta.appInstalled}
+      installed={page.meta.appInstalled}
       prNumber={prNumber}
-      repoId={repoId}
+      repoId={params.repoId}
     >
       <PrBriefBody
-        meta={meta}
-        onNavigateSearch={onNavigateSearch}
-        clearDiffParam={clearDiffParam}
-        link={search.l}
-        navigateLink={navigateLink}
-        setFocusParam={setFocusParam}
-        conversationFilter={conversationFilter}
-        onConversationFilterChange={onConversationFilterChange}
-        conversationFocusThreadId={search.thread}
-        onSelectRevision={selectRevision}
+        meta={page.meta}
+        onNavigateSearch={address.navigateSearch}
+        clearDiffParam={address.clearDiffParam}
+        link={address.link}
+        navigateLink={address.navigateLink}
+        setFocusParam={address.setFocusParam}
+        conversationFilter={page.conversationFilter}
+        onConversationFilterChange={page.onConversationFilterChange}
+        conversationFocusThreadId={page.conversationFocusThreadId}
+        onSelectRevision={page.onSelectRevision}
+        onGoToNewest={page.onGoToNewest}
         prNumber={prNumber}
-        readOnly={readOnly}
-        repoId={repoId}
-        revisionJump={revisionJump}
+        readOnly={page.readOnly}
+        repoId={params.repoId}
+        revisionJump={page.revisionJump}
         revisionPending={revisionPending}
-        searchParams={briefSearch}
-        staleHead={staleHead}
-        state={state}
-        timeline={timeline}
-        {...(newerRevisionSelectable ? { onGoToNewest: goToNewest } : {})}
+        searchParams={page.searchParams}
+        staleHead={page.staleHead}
+        state={page.state}
+        timeline={page.timeline}
       />
     </AttachmentScopeProvider>
   );

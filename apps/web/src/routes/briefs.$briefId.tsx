@@ -7,19 +7,8 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
-import {
-  BriefError,
-  BriefPage,
-  type ScopeExitOptions,
-} from "@web/features/brief";
-import {
-  buildBriefSearchParams,
-  parseCompareParam,
-  parseDiffParam,
-  parseFocusParam,
-  parseViewParam,
-  type BriefSearchParams,
-} from "@web/features/brief/comparison";
+import { BriefError, BriefPage, useBriefAddress } from "@web/features/brief";
+import { parseBriefAddressSearch } from "@web/features/brief/comparison";
 import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
 import {
   buildLocalBriefDiffsQueryOptions,
@@ -36,32 +25,8 @@ import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 /** Exactly a brief page (`/briefs/<id>`), never a subpath of one. */
 const BRIEF_PATH_PATTERN = /^\/briefs\/[^/]+$/;
 
-interface BriefRouteSearch extends BriefSearchParams {
-  /** A chunk, or lines inside one, to land on; the brief screen parses it. */
-  l?: string;
-}
-
 export const Route = createFileRoute("/briefs/$briefId")({
-  // Unrecognized or absent keys are OMITTED, not defaulted, so the page can
-  // tell "nothing chosen yet" apart from an explicit choice.
-  validateSearch: (search: Record<string, unknown>): BriefRouteSearch => {
-    const view = parseViewParam(search["view"]);
-    const diff = parseDiffParam(search["diff"]);
-    const compare = parseCompareParam(search["compare"]);
-    const focus = parseFocusParam(search["focus"]);
-    const link = search["l"];
-    const parsed: BriefRouteSearch = buildBriefSearchParams(
-      view,
-      compare,
-      diff,
-      focus,
-    );
-    if (typeof link === "string" && link.length > 0) {
-      parsed.l = link;
-    }
-
-    return parsed;
-  },
+  validateSearch: parseBriefAddressSearch,
   // A Delta artifact id is no longer a route target. Redirect before the
   // loader runs so the old URL never renders the superseded shape.
   beforeLoad: async ({ context, params }) => {
@@ -129,61 +94,7 @@ function BriefRoute() {
       state.status === "pending" &&
       BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
-  // Route-owned: the brief feature never touches the router.
-  const exitChangesScope = useCallback(
-    (options?: ScopeExitOptions) => {
-      void navigate({
-        search: (prev) => ({ ...prev, view: "full" as const }),
-        replace: options?.replace ?? false,
-      });
-    },
-    [navigate],
-  );
-  // Dropping the key, not blanking it: the stored preference only shows once
-  // the deep link stops naming a view. A posture gesture, so no history step.
-  const clearDiffParam = useCallback(() => {
-    void navigate({
-      search: ({ diff: _diff, ...rest }) => rest,
-      replace: true,
-    });
-  }, [navigate]);
-  // The line selection's address. Replace, and no scroll reset: the rows
-  // the reader is looking at are the ones the link names.
-  const navigateLink = useCallback(
-    (link: string | undefined) => {
-      void navigate({
-        search: ({ l: _link, ...rest }) => {
-          const next: BriefRouteSearch = { ...rest };
-          if (link !== undefined) {
-            next.l = link;
-          }
-
-          return next;
-        },
-        replace: true,
-        resetScroll: false,
-      });
-    },
-    [navigate],
-  );
-  // Focus mode's address. Replace: a toggle is a posture, not a page.
-  const setFocusParam = useCallback(
-    (focus: boolean) => {
-      void navigate({
-        search: ({ focus: _focus, ...rest }) => {
-          const next: BriefRouteSearch = { ...rest };
-          if (focus) {
-            next.focus = true;
-          }
-
-          return next;
-        },
-        replace: true,
-        resetScroll: false,
-      });
-    },
-    [navigate],
-  );
+  const address = useBriefAddress(searchParams, navigate);
 
   // Keeps View and Compare for the new brief to re-normalise; drops only the
   // link, whose chunk id means nothing in another brief.
@@ -201,11 +112,11 @@ function BriefRoute() {
       artifacts={artifacts}
       briefId={briefId}
       searchParams={searchParams}
-      exitChangesScope={exitChangesScope}
-      clearDiffParam={clearDiffParam}
-      link={searchParams.l}
-      navigateLink={navigateLink}
-      setFocusParam={setFocusParam}
+      navigateSearch={address.navigateSearch}
+      clearDiffParam={address.clearDiffParam}
+      link={address.link}
+      navigateLink={address.navigateLink}
+      setFocusParam={address.setFocusParam}
       revisionPending={revisionPending}
       selectRevision={selectRevision}
     />

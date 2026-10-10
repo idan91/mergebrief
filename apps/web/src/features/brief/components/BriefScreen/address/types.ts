@@ -1,13 +1,43 @@
 import type { ValueOf } from "types/utils";
 
 import type { LineSelection } from "@web/features/review/utils";
-import type { ViewParam } from "../../../comparison/compareState";
+import type {
+  BriefSearchParams,
+  ViewParam,
+} from "../../../comparison/compareState";
 import type { ReadingPositionStore } from "../readingPosition";
+import type { ScopeExitOptions } from "../types";
 
 /** What the URL's `l` and `focus` params say. */
 export interface Address {
   link: string | undefined;
   focus: boolean;
+}
+
+/** A same-route search write: the reducer runs against the URL as it is then. */
+export interface SearchNavigation<Search> {
+  search: (previous: Search) => Search;
+  replace: boolean;
+  resetScroll?: boolean;
+}
+
+/** The route's navigate, narrowed to same-route search writes. */
+export type NavigateSearch<Search> = (
+  navigation: SearchNavigation<Search>,
+) => Promise<void>;
+
+/** The URL writes a route hands the screen; every member is stable. */
+export interface BriefAddressPort {
+  /** The `l` param as the URL carries it. */
+  link: string | undefined;
+  /** Replaces `l`, undefined dropping it; keeps the scroll. */
+  navigateLink: (link: string | undefined) => void;
+  /** Replaces `focus`; keeps the scroll. */
+  setFocusParam: (focus: boolean) => void;
+  /** Drops `diff` with replace, so the stored preference shows. */
+  clearDiffParam: () => void;
+  /** Writes the whole View/Compare/diff trio: a key `next` omits is dropped. */
+  navigateSearch: (next: BriefSearchParams, options?: ScopeExitOptions) => void;
 }
 
 export interface AddressState {

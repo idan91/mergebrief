@@ -2,7 +2,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BriefSearchParams } from "./comparison/compareState";
+import {
+  buildBriefSearchParams,
+  type BriefSearchParams,
+} from "./comparison/compareState";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
@@ -21,6 +24,11 @@ import { BriefView } from "./components/BriefView";
 export { BriefView, type BriefViewProps } from "./components/BriefView";
 export type { BriefComparisonPlan } from "./components/BriefScreen/useComparisonOverlay";
 export type { ScopeExitOptions } from "./components/BriefScreen/types";
+export { useBriefAddress } from "./components/BriefScreen/address/useBriefAddress";
+export type {
+  BriefAddressPort,
+  NavigateSearch,
+} from "./components/BriefScreen/address/types";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 export { LocalBriefsSection } from "./components/LocalBriefsSection";
 export { BriefError } from "./components/BriefError";
@@ -32,8 +40,10 @@ export interface BriefPageProps {
   /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
    * resolved against comparison availability in BriefScreen's comparison overlay hook. */
   searchParams: BriefSearchParams;
-  /** Navigates the Scope axis to `full`; route-owned. */
-  exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
+  /** Writes the View/Compare/diff trio; route-owned. The Scope exit rides on it. */
+  navigateSearch?:
+    | ((next: BriefSearchParams, options?: ScopeExitOptions) => void)
+    | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   /** The link param the URL carries: a chunk, or lines, to land on. */
@@ -53,7 +63,7 @@ export function BriefPage({
   artifacts,
   briefId,
   searchParams,
-  exitChangesScope,
+  navigateSearch,
   clearDiffParam,
   link,
   navigateLink,
@@ -62,6 +72,17 @@ export function BriefPage({
   selectRevision,
 }: BriefPageProps) {
   const { t } = useTranslation();
+  // Keeps Compare and diff as the URL has them, so the exit writes `full`
+  // and nothing else.
+  function exitScope(options?: ScopeExitOptions): void {
+    const next = buildBriefSearchParams(
+      "full",
+      searchParams.compare,
+      searchParams.diff,
+    );
+    navigateSearch?.(next, options);
+  }
+  const exitChangesScope = navigateSearch === undefined ? undefined : exitScope;
   const artifact = useSuspenseQuery(buildLocalBriefQueryOptions(briefId)).data;
   const patches = useSuspenseQuery(
     buildLocalBriefDiffsQueryOptions(briefId),

@@ -384,6 +384,22 @@ describe("comparison state matrix characterization", () => {
     expect(status.isConnected).toBe(true);
   });
 
+  it("a chunk link in Changes exits to Full and keeps Compare and diff", async () => {
+    const { router } = await renderAt(
+      "/briefs/head-brief-2?view=changes&compare=last-review&diff=split&l=chunk-head-a",
+    );
+
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({
+        view: "full",
+        compare: "last-review",
+        diff: "split",
+        l: "chunk-head-a",
+      }),
+    );
+    expect(router.history.length).toBe(1);
+  });
+
   it("renders the full Brief unchanged at compare=off when one is available", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
