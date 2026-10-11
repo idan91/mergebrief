@@ -635,9 +635,11 @@ describe("DB brief route revision timeline", () => {
       },
     );
 
-    await waitFor(() => screen.getByTestId("pr-description-toggle"));
+    const toggle = await waitFor(() =>
+      screen.getByRole("button", { name: /original description/i }),
+    );
     await act(async () => {
-      fireEvent.click(screen.getByTestId("pr-description-toggle"));
+      fireEvent.click(toggle);
     });
 
     const image = await waitFor(() =>

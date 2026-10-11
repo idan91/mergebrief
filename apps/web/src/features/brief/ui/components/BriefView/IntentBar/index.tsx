@@ -278,7 +278,6 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
 
     return (
       <CollapsibleBar
-        className={styles["bar"]}
         data-intent-bar=""
         headingLevel={BarHeadingLevels.H2}
         id={INTENT_BAR_ID}

@@ -28,10 +28,10 @@ test("chunk cards collapse and expand", async ({ page }) => {
 test("the PR description discloses on demand", async ({ page }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
-  const toggle = page.getByTestId("pr-description-toggle");
-  await expect(toggle).toHaveText("Show original PR description");
+  const toggle = page.getByRole("button", { name: /original description/i });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
-  await expect(toggle).toHaveText("Hide original PR description");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByTestId("pr-description")).toContainText(
     "Fix WCAG AA contrast on the faint text token",
   );

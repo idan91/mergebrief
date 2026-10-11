@@ -14,6 +14,7 @@ export interface VisibleRegions {
   /** Summary + IntentBar (capped): one flag for both. */
   summary: boolean;
   toolbar: boolean;
+  /** Renders in the summary's masthead, so it is never true without summary. */
   conversation: boolean;
   sidebar: boolean;
   /** The carried-forward review bar. */

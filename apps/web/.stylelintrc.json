@@ -2,7 +2,7 @@
   "extends": ["stylelint-config-standard-scss"],
   "overrides": [
     {
-      "files": ["**/*.module.scss"],
+      "files": ["**/*.module.scss", "src/styles/_layout.scss"],
       "rules": {
         "selector-pseudo-class-no-unknown": [
           true,

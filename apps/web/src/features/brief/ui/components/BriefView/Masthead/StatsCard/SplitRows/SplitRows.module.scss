@@ -1,0 +1,69 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(18px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .row {
+    @include mixins.concern-color;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: functions.to-rem(8px) functions.to-rem(12px);
+  }
+
+  .name {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    min-inline-size: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-xl);
+  }
+
+  .dot {
+    flex: none;
+    inline-size: 8px;
+    block-size: 8px;
+    border-radius: var(--radius-circle);
+    background: var(--concern-color);
+  }
+
+  .loc {
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+  }
+
+  .percent {
+    min-inline-size: 4ch;
+    color: var(--color-text-1);
+    font-family: var(--mono);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    text-align: end;
+  }
+
+  .bar {
+    overflow: hidden;
+    grid-column: 1 / -1;
+    block-size: 6px;
+    border-radius: var(--radius-xs);
+    background: var(--color-outline-1);
+
+    i {
+      display: block;
+      min-inline-size: 2px;
+      block-size: 100%;
+      border-radius: inherit;
+      background: var(--concern-color);
+    }
+  }
+}

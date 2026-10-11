@@ -14,11 +14,11 @@ import {
 import { MarkReadyModal } from "./MarkReadyModal";
 import { ChunkWindowProvider } from "./reading/chunk-windows";
 import { ChangesOnlyView } from "./ChangesOnlyView";
-import { ConcernStrip } from "./ConcernStrip";
 import { FocusIndicator } from "./FocusIndicator";
 import { FocusPanel } from "./FocusPanel";
 import { FocusShortcuts } from "./FocusShortcuts";
 import { LineLinkNotice } from "./LineLinkNotice";
+import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
@@ -34,7 +34,6 @@ import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
 import { buildLineOwnersByFile } from "../../../model/utils/line-owner";
 import { CompareParams } from "../../../model/comparison/types";
 import type { ChangesReviewWiring } from "./ChangesOnlyView/types";
-import { SummarySection } from "./SummarySection";
 import { ReadingPositionProvider } from "./reading/reading-position";
 import styles from "./BriefView.module.scss";
 import { useBriefViewFacade } from "./useBriefViewFacade";
@@ -161,6 +160,36 @@ function BriefViewContent(props: BriefViewProps) {
       conversationWiring.conversationComposer,
     ],
   );
+  const intentBar = brief.intentCheck ? (
+    <IntentBar
+      groupTitles={Object.fromEntries(
+        brief.changeGroups.map((group) => [group.id, group.title]),
+      )}
+      key={`intent-${briefId}`}
+      intentCheck={brief.intentCheck}
+      jumpToGroup={(groupId) => queueJumpFromChanges(groupId, false)}
+      ref={intentBarRef}
+    />
+  ) : null;
+  const conversationSection =
+    regions.conversation && conversationPlan !== undefined ? (
+      <ConversationSection
+        key={`conversation-${briefId}`}
+        {...conversationReadOnly}
+        chunks={session.readingOrderedChunks}
+        filter={conversation?.filter}
+        focusThreadId={conversation?.focusThreadId}
+        jumpToChunk={conversationWiring.jumpToChunkFromConversation}
+        localComments={session.reviewComments}
+        markCommentsSubmitted={(ids) =>
+          session.actions.markCommentsSubmitted(ids)
+        }
+        open={conversationWiring.open}
+        onToggle={conversationWiring.toggleOpen}
+        plan={conversationPlan}
+        submittedReviewIds={session.submittedReviewIds}
+      />
+    ) : null;
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;
   const focusPanelState = focusPanel.open ? "open" : "closed";
@@ -185,7 +214,6 @@ function BriefViewContent(props: BriefViewProps) {
                     brief={brief}
                     livePrState={pr?.livePrState}
                     authorLogin={pr?.authorLogin}
-                    repoConfig={repoConfig}
                     briefId={briefId}
                     repoId={pr?.repoId}
                     model={model}
@@ -254,32 +282,14 @@ function BriefViewContent(props: BriefViewProps) {
                     ) : null}
 
                     {regions.summary ? (
-                      <>
-                        <SummarySection brief={brief} />
-                        {brief.intentCheck ? (
-                          <IntentBar
-                            groupTitles={Object.fromEntries(
-                              brief.changeGroups.map((group) => [
-                                group.id,
-                                group.title,
-                              ]),
-                            )}
-                            key={`intent-${briefId}`}
-                            intentCheck={brief.intentCheck}
-                            jumpToGroup={(groupId) =>
-                              queueJumpFromChanges(groupId, false)
-                            }
-                            ref={intentBarRef}
-                          />
-                        ) : null}
-                      </>
-                    ) : null}
-
-                    {regions.summary && brief.concernView.length >= 2 ? (
-                      <ConcernStrip
-                        remainder={model.unattributed}
-                        rollup={brief.concernView}
-                      />
+                      <Masthead
+                        brief={brief}
+                        model={model}
+                        repoConfig={repoConfig}
+                      >
+                        {intentBar}
+                        {conversationSection}
+                      </Masthead>
                     ) : null}
 
                     {regions.toolbar ? (
@@ -319,27 +329,6 @@ function BriefViewContent(props: BriefViewProps) {
                         toggleCollapseSupporting={
                           session.toggleCollapseSupporting
                         }
-                      />
-                    ) : null}
-
-                    {regions.conversation && conversationPlan !== undefined ? (
-                      <ConversationSection
-                        key={`conversation-${briefId}`}
-                        {...conversationReadOnly}
-                        chunks={session.readingOrderedChunks}
-                        filter={conversation?.filter}
-                        focusThreadId={conversation?.focusThreadId}
-                        jumpToChunk={
-                          conversationWiring.jumpToChunkFromConversation
-                        }
-                        localComments={session.reviewComments}
-                        markCommentsSubmitted={(ids) =>
-                          session.actions.markCommentsSubmitted(ids)
-                        }
-                        open={conversationWiring.open}
-                        onToggle={conversationWiring.toggleOpen}
-                        plan={conversationPlan}
-                        submittedReviewIds={session.submittedReviewIds}
                       />
                     ) : null}
 

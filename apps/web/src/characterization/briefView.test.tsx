@@ -321,7 +321,7 @@ describe("brief screen characterization", () => {
     ).toBeTruthy();
   });
 
-  it("renders the intent bar directly beneath the summary", async () => {
+  it("leads the masthead's bar stack with the intent bar", async () => {
     await renderBriefView({
       ...briefFixture,
       intentCheck: {
@@ -347,7 +347,11 @@ describe("brief screen characterization", () => {
     const summary = screen.getByTestId("brief-summary");
     const intentBar = document.querySelector("[data-intent-bar]");
     expect(intentBar).not.toBeNull();
-    expect(summary.nextElementSibling).toBe(intentBar);
+    const following =
+      summary.compareDocumentPosition(intentBar!) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(following).toBeTruthy();
+    expect(intentBar?.parentElement?.firstElementChild).toBe(intentBar);
   });
 
   it("focus mode empties the region: summary + toolbar leave", async () => {

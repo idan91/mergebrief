@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CollapsibleBar } from ".";
+import { OPEN_BAR_SELECTOR } from "./consts";
 import { BarHeadingLevels } from "./types";
 
 afterEach(cleanup);
@@ -74,5 +75,31 @@ describe("CollapsibleBar", () => {
     expect(toggle.id).toBe("conversation-heading");
     expect(toggle.contains(screen.getByText("Refresh"))).toBe(false);
     expect(screen.getByText("Two comments came later")).toBeTruthy();
+  });
+
+  it("matches the open-bar selector only while open", () => {
+    const { container, rerender } = render(
+      <CollapsibleBar
+        headingLevel={BarHeadingLevels.H2}
+        open={false}
+        title="Intent check"
+        onToggle={vi.fn()}
+      >
+        <p>Panel body</p>
+      </CollapsibleBar>,
+    );
+    expect(container.querySelector(OPEN_BAR_SELECTOR)).toBeNull();
+
+    rerender(
+      <CollapsibleBar
+        headingLevel={BarHeadingLevels.H2}
+        open
+        title="Intent check"
+        onToggle={vi.fn()}
+      >
+        <p>Panel body</p>
+      </CollapsibleBar>,
+    );
+    expect(container.querySelector(OPEN_BAR_SELECTOR)).not.toBeNull();
   });
 });

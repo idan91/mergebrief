@@ -2,10 +2,6 @@
 @use "mixins";
 
 @layer components {
-  .section {
-    margin-block: functions.to-rem(20px) functions.to-rem(24px);
-  }
-
   .headingToggle {
     // The WHOLE pinned stack, not just the header: landing on the header's
     // height alone leaves the target under the toolbar beneath it.

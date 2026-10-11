@@ -151,6 +151,12 @@ export type Catalog = typeof en & {
       siblingSpanGroupRemoved_other: "Removed lines {{lines}} belong to <0/> (group {{index}} of {{total}})";
       siblingSpanJumpGroup: "Go to chunk in {{group}}";
     };
+    masthead: (typeof en)["brief"]["masthead"] & {
+      coverage_one: "Covers <0/>..<1/> · {{count}} commit";
+      coverage_other: "Covers <0/>..<1/> · {{count}} commits";
+      descriptionWords_one: "{{count}} word, as the author wrote it";
+      descriptionWords_other: "{{count}} words, as the author wrote it";
+    };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";
       busyLabel: "Posting {{current}} of {{total}}…";

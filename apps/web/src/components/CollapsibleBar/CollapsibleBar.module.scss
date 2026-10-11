@@ -93,4 +93,38 @@
       translate: 0 functions.to-rem(-4px);
     }
   }
+
+  .bar[data-variant="row"] {
+    padding-inline: 0;
+    border: 0;
+    border-block-start: 1px solid var(--color-outline-1);
+    border-radius: 0;
+    background: none;
+
+    .head,
+    .toggle {
+      min-block-size: functions.to-rem(40px);
+    }
+
+    .title {
+      font-size: var(--font-size-lg);
+    }
+
+    .panel:not([hidden]) {
+      padding-block-start: functions.to-rem(4px);
+      border-block-start: 0;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:has(.toggle:hover) {
+        background: none;
+      }
+
+      .toggle:hover .title {
+        text-decoration: underline;
+        text-decoration-color: var(--color-outline-2);
+        text-underline-offset: 3px;
+      }
+    }
+  }
 }

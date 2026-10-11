@@ -169,16 +169,6 @@ describe("Header identity row", () => {
     );
   });
 
-  it("renders the keycap origin badge on the meta line", async () => {
-    await renderHeader();
-    // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
-    // only the wiring.
-    const badge = document.querySelector("[data-provider-badge]");
-    expect(badge?.textContent).toContain("m-1 · high");
-    expect(badge?.textContent).toContain("API");
-    expect(document.querySelector("[data-origin]")).toBeNull();
-  });
-
   /** A crossing at `top`, against a root edge at `lineTop`. Built out in full
    * rather than cast: the header reads boundingClientRect and rootBounds. */
   function crossingEntry(
@@ -229,10 +219,10 @@ describe("Header identity row", () => {
     }
   });
 
-  it("splits the block into a source line and a generation line", async () => {
-    await renderHeader();
+  it("splits the block into a source line and a meta line", async () => {
+    await renderHeader({ authorLogin: "mira-k" });
     // Fixed membership: the source (title, state, repo, PR link) on the first
-    // line, how the brief was generated (model, details) on the second. The
+    // line, the PR's identity (author, stack, branches) on the second. The
     // block reserves a constant height for exactly this shape, so a member
     // moving between lines is what would break the published --top-bar-h.
     const title = screen.getByRole("heading", { level: 1 });
@@ -244,9 +234,7 @@ describe("Header identity row", () => {
     expect(titleLine?.contains(screen.getByRole("link", { name: /#7/ }))).toBe(
       true,
     );
-    expect(
-      metaLine?.contains(document.querySelector("[data-provider-badge]")!),
-    ).toBe(true);
+    expect(metaLine?.contains(screen.getByTestId("author-chip"))).toBe(true);
     expect(metaLine?.contains(title)).toBe(false);
     expect(metaLine?.contains(screen.getByText("acme/widgets"))).toBe(false);
   });
@@ -440,7 +428,7 @@ describe("stack chip", () => {
     expect(metaLine?.firstElementChild?.contains(chip)).toBe(true);
   });
 
-  it("keeps stack then branches left of generation on the meta line", async () => {
+  it("keeps the stack then the branches on the meta line", async () => {
     const stacked = briefWithStack(linear);
     await renderHeader({
       brief: {
@@ -456,11 +444,10 @@ describe("stack chip", () => {
     const metaLine = titleLine?.parentElement?.lastElementChild;
     const stackBlock = screen.getByTestId("stack-arrows");
     const pair = screen.getByTestId("branch-pair");
-    const provider = document.querySelector("[data-provider-badge]");
     expect(stackBlock.contains(screen.getByTestId("stack-chip"))).toBe(true);
     expect(metaLine?.firstElementChild).toBe(stackBlock);
     expect(stackBlock.nextElementSibling).toBe(pair);
-    expect(pair?.nextElementSibling).toBe(provider);
+    expect(metaLine?.lastElementChild).toBe(pair);
   });
 
   it("renders a fork chip without a fraction", async () => {
@@ -591,64 +578,6 @@ describe("state badge", () => {
         .querySelector("[data-state-badge]")
         ?.getAttribute("data-variant"),
     ).toBe("merged");
-  });
-});
-
-describe("generation warnings chip", () => {
-  const warned = {
-    ...brief,
-    generationWarnings: [
-      "⚠ salvaged brief: dropped 1 invalid tags entry",
-      "warning: requested model m-1 but modelUsage reports m-2 — origin stamp stays the declaration",
-      // Duplicate - the chip counts unique events.
-      "⚠ salvaged brief: dropped 1 invalid tags entry",
-    ],
-  };
-
-  it("opens the Brief-details panel LANDED on the warnings text", async () => {
-    await renderHeader({ brief: warned });
-    const chip = screen.getByRole("button", {
-      name: /2 generation warnings/,
-    });
-    expect(chip.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(chip);
-    expect(chip.getAttribute("aria-expanded")).toBe("true");
-    const note = document.querySelector("[data-details-warnings]");
-    expect(note?.textContent).toContain("salvaged brief");
-    expect(note?.textContent).toContain("modelUsage reports m-2");
-    // The chip path LANDS there: focus moves to the block so a screen reader
-    // announces it on arrival.
-    expect(document.activeElement).toBe(note);
-  });
-
-  it("Escape closes the panel without reaching page shortcuts", async () => {
-    await renderHeader({ brief: warned });
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    fireEvent.click(
-      screen.getByRole("button", { name: /2 generation warnings/ }),
-    );
-    expect(document.querySelector("[data-details-warnings]")).toBeTruthy();
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(document.querySelector("[data-details-warnings]")).toBeNull();
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", onWindowKeyDown);
-  });
-
-  it("singularizes a single warning", async () => {
-    await renderHeader({
-      brief: { ...brief, generationWarnings: ["⚠ salvaged brief"] },
-    });
-    expect(
-      screen.getByRole("button", { name: /1 generation warning$/ }),
-    ).toBeTruthy();
-  });
-
-  it("renders no chip on a clean generation", async () => {
-    await renderHeader();
-    expect(
-      document.querySelector("[data-generation-warnings-chip]"),
-    ).toBeNull();
   });
 });
 
@@ -953,16 +882,16 @@ describe("Header own-draft state", () => {
     screen.getByRole("button", { name: "Submit" }).focus();
     update(<Header {...headerProps({ markReady: vi.fn(), pending: false })} />);
     // …then the user moves on and works elsewhere. Any focusable header
-    // control does; the details disclosure is one that does not depend on a
-    // feature flag.
-    const elsewhere = screen.getByRole("button", { name: "Brief details" });
+    // control does; the PR link is one that does not depend on a feature
+    // flag.
+    const elsewhere = screen.getByRole("link", { name: /#7/ });
     elsewhere.focus();
 
     // A LATER external ready flip must leave the user's focus alone - a
     // stale `true` from the earlier swap would yank it onto Receipt.
     update(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Brief details" }),
+      screen.getByRole("link", { name: /#7/ }),
     );
   });
 
@@ -987,136 +916,5 @@ describe("Header own-draft state", () => {
   it("drops the overflow menu in own-draft", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
-  });
-});
-
-describe("repo-config origin chip", () => {
-  const APPLIED = {
-    files: [
-      {
-        path: ".mergebrief/instructions.md",
-        blobSha: "a1b2c3d4e5f6",
-        outcome: "applied" as const,
-      },
-      {
-        path: ".mergebrief/settings.yaml",
-        blobSha: null,
-        outcome: "absent" as const,
-      },
-      {
-        path: ".mergebrief/policy.yaml",
-        blobSha: "p1p2p3p4",
-        outcome: "applied" as const,
-      },
-    ],
-    collisions: [],
-    policy: null,
-  };
-
-  it("renders no chip in the ok state", async () => {
-    await renderHeader({ repoConfig: APPLIED });
-    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
-    // The panel's Repo config section carries the ok-state instead.
-    fireEvent.click(screen.getByRole("button", { name: "Brief details" }));
-    const section = document.querySelector(
-      '[data-details-section="repo-config"]',
-    );
-    expect(section?.textContent).toContain(".mergebrief/instructions.md");
-    expect(section?.textContent).toContain("applied");
-  });
-
-  it("keeps the warning chip, with the applied sha in its label", async () => {
-    await renderHeader({
-      repoConfig: {
-        ...APPLIED,
-        files: [
-          APPLIED.files[0]!,
-          {
-            path: ".mergebrief/settings.yaml",
-            blobSha: "bad",
-            outcome: "invalid" as const,
-          },
-          APPLIED.files[2]!,
-        ],
-      },
-    });
-    const chip = document.querySelector("[data-repo-config-chip]");
-    expect(chip?.textContent).toContain("repo config @ a1b2c3d");
-  });
-
-  it("flips to the warning state on any error outcome", async () => {
-    await renderHeader({
-      repoConfig: {
-        ...APPLIED,
-        files: [
-          APPLIED.files[0]!,
-          {
-            path: ".mergebrief/settings.yaml",
-            blobSha: "bad",
-            outcome: "invalid" as const,
-          },
-          APPLIED.files[2]!,
-        ],
-      },
-    });
-    expect(
-      document
-        .querySelector("[data-repo-config-chip]")
-        ?.getAttribute("data-state"),
-    ).toBe("warning");
-  });
-
-  it("renders NO chip when every file is absent and nothing collided", async () => {
-    await renderHeader({
-      repoConfig: {
-        files: APPLIED.files.map((file) => ({
-          ...file,
-          blobSha: null,
-          outcome: "absent" as const,
-        })),
-        collisions: [],
-        policy: null,
-      },
-    });
-    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
-  });
-
-  it("renders no chip at all without a snapshot", async () => {
-    await renderHeader({});
-    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
-  });
-});
-
-describe("repo-config chip flips to warning when an applied file warns", () => {
-  it("a warning on an applied file is a config error the author must see", async () => {
-    await renderHeader({
-      repoConfig: {
-        files: [
-          {
-            path: ".mergebrief/instructions.md",
-            blobSha: null,
-            outcome: "absent" as const,
-          },
-          {
-            path: ".mergebrief/settings.yaml",
-            blobSha: null,
-            outcome: "absent" as const,
-          },
-          {
-            path: ".mergebrief/policy.yaml",
-            blobSha: "p1",
-            outcome: "applied" as const,
-            warning: "1 de-emphasis rule dropped — attribute not recognized",
-          },
-        ],
-        collisions: [],
-        policy: null,
-      },
-    });
-    expect(
-      document
-        .querySelector("[data-repo-config-chip]")
-        ?.getAttribute("data-state"),
-    ).toBe("warning");
   });
 });

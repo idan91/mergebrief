@@ -50,4 +50,20 @@ describe("deriveVisibleRegions", () => {
       carryOver: false,
     });
   });
+
+  it("never shows the conversation without the summary", () => {
+    const combos = [
+      { scope: "full", focus: false },
+      { scope: "full", focus: true },
+      { scope: "changes", focus: false },
+      { scope: "changes", focus: true },
+    ] as const;
+
+    const orphaned = combos.filter((modes) => {
+      const regions = deriveVisibleRegions(modes);
+      return regions.conversation && !regions.summary;
+    });
+
+    expect(orphaned).toEqual([]);
+  });
 });

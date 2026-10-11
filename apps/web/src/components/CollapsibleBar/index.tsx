@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 import { Icon } from "../Icon";
 import { IconNames, IconRotations, IconSizes } from "../Icon/types";
-import type { BarHeadingLevel } from "./types";
+import { BarVariants, type BarHeadingLevel, type BarVariant } from "./types";
 import styles from "./CollapsibleBar.module.scss";
 
 export interface CollapsibleBarProps extends Omit<
@@ -12,6 +12,7 @@ export interface CollapsibleBarProps extends Omit<
 > {
   /** The level the page outline gives this bar; the bar styles every level alike. */
   headingLevel: BarHeadingLevel;
+  variant?: BarVariant;
   title: ReactNode;
   /** Quiet text after the title, shown open or closed. */
   summary?: ReactNode;
@@ -35,6 +36,7 @@ export interface CollapsibleBarProps extends Omit<
  */
 export function CollapsibleBar({
   headingLevel: Heading,
+  variant = BarVariants.PANEL,
   title,
   summary,
   open,
@@ -50,13 +52,20 @@ export function CollapsibleBar({
   const titleId = useId();
   const panelId = useId();
   const barClassName = clsx(styles["bar"], className);
+  const barOpen = open || undefined;
   const headToggleClassName = clsx(styles["toggle"], toggleClassName);
   const caretRotation = open
     ? IconRotations.NONE
     : IconRotations.THREE_QUARTERS;
 
   return (
-    <section {...rest} aria-labelledby={titleId} className={barClassName}>
+    <section
+      {...rest}
+      aria-labelledby={titleId}
+      className={barClassName}
+      data-bar-open={barOpen}
+      data-variant={variant}
+    >
       <div className={styles["head"]}>
         <Heading className={styles["heading"]}>
           {/* oxlint-disable-next-line house/no-raw-button -- the bar head is a full-width heading disclosure no shared button draws */}

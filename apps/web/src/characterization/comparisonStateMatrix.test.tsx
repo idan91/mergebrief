@@ -387,7 +387,7 @@ describe("comparison state matrix characterization", () => {
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
     expect(screen.getByText("Tighten validation")).toBeTruthy();
-    expect(screen.queryByText(/Changes Only ·/)).toBeNull();
+    expect(screen.queryByText(/Changes only ·/)).toBeNull();
     const offButton = screen.getByRole("radio", { name: "Off" });
     expect((offButton as HTMLInputElement).checked).toBe(true);
   });
@@ -454,12 +454,12 @@ describe("comparison state matrix characterization", () => {
         .getAttribute("aria-disabled"),
     ).toBe("true");
 
-    fireEvent.click(screen.getByRole("radio", { name: "Changes Only" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Changes only" }));
 
     // Changes+off has no product meaning and there's nothing to fall back to,
     // normalization keeps the page on Full Brief.
     expect(screen.getByText("Lonely group")).toBeTruthy();
-    expect(screen.queryByText(/Changes Only ·/)).toBeNull();
+    expect(screen.queryByText(/Changes only ·/)).toBeNull();
     expect(
       (screen.getByRole("radio", { name: "Full brief" }) as HTMLInputElement)
         .checked,
@@ -477,7 +477,7 @@ describe("comparison state matrix characterization", () => {
     expect(viewGroup).toBeTruthy();
     expect(compareGroup).toBeTruthy();
 
-    const changesButton = screen.getByRole("radio", { name: "Changes Only" });
+    const changesButton = screen.getByRole("radio", { name: "Changes only" });
     // Native radios are focusable by default.
     changesButton.focus();
     expect(document.activeElement).toBe(changesButton);
@@ -533,7 +533,7 @@ describe("comparison state matrix characterization", () => {
     });
     await waitFor(() =>
       expect(
-        screen.getByText(/Changes Only · since your last review/),
+        screen.getByText(/Changes only · since your last review/),
       ).toBeTruthy(),
     );
   });

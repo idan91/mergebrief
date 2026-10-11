@@ -1,0 +1,7 @@
+@use "functions";
+
+@layer components {
+  .description {
+    margin-block-start: functions.to-rem(20px);
+  }
+}

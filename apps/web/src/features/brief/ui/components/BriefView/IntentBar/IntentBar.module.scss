@@ -2,10 +2,6 @@
 @use "mixins";
 
 @layer components {
-  .bar {
-    margin-block: functions.to-rem(4px) functions.to-rem(12px);
-  }
-
   .counts {
     display: flex;
     flex-wrap: wrap;

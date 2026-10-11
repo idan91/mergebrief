@@ -51,3 +51,6 @@ export const SESSION_FROZEN_REASON_KEY: TranslationKey =
   "brief.screen.sessionFrozen";
 
 export const TOAST_VISIBLE_MS = 4200;
+
+/** A commit or blob sha as the page abbreviates it. */
+export const SHORT_SHA_LENGTH = 7;

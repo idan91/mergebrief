@@ -369,7 +369,6 @@ export function ConversationSection({
   return (
     <CollapsibleBar
       actions={refreshAction}
-      className={styles["section"]}
       data-conversation-section=""
       headingLevel={BarHeadingLevels.H2}
       note={afterBriefNote}

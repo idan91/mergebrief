@@ -1,0 +1,53 @@
+@use "functions";
+@use "layout";
+
+@layer components {
+  .grid {
+    --masthead-card-min: auto;
+
+    display: grid;
+    grid-template:
+      "summary card" auto
+      "stack card" 1fr
+      / layout.story-columns();
+    gap: functions.to-rem(24px) functions.to-rem(layout.$story-group-gap);
+    margin-block-end: functions.to-rem(14px);
+
+    @include layout.when-story-stacks {
+      grid-template:
+        "summary"
+        "card"
+        "stack"
+        / minmax(0, 1fr);
+    }
+  }
+
+  .summary {
+    min-inline-size: 0;
+    grid-area: summary;
+    align-self: start;
+  }
+
+  .card {
+    min-block-size: var(--masthead-card-min);
+    grid-area: card;
+    align-self: start;
+
+    @include layout.when-story-stacks {
+      min-block-size: auto;
+    }
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(8px);
+    min-inline-size: 0;
+    grid-area: stack;
+    align-self: end;
+
+    &:empty {
+      display: none;
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "summary": "## Overview\nA fixture brief for the browser suite: two change groups over three files, with a risk surface, a diff per chunk, and a second revision to compare against.\n\n## What it does\n- **Accessibility & brand:** lifts the faint text token to a passing contrast ratio and adds a skip-to-content link.\n- **Keyboard navigation:** J/K step through chunks; `?` opens the shortcuts modal.\n",
+  "summary": "## Overview\nA fixture brief for the browser suite: two change groups over three files, with a risk surface, a diff per chunk, and a second revision to compare against. The accessibility pass lifts the faint text token, adds a skip-to-content link and promotes the PR title to the page's only `h1`, while the keyboard work wires J/K chunk stepping and a `?` shortcuts modal.\n\n## Changelog\n- **Accessibility & brand:** lifts the faint text token to a passing contrast ratio and adds a skip-to-content link.\n- **Keyboard navigation:** J/K step through chunks; `?` opens the shortcuts modal.\n- **Landmarks:** the brief body becomes `#main-content`, focused on load so screen readers start at the summary.\n- **Risk flags:** `addressFlags` is indexed by chunk id, so the perf helpers no longer rescan every flag per row.\n- **Metadata:** favicon, description and OG/Twitter tags for shared links.",
   "changeGroups": [
     {
       "id": "g1",
@@ -49,7 +49,7 @@
       "id": "c2",
       "changeGroupId": "g1",
       "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
-      "concern": "implementation",
+      "concern": "test",
       "role": "core",
       "loc": {
         "added": 8,
@@ -193,8 +193,13 @@
   "concernView": [
     {
       "concern": "implementation",
-      "added": 137,
-      "deleted": 76
+      "added": 129,
+      "deleted": 73
+    },
+    {
+      "concern": "test",
+      "added": 8,
+      "deleted": 3
     }
   ],
   "pr": {
@@ -414,5 +419,50 @@
         }
       ]
     }
-  ]
+  ],
+  "generationWarnings": [
+    "Salvaged 1 chunk narrative after a schema retry.",
+    "Served model differs from the requested one."
+  ],
+  "intentCheck": {
+    "ticketUrls": [],
+    "ticketTitles": [],
+    "specificity": "precise",
+    "scopeNote": "",
+    "accomplished": [
+      {
+        "intent": "Raise the faint text token to AA contrast",
+        "quote": "lift the faint token to a passing contrast ratio",
+        "sourceUrl": "",
+        "groupIds": ["g1"],
+        "acknowledged": false
+      },
+      {
+        "intent": "Add a skip-to-content link",
+        "quote": "add a skip link",
+        "sourceUrl": "",
+        "groupIds": ["g1"],
+        "acknowledged": false
+      },
+      {
+        "intent": "J/K step through chunks",
+        "quote": "J/K should step through chunks",
+        "sourceUrl": "",
+        "groupIds": ["g4"],
+        "acknowledged": false
+      }
+    ],
+    "statedButMissing": [],
+    "doneButUnstated": [
+      {
+        "intent": "Index risk flags by chunk id",
+        "quote": "",
+        "sourceUrl": "",
+        "groupIds": ["g4"],
+        "acknowledged": false
+      }
+    ],
+    "deviations": [],
+    "claimedButUnachieved": []
+  }
 }

@@ -15,7 +15,6 @@ import type {
   CompareOptionFlags,
 } from "../../../../model/comparison/compare-state";
 import type { ProgressTotals } from "../../../utils/progress";
-import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { Brief, LivePrState } from "../../../../model/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
@@ -31,10 +30,7 @@ import { Button } from "@web/components/Button";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
-import { RiskChipDisclosure } from "../RiskChipDisclosure";
 import { BranchPair } from "./BranchPair";
-import { BriefDetailsPanel } from "./BriefDetailsPanel";
-import { ProviderBadge } from "./ProviderBadge";
 import { StackChip } from "./StackChip";
 import { StackArrows } from "./StackChip/StackArrows";
 import { resolveStackView } from "./StackChip/utils";
@@ -53,7 +49,6 @@ export interface OwnDraftHeaderProps {
 
 export interface HeaderProps {
   brief: Brief;
-  repoConfig?: RepoConfigContext | null | undefined;
   livePrState?: LivePrState | undefined;
   /** The PR author's GitHub login; the meta line leads with it. */
   authorLogin?: string | undefined;
@@ -94,7 +89,6 @@ function readStickyStackHeight(): number {
 
 export function Header({
   brief,
-  repoConfig,
   livePrState,
   authorLogin,
   briefId,
@@ -201,7 +195,6 @@ export function Header({
     "--progress-scale": `${progress / 100}`,
   };
   const prLink = buildGithubPullUrl(brief.pr.repo, brief.pr.number);
-  const hasRepoConfig = repoConfig !== null && repoConfig !== undefined;
   const remainderGroup = model.groups.find(
     (group): group is UnattributedRemainderGroupView =>
       group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
@@ -243,10 +236,9 @@ export function Header({
                 )}
               </span>
             </div>
-            {/* PR identity (stack, branches) left; how the brief was
-                GENERATED (provider, details, repo-config) after. Never wraps
-                above 880px: a second wrap would put the block at three lines
-                at rest and two collapsed, which moves --top-bar-h mid-scroll. */}
+            {/* PR identity: author, stack, branches. Never wraps above
+                880px: a second wrap would put the block at three lines at
+                rest and two collapsed, which moves --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
               {authorLogin !== undefined ? (
                 <AuthorChip login={authorLogin} />
@@ -273,18 +265,6 @@ export function Header({
                 baseRef={brief.pr.baseRef}
                 headRef={brief.pr.headRef}
               />
-              <ProviderBadge generation={brief.generation} />
-              <BriefDetailsPanel
-                brief={brief}
-                repoConfig={repoConfig}
-                totalAdded={model.totalAdded}
-                totalDeleted={model.totalDeleted}
-                totalCoreAdded={model.totalCoreAdded}
-                totalCoreDeleted={model.totalCoreDeleted}
-              />
-              {hasRepoConfig ? (
-                <RepoConfigChip repoConfig={repoConfig} />
-              ) : null}
             </span>
           </div>
         </div>
@@ -460,80 +440,4 @@ function SelfReviewChip() {
 
 interface ProgressBarStyle extends CSSProperties {
   "--progress-scale": string;
-}
-
-const REPO_CONFIG_ERROR_OUTCOMES = new Set([
-  "invalid",
-  "over-budget",
-  "fetch-failed",
-]);
-
-function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
-  const { t } = useTranslation();
-  const anyPresent =
-    repoConfig.files.some((file) => file.outcome !== "absent") ||
-    repoConfig.collisions.length > 0;
-  if (!anyPresent) {
-    return null;
-  }
-  const anyError =
-    repoConfig.files.some(
-      (file) =>
-        REPO_CONFIG_ERROR_OUTCOMES.has(file.outcome) ||
-        file.warning !== undefined,
-    ) || repoConfig.collisions.length > 0;
-  if (!anyError) {
-    return null;
-  }
-  const appliedSha = repoConfig.files.find(
-    (file) => file.outcome === "applied" && file.blobSha !== null,
-  )?.blobSha;
-  const label = appliedSha
-    ? t("brief.header.repoConfigChipAt", { sha: appliedSha.slice(0, 7) })
-    : t("brief.header.repoConfigChip");
-  return (
-    <RiskChipDisclosure
-      detail={
-        <span className={styles["repoConfigTable"]}>
-          {repoConfig.files.map((file) => (
-            <span className={styles["repoConfigRow"]} key={file.path}>
-              <code>{file.path}</code>
-              <span data-outcome={file.outcome}>{file.outcome}</span>
-              {file.blobSha ? <code>@ {file.blobSha.slice(0, 7)}</code> : null}
-              {file.bytesUsed !== undefined &&
-              file.bytesBudget !== undefined ? (
-                <span>
-                  {t("brief.details.bytesUsed", {
-                    used: file.bytesUsed,
-                    budget: file.bytesBudget,
-                  })}
-                </span>
-              ) : null}
-              {file.detail ? <i>{file.detail}</i> : null}
-              {file.warning ? <i>{file.warning}</i> : null}
-            </span>
-          ))}
-          {repoConfig.collisions.length > 0 ? (
-            <span className={styles["repoConfigRow"]}>
-              <i>
-                {t("brief.details.collisionsLine", {
-                  count: repoConfig.collisions.length,
-                  names: repoConfig.collisions.join(", "),
-                })}
-              </i>
-            </span>
-          ) : null}
-        </span>
-      }
-    >
-      <span
-        className={styles["repoConfigChip"]}
-        data-repo-config-chip=""
-        data-state="warning"
-      >
-        <Icon name={IconNames.WARNING} size={IconSizes.SM} />
-        {label}
-      </span>
-    </RiskChipDisclosure>
-  );
 }

@@ -1,0 +1,36 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { OriginalDescription } from ".";
+
+afterEach(cleanup);
+
+describe("OriginalDescription", () => {
+  it("counts the words in the closed row and opens to the text", () => {
+    render(<OriginalDescription description="Fix the leak in parsing" />);
+
+    const toggle = screen.getByRole("button", {
+      name: /original description/i,
+    });
+    expect(toggle.textContent).toContain("5 words, as the author wrote it");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Fix the leak in parsing")).toBeNull();
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Fix the leak in parsing")).toBeTruthy();
+  });
+
+  it("marks a blank description empty and says so when opened", () => {
+    render(<OriginalDescription description="  " />);
+
+    const toggle = screen.getByRole("button", {
+      name: /original description/i,
+    });
+    expect(toggle.textContent).toContain("empty");
+    fireEvent.click(toggle);
+    expect(screen.getByText("No PR description provided.")).toBeTruthy();
+  });
+});

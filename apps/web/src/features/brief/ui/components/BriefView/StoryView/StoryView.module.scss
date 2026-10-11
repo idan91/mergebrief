@@ -2,12 +2,8 @@
 @use "layout";
 @use "mixins";
 
-$story-diff-reserve: layout.$story-diff-floor + layout.$story-diff-headroom;
-$story-gap-rem: functions.to-rem(layout.$story-group-gap);
-
-// The card stacks under the diff once the reading column falls below 1124px.
-// Each threshold is that column plus 96px of gutters plus the sidebar's
-// reserve; StackedQueries in StorySplitter/types.ts mirrors all three.
+// The card stacks under the diff below the story breakpoints in
+// layout.when-story-stacks.
 @mixin stack-split {
   display: flex;
 
@@ -41,19 +37,10 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
 
   :global(.main) .group {
     display: grid;
-    grid-template-columns:
-      minmax(0, 1fr)
-      clamp(
-        #{layout.$story-card-floor},
-        var(--story-card-track, max(#{functions.to-rem(450px)}, 28%)),
-        min(
-          #{layout.$story-card-ceiling},
-          calc(100% - #{$story-diff-reserve} - #{$story-gap-rem})
-        )
-      );
+    grid-template-columns: layout.story-columns();
     position: relative;
     align-items: start;
-    gap: $story-gap-rem;
+    gap: functions.to-rem(layout.$story-group-gap);
 
     .chunks {
       order: initial;
@@ -74,20 +61,8 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
   }
 
-  @media (width <= 1220px) {
-    :global(.main) .group {
-      @include stack-split;
-    }
-  }
-
-  @media (width <= 1268px) {
-    :global(.main[data-sidebar="collapsed"]) .group {
-      @include stack-split;
-    }
-  }
-
-  @media (width <= 1644px) {
-    :global(.main[data-sidebar="expanded"]) .group {
+  .group {
+    @include layout.when-story-stacks {
       @include stack-split;
     }
   }

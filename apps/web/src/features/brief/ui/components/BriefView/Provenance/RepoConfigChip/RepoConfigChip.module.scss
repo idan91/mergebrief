@@ -1,0 +1,29 @@
+@use "functions";
+
+@layer components {
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    padding: functions.to-rem(2px) functions.to-rem(10px);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 60%, transparent);
+    border-radius: var(--radius-chip);
+    color: var(--color-warning);
+    font-size: var(--font-size-md);
+    white-space: nowrap;
+  }
+
+  .table {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(6px);
+    font-size: var(--font-size-lg);
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: functions.to-rem(8px);
+  }
+}

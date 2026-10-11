@@ -1,30 +1,12 @@
-import type { ValueOf } from "types/utils";
-
 import { type Concern, Concerns, type ConcernRollup } from "brief-core/types";
 
-export const SplitSegmentKinds = {
-  CONCERN: "concern",
-  UNATTRIBUTED_REMAINDER: "unattributed-remainder",
-} as const;
-export type SplitSegmentKind = ValueOf<typeof SplitSegmentKinds>;
-
-interface SplitShareBase {
-  added: number;
-  deleted: number;
-  /** Apportioned share of the whole-diff changed-line total, 0–100. */
-  percent: number;
-}
-
-export interface AttributedConcernShare extends SplitShareBase {
-  kind: typeof SplitSegmentKinds.CONCERN;
-  concern: Concern;
-}
-
-export interface UnattributedRemainderShare extends SplitShareBase {
-  kind: typeof SplitSegmentKinds.UNATTRIBUTED_REMAINDER;
-}
-
-export type ConcernShare = AttributedConcernShare | UnattributedRemainderShare;
+import { CARD_MIN_PROPERTY, MIN_SPLIT_CONCERNS } from "./consts";
+import {
+  SplitSegmentKinds,
+  type CardMinHeightInput,
+  type ConcernShare,
+  type SplitSegmentKind,
+} from "./types";
 
 interface RemainderLines {
   added: number;
@@ -41,7 +23,7 @@ interface WorkingShare {
  * has leftover lines. Percents apportion over the whole diff (attributed +
  * remainder) by largest remainder, so they always sum to exactly 100.
  */
-export function concernShares(
+export function computeConcernShares(
   rollup: ConcernRollup[],
   remainder?: RemainderLines,
 ): ConcernShare[] {
@@ -151,4 +133,50 @@ function buildWorkingShare(
     },
     remainder: leftover,
   };
+}
+
+/**
+ * The card's held height: the summary, the row gap and the bar stack as it
+ * last measured with every bar closed. Undefined until that measurement
+ * exists, so the card keeps its natural height. An empty stack measures zero
+ * and adds no gap, so the card ends with the summary.
+ */
+export function computeCardMinHeight({
+  summaryHeight,
+  rowGap,
+  collapsedStackHeight,
+}: CardMinHeightInput): number | undefined {
+  if (collapsedStackHeight === undefined) {
+    return undefined;
+  }
+  if (collapsedStackHeight === 0) {
+    return summaryHeight;
+  }
+
+  const heldHeight = summaryHeight + rowGap + collapsedStackHeight;
+  return heldHeight;
+}
+
+/** Writes the held height on change only, so a frame that measured the same costs nothing. */
+export function writeCardMinHeight(
+  grid: HTMLElement,
+  minHeight: number | undefined,
+): void {
+  if (minHeight === undefined) {
+    grid.style.removeProperty(CARD_MIN_PROPERTY);
+    return;
+  }
+
+  const next = `${String(minHeight)}px`;
+  if (grid.style.getPropertyValue(CARD_MIN_PROPERTY) !== next) {
+    grid.style.setProperty(CARD_MIN_PROPERTY, next);
+  }
+}
+
+/** A Split says something only across two concerns; the remainder does not count. */
+export function hasConcernSplit(shares: readonly ConcernShare[]): boolean {
+  const concerns = shares.filter(
+    (share) => share.kind === SplitSegmentKinds.CONCERN,
+  );
+  return concerns.length >= MIN_SPLIT_CONCERNS;
 }

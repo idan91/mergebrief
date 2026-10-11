@@ -459,38 +459,6 @@
 }
 
 @layer components {
-  /* Repo-config origin chip: same register as the generation origin line;
-     warning state gains the amber accent. */
-  .repoConfigChip {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(4px);
-    border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
-    border-radius: var(--radius-chip);
-    font-size: var(--font-size-md);
-    padding: functions.to-rem(2px) functions.to-rem(10px);
-    white-space: nowrap;
-  }
-
-  .repoConfigChip[data-state="warning"] {
-    border-color: color-mix(in srgb, var(--color-warning) 60%, transparent);
-    color: var(--color-warning);
-  }
-
-  .repoConfigTable {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(6px);
-    font-size: var(--font-size-lg);
-  }
-
-  .repoConfigRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: functions.to-rem(8px);
-    align-items: baseline;
-  }
-
   // Decorative; the content region's aria-busy carries the semantics.
   .revisionSpinner {
     flex: none;

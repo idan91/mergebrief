@@ -1,0 +1,30 @@
+@use "functions";
+
+@layer components {
+  .card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(14px);
+    padding: functions.to-rem(20px) functions.to-rem(22px);
+
+    & + & {
+      border-block-start: 1px solid var(--color-outline-1);
+    }
+  }
+
+  .label {
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}

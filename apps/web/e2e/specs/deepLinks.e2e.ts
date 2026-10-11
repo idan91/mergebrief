@@ -20,14 +20,14 @@ test("a Changes Only deep link renders the comparison span", async ({
     `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
   );
 
-  await expect(page.getByRole("radio", { name: "Changes Only" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Changes only" })).toBeChecked();
   await expect(
     page.getByRole("radio", { name: "Previous brief", exact: true }),
   ).toBeChecked();
 
   // The revision narrative for this span, not the whole brief's story.
   await expect(page.locator("#main-content")).toContainText(
-    "Changes Only · since the previous Brief",
+    "Changes only · since the previous Brief",
   );
   await expect(page.locator("#main-content")).toContainText(
     "This revision extracts the chunk scroller",
@@ -41,7 +41,7 @@ test("unrecognized params fall back to the product default", async ({
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
   // default applies: the page renders rather than 404ing or erroring.
-  await expect(page.getByRole("radio", { name: "Changes Only" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Changes only" })).toBeChecked();
   await expect(
     page.getByRole("radio", { name: "Previous brief", exact: true }),
   ).toBeChecked();
