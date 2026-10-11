@@ -7,6 +7,8 @@ import {
   REVIEWER_ACCOUNT_CASES,
   REVIEWER_REPO_CASES,
 } from "./cases";
+import { DENIAL_CODES, type DenialOutcome } from "./consts";
+import { describeReviewerCredential } from "./credentials";
 import {
   ContractOutcomes,
   type ContractAdapter,
@@ -14,17 +16,6 @@ import {
   type ContractCase,
   type ContractOutcome,
 } from "./types";
-
-type DenialOutcome =
-  | typeof ContractOutcomes.NOT_FOUND
-  | typeof ContractOutcomes.FORBIDDEN
-  | typeof ContractOutcomes.UNAUTHORIZED;
-
-const DENIAL_CODES: Readonly<Record<DenialOutcome, string>> = {
-  [ContractOutcomes.NOT_FOUND]: "not-found",
-  [ContractOutcomes.FORBIDDEN]: "forbidden",
-  [ContractOutcomes.UNAUTHORIZED]: "unauthorized",
-};
 
 const TOKEN_DENIALS: readonly DenialOutcome[] = [
   ContractOutcomes.NOT_FOUND,
@@ -259,5 +250,6 @@ export function describeGitHubContract(
     describe("credential surfaces", () => {
       describeSurfaces(createAdapter);
     });
+    describeReviewerCredential(createAdapter);
   });
 }

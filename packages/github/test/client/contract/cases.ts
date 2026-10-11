@@ -11,6 +11,7 @@ import {
 } from "../../../src/operations/review-thread";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { requireInstallationId, requireRepoId } from "../helpers";
+import { ATTACHMENT_COMMIT_SHA, BASE_SHA, DIFF, HEAD_SHA } from "./consts";
 import type { ContractCase, TypedContractCase } from "./types";
 
 export function defineCase<Client, Value>(
@@ -19,14 +20,12 @@ export function defineCase<Client, Value>(
   return typed;
 }
 
-const HEAD_SHA = "b".repeat(40);
-const BASE_SHA = "a".repeat(40);
-const DIFF = "diff --git a/src/a.ts b/src/a.ts\n";
 const UPDATED_AT = new Date("2026-10-01T10:00:00Z");
 
 export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   defineCase({
     operation: "fetchPullRequest",
+    operatorReach: true,
     call: (client: RepoReader) => client.fetchPullRequest(7),
     expected: {
       repoId: requireRepoId(4242n),
@@ -50,22 +49,26 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   }),
   defineCase({
     operation: "fetchPullRequestFiles",
+    operatorReach: true,
     call: (client: RepoReader) => client.fetchPullRequestFiles(7),
     expected: [{ path: "src/a.ts", additions: 3, deletions: 1 }],
   }),
   defineCase({
     operation: "fetchDiff",
+    operatorReach: true,
     call: (client: RepoReader) => client.fetchDiff(7),
     expected: DIFF,
   }),
   defineCase({
     operation: "fetchCompareDiff",
+    operatorReach: true,
     call: (client: RepoReader) =>
       client.fetchCompareDiff({ base: BASE_SHA, head: HEAD_SHA }),
     expected: DIFF,
   }),
   defineCase({
     operation: "fetchCompareFiles",
+    operatorReach: true,
     call: (client: RepoReader) =>
       client.fetchCompareFiles({ base: BASE_SHA, head: HEAD_SHA }),
     expected: {
@@ -88,6 +91,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   }),
   defineCase({
     operation: "fetchPullRequestConversation",
+    operatorReach: true,
     call: (client: RepoReader) => client.fetchPullRequestConversation(7),
     expected: {
       threads: [],
@@ -100,6 +104,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   }),
   defineCase({
     operation: "fetchRenderedImageSources",
+    operatorReach: true,
     call: (client: RepoReader) => client.fetchRenderedImageSources(7),
     expected: ["https://images.example/1.png"],
   }),
@@ -379,7 +384,7 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
           path: "0b7e.png",
           bytes: new Uint8Array([1, 2, 3]),
         }),
-      expected: { commitSha: "c".repeat(40) },
+      expected: { commitSha: ATTACHMENT_COMMIT_SHA },
     }),
     defineCase({
       operation: "deleteAttachmentBranch",

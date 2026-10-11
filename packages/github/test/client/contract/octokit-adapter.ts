@@ -5,31 +5,42 @@ import {
   collaboratorsResponse,
   gqlCollaborator,
 } from "../../fixtures/collaborators-graphql";
+import type { Mutable } from "types/utils";
+import type {
+  OperatorReads,
+  ReviewerBindingOptions,
+  ReviewerCredential,
+  ReviewerGitHub,
+} from "../../../src/client/types";
+import type { GitHubOperation } from "../../../src/testing/types";
 import {
   MINT_OK,
   MINT_PATH,
+  formatTokenAuthorization,
   makeApp,
   makeLogger,
   makeOctokitFactory,
   makePullRequestBody,
   makeRepositoryBody,
   requireInstallationId,
-  requireOperatorToken,
-  routeMinting,
   stubCredential,
   stubGitHubFetch,
+  type RouteHandler,
   type StubResponse,
 } from "../helpers";
+import {
+  ATTACHMENT_COMMIT_SHA,
+  DIFF,
+  HEAD_SHA,
+  OPERATOR_READS,
+  REVIEWER_TOKEN,
+} from "./consts";
 import {
   ContractOutcomes,
   type ContractAdapter,
   type ContractArrangement,
-  type ContractOperation,
   type ContractOutcome,
 } from "./types";
-
-const HEAD_SHA = "b".repeat(40);
-const DIFF = "diff --git a/src/a.ts b/src/a.ts\n";
 
 const REVIEW_LIST = [
   { id: 77, node_id: "PRR_77", state: "PENDING", body: "", user: { id: 501 } },
@@ -81,7 +92,7 @@ const RESOLVABLE_THREAD = {
 };
 
 /** GitHub's wire answer for each operation the contract arranges. */
-const OK_ANSWERS: Readonly<Record<ContractOperation, StubResponse>> = {
+const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
   fetchPullRequest: answerOk(makePullRequestBody(7)),
   fetchPullRequestFiles: answerOk([
     { filename: "src/a.ts", additions: 3, deletions: 1 },
@@ -200,7 +211,7 @@ const OK_ANSWERS: Readonly<Record<ContractOperation, StubResponse>> = {
   commitAttachment: {
     status: 201,
     body: {
-      sha: "c".repeat(40),
+      sha: ATTACHMENT_COMMIT_SHA,
       object: { sha: "d".repeat(40) },
       tree: { sha: "e".repeat(40) },
     },
@@ -223,34 +234,66 @@ const FAILURE_ANSWERS: Readonly<
   },
 };
 
-function selectAnswer(arrangement: ContractArrangement): StubResponse {
-  if (arrangement.outcome === ContractOutcomes.OK) {
-    return OK_ANSWERS[arrangement.operation];
+function selectAnswer(
+  operation: GitHubOperation,
+  outcome: ContractOutcome,
+): StubResponse {
+  if (outcome === ContractOutcomes.OK) {
+    return OK_ANSWERS[operation];
   }
-  return FAILURE_ANSWERS[arrangement.outcome];
+  return FAILURE_ANSWERS[outcome];
+}
+
+/** The reviewer's token gets `reviewerOutcome`; every other credential `outcome`. */
+function routeArrangement(arrangement: ContractArrangement): RouteHandler {
+  const { operation, outcome } = arrangement;
+  const answer = selectAnswer(operation, outcome);
+  const reviewerAnswer = selectAnswer(
+    operation,
+    arrangement.reviewerOutcome ?? outcome,
+  );
+  const reviewerAuthorization = formatTokenAuthorization(REVIEWER_TOKEN);
+
+  return (request) => {
+    if (request.path === MINT_PATH) {
+      return MINT_OK;
+    }
+    if (request.authorization === reviewerAuthorization) {
+      return reviewerAnswer;
+    }
+    return answer;
+  };
 }
 
 /** The production bindings over a stubbed fetch that answers `arrangement`. */
 export function createOctokitAdapter(
   arrangement: ContractArrangement,
 ): ContractAdapter {
-  const stub = stubGitHubFetch(
-    routeMinting(MINT_OK, selectAnswer(arrangement)),
-  );
+  const stub = stubGitHubFetch(routeArrangement(arrangement));
   const octokitFactory = makeOctokitFactory(stub);
 
-  return {
-    reviewer: bindReviewerGitHub(stubCredential("ghu_reviewer", undefined), {
+  function bindReviewer(
+    credential: ReviewerCredential,
+    operatorReads?: OperatorReads,
+  ): ReviewerGitHub {
+    const options: Mutable<ReviewerBindingOptions> = {
       log: makeLogger(),
       octokitFactory,
-    }),
+    };
+    if (operatorReads !== undefined) {
+      options.operatorReads = operatorReads;
+    }
+    return bindReviewerGitHub(credential, options);
+  }
+
+  return {
+    reviewer: bindReviewer(stubCredential(REVIEWER_TOKEN, undefined)),
     installation: bindInstallationGitHub(
       makeApp(stub),
       requireInstallationId(99n),
     ),
-    operator: bindOperatorGitHub(requireOperatorToken("ghp_operator"), {
-      octokitFactory,
-    }),
+    operator: bindOperatorGitHub(OPERATOR_READS.token, { octokitFactory }),
+    bindReviewer,
     countRequests() {
       return stub.requests.filter((request) => request.path !== MINT_PATH)
         .length;

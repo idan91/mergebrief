@@ -43,7 +43,7 @@ function isKnownCommit(reads: OperatorReads, commit: string | undefined) {
 }
 
 /** Fails closed: an empty commit list or an absent commit is out of reach. */
-function isWithinReach(reads: OperatorReads, reach: ReadReach): boolean {
+export function isWithinReach(reads: OperatorReads, reach: ReadReach): boolean {
   if ("prNumber" in reach) {
     return reach.prNumber === reads.prNumber;
   }
@@ -53,7 +53,7 @@ function isWithinReach(reads: OperatorReads, reach: ReadReach): boolean {
   );
 }
 
-function isDenial(error: GitHubCallFailure): boolean {
+export function isDenial(error: GitHubCallFailure): boolean {
   return (
     error.code === GitHubApiErrorCodes.NOT_FOUND ||
     error.code === GitHubApiErrorCodes.FORBIDDEN

@@ -5,7 +5,8 @@
   "type": "module",
   "description": "GitHub App client: JWT + installation-token auth, webhook verification and event parsing, comment operations, and diff/PR fetch.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

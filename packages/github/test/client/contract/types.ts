@@ -3,18 +3,11 @@ import type {
   GitHubCall,
   GitHubReader,
   InstallationGitHub,
-  InstallationRepoClient,
+  OperatorReads,
+  ReviewerCredential,
   ReviewerGitHub,
-  ReviewerRepoClient,
 } from "../../../src/client/types";
-
-/** Every method a binding exposes, named as the interfaces name it. */
-export type ContractOperation = Exclude<
-  | keyof ReviewerRepoClient
-  | keyof InstallationRepoClient
-  | keyof ReviewerGitHub,
-  "forRepo"
->;
+import type { GitHubOperation } from "../../../src/testing/types";
 
 /** How GitHub answers the arranged operation. */
 export const ContractOutcomes = {
@@ -27,8 +20,13 @@ export const ContractOutcomes = {
 export type ContractOutcome = ValueOf<typeof ContractOutcomes>;
 
 export interface ContractArrangement {
-  readonly operation: ContractOperation;
+  readonly operation: GitHubOperation;
   readonly outcome: ContractOutcome;
+  /**
+   * What the reviewer's first token gets instead; other credentials, a
+   * renewed reviewer token included, get `outcome`.
+   */
+  readonly reviewerOutcome?: ContractOutcome;
 }
 
 /**
@@ -40,6 +38,10 @@ export interface ContractAdapter {
   readonly reviewer: ReviewerGitHub;
   readonly installation: InstallationGitHub;
   readonly operator: GitHubReader;
+  bindReviewer(
+    credential: ReviewerCredential,
+    operatorReads?: OperatorReads,
+  ): ReviewerGitHub;
   /** Requests GitHub received for the operation, token minting excluded. */
   countRequests(): number;
 }
@@ -49,19 +51,22 @@ export type ContractAdapterFactory = (
 ) => ContractAdapter;
 
 export interface ContractCase<Client> {
-  readonly operation: ContractOperation;
+  readonly operation: GitHubOperation;
   readonly call: (client: Client) => GitHubCall<unknown>;
   readonly expected: unknown;
   /** The value a 404 folds to; absent when a 404 answers `not-found`. */
   readonly notFound?: unknown;
   /** A create reaches GitHub once, a 5xx included. */
   readonly create?: boolean;
+  /** Inside `OPERATOR_READS`, so a denied read retries on the operator token. */
+  readonly operatorReach?: boolean;
 }
 
 export interface TypedContractCase<Client, Value> {
-  readonly operation: ContractOperation;
+  readonly operation: GitHubOperation;
   readonly call: (client: Client) => GitHubCall<Value>;
   readonly expected: NoInfer<Value>;
   readonly notFound?: NoInfer<Value>;
   readonly create?: boolean;
+  readonly operatorReach?: boolean;
 }
