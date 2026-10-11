@@ -5,16 +5,16 @@
 import {
   getLiveReadKey,
   LIVE_READ_PAGE_SIZE,
-  readPullRequestFacts,
   type LiveReadPage,
   type PullRequestFacts,
 } from "github";
 import {
   createLiveReadStore,
-  createTenantRepository,
   type LiveReadFacts,
   type LiveReadStore,
-  type RepoId,
+  type PullRequestRow,
+  type PullRequestRowId,
+  type RepositoryError,
   type ReviewerId,
 } from "persistence";
 import {
@@ -30,13 +30,16 @@ import {
   type ReadPlan,
   type ReadTarget,
 } from "./logic/due";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import { runInBatches } from "../batches";
 import { parseOwnerAndName } from "../repos/utils";
 import { deriveLifecycle } from "./logic/lifecycle";
-import type { LiveReadDeps, LiveReadOutcome } from "./types";
-
-export type { LiveReadDeps, LiveReadOutcome } from "./types";
+import type {
+  LiveReadDeps,
+  LiveReadOutcome,
+  UrlRowRead,
+  UrlRowTarget,
+} from "./types";
 
 const NOTHING_READ: LiveReadOutcome = {
   read: 0,
@@ -56,13 +59,23 @@ const NOTHING_READ: LiveReadOutcome = {
 const cooldownUntil = new Map<string, number>();
 
 function readerKey(deps: LiveReadDeps): string {
-  return String(deps.github.session().reviewerId);
+  return String(deps.readerId);
 }
 
 function isCoolingDown(deps: LiveReadDeps, now: Date): boolean {
   const until = cooldownUntil.get(readerKey(deps));
   return until !== undefined && until > now.getTime();
 }
+
+/** The rows a read wrote, each as its write returned it. */
+type WrittenRows = ReadonlyMap<PullRequestRowId, PullRequestRow>;
+
+interface FlightResult {
+  readonly outcome: LiveReadOutcome;
+  readonly written: WrittenRows;
+}
+
+const NOTHING_WRITTEN: WrittenRows = new Map();
 
 /** Read every due url row of the owner, up to the chunk cap. */
 export async function refreshUrlPullRequests(
@@ -83,7 +96,7 @@ export async function refreshUrlPullRequests(
   const deferred = due.length > cap;
 
   const plan = planReadTargets(due.slice(0, cap));
-  return readWithinCeiling(
+  const result = await readWithinCeiling(
     deps,
     store,
     plan,
@@ -91,6 +104,7 @@ export async function refreshUrlPullRequests(
     deferred,
     String(ownerUserId),
   );
+  return result.outcome;
 }
 
 /**
@@ -100,39 +114,36 @@ export async function refreshUrlPullRequests(
  */
 export async function refreshUrlPullRequest(
   deps: LiveReadDeps,
-  ownerUserId: ReviewerId,
-  repoId: RepoId,
-  prNumber: number,
-  repoFullName: string,
-): Promise<LiveReadOutcome> {
+  target: UrlRowTarget,
+): Promise<UrlRowRead> {
+  const { row, scope } = target;
   const now = deps.now?.() ?? new Date();
   if (isCoolingDown(deps, now)) {
-    return { ...NOTHING_READ, failed: true };
+    return { outcome: { ...NOTHING_READ, failed: true }, row };
   }
-  const row = await createTenantRepository(deps.handle, {
-    ownerUserId,
-  }).pullRequests.getByNumber(repoId, prNumber);
-  if (row === undefined || !isDue(row, now, LIVE_READ_STALE_MS)) {
-    return NOTHING_READ;
+  if (!isDue(row, now, LIVE_READ_STALE_MS)) {
+    return { outcome: NOTHING_READ, row };
   }
-  const verified = parseOwnerAndName(repoFullName);
+  const verified = parseOwnerAndName(target.repoFullName);
   if (verified === undefined) {
-    return NOTHING_READ;
+    return { outcome: NOTHING_READ, row };
   }
 
-  const store = createLiveReadStore(deps.handle, { ownerUserId });
+  const store = createLiveReadStore(deps.handle, scope);
   const plan = {
-    targets: [{ row, ref: { ...verified, prNumber } }],
+    targets: [{ row, ref: { ...verified, prNumber: row.prNumber } }],
     unaddressable: [],
   };
-  return readWithinCeiling(
+  const flightKey = `${scope.ownerUserId}:${row.id}`;
+  const read = await readWithinCeiling(
     deps,
     store,
     plan,
     now,
     false,
-    `${ownerUserId}:${row.id}`,
+    flightKey,
   );
+  return { outcome: read.outcome, row: read.written.get(row.id) ?? row };
 }
 
 /**
@@ -142,12 +153,53 @@ export async function refreshUrlPullRequest(
  * still marked due. Another reader runs its own token: one token's refusal
  * must not stand as the answer for a stronger one.
  */
-const inFlight = new Map<string, Promise<LiveReadOutcome>>();
+const inFlight = new Map<string, Promise<FlightResult>>();
 
 /** Test seam: forget in-flight reads and cooldowns between cases. */
 export function resetLiveReadMemory(): void {
   inFlight.clear();
   cooldownUntil.clear();
+}
+
+/** The store, keeping the row each write returns in `written`. */
+function keepWrittenRows(
+  store: LiveReadStore,
+  written: Map<PullRequestRowId, PullRequestRow>,
+): LiveReadStore {
+  async function keep(
+    write: Promise<Result<PullRequestRow, RepositoryError>>,
+  ): Promise<Result<PullRequestRow, RepositoryError>> {
+    const result = await write;
+    if (result.ok) {
+      written.set(result.value.id, result.value);
+    }
+    return result;
+  }
+  return {
+    ...store,
+    record: (id, facts) => keep(store.record(id, facts)),
+    stampAttempt: (id, readAt) => keep(store.stampAttempt(id, readAt)),
+    markUnreachable: (id, readAt) => keep(store.markUnreachable(id, readAt)),
+  };
+}
+
+function startRead(
+  deps: LiveReadDeps,
+  store: LiveReadStore,
+  plan: ReadPlan,
+  now: Date,
+  deferred: boolean,
+): Promise<FlightResult> {
+  const written = new Map<PullRequestRowId, PullRequestRow>();
+  // A throw inside the read is the same failure as a refusal: the stored
+  // rows are served, and the foreground and background paths agree.
+  return readPlan(deps, keepWrittenRows(store, written), plan, now)
+    .then((outcome) => ({ outcome: { ...outcome, deferred }, written }))
+    .catch((error: unknown) => {
+      deps.log.warn("live read failed, serving stored rows", { err: error });
+      const outcome = { ...NOTHING_READ, deferred, failed: true };
+      return { outcome, written };
+    });
 }
 
 async function readWithinCeiling(
@@ -157,25 +209,16 @@ async function readWithinCeiling(
   now: Date,
   deferred: boolean,
   key: string,
-): Promise<LiveReadOutcome> {
+): Promise<FlightResult> {
   const rowCount = plan.targets.length + plan.unaddressable.length;
   if (rowCount === 0) {
-    return { ...NOTHING_READ, deferred };
+    return { outcome: { ...NOTHING_READ, deferred }, written: NOTHING_WRITTEN };
   }
 
   const flightKey = `${readerKey(deps)}:${key}`;
   let work = inFlight.get(flightKey);
   if (work === undefined) {
-    // A throw inside the read is the same failure as a refusal: the stored
-    // rows are served, and the foreground and background paths agree.
-    work = readPlan(deps, store, plan, now)
-      .then((outcome) => ({ ...outcome, deferred }))
-      .catch((error: unknown) => {
-        deps.log.warn("live read failed, serving stored rows", {
-          err: error,
-        });
-        return { ...NOTHING_READ, deferred, failed: true };
-      });
+    work = startRead(deps, store, plan, now, deferred);
     inFlight.set(flightKey, work);
     void work.finally(() => inFlight.delete(flightKey));
   }
@@ -195,7 +238,8 @@ async function readWithinCeiling(
   deps.log.warn("live read past its ceiling, serving stored rows", {
     rows: rowCount,
   });
-  return { ...NOTHING_READ, deferred, timedOut: true };
+  const outcome = { ...NOTHING_READ, deferred, timedOut: true };
+  return { outcome, written: NOTHING_WRITTEN };
 }
 
 /** The chunks read side by side, so three pages fit under one ceiling. */
@@ -238,16 +282,12 @@ async function readChunk(
   chunk: readonly ReadTarget[],
   now: Date,
 ): Promise<LiveReadOutcome> {
-  const page = await deps.github.run((token) =>
-    readPullRequestFacts(
-      deps.github.createOctokit(token),
-      chunk.map((target) => target.ref),
-    ),
+  const page = await deps.github.readPullRequestFacts(
+    chunk.map((target) => target.ref),
   );
   if (!page.ok) {
-    const code = page.tokenUnreadable ? page.error.kind : page.error.code;
     deps.log.warn("live read refused by GitHub, serving stored rows", {
-      code,
+      code: page.error.code,
     });
     return { ...NOTHING_READ, failed: true };
   }
@@ -332,12 +372,11 @@ async function retryUnderFallback(
 ): Promise<RecordedPage> {
   const targets = [...recorded.missing, ...recorded.unanswered];
   const standing = { ...recorded, read: 0 };
-  if (targets.length === 0 || deps.fallbackToken === undefined) {
+  if (targets.length === 0 || deps.operator === undefined) {
     return standing;
   }
 
-  const page = await readPullRequestFacts(
-    deps.github.createOctokit(deps.fallbackToken),
+  const page = await deps.operator.readPullRequestFacts(
     targets.map((target) => target.ref),
   );
   if (!page.ok) {

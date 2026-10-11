@@ -146,12 +146,14 @@ export function listFakeCallTokens(fake: FakeGitHub): string[] {
   );
 }
 
-/** The auth bundle with the reviewer binding served by `fake`. */
+/** The auth bundle with the reviewer and operator bindings served by `fake`. */
 export function buildFakeAuthDeps(kp: KeyProvider, fake: FakeGitHub): AuthDeps {
   return {
     ...buildAuthDeps(kp),
     bindReviewerGitHub: (credential, options) =>
       fake.bindReviewerGitHub(credential, options),
+    bindOperatorGitHub: (token, options) =>
+      fake.bindOperatorGitHub(token, options),
   };
 }
 
@@ -194,6 +196,12 @@ export interface GateGitHubOptions {
   readonly inInstallation?: boolean;
   /** `permissions.admin` the gate's read and the walk report, the cached bit. */
   readonly admin?: boolean;
+  /** `permissions.push`, the gate's push bit; true by default. */
+  readonly push?: boolean;
+  /** The repo read carries no `permissions` block at all. */
+  readonly withoutPermissions?: boolean;
+  /** The name GitHub verifies for the repo; the suites' slug by default. */
+  readonly fullName?: string;
 }
 
 export interface GateGitHub {
@@ -240,13 +248,16 @@ function readSentToken(input: string | URL | Request, init?: RequestInit) {
 export function stubGateGitHub(options: GateGitHubOptions): GateGitHub {
   let repositoryReads = 0;
   let tokenRefreshes = 0;
-  const admin = options.admin ?? true;
-  const repository = {
+  const repository: Record<string, unknown> = {
     id: options.repoId,
-    full_name: REPO_SLUG,
+    full_name: options.fullName ?? REPO_SLUG,
     private: true,
-    permissions: { admin, push: true, pull: true },
   };
+  if (options.withoutPermissions !== true) {
+    const admin = options.admin ?? true;
+    const push = options.push ?? true;
+    repository["permissions"] = { admin, push, pull: true };
+  }
   const listed = options.inInstallation === false ? [] : [repository];
 
   vi.stubGlobal(

@@ -11,7 +11,6 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
 import type { OpenPullRequest } from "brief-core/pr-stack";
-import { NotFound } from "../../../../shared-errors/api-error";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildOpenPullsCacheKey } from "../../../open-pulls-cache";
 import { createTtlCache } from "../../../ttl-cache";
@@ -39,81 +38,19 @@ beforeAll(async () => {
   const tenant = createTenantRepository(harness.handle, ctx);
   const artifacts = createArtifactStore(harness.handle, ctx);
   deps = { tenant, artifacts };
-  const pr = await tenant.pullRequests.upsert({
+  await tenant.pullRequests.upsert({
     repoId,
     prNumber: PR_NUMBER,
     repoSlug: "acme/app",
     title: "Add thing",
     state: PrStates.OPEN,
   });
-  const written = await artifacts.briefs.write({
-    pullRequestId: pr.id,
-    baseSha: "base1",
-    headSha: "head1",
-    headIndex: 0,
-    commitCount: 1,
-    provider: "anthropic",
-    model: "claude",
-    effort: "high",
-    body: '{"stored":"verbatim"}',
-  });
-  if (!written.ok) {
-    throw new Error("fixture brief write failed");
-  }
 });
 afterAll(async () => {
   await harness.close();
 });
 
-describe("readsController", () => {
-  it("returns a stored brief body verbatim", async () => {
-    const body = await readsController.readBrief(deps, {
-      repoId,
-      prNumber: PR_NUMBER,
-      base: "base1",
-      head: "head1",
-    });
-    expect(body).toBe('{"stored":"verbatim"}');
-  });
-
-  it("throws NotFound for a span with no stored artifact", async () => {
-    await expect(
-      readsController.readBrief(deps, {
-        repoId,
-        prNumber: PR_NUMBER,
-        base: "base1",
-        head: "other-head",
-      }),
-    ).rejects.toBeInstanceOf(NotFound);
-    await expect(
-      readsController.readMarks(deps, {
-        repoId,
-        prNumber: PR_NUMBER,
-        baseline: "base1",
-        head: "head1",
-      }),
-    ).rejects.toBeInstanceOf(NotFound);
-  });
-
-  it("throws NotFound for an unknown PR before touching artifacts", async () => {
-    await expect(
-      readsController.readDelta(deps, {
-        repoId,
-        prNumber: 999,
-        baseline: "base1",
-        head: "head1",
-      }),
-    ).rejects.toBeInstanceOf(NotFound);
-    await expect(
-      readsController.readNarrative(deps, {
-        repoId,
-        prNumber: 999,
-        prevHead: "head0",
-        head: "head1",
-      }),
-    ).rejects.toBeInstanceOf(NotFound);
-  });
-
+describe("readsController.readStack", () => {
   it("a failed stack record logs and still answers the resolved stack", async () => {
     const sessionTokenHash = "hash-record-fails";
     const repo = { owner: "acme", repo: "app" };

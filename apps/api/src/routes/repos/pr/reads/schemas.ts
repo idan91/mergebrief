@@ -10,14 +10,17 @@ import {
 export const shaSchema = z.string().min(1);
 
 export const briefQuerySchema = z.object({ base: shaSchema, head: shaSchema });
+export type BriefQuery = z.infer<typeof briefQuerySchema>;
 export const marksQuerySchema = z.object({
   baseline: shaSchema,
   head: shaSchema,
 });
+export type MarksQuery = z.infer<typeof marksQuerySchema>;
 export const narrativeQuerySchema = z.object({
   prevHead: shaSchema,
   head: shaSchema,
 });
+export type NarrativeQuery = z.infer<typeof narrativeQuerySchema>;
 /**
  * Diff span refs must NOT contain a `:`: GitHub's compare endpoint reads
  * `owner:ref` as a CROSS-REPO selector, which would let a caller redirect the
@@ -35,6 +38,7 @@ export const deltaQuerySchema = z.object({
   baseline: diffRefSchema,
   head: diffRefSchema,
 });
+export type DeltaQuery = z.infer<typeof deltaQuerySchema>;
 
 /**
  * A repo-relative file path. `@octokit/endpoint` expands `{path}` through

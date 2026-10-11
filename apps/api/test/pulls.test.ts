@@ -1,14 +1,18 @@
 // GET /api/repos/:repoId/pulls/:prNumber over PGlite: the gate on the
 // viewer's token, the revision timeline, the generation summary and behind.
-import { randomBytes } from "node:crypto";
+import {
+  CredentialKinds,
+  FakeFactsHidings,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
   createGenerationProjection,
   createIngestRoutines,
   GenerationKinds,
-  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -35,22 +39,29 @@ import { resetLiveReadMemory } from "../src/routes/live-read";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   REVIEWER_ID,
   SECRET,
-  buildAuthDeps,
+  buildOperatorToken,
   createKeyProvider,
-  answerUserInstallations,
-  getRequestUrl,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakePullRequest,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+  stubGateGitHub,
+  type GateGitHub,
+  type GateGitHubOptions,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
 const WAIT_DEBOUNCE_SECONDS = 60;
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
+/** The name the gate verifies, apart from the stored `octo/hello` slug. */
+const VERIFIED_SLUG = "octo/verified-a";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -72,105 +83,6 @@ const OTHER_CTX: TenantContext = {
 const OWNER_CTX: ScopeContext = {
   ownerUserId: brand(isReviewerId, REVIEWER_ID),
 };
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-function installationsOk(
-  repos: ReadonlyArray<{ id: number; full_name: string }>,
-): Response {
-  return jsonResponse({ total_count: repos.length, repositories: repos });
-}
-
-interface StubConfig {
-  readonly installations?: (call: number, url: string) => Response;
-  /** `GET /user/installations`; one installation by default. */
-  readonly userInstallations?: readonly number[];
-  readonly repositories?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-  /** The live read of url rows; refused with 500 by default. */
-  readonly graphql?: () => Response;
-}
-interface StubCounts {
-  installations: number;
-  repositories: number;
-  token: number;
-}
-
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { installations: 0, repositories: 0, token: 0 };
-  const fetchFn = vi.fn(
-    async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
-      }
-      if (url.endsWith("/user/installations?per_page=100")) {
-        return answerUserInstallations(
-          cfg.userInstallations ?? [INSTALLATION_ID],
-        );
-      }
-      if (url.includes("/user/installations/")) {
-        const i = counts.installations++;
-        return cfg.installations
-          ? cfg.installations(i, url)
-          : jsonResponse({ message: "nope" }, 500);
-      }
-      if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories
-          ? cfg.repositories(i)
-          : jsonResponse({ message: "denied" }, 404);
-      }
-      if (url.endsWith("/graphql")) {
-        return cfg.graphql
-          ? cfg.graphql()
-          : jsonResponse({ message: "refused" }, 500);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
-  return counts;
-}
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const { createHash } = await import("node:crypto");
-  const hash = createHash("sha256").update(cookie).digest("hex");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hash,
-    reviewerId: brand(isReviewerId, REVIEWER_ID),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
-}
 
 interface SeedPrInput {
   readonly ctx?: ScopeContext;
@@ -270,15 +182,17 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
   });
@@ -299,35 +213,32 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   // --------------------------------------------------------------- PR meta
 
-  function repoOk(canPush?: boolean): Response {
-    // `canPush` undefined = no permissions block at all (fail-closed parse).
-    const repo: Record<string, unknown> = {
-      id: REPO_A,
-      full_name: "octo/verified-a",
-      private: true,
-    };
-
-    if (canPush !== undefined) {
-      repo["permissions"] = { admin: false, push: canPush, pull: true };
-    }
-
-    return jsonResponse(repo);
+  async function signIn(): Promise<string> {
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    return cookie;
   }
 
-  /** The gate's two calls: repo access, then the membership listing. */
-  function stubGate(canPush?: boolean): ReturnType<typeof stubGitHub> {
-    return stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
-      repositories: () => repoOk(canPush),
-    });
+  /**
+   * The gate opens the repo under its verified name, inside the
+   * installation. No `canPush` is a repo read with no permissions block at
+   * all, which must parse as no capability.
+   */
+  function stubGate(canPush?: boolean): GateGitHub {
+    const options: Mutable<GateGitHubOptions> = {
+      repoId: REPO_A,
+      fullName: VERIFIED_SLUG,
+    };
+    if (canPush === undefined) {
+      options.withoutPermissions = true;
+    } else {
+      options.push = canPush;
+    }
+    return stubGateGitHub(options);
   }
 
   it("meta: uses artifact-read 404 posture for inaccessible or unknown PRs", async () => {
-    stubGitHub({
-      repositories: () => jsonResponse({ message: "denied" }, 404),
-    });
-    const cookie = await seedSession(harness.handle, kp);
+    stubGateGitHub({ repoId: REPO_A, viewerStatus: 404 });
+    const cookie = await signIn();
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
 
     expect((await get(`/api/repos/${REPO_A}/pulls/1`)).status).toBe(401); // no cookie
@@ -346,7 +257,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: returns PR, span, brief availability and generation summary", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, {
       repoId: REPO_A,
       prNumber: 7,
@@ -434,36 +345,24 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   /** The gate opens the repo on the viewer's token; no installation holds it. */
-  function stubUrlWorld(graphql?: () => Response): void {
+  function stubUrlWorld(): GateGitHub {
     resetLiveReadMemory();
-    const cfg: Mutable<StubConfig> = {
-      installations: () => installationsOk([]),
-      repositories: () => repoOk(true),
-    };
-    if (graphql !== undefined) {
-      cfg.graphql = graphql;
-    }
-    stubGitHub(cfg);
+    return stubGateGitHub({
+      repoId: REPO_A,
+      fullName: VERIFIED_SLUG,
+      inInstallation: false,
+    });
   }
 
-  function answerLiveHead(headSha: string): Response {
-    return jsonResponse({
-      data: {
-        p0: {
-          databaseId: REPO_A,
-          nameWithOwner: "octo/verified-a",
-          pullRequest: {
-            state: "OPEN",
-            isDraft: false,
-            title: "live",
-            closedAt: null,
-            updatedAt: "2026-09-20T10:00:00Z",
-            headRefOid: headSha,
-            author: { login: "octocat" },
-          },
-        },
-      },
+  /** GitHub reports `headSha` for the url row's PR under the verified name. */
+  function arrangeLiveHead(prNumber: number, headSha: string): void {
+    arrangeFakePullRequest(fake, {
+      repoId: REPO_A,
+      prNumber,
+      fullName: VERIFIED_SLUG,
     });
+    const [owner = "", repo = ""] = VERIFIED_SLUG.split("/");
+    fake.updatePullRequest({ owner, repo, prNumber }, { headSha });
   }
 
   async function writeOwnerBrief(
@@ -497,8 +396,9 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   it("meta: a url row read live is behind once GitHub passes its brief", async () => {
-    stubUrlWorld(() => answerLiveHead("head-2"));
-    const cookie = await seedSession(harness.handle, kp);
+    stubUrlWorld();
+    arrangeLiveHead(8, "head-2");
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, {
       ctx: OWNER_CTX,
       repoId: REPO_A,
@@ -512,9 +412,87 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await readBehind(cookie)).toBe(false);
   });
 
+  it("meta: reads the PR row once per poll", async () => {
+    stubGate();
+    const cookie = await signIn();
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const lookups = spyPullRequestLookups(harness);
+
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+
+    expect(res.status).toBe(200);
+    expect(lookups.count()).toBe(1);
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  it("meta: a url row read live costs one row read and serves the write", async () => {
+    stubUrlWorld();
+    arrangeLiveHead(8, "head-2");
+    const cookie = await signIn();
+    await seedPr(harness.handle, {
+      ctx: OWNER_CTX,
+      repoId: REPO_A,
+      prNumber: 8,
+      title: "the stored title",
+    });
+    const lookups = spyPullRequestLookups(harness);
+
+    const res = await get(`/api/repos/${REPO_A}/pulls/8`, cookie);
+    const body: unknown = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(lookups.count()).toBe(1);
+    const written = await createTenantRepository(
+      harness.handle,
+      OWNER_CTX,
+    ).pullRequests.getByNumber(brand(isRepoId, REPO_A), 8);
+    expect(body).toMatchObject({
+      title: "A pull request",
+      updatedAt: written?.updatedAt.toISOString(),
+    });
+    expect(written?.githubHeadSha).toBe("head-2");
+  });
+
+  it("meta: a pass on the viewer's token never asks the operator", async () => {
+    stubUrlWorld();
+    arrangeLiveHead(8, "head-2");
+    fake.hideFacts(
+      { owner: "octo", repo: "verified-a", prNumber: 8 },
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.NOT_SHOWN,
+    );
+    const cookie = await signIn();
+    await seedPr(harness.handle, {
+      ctx: OWNER_CTX,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    const listedApp = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...UNUSED_INSTALLATION_DEPS,
+      operatorToken: buildOperatorToken("ghp_OPERATOR_PAT", [REVIEWER_ID]),
+    });
+
+    const res = await listedApp.request(`/api/repos/${REPO_A}/pulls/8`, {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+
+    expect(res.status).toBe(200);
+    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+    const row = await createTenantRepository(
+      harness.handle,
+      OWNER_CTX,
+    ).pullRequests.getByNumber(brand(isRepoId, REPO_A), 8);
+    expect(row?.githubUnreachableAt).not.toBeNull();
+  });
+
   it("meta: a briefed row GitHub never answered for is not behind", async () => {
     stubUrlWorld();
-    const cookie = await seedSession(harness.handle, kp);
+    fake.failOn("readPullRequestFacts", FakeFailures.SERVER_ERROR);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, {
       ctx: OWNER_CTX,
       repoId: REPO_A,
@@ -527,7 +505,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: names the wait debouncing while the job start is ahead", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await triggerPendingBrief(WAIT_DEBOUNCE_SECONDS);
 
     const { text, body } = await readGenerationSummary(
@@ -541,7 +519,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: names the wait waiting-for-slot once the job is due", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await triggerPendingBrief(0);
 
     const { body } = await readGenerationSummary(
@@ -554,7 +532,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: omits the wait reason once the generation runs", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await triggerPendingBrief(0);
     await claimTestRun(createGenerationProjection(harness.handle, CTX), {
       pullRequestId: pr.id,
@@ -577,7 +555,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: exposes draft status, author and authorship for an own draft", async () => {
     stubGate();
     // The seeded session's reviewer login is "octocat".
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedPr(harness.handle, {
       repoId: REPO_A,
       prNumber: 7,
@@ -596,7 +574,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: carries the instance draftPolicy, default and injected", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedPr(harness.handle, {
       repoId: REPO_A,
       prNumber: 7,
@@ -618,7 +596,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
@@ -635,7 +613,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: denies viewer authorship for other or absent authors", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     // Authored by someone else.
     await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -659,7 +637,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: caches push-derived viewerCanResolve with the positive gate", async () => {
     const counts = stubGate(true);
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     // Not the author, capability comes from `permissions.push` alone.
     await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -681,12 +659,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(
       ((await second.json()) as Record<string, unknown>)["viewerCanResolve"],
     ).toBe(true);
-    expect(counts.repositories).toBe(1);
+    expect(counts.repositoryReads()).toBe(1);
   });
 
   it("meta: viewerCanResolve=true for the PR author without push permission", async () => {
     stubGate(false);
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedPr(harness.handle, {
       repoId: REPO_A,
       prNumber: 7,
@@ -704,7 +682,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // No permissions block in the repo payload at all, must parse as no
     // capability, never as a grant.
     const counts = stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedPr(harness.handle, {
       repoId: REPO_A,
       prNumber: 7,
@@ -723,12 +701,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(
       ((await second.json()) as Record<string, unknown>)["viewerCanResolve"],
     ).toBe(false);
-    expect(counts.repositories).toBe(1);
+    expect(counts.repositoryReads()).toBe(1);
   });
 
   it("meta: derives Previous Brief availability from marks and narratives", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
     const write = async (head: string, index: number) => {
@@ -878,7 +856,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: omits lastReview without the current reviewer's checkpoint", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
 
@@ -891,7 +869,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: lastReview available tiers, marks+delta, then marks-only", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
@@ -944,7 +922,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: lastReview unavailable reasons, pending vs baseline-unavailable", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     // Checkpoint SHA that was never briefed (rewritten history), no marks.
@@ -993,7 +971,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // inside the brief job): while that job is non-terminal and marks are
     // absent, the reason must be pending, NOT baseline-unavailable.
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
@@ -1024,7 +1002,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: omits lastReview for a checkpoint at the current head", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-2");
@@ -1033,7 +1011,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: lastReview never leaks a cross-tenant checkpoint", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     // Same reviewer id, same PR number, but the OTHER tenant's PR row.
@@ -1086,7 +1064,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: lists revisions by headIndex only once a brief exists", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
 
     // No brief yet → no revisions key at all.
@@ -1142,7 +1120,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: keeps stored revisions while a newer head is pending", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await writeBrief(pr.id, "base-a", "head-1", 1);
     const gen = createGenerationProjection(harness.handle, CTX);
@@ -1164,7 +1142,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
@@ -1206,7 +1184,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: offers forward-span lastReview even with marks only", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
@@ -1253,7 +1231,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: matches top-level comparisons to the latest revision's bytes", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
@@ -1299,7 +1277,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: uses the current base's comparison when a head is rebriefed", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
 
@@ -1356,7 +1334,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // A checkpoint/head pair has the same marks across duplicate-head revisions.
     // Offer both even when the baseline brief index exceeds the earlier duplicate's index.
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
 
@@ -1401,7 +1379,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Pending is also a function of checkpoint/head, not revision-row identity.
     // A warming head's older duplicate must report pending before marks exist too.
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
 
     await writeBrief(pr.id, "base-a", "head-2", 1);
@@ -1452,7 +1430,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("meta: revisions never leak across tenants", async () => {
     stubGate();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await writeBrief(pr.id, "base", "head-1", 1);
 

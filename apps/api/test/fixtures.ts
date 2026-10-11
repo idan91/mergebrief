@@ -26,12 +26,9 @@ import {
   DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
-import type { Result } from "types/utils";
-
 import { vi } from "vitest";
 import type { AuthDeps } from "../src/index";
 import type { OperationPolicy } from "../src/product-operations/types";
-import type { GitHubCallOutcome } from "../src/routes/auth/reviewer-github-client";
 
 export const SECRET = "test-webhook-secret";
 /** What a same-origin browser fetch carries; every cookie mutation sends it. */
@@ -78,23 +75,6 @@ export function buildAuthDeps(kp: KeyProvider): AuthDeps {
     sessionKeyRef: KEY_REF,
     publicBaseUrl: "https://app.example.test",
     createUserOctokit: createTestUserOctokit,
-  };
-}
-
-/** A stub client's `run`: the call on one token, answered with no retry. */
-export async function runWithoutRetry<T, E>(
-  call: (token: string) => Promise<Result<T, E>>,
-  token: string,
-): Promise<GitHubCallOutcome<T, E>> {
-  const result = await call(token);
-  if (result.ok) {
-    return { ok: true, value: result.value, retried: false };
-  }
-  return {
-    ok: false,
-    tokenUnreadable: false,
-    error: result.error,
-    retried: false,
   };
 }
 

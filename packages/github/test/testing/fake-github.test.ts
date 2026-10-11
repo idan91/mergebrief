@@ -4,6 +4,7 @@ import { ReviewSubjectTypes } from "../../src/operations/review-thread";
 import { makeFakeGitHub } from "../../src/testing";
 import {
   CredentialKinds,
+  FakeFactsHidings,
   FakeFailures,
   type FakeGitHub,
 } from "../../src/testing/types";
@@ -11,6 +12,7 @@ import {
   REPO,
   makeLogger,
   requireInstallationId,
+  requireOperatorToken,
   requireRepoId,
   stubCredential,
 } from "../client/helpers";
@@ -119,6 +121,33 @@ describe("makeFakeGitHub reads", () => {
     const result = await bindReviewer(github).forRepo(REPO).fetchDiff(8);
 
     expect(result).toMatchObject({ ok: false, error: { code: "not-found" } });
+  });
+});
+
+describe("makeFakeGitHub live read", () => {
+  const OTHER = { ...REPO, prNumber: 8 };
+
+  it("hides a pull request from one credential's live read only", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.hideFacts(PR, CredentialKinds.REVIEWER, FakeFactsHidings.NOT_SHOWN);
+    github.hideFacts(
+      OTHER,
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.WITHHELD,
+    );
+
+    const viewer = await bindReviewer(github).readPullRequestFacts([PR, OTHER]);
+    const operator = await github
+      .bindOperatorGitHub(requireOperatorToken("ghp_operator"))
+      .readPullRequestFacts([PR]);
+
+    const viewerPage = viewer.ok ? viewer.value : undefined;
+    expect(viewerPage?.get("acme/widgets#7")).toBeNull();
+    expect(viewerPage?.has("acme/widgets#8")).toBe(false);
+    const operatorPage = operator.ok ? operator.value : undefined;
+    expect(operatorPage?.get("acme/widgets#7")).toMatchObject({
+      headSha: HEAD_SHA,
+    });
   });
 });
 

@@ -14,7 +14,6 @@ import {
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
@@ -168,7 +167,6 @@ async function seedBrief(
   handle: AppDatabase,
   base: string,
   head: string,
-  repoConfig?: string,
 ): Promise<void> {
   const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
     brandRepoId(BigInt(REPO_ID)),
@@ -179,7 +177,7 @@ async function seedBrief(
   }
   const store = createArtifactStore(handle, CTX);
   const prior = await store.briefs.listForPullRequest(pr.id);
-  const write: Mutable<BriefWriteInput> = {
+  const write: BriefWriteInput = {
     pullRequestId: pr.id,
     baseSha: base,
     headSha: head,
@@ -191,50 +189,10 @@ async function seedBrief(
     body: BRIEF_BODY,
   };
 
-  if (repoConfig !== undefined) {
-    write.repoConfig = repoConfig;
-  }
-
   const written = await store.briefs.write(write);
   if (!written.ok) {
     throw new Error(`seedBrief: write failed ${written.error.code}`);
   }
-}
-
-function briefContextPath(base: string, head: string): string {
-  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=${base}&head=${head}`;
-}
-
-const DELTA_BODY = JSON.stringify({ summary: "the delta", changes: [] });
-
-async function seedDelta(
-  handle: AppDatabase,
-  baseline: string,
-  head: string,
-): Promise<void> {
-  const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepoId(BigInt(REPO_ID)),
-    PR_NUMBER,
-  );
-  if (pr === undefined) {
-    throw new Error("seedDelta: pr missing");
-  }
-  const written = await createArtifactStore(handle, CTX).deltas.write({
-    pullRequestId: pr.id,
-    baselineSha: baseline,
-    headSha: head,
-    provider: "anthropic",
-    model: "claude",
-    effort: "high",
-    body: DELTA_BODY,
-  });
-  if (!written.ok) {
-    throw new Error(`seedDelta: write failed ${written.error.code}`);
-  }
-}
-
-function deltaPath(baseline: string, head: string): string {
-  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/delta?baseline=${baseline}&head=${head}`;
 }
 
 function briefPath(base: string, head: string): string {
@@ -388,116 +346,6 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ code: "not-found" });
-  });
-
-  it("returns authorized stored briefs and 404s missing spans", async () => {
-    stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-    await seedBrief(harness.handle, "base1", "head1");
-
-    const res = await app.request(briefPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("application/json");
-    expect(await res.text()).toBe(BRIEF_BODY);
-
-    const missing = await app.request(briefPath("base1", "nope"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(missing.status).toBe(404);
-  });
-
-  it("returns snapshots, null for legacy rows, and 404 for missing rows", async () => {
-    stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-    const snapshot = '{"files":[],"collisions":[],"policy":null}';
-    await seedBrief(harness.handle, "base1", "head1", snapshot);
-    await seedBrief(harness.handle, "base1", "head2"); // no snapshot column
-
-    const withConfig = await app.request(briefContextPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(withConfig.status).toBe(200);
-    expect(withConfig.headers.get("cache-control")).toBe("no-store");
-    expect(await withConfig.text()).toBe(`{"repoConfig":${snapshot}}`);
-
-    const nullConfig = await app.request(briefContextPath("base1", "head2"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(nullConfig.status).toBe(200);
-    expect(await nullConfig.text()).toBe('{"repoConfig":null}');
-
-    const missing = await app.request(briefContextPath("base1", "nope"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(missing.status).toBe(404);
-    expect(((await missing.json()) as { code?: string }).code).toBe(
-      "not-found",
-    );
-
-    const malformed = await app.request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=only`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-    expect(malformed.status).toBe(400);
-    expect(((await malformed.json()) as { code?: string }).code).toBe(
-      "invalid-request",
-    );
-  });
-
-  it("returns authorized stored deltas and 404s missing spans", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-    await seedDelta(harness.handle, "cp-1", "head-2");
-
-    const res = await app.request(deltaPath("cp-1", "head-2"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("application/json");
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.text()).toBe(DELTA_BODY);
-
-    const missing = await app.request(deltaPath("cp-1", "nope"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(missing.status).toBe(404);
-    // Positive authz cache: one access check covered both reads.
-    expect(counts.repositories).toBe(1);
-  });
-
-  it("400s delta queries with cross-repo refs or missing parameters", async () => {
-    stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-
-    const crossRepo = await app.request(deltaPath("evil:main", "head-2"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(crossRepo.status).toBe(400);
-
-    const missingHead = await app.request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/delta?baseline=only`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-    expect(missingHead.status).toBe(400);
-  });
-
-  it("400s queries missing head", async () => {
-    stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-    const res = await app.request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=only`,
-      {
-        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-      },
-    );
-    expect(res.status).toBe(400);
   });
 
   it("checks access once for two authorized reads inside the TTL", async () => {

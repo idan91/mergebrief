@@ -1,5 +1,10 @@
 import { ApiErrorCodes, InboxQueryKeys } from "contract";
-import { listOpenPullRequests, type RepositoryRef } from "github";
+import {
+  CredentialFailureCodes,
+  listOpenPullRequests,
+  readPullRequestFacts,
+  type RepositoryRef,
+} from "github";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Context } from "hono";
 import type { InboxFilters, RepoId } from "persistence";
@@ -18,11 +23,15 @@ import type {
   AllowedRepo,
   InstallationResolver,
 } from "../installation-resolver";
-import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
+import {
+  createReviewerGitHubClient,
+  type ReviewerGitHubClient,
+} from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
-import { resolveOperatorTokenFor } from "../../access/operator-token";
+import { bindOperatorReader } from "../../access/operator-token";
 import type { AuthzEnv } from "../../access/types";
 import { refreshUrlPullRequests } from "../live-read";
+import type { LiveFactsReader } from "../live-read/types";
 import type { TtlCache } from "../ttl-cache";
 import { INBOX_LIVE_BUDGET_MS } from "./consts";
 import { inboxController } from "./controller";
@@ -41,6 +50,25 @@ function collectAdminRepoIds(
     }
   }
   return admin;
+}
+
+/** The live read's one call on the Inbox's own client, its refresh included. */
+function buildLiveFactsReader(github: ReviewerGitHubClient): LiveFactsReader {
+  return {
+    async readPullRequestFacts(refs) {
+      const page = await github.run((token) =>
+        readPullRequestFacts(github.createOctokit(token), refs),
+      );
+      if (page.ok) {
+        return { ok: true, value: page.value };
+      }
+      if (!page.tokenUnreadable) {
+        return { ok: false, error: page.error };
+      }
+      const code = CredentialFailureCodes.CREDENTIAL_UNREADABLE;
+      return { ok: false, error: { code, message: "token unreadable" } };
+    },
+  };
 }
 
 function shapeFilters(query: InboxQuery): InboxFilters {
@@ -122,8 +150,9 @@ export function createInboxHandlers(
       await refreshUrlPullRequests(
         {
           handle: deps.handle,
-          github,
-          fallbackToken: resolveOperatorTokenFor(deps, session.reviewerId),
+          github: buildLiveFactsReader(github),
+          readerId: session.reviewerId,
+          operator: bindOperatorReader(deps, session.reviewerId),
           log,
         },
         session.reviewerId,

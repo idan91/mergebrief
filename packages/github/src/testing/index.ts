@@ -1,11 +1,12 @@
 // Cross-package test double on the `github/testing` subpath: an in-memory
 // GitHub behind the production binding signatures. Production never imports it.
 export { makeFakeGitHub } from "./fake-github";
-export { CredentialKinds, FakeFailures } from "./types";
+export { CredentialKinds, FakeFactsHidings, FakeFailures } from "./types";
 export type {
   CredentialKind,
   FakeCompare,
   FakeCredential,
+  FakeFactsHiding,
   FakeFailure,
   FakeFileRef,
   FakeGitHub,

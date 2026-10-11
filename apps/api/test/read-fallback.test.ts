@@ -3,14 +3,18 @@
 // own token GitHub refuses could hold a brief they could not open. The gate
 // runs the same ladder, but ONLY for a PR the reader owns in the url-box
 // world, so an App-world brief stays governed by the installation alone.
-import { createHash, randomBytes } from "node:crypto";
+import {
+  CredentialKinds,
+  FakeFactsHidings,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createArtifactStore,
-  createGrantAuth,
   createTenantRepository,
-  encryptToken,
   type AppDatabase,
   type KeyProvider,
+  type PullRequestRow,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -19,7 +23,6 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -27,17 +30,20 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   buildOperatorToken,
   createKeyProvider,
   listSentTokens,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakePullRequest,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
 const BASE_SHA = "b".repeat(40);
 const HEAD_SHA = "a".repeat(40);
@@ -141,35 +147,6 @@ function stubGitHub(): RepoCall[] {
   return calls;
 }
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const expiresAt = new Date("2027-01-01T00:00:00Z");
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: expiresAt,
-  });
-  // Installation-bound, like a viewer who signed in through the App: the
-  // url-box row they own lives in the OTHER world.
-  await createTenantRepository(handle, TENANT_CTX).sessions.create({
-    sessionTokenHash: createHash("sha256").update(cookie).digest("hex"),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt,
-  });
-  return cookie;
-}
-
 async function seedOwnerPullRequest(
   handle: AppDatabase,
   title = "the reader's own paste",
@@ -230,10 +207,12 @@ async function seedTenantPullRequest(
 describe("the per-repo gate's operator-PAT rung", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
   });
 
   afterEach(async () => {
@@ -249,13 +228,25 @@ describe("the per-repo gate's operator-PAT rung", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       operatorToken:
         fallbackToken === undefined
           ? undefined
           : buildOperatorToken(fallbackToken, listedReviewerIds),
     });
+  }
+
+  async function signIn(): Promise<string> {
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    return cookie;
+  }
+
+  async function readOwnerRow(): Promise<PullRequestRow | undefined> {
+    return createTenantRepository(
+      harness.handle,
+      OWNER_CTX,
+    ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
   }
 
   async function read(app: ApiApp, cookie: string): Promise<Response> {
@@ -266,7 +257,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("opens a url-box brief the reader owns when their own token is refused", async () => {
     const calls = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await read(buildApp(FALLBACK_PAT), cookie);
@@ -280,7 +271,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("keeps write affordances off, the PAT's push right is not the reader's", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await read(buildApp(FALLBACK_PAT), cookie);
@@ -293,7 +284,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("404s with no operator PAT configured", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await read(buildApp(), cookie);
@@ -303,7 +294,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("404s a reader who is not on the operator list", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const unlisted = await read(
@@ -321,7 +312,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("never widens an App-world brief, no owned url-box row, no second rung", async () => {
     const calls = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedTenantPullRequest(harness.handle);
 
     const res = await read(buildApp(FALLBACK_PAT), cookie);
@@ -336,7 +327,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // must stay out of reach: they read THEIR paste, never the installation's.
   it("serves the reader's own url-box row over the installation's", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedTenantPullRequest(harness.handle, "the installation's row");
     await seedOwnerPullRequest(harness.handle, "the reader's own paste");
 
@@ -347,12 +338,47 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(body).toMatchObject({ title: "the reader's own paste" });
   });
 
+  // The live read on the operator footing asks the viewer's token first and
+  // the operator's reader only for what the viewer could not see.
+  it("reads live facts the viewer was not shown on the operator token", async () => {
+    stubGitHub();
+    const cookie = await signIn();
+    await seedOwnerPullRequest(harness.handle);
+    arrangeFakePullRequest(fake, { repoId: REPO_ID });
+    const ref = { owner: "octo", repo: "hello", prNumber: PR_NUMBER };
+    fake.hideFacts(ref, CredentialKinds.REVIEWER, FakeFactsHidings.NOT_SHOWN);
+
+    const res = await read(buildApp(FALLBACK_PAT), cookie);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ title: "A pull request" });
+    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect((await readOwnerRow())?.githubUnreachableAt).toBeNull();
+  });
+
+  it("never marks a row the viewer was refused on the operator's word", async () => {
+    stubGitHub();
+    const cookie = await signIn();
+    await seedOwnerPullRequest(harness.handle);
+    const ref = { owner: "octo", repo: "hello", prNumber: PR_NUMBER };
+    fake.hideFacts(ref, CredentialKinds.REVIEWER, FakeFactsHidings.WITHHELD);
+
+    const res = await read(buildApp(FALLBACK_PAT), cookie);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ title: "the reader's own paste" });
+    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    const row = await readOwnerRow();
+    expect(row?.githubReadAt).not.toBeNull();
+    expect(row?.githubUnreachableAt).toBeNull();
+  });
+
   // Url-box rows are instance-visible to a reader who proved GitHub access to
   // the repo. This reader proved nothing, the operator's key did, so the
   // widening must stop here, or the PAT becomes a read-anything key.
   it("does not open ANOTHER user's url-box row on the PAT rung", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await createTenantRepository(harness.handle, {
       ownerUserId: brandReviewerId(BigInt(REVIEWER_ID + 1)),
     }).pullRequests.upsert({
@@ -373,7 +399,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // reader's own world, or the leak returns one request later.
   it("keeps the reader pinned to their own world on a cached second read", async () => {
     const calls = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedTenantPullRequest(harness.handle, "the installation's row");
     await seedOwnerPullRequest(harness.handle, "the reader's own paste");
     const app = buildApp(FALLBACK_PAT);
@@ -395,7 +421,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // write in the owner world the gate resolved.
   it("audits a write behind the rung under the owner world", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     const app = buildApp(FALLBACK_PAT);
 
@@ -432,7 +458,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // past a gate that never checked it.
   it("does not let one PAT-carried pass clear the gate for another PR", async () => {
     const calls = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     const app = buildApp(FALLBACK_PAT);
 
@@ -459,7 +485,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // page opens onto empty panes.
   it("fetches the span diff on the same rung that opened the gate", async () => {
     const calls = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -480,7 +506,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("leaves the diff refused when no operator PAT is configured", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await buildApp().request(
@@ -495,7 +521,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // the commits recorded for the pull request they pasted.
   it("a diff at an unknown head 404s without an operator compare", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -514,7 +540,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("a diff at a branch name 404s without an operator compare", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -532,7 +558,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("reads a file at a known commit on the operator token", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -552,7 +578,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("reads no file at an unknown commit on the operator token", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerBrief(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -575,7 +601,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // showed them the brief, so there is no existence left to protect.
   it("serves no stack on the operator token and lists no open PRs", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(STACK_PATH, {
@@ -590,7 +616,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("refuses a write honestly instead of claiming the PR is gone", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(
@@ -612,7 +638,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   it("keeps the uniform 404 for a write the gate never PAT-passed", async () => {
     stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    const cookie = await signIn();
     await seedTenantPullRequest(harness.handle);
 
     const res = await buildApp(FALLBACK_PAT).request(

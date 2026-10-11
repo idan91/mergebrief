@@ -1,4 +1,5 @@
 import type {
+  bindOperatorGitHub,
   bindReviewerGitHub,
   OperatorTokenConfig,
   UserOctokitFactory,
@@ -23,6 +24,8 @@ export interface AuthDeps {
   readonly createUserOctokit: UserOctokitFactory;
   /** Binds the reviewer's GitHub; absent binds `github`'s over `createUserOctokit`. */
   readonly bindReviewerGitHub?: typeof bindReviewerGitHub;
+  /** Binds the operator's read-only GitHub; absent binds `github`'s over `createUserOctokit`. */
+  readonly bindOperatorGitHub?: typeof bindOperatorGitHub;
 }
 
 /** The slice of app deps the auth surface needs. `AppDeps` satisfies it. */

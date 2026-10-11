@@ -28,7 +28,7 @@ import { buildFailure, type FakeAnswer } from "./utils";
 export interface FakeRequest<Value> {
   readonly operation: GitHubOperation;
   readonly input: unknown;
-  readonly answer: () => FakeAnswer<Value>;
+  readonly answer: (credential: FakeCredential) => FakeAnswer<Value>;
   /** What a 404 folds to, as the real operation folds it. */
   readonly onNotFound?: () => Value;
   /** Present on a `RepoReader` read, the only kind the operator may answer. */
@@ -103,7 +103,7 @@ export function createExchange(): FakeExchange {
       const error = buildFailure(failure, request.operation);
       return foldNotFound(request, { ok: false, error });
     }
-    return foldNotFound(request, request.answer());
+    return foldNotFound(request, request.answer(credential));
   };
 
   return {

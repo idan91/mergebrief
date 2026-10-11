@@ -1,15 +1,19 @@
-// The live read over PGlite with the GitHub read mocked at the package
-// seam: what is due, how it is chunked, what is written back, the operator
-// retry before an unreachable mark, and the ceiling.
-import type * as githubModule from "github";
+// The live read over PGlite with GitHub served by the `github/testing` fake:
+// what is due, how it is chunked, what is written back, the operator retry
+// before an unreachable mark, and the ceiling.
 import {
-  getLiveReadKey,
   LIVE_READ_PAGE_SIZE,
-  readPullRequestFacts,
-  type LiveReadPage,
-  type PullRequestFacts,
-  type PullRequestRef,
+  isOperatorToken,
+  type PullRequestInfo,
+  type ReviewerCredential,
 } from "github";
+import {
+  CredentialKinds,
+  FakeFactsHidings,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import type { Logger } from "logging";
 import {
   createTenantRepository,
@@ -21,28 +25,18 @@ import {
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  ReviewerGitHubClient,
-  UserOctokit,
-} from "../auth/reviewer-github-client";
-import type { ViewerPrincipal } from "../auth/session/types";
-import { runWithoutRetry } from "../../../test/fixtures";
-import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import type { Mutable } from "types/utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import {
   refreshUrlPullRequest,
   refreshUrlPullRequests,
   resetLiveReadMemory,
 } from "./index";
-import type { LiveReadDeps } from "./types";
-
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  readPullRequestFacts: vi.fn(),
-}));
+import type { LiveFactsReader, LiveReadDeps } from "./types";
 
 const VIEWER_TOKEN = "ghu_viewer";
+const OTHER_TOKEN = "ghu_other_reader";
 const OPERATOR_TOKEN = "ghp_operator";
 const NOW = new Date("2026-09-20T12:00:00Z");
 const HEAD = "a".repeat(40);
@@ -59,6 +53,7 @@ function brand<T extends bigint>(
 const OWNER: ReviewerId = brand(501n, isReviewerId);
 const OTHER_READER: ReviewerId = brand(502n, isReviewerId);
 const REPO: RepoId = brand(777n, isRepoId);
+const OWNER_SCOPE = { ownerUserId: OWNER };
 
 const log: Logger = {
   error: vi.fn(),
@@ -68,90 +63,86 @@ const log: Logger = {
   child: () => log,
 };
 
-/** A client for one reader; the live read reads only the reviewer id. */
-function stubClient(reviewerId: ReviewerId): ReviewerGitHubClient {
+function stubCredential(token: string): ReviewerCredential {
   return {
-    run: (call) => runWithoutRetry(call, VIEWER_TOKEN),
-    runRead: (call) => runWithoutRetry(call, VIEWER_TOKEN),
-    createOctokit: (token) => ({ token }) as unknown as UserOctokit,
-    createMutationOctokit: () => {
-      throw new Error("the live read writes nothing to GitHub");
-    },
-    session: () => ({ reviewerId }) as unknown as ViewerPrincipal,
+    readToken: async () => ({ ok: true, value: token }),
+    renewToken: async () => undefined,
   };
 }
 
-/** The token a stubbed octokit was built with, read back inside the read mock. */
-interface TokenOctokit {
-  readonly token: string;
-}
-
-function stubFacts(overrides?: Partial<PullRequestFacts>): PullRequestFacts {
+function makePullInfo(overrides?: Partial<PullRequestInfo>): PullRequestInfo {
   return {
     repoId: REPO,
     repoFullName: "o/r",
+    headSha: HEAD,
+    headRef: "feature",
+    baseSha: "b".repeat(40),
     state: "open",
-    merged: false,
     draft: false,
+    merged: false,
     title: "live title",
+    body: "",
+    htmlUrl: "https://github.com/o/r/pull/1",
+    commitCount: 1,
+    authorLogin: "octocat",
     closedAt: null,
     updatedAt: NOW,
-    headSha: HEAD,
-    authorLogin: "octocat",
     ...overrides,
   };
 }
 
-interface ReadCall {
-  readonly token: string;
-  readonly refs: readonly PullRequestRef[];
+function buildPullRef(prNumber: number) {
+  return { owner: "o", repo: "r", prNumber };
 }
 
-/** Answer every read from `answer`; record which token asked for what. */
-function stubReads(
-  answer: (token: string, ref: PullRequestRef) => PullRequestFacts | null,
-): ReadCall[] {
-  const calls: ReadCall[] = [];
-  vi.mocked(readPullRequestFacts).mockImplementation(async (octokit, refs) => {
-    const { token } = octokit as unknown as TokenOctokit;
-    calls.push({ token, refs });
-    const page = new Map<string, PullRequestFacts | null>();
-    for (const ref of refs) {
-      page.set(getLiveReadKey(ref), answer(token, ref));
-    }
-    return { ok: true, value: page satisfies LiveReadPage };
-  });
-  return calls;
+/** GitHub holds `o/r#1..count`, each with the given facts. */
+function arrangePulls(
+  count: number,
+  overrides?: Partial<PullRequestInfo>,
+): void {
+  for (let prNumber = 1; prNumber <= count; prNumber += 1) {
+    fake.addPullRequest(buildPullRef(prNumber), {
+      info: makePullInfo(overrides),
+    });
+  }
 }
 
-/** Like stubReads, but an undefined answer leaves the alias out of the page. */
-function stubWithheldReads(
-  answer: (
-    token: string,
-    ref: PullRequestRef,
-  ) => PullRequestFacts | null | undefined,
-): ReadCall[] {
-  const calls: ReadCall[] = [];
-  vi.mocked(readPullRequestFacts).mockImplementation(async (octokit, refs) => {
-    const { token } = octokit as unknown as TokenOctokit;
-    calls.push({ token, refs });
-    const page = new Map<string, PullRequestFacts | null>();
-    for (const ref of refs) {
-      const facts = answer(token, ref);
-      if (facts !== undefined) {
-        page.set(getLiveReadKey(ref), facts);
-      }
-    }
-    return { ok: true, value: page satisfies LiveReadPage };
+/** Each live read that reached GitHub: the token it carried and its size. */
+function listFactReads(): [string, number][] {
+  return fake.listCalls("readPullRequestFacts").map((call) => {
+    const token = "token" in call.credential ? call.credential.token : "";
+    const size = Array.isArray(call.input) ? call.input.length : 0;
+    return [token, size];
   });
-  return calls;
+}
+
+/** The reader's reads, each held until `gate` opens. */
+function holdReads(
+  reader: LiveFactsReader,
+  gate: Promise<void>,
+): LiveFactsReader {
+  return {
+    async readPullRequestFacts(refs) {
+      await gate;
+      return reader.readPullRequestFacts(refs);
+    },
+  };
+}
+
+function openGate(): { gate: Promise<void>; release: () => void } {
+  let release = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { gate, release };
 }
 
 let harness: PgliteHarness;
+let fake: FakeGitHub;
 
 beforeEach(async () => {
   harness = await createPgliteHarness();
-  vi.mocked(readPullRequestFacts).mockReset();
+  fake = makeFakeGitHub();
   vi.mocked(log.warn).mockReset();
   resetLiveReadMemory();
 });
@@ -164,7 +155,7 @@ async function seedRows(
   count: number,
   repoSlug = "o/r",
 ): Promise<PullRequestRow[]> {
-  const repo = createTenantRepository(harness.handle, { ownerUserId: OWNER });
+  const repo = createTenantRepository(harness.handle, OWNER_SCOPE);
   const rows: PullRequestRow[] = [];
   for (let prNumber = 1; prNumber <= count; prNumber += 1) {
     rows.push(
@@ -180,57 +171,69 @@ async function seedRows(
 }
 
 async function readRow(prNumber: number): Promise<PullRequestRow> {
-  const row = await createTenantRepository(harness.handle, {
-    ownerUserId: OWNER,
-  }).pullRequests.getByNumber(REPO, prNumber);
+  const row = await createTenantRepository(
+    harness.handle,
+    OWNER_SCOPE,
+  ).pullRequests.getByNumber(REPO, prNumber);
   if (row === undefined) {
     throw new Error(`row ${prNumber} missing`);
   }
   return row;
 }
 
-function deps(overrides?: {
-  fallbackToken?: string;
-  waitMs?: number;
-  reader?: ReviewerId;
-}): LiveReadDeps {
+interface DepsOptions {
+  readonly operator?: boolean;
+  readonly waitMs?: number;
+  readonly reader?: ReviewerId;
+  readonly token?: string;
+  readonly hold?: Promise<void>;
+  readonly github?: LiveFactsReader;
+}
+
+function buildLiveDeps(options: DepsOptions = {}): LiveReadDeps {
+  const bound = fake.bindReviewerGitHub(
+    stubCredential(options.token ?? VIEWER_TOKEN),
+    { log },
+  );
+  let github: LiveFactsReader = options.github ?? bound;
+  if (options.hold !== undefined) {
+    github = holdReads(github, options.hold);
+  }
   const built: Mutable<LiveReadDeps> = {
     handle: harness.handle,
-    github: stubClient(overrides?.reader ?? OWNER),
+    github,
+    readerId: options.reader ?? OWNER,
     log,
     now: () => NOW,
   };
-  if (overrides?.fallbackToken !== undefined) {
-    built.fallbackToken = overrides.fallbackToken;
+  if (options.operator === true && isOperatorToken(OPERATOR_TOKEN)) {
+    built.operator = fake.bindOperatorGitHub(OPERATOR_TOKEN);
   }
-  if (overrides?.waitMs !== undefined) {
-    built.waitMs = overrides.waitMs;
+  if (options.waitMs !== undefined) {
+    built.waitMs = options.waitMs;
   }
   return built;
 }
 
 describe("refreshUrlPullRequests", () => {
   it("asks GitHub nothing when no row is due", async () => {
-    const calls = stubReads(() => stubFacts());
+    arrangePulls(2);
     await seedRows(2);
-    await refreshUrlPullRequests(deps(), OWNER);
-    calls.length = 0;
+    await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, deferred: false });
-    expect(calls).toHaveLength(0);
+    expect(listFactReads()).toHaveLength(1);
   });
 
   it("writes the facts and a live open beats a stored closed", async () => {
-    stubReads(() => stubFacts({ title: "from GitHub", draft: true }));
-    const [row] = await seedRows(1);
-    if (row === undefined) {
-      throw new Error("seed failed");
-    }
-    await createTenantRepository(harness.handle, {
-      ownerUserId: OWNER,
-    }).pullRequests.upsert({
+    arrangePulls(1, { title: "from GitHub", draft: true });
+    await seedRows(1);
+    await createTenantRepository(
+      harness.handle,
+      OWNER_SCOPE,
+    ).pullRequests.upsert({
       repoId: REPO,
       prNumber: 1,
       state: PrStates.CLOSED,
@@ -238,7 +241,7 @@ describe("refreshUrlPullRequests", () => {
       purgeAfter: null,
     });
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 1, unreachable: 0 });
     const updated = await readRow(1);
@@ -252,13 +255,13 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("reads in chunks of the page size and defers past the chunk cap", async () => {
-    const calls = stubReads(() => stubFacts());
     const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
+    arrangePulls(cap + 1);
     await seedRows(cap + 1);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
-    expect(calls.map((call) => call.refs.length)).toEqual(
+    expect(listFactReads().map(([, size]) => size)).toEqual(
       Array.from({ length: LIVE_READ_MAX_CHUNKS }, () => LIVE_READ_PAGE_SIZE),
     );
     expect(outcome).toMatchObject({ read: cap, deferred: true });
@@ -267,24 +270,21 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("retries a missing row on the operator token before marking it", async () => {
-    const calls = stubReads((token, ref) => {
-      if (ref.prNumber === 1) {
-        return stubFacts();
-      }
-      if (ref.prNumber === 2 && token === OPERATOR_TOKEN) {
-        return stubFacts();
-      }
-      return null;
-    });
+    arrangePulls(2);
+    fake.hideFacts(
+      buildPullRef(2),
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.NOT_SHOWN,
+    );
     await seedRows(3);
 
     const outcome = await refreshUrlPullRequests(
-      deps({ fallbackToken: OPERATOR_TOKEN }),
+      buildLiveDeps({ operator: true }),
       OWNER,
     );
 
     expect(outcome).toMatchObject({ read: 2, unreachable: 1 });
-    expect(calls.map((call) => [call.token, call.refs.length])).toEqual([
+    expect(listFactReads()).toEqual([
       [VIEWER_TOKEN, 3],
       [OPERATOR_TOKEN, 2],
     ]);
@@ -295,95 +295,107 @@ describe("refreshUrlPullRequests", () => {
     expect(gone.state).toBe(PrStates.OPEN);
   });
 
-  it("marks a missing row without an operator token", async () => {
-    stubReads(() => null);
+  it("marks a missing row without an operator reader", async () => {
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
     expect((await readRow(1)).githubUnreachableAt).toEqual(NOW);
   });
 
   it("facts about another repository are refused", async () => {
-    stubReads(() => stubFacts({ repoId: brand(999n, isRepoId) }));
+    arrangePulls(1, { repoId: brand(999n, isRepoId) });
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
     expect((await readRow(1)).title).toBeNull();
   });
 
   it("a row with no usable slug is marked unreachable, not re-read", async () => {
-    const calls = stubReads(() => stubFacts());
     await seedRows(1, "not-a-slug");
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
-    expect(calls).toHaveLength(0);
+    expect(listFactReads()).toHaveLength(0);
     expect((await readRow(1)).githubUnreachableAt).toEqual(NOW);
   });
 
   it("a throw inside the read serves the stored rows as a failure", async () => {
-    vi.mocked(readPullRequestFacts).mockRejectedValue(new Error("boom"));
     await seedRows(1);
+    const github: LiveFactsReader = {
+      readPullRequestFacts: async () => {
+        throw new Error("boom");
+      },
+    };
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(
+      buildLiveDeps({ github }),
+      OWNER,
+    );
 
     expect(outcome).toMatchObject({ failed: true, timedOut: false });
     expect((await readRow(1)).githubReadAt).toBeNull();
   });
 
   it("a refused read cools the owner down for the window", async () => {
-    vi.mocked(readPullRequestFacts).mockResolvedValue({
-      ok: false,
-      error: { code: "rate-limited", status: 403, message: "read failed" },
-    });
-    await seedRows(1);
-    await refreshUrlPullRequests(deps(), OWNER);
-    const calls = stubReads(() => stubFacts());
+    fake.failOn("readPullRequestFacts", FakeFailures.RATE_LIMITED);
+    const [row] = await seedRows(1);
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
+    await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
-    const again = await refreshUrlPullRequests(deps(), OWNER);
-    const one = await refreshUrlPullRequest(deps(), OWNER, REPO, 1, "o/r");
+    const again = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const one = await refreshUrlPullRequest(buildLiveDeps(), {
+      scope: OWNER_SCOPE,
+      row,
+      repoFullName: "o/r",
+    });
 
     expect(again).toMatchObject({ failed: true });
-    expect(one).toMatchObject({ failed: true });
-    expect(calls).toHaveLength(0);
+    expect(one.outcome).toMatchObject({ failed: true });
+    expect(listFactReads()).toHaveLength(1);
   });
 
   it("another reader's refusal does not cool the owner down", async () => {
-    vi.mocked(readPullRequestFacts).mockResolvedValue({
-      ok: false,
-      error: { code: "rate-limited", status: 403, message: "read failed" },
-    });
-    await seedRows(1);
-    const other = deps({ reader: OTHER_READER });
-    await refreshUrlPullRequest(other, OWNER, REPO, 1, "o/r");
-    const calls = stubReads(() => stubFacts());
+    arrangePulls(1);
+    fake.rejectToken(OTHER_TOKEN);
+    const [row] = await seedRows(1);
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
+    const other = buildLiveDeps({ reader: OTHER_READER, token: OTHER_TOKEN });
+    const target = { scope: OWNER_SCOPE, row, repoFullName: "o/r" };
+    await refreshUrlPullRequest(other, target);
 
-    const owner = await refreshUrlPullRequests(deps(), OWNER);
-    const again = await refreshUrlPullRequest(other, OWNER, REPO, 1, "o/r");
+    const owner = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const again = await refreshUrlPullRequest(other, target);
 
     expect(owner).toMatchObject({ read: 1, failed: false });
-    expect(again).toMatchObject({ failed: true });
-    expect(calls).toHaveLength(1);
+    expect(again.outcome).toMatchObject({ failed: true });
+    expect(listFactReads().map(([token]) => token)).toEqual([
+      OTHER_TOKEN,
+      VIEWER_TOKEN,
+    ]);
   });
 
   it("a row GitHub gave no answer for waits the window", async () => {
-    const calls = stubWithheldReads((token, ref) => {
-      if (ref.prNumber === 1) {
-        return undefined;
-      }
-      return stubFacts();
-    });
+    arrangePulls(2);
+    fake.hideFacts(
+      buildPullRef(1),
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.WITHHELD,
+    );
     await seedRows(2);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 1, unreachable: 0, failed: false });
-    expect(calls.map((call) => call.token)).toEqual([VIEWER_TOKEN]);
+    expect(listFactReads().map(([token]) => token)).toEqual([VIEWER_TOKEN]);
     const row = await readRow(1);
     expect(row.githubReadAt).toEqual(NOW);
     expect(row.githubUnreachableAt).toBeNull();
@@ -392,21 +404,21 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a row the viewer was refused is retried on the operator token", async () => {
-    const calls = stubWithheldReads((token, ref) => {
-      if (ref.prNumber !== 1) {
-        return stubFacts();
-      }
-      return token === OPERATOR_TOKEN ? stubFacts() : undefined;
-    });
+    arrangePulls(2);
+    fake.hideFacts(
+      buildPullRef(1),
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.WITHHELD,
+    );
     await seedRows(2);
 
     const outcome = await refreshUrlPullRequests(
-      deps({ fallbackToken: OPERATOR_TOKEN }),
+      buildLiveDeps({ operator: true }),
       OWNER,
     );
 
     expect(outcome).toMatchObject({ read: 2, unreachable: 0, failed: false });
-    expect(calls.map((call) => [call.token, call.refs.length])).toEqual([
+    expect(listFactReads()).toEqual([
       [VIEWER_TOKEN, 2],
       [OPERATOR_TOKEN, 1],
     ]);
@@ -414,16 +426,21 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a row refused to both tokens waits the window unmarked", async () => {
-    stubWithheldReads((token, ref) => {
-      if (ref.prNumber !== 1) {
-        return stubFacts();
-      }
-      return token === OPERATOR_TOKEN ? null : undefined;
-    });
+    arrangePulls(2);
+    fake.hideFacts(
+      buildPullRef(1),
+      CredentialKinds.REVIEWER,
+      FakeFactsHidings.WITHHELD,
+    );
+    fake.hideFacts(
+      buildPullRef(1),
+      CredentialKinds.OPERATOR,
+      FakeFactsHidings.NOT_SHOWN,
+    );
     await seedRows(2);
 
     const outcome = await refreshUrlPullRequests(
-      deps({ fallbackToken: OPERATOR_TOKEN }),
+      buildLiveDeps({ operator: true }),
       OWNER,
     );
 
@@ -434,33 +451,20 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a rejected operator token leaves the viewer's answer standing", async () => {
-    const calls = stubReads(() => null);
-    vi.mocked(readPullRequestFacts).mockImplementation(
-      async (octokit, refs) => {
-        const { token } = octokit as unknown as TokenOctokit;
-        calls.push({ token, refs });
-        if (token === OPERATOR_TOKEN) {
-          return {
-            ok: false,
-            error: { code: "forbidden", status: 403, message: "rejected" },
-          };
-        }
-        const page = new Map<string, PullRequestFacts | null>();
-        for (const ref of refs) {
-          page.set(getLiveReadKey(ref), null);
-        }
-        return { ok: true, value: page };
-      },
+    fake.failOn(
+      "readPullRequestFacts",
+      FakeFailures.FORBIDDEN,
+      CredentialKinds.OPERATOR,
     );
     await seedRows(1);
 
     const outcome = await refreshUrlPullRequests(
-      deps({ fallbackToken: OPERATOR_TOKEN }),
+      buildLiveDeps({ operator: true }),
       OWNER,
     );
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1, failed: false });
-    expect(calls.map((call) => call.token)).toEqual([
+    expect(listFactReads().map(([token]) => token)).toEqual([
       VIEWER_TOKEN,
       OPERATOR_TOKEN,
     ]);
@@ -472,13 +476,10 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("a GitHub failure leaves the stored rows and warns", async () => {
-    vi.mocked(readPullRequestFacts).mockResolvedValue({
-      ok: false,
-      error: { code: "rate-limited", status: 403, message: "read failed" },
-    });
+    fake.failOn("readPullRequestFacts", FakeFailures.RATE_LIMITED);
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(deps(), OWNER);
+    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, failed: true });
     expect((await readRow(1)).githubReadAt).toBeNull();
@@ -489,104 +490,135 @@ describe("refreshUrlPullRequests", () => {
   });
 
   it("serves stored rows past the ceiling and finishes behind it", async () => {
-    let release: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    vi.mocked(readPullRequestFacts).mockImplementation(async (_o, refs) => {
-      await gate;
-      const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) {
-        page.set(getLiveReadKey(ref), stubFacts());
-      }
-      return { ok: true, value: page };
-    });
+    const { gate, release } = openGate();
+    arrangePulls(1);
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(deps({ waitMs: 5 }), OWNER);
+    const outcome = await refreshUrlPullRequests(
+      buildLiveDeps({ waitMs: 5, hold: gate }),
+      OWNER,
+    );
 
     expect(outcome).toMatchObject({ timedOut: true, read: 0 });
     expect((await readRow(1)).githubReadAt).toBeNull();
-    release?.();
+    release();
     await vi.waitFor(async () => {
       expect((await readRow(1)).githubReadAt).toEqual(NOW);
     });
   });
 
   it("a caller arriving during a slow read joins it", async () => {
-    let release: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const calls = stubReads(() => stubFacts());
-    vi.mocked(readPullRequestFacts).mockImplementation(async (_o, refs) => {
-      calls.push({ token: VIEWER_TOKEN, refs });
-      await gate;
-      const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) {
-        page.set(getLiveReadKey(ref), stubFacts());
-      }
-      return { ok: true, value: page };
-    });
+    const { gate, release } = openGate();
+    arrangePulls(1);
     await seedRows(1);
 
-    const first = refreshUrlPullRequests(deps({ waitMs: 5 }), OWNER);
-    const second = refreshUrlPullRequests(deps({ waitMs: 5 }), OWNER);
+    const first = refreshUrlPullRequests(
+      buildLiveDeps({ waitMs: 5, hold: gate }),
+      OWNER,
+    );
+    const second = refreshUrlPullRequests(
+      buildLiveDeps({ waitMs: 5, hold: gate }),
+      OWNER,
+    );
     expect(await first).toMatchObject({ timedOut: true });
     expect(await second).toMatchObject({ timedOut: true });
-    release?.();
+    release();
     await vi.waitFor(async () => {
       expect((await readRow(1)).githubReadAt).toEqual(NOW);
     });
 
-    expect(calls).toHaveLength(1);
+    expect(listFactReads()).toHaveLength(1);
   });
 
   it("another reader arriving during a slow read runs its own token", async () => {
-    let release: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const calls = stubReads(() => stubFacts());
-    vi.mocked(readPullRequestFacts).mockImplementation(async (_o, refs) => {
-      calls.push({ token: VIEWER_TOKEN, refs });
-      await gate;
-      const page = new Map<string, PullRequestFacts | null>();
-      for (const ref of refs) {
-        page.set(getLiveReadKey(ref), stubFacts());
-      }
-      return { ok: true, value: page };
-    });
+    const { gate, release } = openGate();
+    arrangePulls(1);
     await seedRows(1);
 
-    const owner = refreshUrlPullRequests(deps({ waitMs: 5 }), OWNER);
+    const owner = refreshUrlPullRequests(
+      buildLiveDeps({ waitMs: 5, hold: gate }),
+      OWNER,
+    );
     const other = refreshUrlPullRequests(
-      deps({ waitMs: 5, reader: OTHER_READER }),
+      buildLiveDeps({
+        waitMs: 5,
+        hold: gate,
+        reader: OTHER_READER,
+        token: OTHER_TOKEN,
+      }),
       OWNER,
     );
     expect(await owner).toMatchObject({ timedOut: true });
     expect(await other).toMatchObject({ timedOut: true });
-    release?.();
+    release();
     await vi.waitFor(async () => {
       expect((await readRow(1)).githubReadAt).toEqual(NOW);
     });
 
-    expect(calls).toHaveLength(2);
+    await vi.waitFor(() => {
+      expect(listFactReads()).toHaveLength(2);
+    });
   });
 });
 
 describe("refreshUrlPullRequest", () => {
   it("reads the one row by the verified name when it is due", async () => {
-    const calls = stubReads(() => stubFacts());
-    await seedRows(2, "stale/label");
+    arrangePulls(2);
+    const [, row] = await seedRows(2, "stale/label");
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
 
-    const first = await refreshUrlPullRequest(deps(), OWNER, REPO, 2, "o/r");
-    const again = await refreshUrlPullRequest(deps(), OWNER, REPO, 2, "o/r");
+    const first = await refreshUrlPullRequest(buildLiveDeps(), {
+      scope: OWNER_SCOPE,
+      row,
+      repoFullName: "o/r",
+    });
+    const again = await refreshUrlPullRequest(buildLiveDeps(), {
+      scope: OWNER_SCOPE,
+      row: first.row,
+      repoFullName: "o/r",
+    });
 
-    expect(first).toMatchObject({ read: 1 });
-    expect(again).toMatchObject({ read: 0 });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.refs).toEqual([{ owner: "o", repo: "r", prNumber: 2 }]);
+    expect(first.outcome).toMatchObject({ read: 1 });
+    expect(again.outcome).toMatchObject({ read: 0 });
+    const reads = fake.listCalls("readPullRequestFacts");
+    expect(reads.map((call) => call.input)).toEqual([[buildPullRef(2)]]);
     expect((await readRow(1)).githubReadAt).toBeNull();
+  });
+
+  it("answers the row as the read's own write returned it", async () => {
+    arrangePulls(1, { title: "from GitHub" });
+    const [row] = await seedRows(1);
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
+
+    const read = await refreshUrlPullRequest(buildLiveDeps(), {
+      scope: OWNER_SCOPE,
+      row,
+      repoFullName: "o/r",
+    });
+
+    expect(read.row).toEqual(await readRow(1));
+    expect(read.row.title).toBe("from GitHub");
+    expect(row.title).toBeNull();
+  });
+
+  it("answers the row it was given when the read writes nothing", async () => {
+    fake.failOn("readPullRequestFacts", FakeFailures.SERVER_ERROR);
+    const [row] = await seedRows(1);
+    if (row === undefined) {
+      throw new Error("seed failed");
+    }
+
+    const read = await refreshUrlPullRequest(buildLiveDeps(), {
+      scope: OWNER_SCOPE,
+      row,
+      repoFullName: "o/r",
+    });
+
+    expect(read.outcome).toMatchObject({ failed: true });
+    expect(read.row).toBe(row);
   });
 });

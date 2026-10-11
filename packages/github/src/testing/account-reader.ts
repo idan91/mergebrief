@@ -10,6 +10,7 @@ import type {
   PullRequestRef,
 } from "../operations/pull-request/types";
 import type { FakeRunner } from "./runners";
+import { FakeFactsHidings, type FakeCredential } from "./types";
 import { answerNotFound, answerOk, type FakeAnswer } from "./utils";
 import type { FakeWorld } from "./world";
 
@@ -28,17 +29,37 @@ function shapeFacts(info: PullRequestInfo): PullRequestFacts {
   };
 }
 
+/** What `credential` sees of `ref`: the facts, null, or no entry at all. */
+function findVisibleFacts(
+  world: FakeWorld,
+  ref: PullRequestRef,
+  credential: FakeCredential,
+): PullRequestFacts | null | undefined {
+  const hiding = world.findFactsHiding(ref, credential.kind);
+  if (hiding === FakeFactsHidings.WITHHELD) {
+    return undefined;
+  }
+  const info = world.findPullRequest(ref)?.info;
+  if (hiding === FakeFactsHidings.NOT_SHOWN || info === undefined) {
+    return null;
+  }
+  return shapeFacts(info);
+}
+
 function readFacts(
   world: FakeWorld,
   refs: readonly PullRequestRef[],
+  credential: FakeCredential,
 ): FakeAnswer<LiveReadPage> {
   if (refs.length > LIVE_READ_PAGE_SIZE) {
     throw new Error(`live read takes at most ${LIVE_READ_PAGE_SIZE} refs`);
   }
   const page = new Map<string, PullRequestFacts | null>();
   for (const ref of refs) {
-    const info = world.findPullRequest(ref)?.info;
-    page.set(getLiveReadKey(ref), info === undefined ? null : shapeFacts(info));
+    const facts = findVisibleFacts(world, ref, credential);
+    if (facts !== undefined) {
+      page.set(getLiveReadKey(ref), facts);
+    }
   }
   return answerOk(page);
 }
@@ -70,7 +91,7 @@ export function buildAccountReader(
       return run({
         operation: "readPullRequestFacts",
         input: refs,
-        answer: () => readFacts(world, refs),
+        answer: (credential) => readFacts(world, refs, credential),
       });
     },
     fetchIssue(ref) {

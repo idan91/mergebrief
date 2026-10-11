@@ -1,6 +1,6 @@
-// Hono-free artifact reads. A missing PR row or artifact is genuinely absent
-// behind the gate, terminal and posture-free, so these ops THROW NotFound;
-// stored bodies return verbatim (already JSON, never re-parsed).
+// Hono-free live reads: the span diff, the stack and the file range. A
+// missing PR row is genuinely absent behind the gate, terminal and
+// posture-free, so these ops THROW NotFound.
 import {
   fetchCompareDiff,
   fetchPullRequest,
@@ -15,15 +15,8 @@ import {
   type OpenPullRequest,
   type PrStackSelf,
 } from "brief-core/pr-stack";
-import type {
-  GenerationProjection,
-  GenerationRow,
-  PullRequestRow,
-  RepoId,
-  ReviewerId,
-} from "persistence";
-import { GenerationStatuses } from "types/generations";
-import type { DraftPolicy, Result } from "types";
+import type { PullRequestRow, RepoId } from "persistence";
+import type { Result } from "types";
 import type { Logger } from "logging";
 import { NotFound } from "../../../../shared-errors/api-error";
 import {
@@ -34,39 +27,21 @@ import type {
   ReviewerGitHubClient,
   UserOctokit,
 } from "../../../auth/reviewer-github-client";
-import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
-import type {
-  FileRangeView,
-  PullStackView,
-  RevisionComparisons,
-  RevisionView,
-  WaitReason,
-} from "contract";
-import {
-  comparisonSpanSet,
-  makeLatestPendingProbe,
-  narrativeSpanSet,
-} from "./logic/revision-comparisons";
-import {
-  buildDiffCacheKey,
-  buildFileBlobCacheKey,
-  composeBriefContextBody,
-} from "./logic/keys";
+import type { FileRangeView, PullStackView } from "contract";
+import { buildDiffCacheKey, buildFileBlobCacheKey } from "./logic/keys";
 import {
   classifyRepoFile,
   sliceFileRange,
   splitFileLines,
 } from "./logic/file-range";
 import { collectKnownCommits } from "../../../../access/known-commits";
-import { buildRevisionView } from "./logic/revision-views";
 import {
   recordResolvedStack,
   shapeFetchedSelf,
   shapeRecordedStack,
   shapeStoredStack,
 } from "./logic/last-stack";
-import { deriveWaitReason } from "./logic/wait-reason";
 import {
   DIFF_CACHE_MAX_ENTRY_BYTES,
   DIFF_CACHE_TTL_MS,
@@ -87,38 +62,9 @@ interface SpanInput {
   readonly prNumber: number;
 }
 
-async function resolvePullRequestId(
-  deps: ReadsControllerDeps,
-  input: SpanInput,
-) {
-  const pr = await deps.tenant.pullRequests.getByNumber(
-    input.repoId,
-    input.prNumber,
-  );
-  if (pr === undefined) {
-    throw new NotFound();
-  }
-  return pr.id;
-}
-
 type ReadDiffResult =
   | { readonly ok: true; readonly body: string }
   | { readonly ok: false; readonly error: DiffFailure };
-
-/** The queue is read only for a pending generation; any other poll costs no query. */
-async function readWaitReason(
-  generations: GenerationProjection,
-  latestGeneration: GenerationRow | undefined,
-): Promise<WaitReason | undefined> {
-  if (latestGeneration?.status !== GenerationStatuses.PENDING) {
-    return undefined;
-  }
-
-  const timing = await generations.getGenerateJobTiming(
-    latestGeneration.pullRequestId,
-  );
-  return deriveWaitReason(latestGeneration.status, timing);
-}
 
 /** One viewer-token read shaped into the stack failure vocabulary. */
 async function readWithViewer<T>(
@@ -219,220 +165,6 @@ function runBoundRead<T>(
 }
 
 export const readsController = {
-  /** The whole-PR span artifact body for (base, head). */
-  async readBrief(
-    deps: ReadsControllerDeps,
-    input: SpanInput & { readonly base: string; readonly head: string },
-  ) {
-    const pullRequestId = await resolvePullRequestId(deps, input);
-    const row = await deps.artifacts.briefs.get(
-      pullRequestId,
-      input.base,
-      input.head,
-    );
-    if (row === undefined) {
-      throw new NotFound();
-    }
-    return row.body;
-  },
-
-  /** Comparison marks (coordinates only) for (baseline, head). */
-  async readMarks(
-    deps: ReadsControllerDeps,
-    input: SpanInput & { readonly baseline: string; readonly head: string },
-  ) {
-    const pullRequestId = await resolvePullRequestId(deps, input);
-    const row = await deps.artifacts.comparisonMarks.get(
-      pullRequestId,
-      input.baseline,
-      input.head,
-    );
-    if (row === undefined) {
-      throw new NotFound();
-    }
-    return row.body;
-  },
-
-  /** The pre-warmed reviewer-personal delta core for (baseline, head). */
-  async readDelta(
-    deps: ReadsControllerDeps,
-    input: SpanInput & { readonly baseline: string; readonly head: string },
-  ) {
-    const pullRequestId = await resolvePullRequestId(deps, input);
-    const row = await deps.artifacts.deltas.get(
-      pullRequestId,
-      input.baseline,
-      input.head,
-    );
-    if (row === undefined) {
-      throw new NotFound();
-    }
-    return row.body;
-  },
-
-  /** The revision narrative for (prevHead, head). */
-  async readNarrative(
-    deps: ReadsControllerDeps,
-    input: SpanInput & { readonly prevHead: string; readonly head: string },
-  ) {
-    const pullRequestId = await resolvePullRequestId(deps, input);
-    const row = await deps.artifacts.revisionNarratives.get(
-      pullRequestId,
-      input.prevHead,
-      input.head,
-    );
-    if (row === undefined) {
-      throw new NotFound();
-    }
-    return row.body;
-  },
-
-  /**
-   * The brief's repo-config snapshot as a pre-composed JSON envelope, the
-   * column already holds validated JSON, never re-parsed per request.
-   * `repoConfig` is null for older rows.
-   */
-  async readBriefContext(
-    deps: ReadsControllerDeps,
-    input: SpanInput & { readonly base: string; readonly head: string },
-  ) {
-    const pullRequestId = await resolvePullRequestId(deps, input);
-    const repoConfig = await deps.artifacts.briefs.getRepoConfig(
-      pullRequestId,
-      input.base,
-      input.head,
-    );
-    if (repoConfig === undefined) {
-      throw new NotFound();
-    }
-    return composeBriefContextBody(repoConfig);
-  },
-
-  /**
-   * PR meta, the PR row + current-span derivation + latest brief-kind
-   * generation summary, plus per-revision comparison availability derived
-   * from ONE lean listing per artifact kind joined in memory.
-   */
-  async readPullMeta(
-    deps: ReadsControllerDeps & {
-      readonly generations: GenerationProjection;
-    },
-    input: SpanInput & {
-      readonly repoFullName: string;
-      readonly reviewerLogin: string | null;
-      readonly reviewerId: ReviewerId;
-      readonly viewerCanPush: boolean;
-      /** The PR sits in an installation's world; the App can act on its repo. */
-      readonly appInstalled: boolean;
-      readonly draftPolicy: DraftPolicy;
-    },
-  ) {
-    const pr = await deps.tenant.pullRequests.getByNumber(
-      input.repoId,
-      input.prNumber,
-    );
-    if (pr === undefined) {
-      throw new NotFound();
-    }
-    const ids = [pr.id];
-    const [latestBriefs, latestGenerations] = await Promise.all([
-      deps.artifacts.briefs.latestForPullRequests(ids),
-      deps.generations.latestBriefForPullRequests(ids),
-    ]);
-    const latestGeneration = latestGenerations.get(pr.id);
-    const waitReason = await readWaitReason(deps.generations, latestGeneration);
-    const view = buildPrView(
-      pr,
-      latestBriefs.get(pr.id),
-      latestGeneration,
-      input.repoFullName,
-      // The viewer's verified login from the session; `viewerIsAuthor` is
-      // derived per request, never cached.
-      input.reviewerLogin,
-      // Push capability from the gate's access check, ≤60s stale via the
-      // positive cache, same budget as `repoFullName`.
-      input.viewerCanPush,
-      waitReason,
-    );
-    // Stored revisions list while a newer head is still generating, so the
-    // reader keeps the brief on screen. INVARIANT: a stored brief implies
-    // `headSha !== null` (`brief.head_sha` is NOT NULL), so the null check
-    // below is TypeScript narrowing only and can never skip stored revisions.
-    let comparisons: RevisionComparisons = {};
-    let revisions: RevisionView[] | undefined;
-    const revisionsHeadSha = latestBriefs.has(pr.id) ? view.headSha : null;
-    if (revisionsHeadSha !== null) {
-      const headSha = revisionsHeadSha;
-      const pullRequestId = pr.id;
-      const [
-        briefs,
-        markRows,
-        deltaRows,
-        narrativeRows,
-        checkpoint,
-        briefGenerations,
-      ] = await Promise.all([
-        deps.artifacts.briefs.listForPullRequest(pullRequestId),
-        deps.artifacts.comparisonMarks.listForPullRequest(pullRequestId),
-        deps.artifacts.deltas.listForPullRequest(pullRequestId),
-        deps.artifacts.revisionNarratives.listForPullRequest(pullRequestId),
-        deps.tenant.checkpoints.get(pullRequestId, input.reviewerId),
-        deps.generations.listBriefsForPullRequest(pullRequestId),
-      ]);
-      // `created_at` is the first enqueue for that head, the earliest bound
-      // of what the brief's acquisition could have seen. One row per head,
-      // shared by duplicate-head (retarget) revisions.
-      const generatedAtByHead = new Map(
-        briefGenerations.map((row) => [row.headSha, row.createdAt]),
-      );
-      const markSpans = comparisonSpanSet(markRows);
-      const deltaSpans = comparisonSpanSet(deltaRows);
-      const narrativeSpans = narrativeSpanSet(narrativeRows);
-      // The generation-pending refinement (a DB probe) is wired for the
-      // CURRENT head SHA only: history is never actively warming. Gated by
-      // headSha, not row identity, because lastReview is a pure function of
-      // (checkpoint, headSha), so duplicate rows sharing the current head must
-      // report identical state. The probe memoizes per baseline.
-      const latestPendingProbe = makeLatestPendingProbe(
-        deps.generations,
-        pullRequestId,
-        headSha,
-        latestGenerations.get(pullRequestId),
-      );
-      revisions = await Promise.all(
-        briefs.map((entry) =>
-          buildRevisionView(entry, {
-            briefs,
-            markSpans,
-            deltaSpans,
-            narrativeSpans,
-            checkpoint,
-            generatedAtByHead,
-            currentHeadSha: headSha,
-            latestPendingProbe,
-          }),
-        ),
-      );
-      // Top-level comparisons describe the current head only.
-      if (view.briefAvailable) {
-        comparisons = revisions.at(-1)?.comparisons ?? {};
-      }
-    }
-    // draftPolicy is meta-only (instance-wide, so the list would repeat it
-    // per row for nothing). The FE must show the CONFIGURED window, never a
-    // hardcoded duration.
-    const meta = {
-      ...view,
-      comparisons,
-      appInstalled: input.appInstalled,
-      draftPolicy: input.draftPolicy,
-    };
-    if (revisions === undefined) {
-      return meta;
-    }
-    return { ...meta, revisions };
-  },
-
   /**
    * The LIVE diff proxy for the requested `base...head` span, the viewer's
    * token, cached per session (~60s), NEVER persisted. Serve always; cache

@@ -3,12 +3,10 @@
 // above all, and reads their url-box briefs there with their own token. The
 // gate passes those requests in the OWNER world, so nothing downstream can
 // take the installation's rows for a repo the installation never held.
-import { createHash, randomBytes } from "node:crypto";
+import { makeFakeGitHub } from "github/testing";
 import {
   createArtifactStore,
-  createGrantAuth,
   createTenantRepository,
-  encryptToken,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -20,7 +18,6 @@ import { AUTHZ_CACHE_TTL_MS } from "../src/access/consts";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -30,16 +27,14 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   createKeyProvider,
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { UNUSED_INSTALLATION_DEPS, buildFakeAuthDeps } from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 
 const TENANT_CTX = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -97,33 +92,6 @@ function stubGitHub(held: readonly number[]): GitHubCalls {
   return calls;
 }
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const expiresAt = new Date("2027-01-01T00:00:00Z");
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: expiresAt,
-  });
-  await createTenantRepository(handle, TENANT_CTX).sessions.create({
-    sessionTokenHash: createHash("sha256").update(cookie).digest("hex"),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt,
-  });
-  return cookie;
-}
-
 async function seedPullRequest(
   handle: AppDatabase,
   ctx: typeof TENANT_CTX | typeof OWNER_CTX,
@@ -157,7 +125,7 @@ describe("the per-repo gate's repo world", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, makeFakeGitHub()),
       ...UNUSED_INSTALLATION_DEPS,
     });
   }
@@ -170,7 +138,7 @@ describe("the per-repo gate's repo world", () => {
 
   it("opens a url-box brief on a repo outside the installation", async () => {
     const calls = stubGitHub([]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
 
     const res = await read(buildApp(), cookie);
@@ -186,7 +154,7 @@ describe("the per-repo gate's repo world", () => {
 
   it("asks GitHub once when a cold page fans out concurrent reads", async () => {
     const calls = stubGitHub([REPO_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, TENANT_CTX, "the installation's row");
     const app = buildApp();
 
@@ -202,7 +170,7 @@ describe("the per-repo gate's repo world", () => {
 
   it("never serves the installation's row for a repo it does not hold", async () => {
     stubGitHub([]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(
       harness.handle,
       TENANT_CTX,
@@ -219,7 +187,7 @@ describe("the per-repo gate's repo world", () => {
 
   it("keeps serving the installation's row for a repo it holds", async () => {
     stubGitHub([REPO_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, TENANT_CTX, "the installation's row");
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
 
@@ -232,7 +200,7 @@ describe("the per-repo gate's repo world", () => {
 
   it("audits a write on an outside repo under the owner world", async () => {
     stubGitHub([]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
 
     const res = await buildApp().request(
@@ -345,7 +313,7 @@ describe("the per-repo gate across two installations", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, makeFakeGitHub()),
       ...UNUSED_INSTALLATION_DEPS,
     });
   }
@@ -377,7 +345,7 @@ describe("the per-repo gate across two installations", () => {
 
   it("reads rows from two installations on one session with no switch", async () => {
     stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const app = buildApp();
 
@@ -394,7 +362,7 @@ describe("the per-repo gate across two installations", () => {
 
   it("answers 404 for a row held by an installation out of reach", async () => {
     stubTwoInstallations([INSTALLATION_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
 
     const res = await readOther(buildApp(), cookie);
@@ -404,7 +372,7 @@ describe("the per-repo gate across two installations", () => {
 
   it("stores a write on the second installation's row under the second", async () => {
     stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const otherRow = await createTenantRepository(
       harness.handle,
@@ -472,7 +440,7 @@ describe("the per-repo gate across two installations", () => {
   it("refuses a revoked installation once the window has passed", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const stub = stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const app = buildApp();
 

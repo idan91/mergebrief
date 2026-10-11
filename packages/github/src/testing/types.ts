@@ -81,6 +81,15 @@ export const FakeFailures = {
 } as const;
 export type FakeFailure = ValueOf<typeof FakeFailures>;
 
+/** How the live read keeps a pull request from one credential. */
+export const FakeFactsHidings = {
+  /** GitHub shows no such pull request: its alias answers null. */
+  NOT_SHOWN: "not-shown",
+  /** GitHub refused the alias, as for SAML: the page holds no entry. */
+  WITHHELD: "withheld",
+} as const;
+export type FakeFactsHiding = ValueOf<typeof FakeFactsHidings>;
+
 export interface FakeReview {
   readonly reviewId: bigint;
   readonly reviewNodeId: string;
@@ -142,6 +151,12 @@ export interface FakeGitHubArrange {
   /** The comment is gone, as when someone deletes it on GitHub. */
   removeComment(repo: RepositoryRef, commentId: bigint): void;
   addBranch(repo: RepositoryRef, branch: string): void;
+  /** The live read on `credential` hides `ref`; every other read still sees it. */
+  hideFacts(
+    ref: PullRequestRef,
+    credential: CredentialKind,
+    hiding: FakeFactsHiding,
+  ): void;
   /** Every later read of the file fails; a not-found folds to absent. */
   failRepoFile(
     repo: RepositoryRef,

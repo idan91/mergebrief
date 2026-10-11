@@ -17,7 +17,9 @@ import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import { FIRST_IDS } from "./consts";
 import type {
+  CredentialKind,
   FakeCompare,
+  FakeFactsHiding,
   FakeFailure,
   FakeGitHubArrange,
   FakePullRequest,
@@ -61,6 +63,10 @@ export interface FakeWorld extends WorldArrange {
   findRepository(repoId: RepoId): RepositoryInfo | undefined;
   findIssue(ref: IssueRef): IssueInfo | undefined;
   findInstallation(id: InstallationId): InstallationState | undefined;
+  findFactsHiding(
+    ref: PullRequestRef,
+    credential: CredentialKind,
+  ): FakeFactsHiding | undefined;
   listInstallations(): UserInstallation[];
   claimId(kind: IdKind): bigint;
 }
@@ -88,6 +94,13 @@ export function getFileKey(path: string, ref: string | undefined): string {
 
 function getIssueKey(ref: IssueRef): string {
   return `${getRepoKey(ref)}#${ref.number}`;
+}
+
+function getFactsHidingKey(
+  ref: PullRequestRef,
+  credential: CredentialKind,
+): string {
+  return `${getRepoKey(ref)}#${ref.prNumber}:${credential}`;
 }
 
 function createRepoState(): RepoState {
@@ -120,6 +133,7 @@ interface WorldState {
   readonly repositories: Map<RepoId, RepositoryInfo>;
   readonly issues: Map<string, IssueInfo>;
   readonly installations: Map<InstallationId, InstallationState>;
+  readonly factsHidings: Map<string, FakeFactsHiding>;
   readonly nextIds: Record<IdKind, bigint>;
 }
 
@@ -196,6 +210,9 @@ function buildArrange(state: WorldState): WorldArrange {
       const key = getFileKey(file.path, file.ref);
       ensureRepo(state, repo).fileFailures.set(key, failure);
     },
+    hideFacts(ref, credential, hiding) {
+      state.factsHidings.set(getFactsHidingKey(ref, credential), hiding);
+    },
   };
 }
 
@@ -218,6 +235,9 @@ function buildLookups(state: WorldState): WorldLookups {
     findInstallation(id) {
       return state.installations.get(id);
     },
+    findFactsHiding(ref, credential) {
+      return state.factsHidings.get(getFactsHidingKey(ref, credential));
+    },
     listInstallations() {
       const entries = [...state.installations.values()];
       return entries.map((entry) => entry.installation);
@@ -236,6 +256,7 @@ export function createFakeWorld(): FakeWorld {
     repositories: new Map(),
     issues: new Map(),
     installations: new Map(),
+    factsHidings: new Map(),
     nextIds: { ...FIRST_IDS },
   };
   return { ...buildArrange(state), ...buildLookups(state) };

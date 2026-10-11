@@ -1,5 +1,10 @@
 import type { Context } from "hono";
-import { fetchRepositoryById } from "github";
+import {
+  bindOperatorGitHub,
+  fetchRepositoryById,
+  isOperatorToken,
+  type GitHubReader,
+} from "github";
 import { createTenantRepository, type ReviewerId } from "persistence";
 import type { ReviewerGitHubClient } from "../routes/auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../routes/auth/session/types";
@@ -27,6 +32,27 @@ export function resolveOperatorTokenFor(
   }
   const listed = operatorToken.reviewerIds.has(reviewerId);
   return listed ? operatorToken.token : undefined;
+}
+
+/**
+ * The operator's read-only GitHub for a listed reviewer, for a caller that
+ * chooses itself what the operator may answer; `undefined` as for no PAT.
+ */
+export function bindOperatorReader(
+  deps: AuthRouteDeps,
+  reviewerId: ReviewerId,
+): GitHubReader | undefined {
+  const token = resolveOperatorTokenFor(deps, reviewerId);
+  if (token === undefined || !isOperatorToken(token)) {
+    return undefined;
+  }
+  const bind = deps.auth.bindOperatorGitHub;
+  if (bind !== undefined) {
+    return bind(token);
+  }
+  return bindOperatorGitHub(token, {
+    octokitFactory: deps.auth.createUserOctokit,
+  });
 }
 
 /**
