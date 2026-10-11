@@ -58,7 +58,7 @@ import {
   sliceFileRange,
   splitFileLines,
 } from "./logic/file-range";
-import { collectKnownCommits } from "./logic/known-commits";
+import { collectKnownCommits } from "../../../../access/known-commits";
 import { buildRevisionView } from "./logic/revision-views";
 import {
   recordResolvedStack,

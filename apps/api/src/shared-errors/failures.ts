@@ -1,4 +1,4 @@
-import { GitHubApiErrorCodes, type GitHubApiError } from "github";
+import { GitHubApiErrorCodes, type GitHubCallFailure } from "github";
 
 export const FailureKinds = {
   GITHUB_DENIED: "github-denied",
@@ -62,7 +62,7 @@ export function buildGitHubDeniedResult<E extends object>(
  * installation". Anything else (a 5xx, a rate limit) is upstream trouble and
  * a retry under another token would only repeat it.
  */
-export function isGitHubDenial(error: GitHubApiError): boolean {
+export function isGitHubDenial(error: GitHubCallFailure): boolean {
   return (
     error.code === GitHubApiErrorCodes.NOT_FOUND ||
     error.code === GitHubApiErrorCodes.FORBIDDEN

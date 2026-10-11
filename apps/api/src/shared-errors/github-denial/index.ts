@@ -2,7 +2,7 @@
 // `logic/wire-failures.ts` answers its own codes first and hands the rest
 // here with the posture its call ran under.
 import { ApiErrorCodes } from "contract";
-import { GitHubApiErrorCodes } from "github";
+import { CredentialFailureCodes, GitHubApiErrorCodes } from "github";
 import {
   BadGateway,
   Forbidden,
@@ -74,6 +74,9 @@ export function resolveGitHubDenialError(
   }
 
   switch (failure.code) {
+    case CredentialFailureCodes.CREDENTIAL_UNREADABLE: {
+      return new Unauthorized();
+    }
     case GitHubApiErrorCodes.UNAUTHORIZED: {
       return UNAUTHORIZED_BY_POSTURE[posture]();
     }

@@ -15,7 +15,7 @@ export const OPERATOR_READS: OperatorReads = {
   token: requireOperatorToken("ghp_operator"),
   repo: REPO,
   prNumber: 7,
-  knownCommits: new Set([BASE_SHA, HEAD_SHA]),
+  loadKnownCommits: async () => new Set([BASE_SHA, HEAD_SHA]),
 };
 
 export type DenialOutcome =

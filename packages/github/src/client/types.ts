@@ -99,8 +99,11 @@ export interface OperatorReads {
   readonly token: OperatorToken;
   readonly repo: RepositoryRef;
   readonly prNumber: number;
-  /** Full commit SHAs; a branch name or a short SHA never matches. */
-  readonly knownCommits: ReadonlySet<string>;
+  /**
+   * Full commit SHAs; a branch name or a short SHA never matches. Asked only
+   * when a denied read at caller-chosen commits would fall back.
+   */
+  loadKnownCommits(): Promise<ReadonlySet<string>>;
 }
 
 export interface ReviewerBindingOptions {

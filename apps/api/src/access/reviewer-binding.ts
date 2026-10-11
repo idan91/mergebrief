@@ -1,0 +1,121 @@
+import {
+  bindReviewerGitHub,
+  isOperatorToken,
+  type OperatorReads,
+  type ReviewerBindingOptions,
+  type ReviewerGitHub,
+} from "github";
+import type { Logger } from "logging";
+import {
+  createArtifactStore,
+  type AppDatabase,
+  type PullRequestRow,
+  type ScopeContext,
+} from "persistence";
+import type {
+  AuthRouteDeps,
+  ViewerPrincipal,
+} from "../routes/auth/session/types";
+import { parseOwnerAndName } from "../routes/repos/utils";
+import { collectKnownCommits, type KnownCommits } from "./known-commits";
+import { resolveOperatorTokenFor } from "./operator-token";
+import {
+  createSessionCredential,
+  type SessionCredential,
+} from "./session-credential";
+import {
+  AccessFootings,
+  type OperatorRepoAccess,
+  type RepoAccess,
+} from "./types";
+
+/** One request's reviewer credential and the GitHub bound over it. */
+export interface RequestGitHub {
+  readonly credential: SessionCredential;
+  readonly github: ReviewerGitHub;
+}
+
+/** The row an operator-footed pass was granted, in the scope it lives in. */
+export interface OperatorRow {
+  readonly row: PullRequestRow;
+  readonly rowScope: ScopeContext;
+}
+
+function bindOver(
+  deps: AuthRouteDeps,
+  credential: SessionCredential,
+  options: ReviewerBindingOptions,
+): ReviewerGitHub {
+  const bind = deps.auth.bindReviewerGitHub;
+  if (bind !== undefined) {
+    return bind(credential, options);
+  }
+  const octokitFactory = deps.auth.createUserOctokit;
+  return bindReviewerGitHub(credential, { ...options, octokitFactory });
+}
+
+/** Binding builds closures only: the token decrypts on the first call. */
+export function bindRequestGitHub(
+  deps: AuthRouteDeps,
+  session: ViewerPrincipal,
+  log: Logger,
+): RequestGitHub {
+  const credential = createSessionCredential(deps, session, log);
+  return { credential, github: bindOver(deps, credential, { log }) };
+}
+
+async function loadKnownCommits(
+  handle: AppDatabase,
+  { row, rowScope }: OperatorRow,
+): Promise<KnownCommits> {
+  const artifacts = createArtifactStore(handle, rowScope);
+  const [briefs, deltas] = await Promise.all([
+    artifacts.briefs.listForPullRequest(row.id),
+    artifacts.deltas.listForPullRequest(row.id),
+  ]);
+  return collectKnownCommits(row, briefs, deltas);
+}
+
+/** The commits load once, and only when a denied read at commits asks. */
+function buildOperatorReads(
+  deps: AuthRouteDeps,
+  access: OperatorRepoAccess,
+  granted: OperatorRow,
+): OperatorReads | undefined {
+  const token = resolveOperatorTokenFor(deps, access.session.reviewerId);
+  const repo = parseOwnerAndName(access.repoFullName);
+  if (token === undefined || !isOperatorToken(token) || repo === undefined) {
+    return undefined;
+  }
+  let known: Promise<KnownCommits> | undefined;
+  return {
+    token,
+    repo,
+    prNumber: access.prNumber,
+    loadKnownCommits() {
+      known ??= loadKnownCommits(deps.handle, granted);
+      return known;
+    },
+  };
+}
+
+/**
+ * The PR's GitHub: the repo access's own binding, except behind an operator
+ * pass, where a denied read inside the granted PR retries on the operator
+ * token. Both bind the one request credential, so a renewal stays single.
+ */
+export function bindPullRequestGitHub(
+  deps: AuthRouteDeps,
+  access: RepoAccess,
+  granted: OperatorRow,
+  log: Logger,
+): ReviewerGitHub {
+  if (access.footing !== AccessFootings.OPERATOR) {
+    return access.github;
+  }
+  const operatorReads = buildOperatorReads(deps, access, granted);
+  if (operatorReads === undefined) {
+    return access.github;
+  }
+  return bindOver(deps, access.credential, { log, operatorReads });
+}

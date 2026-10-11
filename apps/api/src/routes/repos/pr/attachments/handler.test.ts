@@ -22,6 +22,7 @@ import {
   AuthChannels,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
+import { bindRequestGitHub } from "../../../../access/reviewer-binding";
 import { AccessFootings, type AuthzEnv } from "../../../../access/types";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import type { InstallationGitHubPort } from "../../../github-port";
@@ -190,6 +191,7 @@ async function buildApp(
       repoFullName: "acme/app",
       viewerCanPush: true,
       installation: { kind: "installation", installationId },
+      ...bindRequestGitHub(deps, session, log),
     });
     c.set("session", session);
     c.set("repoId", brand(555n, isRepoId));

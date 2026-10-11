@@ -35,22 +35,24 @@ export function selectOperatorFallback(
   return { reads, log };
 }
 
-function isKnownCommit(reads: OperatorReads, commit: string | undefined) {
-  if (commit === undefined || !FULL_COMMIT_SHA.test(commit)) {
-    return false;
-  }
-  return reads.knownCommits.has(commit);
+function isFullCommitSha(commit: string | undefined): commit is string {
+  return commit !== undefined && FULL_COMMIT_SHA.test(commit);
 }
 
 /** Fails closed: an empty commit list or an absent commit is out of reach. */
-export function isWithinReach(reads: OperatorReads, reach: ReadReach): boolean {
+export async function isWithinReach(
+  reads: OperatorReads,
+  reach: ReadReach,
+): Promise<boolean> {
   if ("prNumber" in reach) {
     return reach.prNumber === reads.prNumber;
   }
-  const hasCommits = reach.commits.length > 0;
-  return (
-    hasCommits && reach.commits.every((commit) => isKnownCommit(reads, commit))
-  );
+  const commits = reach.commits;
+  if (commits.length === 0 || !commits.every(isFullCommitSha)) {
+    return false;
+  }
+  const known = await reads.loadKnownCommits();
+  return commits.every((commit) => known.has(commit));
 }
 
 export function isDenial(error: GitHubCallFailure): boolean {
@@ -71,7 +73,8 @@ export function createRepoReadRunner(
     if (fallback === undefined || ownResult.ok || !isDenial(ownResult.error)) {
       return ownResult;
     }
-    if (!isWithinReach(fallback.reads, reach)) {
+    const inReach = await isWithinReach(fallback.reads, reach);
+    if (!inReach) {
       return ownResult;
     }
 

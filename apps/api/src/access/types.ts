@@ -1,10 +1,11 @@
-import type { GitHubApiError } from "github";
+import type { GitHubApiError, ReviewerGitHub } from "github";
 import type { PullRequestRow, RepoId, ScopeContext } from "persistence";
 import type { ValueOf } from "types/utils";
 import type { RequestLogVariables } from "../request-logging";
 import type { ViewerPrincipal } from "../routes/auth/session/types";
 import type { RepoWorld } from "../routes/installation-resolver";
 import type { PrNumberParamResult } from "../routes/wire-bounds";
+import type { SessionCredential } from "./session-credential";
 
 /** Whose GitHub token proved the repo readable. */
 export const AccessFootings = {
@@ -22,6 +23,10 @@ interface RepoAccessFields {
   readonly viewerCanPush: boolean;
   /** The Installation holding the repo among those the reviewer reaches, else the owner world. */
   readonly installation: RepoWorld;
+  /** The request's credential; `session()` is the principal after a renewal. */
+  readonly credential: SessionCredential;
+  /** The viewer's GitHub for this request: no decrypt and no call until one runs. */
+  readonly github: ReviewerGitHub;
 }
 
 export interface ReviewerRepoAccess extends RepoAccessFields {
@@ -48,10 +53,22 @@ interface PullRequestFields {
 /** The repo gate's access plus the pull request row it names. */
 export type PullRequestAccess = RepoAccess & PullRequestFields;
 
-/** The positive cache holds access without the principal each request brings. */
+/** What each request binds afresh: the principal and its GitHub. */
+type RequestBoundField = "session" | "credential" | "github";
+
+export type CachedReviewerRepoAccess = Omit<
+  ReviewerRepoAccess,
+  RequestBoundField
+>;
+export type CachedOperatorRepoAccess = Omit<
+  OperatorRepoAccess,
+  RequestBoundField
+>;
+
+/** The positive cache holds access without what each request binds. */
 export type CachedRepoAccess =
-  | Omit<ReviewerRepoAccess, "session">
-  | Omit<OperatorRepoAccess, "session">;
+  | CachedReviewerRepoAccess
+  | CachedOperatorRepoAccess;
 
 export interface AuthzVariables extends RequestLogVariables {
   /** Session-only: the owner world. Behind the repo gate: the repo's world. */

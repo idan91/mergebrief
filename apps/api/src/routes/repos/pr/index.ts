@@ -26,7 +26,7 @@ export function prRoutes(
   deps: ConversationRouteDeps & AttachmentsRouteDeps,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
-  app.use(createPullRequestAccessLayer(deps.handle));
+  app.use(createPullRequestAccessLayer(deps));
 
   // Conversation built first: it owns the conversation cache, and the write
   // routes evict a PR's entry on their success paths.

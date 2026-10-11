@@ -41,7 +41,10 @@ import {
   type GitHubCallTokenUnreadable,
   type ReviewerGitHubClient,
 } from "../routes/auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../routes/auth/session/types";
+import type {
+  AuthRouteDeps,
+  ViewerPrincipal,
+} from "../routes/auth/session/types";
 import type {
   InstallationResolver,
   ResolvedRepoWorld,
@@ -62,16 +65,17 @@ import {
   REPO_ID_PARAM,
 } from "./consts";
 import { resolveOperatorRepoAccess } from "./operator-token";
+import { bindRequestGitHub } from "./reviewer-binding";
 import { sessionLayer } from "./session-layer";
 import { deriveScopeContext } from "./utils";
 import {
   AccessFootings,
   type AuthzEnv,
+  type CachedOperatorRepoAccess,
   type CachedRepoAccess,
+  type CachedReviewerRepoAccess,
   type GateRequest,
-  type OperatorRepoAccess,
   type RepoAccess,
-  type ReviewerRepoAccess,
 } from "./types";
 
 /**
@@ -110,13 +114,22 @@ function isServedFromCache(
   return requestedPr.ok && cached.prNumber === requestedPr.value;
 }
 
+/** A proven grant, the principal this request brings, and the access line. */
+interface ServedRepoAccess {
+  readonly grant: CachedRepoAccess;
+  readonly session: ViewerPrincipal;
+  readonly decision: string;
+}
+
 async function serveRepoAccess(
+  deps: AuthRouteDeps,
   c: Context<AuthzEnv>,
   next: Next,
-  access: RepoAccess,
-  decision: string,
+  { grant, session, decision }: ServedRepoAccess,
 ): Promise<void> {
-  const reviewerId = access.session.reviewerId;
+  const bound = bindRequestGitHub(deps, session, c.get("logger"));
+  const access: RepoAccess = { ...grant, session, ...bound };
+  const reviewerId = session.reviewerId;
   const repoScope = deriveScopeContext(access.installation, reviewerId);
   c.set("repoAccess", access);
   c.set("session", access.session);
@@ -145,7 +158,7 @@ async function resolveRefusedRepoAccess(
   client: ReviewerGitHubClient,
   request: GateRequest,
   refused: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
-): Promise<Omit<OperatorRepoAccess, "session">> {
+): Promise<CachedOperatorRepoAccess> {
   const { repoId } = request;
   if (refused.tokenUnreadable) {
     const session = c.get("session");
@@ -233,7 +246,8 @@ export function repoAuthzLayer(
     const cacheKey = buildPositiveCacheKey(session.sessionTokenHash, repoId);
     const cached = positiveCache.get(cacheKey);
     if (cached !== undefined && isServedFromCache(cached, requestedPr)) {
-      await serveRepoAccess(c, next, { ...cached, session }, "200");
+      const served = { grant: cached, session, decision: "200" };
+      await serveRepoAccess(deps, c, next, served);
       return;
     }
 
@@ -252,8 +266,11 @@ export function repoAuthzLayer(
       );
       const expiresAt = Date.now() + AUTHZ_CACHE_TTL_MS;
       positiveCache.set(cacheKey, operatorAccess, expiresAt);
-      const access = { ...operatorAccess, session: client.session() };
-      await serveRepoAccess(c, next, access, "200-url-box");
+      await serveRepoAccess(deps, c, next, {
+        grant: operatorAccess,
+        session: client.session(),
+        decision: "200-url-box",
+      });
       return;
     }
 
@@ -263,7 +280,7 @@ export function repoAuthzLayer(
       client,
       repoId,
     );
-    const reviewerAccess: Omit<ReviewerRepoAccess, "session"> = {
+    const reviewerAccess: CachedReviewerRepoAccess = {
       footing: AccessFootings.REVIEWER,
       repoId,
       repoFullName: repo.value.fullName,
@@ -277,8 +294,11 @@ export function repoAuthzLayer(
       reviewerAccess,
       Math.min(ttlExpiry, resolved.expiresAt),
     );
-    const access = { ...reviewerAccess, session: resolved.session };
-    await serveRepoAccess(c, next, access, "200");
+    await serveRepoAccess(deps, c, next, {
+      grant: reviewerAccess,
+      session: resolved.session,
+      decision: "200",
+    });
   };
 }
 

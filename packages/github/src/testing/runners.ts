@@ -144,7 +144,8 @@ async function runWithFallback<Value>(
     return ownResult;
   }
   const inReach =
-    request.reach !== undefined && isWithinReach(fallback.reads, request.reach);
+    request.reach !== undefined &&
+    (await isWithinReach(fallback.reads, request.reach));
   if (!inReach) {
     return ownResult;
   }

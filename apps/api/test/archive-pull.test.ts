@@ -1,6 +1,8 @@
 // PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive: the viewer's
 // own archive of one inbox row, behind the per-PR gate, per reviewer. Full
-// wire over PGlite, GitHub stubbed at the global fetch boundary.
+// wire over PGlite. The archive makes no GitHub call, so the reviewer
+// binding's fake must see none; the gate and the inbox list still fetch.
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createInboxStore,
   createTenantRepository,
@@ -29,12 +31,13 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   createKeyProvider,
   getRequestUrl,
   answerUserInstallations,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import { UNUSED_INSTALLATION_PORT, buildFakeAuthDeps } from "./reviewer-github";
 import { seedApiToken } from "./session/fixtures";
 import { seedSignIn } from "./sign-in";
 
@@ -124,35 +127,22 @@ async function readAuditOperations(harness: PgliteHarness): Promise<string[]> {
   return rows.map((row) => String(row["operation"]));
 }
 
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
   let app: ApiApp;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      auth: buildFakeAuthDeps(kp, fake),
+      github: UNUSED_INSTALLATION_PORT,
     });
   });
 
@@ -208,6 +198,19 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
       "archive-pull",
       "unarchive-pull",
     ]);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("reads the row once per archive request", async () => {
+    stubGitHub(true);
+    await seedPr(harness.handle, TENANT);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const lookups = spyPullRequestLookups(harness);
+
+    const put = await archive(cookie, "PUT");
+
+    expect(put.status).toBe(200);
+    expect(lookups.count()).toBe(1);
   });
 
   it("the inbox reports the archived total beside the total", async () => {

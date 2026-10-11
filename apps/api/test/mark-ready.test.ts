@@ -1,187 +1,105 @@
-// Mark-ready route integration tests: `app.request()` against `createApp` over
-// the PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern
-// as review-submit.test.ts).
+// POST /api/repos/:repoId/pulls/:prNumber/ready over the PGlite harness. The
+// route's own GitHub calls reach the `github/testing` fake through the
+// reviewer binding; the repo gate and the OAuth refresh still answer over
+// `fetch`.
+import {
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+  type FakePullRequest,
+} from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
   type KeyProvider,
+  type ScopeContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { PrStates } from "types/pull-requests";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
+  REVIEWER_ID,
+  SAME_ORIGIN_HEADERS,
   SECRET,
   brandInstallationId,
   brandRepoId,
-  buildAuthDeps,
+  brandReviewerId,
+  buildOperatorToken,
   createKeyProvider,
-  getRequestUrl,
-  answerInstallationRepositories,
-  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { seedSignIn } from "./sign-in";
+import { testLogger } from "./logging";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import {
+  ROTATED_ACCESS_TOKEN,
+  UNUSED_INSTALLATION_PORT,
+  buildFakeAuthDeps,
+  stubGateGitHub,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
-// Some cases make several full requests over the PGlite harness (double-POST,
-// refresh-once). GraphQL is not throttled, so the only real cost is the
-// harness; the slowest case measures 3.0s, cold snapshot cache included.
 vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
-const NODE_ID = "PR_kwDOABCD";
+const OPERATOR_PAT = "ghp_OPERATOR_PAT";
+const READY_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/ready`;
 
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
+const TENANT: ScopeContext = {
+  installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+};
+const OWNER: ScopeContext = {
+  ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
+};
 
-const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
-
-// ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch), REST /repositories/:id + the GraphQL POST.
-// ---------------------------------------------------------------------------
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
+function makeFakePullRequest(draft: boolean): FakePullRequest {
+  return {
+    info: {
+      repoId: brandRepoId(BigInt(REPO_ID)),
+      repoFullName: REPO_SLUG,
+      headSha: "h".repeat(40),
+      headRef: "feature",
+      baseSha: "b".repeat(40),
+      state: "open",
+      draft,
+      merged: false,
+      title: "A pull request",
+      body: "",
+      htmlUrl: `https://github.com/${REPO_SLUG}/pull/${PR_NUMBER}`,
+      commitCount: 1,
+      authorLogin: "octocat",
+      closedAt: null,
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
     },
-  });
-}
-
-function repoOk(): Response {
-  return jsonResponse({ id: REPO_ID, full_name: REPO_SLUG, private: true });
-}
-function repoStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-function nodeIdGraphql(isDraft: boolean): Response {
-  return jsonResponse({
-    data: { repository: { pullRequest: { id: NODE_ID, isDraft } } },
-  });
-}
-function mutationGraphql(): Response {
-  return jsonResponse({
-    data: {
-      markPullRequestReadyForReview: { pullRequest: { isDraft: false } },
-    },
-  });
-}
-function notADraftGraphql(): Response {
-  // GitHub's GraphQL error envelope for marking a non-draft PR ready.
-  return jsonResponse({
-    data: null,
-    errors: [{ message: "Pull request is not a draft" }],
-  });
-}
-function graphqlError(): Response {
-  // A GraphQL-level error (HTTP 200 + errors), maps to REQUEST_FAILED → 502.
-  // NOT an HTTP 5xx, which octokit's retry plugin would back off and retry.
-  return jsonResponse({
-    data: null,
-    errors: [{ type: "INTERNAL", message: "boom" }],
-  });
-}
-function forbiddenGraphql(): Response {
-  // GitHub's GraphQL FORBIDDEN envelope for the mark-ready MUTATION when the
-  // App lacks `contents: write`, the community-documented permission gap.
-  return jsonResponse({
-    data: null,
-    errors: [
-      { type: "FORBIDDEN", message: "Resource not accessible by integration" },
-    ],
-  });
-}
-function graphqlUnauthorized(): Response {
-  // HTTP 401 → octokit.graphql throws a RequestError(401) → UNAUTHORIZED.
-  return jsonResponse({ message: "Bad credentials" }, 401);
-}
-function tokenSuccess(): Response {
-  return jsonResponse({
-    access_token: ROTATED_ACCESS,
-    refresh_token: ROTATED_REFRESH,
-    expires_in: 28_800,
-    refresh_token_expires_in: 15_897_600,
-    token_type: "bearer",
-    scope: "",
-  });
-}
-
-interface StubConfig {
-  readonly repositories?: (call: number) => Response;
-  /** Each GraphQL POST in order (resolve, then mutation). */
-  readonly graphql?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-}
-interface StubCounts {
-  repositories: number;
-  graphql: number;
-  token: number;
-  /** Parsed JSON body of each GraphQL POST, in order. */
-  readonly graphqlBodies: Array<Record<string, unknown>>;
-}
-
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = {
-    repositories: 0,
-    graphql: 0,
-    token: 0,
-    graphqlBodies: [],
   };
-  const fetchFn = vi.fn(
-    async (
-      input: string | URL | Request,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
-      }
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      if (url.endsWith("/graphql")) {
-        const i = counts.graphql++;
-        const raw =
-          init?.body ??
-          (input instanceof Request ? await input.text() : undefined);
-        if (typeof raw === "string") {
-          const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null) {
-            counts.graphqlBodies.push({ ...parsed });
-          }
-        }
-        return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
-  return counts;
 }
 
-// ---------------------------------------------------------------------------
-// Seeding.
-// ---------------------------------------------------------------------------
+function arrangeRepository(fake: FakeGitHub, fullName = REPO_SLUG): void {
+  const [owner = "", repo = ""] = fullName.split("/");
+  fake.addRepository({
+    repoId: brandRepoId(BigInt(REPO_ID)),
+    fullName,
+    private: true,
+    viewerCanPush: true,
+    viewerIsAdmin: false,
+  });
+  fake.addPullRequest(
+    { owner, repo, prNumber: PR_NUMBER },
+    makeFakePullRequest(true),
+  );
+}
 
-async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
-  await createTenantRepository(handle, CTX).pullRequests.upsert({
+async function seedDraftPr(
+  handle: AppDatabase,
+  scope: ScopeContext = TENANT,
+): Promise<void> {
+  await createTenantRepository(handle, scope).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    draft,
+    draft: true,
     state: PrStates.OPEN,
   });
 }
@@ -189,76 +107,60 @@ async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
 async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
   const row = await createTenantRepository(
     handle,
-    CTX,
+    TENANT,
   ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
   return row?.draft;
 }
 
-async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
+async function countReadyAudits(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where operation = 'mark-ready' and outcome = 'ok'",
+    "select id from audit_log where operation = 'mark-ready' and outcome = 'ok'",
   );
-  const n = rows[0]?.["n"];
-  if (typeof n !== "number") {
-    throw new Error("unexpected count result");
-  }
-  return n;
+  return rows.length;
 }
 
-// ---------------------------------------------------------------------------
-// Request helper.
-// ---------------------------------------------------------------------------
-
-const READY_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/ready`;
-
-async function markReady(
-  app: ApiApp,
-  cookie: string | undefined,
-  path = READY_PATH,
-): Promise<Response> {
-  const headers: Record<string, string> = {
-    ...SAME_ORIGIN_HEADERS,
-    "content-type": "application/json",
-  };
-
-  if (cookie !== undefined) {
-    headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
-  }
-
-  return await app.request(path, { method: "POST", headers });
+function listSentTokens(fake: FakeGitHub): string[] {
+  return fake.calls.map((call) =>
+    "token" in call.credential ? call.credential.token : "",
+  );
 }
-
-// Conversation port stub: never exercised by this route.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   let harness: PgliteHarness;
-  let app: ApiApp;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
+  let app: ApiApp;
+
+  function buildApp(operatorToken?: string): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      github: UNUSED_INSTALLATION_PORT,
+      operatorToken:
+        operatorToken === undefined
+          ? undefined
+          : buildOperatorToken(operatorToken),
+    });
+  }
+
+  async function markReady(
+    cookie: string | undefined,
+    target: ApiApp = app,
+  ): Promise<Response> {
+    const headers: Record<string, string> = { ...SAME_ORIGIN_HEADERS };
+    if (cookie !== undefined) {
+      headers["cookie"] = `__Host-mergebrief_session=${cookie}`;
+    }
+    return target.request(READY_PATH, { method: "POST", headers });
+  }
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
-    });
+    fake = makeFakeGitHub();
+    app = buildApp();
   });
 
   afterEach(async () => {
@@ -267,257 +169,206 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     await harness.close();
   });
 
-  it("401s absent session cookies without calling GitHub", async () => {
-    const counts = stubGitHub({});
-    const res = await markReady(app, undefined);
+  it("401s an absent session cookie without calling GitHub", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+
+    const res = await markReady(undefined);
+
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(0);
-    expect(counts.graphql).toBe(0);
+    expect(gate.repositoryReads()).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("404 collapse when the viewer has no access to the repo", async () => {
-    stubGitHub({ repositories: () => repoStatus(403) });
+  it("collapses a gate denial to 404 with no mutation", async () => {
+    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 403 });
+    arrangeRepository(fake);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await markReady(app, cookie);
+
+    const res = await markReady(cookie);
+
     expect(res.status).toBe(404);
-    // Row untouched, the mutation never ran.
+    expect(fake.calls).toEqual([]);
     expect(await readDraft(harness.handle)).toBe(true);
   });
 
-  it("404s denied fresh repo resolution after the gate passes", async () => {
-    // The gate's access check (call 0) passes; the route's own fresh
-    // fetchRepositoryById (call 1) is denied, a viewer whose access was
-    // revoked inside the positive-cache TTL. Must collapse to the gate's 404
-    // posture, run no mutation, and leave the row untouched.
-    const counts = stubGitHub({
-      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
-    });
+  it("collapses a denied fresh repo read to the uniform 404", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
+    const res = await markReady(cookie);
+
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(fake.listCalls("markPullRequestReadyForReview")).toEqual([]);
     expect(await readDraft(harness.handle)).toBe(true);
-    expect(await markReadyAuditCount(harness)).toBe(0);
+    expect(await countReadyAudits(harness)).toBe(0);
   });
 
-  it("resolves the PR with fresh owner and name instead of the cached slug", async () => {
-    // A mutating write must not trust the gate's positive-cache slug (≤60s
-    // stale after a rename + name-reuse): the GraphQL resolve must carry the
-    // owner/name from the route's own fresh /repositories/{id} fetch.
-    const counts = stubGitHub({
-      repositories: (i) =>
-        i === 0
-          ? repoOk() // the gate's access check caches octo/hello
-          : jsonResponse({
-              id: REPO_ID,
-              full_name: "octo/renamed",
-              private: true,
-            }),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
-    });
+  it("marks the PR under the fresh name, never the gate's cached slug", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake, "octo/renamed");
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
+    const res = await markReady(cookie);
+
     expect(res.status).toBe(200);
-    expect(counts.graphqlBodies[0]).toMatchObject({
-      variables: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
-    });
+    expect(fake.listCalls("markPullRequestReadyForReview")).toEqual([
+      expect.objectContaining({
+        input: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
+      }),
+    ]);
   });
 
-  it("401s a second GitHub rejection without refreshing twice", async () => {
-    // One refresh-once budget per REQUEST: the first GraphQL 401 spends it;
-    // when the retried call 401s again the route must NOT refresh a second
-    // time, it returns 401 and leaves the row untouched.
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      graphql: () => graphqlUnauthorized(),
-    });
-    await seedDraftPr(harness.handle);
+  it("404s a PR with no row before any call past the gate", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
-    expect(res.status).toBe(401);
-    expect(counts.token).toBe(1);
-    expect(await readDraft(harness.handle)).toBe(true);
-    expect(await markReadyAuditCount(harness)).toBe(0);
-  });
+    const res = await markReady(cookie);
 
-  it("404s PRs outside the tenant without a GitHub mutation", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("200s a fresh flip with mutation, row update and audit", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
-    });
+  it("200s a fresh flip with the mirror, the audit and one row read", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
+    const lookups = spyPullRequestLookups(harness);
 
-    const res = await markReady(app, cookie);
+    const res = await markReady(cookie);
+
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ draft: false });
-    // Resolve + mutation = two GraphQL calls; the mutation carries the node id.
-    expect(counts.graphql).toBe(2);
-    const mutationBody = counts.graphqlBodies[1];
-    expect(JSON.stringify(mutationBody)).toContain(NODE_ID);
-    // Local mirror flipped and the mark-ready audit row is present.
+    expect(lookups.count()).toBe(1);
+    expect(fake.listCalls("markPullRequestReadyForReview")).toHaveLength(1);
     expect(await readDraft(harness.handle)).toBe(false);
-    expect(await markReadyAuditCount(harness)).toBe(1);
+    expect(await countReadyAudits(harness)).toBe(1);
   });
 
-  it("200s an already-ready PR with audit and row update but no mutation", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: () => nodeIdGraphql(false),
-    });
+  it("converges two POSTs to 200 with an audit row each", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ draft: false });
-    // Only the resolve call, the read-time non-draft short-circuits.
-    expect(counts.graphql).toBe(1);
+    const first = await markReady(cookie);
+    const second = await markReady(cookie);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ draft: false });
     expect(await readDraft(harness.handle)).toBe(false);
-    expect(await markReadyAuditCount(harness)).toBe(1);
+    expect(await countReadyAudits(harness)).toBe(2);
   });
 
-  it("200s a mutation that races a concurrent ready transition", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : notADraftGraphql()),
-    });
+  it("502s an upstream failure and leaves the row a draft", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    fake.failOn("markPullRequestReadyForReview", FakeFailures.SERVER_ERROR);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ draft: false });
-    expect(await readDraft(harness.handle)).toBe(false);
-  });
+    const res = await markReady(cookie);
 
-  it("502 and row untouched on a hard GitHub mutation failure", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : graphqlError()),
-    });
-    await seedDraftPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await markReady(app, cookie);
     expect(res.status).toBe(502);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    // Draft NOT flipped: GitHub is the source of truth and it rejected.
     expect(await readDraft(harness.handle)).toBe(true);
-    expect(await markReadyAuditCount(harness)).toBe(0);
+    expect(await countReadyAudits(harness)).toBe(0);
   });
 
-  it("returns actionable 403 github-permission for mutation-stage denial", async () => {
-    // Repo access and fresh resolution succeed before mutation denies contents:write.
-    // This needs an actionable 403 rather than a uniform 404, with no row update or audit
-    // and with no-store retained.
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : forbiddenGraphql()),
-    });
+  it("answers a mutation-stage 403 as github-permission", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    fake.failOn("markPullRequestReadyForReview", FakeFailures.FORBIDDEN);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
+    const res = await markReady(cookie);
+
     expect(res.status).toBe(403);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({
       error: "github-permission",
       code: "github-permission",
     });
-    // Reached the mutation (resolve + mutation = 2 GraphQL calls).
-    expect(counts.graphql).toBe(2);
-    // Row untouched, no audit, GitHub rejected the write.
     expect(await readDraft(harness.handle)).toBe(true);
-    expect(await markReadyAuditCount(harness)).toBe(0);
+    expect(await countReadyAudits(harness)).toBe(0);
   });
 
-  it("collapses fresh-resolution FORBIDDEN to a uniform 404", async () => {
-    // Distinct from the mutation-stage 403 above: a FORBIDDEN at the in-route
-    // fresh /repositories/{id} resolve (BEFORE the viewer re-proves access this
-    // request) must keep collapsing to the gate's 404 posture.
-    const counts = stubGitHub({
-      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
-    });
+  it("renews once after a mid-request 401 and lands the write", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    fake.rejectToken(ACCESS_TOKEN);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const res = await markReady(app, cookie);
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
-    expect(counts.graphql).toBe(0);
-    expect(await readDraft(harness.handle)).toBe(true);
-    expect(await markReadyAuditCount(harness)).toBe(0);
-  });
+    const res = await markReady(cookie);
 
-  it("refreshes once after a mid-request GraphQL 401 and succeeds", async () => {
-    // The route's refresh-once budget is shared across the whole op: the first
-    // resolve 401s (expired token), the route refreshes once, and the retried
-    // op (resolve + mutation) lands. Gate + route-resolve keep repositories at 2.
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      graphql: (call) => {
-        if (call === 0) {
-          return graphqlUnauthorized();
-        }
-        if (call === 1) {
-          return nodeIdGraphql(true);
-        }
-        return mutationGraphql();
-      },
-    });
-    await seedDraftPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
-    expect(counts.token).toBe(1);
-    expect(counts.repositories).toBe(2);
-    expect(counts.graphql).toBe(3);
+    expect(gate.tokenRefreshes()).toBe(1);
+    expect(gate.repositoryReads()).toBe(1);
+    expect(listSentTokens(fake)).toEqual([
+      ACCESS_TOKEN,
+      ROTATED_ACCESS_TOKEN,
+      ROTATED_ACCESS_TOKEN,
+    ]);
     expect(await readDraft(harness.handle)).toBe(false);
   });
 
-  it("converges two POSTs to 200 with the row no longer a draft", async () => {
-    // First POST flips via the mutation; the second reads isDraft=false at
-    // resolve time (GitHub is now non-draft) and converges without mutating.
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (call) => {
-        if (call === 0) {
-          return nodeIdGraphql(true);
-        }
-        if (call === 1) {
-          return mutationGraphql();
-        }
-        return nodeIdGraphql(false);
-      },
-    });
+  it("401s a second rejection without renewing twice", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    fake.rejectToken(ACCESS_TOKEN);
+    fake.rejectToken(ROTATED_ACCESS_TOKEN);
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const first = await markReady(app, cookie);
-    const second = await markReady(app, cookie);
-    expect(first.status).toBe(200);
-    expect(second.status).toBe(200);
-    expect(await readDraft(harness.handle)).toBe(false);
-    // Two audit rows, each accepted request records its action.
-    expect(await markReadyAuditCount(harness)).toBe(2);
+    const res = await markReady(cookie);
+
+    expect(res.status).toBe(401);
+    expect(gate.tokenRefreshes()).toBe(1);
+    expect(await readDraft(harness.handle)).toBe(true);
+    expect(await countReadyAudits(harness)).toBe(0);
+  });
+
+  it("401s an unreadable token behind a cached gate pass, ending the session", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeRepository(fake);
+    await seedDraftPr(harness.handle);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
+    expect((await markReady(cookie)).status).toBe(200);
+    await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
+
+    const res = await markReady(cookie);
+
+    expect(res.status).toBe(401);
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [cookieHash],
+    );
+    expect(sessions).toEqual([]);
+  });
+
+  it("refuses a write behind an operator pass with no-repo-write-access", async () => {
+    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+    await seedDraftPr(harness.handle, OWNER);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+
+    const res = await markReady(cookie, buildApp(OPERATOR_PAT));
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: expect.any(String),
+      code: "no-repo-write-access",
+    });
+    expect(fake.listCalls("markPullRequestReadyForReview")).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CredentialFailureCodes,
   GitHubApiErrorCodes,
   type GitHubApiError,
   type GitHubApiErrorCode,
@@ -58,6 +59,14 @@ const TABLE: readonly DenialRow[] = [
   {
     cause: "token-unreadable",
     failure: TOKEN_UNREADABLE_FAILURE,
+    answers: [E401, E401, E401, E401],
+  },
+  {
+    cause: "credential-unreadable",
+    failure: {
+      code: CredentialFailureCodes.CREDENTIAL_UNREADABLE,
+      message: "the session's GitHub token would not decrypt",
+    },
     answers: [E401, E401, E401, E401],
   },
   {

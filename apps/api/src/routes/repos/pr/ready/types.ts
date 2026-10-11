@@ -1,15 +1,5 @@
-import type { GitHubApiError } from "github";
-import type {
-  GitHubDeniedFailure,
-  TokenUnreadableFailure,
-} from "../../../../shared-errors/failures";
-import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
+import type { GitHubCallFailure } from "github";
+import type { GitHubDeniedFailure } from "../../../../shared-errors/failures";
 
-/** Narrow slice: the per-request reviewer channel is the only dependency. */
-export interface ReadyControllerDeps {
-  readonly github: ReviewerGitHubClient;
-}
-
-export type MarkReadyFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>;
+/** `resolve` is the fresh repo read, `mutation` the ready write itself. */
+export type MarkReadyFailure = GitHubDeniedFailure<GitHubCallFailure>;

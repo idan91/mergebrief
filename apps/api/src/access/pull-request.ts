@@ -19,8 +19,10 @@ import {
   type ScopeContext,
 } from "persistence";
 import { stampAuditScope } from "../product-operations/audit";
+import type { AuthRouteDeps } from "../routes/auth/session/types";
 import { parsePrNumberParam } from "../routes/wire-bounds";
 import { NotFound } from "../shared-errors/api-error";
+import { bindPullRequestGitHub } from "./reviewer-binding";
 import { AccessFootings, type PullRequestEnv, type RepoAccess } from "./types";
 import { deriveScopeContext } from "./utils";
 
@@ -115,21 +117,23 @@ function resolveAccessRow(
 
 async function loadPullRequestAccess(
   c: Context<PullRequestEnv>,
-  handle: AppDatabase,
+  deps: AuthRouteDeps,
   prNumber: number,
 ): Promise<void> {
   const access = c.get("repoAccess");
-  const resolved = await resolveAccessRow(handle, access, prNumber);
+  const resolved = await resolveAccessRow(deps.handle, access, prNumber);
   if (resolved === undefined) {
     throw new NotFound();
   }
-  c.set("pullRequestAccess", { ...access, prNumber, ...resolved });
+  const log = c.get("logger");
+  const github = bindPullRequestGitHub(deps, access, resolved, log);
+  c.set("pullRequestAccess", { ...access, prNumber, ...resolved, github });
   stampAuditScope(c, resolved.rowScope);
 }
 
 /** Mount once over the per-PR subtree, behind the repo gate. */
 export function createPullRequestAccessLayer(
-  handle: AppDatabase,
+  deps: AuthRouteDeps,
 ): MiddlewareHandler<PullRequestEnv> {
   return async (c, next) => {
     const prNumber = parsePrNumberParam(c.req.param("prNumber"));
@@ -137,7 +141,7 @@ export function createPullRequestAccessLayer(
       throw new NotFound();
     }
     c.set("loadOperationRow", () =>
-      loadPullRequestAccess(c, handle, prNumber.value),
+      loadPullRequestAccess(c, deps, prNumber.value),
     );
     await next();
   };

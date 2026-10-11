@@ -1,23 +1,39 @@
-// POST /api/repos/:repoId/pulls/:prNumber/ready, behind the pr subtree's
-// shared gate; runs the GraphQL `markPullRequestReadyForReview` mutation
-// with the VIEWER's token (GitHub itself enforces that only the
-// author/maintainer may mark ready, so no viewerIsAuthor check here). On
-// success OUR `draft` mirror flips to false in the same request; the later
-// `ready_for_review` webhook lands as an idempotent no-op. The poll/webhook
-// is the reconciler for every race in between.
+// POST /api/repos/:repoId/pulls/:prNumber/ready marks the pull request ready
+// with the VIEWER's token, which GitHub checks against the author and
+// maintainers. The later `ready_for_review` webhook lands as a no-op.
 import { ProductActionIds } from "contract";
+import type { Handler } from "hono";
+import { WriteClassifications } from "persistence";
+import { HttpStatuses } from "types/http";
+import type { PullRequestEnv } from "../../../../access/types";
+import { stampAuditTarget } from "../../../../product-operations/audit";
 import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
-import { createReadyHandlers } from "./handler";
+import { throwMarkReadyFailure } from "./logic/wire-failures";
+import { markPullRequestReady } from "./mark-ready";
 
-export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
-  const app = productRouter<AuthzEnv>();
-  const handlers = createReadyHandlers(deps);
+const NO_STORE = { "cache-control": "no-store" } as const;
+
+function createMarkReadyHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
+  return async (c) => {
+    const access = c.get("pullRequestAccess");
+    const marked = await markPullRequestReady(deps.handle, access);
+    if (!marked.ok) {
+      throwMarkReadyFailure(marked.error, access.footing);
+    }
+
+    stampAuditTarget(c, "pull_request", marked.value);
+    return c.json({ draft: false }, HttpStatuses.OK, NO_STORE);
+  };
+}
+
+export function markReadyRoute(
+  deps: AuthRouteDeps,
+): ProductRouter<PullRequestEnv> {
+  const app = productRouter<PullRequestEnv>();
   app.action(
     {
       id: ProductActionIds.MARK_READY,
@@ -29,7 +45,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     },
     "post",
     "/",
-    handlers.markReady,
+    createMarkReadyHandler(deps),
   );
   return app;
 }

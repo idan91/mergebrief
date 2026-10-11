@@ -7,8 +7,8 @@ import { isGitHubDenial } from "../shared-errors/failures";
 import {
   AccessFootings,
   type AuthzEnv,
+  type CachedOperatorRepoAccess,
   type ListedOperatorToken,
-  type OperatorRepoAccess,
   type OperatorRungRequest,
 } from "./types";
 
@@ -57,7 +57,7 @@ export async function resolveOperatorRepoAccess(
   deps: AuthRouteDeps,
   client: ReviewerGitHubClient,
   denied: OperatorRungRequest,
-): Promise<Omit<OperatorRepoAccess, "session"> | undefined> {
+): Promise<CachedOperatorRepoAccess | undefined> {
   const reviewerId = client.session().reviewerId;
   const fallbackToken = resolveOperatorTokenFor(deps, reviewerId);
   if (fallbackToken === undefined || !isGitHubDenial(denied.error)) {

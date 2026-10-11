@@ -1,13 +1,12 @@
-import type { AppDatabase, RepoId, ReviewerId } from "persistence";
+import type { RowPurgeFailure } from "../../../purge-row";
+import type { FreshRepositoryFailure } from "../../logic/fresh-repository";
 
-/** Narrow slice: the delete only touches the database. */
-export interface DeleteControllerDeps {
-  readonly handle: AppDatabase;
+/** The fresh read says the viewer is no repository admin. */
+export interface NotRepoAdminFailure {
+  readonly kind: "not-repo-admin";
 }
 
-export interface DeletePullInput {
-  readonly repoId: RepoId;
-  readonly prNumber: number;
-  /** The viewer, named on the purge's audit row. */
-  readonly reviewerId: ReviewerId;
-}
+export type DeletePullFailure =
+  | FreshRepositoryFailure
+  | NotRepoAdminFailure
+  | RowPurgeFailure;

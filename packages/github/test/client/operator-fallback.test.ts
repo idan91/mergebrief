@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
 import { GitHubApiErrorCodes } from "../../src/errors";
 import { ReviewCommentSides } from "../../src/operations/review-thread";
@@ -27,7 +27,14 @@ const UNKNOWN_SHA = "c".repeat(40);
 const DIFF = { status: 200, body: "diff --git a/src/a.ts b/src/a.ts\n" };
 const FORBIDDEN = { status: 403, body: { message: "denied" } };
 
-function bindWithOperator(stub: GitHubFetchStub) {
+async function loadPassedCommits(): Promise<ReadonlySet<string>> {
+  return new Set([BASE_SHA, HEAD_SHA]);
+}
+
+function bindWithOperator(
+  stub: GitHubFetchStub,
+  loadKnownCommits = loadPassedCommits,
+) {
   const log = makeLogger();
   const github = bindReviewerGitHub(stubCredential(OLD_TOKEN, undefined), {
     log,
@@ -36,7 +43,7 @@ function bindWithOperator(stub: GitHubFetchStub) {
       token: requireOperatorToken(OPERATOR_TOKEN),
       repo: REPO,
       prNumber: 7,
-      knownCommits: new Set([BASE_SHA, HEAD_SHA]),
+      loadKnownCommits,
     },
   });
   return { github, log };
@@ -179,6 +186,20 @@ describe("bindReviewerGitHub operator reach", () => {
 
     expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
+  });
+
+  it("loads the known commits only for a denied read at commits", async () => {
+    const stub = stubDeniedReviewer(PULL);
+    const loadKnownCommits = vi.fn(loadPassedCommits);
+    const { github } = bindWithOperator(stub, loadKnownCommits);
+
+    await github.forRepo(REPO).fetchPullRequest(7);
+    expect(loadKnownCommits).not.toHaveBeenCalled();
+
+    await github
+      .forRepo(REPO)
+      .fetchCompareDiff({ base: BASE_SHA, head: HEAD_SHA });
+    expect(loadKnownCommits).toHaveBeenCalledTimes(1);
   });
 
   it("compares two known commits on the operator token", async () => {

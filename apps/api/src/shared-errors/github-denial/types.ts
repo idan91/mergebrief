@@ -1,4 +1,4 @@
-import type { GitHubApiError } from "github";
+import type { GitHubApiError, GitHubCallFailure } from "github";
 import type { ValueOf } from "types/utils";
 import type { FailureKinds, TokenUnreadableFailure } from "../failures";
 
@@ -18,8 +18,8 @@ export const DenialPostures = {
 } as const;
 export type DenialPosture = ValueOf<typeof DenialPostures>;
 
-/** What a GitHub call can fail with: GitHub's own refusal, or the client's unreadable token. */
-export type GitHubFailure = GitHubApiError | TokenUnreadableFailure;
+/** GitHub's refusal, or a token that would not decrypt. */
+export type GitHubFailure = GitHubCallFailure | TokenUnreadableFailure;
 
 /** A domain failure member carrying GitHub's refusal whole. */
 export interface GitHubDeniedMember {
