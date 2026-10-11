@@ -1,8 +1,9 @@
 # 0041 — packages/api layering: handler, controller, thrown-error family
 
-Status: accepted (2026-08-23). Decided on BRIEF-202 (wayfinder map: six
-decision tickets + closing act). Build plan:
-`docs/plans/brief-202-api-layering.md`.
+Status: accepted (2026-08-23), amended 2026-10-11: the handler and
+controller pair is optional and the operation module is the unit (see
+Amendment). Decided on BRIEF-202 (wayfinder map: six decision tickets +
+closing act). Build plan: `docs/plans/brief-202-api-layering.md`.
 
 Every Product Operation in `packages/api` (35 ops: 15 queries / 20 actions)
 adopts one layering convention: a Hono-free **controller** returning
@@ -172,3 +173,99 @@ default-export carve-out this record granted is withdrawn; the root rule
 (named exports only, default exports where a framework reads one) applies
 to `apps/api` without exception. The 14 files still default-exporting keep
 a scoped lint override until their migration ticket lands.
+
+## Amendment (2026-10-11, BRIEF-327 D11; BRIEF-330)
+
+Amended, not reversed (BRIEF-327 decision 11, 2026-10-04). The handler and
+controller pair becomes optional; the operation module is the unit. The
+shape below is the target BRIEF-330's grill settled on 2026-10-10. Domains
+convert one at a time, so the old shape and this one coexist until the last
+domain lands.
+
+### The operation module
+
+An operation module takes the database handle or a narrow deps slice, a
+resolved access value and a parsed input, and returns a `Result`. The access
+value is `RepoAccess`, or `PullRequestAccess` carrying the PR row, loaded
+eagerly before the operation runs. The row is a request-start snapshot, so a
+writing operation uses its own write's return, never the access value's row.
+A repo or PR operation reaches GitHub on the viewer's token through the
+access value's binding, and binds the App's installation from the access
+value when it needs the App's credential. A session-only operation has no
+repo in its path and no access value: it takes the request's binding as a
+parameter.
+
+The bindings live in `packages/github`, one per credential over a shared
+repo reader: `ReviewerGitHub` on the viewer's token and `InstallationGitHub`
+on the App's installation, each with its own write surface. Refresh and
+retry sit inside the binding. The operator token has no write surface. A
+reviewer binding reads on it only behind an operator pass, for the granted
+PR and its known commits; the gate's rung, the live read, generate and the
+worker's probe ask an explicit operator reader instead. The bindings succeed
+`ReviewerGitHubClient` and `InstallationGitHubPort`.
+
+A thin HTTP adapter parses the input, calls the module, and throws a failure
+through the denial mapper. A controller that only passes through is deleted.
+The handler and controller pair stays legal where a domain still earns it,
+and the throw-vs-return rule binds whichever layer returns the `Result`. It
+returns a GitHub denial and never throws it as `Forbidden` or `NotFound`.
+
+This supersedes "Three layers" and "Controller dependencies" as the required
+shape. A converted domain's closed root set is `index.ts` (the route factory
+and its adapters), one `<operation>.ts` per operation named for it
+(`mark-ready.ts`, `delete-pull.ts`), `types.ts` for the failure union,
+`schemas.ts` where input parses, and `logic/` with `wire-failures.ts`. The
+operation module sits at root as the domain's entry point; the steps it
+calls stay in `logic/`.
+
+### Policy on the descriptor
+
+The Product Operation descriptor carries four policy fields the router
+enforces before the adapter runs: `humanOnly`, `installationOnly`,
+`pushRequired` and `rowRequired`. Every operation under a PR loads the row
+unless `rowRequired` opts it out. A human-only op is a descriptor field,
+not a controller throw. Checks run in this order, and the first failure
+answers:
+
+1. 401: no session.
+2. 403: cross-origin cookie write.
+3. 404: the repo gate (malformed repo id or PR number, no access).
+4. Descriptor checks: 403 `scope-exceeded`, then 403 human-only, then 404
+   push-required, then 404 installation-only.
+5. 404: the row is missing.
+6. 400: the input does not parse.
+7. The operation.
+
+These are middleware throws at the router seam, posture-final as "Posture
+ownership" already allows.
+
+### One denial mapper
+
+A GitHub failure becomes its `ApiError` through one mapper in
+`apps/api/src/shared-errors/github-denial/`. A domain answers its own codes
+first (diff too large, file absent, anchor rejected and kin) and delegates
+every denial to the mapper with the call's posture:
+
+- `collapse` is a read on the viewer's credential. 403 and 404 answer 404.
+- `honest` is a viewer write whose 403 is a capability signal the front end
+  acts on. It answers 403 `github-permission`.
+- `app-read` and `app-write` are the same two on the installation
+  credential, where a 401 is the instance's and answers 502.
+
+On the viewer's credential a 401 answers 401, refreshed or not. An outage
+or rate limit answers 502 under every posture, never 404. This replaces the
+handler-owned posture judgment in "Posture ownership" and the inline-first
+failure-to-error mapping in "Failure vocabulary". The adapter names the
+posture per call and the mapper applies it.
+
+### What stands
+
+- Throwing `ApiError` at the HTTP layer is a deliberate contract, with
+  exactly one class per status and `CodeFor<status>` keeping class, status
+  and code in agreement.
+- `app.onError` is the one producer of wire error bodies.
+- Conversions are wire-identical. A status that changes on purpose is named
+  in the PR that changes it and in the changelog.
+- Persistence's tenant-scoped stores stay the only repository; the test
+  tiers, the audit choreography and the 2026-09-06 named-export update are
+  unchanged.

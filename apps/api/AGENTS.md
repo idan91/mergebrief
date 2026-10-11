@@ -35,6 +35,8 @@ Security collapses stay at the per-domain handlers, BEFORE the wire: internal vo
 
 ## Domain layout (enforced, don't weaken)
 
+The unit is the operation module, per the amended api-layering record under `docs/adr/`: it takes the database handle or a narrow deps slice, the resolved access value and the parsed input, returns a `Result`, and sits behind a thin HTTP adapter. A domain converts with its own change, and its pass-through controller goes then. Until a domain converts, and wherever it still earns the pair, the handler and controller roles below hold.
+
 Every catalog domain is a folder with a closed role set at root; new endpoints follow it:
 
 - `index.ts` — the `xxxRoute` factory; composition only.
