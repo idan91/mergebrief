@@ -4,29 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-// An undefined CSS custom property is invisible at build time — the
-// declaration silently drops, or renders its fallback. Nothing else in the
-// toolchain catches it, so this test does: every var(...) reference in
-// apps/web must resolve to a definition.
-//
-// A custom property counts as defined when it is
-//   1. declared in src/styles/tokens.scss (the global token surface), or
-//   2. registered with @property in any global stylesheet, or
-//   3. published from non-test TS/TSX at runtime — a setProperty call or a
-//      style-object key, or
-//   4. declared in the consuming stylesheet itself (component-local tokens).
-//
-// (4) is file-scoped, not selector-scoped: proving an ancestor selector
-// actually matches would need a full cascade model, and the bug class here is
-// names that exist nowhere at all. _*.scss partials are the exception — a
-// mixin body is inlined into its caller's rule, so a partial legitimately
-// reads properties its callers supply; partials are checked against every
-// declaration in the app.
-//
-// The TS scan is deliberately narrow, because a loose one masks the very bug
-// it guards: comments are stripped, *.test.ts(x) is excluded, and only
-// setProperty arguments and style-object keys count. For the same reason, no
-// comment in this file may carry a real token name inside quotes or backticks.
+// Every var(...) reference in apps/web must resolve: an undefined custom
+// property drops silently at build time. A property is defined when
+// tokens.scss declares it, an @property registers it, non-test TS publishes
+// it as a setProperty argument or a style-object key, the reading stylesheet
+// declares it, or a partial that stylesheet @uses declares it (a mixin body
+// is inlined into its caller). A partial reads against every declaration in
+// the app. Comments are stripped first, so no comment here may carry a real
+// token name inside quotes or backticks.
 
 const STYLES_DIR = fileURLToPath(new URL(".", import.meta.url));
 const SRC_ROOT = resolve(STYLES_DIR, "..");
@@ -34,10 +19,12 @@ const TOKENS_FILE = resolve(STYLES_DIR, "tokens.scss");
 
 const CUSTOM_PROPERTY = "--[a-zA-Z0-9_-]+";
 const QUOTE = "[\"'`]";
-/** A declaration — never the reference inside var(…), whose preceding
+/** A declaration, never the reference inside var(…), whose preceding
  * character is `(` or `,`. */
 const DECLARATION = new RegExp(`(?:^|[;{}\\s])(${CUSTOM_PROPERTY})\\s*:`, "gm");
 const AT_PROPERTY = new RegExp(`@property\\s+(${CUSTOM_PROPERTY})`, "g");
+const USE_RULE = /@use\s+["']([a-z0-9_-]+)["']/g;
+const PARTIAL_FILE = /(?:^|\/)_([^/]+)\.scss$/;
 const VAR_USAGE = new RegExp(`var\\(\\s*(${CUSTOM_PROPERTY})`, "g");
 /** The only two TS forms that WRITE a custom property: a setProperty argument
  * and a style-object key. */
@@ -101,6 +88,27 @@ function usagesIn(source: string, file: string): Usage[] {
   return usages;
 }
 
+/** The stylesheet's own declarations plus those of every partial it @uses. */
+function collectScopeDeclarations(
+  source: string,
+  ownDeclarations: ReadonlySet<string> | undefined,
+  declarationsByPartial: ReadonlyMap<string, ReadonlySet<string>>,
+): Set<string> {
+  const scope = new Set(ownDeclarations);
+  for (const usedPartial of namesInUseRules(source)) {
+    for (const name of declarationsByPartial.get(usedPartial) ?? []) {
+      scope.add(name);
+    }
+  }
+  return scope;
+}
+
+function namesInUseRules(source: string): string[] {
+  return [...source.matchAll(USE_RULE)].flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]],
+  );
+}
+
 describe("CSS custom properties", () => {
   it("are all defined somewhere the browser can see", async () => {
     const globallyDefined = new Set<string>();
@@ -129,8 +137,14 @@ describe("CSS custom properties", () => {
     }
 
     const declarationsByFile = new Map<string, Set<string>>();
+    const declarationsByPartial = new Map<string, Set<string>>();
     for (const [file, source] of sources) {
-      declarationsByFile.set(file, namesIn(source, DECLARATION));
+      const declarations = namesIn(source, DECLARATION);
+      declarationsByFile.set(file, declarations);
+      const partialName = PARTIAL_FILE.exec(file)?.[1];
+      if (partialName !== undefined) {
+        declarationsByPartial.set(partialName, declarations);
+      }
     }
     const declaredAnywhere = new Set(
       [...declarationsByFile.values()].flatMap((names) => [...names]),
@@ -138,17 +152,21 @@ describe("CSS custom properties", () => {
 
     const undefinedUsages: string[] = [];
     for (const [file, source] of sources) {
-      const isPartial = /(^|\/)_[^/]+\.scss$/.test(file);
+      const isPartial = PARTIAL_FILE.test(file);
       const inScope = isPartial
         ? declaredAnywhere
-        : (declarationsByFile.get(file) ?? new Set<string>());
+        : collectScopeDeclarations(
+            source,
+            declarationsByFile.get(file),
+            declarationsByPartial,
+          );
       for (const usage of usagesIn(source, file)) {
         if (globallyDefined.has(usage.name) || inScope.has(usage.name)) {
           continue;
         }
         undefinedUsages.push(
           `${usage.name} used at ${relative(SRC_ROOT, usage.file)}:${usage.line} ` +
-            `is never defined — declare it in src/styles/tokens.scss or locally in that file`,
+            `is never defined: declare it in src/styles/tokens.scss or locally in that file`,
         );
       }
     }

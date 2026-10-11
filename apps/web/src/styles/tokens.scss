@@ -80,9 +80,20 @@
     --color-merged: var(--violet-400);
 
     // The free blue lane (DESIGN.md, the Four Lanes Rule): a mark that is
-    // neither a state nor the accent, such as a comment's origin, the test
-    // concern and the blue badge. Never selection, never focus.
+    // neither a state nor the accent, such as a comment's origin and the blue
+    // badge. Never selection, never focus.
     --color-info: var(--blue-400);
+
+    // Concern marks (DESIGN.md, Concern): one hue per concern at one chroma,
+    // neighbours a lightness step apart, unattributed the one neutral. Marks
+    // only, never words; the palette contrast test holds them at 3:1.
+    --color-concern-implementation: #5f96dc;
+    --color-concern-test: #b25c3e;
+    --color-concern-doc: #3daa7e;
+    --color-concern-spec: #b17921;
+    --color-concern-config: #8f87d9;
+    --color-concern-generated: #b05774;
+    --color-concern-unattributed: #7c7c87;
 
     // ── Other semantic colors ────────────────────────────────────────────
     --color-on-primary: oklch(
@@ -132,7 +143,7 @@
     --emphasis-comment: #a8b1ba;
     --emphasis-keyword: #ffa1ab;
 
-    // Near-white fill for solid indicators (progress bar, concern dot).
+    // Near-white fill for solid indicators such as the progress bar.
     // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
     --color-fill-bright: #d8d8de;
     --focus-ring: var(--color-accent);

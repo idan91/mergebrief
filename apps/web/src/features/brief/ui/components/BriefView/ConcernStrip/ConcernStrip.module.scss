@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .strip {
@@ -19,6 +20,8 @@
   }
 
   .segment {
+    @include mixins.concern-color;
+
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(7px);
@@ -29,7 +32,7 @@
     inline-size: 6px;
     block-size: 6px;
     border-radius: var(--radius-circle);
-    background: var(--color-text-3);
+    background: var(--concern-color);
   }
 
   .name {
@@ -51,7 +54,7 @@
       // Floor keeps a small share visible as a tick.
       min-inline-size: 2px;
       block-size: 100%;
-      background: var(--color-text-3);
+      background: var(--concern-color);
     }
   }
 
@@ -64,26 +67,5 @@
   .loc {
     font-family: var(--mono);
     font-size: var(--font-size-sm);
-  }
-
-  .segment[data-concern="implementation"] {
-    .dot,
-    .bar i {
-      background: var(--color-fill-bright);
-    }
-  }
-
-  .segment[data-concern="test"] {
-    .dot,
-    .bar i {
-      background: var(--color-info);
-    }
-  }
-
-  .segment[data-concern="doc"] {
-    .dot,
-    .bar i {
-      background: var(--color-merged);
-    }
   }
 }

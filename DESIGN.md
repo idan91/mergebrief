@@ -18,6 +18,13 @@ colors:
   state-merged: "#a98fd1"
   state-closed: "#e06c6c"
   state-warning: "#d9a45c"
+  concern-implementation: "#5f96dc"
+  concern-test: "#b25c3e"
+  concern-doc: "#3daa7e"
+  concern-spec: "#b17921"
+  concern-config: "#8f87d9"
+  concern-generated: "#b05774"
+  concern-unattributed: "#7c7c87"
 typography:
   display:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
@@ -163,13 +170,17 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 - **Open** (#5fc88f), **Merged** (#a98fd1), **Closed and failed** (#e06c6c), **Warning** (#d9a45c). Draft is Text 2 with its own icon shape.
 
+### Concern (marks only)
+
+- **Implementation** (#5f96dc), **Test** (#b25c3e), **Doc** (#3daa7e), **Spec** (#b17921), **Config** (#8f87d9), **Generated** (#b05774), and **Unattributed** (#7c7c87), the one neutral. Every hue sits at OKLCH chroma 0.12, and neighbours in that order step lightness so adjacent segments stay apart under colour-vision deficiency. A concern colour draws a dot or a split segment, never a word or a fill.
+
 ### Named Rules
 
 **The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
 
 **The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--brand-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
-**The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach.
+**The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach. The concern marks are the one exception: Doc, Spec and Test share hues with Open, Warning and Closed and stay apart from them only by sitting darker, and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
 **The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 

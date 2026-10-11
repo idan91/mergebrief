@@ -160,3 +160,34 @@
     font-weight: 600;
   }
 }
+
+// The element's concern mark colour as --concern-color, read from its
+// data-concern; anything else, the Unattributed remainder included, takes the
+// neutral.
+@mixin concern-color {
+  --concern-color: var(--color-concern-unattributed);
+
+  &[data-concern="implementation"] {
+    --concern-color: var(--color-concern-implementation);
+  }
+
+  &[data-concern="test"] {
+    --concern-color: var(--color-concern-test);
+  }
+
+  &[data-concern="doc"] {
+    --concern-color: var(--color-concern-doc);
+  }
+
+  &[data-concern="spec"] {
+    --concern-color: var(--color-concern-spec);
+  }
+
+  &[data-concern="config"] {
+    --concern-color: var(--color-concern-config);
+  }
+
+  &[data-concern="generated"] {
+    --concern-color: var(--color-concern-generated);
+  }
+}

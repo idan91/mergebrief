@@ -1,5 +1,6 @@
 @use "functions";
 @use "layout";
+@use "mixins";
 
 @layer components {
   .chunk {
@@ -132,6 +133,8 @@
   }
 
   .chip {
+    @include mixins.concern-color;
+
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(6px);
@@ -148,19 +151,7 @@
     inline-size: 5px;
     block-size: 5px;
     border-radius: var(--radius-circle);
-    background: var(--color-text-3);
-  }
-
-  .chip[data-concern="implementation"] .dot {
-    background: var(--color-fill-bright);
-  }
-
-  .chip[data-concern="test"] .dot {
-    background: var(--color-info);
-  }
-
-  .chip[data-concern="doc"] .dot {
-    background: var(--color-merged);
+    background: var(--concern-color);
   }
 
   .reviewToggle {

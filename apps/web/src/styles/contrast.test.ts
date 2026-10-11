@@ -3,11 +3,14 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { Concerns } from "brief-core/types";
+
 // The palette's contrast lines (DESIGN.md, Contrast): words 5:1 on every
 // surface and 5.5:1 on the page and the list, marks 3:1. The tokens derive
 // in OKLCH from four numbers, so a hue or chroma change lands here first.
 
 const TOKENS_URL = new URL("./tokens.scss", import.meta.url);
+const MIXINS_URL = new URL("./_mixins.scss", import.meta.url);
 
 const WORDS_MIN = 5;
 const WORDS_MIN_ON_PAGE = 5.5;
@@ -67,6 +70,12 @@ const MARKS = [
   "--color-merged",
   "--color-info",
 ] as const;
+// Derived from the vocabulary, so a new concern without a token fails here
+// instead of rendering the neutral mark.
+const CONCERN_MARKS = [
+  ...Object.values(Concerns).map((concern) => `--color-concern-${concern}`),
+  "--color-concern-unattributed",
+];
 
 type Rgb = readonly [number, number, number];
 type Declarations = ReadonlyMap<string, string>;
@@ -275,6 +284,35 @@ describe("palette contrast", () => {
     }
 
     expect(failures).toEqual([]);
+  });
+
+  it("keeps every concern colour at 3:1 on every surface", async () => {
+    const colorOf = await resolvePalette();
+    const failures: string[] = [];
+
+    for (const mark of CONCERN_MARKS) {
+      for (const surface of SURFACES) {
+        const ratio = computeContrast(colorOf(mark), colorOf(surface));
+        if (ratio < MARKS_MIN) {
+          failures.push(`${mark} on ${surface}: ${ratio.toFixed(2)}`);
+        }
+      }
+    }
+
+    expect(failures).toEqual([]);
+  });
+
+  it("gives every concern a branch in the concern-color mixin", async () => {
+    const mixins = await readFile(fileURLToPath(MIXINS_URL), "utf8");
+
+    const missing = Object.values(Concerns).filter((concern) => {
+      const branch = new RegExp(
+        String.raw`\[data-concern="${concern}"\]\s*\{\s*--concern-color:\s*var\(--color-concern-${concern}\);`,
+      );
+      return !branch.test(mixins);
+    });
+
+    expect(missing).toEqual([]);
   });
 
   it("keeps every mark colour readable as words on every surface", async () => {
