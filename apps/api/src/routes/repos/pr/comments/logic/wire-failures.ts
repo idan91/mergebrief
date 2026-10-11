@@ -1,7 +1,7 @@
 // The comments domain's failure->throw mappers: every GitHub refusal lands
 // on the wire with the gated-route posture (uniform-404 collapse; distinct
 // 409 only where the FE has a recovery action).
-import { GitHubApiErrorCodes, type InlineReviewCommentError } from "github";
+import { GitHubApiErrorCodes } from "github";
 import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
@@ -19,12 +19,12 @@ export function throwPublishFailure(failure: CommentPublishFailure): never {
   if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
     throw new Unauthorized();
   }
-  const error: InlineReviewCommentError = failure.error;
+  const error = failure.error;
   // A 422 means the anchor no longer sits on the pinned commit's diff, the
   // head advanced under the composer. Fail with a distinct 409 so the FE
   // tells the author to reload (the draft survives locally), never a
   // retry-looking 502.
-  if (error.staleAnchor === true) {
+  if (error.code === GitHubApiErrorCodes.ANCHOR_REJECTED) {
     throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
   if (error.code === GitHubApiErrorCodes.UNAUTHORIZED) {

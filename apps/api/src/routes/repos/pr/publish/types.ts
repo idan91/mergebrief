@@ -1,16 +1,13 @@
 import type {
   AddReviewThreadInput,
   AuthoredReview,
-  CreateReviewError,
   GitHubApiError,
-  InlineReviewCommentError,
   InlineReviewCommentResult,
   ListedReviewComment,
   PendingReview,
   ReviewCommentSide,
   ReviewSubjectTypes,
   ReviewThread,
-  ReviewThreadFailure,
 } from "github";
 import type { Logger } from "logging";
 import type {
@@ -24,7 +21,10 @@ import type {
   GitHubDeniedFailure,
   TokenUnreadableFailure,
 } from "../../../../shared-errors/failures";
-import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
+import type {
+  GitHubCallOutcome,
+  ReviewerGitHubClient,
+} from "../../../auth/reviewer-github-client";
 import type { SessionWriteFailure } from "../session/types";
 
 /** Narrow slice: the per-request reviewer channel plus the request log. */
@@ -125,7 +125,7 @@ export type ViewerReviewListResult = Result<
 
 export type CommentPublishFailure =
   | TokenUnreadableFailure
-  | GitHubDeniedFailure<InlineReviewCommentError>;
+  | GitHubDeniedFailure<GitHubApiError>;
 
 export type CommentPublishResult = Result<
   InlineReviewCommentResult,
@@ -159,7 +159,7 @@ export interface PublishExpiredFailure {
 
 export type ReviewPublishFailure =
   | TokenUnreadableFailure
-  | GitHubDeniedFailure<CreateReviewError>
+  | GitHubDeniedFailure<GitHubApiError>
   | PendingReviewHeldFailure
   | SubmitUnconfirmedFailure
   | PublishExpiredFailure;
@@ -183,7 +183,7 @@ export type ReviewPublishResult = Result<PublishedReview, ReviewPublishFailure>;
 
 export type PendingReviewResult = Result<
   PendingReview,
-  CreateReviewError | TokenUnreadableFailure | PendingReviewHeldFailure
+  GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure
 >;
 
 export type SubmitPendingResult = Result<
@@ -194,9 +194,7 @@ export type SubmitPendingResult = Result<
 /** One thread mutation on the reviewer's token, refresh budget included. */
 export type PostThread = (
   input: AddReviewThreadInput,
-) => Promise<
-  Result<ReviewThread, ReviewThreadFailure | TokenUnreadableFailure>
->;
+) => Promise<GitHubCallOutcome<ReviewThread, GitHubApiError>>;
 
 export interface PostedThreads {
   readonly landed: PublishComment[];

@@ -4,6 +4,7 @@
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import {
+  GitHubApiErrorCodes,
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
@@ -48,12 +49,6 @@ export interface InlineReviewCommentResult {
    * joined by review id until a later fetch reconciles it.
    */
   readonly reviewId?: bigint;
-}
-
-/** A `staleAnchor` GitHub error: the pinned commit's diff no longer holds the anchor. */
-export interface InlineReviewCommentError extends GitHubApiError {
-  /** True when GitHub returned 422, the anchor/commit is no longer valid. */
-  readonly staleAnchor?: boolean;
 }
 
 const CONTEXT = "create inline review comment";
@@ -101,12 +96,13 @@ function shapeInlineCommentParams(
 /**
  * Post one inline review comment pinned to `commitId`. Returns the created
  * comment id and (when GitHub assigns one) the wrapping review id. Failures are
- * sanitized `InlineReviewCommentError`s; a 422 additionally sets `staleAnchor`.
+ * sanitized; a 422 answers `anchor-rejected`, the pinned diff no longer
+ * holding the anchor.
  */
 export async function createInlineReviewComment(
   octokit: Octokit,
   input: CreateInlineReviewCommentInput,
-): Promise<Result<InlineReviewCommentResult, InlineReviewCommentError>> {
+): Promise<Result<InlineReviewCommentResult, GitHubApiError>> {
   const params = shapeInlineCommentParams(input);
 
   try {
@@ -138,7 +134,8 @@ export async function createInlineReviewComment(
       error instanceof RequestError &&
       error.status === HttpStatuses.UNPROCESSABLE_CONTENT
     ) {
-      return { ok: false, error: { ...sanitized, staleAnchor: true } };
+      const code = GitHubApiErrorCodes.ANCHOR_REJECTED;
+      return { ok: false, error: { ...sanitized, code } };
     }
     return { ok: false, error: sanitized };
   }

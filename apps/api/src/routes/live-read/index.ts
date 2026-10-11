@@ -245,7 +245,7 @@ async function readChunk(
     ),
   );
   if (!page.ok) {
-    const code = "kind" in page.error ? page.error.kind : page.error.code;
+    const code = page.tokenUnreadable ? page.error.kind : page.error.code;
     deps.log.warn("live read refused by GitHub, serving stored rows", {
       code,
     });

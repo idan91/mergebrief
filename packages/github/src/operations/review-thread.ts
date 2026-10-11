@@ -5,6 +5,7 @@
 import type { Octokit } from "octokit";
 import { z } from "zod/v4";
 import {
+  GitHubApiErrorCodes,
   hasOnlyGraphqlErrorType,
   mapGraphqlError,
   unexpectedResponseError,
@@ -62,30 +63,6 @@ export interface ReviewThread {
   readonly threadId: string;
 }
 
-/**
- * `anchor-rejected` is GitHub declining the anchor (path or line not in the
- * diff), the one failure a caller folds instead of aborting on;
- * `request-failed` wraps the sanitized transport or GraphQL error whole.
- */
-export const ReviewThreadFailureKinds = {
-  ANCHOR_REJECTED: "anchor-rejected",
-  REQUEST_FAILED: "request-failed",
-} as const;
-export type ReviewThreadFailureKind = ValueOf<typeof ReviewThreadFailureKinds>;
-
-export interface ReviewThreadAnchorRejected {
-  readonly kind: typeof ReviewThreadFailureKinds.ANCHOR_REJECTED;
-}
-
-export interface ReviewThreadRequestFailed {
-  readonly kind: typeof ReviewThreadFailureKinds.REQUEST_FAILED;
-  readonly error: GitHubApiError;
-}
-
-export type ReviewThreadFailure =
-  | ReviewThreadAnchorRejected
-  | ReviewThreadRequestFailed;
-
 const CONTEXT = "add pull request review thread";
 const REJECTED_ANCHOR_TYPE = "UNPROCESSABLE";
 
@@ -142,24 +119,23 @@ function shapeThreadMutationInput(
   return variables;
 }
 
-function shapeAnchorRejection(): ReviewThreadFailure {
-  return { kind: ReviewThreadFailureKinds.ANCHOR_REJECTED };
-}
-
-function shapeRequestFailure(error: GitHubApiError): ReviewThreadFailure {
-  return { kind: ReviewThreadFailureKinds.REQUEST_FAILED, error };
+function shapeAnchorRejection(): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.ANCHOR_REJECTED,
+    message: `failed to ${CONTEXT}: GitHub rejected the anchor`,
+  };
 }
 
 /**
  * Attach one thread, line or file, to a pending review, authored by whoever
- * the octokit's token identifies. A rejected anchor returns
+ * the octokit's token identifies. A rejected anchor answers
  * `anchor-rejected` whether GitHub voids the payload or throws an
- * UNPROCESSABLE entry; every other failure returns `request-failed`.
+ * UNPROCESSABLE entry, the one failure a caller folds instead of aborting on.
  */
 export async function addPullRequestReviewThread(
   octokit: Octokit,
   input: AddReviewThreadInput,
-): Promise<Result<ReviewThread, ReviewThreadFailure>> {
+): Promise<Result<ReviewThread, GitHubApiError>> {
   let response: unknown;
   try {
     response = await octokit.graphql(ADD_THREAD_MUTATION, {
@@ -169,10 +145,7 @@ export async function addPullRequestReviewThread(
     if (hasOnlyGraphqlErrorType(error, REJECTED_ANCHOR_TYPE)) {
       return { ok: false, error: shapeAnchorRejection() };
     }
-    return {
-      ok: false,
-      error: shapeRequestFailure(mapGraphqlError(error, CONTEXT)),
-    };
+    return { ok: false, error: mapGraphqlError(error, CONTEXT) };
   }
 
   const parsed = mutationResponseSchema.safeParse(response);
@@ -180,10 +153,7 @@ export async function addPullRequestReviewThread(
     ? parsed.data.addPullRequestReviewThread
     : null;
   if (payload === null) {
-    return {
-      ok: false,
-      error: shapeRequestFailure(unexpectedResponseError(CONTEXT)),
-    };
+    return { ok: false, error: unexpectedResponseError(CONTEXT) };
   }
   if (payload.thread === null) {
     return { ok: false, error: shapeAnchorRejection() };

@@ -14,7 +14,10 @@ import type { ReviewDraftCommentRow } from "persistence";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeDraftCommentRow } from "../../../../../test/fixtures";
+import {
+  makeDraftCommentRow,
+  runWithoutRetry,
+} from "../../../../../test/fixtures";
 import type {
   ReviewerGitHubClient,
   UserOctokit,
@@ -50,8 +53,8 @@ const THREAD_DURATION_MS = 1000;
 
 function stubGitHubClient(): ReviewerGitHubClient {
   return {
-    run: (call) => call("viewer-token"),
-    runRead: (call) => call("viewer-token"),
+    run: (call) => runWithoutRetry(call, "viewer-token"),
+    runRead: (call) => runWithoutRetry(call, "viewer-token"),
     createOctokit: () => ({}) as UserOctokit,
     createMutationOctokit: () => ({}) as UserOctokit,
     session: () => {
@@ -186,7 +189,6 @@ describe("publishComment", () => {
         code: GitHubApiErrorCodes.FORBIDDEN,
         status: 403,
         message: "denied",
-        staleAnchor: false,
       },
     });
 

@@ -9,21 +9,18 @@ import {
   findPendingPullRequestReview,
   GitHubApiErrorCodes,
   hasPullRequestReviewPublished,
-  ReviewThreadFailureKinds,
-  ReviewValidationClasses,
   submitPullRequestReview,
-  type CreateReviewError,
   type GitHubApiError,
   type PendingReview,
   type ReviewEvent,
-  type ReviewThreadFailure,
   type SubmitPullRequestReviewInput,
 } from "github";
 import type { Mutable, Result } from "types/utils";
-import {
-  isTokenUnreadableFailure,
-  type TokenUnreadableFailure,
-} from "../../../../../shared-errors/failures";
+import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
+import type {
+  GitHubCallFailed,
+  GitHubCallTokenUnreadable,
+} from "../../../../auth/reviewer-github-client";
 import type {
   PendingReviewHeldFailure,
   PendingReviewResult,
@@ -34,26 +31,18 @@ import type {
 } from "../types";
 
 export function isPendingReviewHeld(
-  error: CreateReviewError | TokenUnreadableFailure | PendingReviewHeldFailure,
+  error: GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure,
 ): error is PendingReviewHeldFailure {
   return "kind" in error && error.kind === "pending-review-held";
 }
 
 function isStalePendingRefusal(
-  error: CreateReviewError | TokenUnreadableFailure,
+  failure: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
 ): boolean {
-  if (isTokenUnreadableFailure(error)) {
+  if (failure.tokenUnreadable) {
     return false;
   }
-  return error.validation === ReviewValidationClasses.PENDING_REVIEW_EXISTS;
-}
-
-/** A thread call's 401 sits inside `request-failed`; the default predicate cannot see it. */
-function isThreadTokenExpired(failure: ReviewThreadFailure): boolean {
-  return (
-    failure.kind === ReviewThreadFailureKinds.REQUEST_FAILED &&
-    failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED
-  );
+  return failure.error.code === GitHubApiErrorCodes.PENDING_REVIEW_EXISTS;
 }
 
 /**
@@ -69,7 +58,7 @@ async function clearStalePendingReview(
 ): Promise<
   Result<
     void,
-    CreateReviewError | TokenUnreadableFailure | PendingReviewHeldFailure
+    GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure
   >
 > {
   const stale = await deps.github.run((token) =>
@@ -118,7 +107,7 @@ export async function openPendingReview(
     );
 
   const first = await create();
-  if (first.ok || !isStalePendingRefusal(first.error)) {
+  if (first.ok || !isStalePendingRefusal(first)) {
     return first;
   }
 
@@ -131,13 +120,11 @@ export async function openPendingReview(
 
 export function createThreadPoster(deps: PublishDeps): PostThread {
   return (thread) =>
-    deps.github.run(
-      (token) =>
-        addPullRequestReviewThread(
-          deps.github.createMutationOctokit(token),
-          thread,
-        ),
-      isThreadTokenExpired,
+    deps.github.run((token) =>
+      addPullRequestReviewThread(
+        deps.github.createMutationOctokit(token),
+        thread,
+      ),
     );
 }
 
@@ -200,9 +187,7 @@ export async function discardPendingReview(
   if (!deleted.ok) {
     deps.log.warn("pending review left behind after a failed submit", {
       reviewId: String(pending.reviewId),
-      kind: isTokenUnreadableFailure(deleted.error)
-        ? deleted.error.kind
-        : deleted.error.code,
+      kind: deleted.tokenUnreadable ? deleted.error.kind : deleted.error.code,
     });
   }
 }

@@ -67,7 +67,7 @@ async function fetchAccessibleInstallations(
     listUserInstallations(accessToken),
   );
   if (!result.ok) {
-    if ("kind" in result.error) {
+    if (result.tokenUnreadable) {
       await createSessionAuth(deps.handle).deleteSession(
         session.sessionTokenHash,
       );

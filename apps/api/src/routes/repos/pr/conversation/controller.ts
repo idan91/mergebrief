@@ -62,7 +62,7 @@ export const conversationController = {
     );
 
     if (!fetched.ok) {
-      if ("kind" in fetched.error) {
+      if (fetched.tokenUnreadable) {
         return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
       }
 

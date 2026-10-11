@@ -125,15 +125,14 @@ async function readWithViewer<T>(
   github: ReviewerGitHubClient,
   read: (octokit: UserOctokit) => Promise<Result<T, GitHubApiError>>,
 ): Promise<Result<T, StackFailure>> {
-  let attempts = 0;
-  const result = await github.runRead((token) => {
-    attempts += 1;
-    return read(github.createOctokit(token));
-  }, isGitHubDenial);
+  const result = await github.runRead(
+    (token) => read(github.createOctokit(token)),
+    isGitHubDenial,
+  );
   if (result.ok) {
-    return result;
+    return { ok: true, value: result.value };
   }
-  if ("kind" in result.error) {
+  if (result.tokenUnreadable) {
     return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
   }
   return {
@@ -141,7 +140,7 @@ async function readWithViewer<T>(
     error: {
       kind: FailureKinds.GITHUB_DENIED,
       error: result.error,
-      retried: attempts > 1,
+      retried: result.retried,
     },
   };
 }
@@ -485,17 +484,11 @@ export const readsController = {
       urlBoxOnly: input.urlBoxOnly,
       refs: [input.base, input.head],
     });
-    let attempts = 0;
-    const diff = await runBoundRead(
-      deps.github,
-      operatorReadAllowed,
-      (token) => {
-        attempts += 1;
-        return fetchCompareDiff(deps.github.createOctokit(token), span);
-      },
+    const diff = await runBoundRead(deps.github, operatorReadAllowed, (token) =>
+      fetchCompareDiff(deps.github.createOctokit(token), span),
     );
     if (!diff.ok) {
-      if ("kind" in diff.error) {
+      if (diff.tokenUnreadable) {
         return {
           ok: false,
           error: { kind: FailureKinds.TOKEN_UNREADABLE },
@@ -506,7 +499,7 @@ export const readsController = {
         error: {
           kind: FailureKinds.GITHUB_DENIED,
           error: diff.error,
-          retried: attempts > 1,
+          retried: diff.retried,
         },
       } satisfies ReadDiffResult;
     }
@@ -635,23 +628,20 @@ export const readsController = {
       urlBoxOnly: input.urlBoxOnly,
       refs: [input.ref],
     });
-    let attempts = 0;
     const fetched = await runBoundRead(
       deps.github,
       operatorReadAllowed,
-      (token) => {
-        attempts += 1;
-        return getRepoFile(deps.github.createOctokit(token), {
+      (token) =>
+        getRepoFile(deps.github.createOctokit(token), {
           owner: input.owner,
           repo: input.repo,
           path: input.path,
           ref: input.ref,
           maxBytes: FILE_BLOB_MAX_BYTES,
-        });
-      },
+        }),
     );
     if (!fetched.ok) {
-      if ("kind" in fetched.error) {
+      if (fetched.tokenUnreadable) {
         return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
       }
       // A directory, symlink or submodule at this path is PERMANENT for this
@@ -665,7 +655,7 @@ export const readsController = {
       const denied: FileRangeFailure = {
         kind: FailureKinds.GITHUB_DENIED,
         error: fetched.error,
-        retried: attempts > 1,
+        retried: fetched.retried,
       };
       return { ok: false, error: denied };
     }

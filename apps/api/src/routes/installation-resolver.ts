@@ -20,14 +20,14 @@ import {
 } from "persistence";
 import { HttpStatuses, type Result } from "types";
 import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
-import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
+import {
+  createReviewerGitHubClient,
+  type GitHubCallOutcome,
+} from "./auth/reviewer-github-client";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { runInBatches } from "./batches";
-import {
-  isGitHubDenial,
-  type TokenUnreadableFailure,
-} from "../shared-errors/failures";
+import { isGitHubDenial } from "../shared-errors/failures";
 import { createTtlCache } from "./ttl-cache";
 
 /**
@@ -109,12 +109,12 @@ export interface InstallationResolver {
 
 interface InstallationWalk {
   readonly installationId: InstallationId;
-  readonly repos: Result<unknown, GitHubApiError | TokenUnreadableFailure>;
+  readonly repos: GitHubCallOutcome<unknown, GitHubApiError>;
 }
 
 /** GitHub refused this one installation to the viewer; the others still count. */
 function isDeniedWalk(walk: InstallationWalk): boolean {
-  if (walk.repos.ok || "kind" in walk.repos.error) {
+  if (walk.repos.ok || walk.repos.tokenUnreadable) {
     return false;
   }
   return isGitHubDenial(walk.repos.error);
@@ -193,11 +193,7 @@ export function createInstallationResolver(
       (walk) => !walk.repos.ok && !isDeniedWalk(walk),
     );
     for (const walk of walks) {
-      if (
-        isDeniedWalk(walk) &&
-        !walk.repos.ok &&
-        !("kind" in walk.repos.error)
-      ) {
+      if (isDeniedWalk(walk) && !walk.repos.ok && !walk.repos.tokenUnreadable) {
         log.warn("installation walk denied, left out of the reachable set", {
           installationId: String(walk.installationId),
           code: walk.repos.error.code,
@@ -207,7 +203,7 @@ export function createInstallationResolver(
 
     const failed = walks.find((walk) => !walk.repos.ok && !isDeniedWalk(walk));
     if (failed !== undefined && !failed.repos.ok) {
-      if ("kind" in failed.repos.error) {
+      if (failed.repos.tokenUnreadable) {
         // Unreadable token burns the session; same posture as the repo
         // gate. (On the Bearer channel this delete is a no-op by hash
         // namespace; the api_token row stays for its owner to see and

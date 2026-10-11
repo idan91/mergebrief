@@ -7,7 +7,6 @@
 import { GitHubApiErrorCodes, type UserOctokitFactory } from "github";
 import {
   FailureKinds,
-  isTokenUnreadableFailure,
   type TokenUnreadableFailure,
 } from "../../shared-errors/failures";
 import type { Logger } from "logging";
@@ -23,6 +22,36 @@ import { refreshSessionToken } from "./session/logic/refresh";
 
 export type UserOctokit = ReturnType<UserOctokitFactory>;
 
+/**
+ * What `run` and `runRead` answer. `retried` is true when the call re-ran on
+ * the token the request's single refresh rotated in; the operator rung is not
+ * a retry. `tokenUnreadable` tells the client's own failure from the call's.
+ */
+export type GitHubCallOutcome<T, E> =
+  | GitHubCallSucceeded<T>
+  | GitHubCallFailed<E>
+  | GitHubCallTokenUnreadable;
+
+export interface GitHubCallSucceeded<T> {
+  readonly ok: true;
+  readonly value: T;
+  readonly retried: boolean;
+}
+
+export interface GitHubCallFailed<E> {
+  readonly ok: false;
+  readonly tokenUnreadable: false;
+  readonly error: E;
+  readonly retried: boolean;
+}
+
+export interface GitHubCallTokenUnreadable {
+  readonly ok: false;
+  readonly tokenUnreadable: true;
+  readonly error: TokenUnreadableFailure;
+  readonly retried: false;
+}
+
 export interface ReviewerGitHubClient {
   /**
    * Run a token-taking GitHub call. On expiry (default predicate: a
@@ -33,7 +62,7 @@ export interface ReviewerGitHubClient {
   run<T, E>(
     call: (accessToken: string) => Promise<Result<T, E>>,
     isExpired?: (error: E) => boolean,
-  ): Promise<Result<T, E | TokenUnreadableFailure>>;
+  ): Promise<GitHubCallOutcome<T, E>>;
   /**
    * `run` for a READ, with the operator PAT as a second rung when the gate
    * passed this request on that PAT (the client is built with the token only
@@ -44,7 +73,7 @@ export interface ReviewerGitHubClient {
     call: (accessToken: string) => Promise<Result<T, E>>,
     isDenied: (error: E) => boolean,
     isExpired?: (error: E) => boolean,
-  ): Promise<Result<T, E | TokenUnreadableFailure>>;
+  ): Promise<GitHubCallOutcome<T, E>>;
   /** The GitHub client for a token `run` or `runRead` handed out. */
   createOctokit(accessToken: string): UserOctokit;
   /**
@@ -55,15 +84,6 @@ export interface ReviewerGitHubClient {
   createMutationOctokit(accessToken: string): UserOctokit;
   /** The possibly-rotated session (refresh CAS seed, cache keys, audit ids). */
   session(): ViewerPrincipal;
-}
-
-/** The client's own failure member, told apart from the call's error type. */
-function isOwnTokenFailure(error: unknown): error is TokenUnreadableFailure {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    isTokenUnreadableFailure(error)
-  );
 }
 
 function isUnauthorizedCode(error: unknown): boolean {
@@ -81,10 +101,22 @@ function isUnauthorizedCode(error: unknown): boolean {
  */
 const MUTATION_MAX_RETRY_AFTER_SECONDS = 20;
 
-const TOKEN_UNREADABLE: Result<never, TokenUnreadableFailure> = {
+const TOKEN_UNREADABLE: GitHubCallTokenUnreadable = {
   ok: false,
+  tokenUnreadable: true,
   error: { kind: FailureKinds.TOKEN_UNREADABLE },
+  retried: false,
 };
+
+function shapeCallOutcome<T, E>(
+  result: Result<T, E>,
+  retried: boolean,
+): GitHubCallOutcome<T, E> {
+  if (result.ok) {
+    return { ok: true, value: result.value, retried };
+  }
+  return { ok: false, tokenUnreadable: false, error: result.error, retried };
+}
 
 export function createReviewerGitHubClient(
   deps: AuthRouteDeps,
@@ -99,11 +131,9 @@ export function createReviewerGitHubClient(
   // awaits the winner's rotation instead of surfacing a stale 401.
   let refresh: Promise<Result<RefreshedSession, RefreshError>> | undefined;
 
-  async function resolveToken(): Promise<
-    Result<string, TokenUnreadableFailure>
-  > {
+  async function resolveToken(): Promise<string | undefined> {
     if (accessToken !== undefined) {
-      return { ok: true, value: accessToken };
+      return accessToken;
     }
     const decrypted = await decryptToken(
       deps.auth.keyProvider,
@@ -111,55 +141,58 @@ export function createReviewerGitHubClient(
       currentSession.ghTokenCiphertext,
     );
     if (!decrypted.ok) {
-      return TOKEN_UNREADABLE;
+      return undefined;
     }
     accessToken = decrypted.value;
-    return { ok: true, value: accessToken };
+    return accessToken;
   }
 
   return {
     async run<T, E>(
       call: (token: string) => Promise<Result<T, E>>,
       isExpired: (error: E) => boolean = isUnauthorizedCode,
-    ): Promise<Result<T, E | TokenUnreadableFailure>> {
-      const token = await resolveToken();
-      if (!token.ok) {
-        return token;
+    ): Promise<GitHubCallOutcome<T, E>> {
+      const usedToken = await resolveToken();
+      if (usedToken === undefined) {
+        return TOKEN_UNREADABLE;
       }
-      const usedToken = token.value;
+
       const result = await call(usedToken);
       if (result.ok || !isExpired(result.error)) {
-        return result;
+        return shapeCallOutcome(result, false);
       }
+
       refresh ??= refreshSessionToken(deps, currentSession, log);
       const refreshed = await refresh;
       if (!refreshed.ok) {
-        return result;
+        return shapeCallOutcome(result, false);
       }
       currentSession = refreshed.value.session;
       accessToken = refreshed.value.accessToken;
       // Re-run ONLY a call that ran on the pre-rotation token; a 401 on the
       // rotated token itself gets no second spend.
       if (accessToken === usedToken) {
-        return result;
+        return shapeCallOutcome(result, false);
       }
-      return call(accessToken);
+      const rerun = await call(accessToken);
+      return shapeCallOutcome(rerun, true);
     },
     async runRead<T, E>(
       call: (token: string) => Promise<Result<T, E>>,
       isDenied: (error: E) => boolean,
       isExpired: (error: E) => boolean = isUnauthorizedCode,
-    ): Promise<Result<T, E | TokenUnreadableFailure>> {
+    ): Promise<GitHubCallOutcome<T, E>> {
       const own = await this.run(call, isExpired);
       if (own.ok || readFallbackToken === undefined) {
         return own;
       }
-      if (isOwnTokenFailure(own.error) || !isDenied(own.error)) {
+      if (own.tokenUnreadable || !isDenied(own.error)) {
         return own;
       }
+
       const fallback = await call(readFallbackToken);
       if (fallback.ok || !isExpired(fallback.error)) {
-        return fallback;
+        return shapeCallOutcome(fallback, own.retried);
       }
       // The OPERATOR's key is what GitHub rejected. Returning its 401 would
       // send the reader to re-authenticate, which cannot repair a credential

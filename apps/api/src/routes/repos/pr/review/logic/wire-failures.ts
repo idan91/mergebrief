@@ -1,10 +1,5 @@
 // The review domain's failure->throw mapper (gated-route posture).
-import {
-  GitHubApiErrorCodes,
-  ReviewValidationClasses,
-  type CreateReviewError,
-  type ReviewValidationClass,
-} from "github";
+import { GitHubApiErrorCodes } from "github";
 import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
@@ -15,13 +10,6 @@ import {
 } from "../../../../../shared-errors/api-error";
 import type { ReviewPublishFailure } from "../../publish/types";
 import { FailureKinds } from "../../../../../shared-errors/failures";
-
-function isValidation(
-  error: CreateReviewError,
-  kind: ReviewValidationClass,
-): boolean {
-  return error.validation === kind;
-}
 
 /** Map a final create-review failure to the sanitized response posture. */
 export function throwSubmitFailure(failure: ReviewPublishFailure): never {
@@ -40,7 +28,7 @@ export function throwSubmitFailure(failure: ReviewPublishFailure): never {
   const error = failure.error;
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).
-  if (isValidation(error, ReviewValidationClasses.UNKNOWN_COMMIT)) {
+  if (error.code === GitHubApiErrorCodes.UNKNOWN_COMMIT) {
     throw new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ);
   }
   // A still-unauthorized final result (refresh budget spent or hard-failed)

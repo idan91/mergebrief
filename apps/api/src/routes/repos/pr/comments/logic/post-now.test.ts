@@ -3,7 +3,10 @@ import type * as githubModule from "github";
 import type { Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeDraftCommentRow } from "../../../../../../test/fixtures";
+import {
+  makeDraftCommentRow,
+  runWithoutRetry,
+} from "../../../../../../test/fixtures";
 import { BadGateway } from "../../../../../shared-errors/api-error";
 import type {
   ReviewerGitHubClient,
@@ -35,8 +38,8 @@ const TARGET = {
 
 function stubGitHubClient(): ReviewerGitHubClient {
   return {
-    run: (call) => call("viewer-token"),
-    runRead: (call) => call("viewer-token"),
+    run: (call) => runWithoutRetry(call, "viewer-token"),
+    runRead: (call) => runWithoutRetry(call, "viewer-token"),
     createOctokit: () => ({}) as UserOctokit,
     createMutationOctokit: () => ({}) as UserOctokit,
     session: () => {

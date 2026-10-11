@@ -4,7 +4,7 @@
 // can delete the pending review.
 // octokit paces every mutation, GraphQL included, at one per second per
 // viewer, so a submit costs about N+2 seconds of wall clock.
-import { ReviewThreadFailureKinds } from "github";
+import { GitHubApiErrorCodes } from "github";
 import type { Result } from "types/utils";
 import type {
   PostedThreads,
@@ -37,15 +37,14 @@ export async function postReviewThreads(
       landed.push(comment);
       continue;
     }
-    const failure = posted.error;
-    if (failure.kind === ReviewThreadFailureKinds.ANCHOR_REJECTED) {
+    const anchorRejected =
+      !posted.tokenUnreadable &&
+      posted.error.code === GitHubApiErrorCodes.ANCHOR_REJECTED;
+    if (anchorRejected) {
       rejected.push(comment);
       continue;
     }
-    if (failure.kind === ReviewThreadFailureKinds.REQUEST_FAILED) {
-      return { ok: false, error: failure.error };
-    }
-    return { ok: false, error: failure };
+    return { ok: false, error: posted.error };
   }
 
   return { ok: true, value: { landed, rejected } };

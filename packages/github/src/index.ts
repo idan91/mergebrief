@@ -140,34 +140,24 @@ export { fetchIssue } from "./operations/issue";
 export type { IssueInfo, IssueRef } from "./operations/issue";
 
 // Review-submit primitives, three GitHub objects: the pending review (REST,
-// pinned to the reviewed commit; 422s carry a best-effort validation class),
-// the review thread (GraphQL; a rejected anchor is a Result, not a throw) and
-// the submit event (GraphQL).
-export {
-  createPullRequestReview,
-  ReviewValidationClasses,
-} from "./operations/review";
+// pinned to the reviewed commit; a 422 carries a best-effort code), the
+// review thread (GraphQL; a rejected anchor is a Result, not a throw) and the
+// submit event (GraphQL).
+export { createPullRequestReview } from "./operations/review";
 export type {
   CreatePullRequestReviewInput,
   PendingReview,
-  CreateReviewError,
-  ReviewValidationClass,
 } from "./operations/review";
 export {
   addPullRequestReviewThread,
   ReviewCommentSides,
   ReviewSubjectTypes,
-  ReviewThreadFailureKinds,
 } from "./operations/review-thread";
 export type {
   AddReviewThreadInput,
   LineReviewThreadInput,
   FileReviewThreadInput,
   ReviewThread,
-  ReviewThreadFailure,
-  ReviewThreadFailureKind,
-  ReviewThreadAnchorRejected,
-  ReviewThreadRequestFailed,
   ReviewCommentSide,
   ReviewSubjectType,
 } from "./operations/review-thread";
@@ -203,14 +193,13 @@ export type {
 
 // Inline review-comment write: one standalone comment on a PR's diff, pinned
 // to the anchor's commit, with the viewer's token. Returns the comment id plus
-// the wrapping review id (the own-comment join key); a 422 flags a stale
-// anchor.
+// the wrapping review id (the own-comment join key); a 422 answers
+// `anchor-rejected`.
 export { createInlineReviewComment } from "./operations/inline-comment";
 export type {
   CreateInlineReviewCommentInput,
   CreateLineInlineReviewCommentInput,
   InlineReviewCommentResult,
-  InlineReviewCommentError,
 } from "./operations/inline-comment";
 
 // Mark-ready mutation: flip a draft PR to ready-for-review with the viewer's

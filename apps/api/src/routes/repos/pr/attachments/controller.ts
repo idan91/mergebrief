@@ -36,27 +36,22 @@ async function fetchSources(
   deps: AttachmentsControllerDeps,
   input: ReadAttachmentInput,
 ): Promise<SourcesResult> {
-  // The client re-runs the call at most once, after its single session
-  // refresh, so nothing here limits attempts; the count only records whether
-  // that re-run happened. A 401 with no re-run means the token is dead and
-  // the reader re-logs in; a 401 after it is GitHub refusing the rotated
-  // token, which the mapper answers as upstream failure. That is `retried`.
-  let attempts = 0;
-  const fetched = await deps.github.runRead((token) => {
-    attempts += 1;
-    return fetchRenderedImageSources(deps.github.createOctokit(token), {
-      owner: input.owner,
-      repo: input.repo,
-      prNumber: input.prNumber,
-    });
-  }, isGitHubDenial);
+  const fetched = await deps.github.runRead(
+    (token) =>
+      fetchRenderedImageSources(deps.github.createOctokit(token), {
+        owner: input.owner,
+        repo: input.repo,
+        prNumber: input.prNumber,
+      }),
+    isGitHubDenial,
+  );
   if (fetched.ok) {
     return {
       ok: true,
       value: { sources: fetched.value, fetchedAt: Date.now() },
     };
   }
-  if ("kind" in fetched.error) {
+  if (fetched.tokenUnreadable) {
     return {
       ok: false,
       error: { kind: ReadAttachmentFailureKinds.TOKEN_UNREADABLE },
@@ -68,7 +63,7 @@ async function fetchSources(
     error: {
       kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
       error: fetched.error,
-      retried: attempts > 1,
+      retried: fetched.retried,
     },
   };
 }
@@ -175,17 +170,13 @@ async function readBranchAttachment(
   deps: AttachmentsControllerDeps,
   input: ReadBranchAttachmentInput,
 ): Promise<Result<AttachmentBytes, ReadAttachmentFailure>> {
-  // Same retry story as fetchSources: the client re-runs once at most, and
-  // `retried` tells the mapper which 401 this is.
-  let attempts = 0;
-  const fetched = await deps.github.run((token) => {
-    attempts += 1;
-    return fetchBranchAttachmentBytes(deps.fetchImpl, token, input);
-  });
+  const fetched = await deps.github.run((token) =>
+    fetchBranchAttachmentBytes(deps.fetchImpl, token, input),
+  );
   if (fetched.ok) {
-    return fetched;
+    return { ok: true, value: fetched.value };
   }
-  if ("kind" in fetched.error) {
+  if (fetched.tokenUnreadable) {
     return {
       ok: false,
       error: { kind: ReadAttachmentFailureKinds.TOKEN_UNREADABLE },
@@ -197,7 +188,7 @@ async function readBranchAttachment(
     error: {
       kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
       error: fetched.error,
-      retried: attempts > 1,
+      retried: fetched.retried,
     },
   };
 }

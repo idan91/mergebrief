@@ -1,14 +1,12 @@
 import {
   GitHubApiErrorCodes,
   ReviewSubjectTypes,
-  ReviewThreadFailureKinds,
   type AddReviewThreadInput,
+  type GitHubApiError,
   type ReviewThread,
-  type ReviewThreadFailure,
 } from "github";
-import type { Result } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
-import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
+import type { GitHubCallOutcome } from "../../../../auth/reviewer-github-client";
 import type { PostThread, PublishComment } from "../types";
 import { postReviewThreads } from "./threads";
 
@@ -31,31 +29,25 @@ const RANGE_COMMENT: PublishComment = {
   body: "multi-line note",
 };
 
-type PostResult = Result<
-  ReviewThread,
-  ReviewThreadFailure | TokenUnreadableFailure
->;
+type PostResult = GitHubCallOutcome<ReviewThread, GitHubApiError>;
 
 function makeLandedResult(): PostResult {
-  return { ok: true, value: { threadId: "PRRT_x" } };
+  return { ok: true, value: { threadId: "PRRT_x" }, retried: false };
+}
+function makeRefusedResult(error: GitHubApiError): PostResult {
+  return { ok: false, tokenUnreadable: false, error, retried: false };
 }
 function makeRejectedResult(): PostResult {
-  return {
-    ok: false,
-    error: { kind: ReviewThreadFailureKinds.ANCHOR_REJECTED },
-  };
+  return makeRefusedResult({
+    code: GitHubApiErrorCodes.ANCHOR_REJECTED,
+    message: "failed to add pull request review thread: anchor rejected",
+  });
 }
 function makeFailedResult(): PostResult {
-  return {
-    ok: false,
-    error: {
-      kind: ReviewThreadFailureKinds.REQUEST_FAILED,
-      error: {
-        code: GitHubApiErrorCodes.REQUEST_FAILED,
-        message: "failed to add pull request review thread",
-      },
-    },
-  };
+  return makeRefusedResult({
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
+    message: "failed to add pull request review thread",
+  });
 }
 
 function hasNotExpired(): boolean {
@@ -149,7 +141,14 @@ describe("postReviewThreads", () => {
   });
 
   it("passes a token-unreadable refusal through untouched", async () => {
-    const post = stubPost([{ ok: false, error: { kind: "token-unreadable" } }]);
+    const post = stubPost([
+      {
+        ok: false,
+        tokenUnreadable: true,
+        error: { kind: "token-unreadable" },
+        retried: false,
+      },
+    ]);
     const result = await postReviewThreads(
       post,
       "PRR_node",

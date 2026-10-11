@@ -10,11 +10,7 @@ import {
 } from "github";
 import { createIngestRoutines, type ReviewerId } from "persistence";
 import type { Result } from "types/utils";
-import {
-  FailureKinds,
-  isGitHubDenial,
-  type TokenUnreadableFailure,
-} from "../../shared-errors/failures";
+import { FailureKinds, isGitHubDenial } from "../../shared-errors/failures";
 import { deriveLifecycle } from "../live-read/logic/lifecycle";
 import type {
   GenerateControllerDeps,
@@ -45,13 +41,13 @@ interface GenerateBriefInput {
 async function resolveUnderFallback(
   deps: GenerateControllerDeps,
   ref: { owner: string; repo: string; prNumber: number },
-  viewer: Result<PullRequestInfo, GitHubApiError | TokenUnreadableFailure>,
-): Promise<Result<PullRequestInfo, GitHubApiError | TokenUnreadableFailure>> {
+  viewer: Result<PullRequestInfo, GitHubApiError>,
+): Promise<Result<PullRequestInfo, GitHubApiError>> {
   const fallbackToken = deps.fallbackToken;
   if (viewer.ok || fallbackToken === undefined) {
     return viewer;
   }
-  if ("kind" in viewer.error || !isGitHubDenial(viewer.error)) {
+  if (!isGitHubDenial(viewer.error)) {
     return viewer;
   }
   const fallback = await fetchPullRequest(
@@ -81,11 +77,11 @@ export const generateController = {
     const viewer = await deps.github.run(async (token) =>
       fetchPullRequest(deps.github.createOctokit(token), ref),
     );
+    if (!viewer.ok && viewer.tokenUnreadable) {
+      return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
+    }
     const resolved = await resolveUnderFallback(deps, ref, viewer);
     if (!resolved.ok) {
-      if ("kind" in resolved.error) {
-        return { ok: false, error: { kind: FailureKinds.TOKEN_UNREADABLE } };
-      }
       if (resolved.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
         return { ok: false, error: { kind: "unauthorized" } };
       }

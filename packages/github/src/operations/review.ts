@@ -1,16 +1,18 @@
 // Open a PENDING review pinned to the viewed commit. Threads attach through
 // the GraphQL mutation in `review-thread.ts`; the verdict and body ride the
-// submit mutation in `review-submit.ts`. Only sanitized text and the derived
-// 422 class leave this boundary.
+// submit mutation in `review-submit.ts`. Only sanitized text and the code a
+// 422 classifies to leave this boundary.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod/v4";
 import {
+  GitHubApiErrorCodes,
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
+  type GitHubApiErrorCode,
 } from "../errors";
-import type { Result, ValueOf } from "types/utils";
+import type { Result } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export interface CreatePullRequestReviewInput {
@@ -26,24 +28,6 @@ export interface PendingReview {
   readonly reviewId: bigint;
   /** GraphQL node id, what the thread and submit mutations take. */
   readonly reviewNodeId: string;
-}
-
-/**
- * The 422 classes the submit route reacts to differently: `unknown-commit`
- * fails closed; `pending-review-exists` clears the viewer's stale pending
- * review and retries once; `unknown` is a plain failure. Classification is
- * best-effort over the response text, GitHub exposes no stable discriminator.
- */
-export const ReviewValidationClasses = {
-  UNKNOWN_COMMIT: "unknown-commit",
-  PENDING_REVIEW_EXISTS: "pending-review-exists",
-  UNKNOWN: "unknown",
-} as const;
-export type ReviewValidationClass = ValueOf<typeof ReviewValidationClasses>;
-
-export interface CreateReviewError extends GitHubApiError {
-  /** Present only when GitHub returned a 422. */
-  readonly validation?: ReviewValidationClass;
 }
 
 // GitHub's 422 body: top-level `message` plus an `errors` array whose entries
@@ -93,18 +77,23 @@ function collectValidationTexts(error: RequestError): string[] {
   return texts;
 }
 
+// Best-effort over the response text; GitHub exposes no stable discriminator.
 // The pending-review hint is the more specific one and wins: a body that
 // names both is a stale pending review, and calling it an unknown commit
-// would strand that review behind a fail-closed 409.
-function classifyValidation422(error: RequestError): ReviewValidationClass {
+// would strand that review behind a fail-closed 409. Anything else keeps
+// the status's own code.
+function classifyValidation422(
+  error: RequestError,
+  fallback: GitHubApiErrorCode,
+): GitHubApiErrorCode {
   const texts = collectValidationTexts(error);
   if (texts.some((text) => PENDING_REVIEW_HINT.test(text))) {
-    return ReviewValidationClasses.PENDING_REVIEW_EXISTS;
+    return GitHubApiErrorCodes.PENDING_REVIEW_EXISTS;
   }
   if (texts.some((text) => COMMIT_HINT.test(text))) {
-    return ReviewValidationClasses.UNKNOWN_COMMIT;
+    return GitHubApiErrorCodes.UNKNOWN_COMMIT;
   }
-  return ReviewValidationClasses.UNKNOWN;
+  return fallback;
 }
 
 const CONTEXT = "create pull request review";
@@ -117,13 +106,13 @@ const pendingReviewResponseSchema = z.object({
 /**
  * Open one PENDING review on a PR, authored by whoever the octokit's token
  * identifies. No event, body or comments ride the POST: threads and the
- * verdict follow through GraphQL. A 422 additionally carries its
- * `ReviewValidationClass`.
+ * verdict follow through GraphQL. A 422 answers `unknown-commit` or
+ * `pending-review-exists` when its body names one.
  */
 export async function createPullRequestReview(
   octokit: Octokit,
   input: CreatePullRequestReviewInput,
-): Promise<Result<PendingReview, CreateReviewError>> {
+): Promise<Result<PendingReview, GitHubApiError>> {
   try {
     const response = await octokit.rest.pulls.createReview({
       owner: input.owner,
@@ -150,10 +139,8 @@ export async function createPullRequestReview(
       error instanceof RequestError &&
       error.status === HttpStatuses.UNPROCESSABLE_CONTENT
     ) {
-      return {
-        ok: false,
-        error: { ...sanitized, validation: classifyValidation422(error) },
-      };
+      const code = classifyValidation422(error, sanitized.code);
+      return { ok: false, error: { ...sanitized, code } };
     }
     return { ok: false, error: sanitized };
   }

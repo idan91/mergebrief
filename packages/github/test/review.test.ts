@@ -3,10 +3,7 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
-import {
-  createPullRequestReview,
-  ReviewValidationClasses,
-} from "../src/operations/review";
+import { createPullRequestReview } from "../src/operations/review";
 import { LEAKED_TOKEN } from "./fixtures/graphql-error";
 
 function mockOctokit(createReview: ReturnType<typeof vi.fn>): Octokit {
@@ -143,9 +140,7 @@ describe("createPullRequestReview", () => {
       throw new Error("unreachable");
     }
     expect(result.error.status).toBe(422);
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.UNKNOWN_COMMIT,
-    );
+    expect(result.error.code).toBe(GitHubApiErrorCodes.UNKNOWN_COMMIT);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain("Validation Failed");
@@ -168,9 +163,7 @@ describe("createPullRequestReview", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.UNKNOWN_COMMIT,
-    );
+    expect(result.error.code).toBe(GitHubApiErrorCodes.UNKNOWN_COMMIT);
     expect(JSON.stringify(result.error)).not.toContain("deadbeef");
   });
 
@@ -190,9 +183,7 @@ describe("createPullRequestReview", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.PENDING_REVIEW_EXISTS,
-    );
+    expect(result.error.code).toBe(GitHubApiErrorCodes.PENDING_REVIEW_EXISTS);
     expect(JSON.stringify(result.error)).not.toContain("pending review");
   });
 
@@ -214,12 +205,10 @@ describe("createPullRequestReview", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.PENDING_REVIEW_EXISTS,
-    );
+    expect(result.error.code).toBe(GitHubApiErrorCodes.PENDING_REVIEW_EXISTS);
   });
 
-  it("classifies an unrecognizable 422 body as unknown", async () => {
+  it("keeps an unrecognizable 422 body a plain request failure", async () => {
     const createReview = vi
       .fn()
       .mockRejectedValue(makeValidation422({ message: "Validation Failed" }));
@@ -232,10 +221,11 @@ describe("createPullRequestReview", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.validation).toBe(ReviewValidationClasses.UNKNOWN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.status).toBe(422);
   });
 
-  it("maps a non-422 failure through the shared taxonomy without a class", async () => {
+  it("maps a non-422 failure through the shared taxonomy", async () => {
     const createReview = vi.fn().mockRejectedValue(makeRequestError(403));
     const result = await createPullRequestReview(
       mockOctokit(createReview),
@@ -247,7 +237,6 @@ describe("createPullRequestReview", () => {
       throw new Error("unreachable");
     }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
-    expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 });

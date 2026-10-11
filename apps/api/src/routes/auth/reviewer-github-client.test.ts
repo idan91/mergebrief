@@ -176,9 +176,74 @@ describe("createReviewerGitHubClient", () => {
     const result = await client.run(call);
     expect(result).toEqual({
       ok: false,
+      tokenUnreadable: true,
       error: { kind: "token-unreadable" },
+      retried: false,
     });
     expect(call).not.toHaveBeenCalled();
+  });
+
+  it("reports no retry when the first call answers", async () => {
+    const { deps, session } = await setup();
+    const client = createReviewerGitHubClient(deps, session, log);
+
+    const result = await client.run(okCall("a"));
+
+    expect(result).toEqual({ ok: true, value: "a", retried: false });
+  });
+
+  it("reports the retry when the rotated token is refused too", async () => {
+    const { deps, session } = await setup("stale");
+    vi.mocked(refreshSessionToken).mockResolvedValue({
+      ok: true,
+      value: { session, accessToken: "fresh" },
+    });
+    const client = createReviewerGitHubClient(deps, session, log);
+    const failing = vi.fn(
+      async (_token: string): Promise<Result<string, GitHubApiError>> => ({
+        ok: false,
+        error: expired,
+      }),
+    );
+
+    const result = await client.run(failing);
+
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: expired,
+      retried: true,
+    });
+    expect(failing.mock.calls.map(([token]) => token)).toEqual([
+      "stale",
+      "fresh",
+    ]);
+  });
+
+  it("runRead keeps the retry its own rung spent", async () => {
+    const { deps, session } = await setup("stale");
+    vi.mocked(refreshSessionToken).mockResolvedValue({
+      ok: true,
+      value: { session, accessToken: "fresh" },
+    });
+    const client = createReviewerGitHubClient(
+      deps,
+      session,
+      log,
+      "operator-pat",
+    );
+    const call = vi.fn(
+      async (token: string): Promise<Result<string, GitHubApiError>> => {
+        if (token === "operator-pat") {
+          return { ok: true, value: "body" };
+        }
+        return { ok: false, error: token === "fresh" ? denied : expired };
+      },
+    );
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: true, value: "body", retried: true });
   });
 
   it("retries an expired call once with the refreshed token", async () => {
@@ -196,7 +261,7 @@ describe("createReviewerGitHubClient", () => {
           : { ok: false, error: expired },
     );
     const result = await client.run(call);
-    expect(result).toEqual({ ok: true, value: "done" });
+    expect(result).toEqual({ ok: true, value: "done", retried: true });
     expect(call).toHaveBeenCalledTimes(2);
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
     expect(client.session()).toBe(rotated);
@@ -217,8 +282,9 @@ describe("createReviewerGitHubClient", () => {
     );
     const first = await client.run(failing);
     const second = await client.run(failing);
-    expect(first).toEqual({ ok: false, error: expired });
-    expect(second).toEqual({ ok: false, error: expired });
+    const refused = { ok: false, tokenUnreadable: false, error: expired };
+    expect(first).toEqual({ ...refused, retried: true });
+    expect(second).toEqual({ ...refused, retried: false });
     // First run: initial + one post-refresh retry; second run: no retry.
     expect(failing).toHaveBeenCalledTimes(3);
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
@@ -238,7 +304,12 @@ describe("createReviewerGitHubClient", () => {
       }),
     );
     const result = await client.run(failing);
-    expect(result).toEqual({ ok: false, error: expired });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: expired,
+      retried: false,
+    });
     expect(failing).toHaveBeenCalledTimes(1);
   });
 
@@ -258,7 +329,12 @@ describe("createReviewerGitHubClient", () => {
         }),
       ),
     );
-    expect(result).toEqual({ ok: false, error: notFound });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: notFound,
+      retried: false,
+    });
     expect(refreshSessionToken).not.toHaveBeenCalled();
   });
 
@@ -292,8 +368,8 @@ describe("createReviewerGitHubClient", () => {
         releaseRefresh?.();
       })(),
     ]);
-    expect(first).toEqual({ ok: true, value: "done" });
-    expect(second).toEqual({ ok: true, value: "done" });
+    expect(first).toEqual({ ok: true, value: "done", retried: true });
+    expect(second).toEqual({ ok: true, value: "done", retried: true });
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
   });
 
@@ -330,7 +406,7 @@ describe("createReviewerGitHubClient", () => {
           : { ok: false, error: { status: 401 } },
     );
     const result = await client.run(call, (error) => error.status === 401);
-    expect(result).toEqual({ ok: true, value: "done" });
+    expect(result).toEqual({ ok: true, value: "done", retried: true });
   });
 
   // `runRead` is the ladder behind a gate pass carried by the operator PAT.
@@ -348,7 +424,7 @@ describe("createReviewerGitHubClient", () => {
 
     const result = await client.runRead(call, isDeniedError);
 
-    expect(result).toEqual({ ok: true, value: "body" });
+    expect(result).toEqual({ ok: true, value: "body", retried: false });
     expect(call.mock.calls.map(([token]) => token)).toEqual([
       "reader-token",
       "operator-pat",
@@ -398,7 +474,12 @@ describe("createReviewerGitHubClient", () => {
 
     const result = await client.runRead(call, isDeniedError);
 
-    expect(result).toEqual({ ok: false, error: denied });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: denied,
+      retried: false,
+    });
     expect(call.mock.calls.map(([token]) => token)).toEqual([
       "reader-token",
       "stale-operator-pat",
@@ -412,7 +493,12 @@ describe("createReviewerGitHubClient", () => {
 
     const result = await client.runRead(call, isDeniedError);
 
-    expect(result).toEqual({ ok: false, error: denied });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: denied,
+      retried: false,
+    });
     expect(call).toHaveBeenCalledTimes(1);
   });
 
@@ -433,7 +519,12 @@ describe("createReviewerGitHubClient", () => {
 
     const result = await client.runRead(call, isDeniedError);
 
-    expect(result).toEqual({ ok: false, error: upstreamTrouble });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: false,
+      error: upstreamTrouble,
+      retried: false,
+    });
     expect(call).toHaveBeenCalledTimes(1);
   });
 
@@ -449,7 +540,12 @@ describe("createReviewerGitHubClient", () => {
 
     const result = await client.runRead(call, isDeniedError);
 
-    expect(result).toEqual({ ok: false, error: { kind: "token-unreadable" } });
+    expect(result).toEqual({
+      ok: false,
+      tokenUnreadable: true,
+      error: { kind: "token-unreadable" },
+      retried: false,
+    });
     expect(call).not.toHaveBeenCalled();
   });
 });

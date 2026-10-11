@@ -9,11 +9,12 @@ import type { InboxStackView } from "contract";
 import type { GitHubApiError, RepositoryRef } from "github";
 import type { Logger } from "logging";
 import type { InboxRow, PullRequestRowId, RepoId } from "persistence";
-import type { Result } from "types/utils";
-import {
-  isGitHubDenial,
-  type TokenUnreadableFailure,
-} from "../../../shared-errors/failures";
+import { isGitHubDenial } from "../../../shared-errors/failures";
+import type {
+  GitHubCallFailed,
+  GitHubCallOutcome,
+  GitHubCallTokenUnreadable,
+} from "../../auth/reviewer-github-client";
 import { runInPool } from "../../batches";
 import { buildOpenPullsCacheKey } from "../../open-pulls-cache";
 import { parseOwnerAndName } from "../../repos/utils";
@@ -24,13 +25,11 @@ import {
   INBOX_STACKS_CONCURRENCY,
 } from "../consts";
 
-export type ReadFailure = GitHubApiError | TokenUnreadableFailure;
-
 export interface LiveStacksDeps {
   /** One repository's open list under the viewer's token. */
   readonly listOpenPulls: (
     target: RepositoryRef,
-  ) => Promise<Result<readonly OpenPullRequest[], ReadFailure>>;
+  ) => Promise<GitHubCallOutcome<readonly OpenPullRequest[], GitHubApiError>>;
   readonly openPullsCache: TtlCache<readonly OpenPullRequest[]>;
   readonly log: Logger;
 }
@@ -97,16 +96,17 @@ function recordRefusal(
   deps: LiveStacksDeps,
   cacheKey: string,
   repoId: RepoId,
-  error: ReadFailure,
+  failure: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
 ): ListOutcome {
   const fields = { repoId: String(repoId) };
-  if ("kind" in error) {
+  if (failure.tokenUnreadable) {
     deps.log.warn("viewer token unreadable, no live stack for any row", {
       ...fields,
-      code: error.kind,
+      code: failure.error.kind,
     });
     return { refused: true, tokenDead: true };
   }
+  const error = failure.error;
   if (isGitHubDenial(error)) {
     const cachedAt = Date.now();
     deps.openPullsCache.set(
@@ -153,7 +153,7 @@ async function readOpenList(
   }
   const listed = await deps.listOpenPulls(target);
   if (!listed.ok) {
-    return recordRefusal(deps, cacheKey, group.repoId, listed.error);
+    return recordRefusal(deps, cacheKey, group.repoId, listed);
   }
   // Stamped when the list lands, not when it was asked for: a list that
   // outlives the budget must still serve the next load.

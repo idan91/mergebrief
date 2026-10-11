@@ -17,6 +17,12 @@ export const GitHubApiErrorCodes = {
   NOT_TEXT: "not-text",
   /** A push or delete a repository rule refused; the App's permission is not the cause. */
   RULE_REFUSED: "rule-refused",
+  /** A comment anchor (path or line) the pinned commit's diff does not hold. */
+  ANCHOR_REJECTED: "anchor-rejected",
+  /** A review pinned to a commit GitHub does not know: the PR was rewritten. */
+  UNKNOWN_COMMIT: "unknown-commit",
+  /** The viewer already holds a PENDING review on this PR. */
+  PENDING_REVIEW_EXISTS: "pending-review-exists",
   REQUEST_FAILED: "request-failed",
 } as const;
 export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCodes>;

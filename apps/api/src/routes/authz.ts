@@ -442,15 +442,13 @@ export function repoAuthzLayer(
     // per-request client: lazy single decrypt, refresh-once on a 401, retry
     // once with the rotated token.
     const client = createReviewerGitHubClient(deps, session, c.get("logger"));
-    let attempts = 0;
-    const repo = await client.run((token) => {
-      attempts += 1;
-      return fetchRepositoryById(client.createOctokit(token), repoId);
-    });
+    const repo = await client.run((token) =>
+      fetchRepositoryById(client.createOctokit(token), repoId),
+    );
 
     if (!repo.ok) {
       // An unreadable stored token burns the session (401).
-      if ("kind" in repo.error) {
+      if (repo.tokenUnreadable) {
         await createSessionAuth(deps.handle).deleteSession(
           session.sessionTokenHash,
         );
@@ -459,7 +457,7 @@ export function repoAuthzLayer(
       }
       // A 401 with no retry spent means the refresh itself failed, the
       // orchestrator already deleted the session; clean 401 → re-login.
-      if (repo.error.status === HttpStatuses.UNAUTHORIZED && attempts === 1) {
+      if (repo.error.status === HttpStatuses.UNAUTHORIZED && !repo.retried) {
         stampAccess(c, "401", {
           repoId,
           reviewerId: client.session().reviewerId,

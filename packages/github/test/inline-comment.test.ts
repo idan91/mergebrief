@@ -123,7 +123,7 @@ describe("createInlineReviewComment", () => {
     expect(result.value.reviewId).toBeUndefined();
   });
 
-  it("flags a 422 as a stale anchor under the pinned commit", async () => {
+  it("maps a 422 to a rejected anchor under the pinned commit", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(422));
     const result = await createInlineReviewComment(
       mockOctokit(createReviewComment),
@@ -133,7 +133,8 @@ describe("createInlineReviewComment", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.staleAnchor).toBe(true);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.ANCHOR_REJECTED);
+    expect(result.error.status).toBe(422);
     // Sanitized: the message is derived from the static context + status only,
     // never the upstream body (the RequestError message here is "status 422").
     expect(result.error.message).toBe(
@@ -141,7 +142,7 @@ describe("createInlineReviewComment", () => {
     );
   });
 
-  it("maps a 403 to a sanitized forbidden error, no stale-anchor flag", async () => {
+  it("maps a 403 to a sanitized forbidden error", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(403));
     const result = await createInlineReviewComment(
       mockOctokit(createReviewComment),
@@ -152,6 +153,5 @@ describe("createInlineReviewComment", () => {
       throw new Error("unreachable");
     }
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
-    expect(result.error.staleAnchor).toBeUndefined();
   });
 });

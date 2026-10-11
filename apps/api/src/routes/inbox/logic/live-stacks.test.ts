@@ -86,17 +86,21 @@ function stubListOpenPulls(...answers: readonly ReadAnswer[]) {
     if ("tokenDead" in answer) {
       return {
         ok: false as const,
+        tokenUnreadable: true as const,
         error: { kind: "token-unreadable" as const },
+        retried: false as const,
       };
     }
     if ("refuse" in answer) {
       return {
         ok: false as const,
+        tokenUnreadable: false as const,
         error: { code: answer.refuse, message: "no" },
+        retried: false,
       };
     }
     await new Promise((resolve) => setTimeout(resolve, answer.delayMs ?? 0));
-    return { ok: true as const, value: answer.open };
+    return { ok: true as const, value: answer.open, retried: false };
   });
 }
 

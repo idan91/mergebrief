@@ -27,6 +27,7 @@ import type {
   UserOctokit,
 } from "../auth/reviewer-github-client";
 import type { ViewerPrincipal } from "../auth/session/types";
+import { runWithoutRetry } from "../../../test/fixtures";
 import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import type { Mutable } from "types/utils";
 import {
@@ -70,8 +71,8 @@ const log: Logger = {
 /** A client for one reader; the live read reads only the reviewer id. */
 function stubClient(reviewerId: ReviewerId): ReviewerGitHubClient {
   return {
-    run: async (call) => call(VIEWER_TOKEN),
-    runRead: async (call) => call(VIEWER_TOKEN),
+    run: (call) => runWithoutRetry(call, VIEWER_TOKEN),
+    runRead: (call) => runWithoutRetry(call, VIEWER_TOKEN),
     createOctokit: (token) => ({ token }) as unknown as UserOctokit,
     createMutationOctokit: () => {
       throw new Error("the live read writes nothing to GitHub");

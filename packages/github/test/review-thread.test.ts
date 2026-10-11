@@ -9,7 +9,6 @@ import {
   addPullRequestReviewThread,
   ReviewCommentSides,
   ReviewSubjectTypes,
-  ReviewThreadFailureKinds,
 } from "../src/operations/review-thread";
 import {
   LEAKED_TOKEN,
@@ -135,9 +134,7 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error).toEqual({
-      kind: ReviewThreadFailureKinds.ANCHOR_REJECTED,
-    });
+    expect(result.error.code).toBe(GitHubApiErrorCodes.ANCHOR_REJECTED);
   });
 
   it("folds a thrown UNPROCESSABLE entry as a rejected anchor", async () => {
@@ -158,9 +155,7 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error).toEqual({
-      kind: ReviewThreadFailureKinds.ANCHOR_REJECTED,
-    });
+    expect(result.error.code).toBe(GitHubApiErrorCodes.ANCHOR_REJECTED);
     expect(JSON.stringify(result.error)).not.toContain("part of the diff");
   });
 
@@ -180,11 +175,7 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
-    if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 
   it("maps a GraphQL error to a sanitized request failure, not a rejection", async () => {
@@ -202,11 +193,7 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
-    if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain(UPSTREAM_TEXT);
@@ -238,12 +225,8 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
-    if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
-    expect(result.error.error.status).toBe(502);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.status).toBe(502);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 
@@ -260,10 +243,6 @@ describe("addPullRequestReviewThread", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.kind).toBe(ReviewThreadFailureKinds.REQUEST_FAILED);
-    if (result.error.kind !== ReviewThreadFailureKinds.REQUEST_FAILED) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });
