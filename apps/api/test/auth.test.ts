@@ -6,12 +6,10 @@ import { randomBytes } from "node:crypto";
 import {
   decryptToken,
   encryptToken,
-  createTenantRepository,
   createGrantAuth,
   createSessionAuth,
   createTokenAuth,
   WriteClassifications,
-  type AppDatabase,
   type KeyProvider,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -29,7 +27,6 @@ import {
   KEY_REF,
   REVIEWER_ID,
   SECRET,
-  brandInstallationId,
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
@@ -38,15 +35,13 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
 // ---------------------------------------------------------------------------
 
 // GitHub token plaintexts the stub hands back, asserted ABSENT from responses.
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -126,37 +121,6 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
   return fetchFn;
 }
 
-/** Seed a grant + session row with real encrypted tokens; returns the hash. */
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-  input: { expiresAt: Date; accessPlaintext: string; refreshPlaintext: string },
-): Promise<string> {
-  const token = randomBytes(32).toString("base64url");
-  const hash = hashSha256Hex(token);
-  const sealedAccess = await encryptToken(kp, KEY_REF, input.accessPlaintext);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, input.refreshPlaintext);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: input.expiresAt,
-  });
-  await createTenantRepository(handle, {
-    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
-  }).sessions.create({
-    sessionTokenHash: hash,
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: input.expiresAt,
-  });
-  return hash;
-}
-
 // ---------------------------------------------------------------------------
 // Suite.
 // ---------------------------------------------------------------------------
@@ -188,27 +152,7 @@ describe("reviewer auth routes", () => {
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [],
     });
-    const token = randomBytes(32).toString("base64url");
-    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
-    await createTenantRepository(harness.handle, {
-      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
-    }).sessions.create({
-      sessionTokenHash: hashSha256Hex(token),
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      reviewerLogin: "octocat",
-      grantId: grant.id,
-      expiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
+    const { cookie: token } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/inbox", {
       headers: { cookie: `__Host-mergebrief_session=${token}` },
@@ -331,28 +275,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout deletes the session and its orphaned grant, clearing the cookie", async () => {
-    const token = randomBytes(32).toString("base64url");
-    const hash = hashSha256Hex(token);
-    const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-    const sealedR = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealed.ok || !sealedR.ok) {
-      throw new Error("seed failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealed.value,
-      ghRefreshTokenCiphertext: sealedR.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
-    await createTenantRepository(harness.handle, {
-      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
-    }).sessions.create({
-      sessionTokenHash: hash,
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      reviewerLogin: "octocat",
-      grantId: grant.id,
-      expiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
+    const { cookie: token } = await seedSignIn(harness.handle, kp);
     expect(await countRows(harness, "auth_session")).toBe(1);
 
     const res = await app.request("/api/auth/logout", {
@@ -446,27 +369,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("GET /api/auth/session with a live session answers ok", async () => {
-    const token = randomBytes(32).toString("base64url");
-    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
-    await createTenantRepository(harness.handle, {
-      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
-    }).sessions.create({
-      sessionTokenHash: hashSha256Hex(token),
-      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      reviewerLogin: "octocat",
-      grantId: grant.id,
-      expiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
+    const { cookie: token } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/session", {
       headers: { cookie: `__Host-mergebrief_session=${token}` },
@@ -488,10 +391,8 @@ describe("reviewer auth routes", () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     // The observed access ciphertext still matches the stored row (no concurrent
     // rotation), so the compare-and-swap guard lets a real refresh proceed.
-    const hash = await seedSession(harness.handle, kp, {
+    const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date("2000-01-01T00:00:00Z"),
-      accessPlaintext: ACCESS_TOKEN,
-      refreshPlaintext: REFRESH_TOKEN,
     });
     const before = await harness.raw(
       "select gh_token_ciphertext from github_grant",
@@ -550,10 +451,8 @@ describe("reviewer auth routes", () => {
         error_uri: "https://docs.github.com/",
       },
     });
-    const hash = await seedSession(harness.handle, kp, {
+    const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date("2000-01-01T00:00:00Z"),
-      accessPlaintext: ACCESS_TOKEN,
-      refreshPlaintext: REFRESH_TOKEN,
     });
 
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
@@ -590,10 +489,8 @@ describe("reviewer auth routes", () => {
         error_uri: "",
       },
     });
-    const hash = await seedSession(harness.handle, kp, {
+    const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date("2027-01-01T00:00:00Z"),
-      accessPlaintext: ACCESS_TOKEN,
-      refreshPlaintext: REFRESH_TOKEN,
     });
     const stale = await createSessionAuth(harness.handle).findSession(hash);
     if (stale === undefined) {
@@ -646,10 +543,8 @@ describe("reviewer auth routes", () => {
 
   it("cookie refresh returns NOT_FOUND when the session vanishes", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
-    const hash = await seedSession(harness.handle, kp, {
+    const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date("2000-01-01T00:00:00Z"),
-      accessPlaintext: ACCESS_TOKEN,
-      refreshPlaintext: REFRESH_TOKEN,
     });
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) {

@@ -1,5 +1,5 @@
 import type {
-  GitHubApiError,
+  GitHubCallFailure,
   InstallationGitHub,
   ReviewerGitHub,
 } from "github";
@@ -29,6 +29,10 @@ interface RepoAccessFields {
   readonly repoId: RepoId;
   /** `owner/name` as GitHub verified it, ≤60s stale; a rename can repoint the row's slug. */
   readonly repoFullName: string;
+  /**
+   * It gates the collaborators read, which has no GitHub-side backstop, so a
+   * probe shape without `permissions` must keep parsing as `false`.
+   */
   readonly viewerCanPush: boolean;
   /** The Installation holding the repo among those the reviewer reaches, else the owner world. */
   readonly installation: RepoWorld;
@@ -80,20 +84,9 @@ export type CachedRepoAccess =
   | CachedOperatorRepoAccess;
 
 export interface AuthzVariables extends RequestLogVariables {
-  /** Session-only: the owner world. Behind the repo gate: the repo's world. */
-  readonly ctx: ScopeContext;
-  /** Passed on the operator PAT: per-PR routes read the reader's own rows. */
-  readonly urlBoxOnly?: boolean;
   readonly session: ViewerPrincipal;
-  /** The repo gate's resolved value; the vars beside it mirror its fields. */
+  /** The repo gate's resolved value. */
   readonly repoAccess: RepoAccess;
-  readonly repoId: RepoId;
-  readonly repoFullName: string;
-  /**
-   * It gates the collaborators read, which has no GitHub-side backstop, so a
-   * probe shape without `permissions` must keep parsing as `false`.
-   */
-  readonly viewerCanPush: boolean;
 }
 
 export interface AuthzEnv {
@@ -128,5 +121,5 @@ export interface GateRequest {
 
 /** A request whose repo the reviewer's own token was refused. */
 export interface OperatorRungRequest extends GateRequest {
-  readonly error: GitHubApiError;
+  readonly error: GitHubCallFailure;
 }

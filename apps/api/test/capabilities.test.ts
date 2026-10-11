@@ -21,7 +21,7 @@ import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { shapeCatalogOperations } from "../src/product-operations/manifest";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
-import { KEY_REF, brandReviewerId, createTestUserOctokit } from "./fixtures";
+import { KEY_REF, brandReviewerId, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const MANIFEST_PATH = join(
@@ -51,14 +51,7 @@ describe("GET /api/capabilities", () => {
     kp = createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: "https://app.example.test",
-      createUserOctokit: createTestUserOctokit,
-    };
+    const auth: AuthDeps = buildAuthDeps(kp);
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,

@@ -1,7 +1,6 @@
 // DELETE /api/repos/:repoId/attachments, the gated purge of a repository's
-// attachments branch. Full wire over PGlite; the gate's GitHub at the global
-// fetch boundary, the fresh read and the App's delete through the
-// `github/testing` fake. The owner world is a 404 before any call past the
+// attachments branch. Full wire over PGlite; the gate's GitHub, the fresh
+// read and the App's delete through the `github/testing` fake. The owner world is a 404 before any call past the
 // gate; the installation world re-reads the repository fresh and needs
 // `permissions.admin` from THAT answer.
 import {
@@ -11,11 +10,7 @@ import {
   type FakeFailure,
   type FakeGitHub,
 } from "github/testing";
-import {
-  WriteClassifications,
-  type KeyProvider,
-  type ScopeContext,
-} from "persistence";
+import { WriteClassifications, type KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -26,7 +21,6 @@ import {
   REVIEWER_ID,
   SECRET,
   brandRepoId,
-  brandReviewerId,
   createKeyProvider,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
@@ -34,11 +28,12 @@ import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   buildFakeAuthDeps,
   buildFakeInstallationDeps,
-  stubGateGitHub,
+  DENIED_GATE_CALLS,
+  arrangeFakeGate,
+  listCallsPastGate,
   type GateGitHubOptions,
 } from "./reviewer-github";
-import { seedApiToken } from "./session/fixtures";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -46,10 +41,6 @@ const REPO_ID = 424242;
 const REPO = { owner: "octo", repo: "hello" };
 const PURGE_PATH = `/api/repos/${REPO_ID}/attachments`;
 const ATTACHMENT_BRANCH = "mergebrief/attachments";
-
-const OWNER: ScopeContext = {
-  ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
-};
 
 interface AuditRow {
   readonly installation_id: bigint | null;
@@ -122,7 +113,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...buildFakeInstallationDeps(fake),
     });
-    ({ cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER }));
+    ({ cookie } = await seedSignIn(harness.handle, kp));
   });
 
   afterEach(async () => {
@@ -131,7 +122,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   function stubGate(options: Partial<GateGitHubOptions> = {}) {
-    return stubGateGitHub({ repoId: REPO_ID, admin: false, ...options });
+    return arrangeFakeGate(fake, { repoId: REPO_ID, admin: false, ...options });
   }
 
   async function purge(
@@ -153,7 +144,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   }
 
   it("deletes the branch when the fresh read says admin", async () => {
-    const gate = stubGate();
+    stubGate();
     arrangeFreshRepository(fake, true);
     const lookups = spyPullRequestLookups(harness);
 
@@ -162,8 +153,8 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+    const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+    expect(pastGate).toEqual(["fetchRepositoryById", "deleteAttachmentBranch"]);
     expect(listDeletes()).toEqual([
       {
         operation: "deleteAttachmentBranch",
@@ -193,7 +184,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     const res = await purge();
 
     expect(res.status).toBe(404);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",
@@ -238,7 +229,9 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
   it("answers 404 when the fresh read is denied", async () => {
     stubGate();
-    arrangeFreshRepository(fake, true);
+    arrangeFreshRepository(fake, false);
+    expect((await purge()).status).toBe(403);
+    // The gate now passes from its cache, so only the fresh read is refused.
     fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
 
     const res = await purge();
@@ -248,18 +241,17 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("the owner world is a 404 with no call past the gate", async () => {
-    const gate = stubGate({ inInstallation: false });
+    stubGate({ inInstallation: false });
     arrangeFreshRepository(fake, true);
 
     const res = await purge();
 
     expect(res.status).toBe(404);
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("a Bearer principal is refused as human-only before any fresh read", async () => {
-    const gate = stubGate();
+    stubGate();
     arrangeFreshRepository(fake, true);
     const bearer = await seedApiToken(
       harness.handle,
@@ -274,8 +266,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
     expect(res.status).toBe(403);
     expect(await readCode(res)).toBe("human-only");
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",

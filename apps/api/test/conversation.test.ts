@@ -46,7 +46,12 @@ import {
   buildFakeInstallationDeps,
   buildOverriddenAuthDeps,
   listFakeCallTokens,
-  stubGateGitHub,
+  arrangeFakeGate,
+  DENIED_GATE_CALLS,
+  OPERATOR_GATE_CALLS,
+  REVIEWER_GATE_CALLS,
+  listCallTokens,
+  listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -323,7 +328,7 @@ describe("conversation surface", () => {
 
   describe("GET conversation on an Installation row", () => {
     it("401s without a session cookie and never reads GitHub", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const res = await getConversation(makeApp(), undefined);
       expect(res.status).toBe(401);
       // Gate denials are per-viewer state too, the no-store contract covers
@@ -333,17 +338,17 @@ describe("conversation surface", () => {
     });
 
     it("404s denied viewers without reading the conversation", async () => {
-      stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+      arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(), cookie);
       expect(res.status).toBe(404);
       expect(res.headers.get("cache-control")).toBe("no-store");
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
     });
 
     it("returns no-store conversation data on the App with one row read", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const lookups = spyPullRequestLookups(harness);
@@ -387,7 +392,7 @@ describe("conversation surface", () => {
           ],
         },
       });
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequestWithEntryComment(harness.handle, 424_242n);
       const res = await getConversation(makeApp(), cookie);
@@ -420,7 +425,7 @@ describe("conversation surface", () => {
           ],
         },
       });
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       // Stored id targets NEITHER comment (stale rotation), nothing filters.
       await seedPullRequestWithEntryComment(harness.handle, 999_999n);
@@ -432,7 +437,7 @@ describe("conversation surface", () => {
     });
 
     it("caches the second read per PR within the TTL", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -450,7 +455,7 @@ describe("conversation surface", () => {
 
     it("maps an App not-found to 404", async () => {
       fake.failOn("fetchPullRequestConversation", FakeFailures.NOT_FOUND);
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(), cookie);
@@ -460,7 +465,7 @@ describe("conversation surface", () => {
 
     it("502s a rate limit and caches no failure", async () => {
       fake.failOn("fetchPullRequestConversation", FakeFailures.RATE_LIMITED);
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -475,7 +480,7 @@ describe("conversation surface", () => {
 
     it("collapses an App-credential 403 to 404", async () => {
       fake.failOn("fetchPullRequestConversation", FakeFailures.FORBIDDEN);
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(), cookie);
@@ -485,7 +490,7 @@ describe("conversation surface", () => {
 
     it("answers an App-credential 401 as 502, never a sign-in prompt", async () => {
       fake.failOn("fetchPullRequestConversation", FakeFailures.UNAUTHORIZED);
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(), cookie);
@@ -494,7 +499,7 @@ describe("conversation surface", () => {
     });
 
     it("404s an unknown PR number without reading GitHub", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(
@@ -503,16 +508,14 @@ describe("conversation surface", () => {
         conversationPath(999),
       );
       expect(res.status).toBe(404);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake)).toEqual([]);
     });
   });
 
   describe("GET conversation on an owner row", () => {
     it("reads on the viewer's token, never the App's", async () => {
-      stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       const lookups = spyPullRequestLookups(harness);
       const res = await getConversation(makeApp(), cookie);
@@ -532,10 +535,8 @@ describe("conversation surface", () => {
         prNumber: OTHER_PR_NUMBER,
         conversation: conversationFixture(),
       });
-      stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
-      const { cookie, cookieHash } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
+      const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       await seedPullRequest(harness.handle, OWNER, OTHER_PR_NUMBER);
       const app = makeApp();
@@ -561,10 +562,8 @@ describe("conversation surface", () => {
 
     it("collapses a viewer-token 403 to 404", async () => {
       fake.failOn("fetchPullRequestConversation", FakeFailures.FORBIDDEN);
-      stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       const res = await getConversation(makeApp(), cookie);
       expect(res.status).toBe(404);
@@ -574,10 +573,11 @@ describe("conversation surface", () => {
     it("401s a viewer token GitHub rejects past its one renewal", async () => {
       fake.rejectToken(ACCESS_TOKEN);
       fake.rejectToken(ROTATED_ACCESS_TOKEN);
-      const gate = stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
+      const gate = arrangeFakeGate(fake, {
+        repoId: REPO_ID,
+        inInstallation: false,
       });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       const res = await getConversation(makeApp(), cookie);
       expect(res.status).toBe(401);
@@ -590,20 +590,19 @@ describe("conversation surface", () => {
         FakeFailures.NOT_FOUND,
         CredentialKinds.REVIEWER,
       );
-      stubGateGitHub({
+      arrangeFakeGate(fake, {
         repoId: REPO_ID,
         viewerStatus: 404,
         inInstallation: false,
       });
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       const lookups = spyPullRequestLookups(harness);
       const res = await getConversation(makeApp(OPERATOR_PAT), cookie);
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual(conversationFixture());
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, OPERATOR_PAT]);
+      const pastGate = listCallsPastGate(fake, OPERATOR_GATE_CALLS);
+      expect(listCallTokens(pastGate)).toEqual([ACCESS_TOKEN, OPERATOR_PAT]);
       // The gate rung probes the reader's own url row once, then the row loads.
       expect(lookups.count()).toBe(2);
     });
@@ -614,14 +613,12 @@ describe("conversation surface", () => {
         FakeFailures.NOT_FOUND,
         CredentialKinds.REVIEWER,
       );
-      stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
       const res = await getConversation(makeApp(OPERATOR_PAT), cookie);
       expect(res.status).toBe(404);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+      expect(listCallTokens(listCallsPastGate(fake))).toEqual([ACCESS_TOKEN]);
     });
   });
 
@@ -645,8 +642,13 @@ describe("conversation surface", () => {
       arrangeFakeRepository(fake, REPO_ID);
     });
 
+    /** An empty reply stops at the parse, past the gate that caches its pass. */
+    async function cacheGatePass(app: ApiApp, cookie: string): Promise<void> {
+      expect((await postReply(app, cookie, { body: "" })).status).toBe(400);
+    }
+
     it("posts and audits with the viewer token and one row read", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const lookups = spyPullRequestLookups(harness);
@@ -671,13 +673,17 @@ describe("conversation surface", () => {
           },
         }),
       ]);
-      expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, ACCESS_TOKEN]);
+      const pastGate = listCallsPastGate(fake);
+      const freshReads = pastGate.filter(
+        (call) => call.operation === "fetchRepositoryById",
+      );
+      expect(freshReads).toHaveLength(1);
+      expect(listCallTokens(pastGate)).toEqual([ACCESS_TOKEN, ACCESS_TOKEN]);
       expect(await replyAuditCount(harness)).toBe(1);
     });
 
     it("answers no reviewId when GitHub wraps the reply in none", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
@@ -713,7 +719,7 @@ describe("conversation surface", () => {
     });
 
     it("records the reply's review id on the brief the request names", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
@@ -738,7 +744,7 @@ describe("conversation surface", () => {
     });
 
     it("still posts a reply that names no brief, recording nothing", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
@@ -753,7 +759,7 @@ describe("conversation surface", () => {
     });
 
     it("never creates a session for a reviewer who holds none", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBrief(harness.handle, false);
@@ -775,7 +781,7 @@ describe("conversation surface", () => {
     });
 
     it("keeps 201 when the named brief does not exist", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
 
@@ -794,7 +800,7 @@ describe("conversation surface", () => {
     });
 
     it("400s empty or oversized replies without posting", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -809,7 +815,7 @@ describe("conversation surface", () => {
     });
 
     it("400s comment ids beyond safe integer precision", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(
@@ -822,8 +828,8 @@ describe("conversation surface", () => {
       expect(listReplies()).toEqual([]);
     });
 
-    it("renews once on a token GitHub rejects mid-reply and posts", async () => {
-      const gate = stubGateGitHub({ repoId: REPO_ID });
+    it("renews once across the gate and the reply, then posts", async () => {
+      const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
       fake.rejectToken(ACCESS_TOKEN);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
@@ -834,6 +840,7 @@ describe("conversation surface", () => {
       expect(gate.tokenRefreshes()).toBe(1);
       expect(listFakeCallTokens(fake)).toEqual([
         ACCESS_TOKEN,
+        ...REVIEWER_GATE_CALLS.map(() => ROTATED_ACCESS_TOKEN),
         ROTATED_ACCESS_TOKEN,
         ROTATED_ACCESS_TOKEN,
       ]);
@@ -841,7 +848,7 @@ describe("conversation surface", () => {
     });
 
     it("502s a reply GitHub fails upstream after one reply call", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       fake.failOn("createReviewCommentReply", FakeFailures.SERVER_ERROR);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
@@ -852,7 +859,7 @@ describe("conversation surface", () => {
     });
 
     it("collapses reply-create 403 to the gate's uniform 404", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       fake.failOn("createReviewCommentReply", FakeFailures.FORBIDDEN);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
@@ -862,7 +869,7 @@ describe("conversation surface", () => {
     });
 
     it("404s a deleted root comment with sanitized copy", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       fake.failOn("createReviewCommentReply", FakeFailures.NOT_FOUND);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
@@ -876,7 +883,7 @@ describe("conversation surface", () => {
     });
 
     it("keeps 201 when auditing fails after posting the reply", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const capture = testLogging();
@@ -907,26 +914,32 @@ describe("conversation surface", () => {
     });
 
     it("collapses a denied fresh re-resolve to the gate's 404 posture", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
-      fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const res = await postReply(makeApp(), cookie, { body: "x" });
+      const app = makeApp();
+      await cacheGatePass(app, cookie);
+      fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
+      const res = await postReply(app, cookie, { body: "x" });
       expect(res.status).toBe(404);
+      const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+      expect(pastGate).toEqual(["fetchRepositoryById"]);
       expect(listReplies()).toEqual([]);
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
     it("posts to the freshly resolved repo slug, never the gate's name", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
-      arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       arrangeFakePullRequest(fake, {
         repoId: REPO_ID,
         fullName: "octo/renamed",
       });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const res = await postReply(makeApp(), cookie, {
+      const app = makeApp();
+      await cacheGatePass(app, cookie);
+      arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
+      const res = await postReply(app, cookie, {
         body: "to the fresh slug",
       });
       expect(res.status).toBe(201);
@@ -938,11 +951,8 @@ describe("conversation surface", () => {
     });
 
     it("refuses a reply behind an operator pass with no-repo-write-access", async () => {
-      stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
-      fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
-      const { cookie } = await seedSignIn(harness.handle, kp, {
-        scope: OWNER,
-      });
+      arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle, OWNER);
 
       const res = await postReply(makeApp(OPERATOR_PAT), cookie, {
@@ -958,7 +968,7 @@ describe("conversation surface", () => {
     });
 
     it("evicts the PR's cached conversation so the next read refetches", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -975,7 +985,7 @@ describe("conversation surface", () => {
 
   describe("review submit evicts the conversation cache", () => {
     it("drops the PR's cached conversation on a successful review submit", async () => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       arrangeFakeRepository(fake, REPO_ID);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);

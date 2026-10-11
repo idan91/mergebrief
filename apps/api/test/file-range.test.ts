@@ -1,7 +1,12 @@
 // GET .../file-range over PGlite: one file's line window at a commit, read on
 // the viewer's binding through the `github/testing` fake and held per session.
 import { RepoFileKinds, type RepoFileResult } from "github";
-import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
@@ -28,12 +33,12 @@ import {
 import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
-  ROTATED_ACCESS_TOKEN,
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
-  stubGateGitHub,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "./reviewer-github";
-import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
 const REPO = { owner: "octo", repo: "hello" };
@@ -103,7 +108,7 @@ describe("file range read", () => {
   }
 
   it("serves the asked window and the file's line count", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFile(makeTextFile("a\nb\nc\nd\n"));
     const lookups = spyPullRequestLookups(harness);
 
@@ -131,7 +136,7 @@ describe("file range read", () => {
   });
 
   it("reads the blob once for two ranges of the same file", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFile(makeTextFile("a\nb\nc\nd\n"));
 
     const first = await readWindow(2, 3);
@@ -143,7 +148,7 @@ describe("file range read", () => {
   });
 
   it("never serves one session the blob another session cached", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFile(makeTextFile("a\nb\nc\nd\n"));
     const other = await seedSignIn(harness.handle, kp);
 
@@ -168,26 +173,26 @@ describe("file range read", () => {
   });
 
   it("refuses a span wider than one read may serve", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
 
     const res = await readWindow(1, 401);
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: "invalid-request" });
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("refuses a branch name in place of a commit SHA", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
 
     const res = await readRange(`ref=main&path=${FILE_PATH}&from=1&to=2`);
 
     expect(res.status).toBe(400);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("tells an absent path apart from a repo the reader cannot see", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
 
     const res = await readWindow(2, 3);
 
@@ -198,7 +203,7 @@ describe("file range read", () => {
   // The BARE 404, never file-not-found: a reader must not be able to tell a
   // repo they cannot see from a path that is not there.
   it("collapses a forbidden read to the gate's bare 404", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     fake.failOn("fetchRepoFile", FakeFailures.FORBIDDEN);
 
     const res = await readWindow(2, 3);
@@ -208,7 +213,7 @@ describe("file range read", () => {
   });
 
   it("answers 413 for a blob over the byte cap", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFile(makeTextFile("x", OVER_CAP_BYTES));
 
     const res = await readWindow(2, 3);
@@ -218,7 +223,7 @@ describe("file range read", () => {
   });
 
   it("answers 400 for a blob that is not text", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFile(makeTextFile("a\u0000b"));
 
     const res = await readWindow(2, 3);
@@ -235,7 +240,7 @@ describe("file range read", () => {
   it.each(permanentRefusals)(
     "answers 400 for %s, with no retry",
     async (_label, failure) => {
-      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeGate(fake, { repoId: REPO_ID });
       fake.failRepoFile(REPO, { path: FILE_PATH, ref: HEAD_SHA }, failure);
 
       const res = await readWindow(2, 3);
@@ -247,9 +252,12 @@ describe("file range read", () => {
   );
 
   it("answers 401 when the read still 401s after a good refresh", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
-    fake.rejectToken(ACCESS_TOKEN);
-    fake.rejectToken(ROTATED_ACCESS_TOKEN);
+    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
+    fake.failOn(
+      "fetchRepoFile",
+      FakeFailures.UNAUTHORIZED,
+      CredentialKinds.REVIEWER,
+    );
 
     const res = await readWindow(2, 3);
 
@@ -259,7 +267,7 @@ describe("file range read", () => {
   });
 
   it("surfaces a rate-limited read as an upstream 502", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     fake.failOn("fetchRepoFile", FakeFailures.RATE_LIMITED);
 
     const res = await readWindow(2, 3);

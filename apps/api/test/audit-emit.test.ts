@@ -5,6 +5,7 @@
 import { AuditClientSchema, WriteClassifications } from "persistence";
 import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductActionIds } from "contract";
 import {
@@ -25,13 +26,8 @@ import {
   type AuditEmitConfig,
 } from "../src/index";
 import { testLogger } from "./logging";
-import {
-  REPO_ID,
-  seedApiToken,
-  seedBrief,
-  seedPullRequest,
-} from "./session/fixtures";
-import { seedSignIn } from "./sign-in";
+import { REPO_ID, seedBrief, seedPullRequest } from "./session/fixtures";
+import { seedSignIn, seedApiToken } from "./sign-in";
 import {
   INSTALLATION_ID,
   OPEN_POLICY,
@@ -39,12 +35,14 @@ import {
   PR_NUMBER,
   REVIEWER_ID,
   SECRET,
-  buildAuthDeps,
   createKeyProvider,
-  getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS, stubGateGitHub } from "./reviewer-github";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakeGate,
+  buildFakeAuthDeps,
+} from "./reviewer-github";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -126,13 +124,14 @@ describe("the audit choke point", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let cookie: string;
+  let fake: FakeGitHub;
 
   function appWith(audit?: AuditEmitConfig): ApiApp {
     const deps: Mutable<AppDeps> = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     };
 
@@ -146,7 +145,8 @@ describe("the audit choke point", () => {
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    stubGateGitHub({ repoId: REPO_ID });
+    fake = makeFakeGitHub();
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, 1);
@@ -220,16 +220,7 @@ describe("the audit choke point", () => {
 
   it("records a repo-access denial the gate collapsed to 404", async () => {
     // The gate answers 404 to leak no existence; the ledger still says why.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async (input: string | URL | Request): Promise<Response> =>
-          new Response(JSON.stringify({ message: "Not Found" }), {
-            status: getRequestUrl(input).includes("/repositories/") ? 404 : 200,
-            headers: { "content-type": "application/json" },
-          }),
-      ),
-    );
+    fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
 
     const res = await readMark(appWith(), {
       Cookie: `__Host-mergebrief_session=${cookie}`,

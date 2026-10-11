@@ -3,9 +3,7 @@
 // Mint checks live installation access and returns token material exactly once.
 import { randomBytes } from "node:crypto";
 import {
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -24,7 +22,6 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   REVIEWER_ID,
   SECRET,
   buildAuthDeps,
@@ -34,13 +31,12 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedGrant, seedSignIn } from "./sign-in";
 
 const REPO_A = 42001;
 const REPO_B = 42002;
 const OTHER_INSTALLATION_ID = 111222;
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -172,24 +168,14 @@ async function seedApiToken(
   } = {},
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
+  const grantId = await seedGrant(handle, kp);
   const minted = await createTokenAuth(handle).mintToken({
     scope: overrides.scope ?? WriteClassifications.EXTERNAL_WRITE,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
     tokenHash: hashSha256Hex(plaintext),
-    grantId: grant.id,
+    grantId,
     expiresAt:
       overrides.expiresAt === undefined
         ? new Date("2027-01-01T00:00:00Z")
@@ -516,30 +502,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     await harness.close();
   });
 
-  /** Seed a cookie session; returns the cookie plaintext. */
-  async function seedSession(): Promise<string> {
-    const cookie = randomBytes(32).toString("base64url");
-    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
-    await createTenantRepository(harness.handle, CTX).sessions.create({
-      sessionTokenHash: hashSha256Hex(cookie),
-      reviewerId: REVIEWER,
-      reviewerLogin: "octocat",
-      grantId: grant.id,
-      expiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
-    return cookie;
-  }
-
   async function mint(body: unknown, cookie?: string): Promise<Response> {
     const headers: Record<string, string> = {
       ...SAME_ORIGIN_HEADERS,
@@ -573,7 +535,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await mint(
       {
@@ -640,7 +602,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       userInstallations: () =>
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await mint(
       {
         name: "forever",
@@ -696,7 +658,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       userInstallations: () =>
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const narrowed = await mint({ name: "read-only", scope: "read" }, cookie);
     expect(narrowed.status).toBe(201);
@@ -737,7 +699,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
   it("refuses a cookie mint that proves no origin", async () => {
     stubGitHub({});
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/tokens", {
       method: "POST",
@@ -758,7 +720,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
   it("refuses a cookie mint from a sibling subdomain", async () => {
     stubGitHub({});
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/tokens", {
       method: "POST",
@@ -776,7 +738,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
   it("accepts a cookie mint whose Origin is the instance's own", async () => {
     stubGitHub({});
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/tokens", {
       method: "POST",
@@ -793,7 +755,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
   it("rejects malformed bodies deterministically", async () => {
     stubGitHub({});
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
     for (const bad of [
       {},
       { name: "ok" },
@@ -824,7 +786,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
-    const cookie = await seedSession();
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const minted = (await (
       await mint(
         {

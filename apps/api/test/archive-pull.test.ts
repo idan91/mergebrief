@@ -1,7 +1,7 @@
 // PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive: the viewer's
 // own archive of one inbox row, behind the per-PR gate, per reviewer. Full
-// wire over PGlite. The archive makes no GitHub call, so the reviewer
-// binding's fake must see none; the gate and the inbox list still fetch.
+// wire over PGlite. The archive makes no GitHub call, so the fake sees
+// nothing past the gate's own reads.
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createInboxStore,
@@ -32,14 +32,16 @@ import {
   brandRepoId,
   brandReviewerId,
   createKeyProvider,
-  getRequestUrl,
-  answerUserInstallations,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { spyPullRequestLookups } from "./pull-request-lookups";
-import { UNUSED_INSTALLATION_DEPS, buildFakeAuthDeps } from "./reviewer-github";
-import { seedApiToken } from "./session/fixtures";
-import { seedSignIn } from "./sign-in";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakeGate,
+  buildFakeAuthDeps,
+  listCallsPastGate,
+} from "./reviewer-github";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -58,50 +60,9 @@ const OTHER_OWNER: ScopeContext = {
 
 const ARCHIVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/archive`;
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-/** The gate's reads plus the inbox's live reads; the repo sits in the installation or in none. */
-function stubGitHub(inInstallation: boolean): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.endsWith("/user/installations?per_page=100")) {
-        return answerUserInstallations([INSTALLATION_ID]);
-      }
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        const repositories = inInstallation
-          ? [{ id: REPO_ID, full_name: REPO_SLUG }]
-          : [];
-        return jsonResponse({
-          total_count: repositories.length,
-          repositories,
-        });
-      }
-      if (url.includes("/repositories/")) {
-        return jsonResponse({
-          id: REPO_ID,
-          full_name: REPO_SLUG,
-          private: true,
-        });
-      }
-      if (/\/repos\/[^/]+\/[^/]+\/pulls\?/.test(url)) {
-        return jsonResponse([]);
-      }
-      throw new Error(`unexpected fetch in archive-pull suite: ${url}`);
-    }),
-  );
+/** The gate's repo, in the installation or in none. */
+function arrangeGate(fake: FakeGitHub, inInstallation: boolean): void {
+  arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation });
 }
 
 async function seedPr(handle: AppDatabase, ctx: ScopeContext): Promise<void> {
@@ -178,14 +139,14 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   }
 
   it("archives an installation row for the viewer and unarchives it again", async () => {
-    stubGitHub(true);
+    arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const put = await archive(cookie, "PUT");
     expect(put.status).toBe(200);
     expect(await put.json()).toEqual({ ok: true });
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
     expect(await readArchivedReviewers(harness)).toEqual([String(REVIEWER_ID)]);
     expect(await listNumbers(cookie)).toEqual([]);
     expect(await listNumbers(cookie, "?archived=only")).toEqual([PR_NUMBER]);
@@ -204,9 +165,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("reads the row once per archive request", async () => {
-    stubGitHub(true);
+    arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const lookups = spyPullRequestLookups(harness);
 
     const put = await archive(cookie, "PUT");
@@ -216,9 +177,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("the inbox reports the archived total beside the total", async () => {
-    stubGitHub(true);
+    arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await archive(cookie, "PUT");
 
     const res = await app.request("/api/inbox", {
@@ -229,9 +190,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("archives the viewer's own url row through the owner world", async () => {
-    stubGitHub(false);
+    arrangeGate(fake, false);
     await seedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const put = await archive(cookie, "PUT");
 
@@ -241,9 +202,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("archiving another owner's url row is the viewer's alone", async () => {
-    stubGitHub(false);
+    arrangeGate(fake, false);
     await seedPr(harness.handle, OTHER_OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const put = await archive(cookie, "PUT");
 
@@ -273,8 +234,8 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("an unknown pull request is a 404 either way", async () => {
-    stubGitHub(true);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    arrangeGate(fake, true);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     expect((await archive(cookie, "PUT")).status).toBe(404);
     expect((await archive(cookie, "DELETE")).status).toBe(404);
@@ -282,7 +243,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("a private-write Bearer principal may archive", async () => {
-    stubGitHub(true);
+    arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
     const bearer = await seedApiToken(
       harness.handle,
@@ -300,7 +261,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   });
 
   it("a read-only Bearer principal is refused by scope", async () => {
-    stubGitHub(true);
+    arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
     const bearer = await seedApiToken(
       harness.handle,

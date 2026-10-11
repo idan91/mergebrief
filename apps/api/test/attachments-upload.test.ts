@@ -25,8 +25,8 @@ import {
   arrangeFakeRepository,
   buildFakeAuthDeps,
   buildFakeInstallationDeps,
-  stubGateGitHub,
-  type GateGitHub,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "./reviewer-github";
 import {
   INSTALLATION_ID,
@@ -37,8 +37,8 @@ import {
   brandRepoId,
   createKeyProvider,
 } from "./fixtures";
-import { CTX, REPO_ID, seedApiToken } from "./session/fixtures";
-import { seedSignIn } from "./sign-in";
+import { CTX, REPO_ID } from "./session/fixtures";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -72,7 +72,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
-  let gate: GateGitHub;
   let cookieHeaders: Record<string, string>;
 
   beforeEach(async () => {
@@ -87,7 +86,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       ...buildFakeInstallationDeps(fake),
       attachmentQuota: QUOTA,
     });
-    gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFakeRepository(fake, REPO_ID);
     arrangeFakePullRequest(fake, { repoId: REPO_ID });
     await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
@@ -168,11 +167,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   it("re-resolves the repository fresh on the viewer before the push", async () => {
     await upload(cookieHeaders);
 
-    expect(fake.calls.map((call) => call.operation)).toEqual([
+    const pastGate = listCallsPastGate(fake);
+    expect(pastGate.map((call) => call.operation)).toEqual([
       "fetchRepositoryById",
       "commitAttachment",
     ]);
-    expect(fake.calls[0]?.credential.kind).toBe(CredentialKinds.REVIEWER);
+    expect(pastGate[0]?.credential.kind).toBe(CredentialKinds.REVIEWER);
   });
 
   it("lets an external-write bearer token attach, as the cli does", async () => {
@@ -230,7 +230,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
 
     expect(response.status).toBe(413);
     expect(await readCode(response)).toBe("request-too-large");
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("answers 400 for a type outside the allowlist", async () => {
@@ -241,7 +241,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
 
     expect(response.status).toBe(400);
     expect(await readCode(response)).toBe("attachment-unsupported-type");
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("answers 400 when the bytes are not the declared type", async () => {
@@ -251,7 +251,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
 
     expect(response.status).toBe(400);
     expect(await readCode(response)).toBe("attachment-unsupported-type");
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("answers 403 github-permission when the app itself may not push", async () => {
@@ -297,13 +297,16 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   });
 
   it("answers 404 when the fresh re-resolve is denied", async () => {
+    expect((await upload(cookieHeaders, "not a png")).status).toBe(400);
+    // The gate now passes from its cache, so only the re-resolve is refused.
     fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
 
     const response = await upload(cookieHeaders);
 
     expect(response.status).toBe(404);
     expect(listCommits()).toEqual([]);
-    expect(gate.repositoryReads()).toBe(1);
+    const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+    expect(pastGate).toEqual(["fetchRepositoryById"]);
   });
 
   it("a refused upload names the repository on its audit row", async () => {

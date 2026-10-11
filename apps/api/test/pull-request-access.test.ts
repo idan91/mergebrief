@@ -29,9 +29,9 @@ import {
   createKeyProvider,
   getRequestUrl,
 } from "./fixtures";
-import { REPO_ID, seedApiToken, seedPullRequest } from "./session/fixtures";
+import { REPO_ID, seedPullRequest } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 vi.setConfig({ testTimeout: 30_000 });
 

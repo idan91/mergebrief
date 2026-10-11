@@ -36,7 +36,10 @@ import {
   buildFakeAuthDeps,
   buildFakeInstallationDeps,
   listFakeCallTokens,
-  stubGateGitHub,
+  arrangeFakeGate,
+  DENIED_GATE_CALLS,
+  REVIEWER_GATE_CALLS,
+  listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -54,6 +57,7 @@ const OWNER: ScopeContext = {
 };
 
 const RESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/resolve`;
+const BAD_COMMENT_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/nope/resolve`;
 const UNRESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/unresolve`;
 const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
@@ -184,7 +188,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("401 without a session cookie and no GitHub call", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     const res = await post(app, undefined, RESOLVE_PATH);
     expect(res.status).toBe(401);
     expect(gate.repositoryReads()).toBe(0);
@@ -192,34 +196,30 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("404 collapse when the viewer has no access to the repo", async () => {
-    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 403 });
+    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 403 });
     arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
   });
 
   it("404 when the PR is outside the tenant, with no GitHub call", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("400 on a malformed comment id, 404 on a malformed PR number", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const badComment = await post(
-      app,
-      cookie,
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/nope/resolve`,
-    );
+    const badComment = await post(app, cookie, BAD_COMMENT_PATH);
     expect(badComment.status).toBe(400);
     const badPr = await post(
       app,
@@ -227,12 +227,11 @@ describe("thread resolve and unresolve routes", () => {
       `/api/repos/${REPO_ID}/pulls/nope/comments/${ROOT_COMMENT_ID}/resolve`,
     );
     expect(badPr.status).toBe(404);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("200 resolve flips, audits and answers no-store with one row read", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
-    arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFakePullRequest(fake, {
       repoId: REPO_ID,
       fullName: "octo/renamed",
@@ -240,6 +239,9 @@ describe("thread resolve and unresolve routes", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
+    // The gate caches its pass under the old name before the rename lands.
+    expect((await post(app, cookie, BAD_COMMENT_PATH)).status).toBe(400);
+    arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
     const lookups = spyPullRequestLookups(harness);
 
     const res = await post(app, cookie, RESOLVE_PATH);
@@ -251,8 +253,10 @@ describe("thread resolve and unresolve routes", () => {
       alreadyInTargetState: false,
     });
     expect(lookups.count()).toBe(1);
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+    const freshReads = listCallsPastGate(fake).filter(
+      (call) => call.operation === "fetchRepositoryById",
+    );
+    expect(freshReads).toHaveLength(1);
     expect(fake.listCalls("setReviewThreadResolution")).toEqual([
       expect.objectContaining({
         input: {
@@ -269,7 +273,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("200 unresolve happy path with its own audit action", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(true);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -285,7 +289,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("200 converges when already in the target state and still evicts", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(true);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -308,7 +312,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("200 converges on the unresolve direction", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -331,7 +335,7 @@ describe("thread resolve and unresolve routes", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...buildFakeInstallationDeps(fake),
     });
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -352,7 +356,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("404 when no thread has the comment as its root", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false, 777_777);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -364,14 +368,18 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("404 collapse when the in-route fresh repo resolve is denied", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
-    fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
+    // A malformed comment id stops past the gate, which caches its pass.
+    expect((await post(app, cookie, BAD_COMMENT_PATH)).status).toBe(400);
+    fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
+    const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+    expect(pastGate).toEqual(["fetchRepositoryById"]);
     expect(countResolutions()).toBe(0);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
@@ -379,7 +387,7 @@ describe("thread resolve and unresolve routes", () => {
   it("403 github-permission on a mutation-stage FORBIDDEN", async () => {
     // Gate and fresh re-resolve both passed: the viewer proved repo access
     // this request, so the refusal surfaces honestly.
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     fake.failOn("setReviewThreadResolution", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
@@ -395,7 +403,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("502 on a hard GitHub failure, no audit", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     fake.failOn("setReviewThreadResolution", FakeFailures.SERVER_ERROR);
     await seedPr(harness.handle);
@@ -408,7 +416,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("renews the token once after a mid-request 401, then flips", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     fake.rejectToken(ACCESS_TOKEN);
     await seedPr(harness.handle);
@@ -419,13 +427,14 @@ describe("thread resolve and unresolve routes", () => {
     expect(gate.tokenRefreshes()).toBe(1);
     expect(listFakeCallTokens(fake)).toEqual([
       ACCESS_TOKEN,
+      ...REVIEWER_GATE_CALLS.map(() => ROTATED_ACCESS_TOKEN),
       ROTATED_ACCESS_TOKEN,
       ROTATED_ACCESS_TOKEN,
     ]);
   });
 
   it("401 when a second rejection lands after the one renewal", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     fake.rejectToken(ACCESS_TOKEN);
     fake.rejectToken(ROTATED_ACCESS_TOKEN);
@@ -439,9 +448,9 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("refuses a flip behind an operator pass with no-repo-write-access", async () => {
-    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
     await seedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(buildApp(OPERATOR_PAT), cookie, RESOLVE_PATH);
 
@@ -454,7 +463,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("busts the PR's conversation cache so a refetch reflects the write", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -471,7 +480,7 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("does not bust the conversation cache on a failed mutation", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
     fake.failOn("setReviewThreadResolution", FakeFailures.SERVER_ERROR);
     await seedPr(harness.handle);

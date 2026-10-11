@@ -1,6 +1,11 @@
 // GET .../stack over PGlite: the PR's stack from the repo's open list on the
 // viewer's binding (the `github/testing` fake), folded into the row's record.
-import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
@@ -27,8 +32,9 @@ import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
   buildOverriddenAuthDeps,
+  listCallTokens,
   makeFakePullRequestInfo,
-  stubGateGitHub,
+  arrangeFakeGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -131,7 +137,7 @@ describe("live stack read", () => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     ({ cookie } = await seedSignIn(harness.handle, kp));
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
   });
 
   afterEach(async () => {
@@ -438,13 +444,17 @@ describe("live stack read", () => {
 
   it("answers 401 when the list still 401s after a good refresh", async () => {
     await seedOpenRow(harness.handle);
-    fake.rejectToken(ACCESS_TOKEN);
-    fake.rejectToken(ROTATED_ACCESS_TOKEN);
+    fake.failOn(
+      "listOpenPullRequests",
+      FakeFailures.UNAUTHORIZED,
+      CredentialKinds.REVIEWER,
+    );
 
     const res = await readStack();
 
     expect(res.status).toBe(401);
-    expect(fake.listCalls("listOpenPullRequests")).toHaveLength(2);
+    const tokens = listCallTokens(fake.listCalls("listOpenPullRequests"));
+    expect(tokens).toEqual([ACCESS_TOKEN, ROTATED_ACCESS_TOKEN]);
   });
 
   it("surfaces an upstream list failure as 502", async () => {

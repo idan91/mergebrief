@@ -49,10 +49,10 @@ import {
   UNUSED_INSTALLATION_DEPS,
   arrangeFakePullRequest,
   buildFakeAuthDeps,
-  listFakeCallTokens,
-  stubGateGitHub,
+  listCallTokens,
+  listCallsPastGate,
+  arrangeFakeGate,
   type GateGitHub,
-  type GateGitHubOptions,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -218,26 +218,17 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     return cookie;
   }
 
-  /**
-   * The gate opens the repo under its verified name, inside the
-   * installation. No `canPush` is a repo read with no permissions block at
-   * all, which must parse as no capability.
-   */
-  function stubGate(canPush?: boolean): GateGitHub {
-    const options: Mutable<GateGitHubOptions> = {
+  /** The gate opens the repo under its verified name, inside the installation. */
+  function stubGate(canPush = false): GateGitHub {
+    return arrangeFakeGate(fake, {
       repoId: REPO_A,
       fullName: VERIFIED_SLUG,
-    };
-    if (canPush === undefined) {
-      options.withoutPermissions = true;
-    } else {
-      options.push = canPush;
-    }
-    return stubGateGitHub(options);
+      push: canPush,
+    });
   }
 
   it("meta: uses artifact-read 404 posture for inaccessible or unknown PRs", async () => {
-    stubGateGitHub({ repoId: REPO_A, viewerStatus: 404 });
+    arrangeFakeGate(fake, { repoId: REPO_A, viewerStatus: 404 });
     const cookie = await signIn();
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
 
@@ -347,7 +338,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   /** The gate opens the repo on the viewer's token; no installation holds it. */
   function stubUrlWorld(): GateGitHub {
     resetLiveReadMemory();
-    return stubGateGitHub({
+    return arrangeFakeGate(fake, {
       repoId: REPO_A,
       fullName: VERIFIED_SLUG,
       inInstallation: false,
@@ -422,7 +413,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     expect(res.status).toBe(200);
     expect(lookups.count()).toBe(1);
-    expect(fake.calls).toHaveLength(0);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("meta: a url row read live costs one row read and serves the write", async () => {
@@ -481,7 +472,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+    expect(listCallTokens(listCallsPastGate(fake))).toEqual([ACCESS_TOKEN]);
     const row = await createTenantRepository(
       harness.handle,
       OWNER_CTX,

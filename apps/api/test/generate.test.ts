@@ -33,7 +33,7 @@ import {
   buildFakeAuthDeps,
   listFakeCallTokens,
   makeFakePullRequestInfo,
-  stubGateGitHub,
+  arrangeFakeGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -96,7 +96,6 @@ async function seedOwnerSignIn(
   reviewer: ReviewerId = REVIEWER,
 ): Promise<string> {
   const { cookie } = await seedSignIn(harness.handle, kp, {
-    scope: { ownerUserId: reviewer },
     reviewer: { id: reviewer, login: "octocat" },
   });
   return cookie;
@@ -130,7 +129,7 @@ describe("POST /api/generate: the url-box door", () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
-    stubGateGitHub({ repoId: REPO_ID, fullName: "o/r" });
+    arrangeFakeGate(fake, { repoId: REPO_ID, fullName: "o/r" });
   });
 
   afterEach(async () => {
@@ -317,9 +316,7 @@ describe("POST /api/generate: the url-box door", () => {
       title: "owner title",
       state: "open",
     });
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: tenantCtx,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const meta = await buildApp().request(`/api/repos/${REPO_ID}/pulls/7`, {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
@@ -387,9 +384,7 @@ describe("POST /api/generate: the url-box door", () => {
 
   it("a token that will not decrypt is a 401 and burns the session", async () => {
     arrangePastedPull(fake);
-    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp, {
-      scope: { ownerUserId: REVIEWER },
-    });
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
 
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);

@@ -34,14 +34,17 @@ import {
   brandReviewerId,
   buildOperatorToken,
   createKeyProvider,
-  listSentTokens,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import {
+  DENIED_GATE_CALLS,
+  OPERATOR_GATE_CALLS,
   UNUSED_INSTALLATION_DEPS,
+  arrangeFakeGate,
   arrangeFakePullRequest,
   buildFakeAuthDeps,
-  listFakeCallTokens,
+  listCallTokens,
+  listCallsPastGate,
 } from "./reviewer-github";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
@@ -63,54 +66,23 @@ const TENANT_CTX = {
 };
 const OWNER_CTX = { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-interface RepoCall {
-  readonly token: string;
-}
-
 /**
- * `GET /repositories/{id}` answers 200 for the operator PAT only, the shape
- * of a repo the App is not installed on: the reviewer's own installation-
- * scoped token cannot see it, the operator's PAT can.
+ * The repo refuses the viewer's token and reads on any other, the shape of a
+ * repo the App is not installed on: the reviewer's own installation-scoped
+ * token cannot see it, the operator's PAT can.
  */
-function stubGitHub(): RepoCall[] {
-  const calls: RepoCall[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
-      const url = String(input instanceof Request ? input.url : input);
-      const headers = new Headers(
-        input instanceof Request ? input.headers : init?.headers,
-      );
-      const token = (headers.get("authorization") ?? "").replace(
-        /^(token|Bearer)\s+/i,
-        "",
-      );
-      if (url.includes("/repositories/")) {
-        calls.push({ token });
-        if (token === FALLBACK_PAT) {
-          return jsonResponse({
-            id: REPO_ID,
-            full_name: REPO_SLUG,
-            private: true,
-            permissions: { push: true },
-          });
-        }
-        return jsonResponse({ message: "Not Found" }, 404);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
-  return calls;
+function arrangeOperatorGate(fake: FakeGitHub): void {
+  arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
+}
+
+/** The token each gate repository read carried, the rung's included. */
+function listGateTokens(fake: FakeGitHub): string[] {
+  return listCallTokens(fake.listCalls("fetchRepositoryById"));
+}
+
+/** The token each call after an operator-footed gate pass carried. */
+function listTokensPastOperatorGate(fake: FakeGitHub): string[] {
+  return listCallTokens(listCallsPastGate(fake, OPERATOR_GATE_CALLS));
 }
 
 async function seedOwnerPullRequest(
@@ -222,21 +194,18 @@ describe("the per-repo gate's operator-PAT rung", () => {
   }
 
   it("opens a url-box brief the reader owns when their own token is refused", async () => {
-    const calls = stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
     const res = await read(buildApp(FALLBACK_PAT), cookie);
 
     expect(res.status).toBe(200);
-    expect(calls.map((call) => call.token)).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-    ]);
+    expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 
   it("keeps write affordances off, the PAT's push right is not the reader's", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
@@ -249,7 +218,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   it("404s with no operator PAT configured", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
@@ -259,7 +228,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   it("404s a reader who is not on the operator list", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
@@ -267,7 +236,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       buildApp(FALLBACK_PAT, [REVIEWER_ID + 1]),
       cookie,
     );
-    const sentTokens = listSentTokens();
+    const sentTokens = listGateTokens(fake);
     const unconfigured = await read(buildApp(), cookie);
 
     expect(unlisted.status).toBe(404);
@@ -277,14 +246,14 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   it("never widens an App-world brief, no owned url-box row, no second rung", async () => {
-    const calls = stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedTenantPullRequest(harness.handle);
 
     const res = await read(buildApp(FALLBACK_PAT), cookie);
 
     expect(res.status).toBe(404);
-    expect(calls.map((call) => call.token)).toEqual([ACCESS_TOKEN]);
+    expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN]);
   });
 
   // The shape the narrowing exists for: the installation already tracks this
@@ -292,7 +261,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // repo, pasted its URL. The PAT opens the gate, but the tenant's own rows
   // must stay out of reach: they read THEIR paste, never the installation's.
   it("serves the reader's own url-box row over the installation's", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedTenantPullRequest(harness.handle, "the installation's row");
     await seedOwnerPullRequest(harness.handle, "the reader's own paste");
@@ -307,7 +276,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // The live read on the operator footing asks the viewer's token first and
   // the operator's reader only for what the viewer could not see.
   it("reads live facts the viewer was not shown on the operator token", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     arrangeFakePullRequest(fake, { repoId: REPO_ID });
@@ -318,12 +287,15 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ title: "A pull request" });
-    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect(listTokensPastOperatorGate(fake)).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+    ]);
     expect((await readOwnerRow())?.githubUnreachableAt).toBeNull();
   });
 
   it("never marks a row the viewer was refused on the operator's word", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     const ref = { owner: "octo", repo: "hello", prNumber: PR_NUMBER };
@@ -333,7 +305,10 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ title: "the reader's own paste" });
-    expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect(listTokensPastOperatorGate(fake)).toEqual([
+      ACCESS_TOKEN,
+      FALLBACK_PAT,
+    ]);
     const row = await readOwnerRow();
     expect(row?.githubReadAt).not.toBeNull();
     expect(row?.githubUnreachableAt).toBeNull();
@@ -343,7 +318,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // the repo. This reader proved nothing, the operator's key did, so the
   // widening must stop here, or the PAT becomes a read-anything key.
   it("does not open ANOTHER user's url-box row on the PAT rung", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await createTenantRepository(harness.handle, {
       ownerUserId: brandReviewerId(BigInt(REVIEWER_ID + 1)),
@@ -364,7 +339,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // inside that window skips GitHub entirely, and must still land in the
   // reader's own world, or the leak returns one request later.
   it("keeps the reader pinned to their own world on a cached second read", async () => {
-    const calls = stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedTenantPullRequest(harness.handle, "the installation's row");
     await seedOwnerPullRequest(harness.handle, "the reader's own paste");
@@ -377,16 +352,13 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(second.status).toBe(200);
     expect(body).toMatchObject({ title: "the reader's own paste" });
     // Cached: the second read spent no GitHub call at all.
-    expect(calls.map((call) => call.token)).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-    ]);
+    expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 
   // The rung proves nothing about any installation, so the ledger files the
   // write in the owner world the gate resolved.
   it("audits a write behind the rung under the owner world", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     const app = buildApp(FALLBACK_PAT);
@@ -423,7 +395,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // PR. A warm entry must not carry a second, unrelated PR of the same repo
   // past a gate that never checked it.
   it("does not let one PAT-carried pass clear the gate for another PR", async () => {
-    const calls = stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
     const app = buildApp(FALLBACK_PAT);
@@ -439,7 +411,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(other.status).toBe(404);
     // The warm entry was refused, so the second request re-ran the ladder:
     // the reader's token, then no owned row for those coordinates.
-    expect(calls.map((call) => call.token)).toEqual([
+    expect(listGateTokens(fake)).toEqual([
       ACCESS_TOKEN,
       FALLBACK_PAT,
       ACCESS_TOKEN,
@@ -480,7 +452,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     }
 
     it("fetches the span diff on the same rung that opened the gate", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerBrief(harness.handle);
       arrangeViewerRefusedDiff(HEAD_SHA);
       const lookups = spyPullRequestLookups(harness);
@@ -492,14 +464,17 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
       expect(res.status).toBe(200);
       expect(await res.text()).toBe(DIFF_TEXT);
-      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listTokensPastOperatorGate(fake)).toEqual([
+        ACCESS_TOKEN,
+        FALLBACK_PAT,
+      ]);
       // The gate rung probes the reader's own url row once, then the row loads.
       expect(lookups.count()).toBe(2);
     });
 
     it("leaves the diff refused when no operator PAT is configured", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerBrief(harness.handle);
       arrangeViewerRefusedDiff(HEAD_SHA);
 
@@ -509,7 +484,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       );
 
       expect(res.status).toBe(404);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
     });
 
     const unknownHeads = [
@@ -521,7 +496,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     it.each(unknownHeads)(
       "a diff at %s 404s without an operator compare",
       async (_label, head) => {
-        stubGitHub();
+        arrangeOperatorGate(fake);
         await seedOwnerBrief(harness.handle);
         arrangeViewerRefusedDiff(head);
 
@@ -531,13 +506,13 @@ describe("the per-repo gate's operator-PAT rung", () => {
         );
 
         expect(res.status).toBe(404);
-        expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-        expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+        expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+        expect(listTokensPastOperatorGate(fake)).toEqual([ACCESS_TOKEN]);
       },
     );
 
     it("a diff missing its head 400s with no GitHub call", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerBrief(harness.handle);
       arrangeViewerRefusedDiff(HEAD_SHA);
 
@@ -547,11 +522,11 @@ describe("the per-repo gate's operator-PAT rung", () => {
       );
 
       expect(res.status).toBe(400);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
     });
 
     it("reads a file at a known commit on the operator token", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerBrief(harness.handle);
       arrangeViewerRefusedFile(HEAD_SHA);
 
@@ -562,12 +537,15 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
-      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listTokensPastOperatorGate(fake)).toEqual([
+        ACCESS_TOKEN,
+        FALLBACK_PAT,
+      ]);
     });
 
     it("reads no file at an unknown commit on the operator token", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerBrief(harness.handle);
       arrangeViewerRefusedFile(UNKNOWN_SHA);
 
@@ -578,8 +556,8 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
       expect(res.status).toBe(404);
       expect(await res.json()).toMatchObject({ code: "not-found" });
-      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+      expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listTokensPastOperatorGate(fake)).toEqual([ACCESS_TOKEN]);
     });
 
     const refusedRefs = [
@@ -591,7 +569,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     it.each(refusedRefs)(
       "a file range at %s 400s with no GitHub call",
       async (_label, ref) => {
-        stubGitHub();
+        arrangeOperatorGate(fake);
         await seedOwnerBrief(harness.handle);
         arrangeViewerRefusedFile(HEAD_SHA);
 
@@ -601,13 +579,13 @@ describe("the per-repo gate's operator-PAT rung", () => {
         );
 
         expect(res.status).toBe(400);
-        expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-        expect(fake.calls).toEqual([]);
+        expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+        expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
       },
     );
 
     it("serves no stack on the operator token and lists no open PRs", async () => {
-      stubGitHub();
+      arrangeOperatorGate(fake);
       await seedOwnerPullRequest(harness.handle);
       arrangeFakePullRequest(fake, { repoId: REPO_ID });
       arrangeFakePullRequest(fake, {
@@ -620,13 +598,13 @@ describe("the per-repo gate's operator-PAT rung", () => {
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ stack: null });
       // Gate: reader then PAT. Stack: nothing, the repo's open list is not owed.
-      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-      expect(fake.calls).toEqual([]);
+      expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
     });
   });
 
   it("refuses a write honestly instead of claiming the PR is gone", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
@@ -648,7 +626,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   it("keeps the uniform 404 for a write the gate never PAT-passed", async () => {
-    stubGitHub();
+    arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedTenantPullRequest(harness.handle);
 

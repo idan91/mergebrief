@@ -3,7 +3,7 @@
 // above all, and reads their url-box briefs there with their own token. The
 // gate passes those requests in the OWNER world, so nothing downstream can
 // take the installation's rows for a repo the installation never held.
-import { makeFakeGitHub } from "github/testing";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -22,16 +22,21 @@ import {
   REPO_SLUG,
   REVIEWER_ID,
   SECRET,
-  answerInstallationRepositories,
-  answerUserInstallations,
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
   createKeyProvider,
-  getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS, buildFakeAuthDeps } from "./reviewer-github";
+import {
+  ROTATED_ACCESS_TOKEN,
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakeGate,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+  stubTokenRefresh,
+  type GateGitHub,
+} from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
@@ -41,55 +46,9 @@ const TENANT_CTX = {
 };
 const OWNER_CTX = { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-interface GitHubCalls {
-  readonly tokens: string[];
-  listings: number;
-}
-
-/** The viewer's token sees the repo; the installation holds `held`. */
-function stubGitHub(held: readonly number[]): GitHubCalls {
-  const calls: GitHubCalls = { tokens: [], listings: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
-      const url = getRequestUrl(
-        input instanceof Request ? input : String(input),
-      );
-      const headers = new Headers(
-        input instanceof Request ? input.headers : init?.headers,
-      );
-      calls.tokens.push(
-        (headers.get("authorization") ?? "").replace(/^(token|Bearer)\s+/i, ""),
-      );
-      const membership = answerInstallationRepositories(url, held);
-      if (membership !== undefined) {
-        if (url.includes("/repositories")) {
-          calls.listings += 1;
-        }
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        return jsonResponse({
-          id: REPO_ID,
-          full_name: REPO_SLUG,
-          private: false,
-          permissions: { push: true },
-        });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
-  return calls;
+/** The viewer's token sees the repo; the installation holds it or not. */
+function arrangeGate(fake: FakeGitHub, inInstallation: boolean): GateGitHub {
+  return arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation });
 }
 
 async function seedPullRequest(
@@ -109,10 +68,12 @@ async function seedPullRequest(
 describe("the per-repo gate's repo world", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
   });
 
   afterEach(async () => {
@@ -125,7 +86,7 @@ describe("the per-repo gate's repo world", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildFakeAuthDeps(kp, makeFakeGitHub()),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
   }
@@ -137,7 +98,7 @@ describe("the per-repo gate's repo world", () => {
   }
 
   it("opens a url-box brief on a repo outside the installation", async () => {
-    const calls = stubGitHub([]);
+    arrangeGate(fake, false);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
 
@@ -149,11 +110,11 @@ describe("the per-repo gate's repo world", () => {
       title: "the reader's paste",
       appInstalled: false,
     });
-    expect(new Set(calls.tokens)).toEqual(new Set([ACCESS_TOKEN]));
+    expect(new Set(listFakeCallTokens(fake))).toEqual(new Set([ACCESS_TOKEN]));
   });
 
   it("asks GitHub once when a cold page fans out concurrent reads", async () => {
-    const calls = stubGitHub([REPO_ID]);
+    arrangeGate(fake, true);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, TENANT_CTX, "the installation's row");
     const app = buildApp();
@@ -165,11 +126,11 @@ describe("the per-repo gate's repo world", () => {
     ]);
 
     expect(responses.map((res) => res.status)).toEqual([200, 200, 200]);
-    expect(calls.listings).toBe(1);
+    expect(fake.listCalls("listInstallationRepositories")).toHaveLength(1);
   });
 
   it("never serves the installation's row for a repo it does not hold", async () => {
-    stubGitHub([]);
+    arrangeGate(fake, false);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(
       harness.handle,
@@ -186,7 +147,7 @@ describe("the per-repo gate's repo world", () => {
   });
 
   it("keeps serving the installation's row for a repo it holds", async () => {
-    stubGitHub([REPO_ID]);
+    arrangeGate(fake, true);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, TENANT_CTX, "the installation's row");
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
@@ -198,8 +159,30 @@ describe("the per-repo gate's repo world", () => {
     expect(body).toMatchObject({ title: "the installation's row" });
   });
 
+  it("renews an expired token once across gate, walk and route", async () => {
+    const gate = arrangeGate(fake, false);
+    fake.rejectToken(ACCESS_TOKEN);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
+
+    const res = await read(buildApp(), cookie);
+
+    expect(res.status).toBe(200);
+    expect(gate.tokenRefreshes()).toBe(1);
+    expect(fake.calls.map((call) => call.operation)).toEqual([
+      "fetchRepositoryById",
+      "fetchRepositoryById",
+      "listUserInstallations",
+      "listInstallationRepositories",
+      "readPullRequestFacts",
+    ]);
+    const [expired, ...renewed] = listFakeCallTokens(fake);
+    expect(expired).toBe(ACCESS_TOKEN);
+    expect(new Set(renewed)).toEqual(new Set([ROTATED_ACCESS_TOKEN]));
+  });
+
   it("audits a write on an outside repo under the owner world", async () => {
-    stubGitHub([]);
+    arrangeGate(fake, false);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
 
@@ -238,68 +221,51 @@ const OTHER_CTX = {
   installationId: brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
 };
 
-interface TwoInstallationStub {
-  /** Which installations `GET /user/installations` lists, swappable mid-test. */
-  reachable: number[];
-}
-
-/** Two installations, one repo each; the viewer's token reads both repos. */
-function stubTwoInstallations(reachable: number[]): TwoInstallationStub {
-  const stub: TwoInstallationStub = { reachable };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: unknown): Promise<Response> => {
-      const url = getRequestUrl(
-        input instanceof Request ? input : String(input),
-      );
-      if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
-        return (
-          answerInstallationRepositories(url, [REPO_ID]) ??
-          jsonResponse({}, 500)
-        );
-      }
-      if (
-        url.includes(
-          `/user/installations/${OTHER_INSTALLATION_ID}/repositories`,
-        )
-      ) {
-        return (
-          answerInstallationRepositories(url, [OTHER_REPO_ID]) ??
-          jsonResponse({}, 500)
-        );
-      }
-      if (url.includes("/user/installations")) {
-        return answerUserInstallations(stub.reachable);
-      }
-      if (url.includes(`/repositories/${OTHER_REPO_ID}`)) {
-        return jsonResponse({
-          id: OTHER_REPO_ID,
-          full_name: "other/repo",
-          private: false,
-          permissions: { push: true },
-        });
-      }
-      if (url.includes("/repositories/")) {
-        return jsonResponse({
-          id: REPO_ID,
-          full_name: REPO_SLUG,
-          private: false,
-          permissions: { push: true },
-        });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
-  return stub;
+/** Two installations, one repo each, of which `reachable` the viewer reaches. */
+function arrangeTwoInstallations(
+  fake: FakeGitHub,
+  reachable: readonly number[],
+): void {
+  const repos = [
+    { installationId: INSTALLATION_ID, repoId: REPO_ID, fullName: REPO_SLUG },
+    {
+      installationId: OTHER_INSTALLATION_ID,
+      repoId: OTHER_REPO_ID,
+      fullName: "other/repo",
+    },
+  ];
+  for (const { installationId, repoId, fullName } of repos) {
+    const brandedRepoId = brandRepoId(BigInt(repoId));
+    fake.addRepository({
+      repoId: brandedRepoId,
+      fullName,
+      private: false,
+      viewerCanPush: true,
+      viewerIsAdmin: false,
+    });
+    if (!reachable.includes(installationId)) {
+      continue;
+    }
+    fake.addInstallation(
+      {
+        installationId: brandInstallationId(BigInt(installationId)),
+        accountLogin: `org-${installationId}`,
+      },
+      new Map([[brandedRepoId, { fullName, viewerIsAdmin: false }]]),
+    );
+  }
+  stubTokenRefresh();
 }
 
 describe("the per-repo gate across two installations", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
   });
 
   afterEach(async () => {
@@ -313,7 +279,12 @@ describe("the per-repo gate across two installations", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildFakeAuthDeps(kp, makeFakeGitHub()),
+      auth: {
+        ...buildFakeAuthDeps(kp, fake),
+        // Read at call time, so a test can swap in GitHub after a change.
+        bindReviewerGitHub: (credential, options) =>
+          fake.bindReviewerGitHub(credential, options),
+      },
       ...UNUSED_INSTALLATION_DEPS,
     });
   }
@@ -344,7 +315,7 @@ describe("the per-repo gate across two installations", () => {
   }
 
   it("reads rows from two installations on one session with no switch", async () => {
-    stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    arrangeTwoInstallations(fake, [INSTALLATION_ID, OTHER_INSTALLATION_ID]);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const app = buildApp();
@@ -361,7 +332,7 @@ describe("the per-repo gate across two installations", () => {
   });
 
   it("answers 404 for a row held by an installation out of reach", async () => {
-    stubTwoInstallations([INSTALLATION_ID]);
+    arrangeTwoInstallations(fake, [INSTALLATION_ID]);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
 
@@ -371,7 +342,7 @@ describe("the per-repo gate across two installations", () => {
   });
 
   it("stores a write on the second installation's row under the second", async () => {
-    stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    arrangeTwoInstallations(fake, [INSTALLATION_ID, OTHER_INSTALLATION_ID]);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const otherRow = await createTenantRepository(
@@ -439,13 +410,14 @@ describe("the per-repo gate across two installations", () => {
 
   it("refuses a revoked installation once the window has passed", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    const stub = stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    arrangeTwoInstallations(fake, [INSTALLATION_ID, OTHER_INSTALLATION_ID]);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedBothRows();
     const app = buildApp();
 
     const granted = await readOther(app, cookie);
-    stub.reachable = [INSTALLATION_ID];
+    fake = makeFakeGitHub();
+    arrangeTwoInstallations(fake, [INSTALLATION_ID]);
     const insideWindow = await readOther(app, cookie);
     vi.advanceTimersByTime(AUTHZ_CACHE_TTL_MS + 1);
     const afterWindow = await readOther(app, cookie);

@@ -8,7 +8,7 @@ import { stampAuditTarget } from "../../../product-operations/audit";
  */
 export function createRepositoryTargetLayer(): MiddlewareHandler<AuthzEnv> {
   return async (c, next) => {
-    stampAuditTarget(c, "repository", c.get("repoId"));
+    stampAuditTarget(c, "repository", c.get("repoAccess").repoId);
     await next();
   };
 }

@@ -1,6 +1,6 @@
 // DELETE /api/repos/:repoId/pulls/:prNumber, the gated delete of one pull
-// request's briefs. Full wire over PGlite; the route's fresh repository read
-// reaches the `github/testing` fake, the gate still fetches. The owner world
+// request's briefs. Full wire over PGlite; the gate and the route's fresh
+// repository read reach the `github/testing` fake. The owner world
 // is a 404 before any call past the gate; the installation world re-reads
 // the repository fresh and needs admin from THAT answer, never the walk's.
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
@@ -34,10 +34,11 @@ import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
-  stubGateGitHub,
+  OPERATOR_GATE_CALLS,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "./reviewer-github";
-import { seedApiToken } from "./session/fixtures";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -189,16 +190,15 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   it("the owner world is a 404 with nothing erased, no call past the gate", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
+    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
     expect(res.status).toBe(404);
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
     expect(await countRows(harness, "pull_request")).toBe(1);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
@@ -211,16 +211,16 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("erases an installation row when the fresh read says admin", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
     expect(res.status).toBe(200);
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+    const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+    expect(pastGate).toEqual(["fetchRepositoryById"]);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "brief")).toBe(0);
     expect(await readAudits(harness)).toContainEqual({
@@ -234,10 +234,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("refuses a non-admin with repo-admin-only and erases nothing", async () => {
-    stubGateGitHub({ repoId: REPO_ID, admin: false });
+    arrangeFakeGate(fake, { repoId: REPO_ID, admin: false });
     arrangeFreshRead(fake, false);
     await seedBriefedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -254,10 +254,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("the fresh read decides, never the walk's cached admin bit", async () => {
-    stubGateGitHub({ repoId: REPO_ID, admin: true });
+    arrangeFakeGate(fake, { repoId: REPO_ID, admin: true });
     arrangeFreshRead(fake, false);
     await seedBriefedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -266,11 +266,11 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("an admin delete takes the viewer's shadowed url row with it", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const lookups = spyPullRequestLookups(harness);
 
@@ -290,10 +290,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("an installation holding no row is a 404 that leaves the pasted row", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -302,10 +302,14 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("the owner world's 404 leaves another reviewer's url row alone", async () => {
-    stubGateGitHub({ repoId: REPO_ID, inInstallation: false, admin: false });
+    arrangeFakeGate(fake, {
+      repoId: REPO_ID,
+      inInstallation: false,
+      admin: false,
+    });
     arrangeFreshRead(fake, false);
     await seedBriefedPr(harness.handle, OTHER_OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -314,11 +318,11 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("another reviewer's url row survives an admin's installation delete", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OTHER_OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -327,10 +331,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("a row in an installation the viewer cannot reach survives", async () => {
-    stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
+    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, OTHER_TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -339,11 +343,11 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("the operator-PAT rung is a 404 here, the pasted row is the inbox's", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(
       cookie,
@@ -353,16 +357,17 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     );
 
     expect(res.status).toBe(404);
-    expect(gate.repositoryReads()).toBe(2);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
     expect(await countRows(harness, "pull_request")).toBe(2);
   });
 
   it("a fresh read GitHub refuses is a 404 with nothing erased", async () => {
-    stubGateGitHub({ repoId: REPO_ID, admin: false });
-    fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
+    arrangeFakeGate(fake, { repoId: REPO_ID, admin: false });
     await seedBriefedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    expect((await del(cookie)).status).toBe(403);
+    // The gate now passes from its cache, so only the fresh read is refused.
+    fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
 
     const res = await del(cookie);
 
@@ -372,9 +377,9 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("an unknown pull request in the resolved world is a 404", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -382,7 +387,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("a Bearer principal is refused as human-only before any fresh read", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
     const bearer = await seedApiToken(
@@ -398,16 +403,15 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code?: string }).code).toBe("human-only");
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
     expect(await countRows(harness, "pull_request")).toBe(1);
   });
 
   it("a cross-origin cookie request is forbidden", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
     await seedBriefedPr(harness.handle, TENANT);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie, DELETE_PATH, {
       "sec-fetch-site": "cross-site",
@@ -420,14 +424,13 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("the inbox path erases the same own row with no call past the session", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
+    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
     await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie, `/api/inbox/${REPO_ID}/${PR_NUMBER}`);
 
     expect(res.status).toBe(200);
-    expect(gate.repositoryReads()).toBe(0);
     expect(fake.calls).toEqual([]);
     expect(await countRows(harness, "pull_request")).toBe(0);
   });

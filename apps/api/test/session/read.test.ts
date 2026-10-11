@@ -24,8 +24,8 @@ import { PR_NUMBER, SECRET, createKeyProvider } from "../fixtures";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
-  stubGateGitHub,
-  type GateGitHub,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "../reviewer-github";
 import { seedSignIn } from "../sign-in";
 
@@ -64,7 +64,6 @@ describe("read-review-session", () => {
   let kp: KeyProvider;
   let cookie: string;
   let fake: FakeGitHub;
-  let gate: GateGitHub;
   let logging: TestLogging;
 
   beforeEach(async () => {
@@ -79,7 +78,7 @@ describe("read-review-session", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-    gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
   });
@@ -111,8 +110,7 @@ describe("read-review-session", () => {
 
     expect(res.status).toBe(200);
     expect(lookups.count()).toBe(1);
-    expect(gate.repositoryReads()).toBe(1);
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await readBody(res);
     expect(body.materialized).toBe(false);

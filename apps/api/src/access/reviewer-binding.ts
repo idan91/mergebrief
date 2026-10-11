@@ -1,8 +1,6 @@
 import {
-  bindReviewerGitHub,
   isOperatorToken,
   type OperatorReads,
-  type ReviewerBindingOptions,
   type ReviewerGitHub,
 } from "github";
 import type { Logger } from "logging";
@@ -41,19 +39,6 @@ export interface OperatorRow {
   readonly rowScope: ScopeContext;
 }
 
-function bindOver(
-  deps: AuthRouteDeps,
-  credential: SessionCredential,
-  options: ReviewerBindingOptions,
-): ReviewerGitHub {
-  const bind = deps.auth.bindReviewerGitHub;
-  if (bind !== undefined) {
-    return bind(credential, options);
-  }
-  const octokitFactory = deps.auth.createUserOctokit;
-  return bindReviewerGitHub(credential, { ...options, octokitFactory });
-}
-
 /** Binding builds closures only: the token decrypts on the first call. */
 export function bindRequestGitHub(
   deps: AuthRouteDeps,
@@ -61,7 +46,8 @@ export function bindRequestGitHub(
   log: Logger,
 ): RequestGitHub {
   const credential = createSessionCredential(deps, session, log);
-  return { credential, github: bindOver(deps, credential, { log }) };
+  const github = deps.auth.bindReviewerGitHub(credential, { log });
+  return { credential, github };
 }
 
 async function loadKnownCommits(
@@ -117,7 +103,10 @@ function bindWithOperatorReads(
   if (operatorReads === undefined) {
     return access.github;
   }
-  return bindOver(deps, access.credential, { log, operatorReads });
+  return deps.auth.bindReviewerGitHub(access.credential, {
+    log,
+    operatorReads,
+  });
 }
 
 /**

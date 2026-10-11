@@ -6,7 +6,7 @@ import { createEnvKeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
-import { createTestUserOctokit, KEY_REF } from "./fixtures";
+import { buildAuthDeps, KEY_REF } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 export interface ComposedCatalog {
@@ -16,16 +16,11 @@ export interface ComposedCatalog {
 
 export async function composeCatalog(): Promise<ComposedCatalog> {
   const harness = await createPgliteHarness();
-  const auth: AuthDeps = {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: createEnvKeyProvider({
+  const auth: AuthDeps = buildAuthDeps(
+    createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     }),
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    createUserOctokit: createTestUserOctokit,
-  };
+  );
   const app = createApp({
     logger: testLogger(),
     handle: harness.handle,

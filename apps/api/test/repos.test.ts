@@ -19,13 +19,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { INSTALLATION_ID, SECRET, createKeyProvider } from "./fixtures";
-import { seedApiToken } from "./session/fixtures";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
   stubNoNetwork,
 } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 const REPO_A = 42001;
 const REPO_B = 42002;

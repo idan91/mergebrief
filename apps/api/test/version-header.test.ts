@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { buildAuthDeps, createKeyProvider } from "./fixtures";
-import { seedApiToken } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedApiToken } from "./sign-in";
 
 const HEADER = "MergeBrief-Version";
 

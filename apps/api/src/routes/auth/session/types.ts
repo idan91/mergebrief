@@ -2,7 +2,6 @@ import type {
   bindOperatorGitHub,
   bindReviewerGitHub,
   OperatorTokenConfig,
-  UserOctokitFactory,
 } from "github";
 import type {
   AppDatabase,
@@ -20,12 +19,10 @@ export interface AuthDeps {
   /** The env var NAME the session tokens seal under (e.g. `"SESSION_KEY_V1"`). */
   readonly sessionKeyRef: string;
   readonly publicBaseUrl: string;
-  /** Builds every user-token GitHub client: the bindings' and the repo gate's. */
-  readonly createUserOctokit: UserOctokitFactory;
-  /** Binds the reviewer's GitHub; absent binds `github`'s over `createUserOctokit`. */
-  readonly bindReviewerGitHub?: typeof bindReviewerGitHub;
-  /** Binds the operator's read-only GitHub; absent binds `github`'s over `createUserOctokit`. */
-  readonly bindOperatorGitHub?: typeof bindOperatorGitHub;
+  /** Binds the reviewer's GitHub: the repo gate's, every route's and every resolver's. */
+  readonly bindReviewerGitHub: typeof bindReviewerGitHub;
+  /** Binds the operator's read-only GitHub. */
+  readonly bindOperatorGitHub: typeof bindOperatorGitHub;
 }
 
 /** The slice of app deps the auth surface needs. `AppDeps` satisfies it. */

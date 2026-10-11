@@ -129,10 +129,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
           });
       }
 
-      // A token binds no installation: behind the repo gate the resolver
-      // names the world; a session-only route reads the owner world.
+      // A token binds no installation: the audit world starts as the owner's,
+      // and behind the repo gate the resolver names the repo's.
       const ownScope = { ownerUserId: principal.reviewerId };
-      c.set("ctx", ownScope);
       stampAuditScope(c, ownScope);
       c.set("session", principal);
       await next();
@@ -164,10 +163,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       throw new Unauthorized();
     }
 
-    // No credential holds an installation: a session-only route acts in the
-    // owner world; behind the repo gate the resolver names the world.
+    // No credential holds an installation: the audit world starts as the
+    // owner's, and behind the repo gate the resolver names the repo's.
     const ownScope = { ownerUserId: resolved.session.reviewerId };
-    c.set("ctx", ownScope);
     stampAuditScope(c, ownScope);
     c.set("session", derivePrincipalFromSession(resolved));
     requireSameOrigin(c, allowedOrigin, resolved.session.reviewerId);

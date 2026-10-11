@@ -5,6 +5,8 @@
 // builds on these.
 import { createHash, randomBytes } from "node:crypto";
 import {
+  bindOperatorGitHub,
+  bindReviewerGitHub,
   createUserOctokit,
   type OperatorTokenConfig,
   type UserOctokitFactory,
@@ -26,7 +28,6 @@ import {
   DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
-import { vi } from "vitest";
 import type { AuthDeps } from "../src/index";
 import type { OperationPolicy } from "../src/product-operations/types";
 
@@ -74,7 +75,16 @@ export function buildAuthDeps(kp: KeyProvider): AuthDeps {
     keyProvider: kp,
     sessionKeyRef: KEY_REF,
     publicBaseUrl: "https://app.example.test",
-    createUserOctokit: createTestUserOctokit,
+    bindReviewerGitHub: (credential, options) =>
+      bindReviewerGitHub(credential, {
+        ...options,
+        octokitFactory: createTestUserOctokit,
+      }),
+    bindOperatorGitHub: (token, options) =>
+      bindOperatorGitHub(token, {
+        ...options,
+        octokitFactory: createTestUserOctokit,
+      }),
   };
 }
 
@@ -110,19 +120,6 @@ export function buildOperatorToken(
 ): OperatorTokenConfig {
   const listed = reviewerIds.map((id) => brandReviewerId(BigInt(id)));
   return { token, reviewerIds: new Set(listed) };
-}
-
-export type SentTokens = string[];
-
-/** The credential each call to the stubbed global `fetch` carried, in order. */
-export function listSentTokens(): SentTokens {
-  return vi.mocked(fetch).mock.calls.map(([input, init]) => {
-    const headers = new Headers(
-      input instanceof Request ? input.headers : init?.headers,
-    );
-    const authorization = headers.get("authorization") ?? "";
-    return authorization.replace(/^(token|Bearer)\s+/i, "");
-  });
 }
 
 /** The request URL, whatever shape `fetch` was handed. */

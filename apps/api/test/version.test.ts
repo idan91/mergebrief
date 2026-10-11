@@ -19,11 +19,10 @@ import {
   KEY_REF,
   SAME_ORIGIN_HEADERS,
   brandReviewerId,
-  createTestUserOctokit,
+  buildAuthDeps,
 } from "./fixtures";
-import { seedApiToken } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 
@@ -64,14 +63,7 @@ describe("GET /api/version", () => {
     kp = createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: "https://app.example.test",
-      createUserOctokit: createTestUserOctokit,
-    };
+    const auth: AuthDeps = buildAuthDeps(kp);
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,

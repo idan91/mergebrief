@@ -34,7 +34,8 @@ import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
-  stubGateGitHub,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 
@@ -135,7 +136,7 @@ describe("stored artifact reads", () => {
   }
 
   it("serves a stored brief verbatim and 404s a missing span", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, pr, { base: "base1", head: "head1" });
     const lookups = spyPullRequestLookups(harness);
@@ -152,11 +153,11 @@ describe("stored artifact reads", () => {
     expect(missing.status).toBe(404);
     expect(await readCode(missing)).toBe("not-found");
     expect(lookups.count()).toBe(2);
-    expect(fake.calls).toHaveLength(0);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("400s a brief query missing its head", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedPullRequest(harness.handle);
 
     const res = await get("/brief?base=only");
@@ -166,7 +167,7 @@ describe("stored artifact reads", () => {
   });
 
   it("serves snapshots, null for legacy rows, and 404 for missing rows", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
     const snapshot = '{"files":[],"collisions":[],"policy":null}';
     await seedBrief(harness.handle, pr, {
@@ -193,7 +194,7 @@ describe("stored artifact reads", () => {
   });
 
   it("serves stored marks and 404s a missing span", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
     const marks = await createArtifactStore(
       harness.handle,
@@ -219,7 +220,7 @@ describe("stored artifact reads", () => {
   });
 
   it("serves stored deltas and 404s a missing span", async () => {
-    const gate = stubGateGitHub({ repoId: REPO_ID });
+    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
     const written = await createArtifactStore(harness.handle, CTX).deltas.write(
       {
@@ -249,7 +250,7 @@ describe("stored artifact reads", () => {
   });
 
   it("400s delta queries with cross-repo refs or missing parameters", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedPullRequest(harness.handle);
 
     const crossRepo = await get("/delta?baseline=evil:main&head=head-2");
@@ -260,7 +261,7 @@ describe("stored artifact reads", () => {
   });
 
   it("serves a stored narrative and 404s a missing span", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
     const briefId = await seedBrief(harness.handle, pr, {
       base: "base1",
@@ -292,7 +293,7 @@ describe("stored artifact reads", () => {
   });
 
   it("reads a url row's brief from its owner's world", async () => {
-    stubGateGitHub({ repoId: REPO_ID, inInstallation: false });
+    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
     const pr = await seedPullRequest(harness.handle, OWNER_CTX);
     await seedBrief(harness.handle, pr, {
       base: "base1",
@@ -310,7 +311,7 @@ describe("stored artifact reads", () => {
   });
 
   it("404s an unknown PR before reading any artifact", async () => {
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
 
     const res = await get("/delta?baseline=cp-1&head=head-2");
 

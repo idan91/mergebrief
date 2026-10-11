@@ -6,8 +6,9 @@ import { serve, type ServerType } from "@hono/node-server";
 import { RUNTIME_MARKER_VAR } from "generators/instance-policy";
 import {
   bindInstallationGitHub,
+  bindOperatorGitHub,
+  bindReviewerGitHub,
   createAppClient,
-  createUserOctokit,
 } from "github";
 import {
   closeDb,
@@ -114,7 +115,8 @@ async function main(): Promise<void> {
       keyProvider,
       sessionKeyRef: SESSION_KEY_REF,
       publicBaseUrl: boot.api.publicBaseUrl,
-      createUserOctokit,
+      bindReviewerGitHub,
+      bindOperatorGitHub,
     },
   });
 

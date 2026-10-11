@@ -2,16 +2,12 @@
 // the seeds that put Briefs and a previous session's work behind it. Shared
 // because the read suite and the write suite must agree on the fixture, a
 // carry-over the read reports and a write writes is the same work.
-import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
   createTenantRepository,
-  createTokenAuth,
   type AppDatabase,
   type BriefRowId,
-  type KeyProvider,
   type TenantContext,
-  type WriteClassification,
 } from "persistence";
 import { ChangeGroupCategories } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
@@ -25,9 +21,7 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  hashSha256Hex,
 } from "../fixtures";
-import { seedGrant } from "../sign-in";
 
 export const REPO_ID = 424242;
 
@@ -57,25 +51,6 @@ export const CTX: TenantContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
 };
 export const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
-
-/** An API token at `scope`; returns the Bearer plaintext. */
-export async function seedApiToken(
-  handle: AppDatabase,
-  kp: KeyProvider,
-  scope: WriteClassification,
-): Promise<string> {
-  const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-  await createTokenAuth(handle).mintToken({
-    scope,
-    userId: REVIEWER,
-    userLogin: "octocat",
-    name: "ci-token",
-    tokenHash: hashSha256Hex(plaintext),
-    grantId: await seedGrant(handle, kp),
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return plaintext;
-}
 
 export async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({

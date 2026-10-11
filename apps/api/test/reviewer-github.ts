@@ -1,15 +1,24 @@
-// A converted route suite's GitHub: the operation's calls reach the
-// `github/testing` fake through the reviewer and installation bindings, while
-// the repo gate's own reads and the OAuth refresh still go over `fetch` until
-// they move onto the binding too.
+// A route suite's GitHub: the gate's reads and the operation's calls reach
+// the `github/testing` fake through the reviewer, operator and installation
+// bindings; only the OAuth refresh endpoint still goes over `fetch`.
 import type {
+  InstallationRepository,
   PrConversation,
   PullRequestInfo,
   ReviewCommentListing,
   ReviewerRepoClient,
 } from "github";
-import type { FakeGitHub, FakePullRequest, FakeReview } from "github/testing";
-import type { KeyProvider } from "persistence";
+import {
+  CredentialKinds,
+  FakeFailures,
+  type FakeFailure,
+  type FakeGitHub,
+  type FakeGitHubCall,
+  type FakePullRequest,
+  type FakeReview,
+  type GitHubOperation,
+} from "github/testing";
+import type { KeyProvider, RepoId } from "persistence";
 import type { Mutable } from "types/utils";
 import { vi } from "vitest";
 import type { AppDeps, AuthDeps } from "../src/index";
@@ -17,7 +26,7 @@ import {
   INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
-  answerUserInstallations,
+  brandInstallationId,
   brandRepoId,
   buildAuthDeps,
   getRequestUrl,
@@ -124,7 +133,7 @@ export function buildOverriddenAuthDeps(
   overrides: RepoClientOverrides,
 ): AuthDeps {
   return {
-    ...buildAuthDeps(kp),
+    ...buildFakeAuthDeps(kp, fake),
     bindReviewerGitHub: (credential, options) => {
       const github = fake.bindReviewerGitHub(credential, options);
       return {
@@ -138,11 +147,52 @@ export function buildOverriddenAuthDeps(
   };
 }
 
-/** The token each fake call carried, in order; an installation call has none. */
-export function listFakeCallTokens(fake: FakeGitHub): string[] {
-  return fake.calls.map((call) =>
+/** The token each call carried, in order; an installation call has none. */
+export function listCallTokens(calls: readonly FakeGitHubCall[]): string[] {
+  return calls.map((call) =>
     "token" in call.credential ? call.credential.token : "",
   );
+}
+
+/** The token each fake call carried, the gate's included. */
+export function listFakeCallTokens(fake: FakeGitHub): string[] {
+  return listCallTokens(fake.calls);
+}
+
+/** A cold gate pass on the viewer's token: the repo read, then the walk. */
+export const REVIEWER_GATE_CALLS: readonly GitHubOperation[] = [
+  "fetchRepositoryById",
+  "listUserInstallations",
+  "listInstallationRepositories",
+];
+
+/** A cold gate pass on the operator rung: the viewer refused, the PAT read. */
+export const OPERATOR_GATE_CALLS: readonly GitHubOperation[] = [
+  "fetchRepositoryById",
+  "fetchRepositoryById",
+];
+
+/** A gate that refused the viewer with no rung to take. */
+export const DENIED_GATE_CALLS: readonly GitHubOperation[] = [
+  "fetchRepositoryById",
+];
+
+/**
+ * The calls after one request's gate pass, which must open the call list
+ * exactly as `gateCalls` names it; the reviewer pass by default.
+ */
+export function listCallsPastGate(
+  fake: FakeGitHub,
+  gateCalls: readonly GitHubOperation[] = REVIEWER_GATE_CALLS,
+): FakeGitHubCall[] {
+  const opening = fake.calls
+    .slice(0, gateCalls.length)
+    .map((call) => call.operation);
+  const isGatePass = opening.join() === gateCalls.join();
+  if (!isGatePass) {
+    throw new Error(`the calls open ${opening.join()}, not the gate's pass`);
+  }
+  return fake.calls.slice(gateCalls.length);
 }
 
 /** The auth bundle with the reviewer and operator bindings served by `fake`. */
@@ -196,14 +246,12 @@ export interface GateGitHubOptions {
   readonly admin?: boolean;
   /** `permissions.push`, the gate's push bit; true by default. */
   readonly push?: boolean;
-  /** The repo read carries no `permissions` block at all. */
-  readonly withoutPermissions?: boolean;
   /** The name GitHub verifies for the repo; the suites' slug by default. */
   readonly fullName?: string;
 }
 
 export interface GateGitHub {
-  /** The gate's `GET /repositories/{id}` reads, every token included. */
+  /** Every `fetchRepositoryById` on the fake: the gate's, the rung's, a re-resolve's. */
   repositoryReads(): number;
   /** Token refreshes against GitHub's OAuth endpoint. */
   tokenRefreshes(): number;
@@ -230,64 +278,77 @@ function answerTokenRefresh(): Response {
   });
 }
 
-function readSentToken(input: string | URL | Request, init?: RequestInit) {
-  const headers = new Headers(
-    input instanceof Request ? input.headers : init?.headers,
+const VIEWER_REFUSALS: Record<number, FakeFailure> = {
+  403: FakeFailures.FORBIDDEN,
+  404: FakeFailures.NOT_FOUND,
+  429: FakeFailures.RATE_LIMITED,
+  502: FakeFailures.SERVER_ERROR,
+};
+
+function refuseViewer(fake: FakeGitHub, viewerStatus: number): void {
+  if (viewerStatus === 401) {
+    fake.rejectToken(ACCESS_TOKEN);
+    return;
+  }
+  const failure = VIEWER_REFUSALS[viewerStatus];
+  if (failure === undefined) {
+    throw new Error(`no fake refusal for status ${viewerStatus}`);
+  }
+  fake.failOn("fetchRepositoryById", failure, CredentialKinds.REVIEWER);
+}
+
+/** OAuth's token endpoint, the one GitHub surface the fake does not model. */
+export function stubTokenRefresh(): () => number {
+  let tokenRefreshes = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = getRequestUrl(input);
+      if (!url.includes("/login/oauth/access_token")) {
+        throw new Error(`unexpected fetch: ${url}`);
+      }
+      tokenRefreshes += 1;
+      return answerTokenRefresh();
+    }),
   );
-  const authorization = headers.get("authorization") ?? "";
-  return authorization.replace(/^(token|Bearer)\s+/i, "");
+  return () => tokenRefreshes;
 }
 
 /**
- * The gate's repo read and installation walk, plus the token endpoint. Any
- * token but the viewer's first one reads the repo, so an operator token
- * passes the rung when the viewer is refused.
+ * The repo the gate reads and the installation its walk finds it in, on
+ * `fake`. A refused viewer leaves the repo readable by any other credential,
+ * so an operator token passes the rung.
  */
-export function stubGateGitHub(options: GateGitHubOptions): GateGitHub {
-  let repositoryReads = 0;
-  let tokenRefreshes = 0;
-  const repository: Record<string, unknown> = {
-    id: options.repoId,
-    full_name: options.fullName ?? REPO_SLUG,
+export function arrangeFakeGate(
+  fake: FakeGitHub,
+  options: GateGitHubOptions,
+): GateGitHub {
+  const repoId = brandRepoId(BigInt(options.repoId));
+  const fullName = options.fullName ?? REPO_SLUG;
+  const admin = options.admin ?? true;
+  fake.addRepository({
+    repoId,
+    fullName,
     private: true,
-  };
-  if (options.withoutPermissions !== true) {
-    const admin = options.admin ?? true;
-    const push = options.push ?? true;
-    repository["permissions"] = { admin, push, pull: true };
+    viewerCanPush: options.push ?? true,
+    viewerIsAdmin: admin,
+  });
+  const listed = new Map<RepoId, InstallationRepository>();
+  if (options.inInstallation !== false) {
+    listed.set(repoId, { fullName, viewerIsAdmin: admin });
   }
-  const listed = options.inInstallation === false ? [] : [repository];
+  const installation = {
+    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+    accountLogin: `org-${INSTALLATION_ID}`,
+  };
+  fake.addInstallation(installation, listed);
+  if (options.viewerStatus !== undefined && options.viewerStatus !== 200) {
+    refuseViewer(fake, options.viewerStatus);
+  }
 
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        tokenRefreshes += 1;
-        return answerTokenRefresh();
-      }
-      const isListing = url.includes("/user/installations/");
-      if (isListing && url.includes("/repositories")) {
-        return answerJson({ total_count: listed.length, repositories: listed });
-      }
-      if (url.includes("/user/installations")) {
-        return answerUserInstallations([INSTALLATION_ID]);
-      }
-      if (!url.includes("/repositories/")) {
-        throw new Error(`unexpected fetch past the gate: ${url}`);
-      }
-      repositoryReads += 1;
-      const viewerStatus = options.viewerStatus ?? 200;
-      const isViewer = readSentToken(input, init) === ACCESS_TOKEN;
-      if (isViewer && viewerStatus !== 200) {
-        return answerJson({ message: "denied" }, viewerStatus);
-      }
-      return answerJson(repository);
-    }),
-  );
-
+  const tokenRefreshes = stubTokenRefresh();
   return {
-    repositoryReads: () => repositoryReads,
-    tokenRefreshes: () => tokenRefreshes,
+    repositoryReads: () => fake.listCalls("fetchRepositoryById").length,
+    tokenRefreshes,
   };
 }

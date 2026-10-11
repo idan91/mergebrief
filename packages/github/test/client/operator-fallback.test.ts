@@ -100,6 +100,21 @@ describe("bindReviewerGitHub operator reads", () => {
     expect(log.warn).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a failure that is not a denial off the operator token", async () => {
+    const stub = stubDeniedReviewer(PULL, {
+      status: 422,
+      body: { message: "unprocessable" },
+    });
+    const { github } = bindWithOperator(stub);
+
+    const result = await github.forRepo(REPO).fetchPullRequest(7);
+
+    expect(result.ok).toBe(false);
+    expect(listAuthorizations(stub)).not.toContain(
+      formatTokenAuthorization(OPERATOR_TOKEN),
+    );
+  });
+
   it("never reads another repository on the operator token", async () => {
     const stub = stubDeniedReviewer(PULL);
     const { github } = bindWithOperator(stub);

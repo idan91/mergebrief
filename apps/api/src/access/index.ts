@@ -14,8 +14,9 @@
 // one per app. The operator-PAT rung caches a restricted entry pinned to its
 // own PR, so a reader stays on that footing for the TTL.
 //
-// REFRESH: a 401 spends the client's one serialized refresh and retries the
-// check once; a failed refresh already deleted the session, so it is a 401.
+// REFRESH: the gate binds the request's one credential and hands it on as
+// `repoAccess`, so the repo read, the installation walk and the route share
+// one renewal; a failed refresh already deleted the session, so it is a 401.
 //
 // LOGGING: the gate only STAMPS its decision via `stampAccess`, numeric ids
 // only; `requestLogging` emits the line after the handler. On the allowed
@@ -25,13 +26,8 @@ import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { every } from "hono/combine";
 import { routePath } from "hono/route";
-import {
-  bindReviewerGitHub,
-  fetchRepositoryById,
-  type GitHubApiError,
-} from "github";
-import type { Logger } from "logging";
-import { createSessionAuth, type RepoId } from "persistence";
+import { CredentialFailureCodes } from "github";
+import type { RepoId } from "persistence";
 import { HttpStatuses } from "types/http";
 import {
   AUDIT_REASON_NO_REPO_ACCESS,
@@ -40,16 +36,7 @@ import {
   stampAuditTarget,
 } from "../product-operations/audit";
 import { stampAccess } from "../request-logging";
-import {
-  createReviewerGitHubClient,
-  type GitHubCallFailed,
-  type GitHubCallTokenUnreadable,
-  type ReviewerGitHubClient,
-} from "../routes/auth/reviewer-github-client";
-import type {
-  AuthRouteDeps,
-  ViewerPrincipal,
-} from "../routes/auth/session/types";
+import type { AuthRouteDeps } from "../routes/auth/session/types";
 import type {
   InstallationResolver,
   ResolvedRepoWorld,
@@ -71,7 +58,6 @@ import {
 } from "./consts";
 import { resolveOperatorRepoAccess } from "./operator-token";
 import { bindRequestGitHub, type RequestGitHub } from "./reviewer-binding";
-import { createSessionCredential } from "./session-credential";
 import { sessionLayer } from "./session-layer";
 import { deriveScopeContext } from "./utils";
 import {
@@ -80,7 +66,7 @@ import {
   type CachedOperatorRepoAccess,
   type CachedRepoAccess,
   type CachedReviewerRepoAccess,
-  type GateRequest,
+  type OperatorRungRequest,
   type RepoAccess,
 } from "./types";
 
@@ -120,33 +106,25 @@ function isServedFromCache(
   return requestedPr.ok && cached.prNumber === requestedPr.value;
 }
 
-/** A proven grant, the principal this request brings, and the access line. */
+/** A proven grant, the request's GitHub, and the access line. */
 interface ServedRepoAccess {
   readonly grant: CachedRepoAccess;
-  readonly session: ViewerPrincipal;
+  readonly bound: RequestGitHub;
   readonly decision: string;
 }
 
 async function serveRepoAccess(
-  deps: AuthRouteDeps,
   c: Context<AuthzEnv>,
   next: Next,
-  { grant, session, decision }: ServedRepoAccess,
+  { grant, bound, decision }: ServedRepoAccess,
 ): Promise<void> {
-  const bound = bindRequestGitHub(deps, session, c.get("logger"));
+  const session = bound.credential.session();
   const access: RepoAccess = { ...grant, session, ...bound };
   const reviewerId = session.reviewerId;
   const repoScope = deriveScopeContext(access.installation, reviewerId);
   c.set("repoAccess", access);
   c.set("session", access.session);
-  c.set("ctx", repoScope);
   stampAuditScope(c, repoScope);
-  c.set("repoId", access.repoId);
-  c.set("repoFullName", access.repoFullName);
-  c.set("viewerCanPush", access.viewerCanPush);
-  if (access.footing === AccessFootings.OPERATOR) {
-    c.set("urlBoxOnly", true);
-  }
   await next();
   stampAccess(c, decision, { repoId: access.repoId, reviewerId });
 }
@@ -161,25 +139,21 @@ async function serveRepoAccess(
 async function resolveRefusedRepoAccess(
   deps: AuthRouteDeps,
   c: Context<AuthzEnv>,
-  client: ReviewerGitHubClient,
-  request: GateRequest,
-  refused: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
+  bound: RequestGitHub,
+  refused: OperatorRungRequest,
 ): Promise<CachedOperatorRepoAccess> {
-  const { repoId } = request;
-  if (refused.tokenUnreadable) {
-    const session = c.get("session");
-    await createSessionAuth(deps.handle).deleteSession(
-      session.sessionTokenHash,
-    );
-    stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
+  const { repoId, error } = refused;
+  const stampFields = {
+    repoId,
+    reviewerId: bound.credential.session().reviewerId,
+  };
+  // The credential already burned the unreadable session.
+  if (error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE) {
+    stampAccess(c, "401", stampFields);
     throw new Unauthorized();
   }
 
-  const denial = resolveGitHubDenialError(
-    refused.error,
-    DenialPostures.COLLAPSE,
-  );
-  const stampFields = { repoId, reviewerId: client.session().reviewerId };
+  const denial = resolveGitHubDenialError(error, DenialPostures.COLLAPSE);
   if (!(denial instanceof NotFound)) {
     stampAuditTarget(c, "repo", repoId);
     stampAccess(c, String(ApiErrorStatusByCode[denial.code]), stampFields);
@@ -188,10 +162,11 @@ async function resolveRefusedRepoAccess(
 
   // The url-box door generates behind the operator PAT, so without the rung
   // a reader holds briefs they cannot open.
-  const operatorAccess = await resolveOperatorRepoAccess(deps, client, {
-    ...request,
-    error: refused.error,
-  });
+  const operatorAccess = await resolveOperatorRepoAccess(
+    deps,
+    stampFields.reviewerId,
+    refused,
+  );
   if (operatorAccess !== undefined) {
     return operatorAccess;
   }
@@ -201,36 +176,17 @@ async function resolveRefusedRepoAccess(
   throw denial;
 }
 
-/**
- * The walk rides the injected octokit, as the gate's own repository read
- * does, never an injected reviewer binder; with none injected the two are
- * the same binding.
- */
-function bindGateWalk(
-  deps: AuthRouteDeps,
-  session: ViewerPrincipal,
-  log: Logger,
-): RequestGitHub {
-  const credential = createSessionCredential(deps, session, log);
-  const octokitFactory = deps.auth.createUserOctokit;
-  const github = bindReviewerGitHub(credential, { log, octokitFactory });
-  return { credential, github };
-}
-
 /** Which installation holds a readable repo; a failure is never cached. */
 async function resolveRepoInstallation(
-  deps: AuthRouteDeps,
   installations: InstallationResolver,
   c: Context<AuthzEnv>,
-  client: ReviewerGitHubClient,
+  bound: RequestGitHub,
   repoId: RepoId,
 ): Promise<ResolvedRepoWorld> {
-  const log = c.get("logger");
-  const walk = bindGateWalk(deps, client.session(), log);
   const resolved = await installations.resolveInstallationForRepo(
-    walk,
+    bound,
     repoId,
-    log,
+    c.get("logger"),
   );
   if (resolved.ok) {
     return resolved.value;
@@ -238,7 +194,7 @@ async function resolveRepoInstallation(
   const { status } = resolved.error;
   stampAccess(c, String(status), {
     repoId,
-    reviewerId: client.session().reviewerId,
+    reviewerId: bound.credential.session().reviewerId,
   });
   if (status === HttpStatuses.UNAUTHORIZED) {
     throw new Unauthorized();
@@ -269,41 +225,36 @@ export function repoAuthzLayer(
     const requestedPr = parsePrNumberParam(readPullNumberSegment(c));
 
     const cacheKey = buildPositiveCacheKey(session.sessionTokenHash, repoId);
+    const bound = bindRequestGitHub(deps, session, c.get("logger"));
     const cached = positiveCache.get(cacheKey);
     if (cached !== undefined && isServedFromCache(cached, requestedPr)) {
-      const served = { grant: cached, session, decision: "200" };
-      await serveRepoAccess(deps, c, next, served);
+      await serveRepoAccess(c, next, { grant: cached, bound, decision: "200" });
       return;
     }
 
-    const client = createReviewerGitHubClient(deps, session, c.get("logger"));
-    const repo = await client.run((token) =>
-      fetchRepositoryById(client.createOctokit(token), repoId),
-    );
+    const repo = await bound.github.fetchRepositoryById(repoId);
     if (!repo.ok) {
-      const request = { repoId, requestedPr };
+      const refused = { repoId, requestedPr, error: repo.error };
       const operatorAccess = await resolveRefusedRepoAccess(
         deps,
         c,
-        client,
-        request,
-        repo,
+        bound,
+        refused,
       );
       const expiresAt = Date.now() + AUTHZ_CACHE_TTL_MS;
       positiveCache.set(cacheKey, operatorAccess, expiresAt);
-      await serveRepoAccess(deps, c, next, {
+      await serveRepoAccess(c, next, {
         grant: operatorAccess,
-        session: client.session(),
+        bound,
         decision: "200-url-box",
       });
       return;
     }
 
     const resolved = await resolveRepoInstallation(
-      deps,
       installations,
       c,
-      client,
+      bound,
       repoId,
     );
     const reviewerAccess: CachedReviewerRepoAccess = {
@@ -320,9 +271,9 @@ export function repoAuthzLayer(
       reviewerAccess,
       Math.min(ttlExpiry, resolved.expiresAt),
     );
-    await serveRepoAccess(deps, c, next, {
+    await serveRepoAccess(c, next, {
       grant: reviewerAccess,
-      session: resolved.session,
+      bound,
       decision: "200",
     });
   };

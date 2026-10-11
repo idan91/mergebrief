@@ -1,16 +1,19 @@
-// A reviewer signed in through the browser: the sealed GitHub grant and the
-// session row its cookie names, in the installation or owner scope a suite
-// asks for. Every route suite that needs a cookie seeds it here.
+// A reviewer signed in through the browser or holding an API token: the
+// sealed GitHub grant and the session or token row on it. A session row has
+// no tenant, so the reviewer is its only identity. Every route suite that
+// needs a principal seeds it here.
 import { randomBytes } from "node:crypto";
 import {
   createGrantAuth,
   createTenantRepository,
+  createTokenAuth,
   encryptToken,
   type AppDatabase,
   type GithubGrantRow,
   type KeyProvider,
   type ReviewerId,
   type ScopeContext,
+  type WriteClassification,
 } from "persistence";
 import {
   INSTALLATION_ID,
@@ -23,6 +26,11 @@ import {
 
 export const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 export const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
+
+/** `sessions.create` ignores the scope; the store needs one to open. */
+const SESSION_WRITE_SCOPE: ScopeContext = {
+  installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+};
 
 const SIGN_IN_EXPIRES_AT = new Date("2027-01-01T00:00:00Z");
 
@@ -39,8 +47,6 @@ export interface GrantOptions {
 }
 
 export interface SignInOptions extends GrantOptions {
-  /** The scope the session row lives in; the suites' installation by default. */
-  readonly scope?: ScopeContext;
   readonly reviewer?: SeededReviewer;
 }
 
@@ -89,15 +95,12 @@ export async function seedSignIn(
     id: brandReviewerId(BigInt(REVIEWER_ID)),
     login: "octocat",
   };
-  const scope = options.scope ?? {
-    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
-  };
   const expiresAt = options.expiresAt ?? SIGN_IN_EXPIRES_AT;
 
   const grantId = await seedGrant(handle, kp, options);
   const cookie = randomBytes(32).toString("base64url");
   const cookieHash = hashSha256Hex(cookie);
-  await createTenantRepository(handle, scope).sessions.create({
+  await createTenantRepository(handle, SESSION_WRITE_SCOPE).sessions.create({
     sessionTokenHash: cookieHash,
     reviewerId: reviewer.id,
     reviewerLogin: reviewer.login,
@@ -106,4 +109,23 @@ export async function seedSignIn(
   });
 
   return { cookie, cookieHash, grantId, reviewerId: reviewer.id };
+}
+
+/** An API token at `scope`; returns the Bearer plaintext. */
+export async function seedApiToken(
+  handle: AppDatabase,
+  kp: KeyProvider,
+  scope: WriteClassification,
+): Promise<string> {
+  const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+  await createTokenAuth(handle).mintToken({
+    scope,
+    userId: brandReviewerId(BigInt(REVIEWER_ID)),
+    userLogin: "octocat",
+    name: "ci-token",
+    tokenHash: hashSha256Hex(plaintext),
+    grantId: await seedGrant(handle, kp),
+    expiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
+  return plaintext;
 }

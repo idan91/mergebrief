@@ -27,13 +27,12 @@ import {
   spyPullRequestLookups,
   type PullRequestLookups,
 } from "./pull-request-lookups";
-import { seedApiToken } from "./session/fixtures";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
   stubNoNetwork,
 } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { seedSignIn, seedApiToken } from "./sign-in";
 
 const REPO_ID_NUM = 424242;
 const PR_NUMBER = 7;
@@ -152,9 +151,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("erases the viewer's own pasted row with no GitHub call", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER_CTX,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -184,9 +181,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("a tenant row at the same coordinates is an indistinguishable 404", async () => {
     await seedBriefedPr(harness.handle, TENANT_CTX);
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER_CTX,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -197,9 +192,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("another reviewer's pasted row at the coordinates survives", async () => {
     await seedBriefedPr(harness.handle, OTHER_OWNER_CTX);
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER_CTX,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie);
 
@@ -227,9 +220,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("a cross-origin cookie request is forbidden", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER_CTX,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await del(cookie, {
       "sec-fetch-site": "cross-site",
@@ -241,9 +232,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   });
 
   it("a malformed repository id is a 404, a bad number a 400", async () => {
-    const { cookie } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER_CTX,
-    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const bad = await app.request("/api/inbox/not-an-id/7", {
       method: "DELETE",

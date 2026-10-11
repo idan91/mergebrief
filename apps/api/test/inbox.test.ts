@@ -279,7 +279,7 @@ describe("GET /api/inbox", () => {
         { number: 9, head: "feat/three", base: "feat/two" },
       ],
     });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 3 });
 
@@ -296,7 +296,7 @@ describe("GET /api/inbox", () => {
   it("a merged row keeps its recorded stack when the open list is refused", async () => {
     arrangeGitHub(fake);
     fake.failOn("listOpenPullRequests", FakeFailures.NOT_FOUND);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
       repoId: REPO_A,
@@ -322,7 +322,7 @@ describe("GET /api/inbox", () => {
   it("an open row shows no recorded stack when the open list is refused", async () => {
     arrangeGitHub(fake);
     fake.failOn("listOpenPullRequests", FakeFailures.NOT_FOUND);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
       repoId: REPO_A,
@@ -346,7 +346,7 @@ describe("GET /api/inbox", () => {
     arrangeGitHub(fake, {
       openList: [{ number: 8, head: "feat/one", base: "main" }],
     });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
       repoId: REPO_A,
@@ -371,7 +371,7 @@ describe("GET /api/inbox", () => {
 
   it("lists the reachable installation's rows and the viewer's url rows", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const tenantRow = await seedPr(harness.handle, {
       ctx: TENANT,
       repoId: REPO_A,
@@ -461,7 +461,7 @@ describe("GET /api/inbox", () => {
 
   it("an installation row the viewer administers on GitHub can be deleted", async () => {
     arrangeGitHub(fake, { adminRepoIds: [REPO_A] });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
     const res = await get("/api/inbox", cookie);
@@ -476,7 +476,7 @@ describe("GET /api/inbox", () => {
 
   it("an app composed without a slug serves no install link", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const slugless = createApp({
       logger: testLogger(),
       handle: harness.handle,
@@ -495,7 +495,7 @@ describe("GET /api/inbox", () => {
 
   it("a page past the end carries no items and the true total", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
     const res = await get("/api/inbox?page=4", cookie);
@@ -510,7 +510,7 @@ describe("GET /api/inbox", () => {
 
   it("filters read repeated keys and refuse a value outside the vocabulary", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, {
       ctx: TENANT,
       repoId: REPO_A,
@@ -541,7 +541,7 @@ describe("GET /api/inbox", () => {
 
   it("no state key on the wire reads as open and draft", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     const merged = await seedPr(harness.handle, {
       ctx: TENANT,
@@ -567,7 +567,7 @@ describe("GET /api/inbox", () => {
 
   it("a repository the viewer cannot read stays off the list", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     await seedPr(harness.handle, {
       ctx: TENANT,
@@ -586,7 +586,7 @@ describe("GET /api/inbox", () => {
 
   it("a caller's installation or repo filter cannot widen the reach", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     await seedPr(harness.handle, {
       ctx: OTHER_TENANT,
@@ -612,7 +612,7 @@ describe("GET /api/inbox", () => {
   it("a dead token on the installations check is a 401", async () => {
     arrangeGitHub(fake);
     fake.failOn("listUserInstallations", FakeFailures.UNAUTHORIZED);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await get("/api/inbox", cookie);
 
@@ -621,9 +621,7 @@ describe("GET /api/inbox", () => {
 
   it("a token that will not decrypt is a 401 and burns the session", async () => {
     arrangeGitHub(fake);
-    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp, {
-      scope: OWNER,
-    });
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
 
     const res = await get("/api/inbox", cookie);
@@ -640,7 +638,7 @@ describe("GET /api/inbox", () => {
   it("a dead token on the repositories walk is a 401", async () => {
     arrangeGitHub(fake);
     fake.failOn("listInstallationRepositories", FakeFailures.UNAUTHORIZED);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await get("/api/inbox", cookie);
 
@@ -650,7 +648,7 @@ describe("GET /api/inbox", () => {
   it("a GitHub failure on the repositories walk fails the list", async () => {
     arrangeGitHub(fake);
     fake.failOn("listInstallationRepositories", FakeFailures.SERVER_ERROR);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
     const res = await get("/api/inbox", cookie);
@@ -662,7 +660,7 @@ describe("GET /api/inbox", () => {
   it("a denied repositories walk leaves that installation out, not the list", async () => {
     arrangeGitHub(fake);
     fake.failOn("listInstallationRepositories", FakeFailures.FORBIDDEN);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
     const res = await get("/api/inbox", cookie);
@@ -673,7 +671,7 @@ describe("GET /api/inbox", () => {
 
   it("an oversized id or page is a 400, never a database error", async () => {
     arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const repo = await get("/api/inbox?repo=9999999999999999999", cookie);
     const page = await get("/api/inbox?page=1e21", cookie);
@@ -693,7 +691,7 @@ describe("GET /api/inbox", () => {
   it("a GitHub failure on the installations check fails the list", async () => {
     arrangeGitHub(fake);
     fake.failOn("listUserInstallations", FakeFailures.FORBIDDEN);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
     const res = await get("/api/inbox", cookie);
@@ -717,7 +715,7 @@ describe("GET /api/inbox", () => {
     arrangeGitHub(fake);
     arrangeLiveUrlPull(fake);
     hideLiveReadFromViewer(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
     app = buildAppWithOperatorToken([Number(REVIEWER)]);
 
@@ -739,7 +737,7 @@ describe("GET /api/inbox", () => {
       FakeFailures.NOT_FOUND,
       CredentialKinds.REVIEWER,
     );
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
     app = buildAppWithOperatorToken([Number(REVIEWER)]);
 
@@ -757,7 +755,7 @@ describe("GET /api/inbox", () => {
     arrangeGitHub(fake);
     arrangeLiveUrlPull(fake);
     hideLiveReadFromViewer(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
     app = buildAppWithOperatorToken([Number(REVIEWER) + 1]);
 
@@ -771,7 +769,7 @@ describe("GET /api/inbox", () => {
   it("reads a stale url row live before listing it", async () => {
     arrangeGitHub(fake);
     arrangeLiveUrlPull(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, {
       ctx: OWNER,
       repoId: REPO_URL,

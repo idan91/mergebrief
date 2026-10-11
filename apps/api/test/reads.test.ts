@@ -1,8 +1,13 @@
 // Exercise authz and diff caching through app.request over PGlite. The gate's
-// repository read and the OAuth refresh run over a fetch stub; the span diff
-// reaches the `github/testing` fake through the reviewer binding.
+// repository read and the span diff reach the `github/testing` fake through
+// the reviewer binding; only the OAuth refresh runs over a fetch stub.
 import { randomBytes } from "node:crypto";
-import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createArtifactStore,
   decryptToken,
@@ -33,13 +38,15 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
-  answerInstallationRepositories,
 } from "./fixtures";
 import {
   ROTATED_ACCESS_TOKEN,
   UNUSED_INSTALLATION_DEPS,
+  arrangeFakeGate,
   buildFakeAuthDeps,
-  listFakeCallTokens,
+  listCallTokens,
+  listCallsPastGate,
+  type GateGitHubOptions,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
@@ -57,18 +64,8 @@ const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 const REPO = { owner: "octo", repo: "hello" };
 
+// The OAuth token endpoint over a global fetch stub, counting refreshes.
 // ---------------------------------------------------------------------------
-// The gate's GitHub over a global fetch stub, counting calls per family.
-// ---------------------------------------------------------------------------
-
-interface TokenSuccess {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  refresh_token_expires_in: number;
-  token_type: string;
-  scope: string;
-}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -80,56 +77,56 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function tokenSuccess(access: string, refresh: string): TokenSuccess {
-  return {
-    access_token: access,
-    refresh_token: refresh,
+function answerRotatedTokens(): Response {
+  return jsonResponse({
+    access_token: ROTATED_ACCESS_TOKEN,
+    refresh_token: ROTATED_REFRESH,
     expires_in: 28_800,
     refresh_token_expires_in: 15_897_600,
     token_type: "bearer",
     scope: "",
-  };
+  });
 }
 
-function repoOk(): Response {
-  return jsonResponse({ id: REPO_ID, full_name: REPO_SLUG, private: true });
-}
-function repoStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-interface StubConfig {
-  readonly repositories?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-}
-interface StubCounts {
-  repositories: number;
-  token: number;
+function answerDeadRefresh(): Response {
+  return jsonResponse({
+    error: "bad_refresh_token",
+    error_description: "expired",
+    error_uri: "https://docs.github.com/",
+  });
 }
 
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0, token: 0 };
-  const fetchFn = vi.fn(
-    async (input: string | URL | Request): Promise<Response> => {
+interface GateCounts {
+  repositories(): number;
+  refreshes(): number;
+}
+
+/**
+ * The gate's repo on the fake, readable on the viewer's token unless
+ * `viewerStatus` says otherwise; the token endpoint answers `refresh`.
+ */
+function stubGate(
+  fake: FakeGitHub,
+  refresh: () => Response = answerRotatedTokens,
+  options: Omit<GateGitHubOptions, "repoId"> = {},
+): GateCounts {
+  arrangeFakeGate(fake, { ...options, repoId: REPO_ID });
+  let refreshes = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
+      if (!url.includes("/login/oauth/access_token")) {
+        throw new Error(`unexpected fetch: ${url}`);
       }
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
+      refreshes += 1;
+      return refresh();
+    }),
   );
-  vi.stubGlobal("fetch", fetchFn);
-  return counts;
+  return {
+    repositories: () => fake.listCalls("fetchRepositoryById").length,
+    refreshes: () => refreshes,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -222,25 +219,25 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("401s absent session cookies without calling GitHub", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    const counts = stubGate(fake);
     const res = await app.request(briefPath("base", "head"));
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(0);
+    expect(counts.repositories()).toBe(0);
   });
 
   it("401s unknown session cookies without calling GitHub", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    const counts = stubGate(fake);
     const res = await app.request(briefPath("base", "head"), {
       headers: {
         Cookie: `__Host-mergebrief_session=${randomBytes(32).toString("base64url")}`,
       },
     });
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(0);
+    expect(counts.repositories()).toBe(0);
   });
 
   it("404s repo denial without an audit row or negative cache entry", async () => {
-    const counts = stubGitHub({ repositories: () => repoStatus(404) });
+    const counts = stubGate(fake, answerRotatedTokens, { viewerStatus: 404 });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -259,11 +256,11 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(second.status).toBe(404);
-    expect(counts.repositories).toBe(2);
+    expect(counts.repositories()).toBe(2);
   });
 
   it("collapses GitHub 403 to a uniform 404", async () => {
-    stubGitHub({ repositories: () => repoStatus(403) });
+    stubGate(fake, answerRotatedTokens, { viewerStatus: 403 });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     const res = await app.request(briefPath("b", "h"), {
@@ -273,17 +270,7 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("answers a rate-limited access check 502 and never caches it", async () => {
-    const counts = stubGitHub({
-      repositories: () =>
-        new Response(JSON.stringify({ message: "rate limited" }), {
-          status: 403,
-          headers: {
-            "content-type": "application/json; charset=utf-8",
-            "x-ratelimit-remaining": "0",
-            date: new Date().toUTCString(),
-          },
-        }),
-    });
+    const counts = stubGate(fake, answerRotatedTokens, { viewerStatus: 429 });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -297,15 +284,13 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(second.status).toBe(502);
-    expect(counts.repositories).toBe(2);
+    expect(counts.repositories()).toBe(2);
   });
 
   it("answers 401 when the access check still 401s after a refresh", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoStatus(401),
-      token: () =>
-        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
-    });
+    const counts = stubGate(fake);
+    fake.rejectToken(ACCESS_TOKEN);
+    fake.rejectToken(ROTATED_ACCESS_TOKEN);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -313,8 +298,8 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(2);
-    expect(counts.token).toBe(1);
+    expect(counts.repositories()).toBe(2);
+    expect(counts.refreshes()).toBe(1);
     // The refresh succeeded, so the session it rotated stays.
     const rows = await harness.raw(
       "select count(*)::int as n from auth_session",
@@ -323,7 +308,7 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("checks access once for two authorized reads inside the TTL", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    const counts = stubGate(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
@@ -336,13 +321,11 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
-    expect(counts.repositories).toBe(1);
+    expect(counts.repositories()).toBe(1);
   });
 
   it("denies revoked grants after the positive-cache TTL expires", async () => {
-    const counts = stubGitHub({
-      repositories: (call) => (call === 0 ? repoOk() : repoStatus(404)),
-    });
+    const counts = stubGate(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
@@ -355,20 +338,21 @@ describe("reviewer read API + authz gate", () => {
     // Advance the virtual clock past the TTL (forward-only, see the offset
     // note above). The gate re-checks GitHub, which now denies → 404.
     clockOffsetMs += 61_000;
+    fake.failOn(
+      "fetchRepositoryById",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
     const b = await app.request(briefPath("base1", "head1"), {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(b.status).toBe(404);
-    expect(counts.repositories).toBe(2);
+    expect(counts.repositories()).toBe(2);
   });
 
   it("401 from GitHub → refresh → retry succeeds", async () => {
-    const counts = stubGitHub({
-      // First access check 401s (expired token); after the refresh, 200.
-      repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
-      token: () =>
-        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
-    });
+    // The access token expired: the first access check 401s, the retry 200s.
+    const counts = stubGate(fake, answerRotatedTokens, { viewerStatus: 401 });
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
@@ -378,8 +362,8 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(BRIEF_BODY);
-    expect(counts.repositories).toBe(2); // 401 then 200
-    expect(counts.token).toBe(1); // one refresh
+    expect(counts.repositories()).toBe(2); // 401 then 200
+    expect(counts.refreshes()).toBe(1); // one refresh
 
     // The linked grant's access ciphertext rotated to the refreshed token,
     // decrypt and compare, an existence check alone proves nothing.
@@ -404,13 +388,9 @@ describe("reviewer read API + authz gate", () => {
     // refresh consumed the single-use refresh token, and the CLI token died on
     // its own next refresh. Now both channels share ONE grant row, so the
     // browser's rotation is the CLI's rotation.
-    const counts = stubGitHub({
-      // First access check 401s (expired access token); every later check,
-      // including the Bearer channel's own, made with the ROTATED token, 200s.
-      repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
-      token: () =>
-        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
-    });
+    // First access check 401s (expired access token); every later check,
+    // including the Bearer channel's own, made with the ROTATED token, 200s.
+    const counts = stubGate(fake, answerRotatedTokens, { viewerStatus: 401 });
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
@@ -439,7 +419,7 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(viaCookie.status).toBe(200);
-    expect(counts.token).toBe(1);
+    expect(counts.refreshes()).toBe(1);
 
     // 2. CLI request afterwards: its authz gate runs a FRESH GitHub check
     //    (different session-hash cache key) with the grant's ROTATED access
@@ -450,20 +430,12 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(viaBearer.status).toBe(200);
     expect(await viaBearer.text()).toBe(BRIEF_BODY);
-    expect(counts.token).toBe(1); // STILL one, no second refresh spent
-    expect(counts.repositories).toBe(3); // 401, cookie-retry 200, bearer 200
+    expect(counts.refreshes()).toBe(1); // STILL one, no second refresh spent
+    expect(counts.repositories()).toBe(3); // 401, cookie-retry 200, bearer 200
   });
 
   it("401 from GitHub → refresh FAILS → 401 and the session is deleted", async () => {
-    stubGitHub({
-      repositories: () => repoStatus(401),
-      token: () =>
-        jsonResponse({
-          error: "bad_refresh_token",
-          error_description: "expired",
-          error_uri: "https://docs.github.com/",
-        }),
-    });
+    stubGate(fake, answerDeadRefresh, { viewerStatus: 401 });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -478,7 +450,7 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("401s expired sessions with dead refresh tokens and deletes them", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    const counts = stubGate(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date(Date.now() - 1000),
     });
@@ -489,7 +461,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(res.status).toBe(401);
     // Rejected before the access check, no GitHub call at all.
-    expect(counts.repositories).toBe(0);
+    expect(counts.repositories()).toBe(0);
     // The dead session is burned.
     const rows = await harness.raw(
       "select count(*)::int as n from auth_session",
@@ -515,7 +487,7 @@ describe("reviewer read API + authz gate", () => {
     }
 
     it("proxies the requested base...head diff rather than the whole PR", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.addCompare(
         REPO,
         { base: "base1", head: "head1" },
@@ -537,7 +509,7 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("serves repeated diff reads from the per-session cache", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.addCompare(
         REPO,
         { base: "base1", head: "head1" },
@@ -556,7 +528,7 @@ describe("reviewer read API + authz gate", () => {
 
     it("serves oversized diffs without caching them", async () => {
       const big = "x".repeat(1_000_001);
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.addCompare(REPO, { base: "b", head: "h" }, { diff: big });
       const cookie = await signInWithRow();
 
@@ -569,14 +541,7 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("targets the GitHub-verified repo name, not the stored slug", async () => {
-      stubGitHub({
-        repositories: () =>
-          jsonResponse({
-            id: REPO_ID,
-            full_name: "octo/renamed",
-            private: true,
-          }),
-      });
+      stubGate(fake, answerRotatedTokens, { fullName: "octo/renamed" });
       const renamed = { owner: "octo", repo: "renamed" };
       fake.addCompare(
         renamed,
@@ -594,13 +559,13 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("400s cross-repo diff refs without calling GitHub", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "otherowner:sha", "head1");
 
       expect(res.status).toBe(400);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake)).toEqual([]);
     });
 
     const collapsed = [
@@ -611,7 +576,7 @@ describe("reviewer read API + authz gate", () => {
     it.each(collapsed)(
       "collapses a %s span diff to 404",
       async (_label, failure) => {
-        stubGitHub({ repositories: () => repoOk() });
+        stubGate(fake);
         fake.failOn("fetchCompareDiff", failure);
         const cookie = await signInWithRow();
 
@@ -623,7 +588,7 @@ describe("reviewer read API + authz gate", () => {
     );
 
     it("maps GitHub's oversized-diff 406 to 413", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.failOn("fetchCompareDiff", FakeFailures.NOT_ACCEPTABLE);
       const cookie = await signInWithRow();
 
@@ -634,7 +599,7 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("answers a diff GitHub cannot serve 502", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.failOn("fetchCompareDiff", FakeFailures.SERVER_ERROR);
       const cookie = await signInWithRow();
 
@@ -645,11 +610,7 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("refreshes expired tokens on cached-authz diff reads and retries", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        token: () =>
-          jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
-      });
+      const counts = stubGate(fake);
       fake.addCompare(
         REPO,
         { base: "base1", head: "head1" },
@@ -669,9 +630,9 @@ describe("reviewer read API + authz gate", () => {
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
       expect(await second.text()).toBe(DIFF_TEXT);
-      expect(counts.repositories).toBe(1);
-      expect(counts.token).toBe(1);
-      expect(listFakeCallTokens(fake)).toEqual([
+      expect(counts.repositories()).toBe(1);
+      expect(counts.refreshes()).toBe(1);
+      expect(listCallTokens(listCallsPastGate(fake))).toEqual([
         ACCESS_TOKEN,
         ACCESS_TOKEN,
         ROTATED_ACCESS_TOKEN,
@@ -679,40 +640,32 @@ describe("reviewer read API + authz gate", () => {
     });
 
     it("answers 401 when the diff still 401s after a good refresh", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        token: () =>
-          jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
-      });
-      fake.rejectToken(ACCESS_TOKEN);
-      fake.rejectToken(ROTATED_ACCESS_TOKEN);
+      const counts = stubGate(fake);
+      fake.failOn("fetchCompareDiff", FakeFailures.UNAUTHORIZED);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");
 
       expect(res.status).toBe(401);
       expect(await res.json()).toMatchObject({ code: "unauthorized" });
-      expect(counts.token).toBe(1);
+      expect(counts.refreshes()).toBe(1);
       expect(listDiffCalls()).toHaveLength(2);
     });
 
     it("answers 401 when the diff 401s and the refresh fails", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        token: () => jsonResponse({ error: "bad_refresh_token" }),
-      });
-      fake.rejectToken(ACCESS_TOKEN);
+      const counts = stubGate(fake, answerDeadRefresh);
+      fake.failOn("fetchCompareDiff", FakeFailures.UNAUTHORIZED);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");
 
       expect(res.status).toBe(401);
-      expect(counts.token).toBe(1);
+      expect(counts.refreshes()).toBe(1);
       expect(listDiffCalls()).toHaveLength(1);
     });
 
     it("401s an unreadable token behind a cached gate pass", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGate(fake);
       fake.addCompare(
         REPO,
         { base: "base1", head: "head1" },

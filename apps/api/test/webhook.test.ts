@@ -15,22 +15,15 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
-import { createTestUserOctokit, INSTALLATION_ID, SECRET } from "./fixtures";
+import { buildAuthDeps, INSTALLATION_ID, KEY_REF, SECRET } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
 // crypto boundary constructible; nothing here triggers a token seal.
-const DUMMY_AUTH: AuthDeps = {
-  oauthClientId: "test-client-id",
-  oauthClientSecret: "test-client-secret",
-  keyProvider: createEnvKeyProvider({
-    SESSION_KEY_V1: Buffer.alloc(32).toString("base64"),
-  }),
-  sessionKeyRef: "SESSION_KEY_V1",
-  publicBaseUrl: "http://localhost:3000",
-  createUserOctokit: createTestUserOctokit,
-};
+const DUMMY_AUTH: AuthDeps = buildAuthDeps(
+  createEnvKeyProvider({ [KEY_REF]: Buffer.alloc(32).toString("base64") }),
+);
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";

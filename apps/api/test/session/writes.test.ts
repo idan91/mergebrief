@@ -24,7 +24,6 @@ import {
   CTX,
   REPO_ID,
   REVIEWER,
-  seedApiToken,
   seedBrief,
   seedHop,
   seedHopInsideFlaggedRegion,
@@ -35,15 +34,19 @@ import {
 import {
   PR_NUMBER,
   SECRET,
+  brandReviewerId,
   createKeyProvider,
   SAME_ORIGIN_HEADERS,
 } from "../fixtures";
 import {
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
-  stubGateGitHub,
+  arrangeFakeGate,
+  listCallsPastGate,
 } from "../reviewer-github";
-import { seedSignIn } from "../sign-in";
+import { seedSignIn, seedApiToken } from "../sign-in";
+
+const OTHER_REVIEWER = brandReviewerId(4242n);
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
@@ -159,7 +162,7 @@ describe("the Review Session writes", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-    stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
   });
@@ -237,7 +240,7 @@ describe("the Review Session writes", () => {
     expect(counted).toEqual(
       writes.map(([method, suffix]) => [method, suffix, true, 1]),
     );
-    expect(fake.calls).toEqual([]);
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("404s every write whose span names no stored Brief", async () => {
@@ -662,6 +665,35 @@ describe("the Review Session writes", () => {
     ).toBe(404);
     // A refused write rolls back whole: no session, no copies, nothing frozen.
     expect(await countRows("review_session")).toBe(1);
+  });
+
+  it("keeps one reviewer's drafts out of another's session", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const draftId = await readDraftId(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    const other = await seedSignIn(harness.handle, kp, {
+      reviewer: { id: OTHER_REVIEWER, login: "hubot" },
+    });
+    cookie = other.cookie;
+
+    const seen = z
+      .object({ draftComments: z.array(z.unknown()) })
+      .parse(await (await read("head-1")).json());
+    const edited = await write("PATCH", `/comments/${draftId}`, "head-1", {
+      body: "not yours",
+    });
+    const deleted = await write("DELETE", `/comments/${draftId}`, "head-1");
+
+    expect(seen.draftComments).toEqual([]);
+    expect([edited.status, deleted.status]).toEqual([404, 404]);
+    const owned = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({ briefId, reviewerId: REVIEWER });
+    expect(owned?.draftComments).toEqual([
+      expect.objectContaining({ body: DRAFT.body }),
+    ]);
   });
 
   it("leaves the session unmaterialized after a refused first edit", async () => {

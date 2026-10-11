@@ -1,11 +1,5 @@
-import {
-  bindOperatorGitHub,
-  fetchRepositoryById,
-  isOperatorToken,
-  type GitHubReader,
-} from "github";
+import { isOperatorToken, type GitHubReader } from "github";
 import { createTenantRepository, type ReviewerId } from "persistence";
-import type { ReviewerGitHubClient } from "../routes/auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../routes/auth/session/types";
 import { isGitHubDenial } from "../shared-errors/failures";
 import {
@@ -44,13 +38,7 @@ export function bindOperatorReader(
   if (token === undefined || !isOperatorToken(token)) {
     return undefined;
   }
-  const bind = deps.auth.bindOperatorGitHub;
-  if (bind !== undefined) {
-    return bind(token);
-  }
-  return bindOperatorGitHub(token, {
-    octokitFactory: deps.auth.createUserOctokit,
-  });
+  return deps.auth.bindOperatorGitHub(token);
 }
 
 /**
@@ -62,12 +50,11 @@ export function bindOperatorReader(
  */
 export async function resolveOperatorRepoAccess(
   deps: AuthRouteDeps,
-  client: ReviewerGitHubClient,
+  reviewerId: ReviewerId,
   denied: OperatorRungRequest,
 ): Promise<CachedOperatorRepoAccess | undefined> {
-  const reviewerId = client.session().reviewerId;
-  const fallbackToken = resolveOperatorTokenFor(deps, reviewerId);
-  if (fallbackToken === undefined || !isGitHubDenial(denied.error)) {
+  const operator = bindOperatorReader(deps, reviewerId);
+  if (operator === undefined || !isGitHubDenial(denied.error)) {
     return undefined;
   }
   if (!denied.requestedPr.ok) {
@@ -81,10 +68,7 @@ export async function resolveOperatorRepoAccess(
   if (owned === undefined) {
     return undefined;
   }
-  const repo = await fetchRepositoryById(
-    client.createOctokit(fallbackToken),
-    repoId,
-  );
+  const repo = await operator.fetchRepositoryById(repoId);
   if (!repo.ok) {
     return undefined;
   }

@@ -34,12 +34,15 @@ import {
 import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
+  OPERATOR_GATE_CALLS,
   ROTATED_ACCESS_TOKEN,
   buildFakeAuthDeps,
   buildFakeInstallationDeps,
+  listCallTokens,
+  listCallsPastGate,
   listFakeCallTokens,
   makeFakePullRequestInfo,
-  stubGateGitHub,
+  arrangeFakeGate,
   type GateGitHubOptions,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
@@ -84,12 +87,13 @@ function readBearer(init: RequestInit | undefined): string {
   return authorization.replace(/^Bearer\s+/i, "");
 }
 
-/** The gate's GitHub, with the bytes fetches the read makes itself answered by `answer`. */
+/** The gate on `fake`, and the bytes fetches the read makes itself answered by `answer`. */
 function stubAttachmentFetch(
+  fake: FakeGitHub,
   gate: GateGitHubOptions,
   answer: AttachmentAnswer,
 ): AttachmentFetchCall[] {
-  stubGateGitHub(gate);
+  arrangeFakeGate(fake, gate);
   const gateFetch = globalThis.fetch;
   const calls: AttachmentFetchCall[] = [];
   vi.stubGlobal(
@@ -210,7 +214,7 @@ describe("GET attachments/:assetId", () => {
   describe("a GitHub asset", () => {
     it("streams the asset with its type and the gated no-store posture", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -231,7 +235,11 @@ describe("GET attachments/:assetId", () => {
 
     it("reads the sources on the viewer and fetches the bytes anonymously", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      const fetched = stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        makePngResponse,
+      );
       const lookups = spyPullRequestLookups(harness);
 
       await readAttachment(makeApp(), ASSET_ID);
@@ -240,14 +248,14 @@ describe("GET attachments/:assetId", () => {
         ...REPO,
         prNumber: PR_NUMBER,
       });
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+      expect(listCallTokens(listCallsPastGate(fake))).toEqual([ACCESS_TOKEN]);
       expect(fetched).toEqual([{ url: new URL(SIGNED_URL), token: "" }]);
       expect(lookups.count()).toBe(0);
     });
 
     it("serves a second image from the cached sources", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL, PUBLIC_URL]);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
       const app = makeApp();
 
       await readAttachment(app, ASSET_ID);
@@ -259,7 +267,11 @@ describe("GET attachments/:assetId", () => {
 
     it("answers 404 when the pull request renders no such asset", async () => {
       arrangeRenderedSources(fake, ["https://camo.githubusercontent.com/x"]);
-      const fetched = stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        makePngResponse,
+      );
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -268,18 +280,18 @@ describe("GET attachments/:assetId", () => {
     });
 
     it("answers 404 for a malformed asset id without calling github", async () => {
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), "not-a-uuid");
 
       expect(response.status).toBe(404);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake)).toEqual([]);
     });
 
     it("answers 404 when github denies the pull request", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.failOn("fetchRenderedImageSources", FakeFailures.FORBIDDEN);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -288,7 +300,7 @@ describe("GET attachments/:assetId", () => {
 
     it("answers 404 when the signed url no longer serves an image", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      stubAttachmentFetch({ repoId: REPO_ID }, answerStatus(404));
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, answerStatus(404));
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -298,6 +310,7 @@ describe("GET attachments/:assetId", () => {
     it("answers 404 for an svg attachment", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       stubAttachmentFetch(
+        fake,
         { repoId: REPO_ID },
         () =>
           new Response("<svg></svg>", {
@@ -314,7 +327,7 @@ describe("GET attachments/:assetId", () => {
     it("answers 502 on an upstream failure", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.failOn("fetchRenderedImageSources", FakeFailures.SERVER_ERROR);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -324,13 +337,17 @@ describe("GET attachments/:assetId", () => {
     it("retries once on the rotated token after a 401", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.rejectToken(ACCESS_TOKEN);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
       expect(response.status).toBe(200);
+      // The gate's read spends the one renewal; the walk and the read ride it.
       expect(listFakeCallTokens(fake)).toEqual([
         ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
         ROTATED_ACCESS_TOKEN,
       ]);
     });
@@ -339,7 +356,7 @@ describe("GET attachments/:assetId", () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.rejectToken(ACCESS_TOKEN);
       fake.rejectToken(ROTATED_ACCESS_TOKEN);
-      stubAttachmentFetch({ repoId: REPO_ID }, makePngResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
@@ -349,7 +366,7 @@ describe("GET attachments/:assetId", () => {
     it("cancels the upstream body it will not serve", async () => {
       const cancelled = vi.fn();
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      stubAttachmentFetch({ repoId: REPO_ID }, () =>
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, () =>
         makeCancelableResponse(cancelled, "image/svg+xml"),
       );
 
@@ -361,7 +378,7 @@ describe("GET attachments/:assetId", () => {
     it("answers a head request with the headers and no open stream", async () => {
       const cancelled = vi.fn();
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      stubAttachmentFetch({ repoId: REPO_ID }, () =>
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, () =>
         makeCancelableResponse(cancelled, "image/png"),
       );
 
@@ -376,7 +393,7 @@ describe("GET attachments/:assetId", () => {
 
   describe("behind an operator pass", () => {
     beforeEach(async () => {
-      ({ cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER }));
+      ({ cookie } = await seedSignIn(harness.handle, kp));
       await seedPullRequest(harness.handle, OWNER);
       fake.failOn(
         "fetchRenderedImageSources",
@@ -392,13 +409,14 @@ describe("GET attachments/:assetId", () => {
         viewerStatus: 404,
         inInstallation: false,
       };
-      stubAttachmentFetch(gate, makePngResponse);
+      stubAttachmentFetch(fake, gate, makePngResponse);
       const lookups = spyPullRequestLookups(harness);
 
       const response = await readAttachment(makeApp(OPERATOR_PAT), ASSET_ID);
 
       expect(response.status).toBe(200);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, OPERATOR_PAT]);
+      const pastGate = listCallsPastGate(fake, OPERATOR_GATE_CALLS);
+      expect(listCallTokens(pastGate)).toEqual([ACCESS_TOKEN, OPERATOR_PAT]);
       // The gate rung probes the reader's own url row; the read loads none.
       expect(lookups.count()).toBe(1);
     });
@@ -406,12 +424,12 @@ describe("GET attachments/:assetId", () => {
     it("keeps a reviewer-footed denial off the operator token", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       const gate = { repoId: REPO_ID, inInstallation: false };
-      stubAttachmentFetch(gate, makePngResponse);
+      stubAttachmentFetch(fake, gate, makePngResponse);
 
       const response = await readAttachment(makeApp(OPERATOR_PAT), ASSET_ID);
 
       expect(response.status).toBe(404);
-      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+      expect(listCallTokens(listCallsPastGate(fake))).toEqual([ACCESS_TOKEN]);
     });
 
     it("never borrows the operator token for a branch file", async () => {
@@ -420,7 +438,7 @@ describe("GET attachments/:assetId", () => {
         viewerStatus: 404,
         inInstallation: false,
       };
-      const fetched = stubAttachmentFetch(gate, answerStatus(404));
+      const fetched = stubAttachmentFetch(fake, gate, answerStatus(404));
 
       const response = await readAttachment(makeApp(OPERATOR_PAT), FILE_NAME);
 
@@ -431,7 +449,7 @@ describe("GET attachments/:assetId", () => {
 
   describe("a branch file", () => {
     it("streams the file with the type its name declares", async () => {
-      stubAttachmentFetch({ repoId: REPO_ID }, makeRawResponse);
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makeRawResponse);
 
       const response = await readAttachment(makeApp(), FILE_NAME);
 
@@ -440,11 +458,15 @@ describe("GET attachments/:assetId", () => {
       expect(response.headers.get("cache-control")).toBe("no-store");
       const bytes = new Uint8Array(await response.arrayBuffer());
       expect(Array.from(bytes)).toEqual(PNG_BYTES);
-      expect(fake.calls).toEqual([]);
+      expect(listCallsPastGate(fake)).toEqual([]);
     });
 
     it("reads the gated repo's attachments branch with the viewer token", async () => {
-      const fetched = stubAttachmentFetch({ repoId: REPO_ID }, makeRawResponse);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        makeRawResponse,
+      );
 
       await readAttachment(makeApp(), FILE_NAME);
 
@@ -457,7 +479,11 @@ describe("GET attachments/:assetId", () => {
     });
 
     it("answers 404 for a file outside the image allowlist", async () => {
-      const fetched = stubAttachmentFetch({ repoId: REPO_ID }, makeRawResponse);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        makeRawResponse,
+      );
 
       const response = await readAttachment(makeApp(), `${ASSET_ID}.svg`);
 
@@ -466,7 +492,7 @@ describe("GET attachments/:assetId", () => {
     });
 
     it("answers 404 when the branch holds no such file", async () => {
-      stubAttachmentFetch({ repoId: REPO_ID }, answerStatus(404));
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, answerStatus(404));
 
       const response = await readAttachment(makeApp(), FILE_NAME);
 
@@ -474,10 +500,13 @@ describe("GET attachments/:assetId", () => {
     });
 
     it("retries once on the rotated token after a 401", async () => {
-      const fetched = stubAttachmentFetch({ repoId: REPO_ID }, (_url, token) =>
-        token === ACCESS_TOKEN
-          ? new Response(null, { status: 401 })
-          : makeRawResponse(),
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        (_url, token) =>
+          token === ACCESS_TOKEN
+            ? new Response(null, { status: 401 })
+            : makeRawResponse(),
       );
 
       const response = await readAttachment(makeApp(), FILE_NAME);
@@ -490,7 +519,7 @@ describe("GET attachments/:assetId", () => {
     });
 
     it("answers 401 when the rotated token is rejected too", async () => {
-      stubAttachmentFetch({ repoId: REPO_ID }, answerStatus(401));
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, answerStatus(401));
 
       const response = await readAttachment(makeApp(), FILE_NAME);
 
