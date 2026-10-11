@@ -462,7 +462,7 @@ describe("GET attachments/:assetId", () => {
     expect(sourcesMock).toHaveBeenCalledTimes(2);
   });
 
-  it("answers 502 when the rotated token is rejected too", async () => {
+  it("answers 401 when the rotated token is rejected too", async () => {
     stubSourcesDenied(401);
     stubSourcesDenied(401);
     const app = await buildApp();
@@ -476,7 +476,7 @@ describe("GET attachments/:assetId", () => {
 
     const response = await app.request(`/7/attachments/${ASSET_ID}`);
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(401);
   });
 
   it("falls back to the operator pat when the gate passed on it", async () => {

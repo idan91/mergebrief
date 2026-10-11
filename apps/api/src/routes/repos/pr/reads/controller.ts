@@ -140,7 +140,6 @@ async function readWithViewer<T>(
     error: {
       kind: FailureKinds.GITHUB_DENIED,
       error: result.error,
-      retried: result.retried,
     },
   };
 }
@@ -499,7 +498,6 @@ export const readsController = {
         error: {
           kind: FailureKinds.GITHUB_DENIED,
           error: diff.error,
-          retried: diff.retried,
         },
       } satisfies ReadDiffResult;
     }
@@ -655,7 +653,6 @@ export const readsController = {
       const denied: FileRangeFailure = {
         kind: FailureKinds.GITHUB_DENIED,
         error: fetched.error,
-        retried: fetched.retried,
       };
       return { ok: false, error: denied };
     }

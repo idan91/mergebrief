@@ -608,7 +608,7 @@ describe("conversation surface", () => {
       expect(log.calls).toHaveLength(1);
     });
 
-    it("maps port not-found to 404 and other failures to 502", async () => {
+    it("maps port not-found to 404 and a rate limit to 502", async () => {
       const notFound = {
         ok: false as const,
         error: {
@@ -643,6 +643,27 @@ describe("conversation surface", () => {
       const retry = await getConversation(app, cookie);
       expect(retry.status).toBe(200);
       expect(second.log.calls).toHaveLength(2);
+    });
+
+    it("collapses an App-credential 403 to 404", async () => {
+      const forbidden = {
+        ok: false as const,
+        error: {
+          code: "forbidden" as const,
+          message:
+            "failed to fetch pull request conversation: GitHub GraphQL query failed",
+        },
+      };
+      stubGitHub({ repositories: () => repoOk() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+
+      const res = await getConversation(
+        makeApp(stubPort([forbidden]).port),
+        cookie,
+      );
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ code: "not-found" });
     });
 
     it("404s an unknown PR number without touching the port", async () => {

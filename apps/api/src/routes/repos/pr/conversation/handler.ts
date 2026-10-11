@@ -1,17 +1,15 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCodes } from "github";
 import {
   createTenantRepository,
   isOwnerContext,
   type AppDatabase,
 } from "persistence";
+import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import {
-  BadGateway,
-  BadRequest,
-  NotFound,
-  Unauthorized,
-} from "../../../../shared-errors/api-error";
-import { isTokenUnreadableFailure } from "../../../../shared-errors/failures";
+  resolveGitHubDenialError,
+  unwrapGitHubFailure,
+} from "../../../../shared-errors/github-denial";
+import { DenialPostures } from "../../../../shared-errors/github-denial/types";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
@@ -23,7 +21,6 @@ import { conversationController } from "./controller";
 import type { ReadConversationResult } from "./types";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
-import { ApiErrorCodes } from "contract";
 import { resolvePrScopeFrom } from "../scope";
 import { HttpStatuses } from "types/http";
 
@@ -101,26 +98,13 @@ export function createConversationHandlers(
       }
 
       if (!fetched.ok) {
-        // Re-auth territory, same as every sibling viewer-token read: an
-        // unreadable stored token or an upstream 401 prompts sign-in, never
-        // a retry-looking 502 or a phantom 404. VIEWER path only, on the
-        // App branch a 401 means the App's own credential failed, which
-        // re-auth cannot fix, so it stays an honest upstream error.
-        if (isTokenUnreadableFailure(fetched.error)) {
-          throw new Unauthorized();
-        }
-        if (
-          ownerWorld &&
-          fetched.error.error.code === GitHubApiErrorCodes.UNAUTHORIZED
-        ) {
-          throw new Unauthorized();
-        }
-        // 404-collapse posture identical to the other reads; everything else is
-        // an honest upstream error (no REST fallback tier).
-        if (fetched.error.error.code === GitHubApiErrorCodes.NOT_FOUND) {
-          throw new NotFound();
-        }
-        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+        const posture = ownerWorld
+          ? DenialPostures.COLLAPSE
+          : DenialPostures.APP_READ;
+        throw resolveGitHubDenialError(
+          unwrapGitHubFailure(fetched.error),
+          posture,
+        );
       }
       cache.set(key, fetched.value, now + CONVERSATION_CACHE_TTL_MS, now);
       return conversationJson(c, fetched.value);

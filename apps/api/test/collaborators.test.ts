@@ -336,7 +336,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(1);
   });
 
-  it("collapses a port NOT_FOUND to 404 and maps other failures to 502", async () => {
+  it("collapses a port NOT_FOUND to 404 and an upstream failure to 502", async () => {
     const notFound = {
       ok: false as const,
       error: {
@@ -363,6 +363,38 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const failedRes = await getCollaborators(failedApp, cookie);
     expect(failedRes.status).toBe(502);
     expect(failedRes.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("collapses a port 403 to 404 and keeps an App 401 a 502", async () => {
+    const forbidden = {
+      ok: false as const,
+      error: {
+        code: "forbidden" as const,
+        message: "failed to list repo collaborators: z",
+      },
+    };
+    const unauthorized = {
+      ok: false as const,
+      error: {
+        code: "unauthorized" as const,
+        message: "failed to list repo collaborators: w",
+      },
+    };
+    stubGitHub(() => repoOk(true));
+    const { cookie } = await seedSession(harness.handle, kp);
+
+    const forbiddenRes = await getCollaborators(
+      makeApp(stubPort([forbidden]).port),
+      cookie,
+    );
+    expect(forbiddenRes.status).toBe(404);
+    expect(await forbiddenRes.json()).toMatchObject({ code: "not-found" });
+
+    const unauthorizedRes = await getCollaborators(
+      makeApp(stubPort([unauthorized]).port),
+      cookie,
+    );
+    expect(unauthorizedRes.status).toBe(502);
   });
 
   it("does not cache failures, so a later read retries the port", async () => {

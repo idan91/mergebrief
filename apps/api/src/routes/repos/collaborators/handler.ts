@@ -1,14 +1,14 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCodes } from "github";
 import type { InstallationId, RepoId } from "persistence";
-import { BadGateway, NotFound } from "../../../shared-errors/api-error";
+import { NotFound } from "../../../shared-errors/api-error";
+import { resolveGitHubDenialError } from "../../../shared-errors/github-denial";
+import { DenialPostures } from "../../../shared-errors/github-denial/types";
 import { requireInstallationScope, type AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
 import { collaboratorsController } from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
 import { parseOwnerAndName } from "../utils";
-import { ApiErrorCodes } from "contract";
 import { HttpStatuses } from "types/http";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
@@ -61,12 +61,10 @@ export function createCollaboratorsHandlers(
         },
       );
       if (!fetched.ok) {
-        // 404-collapse posture identical to the other reads; everything else is
-        // an honest upstream error.
-        if (fetched.error.error.code === GitHubApiErrorCodes.NOT_FOUND) {
-          throw new NotFound();
-        }
-        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+        throw resolveGitHubDenialError(
+          fetched.error.error,
+          DenialPostures.APP_READ,
+        );
       }
       const body = JSON.stringify(fetched.value);
       cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);

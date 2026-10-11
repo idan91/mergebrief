@@ -389,6 +389,67 @@ describe("reviewer read API + authz gate", () => {
     expect(res.status).toBe(404);
   });
 
+  it("answers a rate-limited access check 502 and never caches it", async () => {
+    const counts = stubGitHub({
+      repositories: () =>
+        new Response(JSON.stringify({ message: "rate limited" }), {
+          status: 403,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            "x-ratelimit-remaining": "0",
+            date: new Date().toUTCString(),
+          },
+        }),
+    });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const first = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(first.status).toBe(502);
+    expect(await first.json()).toMatchObject({ code: "github-unavailable" });
+
+    const second = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(second.status).toBe(502);
+    expect(counts.repositories).toBe(2);
+  });
+
+  it("answers 401 when the access check still 401s after a refresh", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoStatus(401),
+      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+    });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(res.status).toBe(401);
+    expect(counts.repositories).toBe(2);
+    expect(counts.token).toBe(1);
+    // The refresh succeeded, so the session it rotated stays.
+    const rows = await harness.raw(
+      "select count(*)::int as n from auth_session",
+    );
+    expect(rows[0]?.["n"]).toBe(1);
+  });
+
+  it("collapses a span diff GitHub refuses with 403 to 404", async () => {
+    stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(403) });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(diffPath("base1", "head1"), {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: "not-found" });
+  });
+
   it("returns authorized stored briefs and 404s missing spans", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);

@@ -18,6 +18,24 @@ deprecation note here, removal only at a major.
 - **Added** `authorLogin` (string | null) on `GET /api/repos/:repoId/pulls/:prNumber`
   and on each `GET /api/inbox` item: the PR author's GitHub login, `null`
   when the stored row has none. A client that predates it ignores the field.
+- **Changed** the per-repo gate in front of every `/api/repos/:repoId/*`
+  route: a GitHub outage, rate limit or failed request at the access check
+  answers `502 github-unavailable` (was 404). It is never cached and never
+  tried on the operator token. A 404 there now always means GitHub refused
+  access or the repository is gone, so a client can tell "try again" from
+  "you lost access".
+- **Changed** a GitHub 401 that survives the request's token refresh answers
+  `401 unauthorized` (was 404 at the gate, 502 on the reads below). The
+  refreshed token is the one GitHub rejected, so signing in again is the
+  fix. Affects the gate and `GET .../pulls/:prNumber/diff`, `.../stack`,
+  `.../file-range` and `.../attachments/:assetId`. The session is kept.
+- **Changed** a GitHub 403 on `GET .../pulls/:prNumber/diff` and
+  `GET .../pulls/:prNumber/conversation` answers `404 not-found` (was 502),
+  and on `GET /api/repos/:repoId/collaborators` the same (was 502). A read
+  collapses a refusal to absence like the gate does; only an outage is 502.
+  The conversation read on an App-installed repository still answers an App
+  credential 401 as `502 github-unavailable`: a sign-in cannot repair the
+  instance's own credential.
 
 ## dev (2026-10-06)
 

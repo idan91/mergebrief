@@ -2,7 +2,7 @@
 // per HTTP status in `ApiErrorStatusByCode`. `CodeFor<status>` constrains each
 // class to codes of its status, so class, status, and code can never
 // disagree, the status table stays the single source of truth.
-import { HttpStatuses, type ValueOf } from "types";
+import type { HttpStatuses, ValueOf } from "types";
 import {
   ApiErrorCodes,
   type ApiErrorCode,
@@ -31,7 +31,6 @@ type PlainCodeFor<S extends ApiErrorStatus> = Exclude<CodeFor<S>, ParamCode>;
 type ParamCodeFor<S extends ApiErrorStatus> = Extract<CodeFor<S>, ParamCode>;
 
 export abstract class ApiError extends Error {
-  abstract readonly status: ApiErrorStatus;
   readonly code: ApiErrorCode;
   readonly params: ApiErrorParams[ParamCode] | undefined;
 
@@ -47,171 +46,155 @@ export abstract class ApiError extends Error {
 }
 
 export class BadRequest extends ApiError {
-  override readonly status: typeof HttpStatuses.BAD_REQUEST;
-  constructor(code?: PlainCodeFor<typeof HttpStatuses.BAD_REQUEST>);
-  constructor(
+  public constructor(code?: PlainCodeFor<typeof HttpStatuses.BAD_REQUEST>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.BAD_REQUEST>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.BAD_REQUEST>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<
       typeof HttpStatuses.BAD_REQUEST
     > = ApiErrorCodes.INVALID_REQUEST,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.BAD_REQUEST;
   }
 }
 
 export class Unauthorized extends ApiError {
-  override readonly status: typeof HttpStatuses.UNAUTHORIZED;
-  constructor(code?: PlainCodeFor<typeof HttpStatuses.UNAUTHORIZED>);
-  constructor(
+  public constructor(code?: PlainCodeFor<typeof HttpStatuses.UNAUTHORIZED>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.UNAUTHORIZED>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.UNAUTHORIZED>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<
       typeof HttpStatuses.UNAUTHORIZED
     > = ApiErrorCodes.UNAUTHORIZED,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.UNAUTHORIZED;
   }
 }
 
 export class Forbidden extends ApiError {
-  override readonly status: typeof HttpStatuses.FORBIDDEN;
-  constructor(code?: PlainCodeFor<typeof HttpStatuses.FORBIDDEN>);
-  constructor(
+  public constructor(code?: PlainCodeFor<typeof HttpStatuses.FORBIDDEN>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.FORBIDDEN>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.FORBIDDEN>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.FORBIDDEN> = ApiErrorCodes.FORBIDDEN,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.FORBIDDEN;
   }
 }
 
 export class NotFound extends ApiError {
-  override readonly status: typeof HttpStatuses.NOT_FOUND;
-  constructor(code?: PlainCodeFor<typeof HttpStatuses.NOT_FOUND>);
-  constructor(
+  public constructor(code?: PlainCodeFor<typeof HttpStatuses.NOT_FOUND>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.NOT_FOUND>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.NOT_FOUND>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.NOT_FOUND> = ApiErrorCodes.NOT_FOUND,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.NOT_FOUND;
   }
 }
 
 export class Conflict extends ApiError {
-  override readonly status: typeof HttpStatuses.CONFLICT;
-  constructor(code: PlainCodeFor<typeof HttpStatuses.CONFLICT>);
-  constructor(
+  public constructor(code: PlainCodeFor<typeof HttpStatuses.CONFLICT>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.CONFLICT>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.CONFLICT>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.CONFLICT>,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.CONFLICT;
   }
 }
 
 export class PayloadTooLarge extends ApiError {
-  override readonly status: typeof HttpStatuses.PAYLOAD_TOO_LARGE;
-  constructor(code: PlainCodeFor<typeof HttpStatuses.PAYLOAD_TOO_LARGE>);
-  constructor(
+  public constructor(code: PlainCodeFor<typeof HttpStatuses.PAYLOAD_TOO_LARGE>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.PAYLOAD_TOO_LARGE>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.PAYLOAD_TOO_LARGE>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.PAYLOAD_TOO_LARGE>,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.PAYLOAD_TOO_LARGE;
   }
 }
 
 export class TooManyRequests extends ApiError {
-  override readonly status: typeof HttpStatuses.TOO_MANY_REQUESTS;
-  constructor(code: PlainCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>);
-  constructor(
+  public constructor(code: PlainCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.TOO_MANY_REQUESTS>,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.TOO_MANY_REQUESTS;
   }
 }
 
 export class InternalError extends ApiError {
-  override readonly status: typeof HttpStatuses.INTERNAL_SERVER_ERROR;
-  constructor(code?: PlainCodeFor<typeof HttpStatuses.INTERNAL_SERVER_ERROR>);
-  constructor(
+  public constructor(
+    code?: PlainCodeFor<typeof HttpStatuses.INTERNAL_SERVER_ERROR>,
+  );
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.INTERNAL_SERVER_ERROR>,
     params: ApiErrorParams[ParamCodeFor<
       typeof HttpStatuses.INTERNAL_SERVER_ERROR
     >],
   );
-  constructor(
+  public constructor(
     code: CodeFor<
       typeof HttpStatuses.INTERNAL_SERVER_ERROR
     > = ApiErrorCodes.INTERNAL_ERROR,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.INTERNAL_SERVER_ERROR;
   }
 }
 
 export class BadGateway extends ApiError {
-  override readonly status: typeof HttpStatuses.BAD_GATEWAY;
-  constructor(code: PlainCodeFor<typeof HttpStatuses.BAD_GATEWAY>);
-  constructor(
+  public constructor(code: PlainCodeFor<typeof HttpStatuses.BAD_GATEWAY>);
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.BAD_GATEWAY>,
     params: ApiErrorParams[ParamCodeFor<typeof HttpStatuses.BAD_GATEWAY>],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.BAD_GATEWAY>,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.BAD_GATEWAY;
   }
 }
 
 export class ServiceUnavailable extends ApiError {
-  override readonly status: typeof HttpStatuses.SERVICE_UNAVAILABLE;
-  constructor(code: PlainCodeFor<typeof HttpStatuses.SERVICE_UNAVAILABLE>);
-  constructor(
+  public constructor(
+    code: PlainCodeFor<typeof HttpStatuses.SERVICE_UNAVAILABLE>,
+  );
+  public constructor(
     code: ParamCodeFor<typeof HttpStatuses.SERVICE_UNAVAILABLE>,
     params: ApiErrorParams[ParamCodeFor<
       typeof HttpStatuses.SERVICE_UNAVAILABLE
     >],
   );
-  constructor(
+  public constructor(
     code: CodeFor<typeof HttpStatuses.SERVICE_UNAVAILABLE>,
     params?: ApiErrorParams[ParamCode],
   ) {
     super(code, params);
-    this.status = HttpStatuses.SERVICE_UNAVAILABLE;
   }
 }

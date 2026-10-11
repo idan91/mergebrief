@@ -147,6 +147,4 @@ export type ReadAttachmentFailure =
   | {
       readonly kind: typeof ReadAttachmentFailureKinds.GITHUB_DENIED;
       readonly error: GitHubApiError;
-      /** True when the failure survived a post-refresh retry. */
-      readonly retried: boolean;
     };

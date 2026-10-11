@@ -224,7 +224,7 @@ beforeEach(() => {
 });
 
 describe("repoAuthzLayer refresh disambiguation", () => {
-  it("collapses a 401 after successful refresh to 404", async () => {
+  it("answers 401 when the check still 401s after a good refresh", async () => {
     const app = await buildGateApp();
     vi.mocked(fetchRepositoryById).mockResolvedValue(stubDeniedRepo(401));
     vi.mocked(refreshSessionToken).mockImplementation(async (_d, session) => ({
@@ -234,8 +234,8 @@ describe("repoAuthzLayer refresh disambiguation", () => {
 
     const res = await app.request("/9101/probe");
 
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: "unauthorized" });
     // One cold check + exactly one post-refresh retry; one refresh spent.
     expect(fetchRepositoryById).toHaveBeenCalledTimes(2);
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
@@ -253,6 +253,37 @@ describe("repoAuthzLayer refresh disambiguation", () => {
 
     expect(res.status).toBe(401);
     expect(fetchRepositoryById).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("repoAuthzLayer upstream failures", () => {
+  it("answers a GitHub outage 502 without the operator rung", async () => {
+    const app = await buildGateApp({ operatorToken: "operator-pat" });
+    await createTenantRepository(harness.handle, {
+      ownerUserId: brand(42n, isReviewerId),
+    }).pullRequests.upsert({
+      repoId: brand(8889n, isRepoId),
+      prNumber: 6,
+      repoSlug: "other/outage",
+      state: PrStates.OPEN,
+    });
+    vi.mocked(fetchRepositoryById).mockResolvedValue({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.REQUEST_FAILED,
+        status: 503,
+        message: "denied",
+      },
+    });
+
+    const first = await app.request("/8889/pulls/6/probe");
+    const second = await app.request("/8889/pulls/6/probe");
+
+    expect(first.status).toBe(502);
+    expect(await first.json()).toMatchObject({ code: "github-unavailable" });
+    expect(second.status).toBe(502);
+    // Reader's token only, twice: no PAT call and no cached answer.
+    expect(fetchRepositoryById).toHaveBeenCalledTimes(2);
   });
 });
 

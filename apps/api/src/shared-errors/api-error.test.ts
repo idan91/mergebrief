@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
+import { ApiErrorCodes } from "contract";
 import {
   ApiError,
   BadGateway,
@@ -63,11 +63,10 @@ describe("ApiError classes", () => {
     expect(codes).toEqual(Object.values(ApiErrorCodes).toSorted());
   });
 
-  it("every instance's status matches the code's pinned status", () => {
+  it("every instance is an ApiError and an Error", () => {
     for (const err of instances) {
       expect(err).toBeInstanceOf(ApiError);
       expect(err).toBeInstanceOf(Error);
-      expect(err.status).toBe(ApiErrorStatusByCode[err.code]);
     }
   });
 

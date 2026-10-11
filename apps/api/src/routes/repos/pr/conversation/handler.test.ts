@@ -184,7 +184,7 @@ describe("conversation handler wire posture", () => {
     expect(res.status).toBe(404);
   });
 
-  it("collapses a GitHub NOT_FOUND to 404 and everything else to 502", async () => {
+  it("collapses a GitHub NOT_FOUND to 404 and an outage to 502", async () => {
     const notFound = await buildApp(
       deniedFetch(GitHubApiErrorCodes.NOT_FOUND),
     ).request(`/${PR_NUMBER}/conversation`);
@@ -355,6 +355,18 @@ describe("readConversation with an owner viewer token", () => {
     const res = await built.app.request(`/${PR_NUMBER}/conversation`);
     expect(res.status).toBe(401);
     expect(built.viewerFetch).not.toHaveBeenCalled();
+  });
+
+  it("collapses a viewer-token 403 to 404", async () => {
+    const built = await buildOwnerApp({
+      plaintext: "ghu_viewer_token",
+      fetchResult: {
+        ok: false,
+        error: { code: GitHubApiErrorCodes.FORBIDDEN, message: "forbidden" },
+      },
+    });
+    const res = await built.app.request(`/${PR_NUMBER}/conversation`);
+    expect(res.status).toBe(404);
   });
 
   it("an upstream 401 prompts sign-in instead of a retry-looking 502", async () => {

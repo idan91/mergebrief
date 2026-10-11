@@ -63,7 +63,6 @@ async function fetchSources(
     error: {
       kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
       error: fetched.error,
-      retried: fetched.retried,
     },
   };
 }
@@ -153,7 +152,6 @@ async function readAttachment(
     error: {
       kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
       error: bytes.error,
-      retried: false,
     },
   };
 }
@@ -188,7 +186,6 @@ async function readBranchAttachment(
     error: {
       kind: ReadAttachmentFailureKinds.GITHUB_DENIED,
       error: fetched.error,
-      retried: fetched.retried,
     },
   };
 }

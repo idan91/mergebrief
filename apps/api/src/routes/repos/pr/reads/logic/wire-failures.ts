@@ -1,31 +1,45 @@
 // The reads domain's failure-to-throw mapping: a controller failure becomes
 // the ApiError the handler throws, and nothing else decides posture.
 import { ApiErrorCodes } from "contract";
-import { GitHubApiErrorCodes } from "github";
+import { HttpStatuses } from "types/http";
 import {
-  BadGateway,
   BadRequest,
   NotFound,
   PayloadTooLarge,
-  Unauthorized,
   type ApiError,
 } from "../../../../../shared-errors/api-error";
-import type { FileRangeFailure, StackFailure } from "../types";
 import { FailureKinds } from "../../../../../shared-errors/failures";
+import {
+  resolveGitHubDenialError,
+  unwrapGitHubFailure,
+} from "../../../../../shared-errors/github-denial";
+import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
+import type { DiffFailure, FileRangeFailure, StackFailure } from "../types";
 
 /**
- * A GitHub denial collapses to the gate's bare 404, so a reader cannot tell a
- * repo they may not read from one that is not there. A path genuinely absent
- * at this commit is a DIFFERENT answer and keeps its own code, so the client
- * can say "reload the brief" rather than "you lost access". A 401 with the
- * request's single refresh spent and no retry is the re-login prompt; a
- * retried-still 401 is an upstream error like any other.
+ * GitHub's 406 refuses to render a diff over its size limits, permanent for
+ * this span, so it answers 413 rather than a retryable-looking 502.
  */
-export function toFileRangeError(failure: FileRangeFailure): ApiError {
+export function resolveDiffError(failure: DiffFailure): ApiError {
+  const tooLarge =
+    failure.kind === FailureKinds.GITHUB_DENIED &&
+    failure.error.status === HttpStatuses.NOT_ACCEPTABLE;
+  if (tooLarge) {
+    return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
+  }
+  return resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.COLLAPSE,
+  );
+}
+
+/**
+ * A path genuinely absent at this commit keeps its own code apart from the
+ * collapsed denial, so the client can say "reload the brief" rather than
+ * "you lost access".
+ */
+export function resolveFileRangeError(failure: FileRangeFailure): ApiError {
   switch (failure.kind) {
-    case FailureKinds.TOKEN_UNREADABLE: {
-      return new Unauthorized();
-    }
     case "file-absent": {
       return new NotFound(ApiErrorCodes.FILE_NOT_FOUND);
     }
@@ -36,32 +50,17 @@ export function toFileRangeError(failure: FileRangeFailure): ApiError {
       return new BadRequest(ApiErrorCodes.FILE_NOT_TEXT);
     }
     default: {
-      return toDeniedError(failure.error.code, failure.retried);
+      return resolveGitHubDenialError(
+        unwrapGitHubFailure(failure),
+        DenialPostures.COLLAPSE,
+      );
     }
   }
 }
 
-export function toStackError(failure: StackFailure): ApiError {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
-    return new Unauthorized();
-  }
-  return toDeniedError(failure.error.code, failure.retried);
-}
-
-function toDeniedError(
-  code: (typeof GitHubApiErrorCodes)[keyof typeof GitHubApiErrorCodes],
-  retried: boolean,
-): ApiError {
-  if (code === GitHubApiErrorCodes.UNAUTHORIZED && !retried) {
-    return new Unauthorized();
-  }
-  // Both denial codes collapse: this read carries no FE-actionable capability
-  // signal, so an honest 403 would only say which repos the reader cannot see.
-  if (
-    code === GitHubApiErrorCodes.NOT_FOUND ||
-    code === GitHubApiErrorCodes.FORBIDDEN
-  ) {
-    return new NotFound();
-  }
-  return new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+export function resolveStackError(failure: StackFailure): ApiError {
+  return resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.COLLAPSE,
+  );
 }

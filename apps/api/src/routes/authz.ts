@@ -9,9 +9,10 @@
 //                      endpoints (the PR list) that carry no `:repoId`.
 //   `repoAuthzLayer`: parse+brand `:repoId`, verify the viewer's GitHub access
 //                      to the repo by its NUMERIC id (`GET /repositories/{id}`
-//                      with the viewer's own token, rename-proof); any non-2xx
+//                      with the viewer's own token, rename-proof); a 403/404
 //                      collapses to 404 (no existence leak) and names the
-//                      denial for the audit choke point; on success resolves
+//                      denial for the audit choke point, a 401 is 401 and a
+//                      GitHub outage or rate limit is 502; on success resolves
 //                      the installation holding the repo among those the
 //                      viewer reaches (else the owner world) and shapes the
 //                      request context (`ctx`, `repoId`, `repoFullName`).
@@ -43,7 +44,7 @@
 // session-only composition appends `accessStampLayer` so its line carries the
 // reviewer id.
 /* oxlint-enable house/comment-run */
-import { ApiErrorCodes } from "contract";
+import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
 import type { Context, MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
@@ -87,6 +88,8 @@ import {
   Unauthorized,
 } from "../shared-errors/api-error";
 import { isGitHubDenial } from "../shared-errors/failures";
+import { resolveGitHubDenialError } from "../shared-errors/github-denial";
+import { DenialPostures } from "../shared-errors/github-denial/types";
 import {
   createReviewerGitHubClient,
   type ReviewerGitHubClient,
@@ -455,14 +458,19 @@ export function repoAuthzLayer(
         stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
         throw new Unauthorized();
       }
-      // A 401 with no retry spent means the refresh itself failed, the
-      // orchestrator already deleted the session; clean 401 → re-login.
-      if (repo.error.status === HttpStatuses.UNAUTHORIZED && !repo.retried) {
-        stampAccess(c, "401", {
+      // A 401 is re-login and an outage is 502, neither cached nor taken to
+      // the operator rung; only a 403/404 reads as absence below.
+      const denial = resolveGitHubDenialError(
+        repo.error,
+        DenialPostures.COLLAPSE,
+      );
+      if (!(denial instanceof NotFound)) {
+        stampAuditTarget(c, "repo", repoId);
+        stampAccess(c, String(ApiErrorStatusByCode[denial.code]), {
           repoId,
           reviewerId: client.session().reviewerId,
         });
-        throw new Unauthorized();
+        throw denial;
       }
       // Second rung: the url-box door generates behind the operator PAT, so
       // without it a reader holds briefs they cannot open. Narrowed to a PR
@@ -498,19 +506,18 @@ export function repoAuthzLayer(
         });
         return;
       }
-      // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
-      // collapse to 404 (no existence leak) AND emit the denial. Never
-      // cached. The ledger names the real reason; the RESPONSE stays the
-      // uniform 404. The row itself is written at the audit choke point
-      // for an action; a read is never audited, and this gate cannot tell
-      // them apart.
+      // A 403/404 with no rung → collapse to 404 (no existence leak) AND
+      // emit the denial. Never cached. The ledger names the real reason; the
+      // RESPONSE stays the uniform 404. The row itself is written at the
+      // audit choke point for an action; a read is never audited, and this
+      // gate cannot tell them apart.
       stampAuditReason(c, AUDIT_REASON_NO_REPO_ACCESS);
       stampAuditTarget(c, "repo", repoId);
       stampAccess(c, "404", {
         repoId,
         reviewerId: client.session().reviewerId,
       });
-      throw new NotFound();
+      throw denial;
     }
 
     // 2xx → the viewer can read the repo. Which installation holds it is a

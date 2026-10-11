@@ -269,6 +269,13 @@ function denied<T = string>(
 
 const DIFF_PATH = `/${PR_NUMBER}/diff?base=aaa&head=bbb`;
 
+function stubSuccessfulRefresh(): void {
+  vi.mocked(refreshSessionToken).mockImplementation(async (_d, session) => ({
+    ok: true,
+    value: { session, accessToken: "rotated-token" },
+  }));
+}
+
 beforeEach(() => {
   vi.mocked(fetchCompareDiff).mockReset();
   vi.mocked(fetchPullRequest).mockReset();
@@ -289,15 +296,12 @@ describe("diff proxy posture split", () => {
     expect(fetchCompareDiff).toHaveBeenCalledTimes(1);
   });
 
-  it("401 after a SUCCESSFUL refresh and retry is an upstream 502", async () => {
+  it("401 after a SUCCESSFUL refresh and retry is still a re-login 401", async () => {
     vi.mocked(fetchCompareDiff).mockResolvedValue(denied(401));
-    vi.mocked(refreshSessionToken).mockImplementation(async (_d, session) => ({
-      ok: true,
-      value: { session, accessToken: "rotated-token" },
-    }));
+    stubSuccessfulRefresh();
     const res = await (await buildApp()).request(DIFF_PATH);
-    expect(res.status).toBe(502);
-    expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: "unauthorized" });
     expect(fetchCompareDiff).toHaveBeenCalledTimes(2);
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
   });
@@ -501,6 +505,14 @@ describe("file range read", () => {
       expect(await res.json()).toMatchObject({ code: "not-found" });
     },
   );
+
+  it("answers 401 when the read still 401s after a good refresh", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(denied<never>(401));
+    stubSuccessfulRefresh();
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(401);
+    expect(getRepoFile).toHaveBeenCalledTimes(2);
+  });
 
   it("surfaces a rate-limited read as an upstream 502", async () => {
     vi.mocked(getRepoFile).mockResolvedValue({
@@ -890,6 +902,15 @@ describe("live stack read", () => {
     );
     const res = await (await buildApp()).request(STACK_PATH);
     expect(res.status).toBe(404);
+  });
+
+  it("answers 401 when the list still 401s after a good refresh", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      denied<OpenPullRequest[]>(401),
+    );
+    stubSuccessfulRefresh();
+    const res = await (await buildApp()).request(STACK_PATH);
+    expect(res.status).toBe(401);
   });
 
   it("surfaces an upstream list failure as 502", async () => {

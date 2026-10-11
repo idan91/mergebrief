@@ -14,8 +14,6 @@ export type DiffFailure =
   | {
       readonly kind: typeof FailureKinds.GITHUB_DENIED;
       readonly error: GitHubApiError;
-      /** True when the failure survived a post-refresh retry. */
-      readonly retried: boolean;
     };
 
 /** Result-side failures of the live stack read; the same two the diff proxy has. */
@@ -23,13 +21,7 @@ export type StackFailure = DiffFailure;
 
 /** Result-side failures of the file-range read; the handler owns posture. */
 export type FileRangeFailure =
-  | { readonly kind: typeof FailureKinds.TOKEN_UNREADABLE }
-  | {
-      readonly kind: typeof FailureKinds.GITHUB_DENIED;
-      readonly error: GitHubApiError;
-      /** True when the failure survived a post-refresh retry. */
-      readonly retried: boolean;
-    }
+  | DiffFailure
   | { readonly kind: "file-absent" }
   | { readonly kind: "file-too-large" }
   | { readonly kind: "file-not-text" };

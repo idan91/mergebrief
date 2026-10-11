@@ -1,5 +1,4 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCodes } from "github";
 import {
   createArtifactStore,
   createGenerationProjection,
@@ -8,13 +7,7 @@ import {
 } from "persistence";
 import type { AppDatabase } from "persistence";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
-import { ApiErrorCodes } from "contract";
-import {
-  BadGateway,
-  NotFound,
-  PayloadTooLarge,
-  Unauthorized,
-} from "../../../../shared-errors/api-error";
+import { NotFound } from "../../../../shared-errors/api-error";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
@@ -30,12 +23,15 @@ import {
   marksQuerySchema,
   narrativeQuerySchema,
 } from "./schemas";
-import { toFileRangeError, toStackError } from "./logic/wire-failures";
+import {
+  resolveDiffError,
+  resolveFileRangeError,
+  resolveStackError,
+} from "./logic/wire-failures";
 import type { ReadsControllerDeps } from "./types";
 import { parseOwnerAndName } from "../../utils";
 import { resolvePrScopeFrom } from "../scope";
 import { parseQuery, parsePrNumber } from "./utils";
-import { FailureKinds } from "../../../../shared-errors/failures";
 import { HttpStatuses } from "types/http";
 
 /**
@@ -224,29 +220,7 @@ export function createReadsHandlers(
       },
     );
     if (!result.ok) {
-      if (result.error.kind === FailureKinds.TOKEN_UNREADABLE) {
-        throw new Unauthorized();
-      }
-      const denied = result.error;
-      // 406 = GitHub refuses to render the diff (too large: >300 files/20k
-      // lines), a PERMANENT condition for this span, so surface it as 413
-      // rather than a retryable-looking 502.
-      if (denied.error.status === HttpStatuses.NOT_ACCEPTABLE) {
-        throw new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
-      }
-      // A 401 with the refresh spent and no retry is the refresh-failed
-      // re-login prompt; a retried-still-401 is an upstream error like any
-      // other non-404.
-      if (
-        denied.error.code === GitHubApiErrorCodes.UNAUTHORIZED &&
-        !denied.retried
-      ) {
-        throw new Unauthorized();
-      }
-      if (denied.error.code === GitHubApiErrorCodes.NOT_FOUND) {
-        throw new NotFound();
-      }
-      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+      throw resolveDiffError(result.error);
     }
     return c.body(result.body, HttpStatuses.OK, {
       "content-type": "text/plain; charset=utf-8",
@@ -279,7 +253,7 @@ export function createReadsHandlers(
       },
     );
     if (!result.ok) {
-      throw toStackError(result.error);
+      throw resolveStackError(result.error);
     }
     return c.json(result.value, HttpStatuses.OK, {
       "cache-control": "no-store",
@@ -327,7 +301,7 @@ export function createReadsHandlers(
     );
 
     if (!result.ok) {
-      throw toFileRangeError(result.error);
+      throw resolveFileRangeError(result.error);
     }
     return c.json(result.value, HttpStatuses.OK, {
       "cache-control": "no-store",
