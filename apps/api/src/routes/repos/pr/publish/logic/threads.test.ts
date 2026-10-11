@@ -1,12 +1,13 @@
 import {
+  CredentialFailureCodes,
   GitHubApiErrorCodes,
   ReviewSubjectTypes,
   type AddReviewThreadInput,
-  type GitHubApiError,
+  type GitHubCallFailure,
   type ReviewThread,
 } from "github";
+import type { Result } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
-import type { GitHubCallOutcome } from "../../../../auth/reviewer-github-client";
 import type { PostThread, PublishComment } from "../types";
 import { postReviewThreads } from "./threads";
 
@@ -29,13 +30,13 @@ const RANGE_COMMENT: PublishComment = {
   body: "multi-line note",
 };
 
-type PostResult = GitHubCallOutcome<ReviewThread, GitHubApiError>;
+type PostResult = Result<ReviewThread, GitHubCallFailure>;
 
 function makeLandedResult(): PostResult {
-  return { ok: true, value: { threadId: "PRRT_x" }, retried: false };
+  return { ok: true, value: { threadId: "PRRT_x" } };
 }
-function makeRefusedResult(error: GitHubApiError): PostResult {
-  return { ok: false, tokenUnreadable: false, error, retried: false };
+function makeRefusedResult(error: GitHubCallFailure): PostResult {
+  return { ok: false, error };
 }
 function makeRejectedResult(): PostResult {
   return makeRefusedResult({
@@ -140,15 +141,12 @@ describe("postReviewThreads", () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
-  it("passes a token-unreadable refusal through untouched", async () => {
-    const post = stubPost([
-      {
-        ok: false,
-        tokenUnreadable: true,
-        error: { kind: "token-unreadable" },
-        retried: false,
-      },
-    ]);
+  it("passes an unreadable credential through untouched", async () => {
+    const unreadable = {
+      code: CredentialFailureCodes.CREDENTIAL_UNREADABLE,
+      message: "the reviewer token would not decrypt",
+    };
+    const post = stubPost([makeRefusedResult(unreadable)]);
     const result = await postReviewThreads(
       post,
       "PRR_node",
@@ -160,7 +158,7 @@ describe("postReviewThreads", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error).toEqual({ kind: "token-unreadable" });
+    expect(result.error).toEqual(unreadable);
   });
 
   it("lands nothing and posts nothing for an empty review", async () => {

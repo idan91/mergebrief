@@ -15,7 +15,12 @@ import {
 } from "./repo-reader";
 import type { FakeRunner } from "./runners";
 import type { FakeReview } from "./types";
-import { answerNotFound, answerOk, type FakeAnswer } from "./utils";
+import {
+  answerAnchorRejected,
+  answerNotFound,
+  answerOk,
+  type FakeAnswer,
+} from "./utils";
 import type { FakeWorld, PullRequestState } from "./world";
 
 const PENDING_REVIEW_EXISTS = {
@@ -222,6 +227,9 @@ function buildReviewerCreates(
           if (match === undefined) {
             return answerNotFound("add pull request review thread");
           }
+          if (match.pull.rejectedAnchorPaths.has(thread.path)) {
+            return answerAnchorRejected("add pull request review thread");
+          }
           const commentCount = (match.review.commentCount ?? 0) + 1;
           replaceReview(match, { ...match.review, commentCount });
           return answerOk({ threadId: `PRRT_${world.claimId("THREAD")}` });
@@ -255,6 +263,9 @@ function buildReviewerCreates(
           const pull = world.findPullRequest(input);
           if (pull === undefined) {
             return answerNotFound("create inline review comment");
+          }
+          if (pull.rejectedAnchorPaths.has(input.path)) {
+            return answerAnchorRejected("create inline review comment");
           }
           const commentId = world.claimId("REVIEW_COMMENT");
           return answerOk({

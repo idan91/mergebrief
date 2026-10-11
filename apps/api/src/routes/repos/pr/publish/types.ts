@@ -1,12 +1,13 @@
 import type {
   AddReviewThreadInput,
   AuthoredReview,
-  GitHubApiError,
+  GitHubCall,
   GitHubCallFailure,
   InlineReviewCommentResult,
   ListedReviewComment,
   PendingReview,
   ReviewCommentSide,
+  ReviewerRepoClient,
   ReviewSubjectTypes,
   ReviewThread,
 } from "github";
@@ -18,31 +19,16 @@ import type {
 } from "persistence";
 import type { ReviewOutcome } from "types/reviews";
 import type { Result } from "types/utils";
-import type {
-  GitHubDeniedFailure,
-  TokenUnreadableFailure,
-} from "../../../../shared-errors/failures";
-import type {
-  GitHubCallOutcome,
-  ReviewerGitHubClient,
-} from "../../../auth/reviewer-github-client";
+import type { GitHubDeniedFailure } from "../../../../shared-errors/failures";
 import type { SessionWriteFailure } from "../session/types";
 
-/** Narrow slice: the per-request reviewer channel plus the request log. */
+/** The viewer's client on the freshly resolved repository, plus the request log. */
 export interface PublishDeps {
-  readonly github: ReviewerGitHubClient;
+  readonly repo: ReviewerRepoClient;
   readonly log: Logger;
 }
 
-/** The PR and the reviewed head every published comment is pinned to. */
-export interface PublishTarget {
-  readonly owner: string;
-  readonly repo: string;
-  readonly prNumber: number;
-  readonly commitId: string;
-}
-
-/** The PR and reviewed head a post-now comment pins to, on a bound repo client. */
+/** The PR and reviewed head every published comment pins to, on a bound repo client. */
 export interface CommentPin {
   readonly prNumber: number;
   readonly commitId: string;
@@ -162,14 +148,13 @@ export interface PublishExpiredFailure {
 }
 
 export type ReviewPublishFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>
+  | GitHubDeniedFailure<GitHubCallFailure>
   | PendingReviewHeldFailure
   | SubmitUnconfirmedFailure
   | PublishExpiredFailure;
 
 export interface ReviewPublishInput {
-  readonly target: PublishTarget;
+  readonly pin: CommentPin;
   readonly outcome: ReviewOutcome;
   readonly body: string | undefined;
   readonly drafts: readonly PublishableDraft[];
@@ -187,25 +172,17 @@ export type ReviewPublishResult = Result<PublishedReview, ReviewPublishFailure>;
 
 export type PendingReviewResult = Result<
   PendingReview,
-  GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure
+  GitHubCallFailure | PendingReviewHeldFailure
 >;
 
-export type SubmitPendingResult = Result<
-  void,
-  GitHubApiError | TokenUnreadableFailure
->;
-
-/** One thread mutation on the reviewer's token, refresh budget included. */
+/** One thread mutation on the viewer's retry-off client. */
 export type PostThread = (
   input: AddReviewThreadInput,
-) => Promise<GitHubCallOutcome<ReviewThread, GitHubApiError>>;
+) => GitHubCall<ReviewThread>;
 
 export interface PostedThreads {
   readonly landed: PublishComment[];
   readonly rejected: PublishComment[];
 }
 
-export type PostThreadsFailure =
-  | GitHubApiError
-  | TokenUnreadableFailure
-  | PublishExpiredFailure;
+export type PostThreadsFailure = GitHubCallFailure | PublishExpiredFailure;

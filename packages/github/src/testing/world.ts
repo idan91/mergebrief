@@ -34,6 +34,7 @@ export interface PullRequestState {
   readonly imageSources: readonly string[];
   reviews: FakeReview[];
   readonly reviewComments: ReviewCommentListing;
+  readonly rejectedAnchorPaths: ReadonlySet<string>;
 }
 
 export interface RepoState {
@@ -110,6 +111,7 @@ function createPullRequestState(pull: FakePullRequest): PullRequestState {
     imageSources: pull.imageSources ?? [],
     reviews: [...(pull.reviews ?? [])],
     reviewComments: pull.reviewComments ?? { comments: [], complete: true },
+    rejectedAnchorPaths: new Set(pull.rejectedAnchorPaths),
   };
 }
 

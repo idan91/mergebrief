@@ -1,8 +1,8 @@
 // The conversation read and the writes that evict it, over the PGlite
 // harness. The read reaches the `github/testing` fake through the
 // installation binding for an Installation row and the reviewer binding for
-// an owner row, and the reply through the reviewer binding; the gate and the
-// review submit still answer over `fetch`. The github suite owns the
+// an owner row, and the reply and the review submit through the reviewer
+// binding; the gate still answers over `fetch`. The github suite owns the
 // wire-to-domain mapping.
 import type { PrConversation } from "github";
 import {
@@ -35,8 +35,6 @@ import {
   brandReviewerId,
   buildOperatorToken,
   createKeyProvider,
-  getRequestUrl,
-  answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { spyPullRequestLookups } from "./pull-request-lookups";
@@ -141,55 +139,6 @@ function conversationFixture(): PrConversation {
 
 function listConversationReads(fake: FakeGitHub) {
   return fake.listCalls("fetchPullRequestConversation");
-}
-
-// ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) for the review submit, which still calls
-// GitHub over octokit.
-// ---------------------------------------------------------------------------
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-function reviewSubmitted(): Response {
-  return jsonResponse({
-    data: { submitPullRequestReview: { pullRequestReview: { id: "PRR" } } },
-  });
-}
-
-/** The gate's reads and the submit's pending review, threads and submit. */
-function stubSubmitGitHub(): void {
-  const fetchFn = vi.fn(
-    async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        return jsonResponse({
-          id: REPO_ID,
-          full_name: REPO_SLUG,
-          private: true,
-        });
-      }
-      if (url.endsWith("/graphql")) {
-        return reviewSubmitted();
-      }
-      if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-        return jsonResponse({ id: 987001, node_id: "PRR_987001" });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
 }
 
 // ---------------------------------------------------------------------------
@@ -1026,7 +975,8 @@ describe("conversation surface", () => {
 
   describe("review submit evicts the conversation cache", () => {
     it("drops the PR's cached conversation on a successful review submit", async () => {
-      stubSubmitGitHub();
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeRepository(fake, REPO_ID);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);

@@ -1,12 +1,11 @@
 // Hono-free. Held drafts reach GitHub one of two ways: post-now sends one
 // REST comment, Submit opens a PENDING review, attaches one GraphQL thread
 // per comment and submits it with the verdict. Both shape the anchor through
-// `readGitHubAnchor`, and every write rides a client with octokit's retry
-// off, because a replayed POST or mutation is a duplicate comment.
+// `readGitHubAnchor`, and every create rides the bound repo client's
+// retry-off runner, because a replayed POST or mutation is a duplicate.
 import {
   CredentialFailureCodes,
   type AuthoredReview,
-  type GitHubApiError,
   type GitHubCallFailure,
   type PendingReview,
   type ReviewerRepoClient,
@@ -15,12 +14,7 @@ import type { Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS, type ClaimStamp } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
-import {
-  buildGitHubDeniedResult,
-  FailureKinds,
-  isTokenUnreadableFailure,
-  type TokenUnreadableFailure,
-} from "../../../../shared-errors/failures";
+import { FailureKinds } from "../../../../shared-errors/failures";
 import { OutcomeToEvent, WRITE_DEADLINE_MARGIN_MS } from "./consts";
 import { shapeInlineCommentInput, shapePublishComment } from "./logic/anchor";
 import { foldCommentsIntoBody } from "./logic/fold";
@@ -50,15 +44,14 @@ import type {
   PublishableDraft,
   PublishDeps,
   PublishedReview,
-  PublishTarget,
   ReviewPublishFailure,
   ReviewPublishInput,
   ReviewPublishResult,
   ViewerReviewListResult,
 } from "./types";
 
-/** A GitHub refusal of a post-now call, riding the failure whole. */
-function shapeCommentDenied(
+/** A GitHub refusal of a publish call, riding the failure whole. */
+function shapeMutationDenied(
   error: GitHubCallFailure,
 ): Result<never, CommentPublishFailure> {
   return {
@@ -80,7 +73,7 @@ export async function publishComment(
   const input = shapeInlineCommentInput(shapePublishComment(draft), pin);
   const posted = await repo.createInlineReviewComment(input);
   if (!posted.ok) {
-    return shapeCommentDenied(posted.error);
+    return shapeMutationDenied(posted.error);
   }
   return posted;
 }
@@ -88,67 +81,68 @@ export async function publishComment(
 /**
  * The submit mutation failed: the review published anyway (its listing says
  * so), or it did not and its pending review goes, or the listing could not
- * be read and nobody knows.
+ * be read and nobody knows. A credential that never decrypted sent nothing.
  */
 async function checkFailedSubmit(
   deps: PublishDeps,
-  target: PublishTarget,
+  prNumber: number,
   pending: PendingReview,
-  error: GitHubApiError | TokenUnreadableFailure,
+  error: GitHubCallFailure,
 ): Promise<Result<void, ReviewPublishFailure>> {
-  if (isTokenUnreadableFailure(error)) {
-    await discardPendingReview(deps, target, pending);
-    return { ok: false, error };
+  if (error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE) {
+    await discardPendingReview(deps, prNumber, pending);
+    return shapeMutationDenied(error);
   }
-  const landed = await readSubmitLanded(deps, target, pending);
+  const landed = await readSubmitLanded(deps.repo, prNumber, pending);
   if (landed.ok && landed.value) {
     return { ok: true, value: undefined };
   }
 
-  await discardPendingReview(deps, target, pending);
+  await discardPendingReview(deps, prNumber, pending);
   if (!landed.ok) {
     return { ok: false, error: { kind: "submit-unconfirmed" } };
   }
-  return buildGitHubDeniedResult(error, "mutation");
+  return shapeMutationDenied(error);
 }
 
 function shapeThreadsFailure(
   error: PostThreadsFailure,
 ): Result<never, ReviewPublishFailure> {
-  if ("kind" in error && error.kind === "publish-expired") {
+  if ("kind" in error) {
     return { ok: false, error };
   }
-  return buildGitHubDeniedResult(error, "mutation");
+  return shapeMutationDenied(error);
 }
 
 /**
- * Post the held drafts as one review. A thread GitHub rejects is folded into
- * the body; a transport failure after the pending review exists deletes it
- * before returning, so the client's retry starts clean.
+ * Post the held drafts as one review on the viewer's retry-off creates. A
+ * thread GitHub rejects is folded into the body; any failure after the
+ * pending review exists deletes it before returning, so the client's retry
+ * starts clean.
  */
 export async function publishReview(
   deps: PublishDeps,
   input: ReviewPublishInput,
 ): Promise<ReviewPublishResult> {
-  const { target } = input;
+  const { prNumber } = input.pin;
   const comments = input.drafts.map(shapePublishComment);
 
-  const pending = await openPendingReview(deps, target);
+  const pending = await openPendingReview(deps.repo, input.pin);
   if (!pending.ok) {
     if (isPendingReviewHeld(pending.error)) {
       return { ok: false, error: pending.error };
     }
-    return buildGitHubDeniedResult(pending.error, "mutation");
+    return shapeMutationDenied(pending.error);
   }
 
   const threads = await postReviewThreads(
-    createThreadPoster(deps),
+    createThreadPoster(deps.repo),
     pending.value.reviewNodeId,
     comments,
     () => hasWriteDeadlinePassed(input.writeDeadline),
   );
   if (!threads.ok) {
-    await discardPendingReview(deps, target, pending.value);
+    await discardPendingReview(deps, prNumber, pending.value);
     return shapeThreadsFailure(threads.error);
   }
 
@@ -158,15 +152,20 @@ export async function publishReview(
     comments.length,
   );
   if (hasWriteDeadlinePassed(input.writeDeadline)) {
-    await discardPendingReview(deps, target, pending.value);
+    await discardPendingReview(deps, prNumber, pending.value);
     return { ok: false, error: { kind: "publish-expired" } };
   }
   const event = OutcomeToEvent[input.outcome];
-  const submitted = await submitPendingReview(deps, pending.value, event, body);
+  const submitted = await submitPendingReview(
+    deps.repo,
+    pending.value,
+    event,
+    body,
+  );
   if (!submitted.ok) {
     const checked = await checkFailedSubmit(
       deps,
-      target,
+      prNumber,
       pending.value,
       submitted.error,
     );
@@ -210,7 +209,7 @@ export async function findPostedComment<Draft extends PublishableDraft>(
   const since = deriveLookupSince(query.claimedAt);
   const listed = await repo.listReviewCommentsSince({ prNumber, since });
   if (!listed.ok) {
-    return shapeCommentDenied(listed.error);
+    return shapeMutationDenied(listed.error);
   }
 
   const { comments, complete } = listed.value;

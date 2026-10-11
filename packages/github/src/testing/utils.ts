@@ -24,3 +24,10 @@ export function answerOk<Value>(value: Value): FakeAnswer<Value> {
 export function answerNotFound<Value>(context: string): FakeAnswer<Value> {
   return { ok: false, error: buildFailure(FakeFailures.NOT_FOUND, context) };
 }
+
+export function answerAnchorRejected<Value>(
+  context: string,
+): FakeAnswer<Value> {
+  const error = buildFailure(FakeFailures.ANCHOR_REJECTED, context);
+  return { ok: false, error };
+}

@@ -18,9 +18,13 @@ import {
 const PR = { ...REPO, prNumber: 7 };
 const HEAD_SHA = "b".repeat(40);
 
-function makeGitHubWithPullRequest(draft = false): FakeGitHub {
+function makeGitHubWithPullRequest(
+  draft = false,
+  rejectedAnchorPaths: readonly string[] = [],
+): FakeGitHub {
   const github = makeFakeGitHub();
   github.addPullRequest(PR, {
+    rejectedAnchorPaths,
     info: {
       repoId: requireRepoId(4242n),
       repoFullName: "acme/widgets",
@@ -199,6 +203,51 @@ describe("makeFakeGitHub pending review", () => {
     expect(created.ok && created.value).toEqual(pending.value);
     expect(await client.createPullRequestReview(review)).toMatchObject({
       ok: true,
+    });
+  });
+
+  it("rejects a thread anchored on a path outside the diff", async () => {
+    const github = makeGitHubWithPullRequest(false, ["src/gone.ts"]);
+    const client = bindReviewer(github).forRepo(REPO);
+    const created = await client.createPullRequestReview({
+      prNumber: 7,
+      commitId: HEAD_SHA,
+    });
+    if (!created.ok) {
+      throw new Error("create failed");
+    }
+    const { reviewNodeId } = created.value;
+
+    const postThread = (path: string) =>
+      client.addPullRequestReviewThread({
+        reviewNodeId,
+        subjectType: ReviewSubjectTypes.FILE,
+        path,
+        body: "why",
+      });
+
+    expect(await postThread("src/gone.ts")).toEqual({
+      ok: false,
+      error: expect.objectContaining({ code: "anchor-rejected", status: 422 }),
+    });
+    expect(await postThread("src/a.ts")).toMatchObject({ ok: true });
+    expect(await client.countPendingReviewComments(reviewNodeId)).toEqual({
+      ok: true,
+      value: 1,
+    });
+  });
+
+  it("answers an unknown commit as the review create's 422", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.failOn("createPullRequestReview", FakeFailures.UNKNOWN_COMMIT);
+
+    const created = await bindReviewer(github)
+      .forRepo(REPO)
+      .createPullRequestReview({ prNumber: 7, commitId: "c".repeat(40) });
+
+    expect(created).toEqual({
+      ok: false,
+      error: expect.objectContaining({ code: "unknown-commit", status: 422 }),
     });
   });
 });

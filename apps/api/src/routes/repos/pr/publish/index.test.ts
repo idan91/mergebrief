@@ -1,39 +1,23 @@
 import {
-  addPullRequestReviewThread,
-  createPullRequestReview,
-  deletePendingPullRequestReview,
   GitHubApiErrorCodes,
   ReviewCommentSides,
   ReviewSubjectTypes,
-  submitPullRequestReview,
+  type ReviewerRepoClient,
 } from "github";
-import type * as githubModule from "github";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import type { ReviewDraftCommentRow } from "persistence";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   PR_NUMBER,
   REPO_SLUG,
   makeDraftCommentRow,
-  runWithoutRetry,
 } from "../../../../../test/fixtures";
 import { arrangeFakePullRequest } from "../../../../../test/reviewer-github";
-import type {
-  ReviewerGitHubClient,
-  UserOctokit,
-} from "../../../auth/reviewer-github-client";
 import { isReviewUnsent, publishComment, publishReview } from "./index";
-
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  createPullRequestReview: vi.fn(),
-  addPullRequestReviewThread: vi.fn(),
-  submitPullRequestReview: vi.fn(),
-  deletePendingPullRequestReview: vi.fn(),
-}));
+import type { ReviewPublishInput } from "./types";
 
 const log: Logger = {
   error: vi.fn(),
@@ -43,33 +27,14 @@ const log: Logger = {
   child: () => log,
 };
 
-const TARGET = {
-  owner: "acme",
-  repo: "app",
-  prNumber: 7,
-  commitId: "a".repeat(40),
-};
-
 const PIN = { prNumber: PR_NUMBER, commitId: "a".repeat(40) };
 const [REPO_OWNER = "", REPO_NAME = ""] = REPO_SLUG.split("/");
 
 const OPEN_DEADLINE = new Date(Date.now() + 60 * 60 * 1000);
 const THREAD_DURATION_MS = 1000;
 
-function stubGitHubClient(): ReviewerGitHubClient {
-  return {
-    run: (call) => runWithoutRetry(call, "viewer-token"),
-    runRead: (call) => runWithoutRetry(call, "viewer-token"),
-    createOctokit: () => ({}) as UserOctokit,
-    createMutationOctokit: () => ({}) as UserOctokit,
-    session: () => {
-      throw new Error("stub: no session");
-    },
-  };
-}
-
 /** The viewer's client on the suites' repository, served by `fake`. */
-function bindFakeRepoClient(fake: FakeGitHub) {
+function bindFakeRepoClient(fake: FakeGitHub): ReviewerRepoClient {
   const credential = {
     readToken: async () => ({ ok: true, value: "viewer-token" }) as const,
     renewToken: async () => undefined,
@@ -83,6 +48,19 @@ function makeFakeWithPullRequest(): FakeGitHub {
   const fake = makeFakeGitHub();
   arrangeFakePullRequest(fake, { repoId: 424242 });
   return fake;
+}
+
+function makeReviewInput(
+  drafts: readonly ReviewDraftCommentRow[],
+  writeDeadline = OPEN_DEADLINE,
+): ReviewPublishInput {
+  return {
+    pin: PIN,
+    outcome: ReviewOutcomes.COMMENT,
+    body: undefined,
+    drafts,
+    writeDeadline,
+  };
 }
 
 const ANCHOR_FIELDS = [
@@ -118,18 +96,12 @@ async function readCommentAnchor(
 async function readThreadAnchor(
   draft: ReviewDraftCommentRow,
 ): Promise<Record<string, unknown>> {
-  await publishReview(
-    { github: stubGitHubClient(), log },
-    {
-      target: TARGET,
-      outcome: ReviewOutcomes.COMMENT,
-      body: undefined,
-      drafts: [draft],
-      writeDeadline: OPEN_DEADLINE,
-    },
-  );
-  const [, input] = vi.mocked(addPullRequestReviewThread).mock.calls[0] ?? [];
-  if (input === undefined) {
+  const fake = makeFakeWithPullRequest();
+  const repo = bindFakeRepoClient(fake);
+  await publishReview({ repo, log }, makeReviewInput([draft]));
+  const [call] = fake.listCalls("addPullRequestReviewThread");
+  const input = call?.input;
+  if (typeof input !== "object" || input === null) {
     throw new Error("no thread posted");
   }
   const { subjectType, ...rest } = pickAnchorFields(input);
@@ -138,29 +110,6 @@ async function readThreadAnchor(
   }
   return { ...rest, subjectType };
 }
-
-beforeEach(() => {
-  vi.mocked(createPullRequestReview).mockReset();
-  vi.mocked(createPullRequestReview).mockResolvedValue({
-    ok: true,
-    value: { reviewId: 2n, reviewNodeId: "PRR_node" },
-  });
-  vi.mocked(addPullRequestReviewThread).mockReset();
-  vi.mocked(addPullRequestReviewThread).mockResolvedValue({
-    ok: true,
-    value: { threadId: "PRRT_node" },
-  });
-  vi.mocked(submitPullRequestReview).mockReset();
-  vi.mocked(submitPullRequestReview).mockResolvedValue({
-    ok: true,
-    value: undefined,
-  });
-  vi.mocked(deletePendingPullRequestReview).mockReset();
-  vi.mocked(deletePendingPullRequestReview).mockResolvedValue({
-    ok: true,
-    value: undefined,
-  });
-});
 
 describe("publish transports", () => {
   it("anchor a two-side range the same on both transports", async () => {
@@ -224,15 +173,12 @@ describe("publishComment", () => {
 
 describe("publishReview", () => {
   it("discards the review unsent once the write deadline has passed", async () => {
+    const fake = makeFakeWithPullRequest();
+    const repo = bindFakeRepoClient(fake);
+
     const result = await publishReview(
-      { github: stubGitHubClient(), log },
-      {
-        target: TARGET,
-        outcome: ReviewOutcomes.COMMENT,
-        body: undefined,
-        drafts: [makeDraftCommentRow()],
-        writeDeadline: new Date(Date.now() - 1),
-      },
+      { repo, log },
+      makeReviewInput([makeDraftCommentRow()], new Date(Date.now() - 1)),
     );
 
     expect(result).toEqual({ ok: false, error: { kind: "publish-expired" } });
@@ -240,38 +186,42 @@ describe("publishReview", () => {
       throw new Error("unreachable");
     }
     expect(isReviewUnsent(result.error)).toBe(true);
-    expect(submitPullRequestReview).not.toHaveBeenCalled();
-    expect(deletePendingPullRequestReview).toHaveBeenCalledTimes(1);
+    expect(fake.listCalls("submitPullRequestReview")).toEqual([]);
+    expect(fake.listCalls("deletePendingPullRequestReview")).toHaveLength(1);
+    expect(await repo.findPendingPullRequestReview(PR_NUMBER)).toEqual({
+      ok: true,
+      value: undefined,
+    });
   });
 
   it("stops posting threads once the deadline passes mid-loop", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const startedAt = Date.now();
-    vi.mocked(addPullRequestReviewThread).mockImplementation(async () => {
-      vi.setSystemTime(Date.now() + THREAD_DURATION_MS);
-      return { ok: true, value: { threadId: "PRRT_node" } };
-    });
+    const fake = makeFakeWithPullRequest();
+    const client = bindFakeRepoClient(fake);
+    const repo: ReviewerRepoClient = {
+      ...client,
+      async addPullRequestReviewThread(input) {
+        vi.setSystemTime(Date.now() + THREAD_DURATION_MS);
+        return client.addPullRequestReviewThread(input);
+      },
+    };
+    const drafts = [
+      makeDraftCommentRow(),
+      makeDraftCommentRow(),
+      makeDraftCommentRow(),
+    ];
 
     try {
       const result = await publishReview(
-        { github: stubGitHubClient(), log },
-        {
-          target: TARGET,
-          outcome: ReviewOutcomes.COMMENT,
-          body: undefined,
-          drafts: [
-            makeDraftCommentRow(),
-            makeDraftCommentRow(),
-            makeDraftCommentRow(),
-          ],
-          writeDeadline: new Date(startedAt + THREAD_DURATION_MS),
-        },
+        { repo, log },
+        makeReviewInput(drafts, new Date(startedAt + THREAD_DURATION_MS)),
       );
 
       expect(result).toEqual({ ok: false, error: { kind: "publish-expired" } });
-      expect(addPullRequestReviewThread).toHaveBeenCalledTimes(1);
-      expect(submitPullRequestReview).not.toHaveBeenCalled();
-      expect(deletePendingPullRequestReview).toHaveBeenCalledTimes(1);
+      expect(fake.listCalls("addPullRequestReviewThread")).toHaveLength(1);
+      expect(fake.listCalls("submitPullRequestReview")).toEqual([]);
+      expect(fake.listCalls("deletePendingPullRequestReview")).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }

@@ -64,6 +64,7 @@ export interface FakePullRequestArrangement {
   readonly conversation?: PrConversation;
   readonly reviews?: readonly FakeReview[];
   readonly reviewComments?: ReviewCommentListing;
+  readonly rejectedAnchorPaths?: readonly string[];
 }
 
 /** The suites' pull request on `fake`, under the gate's verified slug. */
@@ -85,6 +86,9 @@ export function arrangeFakePullRequest(
   }
   if (arrangement.reviewComments !== undefined) {
     pull.reviewComments = arrangement.reviewComments;
+  }
+  if (arrangement.rejectedAnchorPaths !== undefined) {
+    pull.rejectedAnchorPaths = arrangement.rejectedAnchorPaths;
   }
   const prNumber = arrangement.prNumber ?? PR_NUMBER;
   fake.addPullRequest({ owner, repo, prNumber }, pull);

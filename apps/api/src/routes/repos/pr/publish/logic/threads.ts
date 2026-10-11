@@ -37,10 +37,7 @@ export async function postReviewThreads(
       landed.push(comment);
       continue;
     }
-    const anchorRejected =
-      !posted.tokenUnreadable &&
-      posted.error.code === GitHubApiErrorCodes.ANCHOR_REJECTED;
-    if (anchorRejected) {
+    if (posted.error.code === GitHubApiErrorCodes.ANCHOR_REJECTED) {
       rejected.push(comment);
       continue;
     }

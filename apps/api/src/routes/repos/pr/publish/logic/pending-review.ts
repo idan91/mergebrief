@@ -1,48 +1,29 @@
-// The GitHub calls around one pending review: open it, attach threads,
-// submit it, and delete it when the submit cannot finish. A 401'd create
-// made nothing, so a refreshed retry cannot double-post.
+// The calls around one pending review on the viewer's bound repo client:
+// open it, attach threads, submit it, and delete it when the submit cannot
+// finish. The creates ride the client's retry-off runner, so a renewed
+// re-run after a 401 cannot double-post.
 import {
-  addPullRequestReviewThread,
-  countPendingReviewComments,
-  createPullRequestReview,
-  deletePendingPullRequestReview,
-  findPendingPullRequestReview,
   GitHubApiErrorCodes,
-  hasPullRequestReviewPublished,
-  submitPullRequestReview,
-  type GitHubApiError,
+  type GitHubCall,
+  type GitHubCallFailure,
   type PendingReview,
+  type ReviewerRepoClient,
   type ReviewEvent,
   type SubmitPullRequestReviewInput,
 } from "github";
 import type { Mutable, Result } from "types/utils";
-import type { TokenUnreadableFailure } from "../../../../../shared-errors/failures";
 import type {
-  GitHubCallFailed,
-  GitHubCallTokenUnreadable,
-} from "../../../../auth/reviewer-github-client";
-import type {
+  CommentPin,
   PendingReviewHeldFailure,
   PendingReviewResult,
   PostThread,
   PublishDeps,
-  PublishTarget,
-  SubmitPendingResult,
 } from "../types";
 
 export function isPendingReviewHeld(
-  error: GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure,
+  error: GitHubCallFailure | PendingReviewHeldFailure,
 ): error is PendingReviewHeldFailure {
   return "kind" in error && error.kind === "pending-review-held";
-}
-
-function isStalePendingRefusal(
-  failure: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
-): boolean {
-  if (failure.tokenUnreadable) {
-    return false;
-  }
-  return failure.error.code === GitHubApiErrorCodes.PENDING_REVIEW_EXISTS;
 }
 
 /**
@@ -53,17 +34,10 @@ function isStalePendingRefusal(
  * back whole.
  */
 async function clearStalePendingReview(
-  deps: PublishDeps,
-  target: PublishTarget,
-): Promise<
-  Result<
-    void,
-    GitHubApiError | TokenUnreadableFailure | PendingReviewHeldFailure
-  >
-> {
-  const stale = await deps.github.run((token) =>
-    findPendingPullRequestReview(deps.github.createOctokit(token), target),
-  );
+  repo: ReviewerRepoClient,
+  prNumber: number,
+): Promise<Result<void, GitHubCallFailure | PendingReviewHeldFailure>> {
+  const stale = await repo.findPendingPullRequestReview(prNumber);
   if (!stale.ok) {
     return stale;
   }
@@ -72,12 +46,7 @@ async function clearStalePendingReview(
     return { ok: true, value: undefined };
   }
 
-  const counted = await deps.github.run((token) =>
-    countPendingReviewComments(
-      deps.github.createOctokit(token),
-      found.reviewNodeId,
-    ),
-  );
+  const counted = await repo.countPendingReviewComments(found.reviewNodeId);
   if (!counted.ok) {
     return counted;
   }
@@ -88,52 +57,42 @@ async function clearStalePendingReview(
     };
   }
 
-  return deps.github.run((token) =>
-    deletePendingPullRequestReview(deps.github.createOctokit(token), {
-      ...target,
-      reviewId: found.reviewId,
-    }),
-  );
+  return repo.deletePendingPullRequestReview({
+    prNumber,
+    reviewId: found.reviewId,
+  });
 }
 
 /** Open the pending review, clearing a stale one and retrying once. */
 export async function openPendingReview(
-  deps: PublishDeps,
-  target: PublishTarget,
+  repo: ReviewerRepoClient,
+  pin: CommentPin,
 ): Promise<PendingReviewResult> {
-  const create = () =>
-    deps.github.run((token) =>
-      createPullRequestReview(deps.github.createMutationOctokit(token), target),
-    );
-
-  const first = await create();
-  if (first.ok || !isStalePendingRefusal(first)) {
+  const first = await repo.createPullRequestReview(pin);
+  if (
+    first.ok ||
+    first.error.code !== GitHubApiErrorCodes.PENDING_REVIEW_EXISTS
+  ) {
     return first;
   }
 
-  const cleared = await clearStalePendingReview(deps, target);
+  const cleared = await clearStalePendingReview(repo, pin.prNumber);
   if (!cleared.ok) {
     return cleared;
   }
-  return create();
+  return repo.createPullRequestReview(pin);
 }
 
-export function createThreadPoster(deps: PublishDeps): PostThread {
-  return (thread) =>
-    deps.github.run((token) =>
-      addPullRequestReviewThread(
-        deps.github.createMutationOctokit(token),
-        thread,
-      ),
-    );
+export function createThreadPoster(repo: ReviewerRepoClient): PostThread {
+  return (thread) => repo.addPullRequestReviewThread(thread);
 }
 
 export async function submitPendingReview(
-  deps: PublishDeps,
+  repo: ReviewerRepoClient,
   pending: PendingReview,
   event: ReviewEvent,
   body: string | undefined,
-): Promise<SubmitPendingResult> {
+): GitHubCall<void> {
   const submission: Mutable<SubmitPullRequestReviewInput> = {
     reviewNodeId: pending.reviewNodeId,
     event,
@@ -141,12 +100,7 @@ export async function submitPendingReview(
   if (body !== undefined) {
     submission.body = body;
   }
-  return deps.github.run((token) =>
-    submitPullRequestReview(
-      deps.github.createMutationOctokit(token),
-      submission,
-    ),
-  );
+  return repo.submitPullRequestReview(submission);
 }
 
 /**
@@ -157,16 +111,14 @@ export async function submitPendingReview(
  * a list that cannot be read leaves the answer unknown.
  */
 export async function readSubmitLanded(
-  deps: PublishDeps,
-  target: PublishTarget,
+  repo: ReviewerRepoClient,
+  prNumber: number,
   pending: PendingReview,
-): Promise<Result<boolean, GitHubApiError | TokenUnreadableFailure>> {
-  return deps.github.run((token) =>
-    hasPullRequestReviewPublished(deps.github.createOctokit(token), {
-      ...target,
-      reviewId: pending.reviewId,
-    }),
-  );
+): GitHubCall<boolean> {
+  return repo.hasPullRequestReviewPublished({
+    prNumber,
+    reviewId: pending.reviewId,
+  });
 }
 
 /**
@@ -175,19 +127,17 @@ export async function readSubmitLanded(
  */
 export async function discardPendingReview(
   deps: PublishDeps,
-  target: PublishTarget,
+  prNumber: number,
   pending: PendingReview,
 ): Promise<void> {
-  const deleted = await deps.github.run((token) =>
-    deletePendingPullRequestReview(deps.github.createOctokit(token), {
-      ...target,
-      reviewId: pending.reviewId,
-    }),
-  );
+  const deleted = await deps.repo.deletePendingPullRequestReview({
+    prNumber,
+    reviewId: pending.reviewId,
+  });
   if (!deleted.ok) {
     deps.log.warn("pending review left behind after a failed submit", {
       reviewId: String(pending.reviewId),
-      kind: deleted.tokenUnreadable ? deleted.error.kind : deleted.error.code,
+      kind: deleted.error.code,
     });
   }
 }

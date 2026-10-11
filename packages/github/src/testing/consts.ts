@@ -34,6 +34,10 @@ export const FAILURE_ANSWERS: Readonly<Record<FakeFailure, FailureAnswer>> = {
     code: GitHubApiErrorCodes.ANCHOR_REJECTED,
     status: HttpStatuses.UNPROCESSABLE_CONTENT,
   },
+  [FakeFailures.UNKNOWN_COMMIT]: {
+    code: GitHubApiErrorCodes.UNKNOWN_COMMIT,
+    status: HttpStatuses.UNPROCESSABLE_CONTENT,
+  },
 };
 
 /** Where each id sequence starts; distinct so a swapped id never matches. */
