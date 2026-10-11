@@ -46,6 +46,10 @@ export function reposRoutes(
     {
       id: ProductQueryIds.LIST_REPOS,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/",
     handlers.listRepos,

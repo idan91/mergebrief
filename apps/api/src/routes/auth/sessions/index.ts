@@ -22,6 +22,10 @@ export function sessionsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.REVOKE_SESSIONS,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "delete",
     "/",

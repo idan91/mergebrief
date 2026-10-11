@@ -33,7 +33,23 @@ export function isWriteClassification(
   return Object.values(WriteClassifications).some((known) => known === value);
 }
 
-interface OperationDescriptorBase {
+/**
+ * What the router enforces before an operation's handler runs, in the order
+ * the fields are listed after the scope check. Every declaration states all
+ * four: a route added later cannot inherit a permissive default by omission.
+ */
+export interface OperationPolicy {
+  /** A Bearer token answers 403 `human-only`: the act signs as the reviewer. */
+  readonly humanOnly: boolean;
+  /** Without the push bit the operation answers 404. */
+  readonly pushRequired: boolean;
+  /** Outside an Installation the surface does not exist: 404. */
+  readonly installationOnly: boolean;
+  /** The pull request row loads before the handler; a miss is 404. */
+  readonly rowRequired: boolean;
+}
+
+interface OperationDescriptorBase extends OperationPolicy {
   readonly id: string;
   /** `METHOD /full/composed/path`, stamped by the router from the mount prefixes. */
   readonly endpoint: string;

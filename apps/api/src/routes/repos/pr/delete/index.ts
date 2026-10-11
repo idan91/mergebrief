@@ -19,6 +19,10 @@ export function deletePullRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.DELETE_PULL,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: true,
+      pushRequired: false,
+      installationOnly: true,
+      rowRequired: true,
     },
     "delete",
     "/",

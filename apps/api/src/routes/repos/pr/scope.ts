@@ -1,22 +1,16 @@
-// Which world a PR row on the per-PR route lives in. The route's coordinates
-// can name a row in either world: an installation-bound reviewer still owns
-// the url-box briefs they pasted. The credential's world is tried first, then
-// the url-box world; absence keeps the credential's ctx, so a miss is the
-// same uniform 404. The url-box fallback is INSTANCE-wide: a reader who
-// proved GitHub access may open a brief another reviewer pasted, while the
-// Review Session's natural key keeps sessions and drafts per reviewer.
+// Which scope a PR row on the per-PR route lives in, for the handlers that
+// still resolve it themselves: the per-PR access step owns the resolution.
 import type { Context } from "hono";
-import {
-  createTenantRepository,
-  isOwnerContext,
-  resolveUrlBoxOwner,
-  type AppDatabase,
-  type RepoId,
-  type ReviewerId,
-  type ScopeContext,
+import type {
+  AppDatabase,
+  RepoId,
+  ReviewerId,
+  ScopeContext,
 } from "persistence";
+import { resolvePullRequestScope } from "../../../access/pull-request";
 import type { AuthzEnv } from "../../../access/types";
 
+/** The row's scope, or `ctx` itself on a miss, so absence stays the uniform 404. */
 export async function resolvePrScope(
   handle: AppDatabase,
   ctx: ScopeContext,
@@ -24,28 +18,19 @@ export async function resolvePrScope(
   repoId: RepoId,
   prNumber: number,
 ): Promise<ScopeContext> {
-  if (!isOwnerContext(ctx)) {
-    const tenantRow = await createTenantRepository(
-      handle,
-      ctx,
-    ).pullRequests.getByNumber(repoId, prNumber);
-    if (tenantRow !== undefined) {
-      return ctx;
-    }
-  }
-  const ownerUserId = await resolveUrlBoxOwner(
-    handle,
+  const resolved = await resolvePullRequestScope(handle, {
+    repoScope: ctx,
+    reviewerId,
     repoId,
     prNumber,
-    reviewerId,
-  );
-  return ownerUserId === undefined ? ctx : { ownerUserId };
+  });
+  return resolved ?? ctx;
 }
 
 /**
  * The same resolution off the Hono variable bag. A request the gate passed on
  * the operator PAT skips the tenant probe entirely: the reader proved access
- * to nothing, so only their own url-box world is theirs to read.
+ * to nothing, so only their own URL rows are theirs to read.
  */
 export async function resolvePrScopeFrom(
   c: Context<AuthzEnv>,

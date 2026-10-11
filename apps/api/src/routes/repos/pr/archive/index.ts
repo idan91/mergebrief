@@ -20,6 +20,10 @@ export function archivePullRoutes(
     {
       id: ProductActionIds.ARCHIVE_PULL,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "put",
     "/",
@@ -29,6 +33,10 @@ export function archivePullRoutes(
     {
       id: ProductActionIds.UNARCHIVE_PULL,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "delete",
     "/",

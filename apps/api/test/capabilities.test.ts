@@ -1,5 +1,5 @@
 // `GET /api/capabilities`: the composed registry served as data, gated like
-// every /api/* surface, descriptors verbatim in registry order, and a
+// every /api/* surface, the catalog fields in registry order, and a
 // fingerprint that must byte-match the committed manifest (the drift
 // tripwire in test form).
 import { createHash, randomBytes } from "node:crypto";
@@ -18,6 +18,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { shapeCatalogOperations } from "../src/product-operations/manifest";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
 import { KEY_REF, brandReviewerId, createTestUserOctokit } from "./fixtures";
@@ -107,7 +108,7 @@ describe("GET /api/capabilities", () => {
     return plaintext;
   }
 
-  it("serves the composed registry verbatim with its fingerprint, no-store", async () => {
+  it("serves the registry's catalog fields with its fingerprint, no-store", async () => {
     const token = await bearer();
     const res = await app.request("/api/capabilities", {
       headers: { Authorization: `Bearer ${token}` },
@@ -115,7 +116,9 @@ describe("GET /api/capabilities", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = bodySchema.parse(await res.json());
-    expect(body.operations).toEqual(productOperationRegistry.list());
+    expect(body.operations).toEqual(
+      shapeCatalogOperations(productOperationRegistry.list()),
+    );
     expect(body.catalogFingerprint).toBe(
       createHash("sha256")
         .update(readFileSync(MANIFEST_PATH, "utf8"))

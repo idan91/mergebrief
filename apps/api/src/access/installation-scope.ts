@@ -1,19 +1,16 @@
-import {
-  isOwnerContext,
-  type InstallationId,
-  type ScopeContext,
-} from "persistence";
-import { NotFound } from "../shared-errors/api-error";
+import type { InstallationId } from "persistence";
+import type { RepoAccess } from "./types";
 
 /**
- * The installation the ctx addresses, for routes whose surface exists only
- * in the App world (installation-port GitHub calls, per-tenant caches). An
- * owner-scoped viewer gets the uniform 404, the resource genuinely does not
- * exist in their world.
+ * The Installation holding the repo, for an installation-only operation: the
+ * router already answered 404 anywhere else, so reaching here without one is
+ * a declaration bug, never a request's fault.
  */
-export function requireInstallationScope(ctx: ScopeContext): InstallationId {
-  if (isOwnerContext(ctx)) {
-    throw new NotFound();
+export function readInstallationId(access: RepoAccess): InstallationId {
+  if (access.installation.kind !== "installation") {
+    throw new Error(
+      "an installation-only operation reached an owner-world repo",
+    );
   }
-  return ctx.installationId;
+  return access.installation.installationId;
 }

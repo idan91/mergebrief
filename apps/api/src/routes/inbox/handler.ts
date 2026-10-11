@@ -11,7 +11,6 @@ import {
   Unauthorized,
 } from "../../shared-errors/api-error";
 import { stampAuditTarget } from "../../product-operations/audit";
-import { assertHuman } from "../assert-human";
 import { parseRepoIdParam, prNumberSchema } from "../wire-bounds";
 import { isGitHubDenial } from "../../shared-errors/failures";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
@@ -172,7 +171,6 @@ export function createInboxHandlers(
       if (!prNumber.success) {
         throw new BadRequest();
       }
-      assertHuman(c);
 
       const deleted = await inboxController.deleteOwnPull(
         { handle: deps.handle },

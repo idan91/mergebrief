@@ -22,7 +22,7 @@ import {
   AuthChannels,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
+import { AccessFootings, type AuthzEnv } from "../../../../access/types";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { DEFAULT_UPLOAD_QUOTA_LIMITS } from "./consts";
@@ -118,8 +118,6 @@ const commitMock = vi.fn<InstallationGitHubPort["commitAttachment"]>();
 interface BuildAppOptions {
   /** The gate passed this request on the operator PAT. */
   readonly urlBoxOnly?: boolean;
-  /** The repo sits in no installation: the owner world. */
-  readonly ownerWorld?: boolean;
   readonly operatorToken?: string;
   /** Replaces the sealed token so the handler's own decrypt fails. */
   readonly ghTokenCiphertext?: string;
@@ -183,12 +181,16 @@ async function buildApp(
   app.onError(createErrorHandler<AuthzEnv>(log));
   app.use(async (c, next) => {
     c.set("logger", log);
-    c.set(
-      "ctx",
-      options.ownerWorld === true
-        ? { ownerUserId: brand(42n, isReviewerId) }
-        : { installationId: brand(1001n, isInstallationId) },
-    );
+    const installationId = brand(1001n, isInstallationId);
+    c.set("ctx", { installationId });
+    c.set("repoAccess", {
+      footing: AccessFootings.REVIEWER,
+      session,
+      repoId: brand(555n, isRepoId),
+      repoFullName: "acme/app",
+      viewerCanPush: true,
+      installation: { kind: "installation", installationId },
+    });
     c.set("session", session);
     c.set("repoId", brand(555n, isRepoId));
     c.set("repoFullName", "acme/app");
@@ -788,15 +790,6 @@ describe("POST attachments", () => {
     expect(((await response.json()) as { code: string }).code).toBe(
       "attachment-unsupported-type",
     );
-    expect(commitMock).not.toHaveBeenCalled();
-  });
-
-  it("answers 404 on a url-box pull request", async () => {
-    const app = await buildApp({ ownerWorld: true });
-
-    const response = await upload(app, PNG);
-
-    expect(response.status).toBe(404);
     expect(commitMock).not.toHaveBeenCalled();
   });
 

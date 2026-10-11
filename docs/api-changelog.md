@@ -18,6 +18,18 @@ deprecation note here, removal only at a major.
 - **Added** `authorLogin` (string | null) on `GET /api/repos/:repoId/pulls/:prNumber`
   and on each `GET /api/inbox` item: the PR author's GitHub login, `null`
   when the stored row has none. A client that predates it ignores the field.
+- **Changed** the check order under `/api/repos/:repoId/pulls/:prNumber`:
+  a pull request this instance holds no row for answers `404 not-found`
+  before the body or query is read (a malformed body was `400`), and a
+  malformed `:prNumber` answers 404 like a malformed repo id (was `400`).
+  `DELETE .../pulls/:prNumber` answers 404 for a missing row before the
+  admin check (a non-admin got `403 repo-admin-only`).
+- **Changed** a Bearer token on a human-only operation answers
+  `403 human-only` before its input is validated (a malformed body or PR
+  number answered `400` first). Human-only: deleting a pull request's
+  briefs on either route, editing a draft's anchor, deleting a draft,
+  dismissing, addressing or reopening a risk, purging attachments, and
+  dismissing the version notice.
 - **Changed** the per-repo gate in front of every `/api/repos/:repoId/*`
   route: a GitHub outage, rate limit or failed request at the access check
   answers `502 github-unavailable` (was 404). It is never cached and never

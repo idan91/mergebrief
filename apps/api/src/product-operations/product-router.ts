@@ -9,21 +9,21 @@
 import { Hono } from "hono";
 import { every } from "hono/combine";
 import type { Env, H, MiddlewareHandler } from "hono/types";
-import { WriteClassifications, type WriteClassification } from "persistence";
+import { WriteClassifications } from "persistence";
 import type { ValueOf } from "types/utils";
 import type { ProductActionId, ProductQueryId } from "contract";
+import type { PullRequestEnv } from "../access/types";
+import { buildErrorResponse } from "../error-response";
+import { ApiError } from "../shared-errors/api-error";
+import { createPolicyGate } from "./policy-gate";
 import type { ProductOperationRegistry } from "./registry";
 import {
-  isWriteClassification,
   OperationKinds,
-  scopeReaches,
   type ActionClassification,
+  type OperationPolicy,
   type ProductActionDescriptor,
   type ProductQueryDescriptor,
 } from "./types";
-import { ApiErrorCodes } from "contract";
-import { buildErrorResponse } from "../error-response";
-import { ApiError, Forbidden, Unauthorized } from "../shared-errors/api-error";
 
 export const ActionMethods = {
   POST: "post",
@@ -34,16 +34,27 @@ export const ActionMethods = {
 export type ActionMethod = ValueOf<typeof ActionMethods>;
 
 /** A query declaration, id from the query vocabulary, read-only by type. */
-export interface ProductQueryDeclaration {
+export interface ProductQueryDeclaration<
+  RowRequired extends boolean = boolean,
+> extends OperationPolicy {
   readonly id: ProductQueryId;
   readonly classification: typeof WriteClassifications.READ;
+  readonly rowRequired: RowRequired;
 }
 
 /** An action declaration, id from the action vocabulary, a write class. */
-export interface ProductActionDeclaration {
+export interface ProductActionDeclaration<
+  RowRequired extends boolean = boolean,
+> extends OperationPolicy {
   readonly id: ProductActionId;
   readonly classification: ActionClassification;
+  readonly rowRequired: RowRequired;
 }
+
+/** A router whose handlers read the loaded row admits only operations that load one. */
+type RowRequirementFor<E extends Env> = E extends PullRequestEnv
+  ? true
+  : boolean;
 
 type PendingDescriptor =
   | Omit<ProductQueryDescriptor, "endpoint">
@@ -97,52 +108,6 @@ const SEAL_CAUSE: Readonly<Record<SealReason, string>> = {
   [SealReasons.COMMITTED]: "committed",
 };
 
-function hasKey<K extends string>(
-  value: unknown,
-  key: K,
-): value is Record<K, unknown> {
-  return typeof value === "object" && value !== null && key in value;
-}
-
-/**
- * The credential's scope, read out of the context's variable bag. Structural
- * on purpose: this module is generic over the Hono Env, so the bag arrives as
- * `unknown` and is narrowed here, routes keep their own typed
- * `AuthzVariables` view of the same variable.
- */
-function principalScope(variables: unknown): WriteClassification | undefined {
-  if (!hasKey(variables, "session") || !hasKey(variables.session, "scope")) {
-    return undefined;
-  }
-  const scope: unknown = variables.session.scope;
-  return isWriteClassification(scope) ? scope : undefined;
-}
-
-/**
- * The scope check, standardised at the seam so a route added next year is
- * enforced whether or not its author thought about it. Only actions carry it:
- * `read` is the bottom rung, so every scope reaches every query, and the
- * router already refuses to declare a query as anything else.
- *
- * No principal means no credential to read a scope from, that is a route
- * mounted without its gate, so it fails closed rather than fails open.
- */
-function scopeGate<E extends Env>(
-  classification: ActionClassification,
-): MiddlewareHandler<E> {
-  return async (c, next) => {
-    const scope = principalScope(c.var);
-    if (scope === undefined) {
-      throw new Unauthorized();
-    }
-    if (!scopeReaches(scope, classification)) {
-      throw new Forbidden(ApiErrorCodes.SCOPE_EXCEEDED);
-    }
-    await next();
-    return undefined;
-  };
-}
-
 function isActionClassification(value: string): value is ActionClassification {
   return (
     value === WriteClassifications.PRIVATE_WRITE ||
@@ -158,13 +123,13 @@ export interface ProductRouter<E extends Env> {
   use(path: string, ...middleware: MiddlewareHandler<E>[]): void;
   /** Declare-and-mount a Product Query as GET. */
   query<P extends string>(
-    descriptor: ProductQueryDeclaration,
+    descriptor: ProductQueryDeclaration<RowRequirementFor<E>>,
     path: P,
     ...handlers: RouteHandlers<E, P>
   ): void;
   /** Declare-and-mount a Product Action. */
   action<P extends string>(
-    descriptor: ProductActionDeclaration,
+    descriptor: ProductActionDeclaration<RowRequirementFor<E>>,
     method: ActionMethod,
     path: P,
     ...handlers: RouteHandlers<E, P>
@@ -224,7 +189,13 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
         method: "GET",
         path,
       });
-      app.get(path, ...handlers);
+      app.get(
+        path,
+        every(
+          createPolicyGate(descriptor, descriptor.classification),
+          ...handlers,
+        ),
+      );
     },
     action(descriptor, method, path, ...handlers) {
       assertOpen(`cannot declare action "${descriptor.id}"`);
@@ -241,7 +212,10 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
       // ONE composed handler, not a prepended one: Hono records a route-table
       // entry per handler, and a doubled entry would read as a double mount.
       mountAction(app, method, path, [
-        every(scopeGate(descriptor.classification), ...handlers),
+        every(
+          createPolicyGate(descriptor, descriptor.classification),
+          ...handlers,
+        ),
       ]);
     },
     route(prefix, child) {

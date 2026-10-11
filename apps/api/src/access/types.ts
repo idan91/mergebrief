@@ -1,5 +1,5 @@
 import type { GitHubApiError } from "github";
-import type { RepoId, ScopeContext } from "persistence";
+import type { PullRequestRow, RepoId, ScopeContext } from "persistence";
 import type { ValueOf } from "types/utils";
 import type { RequestLogVariables } from "../request-logging";
 import type { ViewerPrincipal } from "../routes/auth/session/types";
@@ -37,6 +37,17 @@ export interface OperatorRepoAccess extends RepoAccessFields {
 
 export type RepoAccess = ReviewerRepoAccess | OperatorRepoAccess;
 
+interface PullRequestFields {
+  readonly prNumber: number;
+  /** The scope the row lives in: the repo's Installation first, else a URL owner's. */
+  readonly rowScope: ScopeContext;
+  /** A request-start snapshot: a write answers from its own return, never this. */
+  readonly row: PullRequestRow;
+}
+
+/** The repo gate's access plus the pull request row it names. */
+export type PullRequestAccess = RepoAccess & PullRequestFields;
+
 /** The positive cache holds access without the principal each request brings. */
 export type CachedRepoAccess =
   | Omit<ReviewerRepoAccess, "session">
@@ -61,6 +72,15 @@ export interface AuthzVariables extends RequestLogVariables {
 
 export interface AuthzEnv {
   readonly Variables: AuthzVariables;
+}
+
+export interface PullRequestVariables extends AuthzVariables {
+  readonly pullRequestAccess: PullRequestAccess;
+}
+
+/** A row-required operation's env: its handler reads the loaded row. */
+export interface PullRequestEnv {
+  readonly Variables: PullRequestVariables;
 }
 
 export type ListedOperatorToken = string | undefined;

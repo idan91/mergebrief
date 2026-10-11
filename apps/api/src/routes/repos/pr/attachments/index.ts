@@ -19,6 +19,7 @@ import {
   SOURCES_CACHE_MAX_ENTRIES,
   UPLOAD_QUOTA_MAX_ENTRIES,
 } from "./consts";
+import { createRepositoryTargetLayer } from "../../logic/repository-target";
 import { createAttachmentsHandlers } from "./handler";
 import type {
   AttachmentsControllerDeps,
@@ -45,10 +46,16 @@ export function attachmentsRoute(
       windows: createTtlCache<UploadWindow>(UPLOAD_QUOTA_MAX_ENTRIES),
     },
   );
+  // Only the upload is audited; the read carries the stamp unread.
+  app.use(createRepositoryTargetLayer());
   app.query(
     {
       id: ProductQueryIds.READ_ATTACHMENT,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/:assetId",
     handlers.readAttachment,
@@ -57,6 +64,10 @@ export function attachmentsRoute(
     {
       id: ProductActionIds.UPLOAD_ATTACHMENT,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: true,
+      rowRequired: false,
     },
     "post",
     "/",

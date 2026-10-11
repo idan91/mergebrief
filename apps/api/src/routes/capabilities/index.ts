@@ -22,6 +22,10 @@ export function capabilitiesRoute(
     {
       id: ProductQueryIds.READ_CAPABILITIES,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/",
     handlers.readCapabilities,

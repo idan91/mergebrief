@@ -9,7 +9,6 @@ import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../../access/types";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
-import { assertHuman } from "../../../assert-human";
 import { sessionController } from "./controller";
 import {
   addressSchema,
@@ -132,7 +131,6 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     if (!draftId.success || !parsed.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
 
     const resolved = await resolveSessionWrite(deps, c);
     const moved = await resolved.drafts.reanchor(
@@ -155,7 +153,6 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     if (!draftId.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
 
     const resolved = await resolveSessionWrite(deps, c);
     const deleted = await resolved.drafts.delete(draftId.data);
@@ -223,7 +220,6 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     if (!parsed.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
     const reason = parsed.data.reason;
     return decide(
       c,
@@ -241,7 +237,6 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     if (!parsed.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
     // Deciding again also settles the evidence question a carry raised: the
     // reviewer just named what this decision stands on.
     return decide(
@@ -260,7 +255,6 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     if (!parsed.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
     const flags: DispositionAnchor[] = parsed.data.flags;
     const resolved = await resolveSessionWrite(deps, c);
     const reopened = await resolved.work.reopenRisks(flags);

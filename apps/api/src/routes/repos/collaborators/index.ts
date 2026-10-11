@@ -39,6 +39,10 @@ export function collaboratorsRoute(
     {
       id: ProductQueryIds.LIST_COLLABORATORS,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: true,
+      installationOnly: true,
+      rowRequired: false,
     },
     "/",
     handlers.listCollaborators,

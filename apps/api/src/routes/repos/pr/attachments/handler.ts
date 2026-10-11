@@ -16,10 +16,9 @@ import {
   PayloadTooLarge,
   TooManyRequests,
 } from "../../../../shared-errors/api-error";
-import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { readFallbackTokenFor } from "../../../../access/operator-token";
-import { requireInstallationScope } from "../../../../access/installation-scope";
+import { readInstallationId } from "../../../../access/installation-scope";
 import type { AuthzEnv } from "../../../../access/types";
 import { readRawBodyWithinLimit } from "../../../read-body";
 import type { TtlCache } from "../../../ttl-cache";
@@ -188,18 +187,16 @@ export function createAttachmentsHandlers(
     return c.body(fetched.value.body, HttpStatuses.OK, headers);
   };
 
-  // No assertHuman: the CLI attaches through this route with its Bearer
+  // Not human-only: the CLI attaches through this route with its Bearer
   // token, and the commit is the App's, not the viewer's signature.
   const uploadAttachment = async (c: Context<AuthzEnv>) => {
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
       throw new BadRequest();
     }
-    // Stamped first, so a refusal past the gate names the repository too.
-    stampAuditTarget(c, "repository", c.get("repoId"));
-    // App-only: the branch is written with the installation token, so the
-    // owner world (a url-box brief) has nothing to write with.
-    const installationId = requireInstallationScope(c.get("ctx"));
+    // Installation-only on the descriptor: the branch is written with the
+    // installation token.
+    const installationId = readInstallationId(c.get("repoAccess"));
     const { bytes, mediaType } = await readImageBody(c);
 
     // Reserved before the first GitHub call, on bytes the cap already

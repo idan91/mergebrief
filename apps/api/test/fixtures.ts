@@ -30,6 +30,7 @@ import type { Result } from "types/utils";
 
 import { vi } from "vitest";
 import type { AuthDeps } from "../src/index";
+import type { OperationPolicy } from "../src/product-operations/types";
 import type { GitHubCallOutcome } from "../src/routes/auth/reviewer-github-client";
 
 export const SECRET = "test-webhook-secret";
@@ -40,6 +41,14 @@ export const INSTALLATION_ID = 987654;
 export const REVIEWER_ID = 555;
 export const REPO_SLUG = "octo/hello";
 export const PR_NUMBER = 7;
+
+/** A declaration's policy with every restriction off. */
+export const OPEN_POLICY = {
+  humanOnly: false,
+  pushRequired: false,
+  installationOnly: false,
+  rowRequired: false,
+} as const satisfies OperationPolicy;
 
 export function createKeyProvider(): KeyProvider {
   return createEnvKeyProvider({

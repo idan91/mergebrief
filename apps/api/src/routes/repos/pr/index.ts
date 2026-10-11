@@ -1,6 +1,8 @@
 // The per-PR subtree (`/:repoId/pulls/:prNumber`), composition only: the
-// repos router's one gate already covers every request under the prefix.
-import type { AuthzEnv } from "../../../access/types";
+// repos router's one gate already covers every request under the prefix, and
+// the per-PR access step behind it loads the row an operation requires.
+import { createPullRequestAccessLayer } from "../../../access/pull-request";
+import type { PullRequestEnv } from "../../../access/types";
 import {
   productRouter,
   type ProductRouter,
@@ -22,8 +24,9 @@ import { sessionRoutes } from "./session";
 
 export function prRoutes(
   deps: ConversationRouteDeps & AttachmentsRouteDeps,
-): ProductRouter<AuthzEnv> {
-  const app = productRouter<AuthzEnv>();
+): ProductRouter<PullRequestEnv> {
+  const app = productRouter<PullRequestEnv>();
+  app.use(createPullRequestAccessLayer(deps.handle));
 
   // Conversation built first: it owns the conversation cache, and the write
   // routes evict a PR's entry on their success paths.

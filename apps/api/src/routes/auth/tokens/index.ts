@@ -23,6 +23,10 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.MINT_TOKEN,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "post",
     "/",
@@ -32,6 +36,10 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductQueryIds.LIST_TOKENS,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/",
     handlers.listTokens,
@@ -40,6 +48,10 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.REVOKE_TOKEN,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "delete",
     "/:id",

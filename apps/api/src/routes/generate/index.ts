@@ -25,6 +25,10 @@ export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.GENERATE_BRIEF,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "post",
     "/",

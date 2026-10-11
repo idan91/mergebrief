@@ -9,6 +9,7 @@ import {
 } from "../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import type { AuthzEnv } from "../../../access/types";
+import { createRepositoryTargetLayer } from "../logic/repository-target";
 import { createPurgeAttachmentsHandlers } from "./handler";
 import type { PurgeAttachmentsRouteDeps } from "./types";
 
@@ -18,10 +19,15 @@ export function purgeAttachmentsRoute(
   const app = productRouter<AuthzEnv>();
   const handlers = createPurgeAttachmentsHandlers(deps);
 
+  app.use(createRepositoryTargetLayer());
   app.action(
     {
       id: ProductActionIds.PURGE_ATTACHMENTS,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: true,
+      pushRequired: false,
+      installationOnly: true,
+      rowRequired: false,
     },
     "delete",
     "/",

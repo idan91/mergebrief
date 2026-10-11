@@ -446,10 +446,11 @@ a request log line join on `request_id`.
 Two things to know before you write a query against it:
 
 - **A row is filed under the installation the request acted in**, the one
-  holding the repository it named. A request that names no repository, such
-  as a token mint or revoke, and one whose repository sits in no installation
-  the reviewer reaches, both file with a null installation and
-  `source = url`.
+  holding the pull request it named, else the repository. A pull request
+  added by URL files with a null installation and `source = url`, even in a
+  repository an installation holds. So do a request that names no
+  repository, such as a token mint or revoke, and one whose repository sits
+  in no installation the reviewer reaches.
 - **A refusal that never resolved a credential is not in this table.** An
   unknown cookie, a revoked API token, an expired session: there is no actor
   to write, so nothing is recorded. Those refusals appear as

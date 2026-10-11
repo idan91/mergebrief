@@ -22,22 +22,50 @@ function declareLocalBriefQueries(
 ): void {
   const read = WriteClassifications.READ;
   app.query(
-    { id: ProductQueryIds.LIST_LOCAL_BRIEFS, classification: read },
+    {
+      id: ProductQueryIds.LIST_LOCAL_BRIEFS,
+      classification: read,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
+    },
     "/",
     handlers.listLocalBriefs,
   );
   app.query(
-    { id: ProductQueryIds.READ_LOCAL_BRIEF, classification: read },
+    {
+      id: ProductQueryIds.READ_LOCAL_BRIEF,
+      classification: read,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
+    },
     "/:briefId",
     handlers.readLocalBrief,
   );
   app.query(
-    { id: ProductQueryIds.READ_LOCAL_BRIEF_DIFFS, classification: read },
+    {
+      id: ProductQueryIds.READ_LOCAL_BRIEF_DIFFS,
+      classification: read,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
+    },
     "/:briefId/diffs",
     handlers.readLocalBriefDiffs,
   );
   app.query(
-    { id: ProductQueryIds.READ_LOCAL_COMPARISON_MARKS, classification: read },
+    {
+      id: ProductQueryIds.READ_LOCAL_COMPARISON_MARKS,
+      classification: read,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
+    },
     "/:briefId/comparison-marks",
     handlers.readLocalComparisonMarks,
   );
@@ -45,6 +73,10 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.READ_LOCAL_REVISION_NARRATIVE,
       classification: read,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/:briefId/revision-narrative",
     handlers.readLocalRevisionNarrative,

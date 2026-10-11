@@ -355,7 +355,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       404,
     ); // unknown PR
     expect((await get(`/api/repos/${REPO_A}/pulls/nope`, cookie)).status).toBe(
-      400,
+      404,
     ); // bad number
   });
 

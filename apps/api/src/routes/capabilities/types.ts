@@ -1,7 +1,7 @@
-import type { ProductOperationDescriptor } from "../../product-operations/types";
+import type { CatalogOperation } from "../../product-operations/manifest";
 
-/** The response body — descriptors verbatim plus the catalog identity. */
+/** The response body: the catalog's fields per operation plus its identity. */
 export interface CapabilitiesBody {
-  readonly operations: readonly ProductOperationDescriptor[];
+  readonly operations: readonly CatalogOperation[];
   readonly catalogFingerprint: string;
 }

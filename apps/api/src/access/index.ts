@@ -26,16 +26,12 @@ import type { Context, MiddlewareHandler, Next } from "hono";
 import { every } from "hono/combine";
 import { routePath } from "hono/route";
 import { fetchRepositoryById, type GitHubApiError } from "github";
-import {
-  createSessionAuth,
-  type RepoId,
-  type ReviewerId,
-  type ScopeContext,
-} from "persistence";
+import { createSessionAuth, type RepoId } from "persistence";
 import { HttpStatuses } from "types/http";
 import {
   AUDIT_REASON_NO_REPO_ACCESS,
   stampAuditReason,
+  stampAuditScope,
   stampAuditTarget,
 } from "../product-operations/audit";
 import { stampAccess } from "../request-logging";
@@ -49,7 +45,6 @@ import type { AuthRouteDeps } from "../routes/auth/session/types";
 import type {
   InstallationResolver,
   ResolvedRepoWorld,
-  RepoWorld,
 } from "../routes/installation-resolver";
 import { createTtlCache } from "../routes/ttl-cache";
 import {
@@ -68,6 +63,7 @@ import {
 } from "./consts";
 import { resolveOperatorRepoAccess } from "./operator-token";
 import { sessionLayer } from "./session-layer";
+import { deriveScopeContext } from "./utils";
 import {
   AccessFootings,
   type AuthzEnv,
@@ -88,16 +84,6 @@ function buildPositiveCacheKey(
   repoId: RepoId,
 ): string {
   return `${sessionTokenHash}:${String(repoId)}`;
-}
-
-/** The request context a resolved world addresses. */
-function deriveScopeContext(
-  world: RepoWorld,
-  reviewerId: ReviewerId,
-): ScopeContext {
-  return world.kind === "installation"
-    ? { installationId: world.installationId }
-    : { ownerUserId: reviewerId };
 }
 
 /**
@@ -131,9 +117,11 @@ async function serveRepoAccess(
   decision: string,
 ): Promise<void> {
   const reviewerId = access.session.reviewerId;
+  const repoScope = deriveScopeContext(access.installation, reviewerId);
   c.set("repoAccess", access);
   c.set("session", access.session);
-  c.set("ctx", deriveScopeContext(access.installation, reviewerId));
+  c.set("ctx", repoScope);
+  stampAuditScope(c, repoScope);
   c.set("repoId", access.repoId);
   c.set("repoFullName", access.repoFullName);
   c.set("viewerCanPush", access.viewerCanPush);

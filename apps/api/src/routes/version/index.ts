@@ -38,6 +38,10 @@ export function versionDismissRoutes(
     {
       id: ProductActionIds.DISMISS_VERSION_NOTICE,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: true,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "post",
     "/",

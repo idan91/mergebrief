@@ -51,6 +51,10 @@ export function conversationRoute(
     {
       id: ProductQueryIds.READ_CONVERSATION,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "/",
     handlers.readConversation,

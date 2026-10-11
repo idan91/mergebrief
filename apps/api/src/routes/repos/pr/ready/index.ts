@@ -22,6 +22,10 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.MARK_READY,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/",

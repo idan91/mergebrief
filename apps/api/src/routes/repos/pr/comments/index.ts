@@ -27,6 +27,10 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.CREATE_INLINE_COMMENT,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/",
@@ -36,6 +40,10 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.REPLY_TO_COMMENT,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/:commentId/replies",
@@ -45,6 +53,10 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.RESOLVE_THREAD,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/:commentId/resolve",
@@ -54,6 +66,10 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.UNRESOLVE_THREAD,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/:commentId/unresolve",

@@ -1,13 +1,35 @@
 // The catalog store. Registration happens at route composition (the router's
-// root commit), so every failure here is a programmer error — throw, never
+// root commit), so every failure here is a programmer error: throw, never
 // Result. Enumeration feeds the committed manifest.
-import type { ProductOperationDescriptor } from "./types";
+import type { OperationPolicy, ProductOperationDescriptor } from "./types";
 
 const KEBAB_CASE_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
+const POLICY_FIELDS = [
+  "humanOnly",
+  "pushRequired",
+  "installationOnly",
+  "rowRequired",
+] as const satisfies readonly (keyof OperationPolicy)[];
+
+function isSameDescriptor(
+  left: ProductOperationDescriptor,
+  right: ProductOperationDescriptor,
+): boolean {
+  const samePolicy = POLICY_FIELDS.every(
+    (field) => left[field] === right[field],
+  );
+  return (
+    samePolicy &&
+    left.kind === right.kind &&
+    left.classification === right.classification &&
+    left.endpoint === right.endpoint
+  );
+}
+
 export interface ProductOperationRegistry {
   register(descriptor: ProductOperationDescriptor): void;
-  /** Snapshot sorted by id — stable output for the manifest generator. */
+  /** Snapshot sorted by id: stable output for the manifest generator. */
   list(): readonly ProductOperationDescriptor[];
 }
 
@@ -24,11 +46,7 @@ export function createProductOperationRegistry(): ProductOperationRegistry {
       if (existing !== undefined) {
         // Composition runs once per app instance; re-registering the same
         // descriptor is a no-op, a different one under the same id is a bug.
-        if (
-          existing.kind === descriptor.kind &&
-          existing.classification === descriptor.classification &&
-          existing.endpoint === descriptor.endpoint
-        ) {
+        if (isSameDescriptor(existing, descriptor)) {
           return;
         }
         throw new Error(

@@ -350,6 +350,14 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     expect(((await res.json()) as { code?: string }).code).toBe("human-only");
     expect(counts.repositories).toBe(1);
     expect(deleteBranch).not.toHaveBeenCalled();
+    expect(await readAudits(harness)).toContainEqual(
+      expect.objectContaining({
+        operation: "purge-attachments",
+        outcome: "denied",
+        target_type: "repository",
+        target_id: BigInt(REPO_ID),
+      }),
+    );
   });
 
   it("a delete the App itself may not make is github-permission", async () => {

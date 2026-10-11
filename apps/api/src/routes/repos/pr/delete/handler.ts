@@ -6,10 +6,9 @@ import {
   NotFound,
 } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
-import { assertHuman } from "../../../assert-human";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import { requireInstallationScope } from "../../../../access/installation-scope";
+import { readInstallationId } from "../../../../access/installation-scope";
 import type { AuthzEnv } from "../../../../access/types";
 import { prNumberSchema } from "../../../wire-bounds";
 import { throwRepoResolveFailure } from "../../logic/resolve-repo-owner-and-name";
@@ -45,11 +44,10 @@ export function createDeleteHandlers(deps: AuthRouteDeps) {
     if (!parsedPr.success) {
       throw new BadRequest();
     }
-    assertHuman(c);
 
-    // An App-only surface: the owner world, the PAT rung included, 404s
-    // here, and the viewer's own pasted row goes through the inbox purge.
-    const installationId = requireInstallationScope(c.get("ctx"));
+    // Installation-only on the descriptor: the viewer's own pasted row goes
+    // through the inbox purge instead.
+    const installationId = readInstallationId(c.get("repoAccess"));
     const input: DeletePullInput = {
       repoId: c.get("repoId"),
       prNumber: parsedPr.data,

@@ -24,6 +24,7 @@ import {
   runManifest,
 } from "../scripts/run-manifest";
 import { composeCatalog } from "./compose-catalog";
+import { OPEN_POLICY } from "./fixtures";
 
 const run = promisify(execFile);
 
@@ -43,6 +44,7 @@ const SAMPLE: ProductOperationDescriptor = {
   id: "probe-op",
   kind: "query",
   classification: "read",
+  ...OPEN_POLICY,
   endpoint: "GET /api/probe",
 };
 

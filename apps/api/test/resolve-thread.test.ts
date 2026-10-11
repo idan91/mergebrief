@@ -365,7 +365,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(counts.graphql).toBe(0);
   });
 
-  it("400 on a malformed comment id or PR number, with no mutation", async () => {
+  it("400 on a malformed comment id, 404 on a malformed PR number", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -380,7 +380,7 @@ describe("thread resolve and unresolve routes", () => {
       cookie,
       `/api/repos/${REPO_ID}/pulls/nope/comments/${ROOT_COMMENT_ID}/resolve`,
     );
-    expect(badPr.status).toBe(400);
+    expect(badPr.status).toBe(404);
     expect(counts.graphql).toBe(0);
   });
 

@@ -9,6 +9,8 @@ import { createProductOperationRegistry } from "../src/product-operations/regist
 import { ProductActionIds, ProductQueryIds } from "contract";
 import { productRouter } from "../src/product-operations/product-router";
 import { OperationKinds } from "../src/product-operations/types";
+import type { PullRequestEnv } from "../src/access/types";
+import { OPEN_POLICY } from "./fixtures";
 
 describe("product operation registry", () => {
   it("enumerates registered descriptors sorted by id", () => {
@@ -17,12 +19,14 @@ describe("product operation registry", () => {
       id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
+      ...OPEN_POLICY,
       endpoint: "GET /api/inbox",
     });
     registry.register({
       id: "generate-brief",
       kind: OperationKinds.ACTION,
       classification: WriteClassifications.PRIVATE_WRITE,
+      ...OPEN_POLICY,
       endpoint: "POST /api/generate",
     });
     expect(registry.list().map((d) => d.id)).toEqual([
@@ -37,6 +41,7 @@ describe("product operation registry", () => {
       id: "mint-token",
       kind: OperationKinds.ACTION,
       classification: WriteClassifications.PRIVATE_WRITE,
+      ...OPEN_POLICY,
       endpoint: "POST /api/auth/tokens",
     });
     expect(registry.list()).toEqual([
@@ -44,6 +49,7 @@ describe("product operation registry", () => {
         id: "mint-token",
         kind: "action",
         classification: "private-write",
+        ...OPEN_POLICY,
         endpoint: "POST /api/auth/tokens",
       },
     ]);
@@ -55,6 +61,7 @@ describe("product operation registry", () => {
       id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
+      ...OPEN_POLICY,
       endpoint: "GET /api/inbox",
     } as const;
     registry.register(descriptor);
@@ -68,6 +75,7 @@ describe("product operation registry", () => {
       id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
+      ...OPEN_POLICY,
       endpoint: "GET /api/inbox",
     } as const;
     registry.register(descriptor);
@@ -79,6 +87,7 @@ describe("product operation registry", () => {
         ...descriptor,
         kind: OperationKinds.ACTION,
         classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
       }),
     ).toThrowError(/list-inbox/);
   });
@@ -92,6 +101,7 @@ describe("product operation registry", () => {
           id,
           kind: OperationKinds.QUERY,
           classification: WriteClassifications.READ,
+          ...OPEN_POLICY,
           endpoint: "GET /api/probe",
         }),
       ).toThrowError(/kebab-case/);
@@ -104,6 +114,7 @@ describe("product operation registry", () => {
       id: "read-pull",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
+      ...OPEN_POLICY,
       endpoint: "GET /api/a",
     });
     const snapshot = registry.list();
@@ -111,6 +122,7 @@ describe("product operation registry", () => {
       id: "read-brief",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
+      ...OPEN_POLICY,
       endpoint: "GET /api/b",
     });
     expect(snapshot).toHaveLength(1);
@@ -120,10 +132,12 @@ describe("product operation registry", () => {
 const QUERY = {
   id: ProductQueryIds.LIST_INBOX,
   classification: WriteClassifications.READ,
+  ...OPEN_POLICY,
 } as const;
 const ACTION = {
   id: ProductActionIds.SUBMIT_REVIEW,
   classification: WriteClassifications.EXTERNAL_WRITE,
+  ...OPEN_POLICY,
 } as const;
 
 /** What the auth middleware contributes, as far as the scope check cares. */
@@ -158,6 +172,7 @@ describe("product router", () => {
       {
         id: ProductActionIds.REVOKE_TOKEN,
         classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
       },
       "delete",
       "/tokens/:id",
@@ -179,6 +194,7 @@ describe("product router", () => {
       {
         id: ProductQueryIds.READ_CONVERSATION,
         classification: WriteClassifications.READ,
+        ...OPEN_POLICY,
       },
       "/conversation",
       (c) => c.body(null, 204),
@@ -189,6 +205,7 @@ describe("product router", () => {
       {
         id: ProductQueryIds.LIST_REPOS,
         classification: WriteClassifications.READ,
+        ...OPEN_POLICY,
       },
       "/",
       (c) => c.body(null, 204),
@@ -252,6 +269,7 @@ describe("product router", () => {
           id: ProductQueryIds.LIST_INBOX,
           // @ts-expect-error, a query must declare READ, not a write classification
           classification: WriteClassifications.EXTERNAL_WRITE,
+          ...OPEN_POLICY,
         },
         "/inbox",
         (c) => c.body(null, 204),
@@ -263,6 +281,7 @@ describe("product router", () => {
           id: ProductActionIds.SUBMIT_REVIEW,
           // @ts-expect-error, an action must declare a write classification, not READ
           classification: WriteClassifications.READ,
+          ...OPEN_POLICY,
         },
         "post",
         "/review",
@@ -279,6 +298,7 @@ describe("product router", () => {
         // @ts-expect-error, a query id must come from ProductQueryIds
         id: "not-in-the-vocabulary",
         classification: WriteClassifications.READ,
+        ...OPEN_POLICY,
       },
       "/probe",
       (c) => c.body(null, 204),
@@ -288,6 +308,7 @@ describe("product router", () => {
         // @ts-expect-error, an action id must come from ProductActionIds
         id: ProductQueryIds.LIST_INBOX,
         classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
       },
       "post",
       "/probe",
@@ -368,6 +389,7 @@ describe("product router", () => {
         {
           id: ProductQueryIds.LIST_REPOS,
           classification: WriteClassifications.READ,
+          ...OPEN_POLICY,
         },
         "/repos",
         (c) => c.body(null, 204),
@@ -488,6 +510,7 @@ describe("the scope check at the router seam", () => {
       {
         id: ProductActionIds.GENERATE_BRIEF,
         classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
       },
       "post",
       "/generate",
@@ -539,5 +562,101 @@ describe("the scope check at the router seam", () => {
     });
     router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
     expect((await post(router.app, "/review")).status).toBe(401);
+  });
+});
+
+interface ChannelEnv {
+  Variables: { session: { scope: string; channel: string } };
+}
+
+describe("the row step at the router seam", () => {
+  function rowApp(channel: string, calls: string[], withLoader = true) {
+    const router = productRouter<ChannelEnv>();
+    router.use(async (c, next) => {
+      c.set("session", {
+        scope: WriteClassifications.EXTERNAL_WRITE,
+        channel,
+      });
+      if (withLoader) {
+        c.set("loadOperationRow", async () => {
+          calls.push("row");
+        });
+      }
+      await next();
+    });
+    router.action(
+      {
+        id: ProductActionIds.DELETE_PULL,
+        classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
+        humanOnly: true,
+        rowRequired: true,
+      },
+      "post",
+      "/delete",
+      (c) => {
+        calls.push("handler");
+        return c.json({ ok: true });
+      },
+    );
+    return router.app;
+  }
+
+  it("loads the row after the policy checks and before the handler", async () => {
+    const calls: string[] = [];
+
+    const res = await post(rowApp("cookie", calls), "/delete");
+
+    expect(res.status).toBe(200);
+    expect(calls).toEqual(["row", "handler"]);
+  });
+
+  it("never loads the row for an operation the policy refused", async () => {
+    const calls: string[] = [];
+
+    const res = await post(rowApp("bearer", calls), "/delete");
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "human-only" });
+    expect(calls).toEqual([]);
+  });
+
+  it("throws when a row-required operation has no row loader", async () => {
+    const calls: string[] = [];
+
+    const sent = post(rowApp("cookie", calls, false), "/delete");
+
+    await expect(sent).rejects.toThrow(/without a row loader/);
+    expect(calls).toEqual([]);
+  });
+
+  it("mounts only row-required operations where the env carries the row", () => {
+    const router = productRouter<PullRequestEnv>();
+
+    router.query(
+      {
+        id: ProductQueryIds.READ_PULL,
+        classification: WriteClassifications.READ,
+        ...OPEN_POLICY,
+        rowRequired: true,
+      },
+      "/meta",
+      (c) => c.json({ prNumber: c.get("pullRequestAccess").prNumber }),
+    );
+    router.query(
+      // @ts-expect-error a handler reading the row cannot mount without one
+      {
+        id: ProductQueryIds.READ_ATTACHMENT,
+        classification: WriteClassifications.READ,
+        ...OPEN_POLICY,
+      },
+      "/attachment",
+      (c) => c.json({}),
+    );
+
+    expect(router.app.routes.map((route) => route.path)).toEqual([
+      "/meta",
+      "/attachment",
+    ]);
   });
 });

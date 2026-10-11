@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { HttpStatuses } from "types/http";
 import { BadRequest } from "../../shared-errors/api-error";
-import { assertHuman } from "../assert-human";
 import type { AuthzEnv } from "../../access/types";
 import { versionController } from "./controller";
 import { dismissVersionBodySchema } from "./schemas";
@@ -34,7 +33,6 @@ export function createVersionHandlers(
       if (!parsed.success) {
         throw new BadRequest();
       }
-      assertHuman(c);
 
       const dismissed = await versionController.dismissVersion(deps, {
         reviewerId: c.get("session").reviewerId,

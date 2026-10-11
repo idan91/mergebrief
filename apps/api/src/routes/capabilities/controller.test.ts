@@ -13,13 +13,24 @@ const OPERATIONS: readonly ProductOperationDescriptor[] = [
     kind: OperationKinds.QUERY,
     classification: WriteClassifications.READ,
     endpoint: "GET /api/capabilities",
+    humanOnly: false,
+    pushRequired: false,
+    installationOnly: false,
+    rowRequired: false,
   },
 ];
 
 describe("capabilitiesController.buildCapabilities", () => {
-  it("returns the descriptors verbatim with the catalog fingerprint", () => {
+  it("returns the catalog fields, never the policy, with the fingerprint", () => {
     const body = capabilitiesController.buildCapabilities(OPERATIONS);
-    expect(body.operations).toBe(OPERATIONS);
+    expect(body.operations).toEqual([
+      {
+        id: "read-capabilities",
+        kind: "query",
+        classification: "read",
+        endpoint: "GET /api/capabilities",
+      },
+    ]);
     expect(body.catalogFingerprint).toBe(computeCatalogFingerprint(OPERATIONS));
   });
 });

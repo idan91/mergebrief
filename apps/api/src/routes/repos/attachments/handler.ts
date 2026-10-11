@@ -1,10 +1,8 @@
 import { ApiErrorCodes } from "contract";
 import type { Context } from "hono";
 import { Forbidden } from "../../../shared-errors/api-error";
-import { stampAuditTarget } from "../../../product-operations/audit";
-import { assertHuman } from "../../assert-human";
 import { createReviewerGitHubClient } from "../../auth/reviewer-github-client";
-import { requireInstallationScope } from "../../../access/installation-scope";
+import { readInstallationId } from "../../../access/installation-scope";
 import type { AuthzEnv } from "../../../access/types";
 import { throwAttachmentBranchFailure } from "../logic/attachment-branch-failure";
 import { resolveRepoAdmin, type RepoAdmin } from "../logic/resolve-repo-admin";
@@ -39,14 +37,10 @@ async function resolveAdmin(
 export function createPurgeAttachmentsHandlers(
   deps: PurgeAttachmentsRouteDeps,
 ): PurgeAttachmentsHandlers {
-  // Cookie only: the delete signs under the reviewer's confirmation, and
-  // App-only, since the owner world has no branch and nothing to delete
-  // it with.
+  // Human-only and installation-only on the descriptor: the delete signs
+  // under the reviewer's confirmation, and an owner-world repo has no branch.
   const purgeAttachments = async (c: Context<AuthzEnv>) => {
-    // Stamped first, so a refusal past the gate names the repository too.
-    stampAuditTarget(c, "repository", c.get("repoId"));
-    assertHuman(c);
-    const installationId = requireInstallationScope(c.get("ctx"));
+    const installationId = readInstallationId(c.get("repoAccess"));
     const admin = await resolveAdmin(c, deps);
 
     const purged = await purgeAttachmentsController.purgeAttachments(

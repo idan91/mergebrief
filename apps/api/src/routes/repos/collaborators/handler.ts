@@ -3,7 +3,7 @@ import type { InstallationId, RepoId } from "persistence";
 import { NotFound } from "../../../shared-errors/api-error";
 import { resolveGitHubDenialError } from "../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../shared-errors/github-denial/types";
-import { requireInstallationScope } from "../../../access/installation-scope";
+import { readInstallationId } from "../../../access/installation-scope";
 import type { AuthzEnv } from "../../../access/types";
 import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
@@ -31,14 +31,9 @@ export function createCollaboratorsHandlers(
 ) {
   return {
     listCollaborators: async (c: Context<AuthzEnv>) => {
-      // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
-      // read-only viewer must not be able to read it out of the cache either.
-      if (!c.get("viewerCanPush")) {
-        throw new NotFound();
-      }
-
-      // Installation-world surface: the collaborators port is App-scoped.
-      const installationId = requireInstallationScope(c.get("ctx"));
+      // Push-required on the descriptor, so the router refuses a read-only
+      // viewer before this repo-shared cache is reached.
+      const installationId = readInstallationId(c.get("repoAccess"));
       const repoId = c.get("repoId");
       const key = cacheKey(installationId, repoId);
       const now = Date.now();

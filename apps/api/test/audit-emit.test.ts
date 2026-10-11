@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductActionIds } from "contract";
 import {
   createAuditMiddleware,
+  stampAuditScope,
   isAuditRowWritten,
   deriveClient,
   deriveRequestId,
@@ -34,6 +35,8 @@ import {
 } from "./session/fixtures";
 import {
   INSTALLATION_ID,
+  OPEN_POLICY,
+  brandReviewerId,
   PR_NUMBER,
   REVIEWER_ID,
   SECRET,
@@ -76,6 +79,7 @@ async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
     outcome: String(row["outcome"]),
     installation_id: stringOrNull(row["installation_id"]),
     classification: stringOrNull(row["classification"]),
+    ...OPEN_POLICY,
     channel: stringOrNull(row["channel"]),
     credential_id: stringOrNull(row["credential_id"]),
     request_id: stringOrNull(row["request_id"]),
@@ -182,6 +186,7 @@ describe("the audit choke point", () => {
       // The acting credential's tenant keys the row.
       installation_id: String(INSTALLATION_ID),
       classification: WriteClassifications.PRIVATE_WRITE,
+      ...OPEN_POLICY,
       channel: "cookie",
       client: CLI_AGENT,
       actor_id: String(REVIEWER_ID),
@@ -324,9 +329,9 @@ describe("the audit choke point", () => {
   });
 });
 
-/** What a gate contributes: a principal, and a ctx that may name another world. */
+/** What a gate contributes: a principal, and a scope that may name another. */
 interface StubGateEnv {
-  Variables: { session: unknown; ctx: unknown };
+  Variables: { session: unknown };
 }
 
 describe("the ledger's tenant", () => {
@@ -340,7 +345,7 @@ describe("the ledger's tenant", () => {
     await harness.close();
   });
 
-  it("follows the gate's ctx over the credential's stored world", async () => {
+  it("follows the stamped audit scope over the credential's stored one", async () => {
     const registry = createProductOperationRegistry();
     const root = productRouter<RequestLogEnv>();
     root.use(createAuditMiddleware({ handle: harness.handle, registry }));
@@ -353,13 +358,14 @@ describe("the ledger's tenant", () => {
         scope: WriteClassifications.EXTERNAL_WRITE,
         channel: "cookie",
       });
-      c.set("ctx", { ownerUserId: BigInt(REVIEWER_ID) });
+      stampAuditScope(c, { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) });
       await next();
     });
     gated.action(
       {
         id: ProductActionIds.SET_CHUNK_READ,
         classification: WriteClassifications.PRIVATE_WRITE,
+        ...OPEN_POLICY,
       },
       "put",
       "/read",

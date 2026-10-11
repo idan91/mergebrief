@@ -17,12 +17,13 @@ import {
   AuditChannels,
   AuditOutcomes,
   AuditRequestIdSchema,
-  isInstallationId,
+  isOwnerContext,
   WriteClassifications,
   type AppDatabase,
   type InstallationId,
   type AuditChannel,
   type AuditOutcome,
+  type ScopeContext,
 } from "persistence";
 import {
   PullRequestSources,
@@ -48,6 +49,11 @@ declare module "hono" {
      * `no-repo-access`).
      */
     auditReason?: string;
+    /**
+     * The scope the request acted in, set by each access step in turn: the
+     * credential's own, then the repo's, then the pull request row's.
+     */
+    auditScope?: ScopeContext;
   }
 }
 
@@ -89,6 +95,14 @@ export function stampAuditTarget(
     auditTarget.id = id;
   }
   c.set("auditTarget", auditTarget);
+}
+
+/** Record the scope the request acts in; a later access step narrows it. */
+export function stampAuditScope(
+  c: { set(key: "auditScope", value: ScopeContext): void },
+  scope: ScopeContext,
+): void {
+  c.set("auditScope", scope);
 }
 
 /** Name a denial whose wire code is a deliberate collapse. */
@@ -234,34 +248,24 @@ interface AuditScope {
   readonly source: PullRequestSource;
 }
 
-function readInstallationScope(value: unknown): AuditScope | undefined {
-  if (typeof value !== "bigint" || !isInstallationId(value)) {
-    return undefined;
-  }
-
-  return {
-    installationId: value,
-    source: PullRequestSources.INSTALLATION,
-  };
-}
-
 /**
- * The world the request acted in: the installation the gate resolved the
- * repo into, or the url-box world when it resolved to none or the route
- * carries no repo.
+ * The row's scope when a row resolved, else the repo's, else the
+ * credential's own: an owner scope is a URL row's, so its installation is
+ * NULL.
  */
-function readAuditScope(ctx: unknown): AuditScope | undefined {
-  if (typeof ctx !== "object" || ctx === null) {
+function deriveAuditScope(
+  scope: ScopeContext | undefined,
+): AuditScope | undefined {
+  if (scope === undefined) {
     return undefined;
   }
-
-  if ("ownerUserId" in ctx) {
+  if (isOwnerContext(scope)) {
     return { installationId: null, source: PullRequestSources.URL };
   }
-  if ("installationId" in ctx) {
-    return readInstallationScope(ctx.installationId);
-  }
-  return undefined;
+  return {
+    installationId: scope.installationId,
+    source: PullRequestSources.INSTALLATION,
+  };
 }
 
 /** `METHOD /full/path` → descriptor, built once off the committed registry. */
@@ -326,7 +330,7 @@ export function createAuditMiddleware(
     // `session` belongs to the auth layers, so it is read out of the variable
     // bag and narrowed here rather than declared on this module.
     const session = readVar(c.var, "session");
-    const scope = readAuditScope(readVar(c.var, "ctx"));
+    const scope = deriveAuditScope(c.get("auditScope"));
     const principal = readAuditPrincipal(session);
     if (scope === undefined || principal === undefined) {
       // A credential that resolves to no scope at all cannot be recorded,
@@ -338,8 +342,6 @@ export function createAuditMiddleware(
     const callerIp = config.callerIp ? getSocketAddress(c) : undefined;
     const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
-    // The world the gate resolved the request into; a route with no repo
-    // (token mint, revoke) acts in the credential's own world.
     const row: Mutable<Parameters<typeof writeAudit>[1]> = {
       installationId: scope.installationId,
       source: scope.source,

@@ -1,14 +1,4 @@
 {
-  "apps/api/src/product-operations/manifest.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "apps/api/src/product-operations/registry.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/api/src/queue.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -17,11 +7,6 @@
   "apps/api/src/routes/auth/tokens/consts.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/api/src/routes/capabilities/types.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/api/src/routes/repos/collaborators/consts.ts": {
@@ -68,11 +53,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/api/test/product-operation-manifest.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "apps/api/test/ttl-cache.test.ts": {

@@ -38,6 +38,10 @@ export function inboxRoutes(
     {
       id: ProductQueryIds.LIST_INBOX,
       classification: WriteClassifications.READ,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "/",
     handlers.listInbox,
@@ -46,6 +50,10 @@ export function inboxRoutes(
     {
       id: ProductActionIds.DELETE_OWN_PULL,
       classification: WriteClassifications.PRIVATE_WRITE,
+      humanOnly: true,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: false,
     },
     "delete",
     "/:repoId/:prNumber",

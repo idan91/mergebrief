@@ -17,6 +17,7 @@ import {
   productOperationRegistry,
 } from "../src/product-operations/registry";
 import { composeCatalog } from "./compose-catalog";
+import { OPEN_POLICY } from "./fixtures";
 
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
@@ -30,6 +31,7 @@ describe("product operation manifest", () => {
         id: "probe-op",
         kind: "query",
         classification: "read",
+        ...OPEN_POLICY,
         endpoint: "GET /api/probe",
       },
     ]);
@@ -58,7 +60,7 @@ describe("product operation manifest", () => {
     );
   });
 
-  it("committed manifest byte-equals the registry render (no drift)", async () => {
+  it("the committed manifest byte-equals the registry render", async () => {
     const { harness } = await composeCatalog();
     try {
       const committed = readFileSync(MANIFEST_PATH, "utf8");
@@ -74,12 +76,14 @@ describe("computeCatalogFingerprint", () => {
     id: "probe-op",
     kind: "query",
     classification: "read",
+    ...OPEN_POLICY,
     endpoint: "GET /api/probe",
   } as const;
   const other = {
     id: "other-op",
     kind: "query",
     classification: "read",
+    ...OPEN_POLICY,
     endpoint: "GET /api/other",
   } as const;
 

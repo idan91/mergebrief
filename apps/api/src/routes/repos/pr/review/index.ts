@@ -26,6 +26,10 @@ export function reviewSubmitRoute(
     {
       id: ProductActionIds.SUBMIT_REVIEW,
       classification: WriteClassifications.EXTERNAL_WRITE,
+      humanOnly: false,
+      pushRequired: false,
+      installationOnly: false,
+      rowRequired: true,
     },
     "post",
     "/",
