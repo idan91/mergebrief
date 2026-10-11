@@ -43,6 +43,7 @@ changes get a breaking-change entry in
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | **THE worker alert** — the queue gave up on this job, or the head spent its claims and its row ends `failed` as `attempts-exhausted` |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
+| `url-box-token.owner.fail` | error | api, worker | `status`, `code` | yes: GitHub refused `MERGEBRIEF_URL_BOX_TOKEN` at boot (401, a 403 that is not a rate limit, or 404), so it serves nobody until the token is replaced and the process restarts |
 | `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but the instance stuck at it produces no briefs all day |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |

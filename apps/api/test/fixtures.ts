@@ -8,10 +8,11 @@ import {
   bindOperatorGitHub,
   bindReviewerGitHub,
   createUserOctokit,
-  type OperatorTokenConfig,
+  type OwnedOperatorToken,
   type UserOctokitFactory,
   type UserOctokitOptions,
 } from "github";
+import { stubOwnedOperatorToken } from "github/testing";
 import {
   createEnvKeyProvider,
   isInstallationId,
@@ -113,13 +114,12 @@ export function brandRepoId(value: bigint): RepoId {
   return value;
 }
 
-/** An operator token listed for `reviewerIds`, the suites' reviewer by default. */
+/** An operator token `ownerId` owns, the suites' reviewer by default. */
 export function buildOperatorToken(
   token: string,
-  reviewerIds: readonly number[] = [REVIEWER_ID],
-): OperatorTokenConfig {
-  const listed = reviewerIds.map((id) => brandReviewerId(BigInt(id)));
-  return { token, reviewerIds: new Set(listed) };
+  ownerId: number = REVIEWER_ID,
+): OwnedOperatorToken {
+  return stubOwnedOperatorToken(token, brandReviewerId(BigInt(ownerId)));
 }
 
 /** The request URL, whatever shape `fetch` was handed. */

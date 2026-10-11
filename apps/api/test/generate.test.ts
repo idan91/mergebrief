@@ -139,7 +139,7 @@ describe("POST /api/generate: the url-box door", () => {
 
   function buildApp(
     fallbackToken?: string,
-    listedReviewerIds: readonly number[] = [Number(REVIEWER)],
+    tokenOwnerId: number = Number(REVIEWER),
   ): ApiApp {
     const deps: AppDeps = {
       logger: testLogger(),
@@ -150,7 +150,7 @@ describe("POST /api/generate: the url-box door", () => {
       operatorToken:
         fallbackToken === undefined
           ? undefined
-          : buildOperatorToken(fallbackToken, listedReviewerIds),
+          : buildOperatorToken(fallbackToken, tokenOwnerId),
     };
     return createApp(deps);
   }
@@ -428,7 +428,7 @@ describe("POST /api/generate: the url-box door", () => {
     expect(listPullReadTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 
-  it("answers an unlisted reviewer as if no operator PAT were set", async () => {
+  it("answers a non-owner as if no operator PAT were set", async () => {
     arrangePastedPull(fake);
     fake.failOn(
       "fetchPullRequest",
@@ -437,14 +437,14 @@ describe("POST /api/generate: the url-box door", () => {
     );
     const cookie = await seedOwnerSignIn(harness, kp);
 
-    const unlistedApp = buildApp(FALLBACK_PAT, [Number(OTHER_REVIEWER)]);
-    const unlisted = await post(unlistedApp, cookie, PR_URL);
+    const nonOwnerApp = buildApp(FALLBACK_PAT, Number(OTHER_REVIEWER));
+    const nonOwner = await post(nonOwnerApp, cookie, PR_URL);
     const sentTokens = listFakeCallTokens(fake);
     const unconfigured = await post(buildApp(), cookie, PR_URL);
 
     expect(sentTokens).toEqual([ACCESS_TOKEN]);
-    expect(unlisted.status).toBe(unconfigured.status);
-    expect(await unlisted.json()).toEqual(await unconfigured.json());
+    expect(nonOwner.status).toBe(unconfigured.status);
+    expect(await nonOwner.json()).toEqual(await unconfigured.json());
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 

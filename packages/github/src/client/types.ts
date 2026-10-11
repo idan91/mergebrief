@@ -2,7 +2,7 @@ import type { CompareFiles } from "brief-core";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Logger } from "logging";
 import type { Octokit } from "octokit";
-import type { InstallationId, RepoId } from "persistence";
+import type { InstallationId, RepoId, ReviewerId } from "persistence";
 import type { Brand, Result, ValueOf } from "types/utils";
 import type { UserInstallation, UserOctokitFactory } from "../auth/oauth";
 import type { GitHubApiError } from "../errors";
@@ -90,6 +90,27 @@ export interface ReviewerCredential {
 }
 
 export type OperatorToken = Brand<string, "OperatorToken">;
+
+/** The operator token and the one GitHub account it serves. */
+export interface OwnedOperatorToken {
+  readonly token: OperatorToken;
+  /** False for everyone until the owner lookup resolves, and after a refusal. */
+  isOwnedBy(reviewerId: ReviewerId): boolean;
+  /** True while the owner lookup has neither resolved nor been refused. */
+  isLookupPending(): boolean;
+}
+
+/** Runs `retry` once, `delayMs` from now. */
+export type RetryScheduler = (
+  retry: () => Promise<void>,
+  delayMs: number,
+) => void;
+
+export interface OperatorOwnerDeps {
+  readonly log: Logger;
+  readonly octokitFactory?: UserOctokitFactory;
+  readonly scheduleRetry?: RetryScheduler;
+}
 
 /**
  * The one pull request a gate passed on the operator token, and the commits

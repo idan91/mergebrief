@@ -28,7 +28,7 @@ export interface ListInboxDeps {
   readonly repos: InstallationResolver;
   /** The Inbox's own open lists, viewer token only, apart from the stack read's. */
   readonly openPullsCache: TtlCache<readonly OpenPullRequest[]>;
-  /** The operator's reader for the viewer's own url rows; absent when unlisted. */
+  /** The operator's reader for the viewer's own url rows; absent unless the viewer owns the PAT. */
   readonly operator: LiveFactsReader | undefined;
   /** The App's URL name; absent composes no Install link. */
   readonly githubAppSlug: string | undefined;

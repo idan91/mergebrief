@@ -1,33 +1,31 @@
-import { isOperatorToken, type GitHubReader } from "github";
+import type { GitHubReader, OperatorToken } from "github";
 import { createTenantRepository, type ReviewerId } from "persistence";
 import type { AuthRouteDeps } from "../routes/auth/session/types";
 import { isGitHubDenial } from "../shared-errors/failures";
 import {
   AccessFootings,
   type CachedOperatorRepoAccess,
-  type ListedOperatorToken,
   type OperatorRungRequest,
 } from "./types";
 
 /**
- * The operator PAT, only for a reviewer the Operator listed. Every door the
- * token has reads it here, so an unlisted reviewer sees an instance with no
- * operator PAT at all.
+ * The operator PAT, only for the reviewer who owns it. Every door the token
+ * has reads it here, so anyone else sees an instance with no operator PAT at
+ * all, as does everyone while the owner lookup is pending.
  */
 export function resolveOperatorTokenFor(
   deps: AuthRouteDeps,
   reviewerId: ReviewerId,
-): ListedOperatorToken {
+): OperatorToken | undefined {
   const operatorToken = deps.operatorToken;
-  if (operatorToken === undefined) {
+  if (operatorToken === undefined || !operatorToken.isOwnedBy(reviewerId)) {
     return undefined;
   }
-  const listed = operatorToken.reviewerIds.has(reviewerId);
-  return listed ? operatorToken.token : undefined;
+  return operatorToken.token;
 }
 
 /**
- * The operator's read-only GitHub for a listed reviewer, for a caller that
+ * The operator's read-only GitHub for the token's owner, for a caller that
  * chooses itself what the operator may answer; `undefined` as for no PAT.
  */
 export function bindOperatorReader(
@@ -35,7 +33,7 @@ export function bindOperatorReader(
   reviewerId: ReviewerId,
 ): GitHubReader | undefined {
   const token = resolveOperatorTokenFor(deps, reviewerId);
-  if (token === undefined || !isOperatorToken(token)) {
+  if (token === undefined) {
     return undefined;
   }
   return deps.auth.bindOperatorGitHub(token);
@@ -44,7 +42,7 @@ export function bindOperatorReader(
 /**
  * The gate's second rung. Answers ONLY when every condition holds: the
  * denial is a 404/403 (not upstream trouble), an operator PAT is configured,
- * the reader is on its reviewer list, the request names a PR, that PR exists
+ * the reader owns it, the request names a PR, that PR exists
  * in the reader's OWN url-box world, and the PAT can read the repo.
  * Otherwise `undefined` and the caller collapses to the uniform 404.
  */

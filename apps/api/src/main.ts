@@ -9,6 +9,7 @@ import {
   bindOperatorGitHub,
   bindReviewerGitHub,
   createAppClient,
+  resolveOperatorTokenOwner,
 } from "github";
 import {
   closeDb,
@@ -92,6 +93,14 @@ async function main(): Promise<void> {
 
   // One App client, so every installation binding shares its tokens.
   const githubApp = createAppClient(boot.github);
+  // Awaited once before serving; a lookup still pending serves nobody.
+  const configuredOperatorToken = boot.github.operatorToken;
+  const operatorToken =
+    configuredOperatorToken === undefined
+      ? undefined
+      : await resolveOperatorTokenOwner(configuredOperatorToken, {
+          log: logger,
+        });
   const app = createApp({
     handle,
     webhookSecret: boot.github.webhookSecret,
@@ -105,7 +114,7 @@ async function main(): Promise<void> {
     serverVersion: boot.api.serverVersion,
     bindInstallationGitHub: (installationId) =>
       bindInstallationGitHub(githubApp, installationId),
-    operatorToken: boot.github.operatorToken,
+    operatorToken,
     githubAppSlug: boot.github.appSlug,
     attachmentQuota: boot.api.attachmentQuota,
     localBriefsDir,

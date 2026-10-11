@@ -160,7 +160,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   function buildApp(
     fallbackToken?: string,
-    listedReviewerIds: readonly number[] = [REVIEWER_ID],
+    tokenOwnerId: number = REVIEWER_ID,
   ): ApiApp {
     return createApp({
       logger: testLogger(),
@@ -171,7 +171,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       operatorToken:
         fallbackToken === undefined
           ? undefined
-          : buildOperatorToken(fallbackToken, listedReviewerIds),
+          : buildOperatorToken(fallbackToken, tokenOwnerId),
     });
   }
 
@@ -227,22 +227,22 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(res.status).toBe(404);
   });
 
-  it("404s a reader who is not on the operator list", async () => {
+  it("404s a reader who does not own the operator token", async () => {
     arrangeOperatorGate(fake);
     const cookie = await signIn();
     await seedOwnerPullRequest(harness.handle);
 
-    const unlisted = await read(
-      buildApp(FALLBACK_PAT, [REVIEWER_ID + 1]),
+    const nonOwner = await read(
+      buildApp(FALLBACK_PAT, REVIEWER_ID + 1),
       cookie,
     );
     const sentTokens = listGateTokens(fake);
     const unconfigured = await read(buildApp(), cookie);
 
-    expect(unlisted.status).toBe(404);
+    expect(nonOwner.status).toBe(404);
     expect(sentTokens).toEqual([ACCESS_TOKEN]);
-    expect(unlisted.status).toBe(unconfigured.status);
-    expect(await unlisted.json()).toEqual(await unconfigured.json());
+    expect(nonOwner.status).toBe(unconfigured.status);
+    expect(await nonOwner.json()).toEqual(await unconfigured.json());
   });
 
   it("never widens an App-world brief, no owned url-box row, no second rung", async () => {

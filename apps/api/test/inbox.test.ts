@@ -700,24 +700,24 @@ describe("GET /api/inbox", () => {
     expect(await res.json()).toMatchObject({ code: "github-unavailable" });
   });
 
-  function buildAppWithOperatorToken(reviewerIds: readonly number[]): ApiApp {
+  function buildAppWithOperatorToken(ownerId: number): ApiApp {
     return createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
-      operatorToken: buildOperatorToken(OPERATOR_PAT, reviewerIds),
+      operatorToken: buildOperatorToken(OPERATOR_PAT, ownerId),
     });
   }
 
-  it("retries a listed viewer's live read on the operator token", async () => {
+  it("retries the owner's live read on the operator token", async () => {
     arrangeGitHub(fake);
     arrangeLiveUrlPull(fake);
     hideLiveReadFromViewer(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
-    app = buildAppWithOperatorToken([Number(REVIEWER)]);
+    app = buildAppWithOperatorToken(Number(REVIEWER));
 
     const res = await get("/api/inbox", cookie);
 
@@ -739,7 +739,7 @@ describe("GET /api/inbox", () => {
     );
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
-    app = buildAppWithOperatorToken([Number(REVIEWER)]);
+    app = buildAppWithOperatorToken(Number(REVIEWER));
 
     const res = await get("/api/inbox", cookie);
 
@@ -751,13 +751,13 @@ describe("GET /api/inbox", () => {
     ]);
   });
 
-  it("never sends the operator token for an unlisted viewer", async () => {
+  it("sends no operator token for a viewer who does not own it", async () => {
     arrangeGitHub(fake);
     arrangeLiveUrlPull(fake);
     hideLiveReadFromViewer(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
-    app = buildAppWithOperatorToken([Number(REVIEWER) + 1]);
+    app = buildAppWithOperatorToken(Number(REVIEWER) + 1);
 
     const res = await get("/api/inbox", cookie);
 

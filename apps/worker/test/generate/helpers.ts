@@ -32,7 +32,7 @@ import type { Mutable } from "types/utils";
 import type { CompareFiles } from "brief-core";
 import type {
   InstallationRepoClient,
-  OperatorTokenConfig,
+  OwnedOperatorToken,
   PullRequestFile,
   PullRequestInfo,
   PullRequestRef,
@@ -290,7 +290,7 @@ export function makeGitHub(
 /** The task's port over the fake, with the url-box path over this harness's grants. */
 export function openTestPort(
   github: FakeGitHub,
-  operatorToken?: OperatorTokenConfig,
+  operatorToken?: OwnedOperatorToken,
 ): GitHubPort {
   const urlBox: Mutable<UrlBoxAuthDeps> = {
     handle: harness.handle,
@@ -556,7 +556,7 @@ export interface TaskOverrides extends Omit<
   "github"
 > {
   readonly github?: FakeGitHub;
-  readonly operatorToken?: OperatorTokenConfig;
+  readonly operatorToken?: OwnedOperatorToken;
 }
 
 function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {

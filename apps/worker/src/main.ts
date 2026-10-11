@@ -8,7 +8,11 @@ import {
   resolveTrackerReads,
 } from "brief-core";
 import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
-import { createAppClient, loadConfig as loadGitHubConfig } from "github";
+import {
+  createAppClient,
+  loadConfig as loadGitHubConfig,
+  resolveOperatorTokenOwner,
+} from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
 import { createGraphileLogFactory, createLogger } from "logging";
 import {
@@ -87,7 +91,9 @@ async function main(): Promise<void> {
   }
   // The worker authenticates to GitHub as the App (installation tokens) to
   // fetch PR data, same credential set the web tier already requires.
-  const githubConfig = loadGitHubConfig(env);
+  const githubConfig = loadGitHubConfig(env, {
+    onWarning: (message) => logger.warn(message),
+  });
   if (!githubConfig.ok) {
     exitOnConfigError(
       `worker composition: invalid GitHub configuration — ${githubConfig.error.issues.join("; ")}`,
@@ -155,8 +161,14 @@ async function main(): Promise<void> {
   // url-box job, a deployment with no url-box traffic never needs the key.
   const keyProvider = createEnvKeyProvider(env);
   const urlBoxDeps: Mutable<UrlBoxAuthDeps> = { handle, keyProvider };
-  if (githubConfig.value.operatorToken !== undefined) {
-    urlBoxDeps.operatorToken = githubConfig.value.operatorToken;
+  // Awaited before the runner starts; a job denied while the lookup is
+  // still pending retries.
+  const configuredOperatorToken = githubConfig.value.operatorToken;
+  if (configuredOperatorToken !== undefined) {
+    urlBoxDeps.operatorToken = await resolveOperatorTokenOwner(
+      configuredOperatorToken,
+      { log: logger },
+    );
   }
   const configuredEffort = config.value.generator.effort;
   const configuredFullRegeneration =

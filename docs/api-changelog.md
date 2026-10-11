@@ -18,6 +18,12 @@ deprecation note here, removal only at a major.
 - **Added** `authorLogin` (string | null) on `GET /api/repos/:repoId/pulls/:prNumber`
   and on each `GET /api/inbox` item: the PR author's GitHub login, `null`
   when the stored row has none. A client that predates it ignores the field.
+- **Added** the api and worker log event `evt: "url-box-token.owner.fail"`
+  (level `error`, fields `status`, `code`): GitHub refused
+  `MERGEBRIEF_URL_BOX_TOKEN` at boot, so it serves nobody until the token is
+  replaced and the process restarts. The token now serves only the GitHub
+  account that owns it; `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` is no longer
+  read. No response shape changes.
 - **Changed** the check order under `/api/repos/:repoId/pulls/:prNumber`:
   a pull request this instance holds no row for answers `404 not-found`
   before the body or query is read (a malformed body was `400`), and a

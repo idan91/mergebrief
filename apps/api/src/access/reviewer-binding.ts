@@ -1,8 +1,4 @@
-import {
-  isOperatorToken,
-  type OperatorReads,
-  type ReviewerGitHub,
-} from "github";
+import type { OperatorReads, ReviewerGitHub } from "github";
 import type { Logger } from "logging";
 import {
   createArtifactStore,
@@ -74,7 +70,7 @@ function buildOperatorReads(
 ): OperatorReads | undefined {
   const token = resolveOperatorTokenFor(deps, access.session.reviewerId);
   const repo = parseOwnerAndName(access.repoFullName);
-  if (token === undefined || !isOperatorToken(token) || repo === undefined) {
+  if (token === undefined || repo === undefined) {
     return undefined;
   }
   let known: Promise<KnownCommits> | undefined;

@@ -9,3 +9,16 @@ export const CREATE_OCTOKIT_OPTIONS = {
   retry: false,
   maxRetryAfterSeconds: 20,
 } as const satisfies UserOctokitOptions;
+
+/**
+ * The owner lookup runs its own backoff, and a rate-limit wait would hold
+ * boot, so octokit neither retries nor waits.
+ */
+export const OWNER_LOOKUP_OCTOKIT_OPTIONS = {
+  retry: false,
+  maxRetryAfterSeconds: 0,
+} as const satisfies UserOctokitOptions;
+
+export const OWNER_LOOKUP_TIMEOUT_MS = 10_000;
+export const OWNER_RETRY_FIRST_DELAY_MS = 30_000;
+export const OWNER_RETRY_MAX_DELAY_MS = 900_000;

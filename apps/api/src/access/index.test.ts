@@ -1,9 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { Hono, type Handler } from "hono";
+import type { OwnedOperatorToken } from "github";
 import {
   CredentialKinds,
   FakeFailures,
   makeFakeGitHub,
+  stubOwnedOperatorToken,
+  stubPendingOperatorToken,
   type FakeGitHub,
 } from "github/testing";
 import type { Logger } from "logging";
@@ -88,11 +91,16 @@ afterAll(async () => {
 });
 
 const REPO_IN_INSTALLATION = 9101n;
+const OPERATOR_PAT = "operator-pat";
+const VIEWER_OWNED_TOKEN = stubOwnedOperatorToken(
+  OPERATOR_PAT,
+  brand(42n, isReviewerId),
+);
 
 interface GateAppOptions {
   readonly channel?: ViewerPrincipal["channel"];
   readonly installations?: InstallationResolver;
-  readonly operatorToken?: string;
+  readonly operatorToken?: OwnedOperatorToken;
 }
 
 const INSTALLATION_ID = brand(10n, isInstallationId);
@@ -183,10 +191,7 @@ async function buildGateApp(
     },
   };
   if (options.operatorToken !== undefined) {
-    deps.operatorToken = {
-      token: options.operatorToken,
-      reviewerIds: new Set([session.reviewerId]),
-    };
+    deps.operatorToken = options.operatorToken;
   }
   const app = new Hono<AuthzEnv>();
   app.onError(createErrorHandler<AuthzEnv>(log));
@@ -312,7 +317,7 @@ describe("repoAuthzLayer refresh disambiguation", () => {
 
 describe("repoAuthzLayer upstream failures", () => {
   it("answers a GitHub outage 502 without the operator rung", async () => {
-    const app = await buildGateApp({ operatorToken: "operator-pat" });
+    const app = await buildGateApp({ operatorToken: VIEWER_OWNED_TOKEN });
     await createTenantRepository(harness.handle, {
       ownerUserId: brand(42n, isReviewerId),
     }).pullRequests.upsert({
@@ -409,7 +414,7 @@ describe("repoAuthzLayer repo world", () => {
     const installations = stubInstallations();
     const app = await buildGateApp({
       installations,
-      operatorToken: "operator-pat",
+      operatorToken: VIEWER_OWNED_TOKEN,
     });
     await createTenantRepository(harness.handle, {
       ownerUserId: brand(42n, isReviewerId),
@@ -429,6 +434,57 @@ describe("repoAuthzLayer repo world", () => {
   });
 });
 
+describe("repoAuthzLayer operator token owner", () => {
+  async function seedDeniedPr(): Promise<void> {
+    await createTenantRepository(harness.handle, {
+      ownerUserId: brand(42n, isReviewerId),
+    }).pullRequests.upsert({
+      repoId: brand(8891n, isRepoId),
+      prNumber: 3,
+      repoSlug: "other/owned",
+      state: PrStates.OPEN,
+    });
+    denyViewer(8891n, "other/owned");
+  }
+
+  function listOperatorReads(): number {
+    return fake
+      .listCalls("fetchRepositoryById")
+      .filter((call) => call.credential.kind === CredentialKinds.OPERATOR)
+      .length;
+  }
+
+  it.each([
+    {
+      name: "another account owns the token",
+      token: stubOwnedOperatorToken(OPERATOR_PAT, brand(43n, isReviewerId)),
+    },
+    {
+      name: "the owner lookup is pending",
+      token: stubPendingOperatorToken(OPERATOR_PAT),
+    },
+  ])("answers the plain 404 when $name", async ({ token }) => {
+    const app = await buildGateApp({ operatorToken: token });
+    await seedDeniedPr();
+
+    const res = await app.request("/8891/pulls/3/probe");
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(listOperatorReads()).toBe(0);
+  });
+
+  it("passes the rung for the viewer who owns the token", async () => {
+    const app = await buildGateApp({ operatorToken: VIEWER_OWNED_TOKEN });
+    await seedDeniedPr();
+
+    const res = await app.request("/8891/pulls/3/probe");
+
+    expect(res.status).toBe(200);
+    expect(listOperatorReads()).toBe(1);
+  });
+});
+
 describe("repoAuthzLayer path bounds", () => {
   it("answers 404 for an oversized repo id without asking GitHub", async () => {
     const app = await buildGateApp();
@@ -441,7 +497,7 @@ describe("repoAuthzLayer path bounds", () => {
   });
 
   it("answers 404 for an oversized pull number on the operator rung", async () => {
-    const app = await buildGateApp({ operatorToken: "operator-pat" });
+    const app = await buildGateApp({ operatorToken: VIEWER_OWNED_TOKEN });
     denyViewer(8888n, "other/private");
 
     const res = await app.request("/8888/pulls/2147483648/probe");
@@ -469,7 +525,7 @@ describe("repoAuthzLayer repo access", () => {
   });
 
   it("sets an operator-footed access pinned to the granted PR", async () => {
-    const app = await buildGateApp({ operatorToken: "operator-pat" });
+    const app = await buildGateApp({ operatorToken: VIEWER_OWNED_TOKEN });
     await createTenantRepository(harness.handle, {
       ownerUserId: brand(42n, isReviewerId),
     }).pullRequests.upsert({

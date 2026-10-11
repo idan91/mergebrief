@@ -8,7 +8,6 @@ import {
   bindOperatorGitHub,
   bindReviewerGitHub,
   GitHubApiErrorCodes,
-  isOperatorToken,
   type AppClient,
   type GitHubApiError,
   type GitHubCall,
@@ -18,7 +17,7 @@ import {
   type InstallationRepoClient,
   type IssueInfo,
   type OperatorToken,
-  type OperatorTokenConfig,
+  type OwnedOperatorToken,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
@@ -42,7 +41,7 @@ import {
 import { GenerationFailureCodes } from "types/generations";
 import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
-import { PermanentJobError } from "./failure";
+import { PermanentJobError, TransientJobError } from "./failure";
 
 /** The Entry comment's operations; only an installation job has them. */
 export type EntryComments = Pick<
@@ -102,11 +101,12 @@ export interface GitHubPort {
   /**
    * Open a source for a url-box job: resolve the grant, decrypt the viewer's
    * access token, and probe the PR once. A viewer denial switches the job to
-   * the operator token when one is configured and lists `ownerUserId` (a
+   * the operator token when one is configured and `ownerUserId` owns it (a
    * GitHub App user token is installation-scoped and cannot read a private
-   * repo the App is not installed on, even for the repo's owner). A
-   * missing/unreadable grant is a permanent `github-access` failure: the fix
-   * is a fresh paste, not a retry.
+   * repo the App is not installed on, even for the repo's owner). A denial
+   * while the owner lookup is pending is transient. A missing/unreadable
+   * grant is a permanent `github-access` failure: the fix is a fresh paste,
+   * not a retry.
    */
   openUrlBoxPullRequestSource(
     request: UrlBoxSourceRequest,
@@ -127,8 +127,8 @@ export interface GitHubBinders {
 export interface UrlBoxAuthDeps {
   readonly handle: AppDatabase;
   readonly keyProvider: KeyProvider;
-  /** Operator token backstop and the reviewers it may be used for; optional. */
-  readonly operatorToken?: OperatorTokenConfig;
+  /** Operator token backstop, serving only its owner; optional. */
+  readonly operatorToken?: OwnedOperatorToken;
 }
 
 /** The two halves of a stored `owner/repo` full name. */
@@ -216,19 +216,23 @@ function buildPermanentAccessFailure(message: string): PermanentJobError {
   });
 }
 
-/** The operator token, only for a reviewer the Operator listed. */
+/**
+ * The operator token, only for the job's owner when it owns the token. A
+ * pending owner lookup cannot answer yet, so the job retries.
+ */
 function resolveOperatorTokenFor(
-  operatorToken: OperatorTokenConfig | undefined,
+  operatorToken: OwnedOperatorToken,
   ownerUserId: ReviewerId,
 ): OperatorToken | undefined {
-  if (operatorToken === undefined) {
-    return undefined;
+  if (operatorToken.isOwnedBy(ownerUserId)) {
+    return operatorToken.token;
   }
-  const listed = operatorToken.reviewerIds.has(ownerUserId);
-  if (!listed || !isOperatorToken(operatorToken.token)) {
-    return undefined;
+  if (operatorToken.isLookupPending()) {
+    throw new TransientJobError("url-box token owner lookup pending", {
+      failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
+    });
   }
-  return operatorToken.token;
+  return undefined;
 }
 
 /** The worker holds no refresh token path: a rejected viewer token stays rejected. */
@@ -343,11 +347,13 @@ async function openUrlBoxSource(
     ...bindPullRequestReads(viewer, client, prNumber),
     listOpenPullRequests: () => client.listOpenPullRequests(),
   };
-  const operatorToken = resolveOperatorTokenFor(
-    urlBox.operatorToken,
-    ownerUserId,
-  );
+  const { operatorToken } = urlBox;
   if (operatorToken === undefined) {
+    return viewerSource;
+  }
+  const mayServeOwner =
+    operatorToken.isOwnedBy(ownerUserId) || operatorToken.isLookupPending();
+  if (!mayServeOwner) {
     return viewerSource;
   }
 
@@ -355,10 +361,14 @@ async function openUrlBoxSource(
   // on the operator token; any other outcome keeps the viewer, with the
   // probe result served once and the task's own reads surfacing any error.
   const probe = await viewerSource.fetchPullRequest();
-  if (isDeniedProbe(probe)) {
-    return openOperatorSource(binders, operatorToken, repo, prNumber);
+  if (!isDeniedProbe(probe)) {
+    return serveProbeOnce(viewerSource, probe);
   }
-  return serveProbeOnce(viewerSource, probe);
+  const ownedToken = resolveOperatorTokenFor(operatorToken, ownerUserId);
+  if (ownedToken === undefined) {
+    return serveProbeOnce(viewerSource, probe);
+  }
+  return openOperatorSource(binders, ownedToken, repo, prNumber);
 }
 
 /** The App's installation binding and the package's reviewer and operator bindings. */

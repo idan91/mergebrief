@@ -53,7 +53,9 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  const githubConfig = loadGitHubConfig(env);
+  const githubConfig = loadGitHubConfig(env, {
+    onWarning: (message) => logger.warn(message),
+  });
   if (!githubConfig.ok) {
     exitOnConfigError(
       logger,

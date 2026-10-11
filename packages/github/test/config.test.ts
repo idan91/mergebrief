@@ -152,103 +152,67 @@ describe("loadConfig", () => {
     );
   });
 
-  describe("the operator token and its reviewer list", () => {
+  describe("the operator token", () => {
     const OPERATOR_TOKEN = "github_pat_OPERATOR_FIXTURE";
-    const REVIEWERS_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
+    const REMOVED_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
 
-    it("parses a token and its list into a set of reviewer ids", () => {
+    function loadWithWarnings(env: Record<string, string>): {
+      readonly config: GitHubConfig;
+      readonly warnings: string[];
+    } {
+      const warnings: string[] = [];
       const config = ok(
-        loadConfig({
-          ...BASE_ENV,
-          MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
-          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "583231, 9919 ,583231",
-        }),
+        loadConfig(env, { onWarning: (message) => warnings.push(message) }),
       );
+      return { config, warnings };
+    }
 
-      expect(config.operatorToken?.token).toBe(OPERATOR_TOKEN);
-      expect([...(config.operatorToken?.reviewerIds ?? [])]).toEqual([
-        583231n,
-        9919n,
-      ]);
+    it("parses the token alone", () => {
+      const { config, warnings } = loadWithWarnings({
+        ...BASE_ENV,
+        MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+      });
+
+      expect(config.operatorToken).toBe(OPERATOR_TOKEN);
+      expect(warnings).toEqual([]);
     });
 
-    it("leaves the operator token absent when both keys are empty", () => {
+    it("leaves the operator token absent when it is empty", () => {
       const config = ok(
-        loadConfig({
-          ...BASE_ENV,
-          MERGEBRIEF_URL_BOX_TOKEN: "",
-          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "",
-        }),
+        loadConfig({ ...BASE_ENV, MERGEBRIEF_URL_BOX_TOKEN: "" }),
       );
 
       expect(config.operatorToken).toBeUndefined();
     });
 
-    it("leaves the operator token absent when both keys are unset", () => {
-      const config = ok(loadConfig(BASE_ENV));
-
-      expect(config.operatorToken).toBeUndefined();
-    });
-
-    it("refuses a token with no reviewer list", () => {
-      const error = err(
-        loadConfig({ ...BASE_ENV, MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN }),
-      );
-
-      expect(error.issues).toEqual([
-        `${REVIEWERS_KEY}: required when MERGEBRIEF_URL_BOX_TOKEN is set`,
-      ]);
-    });
-
-    it("refuses a token whose reviewer list is empty", () => {
-      const error = err(
-        loadConfig({
-          ...BASE_ENV,
-          MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
-          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "",
-        }),
-      );
-
-      expect(error.issues).toEqual([
-        `${REVIEWERS_KEY}: required when MERGEBRIEF_URL_BOX_TOKEN is set`,
-      ]);
+    it("leaves the operator token absent when it is unset", () => {
+      expect(ok(loadConfig(BASE_ENV)).operatorToken).toBeUndefined();
     });
 
     it.each([
-      "octocat",
-      "583231,octocat",
-      "583231,",
-      "0",
-      "-5",
-      "1".repeat(20),
-    ])(
-      "refuses a malformed reviewer list without echoing it: %#",
-      (reviewers) => {
-        const error = err(
-          loadConfig({
-            ...BASE_ENV,
-            MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
-            MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: reviewers,
-          }),
-        );
-        const joined = [error.message, ...error.issues].join(" ");
+      { name: "with the token", token: OPERATOR_TOKEN },
+      { name: "without the token", token: "" },
+    ])("warns once about the removed reviewer list $name", ({ token }) => {
+      const { config, warnings } = loadWithWarnings({
+        ...BASE_ENV,
+        MERGEBRIEF_URL_BOX_TOKEN: token,
+        [REMOVED_KEY]: "583231,not-an-id",
+      });
 
-        expect(error.issues).toHaveLength(1);
-        expect(error.issues[0]).toMatch(new RegExp(`^${REVIEWERS_KEY}: `));
-        expect(joined).not.toContain(reviewers);
-        expect(joined).not.toContain(OPERATOR_TOKEN);
-      },
-    );
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(REMOVED_KEY);
+      expect(warnings[0]).not.toContain("583231");
+      expect(config.operatorToken).toBe(token === "" ? undefined : token);
+    });
 
-    it("ignores a reviewer list when no token is set", () => {
-      const config = ok(
-        loadConfig({
-          ...BASE_ENV,
-          MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS: "not-an-id",
-        }),
-      );
+    it("stays silent about an empty removed reviewer list", () => {
+      const { warnings } = loadWithWarnings({
+        ...BASE_ENV,
+        MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+        [REMOVED_KEY]: "",
+      });
 
-      expect(config.operatorToken).toBeUndefined();
+      expect(warnings).toEqual([]);
     });
   });
 

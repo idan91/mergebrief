@@ -17,7 +17,7 @@ import { generateRoute } from "./generate";
 import { inboxRoutes } from "./inbox";
 import { localBriefsRoutes } from "./local-briefs";
 import type { OpenPullRequest } from "brief-core/pr-stack";
-import type { OperatorTokenConfig } from "github";
+import type { OwnedOperatorToken } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
 import type { InstallationBinder } from "../access/types";
@@ -57,10 +57,10 @@ export interface AppDeps {
    * caller ip off. */
   readonly audit?: AuditEmitConfig;
   /**
-   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) and the reviewers it
-   * may be used for. Absent disables the fallback.
+   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`), serving only its
+   * owner. Absent disables the fallback.
    */
-  readonly operatorToken?: OperatorTokenConfig | undefined;
+  readonly operatorToken?: OwnedOperatorToken | undefined;
   /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
   readonly githubAppSlug?: string | undefined;
   /** Per-reviewer attachment upload limits; omitted = the defaults. */

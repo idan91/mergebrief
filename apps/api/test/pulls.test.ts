@@ -458,16 +458,16 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    const listedApp = createApp({
+    const operatorApp = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
-      operatorToken: buildOperatorToken("ghp_OPERATOR_PAT", [REVIEWER_ID]),
+      operatorToken: buildOperatorToken("ghp_OPERATOR_PAT"),
     });
 
-    const res = await listedApp.request(`/api/repos/${REPO_A}/pulls/8`, {
+    const res = await operatorApp.request(`/api/repos/${REPO_A}/pulls/8`, {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
 

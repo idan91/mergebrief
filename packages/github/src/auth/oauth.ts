@@ -182,18 +182,33 @@ const userResponseSchema = z.object({
   login: z.string().min(1),
 });
 
+/** The account a user token belongs to. */
+export interface AuthenticatedUser {
+  readonly reviewerId: ReviewerId;
+  readonly reviewerLogin: string;
+}
+
 /**
  * Resolve the authenticated reviewer for a user access token, branding the
  * numeric id. An ill-shaped 2xx body or non-positive id fails the parse.
  */
-export async function fetchAuthenticatedUser(
+export function fetchAuthenticatedUser(
   accessToken: string,
-): Promise<
-  Result<{ reviewerId: ReviewerId; reviewerLogin: string }, GitHubApiError>
-> {
-  const octokit = new Octokit({ auth: accessToken });
+): Promise<Result<AuthenticatedUser, GitHubApiError>> {
+  return requestAuthenticatedUser(new Octokit({ auth: accessToken }));
+}
+
+/** `fetchAuthenticatedUser` on a client the caller built and tuned. */
+export async function requestAuthenticatedUser(
+  octokit: Octokit,
+  signal?: AbortSignal,
+): Promise<Result<AuthenticatedUser, GitHubApiError>> {
+  const requestOptions: { request?: { signal: AbortSignal } } = {};
+  if (signal !== undefined) {
+    requestOptions.request = { signal };
+  }
   try {
-    const response = await octokit.request("GET /user");
+    const response = await octokit.request("GET /user", requestOptions);
     const parsed = userResponseSchema.safeParse(response.data);
     if (!parsed.success) {
       return {

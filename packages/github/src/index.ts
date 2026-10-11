@@ -5,12 +5,7 @@
 
 // Zod-parsed env config; env is injected, never read from `process.env`.
 export { loadConfig, ConfigErrorCodes } from "./config";
-export type {
-  GitHubConfig,
-  OperatorTokenConfig,
-  ConfigError,
-  ConfigErrorCode,
-} from "./config";
+export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
 // Shared sanitized API-error shape: the single sanitization chokepoint.
 export { GitHubApiErrorCodes } from "./errors";
@@ -53,6 +48,7 @@ export type {
 export { bindReviewerGitHub } from "./client/reviewer";
 export { bindInstallationGitHub } from "./client/installation";
 export { bindOperatorGitHub, isOperatorToken } from "./client/operator";
+export { resolveOperatorTokenOwner } from "./client/operator-owner";
 export { CredentialFailureCodes } from "./client/types";
 export type {
   CredentialFailure,
@@ -65,6 +61,7 @@ export type {
   OperatorBindingOptions,
   OperatorReads,
   OperatorToken,
+  OwnedOperatorToken,
   RepoReader,
   RepoScoped,
   ReviewerBindingOptions,

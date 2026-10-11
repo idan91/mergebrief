@@ -102,8 +102,6 @@ export interface PullRequestEnv {
   readonly Variables: PullRequestVariables;
 }
 
-export type ListedOperatorToken = string | undefined;
-
 /** The App's GitHub on one Installation; composition binds it over the App client. */
 export type InstallationBinder = (
   installationId: InstallationId,

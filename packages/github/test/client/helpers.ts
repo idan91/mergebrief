@@ -6,10 +6,10 @@ import {
   createUserOctokit,
   type UserOctokitFactory,
 } from "../../src/auth/oauth";
-import type { InstallationId, RepoId } from "persistence";
+import type { InstallationId, RepoId, ReviewerId } from "persistence";
 import { isOperatorToken } from "../../src/client/operator";
 import type { OperatorToken, ReviewerCredential } from "../../src/client/types";
-import { isInstallationId, isRepoId } from "../../src/ids";
+import { isInstallationId, isRepoId, isReviewerId } from "../../src/ids";
 
 export interface RecordedRequest {
   readonly method: string;
@@ -20,6 +20,7 @@ export interface RecordedRequest {
 export interface StubResponse {
   readonly status: number;
   readonly body: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 export type RouteHandler = (request: RecordedRequest) => StubResponse;
@@ -49,7 +50,7 @@ export function stubGitHubFetch(route: RouteHandler): GitHubFetchStub {
       const answer = route(request);
       return new Response(JSON.stringify(answer.body), {
         status: answer.status,
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...answer.headers },
       });
     },
   );
@@ -67,7 +68,10 @@ export function makeOctokitFactory(stub: GitHubFetchStub): UserOctokitFactory {
 }
 
 export function makeLogger(): Logger & {
+  readonly error: ReturnType<typeof vi.fn>;
   readonly warn: ReturnType<typeof vi.fn>;
+  readonly info: ReturnType<typeof vi.fn>;
+  readonly debug: ReturnType<typeof vi.fn>;
 } {
   const logger = {
     error: vi.fn(),
@@ -170,6 +174,13 @@ export function requireRepoId(value: bigint): RepoId {
 export function requireInstallationId(value: bigint): InstallationId {
   if (!isInstallationId(value)) {
     throw new Error("test installation id must be positive");
+  }
+  return value;
+}
+
+export function requireReviewerId(value: bigint): ReviewerId {
+  if (!isReviewerId(value)) {
+    throw new Error("test reviewer id must be positive");
   }
   return value;
 }

@@ -6,11 +6,14 @@ import { isGrantRowId, parseTenantContext, type GrantRowId } from "persistence";
 import {
   CredentialKinds,
   FakeFailures,
+  stubOwnedOperatorToken,
+  stubPendingOperatorToken,
   type FakeCredential,
   type FakeGitHub,
 } from "github/testing";
+import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
-import { PermanentJobError } from "../src/task/failure";
+import { PermanentJobError, TransientJobError } from "../src/task/failure";
 import { createGitHubPort } from "../src/task/github-port";
 import {
   makeGitHub,
@@ -29,10 +32,8 @@ setUpHarness();
 
 const OWNER = makeReviewerId(555n);
 const OPERATOR_TOKEN = "ghp_operator";
-const LISTED_OPERATOR = {
-  token: OPERATOR_TOKEN,
-  reviewerIds: new Set([OWNER]),
-};
+const OWNED_OPERATOR = stubOwnedOperatorToken(OPERATOR_TOKEN, OWNER);
+const PENDING_OPERATOR = stubPendingOperatorToken(OPERATOR_TOKEN);
 const { installationId } = parseTenantContext({ installationId: 42 });
 
 const AS_VIEWER: FakeCredential = {
@@ -122,7 +123,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     // The probe result is served once: the task's first read costs nothing.
@@ -163,7 +164,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     const read = await source.fetchPullRequest();
@@ -196,7 +197,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     const read = await source.fetchPullRequest();
@@ -215,7 +216,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     const open = await source.listOpenPullRequests();
@@ -239,7 +240,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     const own = await source.fetchIssue("acme", "widget", 3);
@@ -256,7 +257,7 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
     const result = await source.fetchPullRequest();
@@ -281,13 +282,13 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     expect(listCredentials(github)).toEqual([AS_VIEWER]);
   });
 
-  it("keeps the viewer binding for a reviewer off the list", async () => {
+  it("keeps the viewer binding for a reviewer who does not own the token", async () => {
     const github = makeGitHub(HEAD_1);
     github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
     const grantId = await seedViewerGrant();
     const source = await openTestPort(
       github,
-      LISTED_OPERATOR,
+      OWNED_OPERATOR,
     ).openUrlBoxPullRequestSource(
       makeUrlBoxRequest(grantId, makeReviewerId(556n)),
     );
@@ -297,6 +298,41 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     const result = await source.fetchPullRequest();
 
     expect(result.ok).toBe(false);
+    expect(listCredentials(github)).toEqual([AS_VIEWER]);
+  });
+
+  it("retries the job when a denied probe meets a pending owner lookup", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const grantId = await seedViewerGrant();
+
+    const opened = openTestPort(
+      github,
+      PENDING_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
+    await expect(opened).rejects.toThrow(TransientJobError);
+    await expect(opened).rejects.toMatchObject({
+      failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
+    });
+    expect(listCredentials(github)).toEqual([AS_VIEWER]);
+  });
+
+  it("keeps the viewer when its probe passes during a pending lookup", async () => {
+    const github = makeGitHub(HEAD_1);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      PENDING_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
+    const read = await source.fetchPullRequest();
+
+    expect(read.ok).toBe(true);
     expect(listCredentials(github)).toEqual([AS_VIEWER]);
   });
 

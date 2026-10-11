@@ -1,7 +1,7 @@
 import type {
   bindOperatorGitHub,
   bindReviewerGitHub,
-  OperatorTokenConfig,
+  OwnedOperatorToken,
 } from "github";
 import type {
   AppDatabase,
@@ -31,11 +31,11 @@ export interface AuthRouteDeps {
   readonly auth: AuthDeps;
   readonly draftPolicy?: DraftPolicy;
   /**
-   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) and the reviewers it
-   * may be used for. Read only through `resolveOperatorTokenFor`. Absent
-   * disables the fallback everywhere.
+   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`), serving only its
+   * owner. Read only through `resolveOperatorTokenFor`. Absent disables the
+   * fallback everywhere.
    */
-  readonly operatorToken?: OperatorTokenConfig | undefined;
+  readonly operatorToken?: OwnedOperatorToken | undefined;
   /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
   readonly githubAppSlug?: string | undefined;
 }

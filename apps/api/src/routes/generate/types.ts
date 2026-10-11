@@ -7,7 +7,7 @@ import type { GitHubDeniedFailure } from "../../shared-errors/failures";
 export interface GenerateBriefDeps {
   readonly handle: AppDatabase;
   /**
-   * The operator's read-only GitHub for a listed reviewer: a GitHub App user
+   * The operator's read-only GitHub for the PAT's owner: a GitHub App user
    * token cannot read a private repo the App is not installed on, even for
    * the repo's owner. Asked once, only after the viewer's read is denied.
    */

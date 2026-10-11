@@ -13,6 +13,7 @@ What the layout can't show:
 - HMAC verification is raw-body and constant-time (`webhook/verify.ts`).
 - `operations/repo-file.ts` reads with ref unset = default branch (the trust rule).
 - `operations/collaborators.ts` lists with affiliation ALL (org/team-granted included).
+- `client/operator-owner.ts` resolves the operator PAT's owner once at boot (`GET /user`) and serves that id only. A 401, a non-rate-limit 403 or a 404 refuses it for the process lifetime; any other failure serves nobody while an unref'd timer retries (30 s doubling to 15 min).
 
 ## Invariants (enforced, don't weaken)
 
