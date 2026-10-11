@@ -4,7 +4,11 @@
 // rather than serve a half-wired surface.
 import { serve, type ServerType } from "@hono/node-server";
 import { RUNTIME_MARKER_VAR } from "generators/instance-policy";
-import { createAppClient, createUserOctokit } from "github";
+import {
+  bindInstallationGitHub,
+  createAppClient,
+  createUserOctokit,
+} from "github";
 import {
   closeDb,
   createDb,
@@ -86,6 +90,8 @@ async function main(): Promise<void> {
       ? undefined
       : resolveLocalBriefsDir(configuredOutDir, process.cwd());
 
+  // One App client, so the attachment port and the binder share its tokens.
+  const githubApp = createAppClient(boot.github);
   const app = createApp({
     handle,
     webhookSecret: boot.github.webhookSecret,
@@ -97,7 +103,9 @@ async function main(): Promise<void> {
       callerIp: boot.persistence.auditCallerIp,
     },
     serverVersion: boot.api.serverVersion,
-    github: appInstallationPort(createAppClient(boot.github)),
+    github: appInstallationPort(githubApp),
+    bindInstallationGitHub: (installationId) =>
+      bindInstallationGitHub(githubApp, installationId),
     operatorToken: boot.github.operatorToken,
     githubAppSlug: boot.github.appSlug,
     attachmentQuota: boot.api.attachmentQuota,

@@ -8,6 +8,7 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { buildAuthDeps, createKeyProvider } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const HEADER = "MergeBrief-Version";
 
@@ -24,22 +25,7 @@ describe("MergeBrief-Version response header", () => {
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
       serverVersion: "1.4.0",
     });
   });

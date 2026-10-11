@@ -22,6 +22,7 @@ import {
   createTestUserOctokit,
 } from "./fixtures";
 import { seedApiToken, seedSession } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 
@@ -75,22 +76,7 @@ describe("GET /api/version", () => {
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
       serverVersion: "1.2.3",
       updateCheck,
     });

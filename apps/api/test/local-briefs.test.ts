@@ -24,6 +24,7 @@ import {
 } from "./local-briefs-fixtures";
 import { testLogger } from "./logging";
 import { seedSession } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 const LIST_PATH = "/api/local-briefs";
@@ -81,20 +82,7 @@ describe("/api/local-briefs", () => {
       webhookSecret: "test-webhook-secret",
       auth: buildAuthDeps(kp),
       localBriefsDir,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("github port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error("github port must not be called in this suite");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
   }
 

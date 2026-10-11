@@ -27,6 +27,7 @@ import {
   createKeyProvider,
 } from "../fixtures";
 import type { KeyProvider } from "persistence";
+import { UNUSED_INSTALLATION_DEPS } from "../reviewer-github";
 
 /** The payload's shape as the assertions read it: the test-side boundary. */
 interface SessionBody {
@@ -71,20 +72,7 @@ describe("read-review-session", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: () => {
-          throw new Error("conversation port must not be called");
-        },
-        listRepoCollaborators: () => {
-          throw new Error("collaborators port must not be called");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
     stubGitHub();
     cookie = await seedSession(harness.handle, kp);

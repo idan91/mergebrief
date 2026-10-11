@@ -22,6 +22,7 @@ import { shapeCatalogOperations } from "../src/product-operations/manifest";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
 import { KEY_REF, brandReviewerId, createTestUserOctokit } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
@@ -63,20 +64,7 @@ describe("GET /api/capabilities", () => {
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("github port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error("github port must not be called in this suite");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

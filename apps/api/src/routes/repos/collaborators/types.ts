@@ -1,21 +1,23 @@
-import type { GitHubApiError } from "github";
-import type { InstallationId } from "persistence";
-import type { InstallationGitHubPort } from "../../github-port";
+import type { GitHubCallFailure } from "github";
+import type { InstallationBindingDeps } from "../../../access/types";
 import type { FailureKinds } from "../../../shared-errors/failures";
+import type { TtlCache } from "../../ttl-cache";
 
-/** Narrow slice: the installation-token channel is the only dependency. */
-export interface CollaboratorsControllerDeps {
-  readonly github: InstallationGitHubPort;
+export interface CollaboratorsDeps extends InstallationBindingDeps {
+  /** Serialized rosters keyed by Installation and repo, shared across viewers. */
+  readonly cache: TtlCache<string>;
 }
 
-/** Op-specific failure: the whole lower-layer error rides the Result. */
-export interface CollaboratorsFailure {
+export interface CollaboratorsDeniedFailure {
   readonly kind: typeof FailureKinds.GITHUB_DENIED;
-  readonly error: GitHubApiError;
+  readonly error: GitHubCallFailure;
 }
 
-export interface ListCollaboratorsInput {
-  readonly installationId: InstallationId;
-  readonly owner: string;
-  readonly repo: string;
+/** The gate's verified slug would not split into owner and name. */
+export interface CollaboratorsNotFoundFailure {
+  readonly kind: "not-found";
 }
+
+export type ListCollaboratorsFailure =
+  | CollaboratorsDeniedFailure
+  | CollaboratorsNotFoundFailure;

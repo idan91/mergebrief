@@ -1,16 +1,18 @@
-// Collaborators-surface integration tests against `createApp` over the PGlite
-// harness. The installation-token GraphQL read enters through the injected and
-// stubbed `InstallationGitHubPort`, and the gate's access check hits the
-// global-fetch stub. viewerCanPush must deny with NO port call.
-import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
-import { type InstallationId, type KeyProvider } from "persistence";
+// GET /api/repos/:repoId/collaborators over the PGlite harness. The roster
+// read reaches the `github/testing` fake through the installation binding;
+// the gate's access check answers over `fetch`. A read-only viewer must be
+// refused with NO roster read.
+import type { RepoCollaborators } from "github";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
+import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createApp,
-  type ApiApp,
-  type InstallationGitHubPort,
-} from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
@@ -23,15 +25,12 @@ import {
   getRequestUrl,
   answerInstallationRepositories,
 } from "./fixtures";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import { buildFakeInstallationDeps } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
-
-const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
-
-// ---------------------------------------------------------------------------
-// Port stub, canned results, call log for cache/guard asserts.
-// ---------------------------------------------------------------------------
+const COLLABORATORS_PATH = `/api/repos/${REPO_ID}/collaborators`;
 
 function rosterFixture(): RepoCollaborators {
   return {
@@ -47,47 +46,12 @@ function rosterFixture(): RepoCollaborators {
   };
 }
 
-interface PortLog {
-  readonly calls: Array<{
-    installationId: InstallationId;
-    input: ListRepoCollaboratorsInput;
-  }>;
-}
-
-function stubPort(
-  results: Array<
-    Awaited<ReturnType<InstallationGitHubPort["listRepoCollaborators"]>>
-  >,
-): { port: InstallationGitHubPort; log: PortLog } {
-  const log: PortLog = { calls: [] };
-  let call = 0;
-  return {
-    log,
-    port: {
-      fetchPullRequestConversation: async () => {
-        throw new Error("conversation port must not be called in this suite");
-      },
-      async listRepoCollaborators(installationId, input) {
-        log.calls.push({ installationId, input });
-        const result = results[Math.min(call, results.length - 1)];
-        call += 1;
-        if (result === undefined) {
-          throw new Error("port stub exhausted");
-        }
-        return result;
-      },
-      commitAttachment: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-      deleteAttachmentBranch: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-    },
-  };
+function listRosterReads(fake: FakeGitHub) {
+  return fake.listCalls("listRepoCollaborators");
 }
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch), the gate's access check only.
+// The gate's access check over global fetch; `push` drives the roster guard.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -100,7 +64,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** Gate probe: viewer has access; `push` controls the roster guard. */
 function repoOk(push: boolean): Response {
   return jsonResponse({
     id: REPO_ID,
@@ -110,12 +73,10 @@ function repoOk(push: boolean): Response {
   });
 }
 
-function stubGitHub(
+function stubRepoAccess(
   repositories: (call: number) => Response,
   installationRepos: readonly number[] = [REPO_ID],
-): {
-  counts: { repositories: number };
-} {
+): { counts: { repositories: number } } {
   const counts = { repositories: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
@@ -135,12 +96,6 @@ function stubGitHub(
   return { counts };
 }
 
-// ---------------------------------------------------------------------------
-// Seeding + request helpers.
-// ---------------------------------------------------------------------------
-
-const COLLABORATORS_PATH = `/api/repos/${REPO_ID}/collaborators`;
-
 async function getCollaborators(
   app: ApiApp,
   cookie: string | undefined,
@@ -154,107 +109,98 @@ async function getCollaborators(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Suite.
-// ---------------------------------------------------------------------------
-
 describe("GET /api/repos/:repoId/collaborators", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
+  let app: ApiApp;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
-  });
-
-  function makeApp(port: InstallationGitHubPort): ApiApp {
-    return createApp({
+    fake = makeFakeGitHub();
+    fake.addCollaborators({ owner: "octo", repo: "hello" }, rosterFixture());
+    app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: port,
+      ...buildFakeInstallationDeps(fake),
     });
-  }
-
-  const okResult = () => ({ ok: true as const, value: rosterFixture() });
-
-  it("401s without a session cookie and never calls the port", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => repoOk(true));
-    const res = await getCollaborators(makeApp(port), undefined);
-    expect(res.status).toBe(401);
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(log.calls).toHaveLength(0);
   });
 
-  it("404s without repo access and leaves the port untouched", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => jsonResponse({ message: "denied" }, 404));
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    await harness.close();
+  });
+
+  it("401s without a session cookie and never reads the roster", async () => {
+    stubRepoAccess(() => repoOk(true));
+    const res = await getCollaborators(app, undefined);
+    expect(res.status).toBe(401);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("404s without repo access and leaves the roster unread", async () => {
+    stubRepoAccess(() => jsonResponse({ message: "denied" }, 404));
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(makeApp(port), cookie);
+    const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(log.calls).toHaveLength(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("404s for a push viewer on a repo outside the installation", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => repoOk(true), []);
+    stubRepoAccess(() => repoOk(true), []);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(makeApp(port), cookie);
+    const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(404);
-    expect(log.calls).toHaveLength(0);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("404s for a read-only viewer without calling the port", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => repoOk(false));
+  it("404s for a read-only viewer without reading the roster", async () => {
+    stubRepoAccess(() => repoOk(false));
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(makeApp(port), cookie);
+    const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(log.calls).toHaveLength(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("returns the roster with no-store for a push viewer", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => repoOk(true));
+    stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(makeApp(port), cookie);
+    const lookups = spyPullRequestLookups(harness);
+    const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("content-type")).toBe(
+      "application/json; charset=utf-8",
+    );
     const body: unknown = await res.json();
-    expect(body).toEqual({
-      collaborators: [
-        {
-          login: "alice",
-          name: "Alice Example",
-          avatarUrl: "https://avatars.example/alice.png",
+    expect(body).toEqual(rosterFixture());
+    expect(lookups.count()).toBe(0);
+    // Read as the App, by the AUTHZ-VERIFIED slug split into owner/repo.
+    expect(listRosterReads(fake)).toEqual([
+      {
+        operation: "listRepoCollaborators",
+        credential: {
+          kind: CredentialKinds.INSTALLATION,
+          installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
         },
-        { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
-      ],
-      hasMore: false,
-    });
-    expect(log.calls).toHaveLength(1);
-    expect(log.calls[0]?.installationId).toBe(CTX.installationId);
-    // Fetched by the AUTHZ-VERIFIED slug, split into owner/repo.
-    expect(log.calls[0]?.input).toEqual({ owner: "octo", repo: "hello" });
+        input: { owner: "octo", repo: "hello" },
+      },
+    ]);
   });
 
   it("shares the per-repo cache across viewers within the TTL", async () => {
-    const { port, log } = stubPort([okResult()]);
-    stubGitHub(() => repoOk(true));
+    stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { cookie: otherCookie } = await seedSignIn(harness.handle, kp, {
       reviewer: { id: brandReviewerId(556n), login: "hubot" },
     });
-    const app = makeApp(port);
     const first = await getCollaborators(app, cookie);
     // A DIFFERENT push viewer (own session, own gate probe) rides the same
     // roster entry, the point of the installation-token read.
@@ -263,18 +209,16 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(second.status).toBe(200);
     expect(second.headers.get("cache-control")).toBe("no-store");
     expect(await second.json()).toEqual(await first.json());
-    expect(log.calls).toHaveLength(1);
+    expect(listRosterReads(fake)).toHaveLength(1);
   });
 
   it("keeps a warm cache behind the push guard for a read-only viewer", async () => {
-    const { port, log } = stubPort([okResult()]);
     // Gate probes arrive in request order: push viewer first, read-only second.
-    stubGitHub((call) => repoOk(call === 0));
+    stubRepoAccess((call) => repoOk(call === 0));
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { cookie: readOnlyCookie } = await seedSignIn(harness.handle, kp, {
       reviewer: { id: brandReviewerId(557n), login: "lurker" },
     });
-    const app = makeApp(port);
     expect((await getCollaborators(app, cookie)).status).toBe(200);
     // The roster is now cached repo-wide. A read-only viewer must still be
     // denied, the guard runs BEFORE the cache lookup, or the shared entry
@@ -282,101 +226,58 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const denied = await getCollaborators(app, readOnlyCookie);
     expect(denied.status).toBe(404);
     expect(denied.headers.get("cache-control")).toBe("no-store");
-    expect(log.calls).toHaveLength(1);
+    expect(listRosterReads(fake)).toHaveLength(1);
   });
 
-  it("collapses a port NOT_FOUND to 404 and an upstream failure to 502", async () => {
-    const notFound = {
-      ok: false as const,
-      error: {
-        code: "not-found" as const,
-        message: "failed to list repo collaborators: x",
-      },
-    };
-    const failed = {
-      ok: false as const,
-      error: {
-        code: "request-failed" as const,
-        message: "failed to list repo collaborators: y",
-      },
-    };
-    stubGitHub(() => repoOk(true));
+  it("collapses an App NOT_FOUND to 404", async () => {
+    fake.failOn("listRepoCollaborators", FakeFailures.NOT_FOUND);
+    stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const notFoundApp = makeApp(stubPort([notFound]).port);
-    const notFoundRes = await getCollaborators(notFoundApp, cookie);
-    expect(notFoundRes.status).toBe(404);
-    expect(notFoundRes.headers.get("cache-control")).toBe("no-store");
-
-    const failedApp = makeApp(stubPort([failed]).port);
-    const failedRes = await getCollaborators(failedApp, cookie);
-    expect(failedRes.status).toBe(502);
-    expect(failedRes.headers.get("cache-control")).toBe("no-store");
+    const res = await getCollaborators(app, cookie);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("collapses a port 403 to 404 and keeps an App 401 a 502", async () => {
-    const forbidden = {
-      ok: false as const,
-      error: {
-        code: "forbidden" as const,
-        message: "failed to list repo collaborators: z",
-      },
-    };
-    const unauthorized = {
-      ok: false as const,
-      error: {
-        code: "unauthorized" as const,
-        message: "failed to list repo collaborators: w",
-      },
-    };
-    stubGitHub(() => repoOk(true));
+  it("502s an upstream failure and caches no failure", async () => {
+    fake.failOn("listRepoCollaborators", FakeFailures.SERVER_ERROR);
+    stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const forbiddenRes = await getCollaborators(
-      makeApp(stubPort([forbidden]).port),
-      cookie,
-    );
-    expect(forbiddenRes.status).toBe(404);
-    expect(await forbiddenRes.json()).toMatchObject({ code: "not-found" });
-
-    const unauthorizedRes = await getCollaborators(
-      makeApp(stubPort([unauthorized]).port),
-      cookie,
-    );
-    expect(unauthorizedRes.status).toBe(502);
-  });
-
-  it("does not cache failures, so a later read retries the port", async () => {
-    const failed = {
-      ok: false as const,
-      error: {
-        code: "request-failed" as const,
-        message: "failed to list repo collaborators: y",
-      },
-    };
-    const { port, log } = stubPort([failed, okResult()]);
-    stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const app = makeApp(port);
+    const first = await getCollaborators(app, cookie);
+    expect(first.status).toBe(502);
+    expect(first.headers.get("cache-control")).toBe("no-store");
     expect((await getCollaborators(app, cookie)).status).toBe(502);
-    expect((await getCollaborators(app, cookie)).status).toBe(200);
-    expect(log.calls).toHaveLength(2);
+    expect(listRosterReads(fake)).toHaveLength(2);
+  });
+
+  it("collapses an App 403 to 404", async () => {
+    fake.failOn("listRepoCollaborators", FakeFailures.FORBIDDEN);
+    stubRepoAccess(() => repoOk(true));
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const res = await getCollaborators(app, cookie);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: "not-found" });
+  });
+
+  it("answers an App 401 as 502, never a sign-in prompt", async () => {
+    fake.failOn("listRepoCollaborators", FakeFailures.UNAUTHORIZED);
+    stubRepoAccess(() => repoOk(true));
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const res = await getCollaborators(app, cookie);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: "github-unavailable" });
   });
 
   it("traverses exactly ONE authz gate on a cold read", async () => {
-    const { port } = stubPort([okResult()]);
-    const { counts } = stubGitHub(() => repoOk(true));
+    const { counts } = stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(makeApp(port), cookie);
+    const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(200);
     expect(counts.repositories).toBe(1);
   });
 
   it("serves a per-PR read and the roster from one gate entry", async () => {
-    const { port } = stubPort([okResult()]);
-    const { counts } = stubGitHub(() => repoOk(true));
+    const { counts } = stubRepoAccess(() => repoOk(true));
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const app = makeApp(port);
     const briefPath = `/api/repos/${REPO_ID}/pulls/7/brief`;
 
     await getCollaborators(app, cookie, briefPath);

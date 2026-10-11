@@ -45,6 +45,7 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -133,20 +134,7 @@ describe("the audit choke point", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: () => {
-          throw new Error("conversation port must not be called");
-        },
-        listRepoCollaborators: () => {
-          throw new Error("collaborators port must not be called");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     };
 
     if (audit !== undefined) {

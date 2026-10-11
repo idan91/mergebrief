@@ -1,34 +1,38 @@
-// The PR-conversation read, fetched live from GitHub with the INSTALLATION
-// token: the gate already proved repo access, and a shared token means one
-// rate budget and one cache entry per PR. 60s positive TTL, `no-store`,
-// nothing persisted, no REST fallback tier.
-//
-// This module OWNS the conversation cache: the returned `evictConversation`
-// hook is how every conversation write drops the PR's entry on success.
+// GET /api/repos/:repoId/pulls/:prNumber/conversation, fetched live from
+// GitHub: 60s positive TTL, `no-store`, nothing persisted, no REST fallback
+// tier. This module OWNS the conversation cache: the returned
+// `evictConversation` hook is how every conversation write drops the PR's
+// entry on success.
+import { ProductQueryIds } from "contract";
+import type { Handler } from "hono";
 import {
   WriteClassifications,
   type RepoId,
   type ScopeContext,
 } from "persistence";
-import { ProductQueryIds } from "contract";
+import { HttpStatuses } from "types/http";
+import type {
+  InstallationBindingDeps,
+  PullRequestEnv,
+} from "../../../../access/types";
 import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
-import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";
 import { CONVERSATION_CACHE_MAX_ENTRIES } from "./consts";
-import { createConversationHandlers } from "./handler";
+import { throwReadConversationFailure } from "./logic/wire-failures";
+import { readConversation } from "./read-conversation";
+import type { ConversationDeps } from "./types";
 import { buildConversationCacheKey } from "./utils";
 
-export interface ConversationRouteDeps extends AuthRouteDeps {
-  readonly github: InstallationGitHubPort;
-}
+const SERIALIZED_JSON = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+} as const;
 
 export interface ConversationRoutes {
-  readonly router: ProductRouter<AuthzEnv>;
+  readonly router: ProductRouter<PullRequestEnv>;
   /**
    * Drop the PR's cached conversation. EVERY conversation write calls this,
    * the comments routes and the review-submit route's success paths, so a
@@ -37,16 +41,25 @@ export interface ConversationRoutes {
   evictConversation(ctx: ScopeContext, repoId: RepoId, prNumber: number): void;
 }
 
-/** Mount the conversation read behind the pr subtree's shared gate. */
-export function conversationRoute(
-  deps: ConversationRouteDeps,
-): ConversationRoutes {
-  const app = productRouter<AuthzEnv>();
-  // Serialized response bodies, keyed installation:repo:pr (one entry per PR
-  // shared across every viewer, the point of the installation-token read).
-  const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
+function createReadConversationHandler(
+  deps: ConversationDeps,
+): Handler<PullRequestEnv> {
+  return async (c) => {
+    const read = await readConversation(deps, c.get("pullRequestAccess"));
+    if (!read.ok) {
+      throwReadConversationFailure(read.error);
+    }
 
-  const handlers = createConversationHandlers(deps, deps.github, cache);
+    return c.body(read.value, HttpStatuses.OK, SERIALIZED_JSON);
+  };
+}
+
+export function conversationRoute(
+  deps: InstallationBindingDeps,
+): ConversationRoutes {
+  const app = productRouter<PullRequestEnv>();
+  const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
+  const bindInstallationGitHub = deps.bindInstallationGitHub;
   app.query(
     {
       id: ProductQueryIds.READ_CONVERSATION,
@@ -57,7 +70,7 @@ export function conversationRoute(
       rowRequired: true,
     },
     "/",
-    handlers.readConversation,
+    createReadConversationHandler({ bindInstallationGitHub, cache }),
   );
 
   return {

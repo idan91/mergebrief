@@ -28,24 +28,10 @@ import {
   hashSha256Hex,
 } from "./fixtures";
 import { testLogger } from "./logging";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const OTHER_REVIEWER_ID = 777;
 const REVOKE_PATH = "/api/auth/sessions";
-
-const unusedGitHubPort = {
-  fetchPullRequestConversation: () => {
-    throw new Error("conversation port must not be called");
-  },
-  listRepoCollaborators: () => {
-    throw new Error("collaborators port must not be called");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
 
 interface SeededSession {
   readonly cookie: string;
@@ -108,7 +94,7 @@ describe("DELETE /api/auth/sessions", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedGitHubPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

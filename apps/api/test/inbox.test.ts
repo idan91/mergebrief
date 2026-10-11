@@ -34,6 +34,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 111222;
@@ -254,21 +255,6 @@ async function recordStack(
   }
 }
 
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 interface InboxBody {
   items: Array<Record<string, unknown>>;
   page: number;
@@ -295,7 +281,7 @@ describe("GET /api/inbox", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
       githubAppSlug: APP_SLUG,
     });
   });
@@ -533,7 +519,7 @@ describe("GET /api/inbox", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
 
     const res = await slugless.request("/api/inbox", {
@@ -736,7 +722,7 @@ describe("GET /api/inbox", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
       operatorToken: buildOperatorToken(OPERATOR_PAT, reviewerIds),
     });
   }

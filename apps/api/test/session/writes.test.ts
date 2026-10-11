@@ -39,6 +39,7 @@ import {
   createKeyProvider,
   SAME_ORIGIN_HEADERS,
 } from "../fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "../reviewer-github";
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
@@ -118,20 +119,7 @@ describe("the Review Session writes", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: () => {
-          throw new Error("conversation port must not be called");
-        },
-        listRepoCollaborators: () => {
-          throw new Error("collaborators port must not be called");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
     stubGitHub();
     cookie = await seedSession(harness.handle, kp);

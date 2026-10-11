@@ -32,6 +32,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -139,21 +140,6 @@ async function countRows(
   return (await harness.raw(`select id from ${table}`)).length;
 }
 
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 /** No GitHub call belongs on this path; any fetch is a test failure. */
 function stubNoGitHub(): void {
   vi.stubGlobal(
@@ -181,7 +167,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     };
     app = createApp(deps);
     stubNoGitHub();

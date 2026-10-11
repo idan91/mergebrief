@@ -27,6 +27,7 @@ import {
   type PgliteHarness,
 } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeFakeGitHub } from "github/testing";
 import { createApp, type ApiApp } from "../src/index";
 import { IN_DOUBT_LOOKUP_MARGIN_MS } from "../src/routes/repos/pr/publish/consts";
 import { testLogger, testLogging } from "./logging";
@@ -46,6 +47,11 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedSignIn } from "./sign-in";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  arrangeFakePullRequest,
+  buildFakeInstallationDeps,
+} from "./reviewer-github";
 
 const REPO_ID = 424242;
 const COMMIT_ID = "a".repeat(40);
@@ -409,21 +415,6 @@ async function post(
   });
 }
 
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -437,7 +428,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -597,7 +588,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
@@ -713,39 +704,15 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   it("evicts cached PR conversations after posting a comment", async () => {
     // Read twice to prove a warm cache, then post and read again within the TTL.
-    // The post-write port call proves app-level success wiring evicted the conversation entry.
-    let conversationFetches = 0;
-    const countingPort = {
-      fetchPullRequestConversation: async () => {
-        conversationFetches += 1;
-        return {
-          ok: true as const,
-          value: {
-            threads: [],
-            reviews: [],
-            prComments: [],
-            hasMoreThreads: false,
-            hasMoreReviews: false,
-            hasMorePrComments: false,
-          },
-        };
-      },
-      listRepoCollaborators: async (): Promise<never> => {
-        throw new Error("collaborators port must not be called in this suite");
-      },
-      commitAttachment: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-      deleteAttachmentBranch: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-    };
+    // The post-write read proves app-level success wiring evicted the entry.
+    const fake = makeFakeGitHub();
+    arrangeFakePullRequest(fake, { repoId: REPO_ID });
     const evictionApp = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: countingPort,
+      ...buildFakeInstallationDeps(fake),
     });
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
@@ -761,14 +728,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect((await get()).status).toBe(200);
     expect((await get()).status).toBe(200);
     // Second read served from the cache, the TTL is warm.
-    expect(conversationFetches).toBe(1);
+    expect(fake.listCalls("fetchPullRequestConversation")).toHaveLength(1);
 
     const posted = await post(evictionApp, cookie, named(draftId));
     expect(posted.status).toBe(201);
 
-    // The post evicted the entry: the next read reaches the port again.
+    // The post evicted the entry: the next read reaches GitHub again.
     expect((await get()).status).toBe(200);
-    expect(conversationFetches).toBe(2);
+    expect(fake.listCalls("fetchPullRequestConversation")).toHaveLength(2);
   });
 
   describe("the draft the request names", () => {
@@ -905,7 +872,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         handle: harness.handle,
         webhookSecret: SECRET,
         auth: buildAuthDeps(kp),
-        github: unusedConversationPort,
+        ...UNUSED_INSTALLATION_DEPS,
       });
       stubGitHub({
         repositories: () => repoOk(),

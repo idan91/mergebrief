@@ -1,21 +1,15 @@
 // Thread-resolution route tests: `app.request()` against `createApp` over the
 // PGlite harness, GitHub stubbed at the global-fetch boundary
 // (mark-ready.test.ts pattern).
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
-  type InstallationId,
   type KeyProvider,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  FetchPullRequestConversationInput,
-  GitHubApiError,
-  PrConversation,
-} from "github";
-import type { Result } from "types/utils";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
@@ -31,6 +25,10 @@ import {
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import {
+  arrangeFakePullRequest,
+  buildFakeInstallationDeps,
+} from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 
 // Every case drives a full request over the PGlite harness; the slowest
@@ -237,66 +235,27 @@ async function post(
   });
 }
 
-/** A minimal empty conversation, enough for the cache-eviction probes. */
-const EMPTY_CONVERSATION: PrConversation = {
-  threads: [],
-  reviews: [],
-  prComments: [],
-  hasMoreThreads: false,
-  hasMoreReviews: false,
-  hasMorePrComments: false,
-};
-
-function countingConversationPort(): {
-  port: {
-    fetchPullRequestConversation(
-      installationId: InstallationId,
-      input: FetchPullRequestConversationInput,
-    ): Promise<Result<PrConversation, GitHubApiError>>;
-    listRepoCollaborators(): Promise<never>;
-    commitAttachment(): Promise<never>;
-    deleteAttachmentBranch(): Promise<never>;
-  };
-  calls: () => number;
-} {
-  let calls = 0;
-  return {
-    port: {
-      fetchPullRequestConversation: async () => {
-        calls += 1;
-        return { ok: true, value: EMPTY_CONVERSATION };
-      },
-      listRepoCollaborators: async () => {
-        throw new Error("collaborators port must not be called in this suite");
-      },
-      commitAttachment: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-      deleteAttachmentBranch: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-    },
-    calls: () => calls,
-  };
-}
-
 describe("thread resolve and unresolve routes", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
-  let conversationCalls: () => number;
+  let fake: FakeGitHub;
+
+  function countConversationReads(): number {
+    return fake.listCalls("fetchPullRequestConversation").length;
+  }
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    const counting = countingConversationPort();
-    conversationCalls = counting.calls;
+    fake = makeFakeGitHub();
+    arrangeFakePullRequest(fake, { repoId: REPO_ID });
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: counting.port,
+      ...buildFakeInstallationDeps(fake),
     });
   });
 
@@ -422,7 +381,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(1);
+    expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -438,7 +397,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(2);
+    expect(countConversationReads()).toBe(2);
   });
 
   it("200 converges on the unresolve direction without a mutation", async () => {
@@ -461,13 +420,12 @@ describe("thread resolve and unresolve routes", () => {
 
   it("keeps the landed flip and logs audit.fail when the audit write fails", async () => {
     const capture = testLogging();
-    const counting = countingConversationPort();
     const captureApp = createApp({
       logger: capture.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: counting.port,
+      ...buildFakeInstallationDeps(fake),
     });
     stubGitHub({
       repositories: () => repoOk(),
@@ -609,7 +567,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(1);
+    expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -618,7 +576,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(2);
+    expect(countConversationReads()).toBe(2);
   });
 
   it("does NOT bust the conversation cache on a failed mutation", async () => {
@@ -634,7 +592,7 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(1);
+    expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(502);
@@ -643,6 +601,6 @@ describe("thread resolve and unresolve routes", () => {
     expect(
       (await app.request(conversationPath, { headers: cookieHeader })).status,
     ).toBe(200);
-    expect(conversationCalls()).toBe(1);
+    expect(countConversationReads()).toBe(1);
   });
 });

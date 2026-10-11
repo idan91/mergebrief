@@ -35,6 +35,7 @@ import {
   answerInstallationRepositories,
 } from "./fixtures";
 import { seedSignIn } from "./sign-in";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -253,22 +254,6 @@ function diffPath(base: string, head: string): string {
 const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
-// Conversation port stub: a call here is a test bug.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("reviewer read API + authz gate", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -283,7 +268,7 @@ describe("reviewer read API + authz gate", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

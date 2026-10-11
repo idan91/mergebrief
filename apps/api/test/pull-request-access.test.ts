@@ -35,6 +35,7 @@ import {
   seedPullRequest,
   seedSession,
 } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -89,21 +90,6 @@ function stubGitHub(stub: RepoStub): void {
   );
 }
 
-const unusedPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 async function seedUrlRow(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, OWNER).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
@@ -151,7 +137,7 @@ describe("the descriptor policy over every operation", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -349,7 +335,7 @@ describe("the audit row's world", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

@@ -44,6 +44,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedSignIn } from "./sign-in";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -619,22 +620,6 @@ function stubSubmitHappyPath(overrides: StubConfig = {}): StubCounts {
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Conversation port stub: a call here is a test bug.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -648,7 +633,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -1068,7 +1053,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         handle: harness.handle,
         webhookSecret: SECRET,
         auth: buildAuthDeps(kp),
-        github: unusedConversationPort,
+        ...UNUSED_INSTALLATION_DEPS,
       }),
     };
   }

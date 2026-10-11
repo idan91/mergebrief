@@ -32,7 +32,7 @@ import {
 } from "./fixtures";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
-  UNUSED_INSTALLATION_PORT,
+  UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
   stubGateGitHub,
 } from "./reviewer-github";
@@ -156,7 +156,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
-      github: UNUSED_INSTALLATION_PORT,
+      ...UNUSED_INSTALLATION_DEPS,
       operatorToken:
         fallbackToken === undefined
           ? undefined

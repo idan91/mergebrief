@@ -1,22 +1,84 @@
 // A converted route suite's GitHub: the operation's calls reach the
-// `github/testing` fake through the reviewer binding, while the repo gate's
-// own reads and the OAuth refresh still go over `fetch` until they move onto
-// the binding too.
-import type { FakeGitHub } from "github/testing";
+// `github/testing` fake through the reviewer and installation bindings, while
+// the repo gate's own reads and the OAuth refresh still go over `fetch` until
+// they move onto the binding too.
+import type { PrConversation, PullRequestInfo } from "github";
+import type { FakeGitHub, FakePullRequest } from "github/testing";
 import type { KeyProvider } from "persistence";
+import type { Mutable } from "types/utils";
 import { vi } from "vitest";
-import type { AuthDeps } from "../src/index";
+import type { AppDeps, AuthDeps } from "../src/index";
 import type { InstallationGitHubPort } from "../src/routes/github-port";
 import {
   INSTALLATION_ID,
+  PR_NUMBER,
   REPO_SLUG,
   answerUserInstallations,
+  brandRepoId,
   buildAuthDeps,
   getRequestUrl,
 } from "./fixtures";
 import { ACCESS_TOKEN } from "./sign-in";
 
 export const ROTATED_ACCESS_TOKEN = "ghu_ROTATED_ACCESS_PLAINTEXT";
+
+export interface FakePullRequestInfoOptions {
+  readonly repoId: number;
+  readonly draft?: boolean;
+}
+
+/** An open pull request's facts as GitHub reports them. */
+export function makeFakePullRequestInfo(
+  options: FakePullRequestInfoOptions,
+): PullRequestInfo {
+  return {
+    repoId: brandRepoId(BigInt(options.repoId)),
+    repoFullName: REPO_SLUG,
+    headSha: "h".repeat(40),
+    headRef: "feature",
+    baseSha: "b".repeat(40),
+    state: "open",
+    draft: options.draft ?? false,
+    merged: false,
+    title: "A pull request",
+    body: "",
+    htmlUrl: `https://github.com/${REPO_SLUG}/pull/${PR_NUMBER}`,
+    commitCount: 1,
+    authorLogin: "octocat",
+    closedAt: null,
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+  };
+}
+
+export interface FakePullRequestArrangement {
+  readonly repoId: number;
+  readonly prNumber?: number;
+  /** Absent reads as an empty conversation. */
+  readonly conversation?: PrConversation;
+}
+
+/** The suites' pull request on `fake`, under the gate's verified slug. */
+export function arrangeFakePullRequest(
+  fake: FakeGitHub,
+  arrangement: FakePullRequestArrangement,
+): void {
+  const [owner = "", repo = ""] = REPO_SLUG.split("/");
+  const pull: Mutable<FakePullRequest> = {
+    info: makeFakePullRequestInfo({ repoId: arrangement.repoId }),
+  };
+  if (arrangement.conversation !== undefined) {
+    pull.conversation = arrangement.conversation;
+  }
+  const prNumber = arrangement.prNumber ?? PR_NUMBER;
+  fake.addPullRequest({ owner, repo, prNumber }, pull);
+}
+
+/** The token each fake call carried, in order; an installation call has none. */
+export function listFakeCallTokens(fake: FakeGitHub): string[] {
+  return fake.calls.map((call) =>
+    "token" in call.credential ? call.credential.token : "",
+  );
+}
 
 /** The auth bundle with the reviewer binding served by `fake`. */
 export function buildFakeAuthDeps(kp: KeyProvider, fake: FakeGitHub): AuthDeps {
@@ -31,13 +93,32 @@ function failUnexpected(port: string): never {
   throw new Error(`the ${port} port must not be called in this suite`);
 }
 
-/** For a suite whose routes make no installation-credential call. */
+/** The App-credential slice of `AppDeps`: the attachment port and the binder. */
+export type InstallationDeps = Pick<
+  AppDeps,
+  "github" | "bindInstallationGitHub"
+>;
+
+/** For a suite whose routes make no attachment-branch call. */
 export const UNUSED_INSTALLATION_PORT: InstallationGitHubPort = {
-  fetchPullRequestConversation: async () => failUnexpected("conversation"),
-  listRepoCollaborators: async () => failUnexpected("collaborators"),
   commitAttachment: async () => failUnexpected("attachment"),
   deleteAttachmentBranch: async () => failUnexpected("attachment"),
 };
+
+/** For a suite whose routes make no installation-credential call. */
+export const UNUSED_INSTALLATION_DEPS: InstallationDeps = {
+  github: UNUSED_INSTALLATION_PORT,
+  bindInstallationGitHub: () => failUnexpected("installation binding"),
+};
+
+/** The installation binding served by `fake`; attachment writes stay unused. */
+export function buildFakeInstallationDeps(fake: FakeGitHub): InstallationDeps {
+  return {
+    github: UNUSED_INSTALLATION_PORT,
+    bindInstallationGitHub: (installationId) =>
+      fake.bindInstallationGitHub(installationId),
+  };
+}
 
 export interface GateGitHubOptions {
   readonly repoId: number;

@@ -7,6 +7,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
 import { createTestUserOctokit, KEY_REF } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 export interface ComposedCatalog {
   readonly app: ApiApp;
@@ -30,20 +31,7 @@ export async function composeCatalog(): Promise<ComposedCatalog> {
     handle: harness.handle,
     webhookSecret: "test-webhook-secret",
     auth,
-    github: {
-      fetchPullRequestConversation: async () => {
-        throw new Error("catalog composition must not call github");
-      },
-      listRepoCollaborators: async () => {
-        throw new Error("catalog composition must not call github");
-      },
-      commitAttachment: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-      deleteAttachmentBranch: async () => {
-        throw new Error("attachment port must not be called in this suite");
-      },
-    },
+    ...UNUSED_INSTALLATION_DEPS,
   });
   return { app, harness };
 }

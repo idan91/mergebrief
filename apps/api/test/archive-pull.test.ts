@@ -37,7 +37,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { spyPullRequestLookups } from "./pull-request-lookups";
-import { UNUSED_INSTALLATION_PORT, buildFakeAuthDeps } from "./reviewer-github";
+import { UNUSED_INSTALLATION_DEPS, buildFakeAuthDeps } from "./reviewer-github";
 import { seedApiToken } from "./session/fixtures";
 import { seedSignIn } from "./sign-in";
 
@@ -142,7 +142,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
-      github: UNUSED_INSTALLATION_PORT,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

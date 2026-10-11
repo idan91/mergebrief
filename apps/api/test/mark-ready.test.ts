@@ -2,12 +2,7 @@
 // route's own GitHub calls reach the `github/testing` fake through the
 // reviewer binding; the repo gate and the OAuth refresh still answer over
 // `fetch`.
-import {
-  FakeFailures,
-  makeFakeGitHub,
-  type FakeGitHub,
-  type FakePullRequest,
-} from "github/testing";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
@@ -35,8 +30,10 @@ import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   ROTATED_ACCESS_TOKEN,
-  UNUSED_INSTALLATION_PORT,
+  UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
+  listFakeCallTokens,
+  makeFakePullRequestInfo,
   stubGateGitHub,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
@@ -54,28 +51,6 @@ const OWNER: ScopeContext = {
   ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
 };
 
-function makeFakePullRequest(draft: boolean): FakePullRequest {
-  return {
-    info: {
-      repoId: brandRepoId(BigInt(REPO_ID)),
-      repoFullName: REPO_SLUG,
-      headSha: "h".repeat(40),
-      headRef: "feature",
-      baseSha: "b".repeat(40),
-      state: "open",
-      draft,
-      merged: false,
-      title: "A pull request",
-      body: "",
-      htmlUrl: `https://github.com/${REPO_SLUG}/pull/${PR_NUMBER}`,
-      commitCount: 1,
-      authorLogin: "octocat",
-      closedAt: null,
-      updatedAt: new Date("2026-01-01T00:00:00Z"),
-    },
-  };
-}
-
 function arrangeRepository(fake: FakeGitHub, fullName = REPO_SLUG): void {
   const [owner = "", repo = ""] = fullName.split("/");
   fake.addRepository({
@@ -87,7 +62,7 @@ function arrangeRepository(fake: FakeGitHub, fullName = REPO_SLUG): void {
   });
   fake.addPullRequest(
     { owner, repo, prNumber: PR_NUMBER },
-    makeFakePullRequest(true),
+    { info: makeFakePullRequestInfo({ repoId: REPO_ID, draft: true }) },
   );
 }
 
@@ -119,12 +94,6 @@ async function countReadyAudits(harness: PgliteHarness): Promise<number> {
   return rows.length;
 }
 
-function listSentTokens(fake: FakeGitHub): string[] {
-  return fake.calls.map((call) =>
-    "token" in call.credential ? call.credential.token : "",
-  );
-}
-
 describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
@@ -137,7 +106,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
-      github: UNUSED_INSTALLATION_PORT,
+      ...UNUSED_INSTALLATION_DEPS,
       operatorToken:
         operatorToken === undefined
           ? undefined
@@ -315,7 +284,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(res.status).toBe(200);
     expect(gate.tokenRefreshes()).toBe(1);
     expect(gate.repositoryReads()).toBe(1);
-    expect(listSentTokens(fake)).toEqual([
+    expect(listFakeCallTokens(fake)).toEqual([
       ACCESS_TOKEN,
       ROTATED_ACCESS_TOKEN,
       ROTATED_ACCESS_TOKEN,

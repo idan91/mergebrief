@@ -43,6 +43,7 @@ import {
   answerUserInstallations,
   getRequestUrl,
 } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
@@ -265,22 +266,6 @@ function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
   );
 }
 
-// Conversation port stub: a call here is a test bug.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -294,7 +279,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -634,7 +619,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
     const policyRes = await policyApp.request(`/api/repos/${REPO_A}/pulls/7`, {

@@ -1,29 +1,32 @@
-import type { GitHubApiError } from "github";
-import type { InstallationId } from "persistence";
-import type { Result } from "types/utils";
-import type { InstallationGitHubPort } from "../../../github-port";
+import type { GitHubCallFailure } from "github";
+import type { ValueOf } from "types/utils";
+import type { InstallationBindingDeps } from "../../../../access/types";
 import type { FailureKinds } from "../../../../shared-errors/failures";
+import type { TtlCache } from "../../../ttl-cache";
 
-/** Narrow slice: the installation-token channel is the only dependency. */
-export interface ConversationControllerDeps {
-  readonly github: InstallationGitHubPort;
+/** Whose GitHub read the conversation: it decides the denial's posture. */
+export const ConversationCredentials = {
+  APP: "app",
+  VIEWER: "viewer",
+} as const;
+export type ConversationCredential = ValueOf<typeof ConversationCredentials>;
+
+export interface ConversationDeps extends InstallationBindingDeps {
+  /** Serialized bodies keyed by row scope, repo and PR, shared across viewers. */
+  readonly cache: TtlCache<string>;
 }
 
-/** Op-specific failure; the whole lower-layer error rides the Result. */
-export type ConversationFailure =
-  | {
-      readonly kind: typeof FailureKinds.GITHUB_DENIED;
-      readonly error: GitHubApiError;
-    }
-  | { readonly kind: typeof FailureKinds.TOKEN_UNREADABLE };
-
-export interface ReadConversationInput {
-  readonly installationId: InstallationId;
-  readonly owner: string;
-  readonly repo: string;
-  readonly prNumber: number;
-  readonly entryCommentId: bigint | null;
+export interface ConversationDeniedFailure {
+  readonly kind: typeof FailureKinds.GITHUB_DENIED;
+  readonly credential: ConversationCredential;
+  readonly error: GitHubCallFailure;
 }
 
-/** Both credential worlds answer with the same serialized conversation. */
-export type ReadConversationResult = Result<string, ConversationFailure>;
+/** The gate's verified slug would not split into owner and name. */
+export interface ConversationNotFoundFailure {
+  readonly kind: "not-found";
+}
+
+export type ReadConversationFailure =
+  | ConversationDeniedFailure
+  | ConversationNotFoundFailure;

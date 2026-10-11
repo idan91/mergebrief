@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import { createTestUserOctokit, INSTALLATION_ID, SECRET } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
@@ -216,22 +217,6 @@ async function countRows(
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Conversation port stub: a call here is a test bug.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("POST /api/webhooks/github", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -243,7 +228,7 @@ describe("POST /api/webhooks/github", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -1165,7 +1150,7 @@ describe("POST /api/webhooks/github", () => {
         handle: harness.handle,
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
-        github: unusedConversationPort,
+        ...UNUSED_INSTALLATION_DEPS,
         draftPolicy: policy,
       });
     }
@@ -1326,7 +1311,7 @@ describe("POST /api/webhooks/github", () => {
         handle: harness.handle,
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
-        github: unusedConversationPort,
+        ...UNUSED_INSTALLATION_DEPS,
         draftPolicy: { generate: false, debounceSeconds: null },
       });
       await deliver(
@@ -1442,7 +1427,7 @@ describe("webhook event logging", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
     return { app, capture };
   }

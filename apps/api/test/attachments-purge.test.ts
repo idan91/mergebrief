@@ -26,6 +26,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
@@ -147,12 +148,6 @@ function makePort(): {
     .fn()
     .mockResolvedValue({ ok: true, value: { existed: true } });
   const port: InstallationGitHubPort = {
-    fetchPullRequestConversation: async () => {
-      throw new Error("conversation port must not be called in this suite");
-    },
-    listRepoCollaborators: async () => {
-      throw new Error("collaborators port must not be called in this suite");
-    },
     commitAttachment: async () => {
       throw new Error("commit port must not be called in this suite");
     },
@@ -177,6 +172,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
       github: made.port,
     });
   });

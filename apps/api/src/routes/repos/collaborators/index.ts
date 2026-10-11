@@ -1,40 +1,49 @@
-// The collaborators surface: one gated live-fetch GET, the @mention
-// autocomplete pool. Fetched from GitHub with the INSTALLATION token, since
-// the gate already proved repo access and a shared token means one rate
-// budget and one cache entry per repo. 60s positive TTL, `no-store`, nothing
-// persisted.
+// GET /api/repos/:repoId/collaborators, the @mention autocomplete pool,
+// fetched live from GitHub on the App's credential: one rate budget and one
+// cache entry per repo. 60s positive TTL, `no-store`, nothing persisted.
 //
-// GUARD, `viewerCanPush`: GitHub denies the roster to viewers without push
-// access, so serving it on the installation token would leak logins and names
-// to any read-access viewer. Non-push viewers get the gate's 404 first.
-import type { AuthRouteDeps } from "../../auth/session/types";
-import type { AuthzEnv } from "../../../access/types";
-import type { InstallationGitHubPort } from "../../github-port";
-import { createTtlCache } from "../../ttl-cache";
+// GUARD, push-required: GitHub denies the roster to viewers without push
+// access, so serving it on the App's credential would leak logins and names
+// to any read-access viewer. A non-push viewer gets the router's 404 first.
 import { ProductQueryIds } from "contract";
+import type { Handler } from "hono";
+import { WriteClassifications } from "persistence";
+import { HttpStatuses } from "types/http";
+import type { AuthzEnv, InstallationBindingDeps } from "../../../access/types";
 import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
+import { createTtlCache } from "../../ttl-cache";
 import { COLLABORATORS_CACHE_MAX_ENTRIES } from "./consts";
-import { createCollaboratorsHandlers } from "./handler";
+import { listCollaborators } from "./list-collaborators";
+import { throwListCollaboratorsFailure } from "./logic/wire-failures";
+import type { CollaboratorsDeps } from "./types";
 
-export interface CollaboratorsRouteDeps extends AuthRouteDeps {
-  readonly github: InstallationGitHubPort;
+const SERIALIZED_JSON = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+} as const;
+
+function createListCollaboratorsHandler(
+  deps: CollaboratorsDeps,
+): Handler<AuthzEnv> {
+  return async (c) => {
+    const listed = await listCollaborators(deps, c.get("repoAccess"));
+    if (!listed.ok) {
+      throwListCollaboratorsFailure(listed.error);
+    }
+
+    return c.body(listed.value, HttpStatuses.OK, SERIALIZED_JSON);
+  };
 }
 
-/** Mount the collaborators read; the repos router's gate runs first. */
 export function collaboratorsRoute(
-  deps: CollaboratorsRouteDeps,
+  deps: InstallationBindingDeps,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  // Serialized response bodies, keyed installation:repo (shared across every
-  // viewer, the point of the installation-token read).
   const cache = createTtlCache<string>(COLLABORATORS_CACHE_MAX_ENTRIES);
-
-  const handlers = createCollaboratorsHandlers(deps.github, cache);
-
+  const bindInstallationGitHub = deps.bindInstallationGitHub;
   app.query(
     {
       id: ProductQueryIds.LIST_COLLABORATORS,
@@ -45,7 +54,7 @@ export function collaboratorsRoute(
       rowRequired: false,
     },
     "/",
-    handlers.listCollaborators,
+    createListCollaboratorsHandler({ bindInstallationGitHub, cache }),
   );
   return app;
 }

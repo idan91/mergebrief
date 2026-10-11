@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import type { InstallationGitHubPort } from "../src/routes/github-port";
 import { testLogger } from "./logging";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import {
   PR_NUMBER,
   REPO_SLUG,
@@ -46,12 +47,6 @@ function makePort(commit = vi.fn()): {
 } {
   commit.mockResolvedValue({ ok: true, value: { commitSha: "abc" } });
   const port: InstallationGitHubPort = {
-    fetchPullRequestConversation: async () => {
-      throw new Error("conversation port must not be called in this suite");
-    },
-    listRepoCollaborators: async () => {
-      throw new Error("collaborators port must not be called in this suite");
-    },
     commitAttachment: commit,
     deleteAttachmentBranch: async () => {
       throw new Error("attachment port must not be called in this suite");
@@ -76,6 +71,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
       github: made.port,
       attachmentQuota: QUOTA,
     });

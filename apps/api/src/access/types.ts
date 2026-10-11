@@ -1,5 +1,14 @@
-import type { GitHubApiError, ReviewerGitHub } from "github";
-import type { PullRequestRow, RepoId, ScopeContext } from "persistence";
+import type {
+  GitHubApiError,
+  InstallationGitHub,
+  ReviewerGitHub,
+} from "github";
+import type {
+  InstallationId,
+  PullRequestRow,
+  RepoId,
+  ScopeContext,
+} from "persistence";
 import type { ValueOf } from "types/utils";
 import type { RequestLogVariables } from "../request-logging";
 import type { ViewerPrincipal } from "../routes/auth/session/types";
@@ -101,6 +110,15 @@ export interface PullRequestEnv {
 }
 
 export type ListedOperatorToken = string | undefined;
+
+/** The App's GitHub on one Installation; composition binds it over the App client. */
+export type InstallationBinder = (
+  installationId: InstallationId,
+) => InstallationGitHub;
+
+export interface InstallationBindingDeps {
+  readonly bindInstallationGitHub: InstallationBinder;
+}
 
 /** The repo a gated request names, and its PR when the path names one. */
 export interface GateRequest {

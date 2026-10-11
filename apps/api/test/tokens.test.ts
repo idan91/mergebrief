@@ -33,6 +33,7 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const REPO_A = 42001;
 const REPO_B = 42002;
@@ -217,22 +218,6 @@ async function seedPr(handle: AppDatabase): Promise<void> {
   });
 }
 
-// Conversation port stub: these tests never exercise the conversation read.
-const unusedConversationPort = {
-  fetchPullRequestConversation: async () => {
-    throw new Error("conversation port must not be called in this suite");
-  },
-  listRepoCollaborators: async () => {
-    throw new Error("collaborators port must not be called in this suite");
-  },
-  commitAttachment: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-  deleteAttachmentBranch: async () => {
-    throw new Error("attachment port must not be called in this suite");
-  },
-};
-
 describe("Bearer presentation on /api/*", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
@@ -246,7 +231,7 @@ describe("Bearer presentation on /api/*", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 
@@ -460,7 +445,7 @@ describe("Bearer presentation on /api/*", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
     const bearer = await seedApiToken(harness.handle, kp);
 
@@ -522,7 +507,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: unusedConversationPort,
+      ...UNUSED_INSTALLATION_DEPS,
     });
   });
 

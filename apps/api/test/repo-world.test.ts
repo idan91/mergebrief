@@ -35,6 +35,7 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const REPO_ID = 424242;
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -157,20 +158,7 @@ describe("the per-repo gate's repo world", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
   }
 
@@ -358,20 +346,7 @@ describe("the per-repo gate across two installations", () => {
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called");
-        },
-        commitAttachment: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-        deleteAttachmentBranch: async () => {
-          throw new Error("attachment port must not be called in this suite");
-        },
-      },
+      ...UNUSED_INSTALLATION_DEPS,
     });
   }
 
