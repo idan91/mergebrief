@@ -36,6 +36,11 @@ deprecation note here, removal only at a major.
   The conversation read on an App-installed repository still answers an App
   credential 401 as `502 github-unavailable`: a sign-in cannot repair the
   instance's own credential.
+- **Changed** a GitHub 403 on `POST .../pulls/:prNumber/comments` (publish
+  a draft now) answers `403 github-permission` (was 404), as a review
+  submit already does. The viewer proved access at the gate and the fresh
+  re-resolve, so the refusal is their permission to comment, not absence.
+  The draft's claim is released as before.
 
 ## dev (2026-10-06)
 

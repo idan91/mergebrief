@@ -689,23 +689,30 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(await commentAuditCount(harness)).toBe(0);
   });
 
-  it.each([403, 404])(
-    "collapses in-route write denial %i to a uniform 404",
-    async (denialStatus) => {
-      // Both denial statuses must be indistinguishable from a cold gate 404:
-      // a FORBIDDEN (revoked access inside the cache TTL) and a NOT_FOUND
-      // (comment target gone) exercise separate mapping branches.
-      stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentStatus(denialStatus),
-      });
-      await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
-      const { draftId } = await seedDraft(harness.handle);
-      const res = await post(app, cookie, named(draftId));
-      expect(res.status).toBe(404);
-    },
-  );
+  it("answers 404 when the comment target is gone", async () => {
+    stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentStatus(404),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
+    expect(res.status).toBe(404);
+  });
+
+  it("answers an honest 403 when GitHub forbids the comment", async () => {
+    stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentStatus(403),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
+    expect(res.status).toBe(403);
+    expect(await readWireCode(res)).toBe("github-permission");
+  });
 
   it("refreshes once after a mid-request write 401 and succeeds", async () => {
     const counts = stubGitHub({

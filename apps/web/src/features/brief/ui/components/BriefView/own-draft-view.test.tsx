@@ -697,6 +697,35 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(0);
   });
 
+  it("batch with a permission refusal says rejected, not indeterminate", async () => {
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_draftId: string) =>
+      Promise.resolve<PostCommentResult>({ kind: "github-permission" }),
+    );
+    await renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 1 unposted draft comment."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+
+    expect(
+      await screen.findByText(
+        markReadyBatchFailureCopy(appI18n.t, 0, 1, "rejected"),
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/may or may not have posted/)).toBeNull();
+    expect(markReady).toHaveBeenCalledTimes(0);
+  });
+
   it("batch with a guard-blocked draft states the deterministic summary", async () => {
     // A guard-path rejection (over-cap body, the deterministic-400 mirror)
     // inside a batch must not announce its blocked reason before the summary;
@@ -1093,5 +1122,30 @@ describe("own-draft Brief view", () => {
     );
     fireEvent.click(post);
     expect(postComment).toHaveBeenCalledTimes(2);
+  });
+
+  it("a permission refusal says so, never the may-have-posted copy", async () => {
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    const postComment = vi.fn((_draftId: string) =>
+      Promise.resolve<PostCommentResult>({ kind: "github-permission" }),
+    );
+    await renderBriefView({ markReady: vi.fn(), postComment });
+    const post = (
+      await screen.findAllByRole("button", { name: /^post$/i })
+    )[0]!;
+
+    fireEvent.click(post);
+
+    expect(
+      await screen.findByText(
+        appI18n.t(POST_COMMENT_COPY_KEYS.GITHUB_PERMISSION),
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(appI18n.t(POST_COMMENT_COPY_KEYS.UPSTREAM)),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(post.getAttribute("aria-disabled")).not.toBe("true"),
+    );
   });
 });

@@ -1,37 +1,17 @@
 import { parsePrUrl, type PrLocator } from "brief-core/pr-url";
 import type { Context } from "hono";
 import { ApiErrorCodes } from "contract";
-import {
-  BadGateway,
-  BadRequest,
-  NotFound,
-  Unauthorized,
-} from "../../shared-errors/api-error";
+import { BadRequest } from "../../shared-errors/api-error";
 import { stampAuditTarget } from "../../product-operations/audit";
 import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { resolveOperatorTokenFor, type AuthzEnv } from "../authz";
 import { generateController } from "./controller";
+import { throwGenerateFailure } from "./logic/wire-failures";
 import { bodySchema } from "./schemas";
-import type { GenerateFailure } from "./types";
 import { HttpStatuses } from "types/http";
-import { FailureKinds } from "../../shared-errors/failures";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
-
-/** Failure → posture. NOT_FOUND covers FORBIDDEN too (uniform 404). */
-function throwGenerateFailure(failure: GenerateFailure): never {
-  if (
-    failure.kind === FailureKinds.TOKEN_UNREADABLE ||
-    failure.kind === "unauthorized"
-  ) {
-    throw new Unauthorized();
-  }
-  if (failure.kind === "not-found") {
-    throw new NotFound();
-  }
-  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
-}
 
 export function createGenerateHandlers(deps: AuthRouteDeps) {
   return {

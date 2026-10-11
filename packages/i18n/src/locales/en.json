@@ -591,6 +591,7 @@
       "stale": "The pull request has newer commits — reload to post this comment against the current diff.",
       "invalid": "This comment couldn't be posted as sent — edit the draft and post again.",
       "upstream": "GitHub rejected the request or is unreachable — your draft is kept, try again shortly.",
+      "githubPermission": "GitHub refused this comment because your account lacks permission to comment on this pull request. Check your access on GitHub. Your draft is kept.",
       "failed": "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.",
       "submitWhilePosting": "A comment is still posting to GitHub — wait for it to finish before submitting the review.",
       "postWhileSubmitting": "A review is being submitted — wait for it to finish before posting this comment.",

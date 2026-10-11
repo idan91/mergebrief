@@ -10,7 +10,11 @@ import {
 } from "github";
 import { createIngestRoutines, type ReviewerId } from "persistence";
 import type { Result } from "types/utils";
-import { FailureKinds, isGitHubDenial } from "../../shared-errors/failures";
+import {
+  buildGitHubDeniedResult,
+  FailureKinds,
+  isGitHubDenial,
+} from "../../shared-errors/failures";
 import { deriveLifecycle } from "../live-read/logic/lifecycle";
 import type {
   GenerateControllerDeps,
@@ -82,13 +86,7 @@ export const generateController = {
     }
     const resolved = await resolveUnderFallback(deps, ref, viewer);
     if (!resolved.ok) {
-      if (resolved.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
-        return { ok: false, error: { kind: "unauthorized" } };
-      }
-      if (isGitHubDenial(resolved.error)) {
-        return { ok: false, error: { kind: "not-found" } };
-      }
-      return { ok: false, error: { kind: "github-unavailable" } };
+      return buildGitHubDeniedResult(resolved.error, "resolve");
     }
     const info = resolved.value;
 

@@ -857,6 +857,23 @@ describe("POST attachments", () => {
     expect(response.status).toBe(404);
   });
 
+  it("answers 502 when GitHub rejects the app's own credential", async () => {
+    stubRepoResolve();
+    stubCommit({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.UNAUTHORIZED,
+        status: 401,
+        message: "fixture",
+      },
+    });
+    const app = await buildApp();
+
+    const response = await upload(app, PNG);
+
+    expect(response.status).toBe(502);
+  });
+
   it("answers 502 when the push fails upstream", async () => {
     stubRepoResolve();
     stubCommit({

@@ -32,6 +32,7 @@ export const POST_COMMENT_COPY_KEYS = {
   // re-post.
   ORPHANED_ANCHOR: "brief.postComment.orphanedAnchor",
   ALREADY_PUBLISHED: "brief.postComment.alreadyPublished",
+  GITHUB_PERMISSION: "brief.postComment.githubPermission",
   UPSTREAM: "brief.postComment.upstream",
   // Deliberately INDETERMINATE: the catch can land AFTER the POST reached
   // GitHub, where a confident retry prompt could double-post.
@@ -74,6 +75,11 @@ const POST_FAILURES = {
   // no write access to this repository.
   [PostCommentResultKinds.NO_WRITE_ACCESS]: {
     copy: "pulls.briefError.no-repo-write-access",
+    outcome: PostDraftOutcomes.REJECTED,
+  },
+  // Definitively not posted: GitHub refused the viewer's own permission.
+  [PostCommentResultKinds.GITHUB_PERMISSION]: {
+    copy: POST_COMMENT_COPY_KEYS.GITHUB_PERMISSION,
     outcome: PostDraftOutcomes.REJECTED,
   },
   // Indeterminate: an earlier attempt may have posted it, or still may.

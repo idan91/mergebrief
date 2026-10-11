@@ -6,7 +6,6 @@
 // 404 both collapse to the gate's uniform 404 posture.
 import {
   fetchRepositoryById,
-  GitHubApiErrorCodes,
   type GitHubApiError,
   type RepositoryInfo,
 } from "github";
@@ -16,13 +15,14 @@ import { ApiErrorCodes } from "contract";
 import {
   FailureKinds,
   buildGitHubDeniedResult,
+  isGitHubDenial,
 } from "../../../shared-errors/failures";
+import { Forbidden, NotFound } from "../../../shared-errors/api-error";
 import {
-  BadGateway,
-  Forbidden,
-  NotFound,
-  Unauthorized,
-} from "../../../shared-errors/api-error";
+  resolveGitHubDenialError,
+  unwrapGitHubFailure,
+} from "../../../shared-errors/github-denial";
+import { DenialPostures } from "../../../shared-errors/github-denial/types";
 import type {
   GitHubDeniedFailure,
   TokenUnreadableFailure,
@@ -92,20 +92,15 @@ export function throwRepoResolveFailure(
   failure: RepoResolveFailure,
   urlBoxOnly = false,
 ): never {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
-    throw new Unauthorized();
+  const refusedOnPat =
+    urlBoxOnly &&
+    failure.kind === FailureKinds.GITHUB_DENIED &&
+    isGitHubDenial(failure.error);
+  if (refusedOnPat) {
+    throw new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS);
   }
-  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
-    throw new Unauthorized();
-  }
-  if (
-    failure.error.code === GitHubApiErrorCodes.NOT_FOUND ||
-    failure.error.code === GitHubApiErrorCodes.FORBIDDEN
-  ) {
-    if (urlBoxOnly) {
-      throw new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS);
-    }
-    throw new NotFound();
-  }
-  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  throw resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.COLLAPSE,
+  );
 }

@@ -28,7 +28,7 @@ const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: PostCommentResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: PostCommentResultKinds.UPSTREAM,
-  [ApiErrorCodes.GITHUB_PERMISSION]: PostCommentResultKinds.UPSTREAM,
+  [ApiErrorCodes.GITHUB_PERMISSION]: PostCommentResultKinds.GITHUB_PERMISSION,
   [ApiErrorCodes.SCOPE_EXCEEDED]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.HUMAN_ONLY]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: PostCommentResultKinds.NO_WRITE_ACCESS,

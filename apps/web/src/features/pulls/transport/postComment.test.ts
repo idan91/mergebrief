@@ -98,7 +98,6 @@ describe("postInlineComment", () => {
       // it. `invalid` copy says edit the draft, the only honest advice.
       ["request-too-large", "invalid"],
       ["forbidden", "upstream"],
-      ["github-permission", "upstream"],
       ["scope-exceeded", "upstream"],
       ["human-only", "upstream"],
       ["draft-limit-reached", "upstream"],
@@ -115,6 +114,18 @@ describe("postInlineComment", () => {
         kind,
       });
     }
+  });
+
+  it("maps a github-permission 403 to its own kind, never upstream", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: "forbidden", code: "github-permission" }),
+        { status: 403 },
+      ),
+    );
+    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+      kind: "github-permission",
+    });
   });
 
   it("maps the claim refusals to their own kinds, never upstream", async () => {

@@ -1,85 +1,53 @@
-// The comments domain's failure->throw mappers: every GitHub refusal lands
-// on the wire with the gated-route posture (uniform-404 collapse; distinct
-// 409 only where the FE has a recovery action).
+// The comments domain's failure->throw mappers: domain codes first, every
+// other GitHub refusal through the denial mapper under the write's posture.
 import { GitHubApiErrorCodes } from "github";
 import { ApiErrorCodes } from "contract";
+import { Conflict } from "../../../../../shared-errors/api-error";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 import {
-  BadGateway,
-  Conflict,
-  Forbidden,
-  NotFound,
-  Unauthorized,
-} from "../../../../../shared-errors/api-error";
+  resolveGitHubDenialError,
+  unwrapGitHubFailure,
+} from "../../../../../shared-errors/github-denial";
+import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
 import type { ReplyFailure, ResolutionFailure } from "../types";
 import type { CommentPublishFailure } from "../../publish/types";
-import { FailureKinds } from "../../../../../shared-errors/failures";
 
-/** Map a final create-comment failure to the sanitized response posture. */
+/**
+ * A 422 means the anchor no longer sits on the pinned commit's diff: a
+ * distinct 409 so the FE tells the author to reload, never a retry-looking
+ * 502. A 403 is the viewer lacking permission to comment, as on a submit.
+ */
 export function throwPublishFailure(failure: CommentPublishFailure): never {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
-    throw new Unauthorized();
-  }
-  const error = failure.error;
-  // A 422 means the anchor no longer sits on the pinned commit's diff, the
-  // head advanced under the composer. Fail with a distinct 409 so the FE
-  // tells the author to reload (the draft survives locally), never a
-  // retry-looking 502.
-  if (error.code === GitHubApiErrorCodes.ANCHOR_REJECTED) {
+  const anchorRejected =
+    failure.kind === FailureKinds.GITHUB_DENIED &&
+    failure.error.code === GitHubApiErrorCodes.ANCHOR_REJECTED;
+  if (anchorRejected) {
     throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
-  if (error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
-    throw new Unauthorized();
-  }
-  // 403/404 collapse to the gate's 404 posture, no existence leak.
-  if (
-    error.code === GitHubApiErrorCodes.NOT_FOUND ||
-    error.code === GitHubApiErrorCodes.FORBIDDEN
-  ) {
-    throw new NotFound();
-  }
-  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  throw resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.HONEST,
+  );
 }
 
 /**
- * Map a reply mutation failure. Gated-route rule: ANY in-route GitHub denial
- * (403/404) collapses to the gate's 404 posture, a root comment gone and a
- * permission denial must be indistinguishable from a cold denial.
+ * A root comment gone and a permission denial must be indistinguishable from
+ * a cold gate denial: a reply's 403 carries no capability signal.
  */
 export function throwReplyFailure(failure: ReplyFailure): never {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
-    throw new Unauthorized();
-  }
-  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
-    throw new Unauthorized();
-  }
-  if (
-    failure.error.code === GitHubApiErrorCodes.NOT_FOUND ||
-    failure.error.code === GitHubApiErrorCodes.FORBIDDEN
-  ) {
-    throw new NotFound();
-  }
-  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  throw resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.COLLAPSE,
+  );
 }
 
 /**
- * Map a thread-flip MUTATION-stage failure: runs AFTER the gate and the
- * fresh re-resolve both succeeded, so there is no existence to hide.
- * FORBIDDEN is a genuine permission gap (read-only viewer / raced
- * revocation) → an honest, FE-actionable 403. NOT_FOUND covers the PR
- * vanishing AND a `commentId` matching no thread → 404.
+ * Runs after the gate and the fresh re-resolve, so a FORBIDDEN is a genuine
+ * permission gap; NOT_FOUND covers a `commentId` matching no thread too.
  */
 export function throwResolutionFailure(failure: ResolutionFailure): never {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
-    throw new Unauthorized();
-  }
-  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
-    throw new Unauthorized();
-  }
-  if (failure.error.code === GitHubApiErrorCodes.FORBIDDEN) {
-    throw new Forbidden(ApiErrorCodes.GITHUB_PERMISSION);
-  }
-  if (failure.error.code === GitHubApiErrorCodes.NOT_FOUND) {
-    throw new NotFound();
-  }
-  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  throw resolveGitHubDenialError(
+    unwrapGitHubFailure(failure),
+    DenialPostures.HONEST,
+  );
 }

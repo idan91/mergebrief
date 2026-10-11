@@ -1,10 +1,14 @@
 // The url-box door's internal shapes. The old in-process UrlBriefEngine port
 // is gone: this door only resolves the pasted PR with the viewer's token,
 // upserts the owner-scoped row, and enqueues the worker job.
+import type { GitHubApiError } from "github";
 import type { Logger } from "logging";
 import type { AppDatabase, PullRequestRowId } from "persistence";
 import type { ReviewerGitHubClient } from "../auth/reviewer-github-client";
-import type { FailureKinds } from "../../shared-errors/failures";
+import type {
+  GitHubDeniedFailure,
+  TokenUnreadableFailure,
+} from "../../shared-errors/failures";
 
 export interface GenerateControllerDeps {
   readonly handle: AppDatabase;
@@ -23,10 +27,8 @@ export interface GenerateControllerDeps {
 
 /** Result-side failures of the generate op; the handler owns the posture. */
 export type GenerateFailure =
-  | { readonly kind: typeof FailureKinds.TOKEN_UNREADABLE }
-  | { readonly kind: "unauthorized" }
-  | { readonly kind: "not-found" }
-  | { readonly kind: "github-unavailable" };
+  | TokenUnreadableFailure
+  | GitHubDeniedFailure<GitHubApiError>;
 
 /** What the door returns: where the brief will render, for polling. */
 export interface GenerateAccepted {

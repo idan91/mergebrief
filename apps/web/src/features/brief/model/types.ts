@@ -223,6 +223,7 @@ export const PostCommentResultKinds = {
   PUBLISH_IN_DOUBT: "publish-in-doubt",
   INVALID: "invalid",
   NO_WRITE_ACCESS: "no-write-access",
+  GITHUB_PERMISSION: "github-permission",
   UPSTREAM: "upstream",
 } as const;
 export type PostCommentResultKind = ValueOf<typeof PostCommentResultKinds>;
@@ -250,6 +251,8 @@ export type PostCommentResult =
    * write to. Never a retry: it clears by installing the App there.
    */
   | { readonly kind: typeof PostCommentResultKinds.NO_WRITE_ACCESS }
+  /** 403, GitHub refused the viewer's comment; nothing posted. */
+  | { readonly kind: typeof PostCommentResultKinds.GITHUB_PERMISSION }
   /** 502/anything else, GitHub rejected or is unreachable. */
   | { readonly kind: typeof PostCommentResultKinds.UPSTREAM };
 
