@@ -46,6 +46,33 @@ export type {
   UserOctokitOptions,
 } from "./auth/oauth";
 
+// --- client/: GitHub bound to one credential ---------------------------------
+
+// Retry, token renewal and the operator read fallback live inside a binding.
+// One binding per request or job.
+export { bindReviewerGitHub } from "./client/reviewer";
+export { bindInstallationGitHub } from "./client/installation";
+export { bindOperatorGitHub, isOperatorToken } from "./client/operator";
+export { CredentialFailureCodes } from "./client/types";
+export type {
+  CredentialFailure,
+  CredentialFailureCode,
+  GitHubCall,
+  GitHubCallFailure,
+  GitHubReader,
+  InstallationGitHub,
+  InstallationRepoClient,
+  OperatorBindingOptions,
+  OperatorReads,
+  OperatorToken,
+  RepoReader,
+  RepoScoped,
+  ReviewerBindingOptions,
+  ReviewerCredential,
+  ReviewerGitHub,
+  ReviewerRepoClient,
+} from "./client/types";
+
 // --- webhook/: what GitHub PUSHES at us -------------------------------------
 
 // Webhook HMAC verification: constant-time, over the RAW body.

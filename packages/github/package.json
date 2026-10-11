@@ -16,6 +16,7 @@
     "@octokit/webhooks": "^13.9.1",
     "@octokit/webhooks-methods": "^5.1.1",
     "brief-core": "workspace:*",
+    "logging": "workspace:*",
     "octokit": "^4.1.4",
     "persistence": "workspace:*",
     "types": "workspace:*",

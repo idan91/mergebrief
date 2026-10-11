@@ -429,6 +429,9 @@ importers:
       brief-core:
         specifier: workspace:*
         version: link:../brief-core
+      logging:
+        specifier: workspace:*
+        version: link:../logging
       octokit:
         specifier: ^4.1.4
         version: 4.1.4
