@@ -9,12 +9,14 @@ import {
   ctx,
   harness,
   HEAD_1,
+  interceptInstallationRepo,
+  listCommentCalls,
   makeConnectionError,
+  makeGitHub,
   makeTarget,
   makeTask,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   stubHangingGenerator,
   trigger,
 } from "./helpers";
@@ -130,14 +132,14 @@ describe("generate task, run claim", () => {
     const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(makeTarget(pr, HEAD_1));
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
 
     await expect(
       makeTask({ generator, github })(payload),
     ).resolves.toBeUndefined();
 
     expect(generator.calls).toEqual([]);
-    expect(github.commentCalls).toEqual([]);
+    expect(listCommentCalls(github)).toEqual([]);
     expect(await projection.get(makeTarget(pr, HEAD_1))).toEqual(before);
     expect(await countAttempts()).toBe(0);
     const queued = await readQueuedJobs();
@@ -214,20 +216,17 @@ describe("generate task, run claim", () => {
 
   it("a stalled head read does not stop the lease renewal", async () => {
     const { payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    const openSource = github.openPullRequestSource.bind(github);
+    const github = makeGitHub(HEAD_1);
     let stallReads = false;
-    github.openPullRequestSource = async (...args) => {
-      const source = await openSource(...args);
-      const readPullRequest = source.fetchPullRequest.bind(source);
-      source.fetchPullRequest = async () => {
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequest(prNumber) {
         if (stallReads) {
           return new Promise(() => {});
         }
-        return readPullRequest();
-      };
-      return source;
-    };
+        return client.fetchPullRequest(prNumber);
+      },
+    }));
     const inner = stubGenerator();
     const leases: number[] = [];
     const generator: Generator = {

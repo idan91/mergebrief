@@ -12,6 +12,7 @@ export function createEntryCommentManager(
   inputs: EntryCommentManagerInputs,
 ): EntryCommentManager {
   const { source, repo, prRow, publicBaseUrl, log } = inputs;
+  const comments = source.entryComments;
   const { pullRequestId, headSha } = payload;
   let liveEntryCommentId: bigint | null = prRow.entryCommentId;
 
@@ -35,10 +36,10 @@ export function createEntryCommentManager(
    * next drain retries naturally.
    */
   async function removeEntryComment(): Promise<void> {
-    if (liveEntryCommentId === null) {
+    if (comments === undefined || liveEntryCommentId === null) {
       return;
     }
-    const deleted = await source.deleteComment(liveEntryCommentId);
+    const deleted = await comments.deleteComment(liveEntryCommentId);
     if (!deleted.ok) {
       log.warn(
         `generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`,
@@ -64,10 +65,10 @@ export function createEntryCommentManager(
    * cycle, the self-heals stay intact.
    */
   async function matchesEntryComment(body: string): Promise<boolean> {
-    if (liveEntryCommentId === null) {
+    if (comments === undefined || liveEntryCommentId === null) {
       return false;
     }
-    const fetched = await source.fetchComment(liveEntryCommentId);
+    const fetched = await comments.fetchComment(liveEntryCommentId);
     if (!fetched.ok) {
       log.warn(
         `generate: entry comment fetch failed (job unaffected) — ${fetched.error.message}`,
@@ -85,8 +86,11 @@ export function createEntryCommentManager(
    * fail generation; a later settled head can retry the cycle.
    */
   async function refreshEntryComment(body: string): Promise<void> {
+    if (comments === undefined) {
+      return;
+    }
     if (liveEntryCommentId !== null) {
-      const deleted = await source.deleteComment(liveEntryCommentId);
+      const deleted = await comments.deleteComment(liveEntryCommentId);
       if (!deleted.ok) {
         // Skip the repost: posting past a live comment we failed to delete
         // would leave two. The stored id survives for the next run's retry.
@@ -97,7 +101,10 @@ export function createEntryCommentManager(
       }
       liveEntryCommentId = null;
     }
-    const posted = await source.postEntryComment(body);
+    const posted = await comments.postEntryComment({
+      prNumber: prRow.prNumber,
+      body,
+    });
     if (!posted.ok) {
       // The old comment is gone and the stored id now dangles; the next
       // refresh's 404-tolerant delete self-heals before reposting.
@@ -117,7 +124,7 @@ export function createEntryCommentManager(
       // The new comment is untracked: a later run would delete only the OLD
       // stored id and post again, leaving this one behind, two comments.
       // Best-effort delete restores the ONE-comment invariant now.
-      const cleanup = await source.deleteComment(posted.value.commentId);
+      const cleanup = await comments.deleteComment(posted.value.commentId);
       if (!cleanup.ok) {
         log.warn(
           `generate: untracked entry comment ${posted.value.commentId} not deleted — ${cleanup.error.message}`,

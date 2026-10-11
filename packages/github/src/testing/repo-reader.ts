@@ -12,7 +12,12 @@ import {
 } from "../operations/repo-file";
 import type { FakeRunner } from "./runners";
 import type { FakeCompare } from "./types";
-import { answerNotFound, answerOk, type FakeAnswer } from "./utils";
+import {
+  answerNotFound,
+  answerOk,
+  buildFailure,
+  type FakeAnswer,
+} from "./utils";
 import {
   getCompareKey,
   getFileKey,
@@ -53,7 +58,12 @@ function readRepoFile(
   input: GetRepoFileInput,
 ): FakeAnswer<RepoFileResult> {
   const key = getFileKey(input.path, input.ref);
-  const file = world.findRepo(input)?.files.get(key);
+  const repo = world.findRepo(input);
+  const failure = repo?.fileFailures.get(key);
+  if (failure !== undefined) {
+    return { ok: false, error: buildFailure(failure, "read repo file") };
+  }
+  const file = repo?.files.get(key);
   if (file === undefined) {
     return answerNotFound("read repo file");
   }

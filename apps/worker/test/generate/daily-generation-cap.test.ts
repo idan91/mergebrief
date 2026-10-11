@@ -9,6 +9,7 @@ import { GenerationStatuses } from "types/generations";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import { RepoConfigPaths } from "repo-config";
+import { FakeFailures } from "github/testing";
 import {
   BASE,
   captureLogger,
@@ -16,14 +17,18 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  interceptInstallationRepo,
+  listCommentCalls,
   makeConnectionError,
+  makeGitHub,
   makeReviewerId,
   makeTarget,
   makeTask,
+  PR_REF,
   PUBLIC_URL,
+  REPO,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
 } from "./helpers";
 
@@ -80,9 +85,9 @@ describe("generate task, daily generation cap", () => {
 
   it("a review over a stored brief still builds its delta", async () => {
     const first = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     await makeTask({ github, spend: UNCAPPED })(first.payload);
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await makeTask({ github, spend: UNCAPPED })(second.payload);
     const written = await createTenantRepository(
@@ -156,7 +161,7 @@ describe("generate task, daily generation cap", () => {
     const fresh = stubGenerator();
     await makeTask({
       generator: fresh,
-      github: stubGitHub(HEAD_2),
+      github: makeGitHub(HEAD_2),
       spend: CAP,
     })(second.payload);
     expect(fresh.calls).toEqual([]);
@@ -183,17 +188,14 @@ describe("generate task, daily generation cap", () => {
     const before = await projection.get(makeTarget(first.pr, HEAD_1));
     const inner = stubGenerator();
     // Another slot spends the last unit between the gate and the delta call.
-    const github = stubGitHub(HEAD_1);
-    const openSource = github.openPullRequestSource.bind(github);
-    github.openPullRequestSource = async (...args) => {
-      const source = await openSource(...args);
-      const fetchFiles = source.fetchPullRequestFiles.bind(source);
-      source.fetchPullRequestFiles = async () => {
+    const github = makeGitHub(HEAD_1);
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequestFiles(prNumber) {
         await burnRunElsewhere();
-        return fetchFiles();
-      };
-      return source;
-    };
+        return client.fetchPullRequestFiles(prNumber);
+      },
+    }));
     const { logger, readLines } = captureLogger();
 
     await expect(
@@ -214,7 +216,7 @@ describe("generate task, daily generation cap", () => {
 
   it("at the cap a stored-brief run owing a delta is refused", async () => {
     const first = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     await makeTask({ github, spend: UNCAPPED })(first.payload);
     const written = await createTenantRepository(
       harness.handle,
@@ -247,20 +249,24 @@ describe("generate task, daily generation cap", () => {
 
   it("at the cap a ready flip over a stored brief still posts its Entry", async () => {
     const { payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, draft: true };
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
     const optOut = "version: 1\nentryCommentOnDrafts: false\n";
-    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
-      kind: "file",
-      content: optOut,
-      blobSha: "sha-s",
-      size: optOut.length,
-    });
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      {
+        kind: "file",
+        content: optOut,
+        blobSha: "sha-s",
+        size: optOut.length,
+      },
+    );
     await makeTask({ github, spend: UNCAPPED })(payload);
-    expect(github.comments.size).toBe(0);
+    expect(github.readComments(REPO).size).toBe(0);
 
     // The ready flip queues the same job again without a projection write.
-    github.info = { ...github.info, draft: false };
+    github.updatePullRequest(PR_REF, { draft: false });
     const generator = stubGenerator();
     const { logger, readLines } = captureLogger();
     await makeTask({
@@ -274,13 +280,13 @@ describe("generate task, daily generation cap", () => {
     expect(readLines().some((line) => line["evt"] === "spend.cap.trip")).toBe(
       true,
     );
-    expect(github.comments.size).toBe(1);
+    expect(github.readComments(REPO).size).toBe(1);
   });
 
   it("a run over a moved base projects itself and counts", async () => {
     const { pr, payload } = await burnOneRun();
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, baseSha: "d".repeat(40) };
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { baseSha: "d".repeat(40) });
     const generator = stubGenerator();
 
     await makeTask({ generator, github, spend: UNCAPPED })(payload);
@@ -302,12 +308,8 @@ describe("generate task, daily generation cap", () => {
 
   it("a failure over a stored brief leaves the row succeeded", async () => {
     const { pr, payload } = await burnOneRun();
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestFilesError = {
-      code: "not-found",
-      status: 404,
-      message: "failed to fetch files: GitHub API returned status 404",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequestFiles", FakeFailures.NOT_FOUND);
     const task = makeTask({ github, spend: UNCAPPED });
 
     await expect(task(payload)).resolves.toBeUndefined();
@@ -352,7 +354,7 @@ describe("generate task, daily generation cap", () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_2);
+    const github = makeGitHub(HEAD_2);
     const { logger, readLines } = captureLogger();
     const task = makeTask({
       generator,
@@ -396,7 +398,7 @@ describe("generate task, daily generation cap", () => {
     // The first run posts the Entry comment; the second is capped.
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
-    const github = stubGitHub(HEAD_2);
+    const github = makeGitHub(HEAD_2);
     const prRow = await createTenantRepository(
       harness.handle,
       ctx,
@@ -407,13 +409,13 @@ describe("generate task, daily generation cap", () => {
     if (liveId === null || liveId === undefined) {
       throw new Error("no entry comment to update");
     }
-    github.comments.set(liveId, "the ready body from the previous run");
+    github.addComment(REPO, liveId, "the ready body from the previous run");
 
     await makeTask({ github, spend: { maxGenerationsPerDay: 1 } })(payload);
 
     // Replace-never-duplicate: still exactly ONE comment, now the capped body.
-    expect(github.comments.size).toBe(1);
-    const body = [...github.comments.values()][0] ?? "";
+    expect(github.readComments(REPO).size).toBe(1);
+    const body = [...github.readComments(REPO).values()][0] ?? "";
     expect(body).toContain("Daily generation cap reached");
     expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7`);
     expect(body).toContain(HEAD_2.slice(0, 7));
@@ -422,7 +424,7 @@ describe("generate task, daily generation cap", () => {
   it("at the cap with NO Entry comment: creates none", async () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
-    const github = stubGitHub(HEAD_2);
+    const github = makeGitHub(HEAD_2);
     // Clear the tracked comment: this PR has none on the thread.
     await createTenantRepository(
       harness.handle,
@@ -431,8 +433,8 @@ describe("generate task, daily generation cap", () => {
 
     await makeTask({ github, spend: { maxGenerationsPerDay: 1 } })(payload);
 
-    expect(github.comments.size).toBe(0);
-    expect(github.commentCalls).toEqual([]);
+    expect(github.readComments(REPO).size).toBe(0);
+    expect(listCommentCalls(github)).toEqual([]);
   });
 
   it("counts every retry: one head run three times fills a cap of 3", async () => {
@@ -449,7 +451,7 @@ describe("generate task, daily generation cap", () => {
     await makeTask({ spend: UNCAPPED })(first.payload);
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_2);
+    const github = makeGitHub(HEAD_2);
 
     await makeTask({ generator, github, spend: { maxGenerationsPerDay: 3 } })(
       payload,
@@ -473,7 +475,7 @@ describe("generate task, daily generation cap", () => {
     const failing = stubGenerator();
     failing.failNextWith = makeConnectionError();
     await expect(
-      makeTask({ generator: failing, github: stubGitHub(HEAD_2) })(payload),
+      makeTask({ generator: failing, github: makeGitHub(HEAD_2) })(payload),
     ).rejects.toThrow("Connection error");
     const failed = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_2),
@@ -485,7 +487,7 @@ describe("generate task, daily generation cap", () => {
     const generator = stubGenerator();
     await makeTask({
       generator,
-      github: stubGitHub(HEAD_2),
+      github: makeGitHub(HEAD_2),
       spend: { maxGenerationsPerDay: 1 },
     })(payload);
 
@@ -502,7 +504,7 @@ describe("generate task, daily generation cap", () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();
-    await makeTask({ generator, github: stubGitHub(HEAD_2) })(payload);
+    await makeTask({ generator, github: makeGitHub(HEAD_2) })(payload);
 
     expect(generator.calls).toContain("brief");
     expect(

@@ -4,14 +4,11 @@ import { GenerationStatuses } from "types/generations";
 import { GeneratorError } from "generators";
 import type { Mutable } from "types/utils";
 import { RepoConfigPaths } from "repo-config";
-import {
-  GitHubApiErrorCodes,
-  type GitHubApiError,
-  type PullRequestInfo,
-} from "github";
+import { RepoFileKinds, type PullRequestInfo } from "github";
 import { TransientJobError } from "../../src/task/failure";
-import type { GenerateTaskDeps } from "../../src/task/generate";
+import { FakeFailures, type FakeFailure } from "github/testing";
 import {
+  arrangeCompare,
   BASE,
   buildRepoFile,
   captureLogger,
@@ -22,12 +19,15 @@ import {
   HEAD_1,
   HEAD_2,
   makeConnectionError,
+  makeGitHub,
   makeTarget,
   makeTask,
+  PR_REF,
+  REPO,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
+  type TaskOverrides,
 } from "./helpers";
 
 /** Incremental diff touching only b.ts. */
@@ -120,7 +120,7 @@ async function refuseHopWrites(): Promise<void> {
 setUpHarness();
 
 describe("generate task, anchored generation", () => {
-  const SPAN = `${HEAD_1}...${HEAD_2}`;
+  const SPAN = { base: HEAD_1, head: HEAD_2 };
 
   /** Two-revision run: rev1 with gA/gB, then rev2 with the given output. */
   async function runTwoRevisions(options: {
@@ -138,7 +138,7 @@ describe("generate task, anchored generation", () => {
     /** Make the second revision's hop write throw. */
     rev2HopRefused?: boolean;
     /** Fail the second revision's compare-files fetch. */
-    rev2CompareFilesError?: GitHubApiError;
+    rev2CompareFilesError?: FakeFailure;
     rev1Output?: unknown;
     /** A repo policy the first revision sees and the second no longer does. */
     rev1OnlyPolicy?: string;
@@ -148,28 +148,29 @@ describe("generate task, anchored generation", () => {
     generator.outputs["brief"] =
       options.rev1Output ??
       makeTwoGroupBriefOutput("gA", "alpha", "gB", "beta");
-    const github = stubGitHub(HEAD_1);
-    github.files = [
+    const github = makeGitHub(HEAD_1, [
       { path: "a.ts", additions: 4, deletions: 0 },
       { path: "b.ts", additions: 2, deletions: 0 },
-    ];
+    ]);
     if (options.rev1OnlyPolicy !== undefined) {
-      github.repoFiles.set(
-        RepoConfigPaths.POLICY,
+      github.addRepoFile(
+        REPO,
+        { path: RepoConfigPaths.POLICY },
         buildRepoFile(options.rev1OnlyPolicy, "sha-p"),
       );
     }
     const { logger, readLines } = captureLogger();
-    github.compareDiffs.set(SPAN, DIFF_TOUCHING_B);
-    github.compareFiles.set(
+    arrangeCompare(
+      github,
       SPAN,
+      DIFF_TOUCHING_B,
       options.compareFilesEntry ?? {
         files: [{ filename: "b.ts", status: "modified" }],
         complete: true,
         status: "ahead",
       },
     );
-    const overrides: Mutable<Partial<GenerateTaskDeps>> = {
+    const overrides: Mutable<TaskOverrides> = {
       generator,
       github,
       log: logger,
@@ -181,18 +182,19 @@ describe("generate task, anchored generation", () => {
 
     const task = makeTask(overrides);
     await task(first.payload);
-    github.repoFiles.delete(RepoConfigPaths.POLICY);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.POLICY },
+      { kind: RepoFileKinds.ABSENT },
+    );
 
-    const revisedInfo: Mutable<PullRequestInfo> = {
-      ...github.info,
-      headSha: HEAD_2,
-    };
+    const revisedInfo: Mutable<Partial<PullRequestInfo>> = { headSha: HEAD_2 };
 
     if (options.rev2BaseSha !== undefined) {
       revisedInfo.baseSha = options.rev2BaseSha;
     }
 
-    github.info = revisedInfo;
+    github.updatePullRequest(PR_REF, revisedInfo);
     generator.outputs["brief"] =
       options.rev2Output ??
       makeTwoGroupBriefOutput("tmpA", "alpha rewritten", "tmpB", "beta v2");
@@ -205,7 +207,7 @@ describe("generate task, anchored generation", () => {
       });
     }
     if (options.rev2CompareFilesError !== undefined) {
-      github.fetchCompareFilesError = options.rev2CompareFilesError;
+      github.failOn("fetchCompareFiles", options.rev2CompareFilesError);
     }
     const second = await trigger(HEAD_2);
     if (options.rev2FailWith !== undefined) {
@@ -360,11 +362,10 @@ describe("generate task, anchored generation", () => {
       "gB",
       "beta",
     );
-    const github = stubGitHub(HEAD_1);
-    github.files = [
+    const github = makeGitHub(HEAD_1, [
       { path: "a.ts", additions: 4, deletions: 0 },
       { path: "b.ts", additions: 2, deletions: 0 },
-    ];
+    ]);
     const task = makeTask({ generator, github });
     await task(first.payload);
     await harness.raw(
@@ -372,7 +373,7 @@ describe("generate task, anchored generation", () => {
     );
 
     const BASE_2 = "d".repeat(40);
-    github.info = { ...github.info, baseSha: BASE_2 };
+    github.updatePullRequest(PR_REF, { baseSha: BASE_2 });
     generator.outputs["brief"] = makeTwoGroupBriefOutput(
       "tmpA",
       "alpha again",
@@ -404,18 +405,17 @@ describe("generate task, anchored generation", () => {
       "gB",
       "beta",
     );
-    const github = stubGitHub(HEAD_1);
-    github.files = [
+    const github = makeGitHub(HEAD_1, [
       { path: "a.ts", additions: 4, deletions: 0 },
       { path: "b.ts", additions: 2, deletions: 0 },
-    ];
+    ]);
     const task = makeTask({ generator, github, fullRegeneration: "always" });
     await task(first.payload);
     await harness.raw(
       `update brief set used_group_ids = null where head_sha = '${HEAD_1}'`,
     );
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     generator.outputs["brief"] = makeTwoGroupBriefOutput(
       "tmpA",
       "alpha v2",
@@ -569,11 +569,7 @@ describe("generate task, anchored generation", () => {
 
   it("degrades to a full re-look when compare files cannot be fetched", async () => {
     const { pr, generator } = await runTwoRevisions({
-      rev2CompareFilesError: {
-        code: GitHubApiErrorCodes.REQUEST_FAILED,
-        status: 502,
-        message: "compare files unavailable",
-      },
+      rev2CompareFilesError: FakeFailures.SERVER_ERROR,
     });
     const row = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,

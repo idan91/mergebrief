@@ -1,5 +1,9 @@
 import { GeneratorError, GeneratorErrorKinds } from "generators";
-import { GitHubApiErrorCodes, type GitHubApiError } from "github";
+import {
+  CredentialFailureCodes,
+  GitHubApiErrorCodes,
+  type GitHubCallFailure,
+} from "github";
 import type { LogFields, Logger } from "logging";
 import type { GenerationKind } from "persistence";
 import {
@@ -17,26 +21,33 @@ import {
 } from "../consts";
 import type { GenerateTaskDeps } from "../types";
 
-export function isPermanentGitHubError(error: GitHubApiError): boolean {
+function isNotAcceptable(error: GitHubCallFailure): boolean {
+  return "status" in error && error.status === HTTP_STATUS_NOT_ACCEPTABLE;
+}
+
+/** An unreadable credential is permanent: a retry reads the same token. */
+export function isPermanentGitHubError(error: GitHubCallFailure): boolean {
   const isPermanent =
     error.code === GitHubApiErrorCodes.NOT_FOUND ||
     error.code === GitHubApiErrorCodes.UNAUTHORIZED ||
     error.code === GitHubApiErrorCodes.FORBIDDEN ||
-    error.status === HTTP_STATUS_NOT_ACCEPTABLE;
+    error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE ||
+    isNotAcceptable(error);
   return isPermanent;
 }
 
 /** Unwrap a GitHub `Result`, converting failures into the right error class. */
-export function throwOnGitHubFailure<T>(result: Result<T, GitHubApiError>): T {
+export function throwOnGitHubFailure<T>(
+  result: Result<T, GitHubCallFailure>,
+): T {
   if (result.ok) {
     return result.value;
   }
   if (isPermanentGitHubError(result.error)) {
     throw new PermanentJobError(result.error.message, {
-      failure:
-        result.error.status === HTTP_STATUS_NOT_ACCEPTABLE
-          ? { code: GenerationFailureCodes.DIFF_TOO_LARGE }
-          : { code: GenerationFailureCodes.GITHUB_ACCESS },
+      failure: isNotAcceptable(result.error)
+        ? { code: GenerationFailureCodes.DIFF_TOO_LARGE }
+        : { code: GenerationFailureCodes.GITHUB_ACCESS },
     });
   }
   throw new TransientJobError(result.error.message, {

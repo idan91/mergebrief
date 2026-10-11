@@ -10,19 +10,24 @@ import { PrStates } from "types/pull-requests";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import type { ContextProvider, ContextQuery } from "brief-core";
+import { CredentialKinds, FakeFailures } from "github/testing";
 import {
   BASE,
   ctx,
   harness,
   HEAD_1,
   HEAD_2,
+  listCommentCalls,
+  makeGitHub,
   makeRepoId,
   makeTarget,
   makeTask,
+  pushHeadAfterFirstRead,
+  seedViewerGrant,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
+  VIEWER_TOKEN,
 } from "./helpers";
 
 setUpHarness();
@@ -30,6 +35,7 @@ setUpHarness();
 describe("generate task, url-box world", () => {
   it("drains url-box jobs with owner scope and viewer reads, without Entries", async () => {
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
     const pr = await createTenantRepository(
       harness.handle,
       ownerCtx,
@@ -48,25 +54,25 @@ describe("generate task, url-box world", () => {
     expect(pending.ok).toBe(true);
     const payload = {
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     };
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const task = makeTask({ github });
 
     await task(payload);
 
-    // The credential path: the grant reference reached the port, and the
+    // The credential path: every read rode the grant's viewer token, and the
     // installation binding was never asked for.
-    expect(github.urlBoxCalls).toEqual([
-      {
-        grantId: 31n,
-        repoSlug: "acme/widget",
-        prNumber: 7,
-        ownerUserId: 555n,
-      },
-    ]);
+    const credentials = github.calls.map((call) => call.credential);
+    expect(credentials).not.toHaveLength(0);
+    expect(credentials).toEqual(
+      credentials.map(() => ({
+        kind: CredentialKinds.REVIEWER,
+        token: VIEWER_TOKEN,
+      })),
+    );
 
     const brief = await createArtifactStore(
       harness.handle,
@@ -81,7 +87,7 @@ describe("generate task, url-box world", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
 
     // The viewer's token must never write to GitHub: no comment ops at all.
-    expect(github.commentCalls).toEqual([]);
+    expect(listCommentCalls(github)).toEqual([]);
     expect(
       (
         await createTenantRepository(
@@ -110,6 +116,7 @@ describe("generate task, url-box world", () => {
 
   it("queries the context providers main.ts injected with the PR's metadata", async () => {
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
     const pr = await createTenantRepository(
       harness.handle,
       ownerCtx,
@@ -135,7 +142,7 @@ describe("generate task, url-box world", () => {
 
     await task({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     });
@@ -152,6 +159,7 @@ describe("generate task, url-box world", () => {
     // No installation means no webhook: if this run only stood down, the
     // paste would end with no brief and nothing scheduled.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
     const pr = await createTenantRepository(
       harness.handle,
       ownerCtx,
@@ -166,11 +174,11 @@ describe("generate task, url-box world", () => {
       true,
     );
     const generator = stubGenerator();
-    const task = makeTask({ generator, github: stubGitHub(HEAD_2) });
+    const task = makeTask({ generator, github: makeGitHub(HEAD_2) });
 
     await task({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     });
@@ -188,7 +196,7 @@ describe("generate task, url-box world", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.["payload"]).toMatchObject({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       head_sha: HEAD_2,
     });
   });
@@ -197,6 +205,7 @@ describe("generate task, url-box world", () => {
     // The mid-stream poller aborts the SDK call, which surfaces as an abort
     // rather than a head mismatch, the follow-up must ride that path too.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
     const pr = await createTenantRepository(
       harness.handle,
       ownerCtx,
@@ -210,11 +219,10 @@ describe("generate task, url-box world", () => {
     expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
       true,
     );
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // The pre-flight read sees the job's head; every poll after it sees the
     // push that supersedes this run.
-    github.nextHeads = [HEAD_1];
-    github.info = { ...github.info, headSha: HEAD_2 };
+    pushHeadAfterFirstRead(github, HEAD_2);
     const hangingGenerator: Generator = {
       async generate<S extends z.ZodType>(
         req: GenerateRequest<S>,
@@ -243,7 +251,7 @@ describe("generate task, url-box world", () => {
 
     await task({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     });
@@ -260,7 +268,7 @@ describe("generate task, url-box world", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.["payload"]).toMatchObject({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       head_sha: HEAD_2,
     });
   });
@@ -271,6 +279,7 @@ describe("generate task, url-box world", () => {
     // finalize `superseded` with nothing scheduled, and no webhook exists to
     // bring the successor back.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
     const pr = await createTenantRepository(
       harness.handle,
       ownerCtx,
@@ -284,9 +293,8 @@ describe("generate task, url-box world", () => {
     expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
       true,
     );
-    const github = stubGitHub(HEAD_1);
-    github.nextHeads = [HEAD_1];
-    github.info = { ...github.info, headSha: HEAD_2 };
+    const github = makeGitHub(HEAD_1);
+    pushHeadAfterFirstRead(github, HEAD_2);
     const hangingGenerator: Generator = {
       async generate<S extends z.ZodType>(
         req: GenerateRequest<S>,
@@ -294,11 +302,7 @@ describe("generate task, url-box world", () => {
         return new Promise<never>((_, reject) => {
           req.signal?.addEventListener("abort", () => {
             // From the abort on, GitHub is unreachable.
-            github.fetchPullRequestError = {
-              code: "request-failed",
-              status: 502,
-              message: "GitHub API returned status 502",
-            };
+            github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
             reject(
               Object.assign(new Error("Request was aborted."), {
                 name: "APIUserAbortError",
@@ -321,7 +325,7 @@ describe("generate task, url-box world", () => {
 
     await task({
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(grantId),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     });

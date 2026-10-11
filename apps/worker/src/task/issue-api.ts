@@ -2,18 +2,23 @@
 // source the rest of the job uses, so the installation (or viewer)
 // credential decides what it can see.
 import { TicketUnreadReasons, type InstallationIssueApi } from "brief-core";
-import { GitHubApiErrorCodes, type GitHubApiError } from "github";
+import {
+  CredentialFailureCodes,
+  GitHubApiErrorCodes,
+  type GitHubCallFailure,
+} from "github";
 import type { ContextReadFailure } from "brief-core";
 import type { PullRequestSource } from "./github-port";
 
-function toReadFailure(error: GitHubApiError): ContextReadFailure {
+function toReadFailure(error: GitHubCallFailure): ContextReadFailure {
   const detail = error.message;
   switch (error.code) {
     case GitHubApiErrorCodes.NOT_FOUND: {
       return { reason: TicketUnreadReasons.NOT_FOUND, detail };
     }
     case GitHubApiErrorCodes.FORBIDDEN:
-    case GitHubApiErrorCodes.UNAUTHORIZED: {
+    case GitHubApiErrorCodes.UNAUTHORIZED:
+    case CredentialFailureCodes.CREDENTIAL_UNREADABLE: {
       return { reason: TicketUnreadReasons.NO_CREDENTIAL, detail };
     }
     case GitHubApiErrorCodes.RATE_LIMITED: {

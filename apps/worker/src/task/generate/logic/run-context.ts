@@ -144,7 +144,7 @@ async function openRunSource(
   start: RunStart,
   guarded: GuardedPullRequest,
 ): Promise<PullRequestSource> {
-  const { deps, payload } = start;
+  const { deps, payload, log } = start;
   const { prRow, repoSlug } = guarded;
   if (payload.grantId === undefined) {
     return deps.github.openPullRequestSource(
@@ -154,12 +154,13 @@ async function openRunSource(
     );
   }
 
-  return deps.github.openUrlBoxPullRequestSource(
-    payload.grantId,
+  return deps.github.openUrlBoxPullRequestSource({
+    grantId: payload.grantId,
     repoSlug,
-    prRow.prNumber,
-    payload.ctx.ownerUserId,
-  );
+    prNumber: prRow.prNumber,
+    ownerUserId: payload.ctx.ownerUserId,
+    log,
+  });
 }
 
 function getAuditScope(ctx: ScopeContext): AuditScope {

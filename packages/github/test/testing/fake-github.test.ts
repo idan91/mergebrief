@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { ReviewEvents } from "../../src/operations/review-submit";
 import { ReviewSubjectTypes } from "../../src/operations/review-thread";
 import { makeFakeGitHub } from "../../src/testing";
-import { CredentialKinds, type FakeGitHub } from "../../src/testing/types";
+import {
+  CredentialKinds,
+  FakeFailures,
+  type FakeGitHub,
+} from "../../src/testing/types";
 import {
   REPO,
   makeLogger,
@@ -71,6 +75,38 @@ describe("makeFakeGitHub reads", () => {
       ok: true,
       value: { kind: "too-large", blobSha: "f", size: 20 },
     });
+  });
+
+  it("answers a failed repo file only at its path", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.failRepoFile(
+      REPO,
+      { path: "policy.yml" },
+      FakeFailures.SERVER_ERROR,
+    );
+    const reader = bindReviewer(github).forRepo(REPO);
+
+    const failed = await reader.fetchRepoFile({
+      path: "policy.yml",
+      maxBytes: 10,
+    });
+    const sibling = await reader.fetchRepoFile({
+      path: "other.yml",
+      maxBytes: 10,
+    });
+
+    expect(failed).toMatchObject({ ok: false, error: { status: 502 } });
+    expect(sibling).toEqual({ ok: true, value: { kind: "absent" } });
+  });
+
+  it("reads an updated pull request with its other facts kept", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.updatePullRequest(PR, { headSha: "c".repeat(40) });
+
+    const pull = await bindReviewer(github).forRepo(REPO).fetchPullRequest(7);
+
+    expect(pull.ok && pull.value.headSha).toBe("c".repeat(40));
+    expect(pull.ok && pull.value.title).toBe("Add widgets");
   });
 
   it("answers another pull request as not found", async () => {
@@ -186,6 +222,15 @@ describe("makeFakeGitHub writes", () => {
       ok: true,
       value: undefined,
     });
+  });
+
+  it("shows a removed comment as gone", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.addComment(REPO, 1500n, "kept");
+    github.addComment(REPO, 1501n, "removed");
+    github.removeComment(REPO, 1501n);
+
+    expect([...github.readComments(REPO)]).toEqual([[1500n, "kept"]]);
   });
 
   it("takes a draft out of draft once", async () => {

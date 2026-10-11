@@ -1,13 +1,18 @@
-// Use migrated PGlite, a graphile queue stub and fake model/GitHub ports without network.
+// Use migrated PGlite, a graphile queue stub, a stub model and github/testing's fake GitHub.
+import { randomBytes } from "node:crypto";
 import { beforeEach } from "vitest";
 import {
+  createEnvKeyProvider,
+  createGrantAuth,
   createIngestRoutines,
+  encryptToken,
   GenerationKinds,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
   parseTenantContext,
   type GenerationTarget,
+  type GrantRowId,
   type PullRequestRow,
   type RepoId,
   type ReviewerId,
@@ -23,23 +28,31 @@ import {
   type Generator,
 } from "generators";
 import { createLogger, type Logger } from "logging";
-import type { Result } from "types/utils";
-import type { CompareFile } from "brief-core";
-import type { OpenPullRequest } from "brief-core/pr-stack";
+import type { Mutable } from "types/utils";
+import type { CompareFiles } from "brief-core";
 import type {
-  GitHubApiError,
-  IssueInfo,
+  InstallationRepoClient,
+  OperatorTokenConfig,
   PullRequestFile,
   PullRequestInfo,
+  PullRequestRef,
   RepoFileResult,
+  RepoReader,
+  RepositoryRef,
+  ReviewerRepoClient,
 } from "github";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createGenerateTask,
   createRecoverGenerationTask,
   type GenerateTaskDeps,
 } from "../../src/task/generate";
 import type { GenerateTask } from "../../src/task/generate/types";
-import type { GitHubPort, PullRequestSource } from "../../src/task/github-port";
+import {
+  createGitHubPort,
+  type GitHubPort,
+  type UrlBoxAuthDeps,
+} from "../../src/task/github-port";
 
 export const HEAD_1 = "a".repeat(40);
 export const HEAD_2 = "b".repeat(40);
@@ -207,201 +220,239 @@ export function stubGenerator(): StubGenerator {
   return generator;
 }
 
-export interface StubGitHub extends GitHubPort {
-  info: PullRequestInfo;
-  files: PullRequestFile[];
-  diff: string;
-  /** Keyed `${base}...${head}`; missing spans fall back to SMALL_DIFF. */
-  compareDiffs: Map<string, string>;
-  /**
-   * Keyed `${base}...${head}`; missing spans fall back to the conservative
-   * `{files: [], complete: false}` (nothing confirmable, all re-look).
-   */
-  compareFiles: Map<
-    string,
-    { files: CompareFile[]; complete: boolean; status?: string }
-  >;
-  /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
-  nextHeads: string[];
-  fetchPullRequestError?: GitHubApiError;
-  fetchPullRequestFilesError?: GitHubApiError;
-  /** Scripted compare-files failure; anchoring must degrade, not fail. */
-  fetchCompareFilesError?: GitHubApiError;
-  /** Live Entry comments by id (the delete+repost cycle's observable state). */
-  comments: Map<bigint, string>;
-  /** Every comment op in order: `post:<id>` / `delete:<id>`. */
-  commentCalls: string[];
-  postEntryCommentError?: GitHubApiError;
-  deleteCommentError?: GitHubApiError;
-  fetchCommentError?: GitHubApiError;
-  /** Test hook run after a successful post, before it returns (interleaving). */
-  onPostEntryComment?: () => Promise<void>;
-  /** Repo-config files by path; missing = absent (404). */
-  repoFiles: Map<string, RepoFileResult>;
-  /** Per-path scripted fetchRepoFile failures. */
-  repoFileErrors: Map<string, GitHubApiError>;
-  /** Every fetchRepoFile path requested, in order. */
-  repoFileCalls: string[];
-  /** Every openUrlBoxPullRequestSource binding, in order. */
-  urlBoxCalls: {
-    grantId: bigint;
-    repoSlug: string;
-    prNumber: number;
-    ownerUserId: bigint;
-  }[];
-  /** Issues by `owner/repo#n`; missing = not found (404). */
-  issues: Map<string, IssueInfo>;
-  /** Open PRs in the repo; empty means no stack. */
-  openPullRequests: OpenPullRequest[];
-  listOpenPullRequestsError?: GitHubApiError;
+export const REPO: RepositoryRef = { owner: "acme", repo: "widget" };
+export const PR_REF: PullRequestRef = { ...REPO, prNumber: 7 };
+export const VIEWER_TOKEN = "ghu_viewer";
+
+const KEY_REF = "SESSION_KEY_TEST";
+export const TEST_KEY_PROVIDER = createEnvKeyProvider({
+  [KEY_REF]: randomBytes(32).toString("base64"),
+});
+
+const FIXTURE_COMMITS = [BASE, HEAD_1, HEAD_2];
+
+export function makePullRequestInfo(headSha: string): PullRequestInfo {
+  return {
+    repoId: makeRepoId(7n),
+    repoFullName: "acme/widget",
+    headSha,
+    headRef: "feature/stub",
+    baseRef: "main",
+    baseSha: BASE,
+    state: "open",
+    draft: false,
+    merged: false,
+    title: "stub PR",
+    body: "",
+    htmlUrl: "https://github.com/acme/widget/pull/7",
+    commitCount: 3,
+    authorLogin: "octocat",
+    closedAt: null,
+    updatedAt: new Date("2026-09-20T10:00:00Z"),
+    headRepo: { owner: "acme", repo: "widget" },
+    baseRepo: { owner: "acme", repo: "widget" },
+  };
 }
 
-function makeOk<Value>(value: Value): Result<Value, GitHubApiError> {
-  return { ok: true, value };
+/** A span's compare; its files default to the conservative nothing-confirmable answer. */
+export function arrangeCompare(
+  github: FakeGitHub,
+  span: { readonly base: string; readonly head: string },
+  diff = SMALL_DIFF,
+  files: CompareFiles = { files: [], complete: false },
+): void {
+  github.addCompare(REPO, span, { diff, files });
 }
 
-export function stubGitHub(headSha: string): StubGitHub {
-  const stub: StubGitHub = {
-    info: {
-      repoId: makeRepoId(7n),
-      repoFullName: "acme/widget",
-      headSha,
-      headRef: "feature/stub",
-      baseRef: "main",
-      baseSha: BASE,
-      state: "open",
-      draft: false,
-      merged: false,
-      title: "stub PR",
-      body: "",
-      htmlUrl: "https://github.com/acme/widget/pull/7",
-      commitCount: 3,
-      authorLogin: "octocat",
-      closedAt: null,
-      updatedAt: new Date("2026-09-20T10:00:00Z"),
-      headRepo: { owner: "acme", repo: "widget" },
-      baseRepo: { owner: "acme", repo: "widget" },
-    },
-    files: [{ path: "a.ts", additions: 8, deletions: 2 }],
+/** PR #7 at `headSha`; every span between the fixture commits diffs as `SMALL_DIFF`. */
+export function makeGitHub(
+  headSha: string,
+  files: readonly PullRequestFile[] = [
+    { path: "a.ts", additions: 8, deletions: 2 },
+  ],
+): FakeGitHub {
+  const github = makeFakeGitHub();
+  github.addPullRequest(PR_REF, {
+    info: makePullRequestInfo(headSha),
+    files,
     diff: SMALL_DIFF,
-    compareDiffs: new Map(),
-    compareFiles: new Map(),
-    nextHeads: [],
-    comments: new Map(),
-    commentCalls: [],
-    repoFiles: new Map(),
-    repoFileErrors: new Map(),
-    repoFileCalls: [],
-    urlBoxCalls: [],
-    issues: new Map(),
-    openPullRequests: [],
-    async openPullRequestSource() {
-      return buildSource();
-    },
-    async openUrlBoxPullRequestSource(
-      grantId,
-      repoSlug,
-      prNumber,
-      ownerUserId,
-    ) {
-      stub.urlBoxCalls.push({ grantId, repoSlug, prNumber, ownerUserId });
-      return buildSource();
+  });
+  for (const base of FIXTURE_COMMITS) {
+    for (const head of FIXTURE_COMMITS) {
+      if (base !== head) {
+        arrangeCompare(github, { base, head });
+      }
+    }
+  }
+  return github;
+}
+
+/** The task's port over the fake, with the url-box path over this harness's grants. */
+export function openTestPort(
+  github: FakeGitHub,
+  operatorToken?: OperatorTokenConfig,
+): GitHubPort {
+  const urlBox: Mutable<UrlBoxAuthDeps> = {
+    handle: harness.handle,
+    keyProvider: TEST_KEY_PROVIDER,
+  };
+  if (operatorToken !== undefined) {
+    urlBox.operatorToken = operatorToken;
+  }
+  return createGitHubPort(github, urlBox);
+}
+
+/** A stored grant sealing `token`; `keyRef` names the key that opens it. */
+export async function seedViewerGrant(
+  token = VIEWER_TOKEN,
+  keyRef = KEY_REF,
+): Promise<GrantRowId> {
+  const sealedAccess = await encryptToken(TEST_KEY_PROVIDER, KEY_REF, token);
+  const sealedRefresh = await encryptToken(
+    TEST_KEY_PROVIDER,
+    KEY_REF,
+    "refresh",
+  );
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
+    throw new Error("seed encrypt failed");
+  }
+  const grant = await createGrantAuth(harness.handle).createGrant({
+    ghTokenCiphertext: sealedAccess.value,
+    ghRefreshTokenCiphertext: sealedRefresh.value,
+    keyRef,
+    refreshExpiresAt: new Date(Date.now() + 3_600_000),
+  });
+  return grant.id;
+}
+
+/** Wraps each repo client the task binds as the installation: an interleaving the fake cannot arrange. */
+export function interceptInstallationRepo(
+  github: FakeGitHub,
+  wrap: (client: InstallationRepoClient) => InstallationRepoClient,
+): void {
+  const bind = github.bindInstallationGitHub.bind(github);
+  github.bindInstallationGitHub = (installationId) => {
+    const bound = bind(installationId);
+    return { ...bound, forRepo: (repo) => wrap(bound.forRepo(repo)) };
+  };
+}
+
+/** As `interceptInstallationRepo`, for the viewer's binding on a url-box job. */
+export function interceptReviewerRepo(
+  github: FakeGitHub,
+  wrap: (client: ReviewerRepoClient) => ReviewerRepoClient,
+): void {
+  const bind = github.bindReviewerGitHub.bind(github);
+  github.bindReviewerGitHub = (credential, options) => {
+    const bound = bind(credential, options);
+    return { ...bound, forRepo: (repo) => wrap(bound.forRepo(repo)) };
+  };
+}
+
+function wrapFirstHeadRead<Client extends RepoReader>(
+  client: Client,
+  onRead: () => void,
+): Client {
+  return {
+    ...client,
+    async fetchPullRequest(prNumber: number) {
+      const read = await client.fetchPullRequest(prNumber);
+      onRead();
+      return read;
     },
   };
-  function buildSource(): PullRequestSource {
-    return {
-      fetchPullRequest: async () => {
-        if (stub.fetchPullRequestError) {
-          return { ok: false, error: stub.fetchPullRequestError };
-        }
-        const scripted = stub.nextHeads.shift();
-        return makeOk(
-          scripted === undefined
-            ? stub.info
-            : { ...stub.info, headSha: scripted },
-        );
-      },
-      fetchPullRequestFiles: async () => {
-        if (stub.fetchPullRequestFilesError) {
-          return { ok: false, error: stub.fetchPullRequestFilesError };
-        }
-        return makeOk(stub.files);
-      },
-      listOpenPullRequests: async () => {
-        if (stub.listOpenPullRequestsError) {
-          return { ok: false, error: stub.listOpenPullRequestsError };
-        }
-        return makeOk(stub.openPullRequests);
-      },
-      fetchIssue: async (owner: string, repo: string, number: number) => {
-        const issue = stub.issues.get(`${owner}/${repo}#${number}`);
-        if (issue === undefined) {
-          return {
-            ok: false,
-            error: {
-              code: "not-found",
-              status: 404,
-              message: "failed to fetch issue: GitHub API returned status 404",
-            },
-          };
-        }
-        return makeOk(issue);
-      },
-      fetchDiff: async () => makeOk(stub.diff),
-      fetchCompareDiff: async (base: string, head: string) =>
-        makeOk(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
-      fetchCompareFiles: async (base: string, head: string) => {
-        if (stub.fetchCompareFilesError) {
-          return { ok: false, error: stub.fetchCompareFilesError };
-        }
-        return makeOk(
-          stub.compareFiles.get(`${base}...${head}`) ?? {
-            files: [],
-            complete: false,
-          },
-        );
-      },
-      fetchRepoFile: async (path: string) => {
-        stub.repoFileCalls.push(path);
-        const scripted = stub.repoFileErrors.get(path);
-        if (scripted !== undefined) {
-          return { ok: false, error: scripted };
-        }
-        return makeOk(stub.repoFiles.get(path) ?? { kind: "absent" as const });
-      },
-      postEntryComment: async (body: string) => {
-        if (stub.postEntryCommentError) {
-          return { ok: false, error: stub.postEntryCommentError };
-        }
-        const commentId = BigInt(
-          9000 + stub.comments.size + stub.commentCalls.length,
-        );
-        stub.comments.set(commentId, body);
-        stub.commentCalls.push(`post:${commentId}`);
-        await stub.onPostEntryComment?.();
-        return makeOk({ commentId });
-      },
-      deleteComment: async (commentId: bigint) => {
-        if (stub.deleteCommentError) {
-          return { ok: false, error: stub.deleteCommentError };
-        }
-        // Mirrors the real adapter: a 404 (unknown id) maps to ok.
-        stub.comments.delete(commentId);
-        stub.commentCalls.push(`delete:${commentId}`);
-        return makeOk(undefined);
-      },
-      fetchComment: async (commentId: bigint) => {
-        if (stub.fetchCommentError) {
-          return { ok: false, error: stub.fetchCommentError };
-        }
-        stub.commentCalls.push(`fetch:${commentId}`);
-        const body = stub.comments.get(commentId);
-        // Mirrors the real adapter: a 404 (unknown id) maps to ok undefined.
-        return makeOk(body === undefined ? undefined : { body });
-      },
-    };
+}
+
+/** The first head read sees the arranged head; every later one sees `nextHead`. */
+export function pushHeadAfterFirstRead(
+  github: FakeGitHub,
+  nextHead: string,
+): void {
+  let reads = 0;
+  function onRead(): void {
+    reads += 1;
+    if (reads === 1) {
+      github.updatePullRequest(PR_REF, { headSha: nextHead });
+    }
   }
-  return stub;
+  interceptInstallationRepo(github, (client) =>
+    wrapFirstHeadRead(client, onRead),
+  );
+  interceptReviewerRepo(github, (client) => wrapFirstHeadRead(client, onRead));
+}
+
+const COMMENT_OPERATIONS = new Set<string>([
+  "postEntryComment",
+  "deleteComment",
+  "fetchComment",
+]);
+
+/** The Entry comment calls in order: `post`, `delete:<id>`, `fetch:<id>`. */
+export function listCommentCalls(github: FakeGitHub): string[] {
+  const calls = github.calls.filter((call) =>
+    COMMENT_OPERATIONS.has(call.operation),
+  );
+  return calls.map((call) => {
+    if (call.operation === "postEntryComment") {
+      return "post";
+    }
+    const { commentId } = call.input as { commentId: bigint };
+    const verb = call.operation === "deleteComment" ? "delete" : "fetch";
+    return `${verb}:${commentId}`;
+  });
+}
+
+/** Runs `hook` after each accepted Entry post, before the post returns. */
+export function runAfterEachPost(
+  github: FakeGitHub,
+  hook: () => Promise<void>,
+): void {
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async postEntryComment(input) {
+      const posted = await client.postEntryComment(input);
+      if (posted.ok) {
+        await hook();
+      }
+      return posted;
+    },
+  }));
+}
+
+/** Entry comment calls GitHub accepted, with the ids it answered: `post:<id>`, `delete:<id>`, `fetch:<id>`. */
+export function recordCommentCalls(github: FakeGitHub): string[] {
+  const calls: string[] = [];
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async postEntryComment(input) {
+      const posted = await client.postEntryComment(input);
+      if (posted.ok) {
+        calls.push(`post:${posted.value.commentId}`);
+      }
+      return posted;
+    },
+    async deleteComment(commentId) {
+      const deleted = await client.deleteComment(commentId);
+      if (deleted.ok) {
+        calls.push(`delete:${commentId}`);
+      }
+      return deleted;
+    },
+    async fetchComment(commentId) {
+      const fetched = await client.fetchComment(commentId);
+      if (fetched.ok) {
+        calls.push(`fetch:${commentId}`);
+      }
+      return fetched;
+    },
+  }));
+  return calls;
+}
+
+/** Every repo-file path read, in order. */
+export function listRepoFilePaths(github: FakeGitHub): string[] {
+  const calls = github.listCalls("fetchRepoFile");
+  return calls.map((call) => (call.input as { path: string }).path);
 }
 
 export function buildRepoFile(
@@ -499,26 +550,32 @@ export function makeTarget(
   };
 }
 
-function makeTaskDeps(overrides: Partial<GenerateTaskDeps>): GenerateTaskDeps {
+/** Deps a test varies; `github` is the fake the task's port binds. */
+export interface TaskOverrides extends Omit<
+  Partial<GenerateTaskDeps>,
+  "github"
+> {
+  readonly github?: FakeGitHub;
+  readonly operatorToken?: OperatorTokenConfig;
+}
+
+function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
+  const { github = makeGitHub(HEAD_1), operatorToken, ...rest } = overrides;
   return {
     handle: harness.handle,
     publicBaseUrl: PUBLIC_URL,
     generator: stubGenerator(),
-    github: stubGitHub(HEAD_1),
-    ...overrides,
+    ...rest,
+    github: openTestPort(github, operatorToken),
   };
 }
 
-/** The task over this test's harness, a fresh stub generator and a HEAD_1 GitHub stub. */
-export function makeTask(
-  overrides: Partial<GenerateTaskDeps> = {},
-): GenerateTask {
+/** The task over this test's harness, a fresh stub generator and a HEAD_1 fake GitHub. */
+export function makeTask(overrides: TaskOverrides = {}): GenerateTask {
   return createGenerateTask(makeTaskDeps(overrides));
 }
 
 /** The recovery task over the same defaults as `makeTask`. */
-export function makeRecoveryTask(
-  overrides: Partial<GenerateTaskDeps> = {},
-): GenerateTask {
+export function makeRecoveryTask(overrides: TaskOverrides = {}): GenerateTask {
   return createRecoverGenerationTask(makeTaskDeps(overrides));
 }

@@ -114,6 +114,8 @@ export interface FakeFileRef {
 export interface FakeGitHubArrange {
   addRepository(info: RepositoryInfo): void;
   addPullRequest(ref: PullRequestRef, pull: FakePullRequest): void;
+  /** Change an arranged pull request's facts, as a push or a draft toggle does. */
+  updatePullRequest(ref: PullRequestRef, info: Partial<PullRequestInfo>): void;
   addCompare(
     repo: RepositoryRef,
     span: RepoScoped<CompareDiffRef>,
@@ -131,7 +133,15 @@ export interface FakeGitHubArrange {
   ): void;
   addCollaborators(repo: RepositoryRef, listing: RepoCollaborators): void;
   addComment(repo: RepositoryRef, commentId: bigint, body: string): void;
+  /** The comment is gone, as when someone deletes it on GitHub. */
+  removeComment(repo: RepositoryRef, commentId: bigint): void;
   addBranch(repo: RepositoryRef, branch: string): void;
+  /** Every later read of the file fails; a not-found folds to absent. */
+  failRepoFile(
+    repo: RepositoryRef,
+    file: FakeFileRef,
+    failure: FakeFailure,
+  ): void;
   /** Every later `operation` on `credential` (every credential when absent) fails. */
   failOn(
     operation: GitHubOperation,
@@ -159,4 +169,6 @@ export interface FakeGitHub extends FakeGitHubArrange {
   ): GitHubReader;
   readonly calls: readonly FakeGitHubCall[];
   listCalls(operation: GitHubOperation): FakeGitHubCall[];
+  /** The repository's live comments by id, in posting order. */
+  readComments(repo: RepositoryRef): ReadonlyMap<bigint, string>;
 }

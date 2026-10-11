@@ -18,6 +18,7 @@ import type { ReviewCommentListing } from "../operations/review-comment-list";
 import { FIRST_IDS } from "./consts";
 import type {
   FakeCompare,
+  FakeFailure,
   FakeGitHubArrange,
   FakePullRequest,
   FakeReview,
@@ -39,6 +40,7 @@ export interface RepoState {
   readonly pullRequests: Map<number, PullRequestState>;
   readonly compares: Map<string, FakeCompare>;
   readonly files: Map<string, RepoFileResult>;
+  readonly fileFailures: Map<string, FakeFailure>;
   readonly comments: Map<bigint, string>;
   readonly branches: Set<string>;
   collaborators: RepoCollaborators;
@@ -92,6 +94,7 @@ function createRepoState(): RepoState {
     pullRequests: new Map(),
     compares: new Map(),
     files: new Map(),
+    fileFailures: new Map(),
     comments: new Map(),
     branches: new Set(),
     collaborators: { collaborators: [], hasMore: false },
@@ -150,6 +153,15 @@ function buildArrange(state: WorldState): WorldArrange {
       const pullRequests = ensureRepo(state, ref).pullRequests;
       pullRequests.set(ref.prNumber, createPullRequestState(pull));
     },
+    updatePullRequest(ref, info) {
+      const pull = state.repos
+        .get(getRepoKey(ref))
+        ?.pullRequests.get(ref.prNumber);
+      if (pull === undefined) {
+        throw new Error(`no pull request ${ref.prNumber} arranged to update`);
+      }
+      pull.info = { ...pull.info, ...info };
+    },
     addCompare(repo, span, compare) {
       const key = getCompareKey(span.base, span.head);
       ensureRepo(state, repo).compares.set(key, compare);
@@ -172,8 +184,15 @@ function buildArrange(state: WorldState): WorldArrange {
       reserveId(state, "ISSUE_COMMENT", commentId);
       ensureRepo(state, repo).comments.set(commentId, body);
     },
+    removeComment(repo, commentId) {
+      ensureRepo(state, repo).comments.delete(commentId);
+    },
     addBranch(repo, branch) {
       ensureRepo(state, repo).branches.add(branch);
+    },
+    failRepoFile(repo, file, failure) {
+      const key = getFileKey(file.path, file.ref);
+      ensureRepo(state, repo).fileFailures.set(key, failure);
     },
   };
 }

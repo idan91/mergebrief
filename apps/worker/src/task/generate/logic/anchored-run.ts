@@ -2,7 +2,7 @@
 // push, and the hop that records where its coordinates moved. brief-core plans
 // the carry; this module fetches what the plan reads and owns its one side effect.
 import type { AnchorPlan, Brief, PreviousBriefInput } from "brief-core";
-import type { GitHubApiError } from "github";
+import type { GitHubCallFailure } from "github";
 import type { Logger } from "logging";
 import type { ArtifactStore, BriefSpanRow } from "persistence";
 import type { Mutable, Result } from "types/utils";
@@ -18,7 +18,7 @@ export interface AnchoredRunInputs {
   readonly previousBrief: Brief;
   readonly chainGroupIds: readonly string[];
   /** The prevHead...head compare diff Result, fetched once by the caller. */
-  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
   /** This run's PR base; a move since the previous brief untrusts three-dot data. */
   readonly baseSha: string;
   readonly log: Logger;

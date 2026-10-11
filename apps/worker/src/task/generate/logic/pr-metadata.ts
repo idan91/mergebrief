@@ -39,9 +39,10 @@ export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
     meta.baseRepo = prInfo.baseRepo;
   }
   if (!openPullRequests.ok) {
+    const { error } = openPullRequests;
     log.warn("generate: open pull request list failed", {
-      code: openPullRequests.error.code,
-      status: openPullRequests.error.status,
+      code: error.code,
+      status: "status" in error ? error.status : undefined,
     });
   } else {
     attachPrStack(meta, prRow.prNumber, openPullRequests.value);

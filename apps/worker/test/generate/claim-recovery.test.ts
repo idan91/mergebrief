@@ -15,13 +15,13 @@ import {
   harness,
   HEAD_1,
   makeConnectionError,
-  makeReviewerId,
+  makeGitHub,
   makeRecoveryTask,
+  makeReviewerId,
   makeTarget,
   makeTask,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
 } from "./helpers";
 
@@ -157,9 +157,9 @@ describe("generate task, claim recovery", () => {
     await makeTask()(payload);
     const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(makeTarget(pr, HEAD_1));
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     let opened = 0;
-    github.openPullRequestSource = async () => {
+    github.bindInstallationGitHub = () => {
       opened += 1;
       throw new Error("the recovery job must not open a source");
     };

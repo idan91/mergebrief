@@ -5,34 +5,50 @@ import {
   createGenerationProjection,
   parseScopeContext,
 } from "persistence";
-import { GenerationStatuses } from "types/generations";
+import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import { createLogger } from "logging";
 import { RepoConfigPaths } from "repo-config";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
-import { GitHubApiErrorCodes } from "github";
+import type { AppClient, PullRequestInfo } from "github";
+import { FakeFailures, type FakeGitHub } from "github/testing";
 import {
+  arrangeCompare,
   BASE,
   captureLogger,
   ctx,
   harness,
   HEAD_1,
   HEAD_2,
+  listCommentCalls,
+  listRepoFilePaths,
+  makeConnectionError,
+  makeGitHub,
+  makePullRequestInfo,
   makeRepoId,
   makeReviewerId,
-  makeConnectionError,
   makeTarget,
   makeTask,
+  PR_REF,
   PUBLIC_URL,
+  pushHeadAfterFirstRead,
+  recordCommentCalls,
+  REPO,
+  runAfterEachPost,
+  seedViewerGrant,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   stubHangingGenerator,
   trigger,
-  type StubGitHub,
 } from "./helpers";
+import { TransientJobError } from "../../src/task/failure";
+import { createGenerateTask } from "../../src/task/generate";
+import {
+  createAppGitHubBinders,
+  createGitHubPort,
+} from "../../src/task/github-port";
 
 /** 8 changed lines, huge against a 10-line whole-PR churn (ratio 0.8). */
 const HUGE_DIFF = `diff --git a/b.ts b/b.ts
@@ -89,17 +105,32 @@ function stubNotionFetch(): { calls: string[]; restore: () => void } {
   return { calls, restore: () => vi.unstubAllGlobals() };
 }
 
-function pointAtNotionPage(github: StubGitHub): void {
-  github.info = {
-    ...github.info,
+function pointAtNotionPage(github: FakeGitHub): void {
+  github.updatePullRequest(PR_REF, {
     body: `see https://www.notion.so/Roadmap-${NOTION_PAGE_ID}`,
-  };
-  github.repoFiles.set(RepoConfigPaths.SETTINGS, {
-    kind: "file",
-    content: NOTION_SETTINGS,
-    blobSha: "sha-s",
-    size: NOTION_SETTINGS.length,
   });
+  github.addRepoFile(
+    REPO,
+    { path: RepoConfigPaths.SETTINGS },
+    {
+      kind: "file",
+      content: NOTION_SETTINGS,
+      blobSha: "sha-s",
+      size: NOTION_SETTINGS.length,
+    },
+  );
+}
+
+/** Another open PR in the repository, a stack neighbour of #7. */
+function arrangeOpenPullRequest(
+  github: FakeGitHub,
+  prNumber: number,
+  refs: Pick<PullRequestInfo, "title" | "headRef" | "baseRef">,
+): void {
+  github.addPullRequest(
+    { ...REPO, prNumber },
+    { info: { ...makePullRequestInfo(HEAD_2), ...refs } },
+  );
 }
 
 setUpHarness();
@@ -107,17 +138,20 @@ setUpHarness();
 describe("generate task", () => {
   it("reads and stamps the primary issue through the job's GitHub source", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, body: "fixes #7" };
-    github.issues.set("acme/widget#7", {
-      title: "Stop the retry loop",
-      state: "open",
-      stateReason: null,
-      labels: ["bug"],
-      milestone: "v1",
-      body: "The retry loop must stop after three attempts.",
-      isPullRequest: false,
-    });
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes #7" });
+    github.addIssue(
+      { ...REPO, number: 7 },
+      {
+        title: "Stop the retry loop",
+        state: "open",
+        stateReason: null,
+        labels: ["bug"],
+        milestone: "v1",
+        body: "The retry loop must stop after three attempts.",
+        isPullRequest: false,
+      },
+    );
     const task = makeTask({ github });
 
     await task(payload);
@@ -156,21 +190,24 @@ describe("generate task", () => {
     );
     const payload = {
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(await seedViewerGrant()),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     };
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, body: "fixes acme/private-tracker#42" };
-    github.issues.set("acme/private-tracker#42", {
-      title: "Secret roadmap",
-      state: "open",
-      stateReason: null,
-      labels: [],
-      milestone: null,
-      body: "Not for the public brief.",
-      isPullRequest: false,
-    });
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes acme/private-tracker#42" });
+    github.addIssue(
+      { owner: "acme", repo: "private-tracker", number: 42 },
+      {
+        title: "Secret roadmap",
+        state: "open",
+        stateReason: null,
+        labels: [],
+        milestone: null,
+        body: "Not for the public brief.",
+        isPullRequest: false,
+      },
+    );
     const task = makeTask({ github });
 
     await task(payload);
@@ -202,11 +239,11 @@ describe("generate task", () => {
     );
     const payload = {
       owner_user_id: "555",
-      grant_id: "31",
+      grant_id: String(await seedViewerGrant()),
       pull_request_id: String(pr.id),
       head_sha: HEAD_1,
     };
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     pointAtNotionPage(github);
     const notion = stubNotionFetch();
     try {
@@ -219,6 +256,7 @@ describe("generate task", () => {
       harness.handle,
       ownerCtx,
     ).briefs.get(pr.id, BASE, HEAD_1);
+    expect(brief).toBeDefined();
     const body = brief?.body ?? "{}";
     expect(notion.calls).toEqual([]);
     // No Notion slot, so the page URL is never a ticket: no primary at all.
@@ -228,8 +266,8 @@ describe("generate task", () => {
 
   it("reads a key on the instance's default board when the repo names none", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, body: "Fixes BRIEF-1" };
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "Fixes BRIEF-1" });
     const notion = stubNotionFetch();
     try {
       await makeTask({
@@ -260,7 +298,7 @@ describe("generate task", () => {
 
   it("reads installation-job Notion tickets through deployment credentials", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     pointAtNotionPage(github);
     const notion = stubNotionFetch();
     try {
@@ -287,8 +325,8 @@ describe("generate task", () => {
 
   it("reports a missing issue as unread not-found on the stored brief", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, body: "fixes #404" };
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes #404" });
     const task = makeTask({ github });
 
     await task(payload);
@@ -353,34 +391,18 @@ describe("generate task", () => {
 
   it("stamps a linear open-PR stack onto the envelope", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.info = { ...github.info, baseRef: "feature/a" };
-    github.openPullRequests = [
-      {
-        number: 6,
-        title: "Parent",
-        headRef: "feature/a",
-        baseRef: "main",
-        headRepo: { owner: "acme", repo: "widget" },
-        baseRepo: { owner: "acme", repo: "widget" },
-      },
-      {
-        number: 7,
-        title: "stub PR",
-        headRef: "feature/stub",
-        baseRef: "feature/a",
-        headRepo: { owner: "acme", repo: "widget" },
-        baseRepo: { owner: "acme", repo: "widget" },
-      },
-      {
-        number: 8,
-        title: "Child",
-        headRef: "feature/c",
-        baseRef: "feature/stub",
-        headRepo: { owner: "acme", repo: "widget" },
-        baseRepo: { owner: "acme", repo: "widget" },
-      },
-    ];
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { baseRef: "feature/a" });
+    arrangeOpenPullRequest(github, 6, {
+      title: "Parent",
+      headRef: "feature/a",
+      baseRef: "main",
+    });
+    arrangeOpenPullRequest(github, 8, {
+      title: "Child",
+      headRef: "feature/c",
+      baseRef: "feature/stub",
+    });
     const task = makeTask({ github });
 
     await task(payload);
@@ -424,25 +446,12 @@ describe("generate task", () => {
       pr.id,
       { stack: recorded, readAt: recordedAt },
     );
-    const github = stubGitHub(HEAD_1);
-    github.openPullRequests = [
-      {
-        number: 7,
-        title: "stub PR",
-        headRef: "feature/stub",
-        baseRef: "main",
-        headRepo: { owner: "acme", repo: "widget" },
-        baseRepo: { owner: "acme", repo: "widget" },
-      },
-      {
-        number: 8,
-        title: "Child",
-        headRef: "feature/c",
-        baseRef: "feature/stub",
-        headRepo: { owner: "acme", repo: "widget" },
-        baseRepo: { owner: "acme", repo: "widget" },
-      },
-    ];
+    const github = makeGitHub(HEAD_1);
+    arrangeOpenPullRequest(github, 8, {
+      title: "Child",
+      headRef: "feature/c",
+      baseRef: "feature/stub",
+    });
     const task = makeTask({ github });
 
     await task(payload);
@@ -463,13 +472,8 @@ describe("generate task", () => {
       pr.id,
       { stack: priorStack, readAt: priorReadAt },
     );
-    const github = stubGitHub(HEAD_1);
-    github.listOpenPullRequestsError = {
-      code: GitHubApiErrorCodes.FORBIDDEN,
-      status: 403,
-      message:
-        "failed to list open pull requests: GitHub API returned status 403",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("listOpenPullRequests", FakeFailures.FORBIDDEN);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ github, log: logger });
 
@@ -536,13 +540,13 @@ describe("generate task", () => {
 
   it("posts the rev Entry deep link and stores its id", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const task = makeTask({ github });
 
     await task(payload);
 
-    expect(github.comments.size).toBe(1);
-    const [commentId, body] = [...github.comments.entries()][0] ?? [];
+    expect(github.readComments(REPO).size).toBe(1);
+    const [commentId, body] = [...github.readComments(REPO).entries()][0] ?? [];
     expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7?rev=1`);
 
     const row = await createTenantRepository(
@@ -554,7 +558,8 @@ describe("generate task", () => {
 
   it("replaces the generating Entry with a ready notification", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const inner = stubGenerator();
     // Capture the live comment at the moment the model call runs.
     let bodyDuringGeneration: string | undefined;
@@ -563,7 +568,7 @@ describe("generate task", () => {
         req: GenerateRequest<S>,
       ): Promise<z.infer<S>> {
         if (req.label === "brief") {
-          bodyDuringGeneration = [...github.comments.values()][0];
+          bodyDuringGeneration = [...github.readComments(REPO).values()][0];
         }
         return inner.generate(req);
       },
@@ -581,8 +586,9 @@ describe("generate task", () => {
     );
 
     // On ready: delete+repost, exactly one comment left, the ready body.
-    expect(github.comments.size).toBe(1);
-    const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
+    expect(github.readComments(REPO).size).toBe(1);
+    const [readyId, readyBody] =
+      [...github.readComments(REPO).entries()][0] ?? [];
     expect(readyBody).toContain("Read the brief");
     expect(readyBody).not.toContain("generating");
     const row = await createTenantRepository(
@@ -594,8 +600,8 @@ describe("generate task", () => {
     // Exact cycle: post generating → delete generating → post ready. The
     // delete must target the GENERATING comment's id (the in-run rotation),
     // never the stale pre-run stored id.
-    const genId = github.commentCalls[0]?.slice("post:".length);
-    expect(github.commentCalls).toEqual([
+    const genId = commentCalls[0]?.slice("post:".length);
+    expect(commentCalls).toEqual([
       `post:${genId}`,
       `delete:${genId}`,
       `post:${readyId}`,
@@ -603,13 +609,14 @@ describe("generate task", () => {
   });
 
   it("preserves an existing ready Entry on reruns without re-pinging", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const afterFirstRun = github.commentCalls.length;
-    const [readyId] = [...github.comments.entries()][0] ?? [];
+    const afterFirstRun = commentCalls.length;
+    const [readyId] = [...github.readComments(REPO).entries()][0] ?? [];
 
     // The same head is enqueued again (review-submitted gap-filler or redelivery): the
     // brief is already stored and the ready comment is already live, the
@@ -618,112 +625,120 @@ describe("generate task", () => {
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
-    const rerunCalls = github.commentCalls.slice(afterFirstRun);
+    const rerunCalls = commentCalls.slice(afterFirstRun);
     expect(rerunCalls).toEqual([`fetch:${readyId}`]);
-    expect(github.comments.get(readyId ?? -1n)).toContain("Read the brief");
+    expect(github.readComments(REPO).get(readyId ?? -1n)).toContain(
+      "Read the brief",
+    );
   });
 
   it("a rerun with a stuck generating comment still flips it to ready", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const [readyId] = [...github.comments.entries()][0] ?? [];
+    const [readyId] = [...github.readComments(REPO).entries()][0] ?? [];
     // Simulate a prior attempt that died before the ready flip: the live
     // comment still says "generating" for this head.
     if (readyId === undefined) {
       throw new Error("expected a live comment");
     }
-    github.comments.set(readyId, "Brief is generating for this push…");
-    const afterFirstRun = github.commentCalls.length;
+    github.addComment(REPO, readyId, "Brief is generating for this push…");
+    const afterFirstRun = commentCalls.length;
 
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
     // Mismatch → the normal delete+repost self-heal runs.
-    const rerunCalls = github.commentCalls.slice(afterFirstRun);
-    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    const rerunCalls = commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.readComments(REPO).entries()][0] ?? [];
     expect(rerunCalls).toEqual([
       `fetch:${readyId}`,
       `delete:${readyId}`,
       `post:${newReadyId}`,
     ]);
-    expect([...github.comments.values()][0]).toContain("Read the brief");
+    expect([...github.readComments(REPO).values()][0]).toContain(
+      "Read the brief",
+    );
   });
 
   it("a rerun whose tracked comment was manually deleted reposts it", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const [readyId] = [...github.comments.entries()][0] ?? [];
+    const [readyId] = [...github.readComments(REPO).entries()][0] ?? [];
     if (readyId === undefined) {
       throw new Error("expected a live comment");
     }
     // Someone deleted the Entry comment on GitHub; the stored id dangles.
-    github.comments.delete(readyId);
-    const afterFirstRun = github.commentCalls.length;
+    github.removeComment(REPO, readyId);
+    const afterFirstRun = commentCalls.length;
 
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
     // Gone (fetch → ok undefined) → the self-heal reposts; the 404-tolerant
     // delete of the dangling id precedes the post.
-    const rerunCalls = github.commentCalls.slice(afterFirstRun);
-    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    const rerunCalls = commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.readComments(REPO).entries()][0] ?? [];
     expect(rerunCalls).toEqual([
       `fetch:${readyId}`,
       `delete:${readyId}`,
       `post:${newReadyId}`,
     ]);
-    expect([...github.comments.values()][0]).toContain("Read the brief");
+    expect([...github.readComments(REPO).values()][0]).toContain(
+      "Read the brief",
+    );
   });
 
   it("a rerun whose comment-body fetch fails falls back to the repost cycle", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const afterFirstRun = github.commentCalls.length;
-    const [readyId] = [...github.comments.entries()][0] ?? [];
-    github.fetchCommentError = {
-      code: "request-failed",
-      status: 500,
-      message: "failed to fetch comment: GitHub API returned status 500",
-    };
+    const afterFirstRun = commentCalls.length;
+    const [readyId] = [...github.readComments(REPO).entries()][0] ?? [];
+    github.failOn("fetchComment", FakeFailures.SERVER_ERROR);
 
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
     // Uncertainty never suppresses the flip: the delete+repost runs as before.
-    const rerunCalls = github.commentCalls.slice(afterFirstRun);
-    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    const rerunCalls = commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.readComments(REPO).entries()][0] ?? [];
     expect(rerunCalls).toEqual([`delete:${readyId}`, `post:${newReadyId}`]);
-    expect([...github.comments.values()][0]).toContain("Read the brief");
+    expect([...github.readComments(REPO).values()][0]).toContain(
+      "Read the brief",
+    );
   });
 
   it("replaces the Entry on a second push and rotates its stored id", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const firstId = [...github.comments.keys()][0];
+    const firstId = [...github.readComments(REPO).keys()][0];
     expect(firstId).toBeDefined();
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
     // Never two comments; the survivor is the new one.
-    expect(github.comments.size).toBe(1);
-    const [secondId, body] = [...github.comments.entries()][0] ?? [];
+    expect(github.readComments(REPO).size).toBe(1);
+    const [secondId, body] = [...github.readComments(REPO).entries()][0] ?? [];
     expect(secondId).not.toBe(firstId);
     expect(body).toContain("?rev=2");
-    expect(github.commentCalls).toContain(`delete:${firstId}`);
+    expect(commentCalls).toContain(`delete:${firstId}`);
 
     const row = await createTenantRepository(
       harness.handle,
@@ -734,23 +749,19 @@ describe("generate task", () => {
 
   it("a superseded run posts nothing", async () => {
     const { payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_2); // head advanced past the job's
+    const github = makeGitHub(HEAD_2); // head advanced past the job's
     const task = makeTask({ github });
 
     await task(payload);
 
-    expect(github.comments.size).toBe(0);
-    expect(github.commentCalls).toEqual([]);
+    expect(github.readComments(REPO).size).toBe(0);
+    expect(listCommentCalls(github)).toEqual([]);
   });
 
   it("an Entry comment post failure logs and does not fail the job", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.postEntryCommentError = {
-      code: "request-failed",
-      status: 502,
-      message: "failed to post entry comment: GitHub API returned status 502",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("postEntryComment", FakeFailures.SERVER_ERROR);
     const logs: string[] = [];
     const task = makeTask({
       github,
@@ -780,18 +791,19 @@ describe("generate task", () => {
 
   it("best-effort deletes posted Entries when storing their ids fails", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const commentCalls = recordCommentCalls(github);
     // Interleave: the PR row vanishes between the READY post and its
     // setEntryComment (purge race), the only way the id-store can fail. The
     // first post is the generating comment; the row must survive it (the
     // brief write needs the parent).
     let posts = 0;
-    github.onPostEntryComment = async () => {
+    runAfterEachPost(github, async () => {
       posts += 1;
       if (posts === 2) {
         await harness.raw(`delete from pull_request where id = ${pr.id}`);
       }
-    };
+    });
     const logs: string[] = [];
     const task = makeTask({
       github,
@@ -805,38 +817,34 @@ describe("generate task", () => {
 
     // The untracked comment was cleaned up, no orphan survives for a later
     // run to post past.
-    expect(github.comments.size).toBe(0);
-    const lastPost = github.commentCalls
+    expect(github.readComments(REPO).size).toBe(0);
+    const lastPost = commentCalls
       .filter((call) => call.startsWith("post:"))
       .at(-1);
     expect(lastPost).toBeDefined();
     const orphanId = lastPost?.slice("post:".length);
     // The cleanup delete follows the failed store, the run's final call.
-    expect(github.commentCalls.at(-1)).toBe(`delete:${orphanId}`);
+    expect(commentCalls.at(-1)).toBe(`delete:${orphanId}`);
     expect(
       logs.some((line) => line.includes("entry comment id not stored")),
     ).toBe(true);
   });
 
   it("retains the stored id and skips reposting when Entry deletion fails", async () => {
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const task = makeTask({ github });
 
     const first = await trigger(HEAD_1);
     await task(first.payload);
-    const firstId = [...github.comments.keys()][0];
+    const firstId = [...github.readComments(REPO).keys()][0];
 
-    github.info = { ...github.info, headSha: HEAD_2 };
-    github.deleteCommentError = {
-      code: "forbidden",
-      status: 403,
-      message: "failed to delete comment: GitHub API returned status 403",
-    };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    github.failOn("deleteComment", FakeFailures.FORBIDDEN);
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
     // The old comment survives alone; no second comment was posted past it.
-    expect([...github.comments.keys()]).toEqual([firstId]);
+    expect([...github.readComments(REPO).keys()]).toEqual([firstId]);
     const row = await createTenantRepository(
       harness.handle,
       ctx,
@@ -853,7 +861,7 @@ describe("generate task", () => {
   it("supersedes advanced heads without attempts changes or generation", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_2); // GitHub's head moved past the job's
+    const github = makeGitHub(HEAD_2); // GitHub's head moved past the job's
     const task = makeTask({ generator, github });
 
     const projection = createGenerationProjection(harness.handle, ctx);
@@ -906,12 +914,12 @@ describe("generate task", () => {
   it("writes marks + revision narrative against the previous briefed head", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // Non-default effort so the narrative-site threading is pinned too.
     const task = makeTask({ generator, github, effort: "low" });
     await task(first.payload);
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
@@ -959,7 +967,7 @@ describe("generate task", () => {
   it("pre-warms one delta core per distinct checkpoint SHA, with span marks", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // Non-default effort so the delta-warm threading is pinned too.
     const task = makeTask({ generator, github, effort: "low" });
     await task(first.payload);
@@ -976,7 +984,7 @@ describe("generate task", () => {
       expect(written.ok).toBe(true);
     }
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
@@ -1008,7 +1016,7 @@ describe("generate task", () => {
   it("skips huge-span deltas for full-brief fallback", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const task = makeTask({ generator, github });
     await task(first.payload);
 
@@ -1023,8 +1031,8 @@ describe("generate task", () => {
     });
     expect(written.ok).toBe(true);
 
-    github.info = { ...github.info, headSha: HEAD_2 };
-    github.compareDiffs.set(`${HEAD_1}...${HEAD_2}`, HUGE_DIFF);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, HUGE_DIFF);
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
@@ -1052,12 +1060,8 @@ describe("generate task", () => {
 
   it("records permanent GitHub failures without rethrowing for retry", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestError = {
-      code: "not-found",
-      status: 404,
-      message: "failed to fetch pull request: GitHub API returned status 404",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
     const task = makeTask({ github });
 
     await expect(task(payload)).resolves.toBeUndefined();
@@ -1073,12 +1077,8 @@ describe("generate task", () => {
 
   it("marks a transient failure failed AND rethrows so graphile retries", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestError = {
-      code: "request-failed",
-      status: 502,
-      message: "failed to fetch pull request: GitHub API returned status 502",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
     const task = makeTask({ github });
 
     await expect(task(payload)).rejects.toThrow("502");
@@ -1091,11 +1091,10 @@ describe("generate task", () => {
 
   it("aborts superseded streams without retry or attempts changes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // Initial pre-flight check sees the job's head; every poll after sees the
     // superseding push.
-    github.nextHeads = [HEAD_1];
-    github.info = { ...github.info, headSha: HEAD_2 };
+    pushHeadAfterFirstRead(github, HEAD_2);
 
     // The brief call hangs until the threaded signal aborts, the SDK-abort
     // shape (APIUserAbortError) the worker must map to superseded.
@@ -1136,10 +1135,9 @@ describe("generate task", () => {
     });
     expect(written.ok).toBe(true);
 
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // Pre-flight check passes; the pre-delta assertCurrent sees the new head.
-    github.nextHeads = [HEAD_1];
-    github.info = { ...github.info, headSha: HEAD_2 };
+    pushHeadAfterFirstRead(github, HEAD_2);
     const generator = stubGenerator();
     const task = makeTask({ generator, github });
 
@@ -1209,11 +1207,11 @@ describe("generate task", () => {
   it("recovers a missing narrative while reusing the stored brief", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const task = makeTask({ generator, github });
     await task(first.payload);
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     // First attempt: brief written, narrative call dies (non-fatal).
     const originalGenerate = generator.generate.bind(generator);
@@ -1256,7 +1254,7 @@ describe("generate task", () => {
   it("reads the configured Notion ticket when retrying a stored narrative", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     pointAtNotionPage(github);
     const task = makeTask({ generator, github, trackerRoot: NOTION_ROOT });
     const firstNotion = stubNotionFetch();
@@ -1267,7 +1265,7 @@ describe("generate task", () => {
     }
     expect(firstNotion.calls).toHaveLength(2);
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     const originalGenerate = generator.generate.bind(generator);
     let narrativeAttempts = 0;
@@ -1291,7 +1289,7 @@ describe("generate task", () => {
     // Retry on the stored brief: the skip path loads repo config and reads
     // the Notion page again for the narrative, instead of GitHub's default.
     const retryNotion = stubNotionFetch();
-    const fetchesBefore = github.repoFileCalls.length;
+    const fetchesBefore = listRepoFilePaths(github).length;
     try {
       await task(second.payload);
     } finally {
@@ -1301,13 +1299,13 @@ describe("generate task", () => {
       `/v1/pages/${NOTION_PAGE_ID}`,
       `/v1/blocks/${NOTION_PAGE_ID}/children`,
     ]);
-    expect(github.repoFileCalls.length).toBeGreaterThan(fetchesBefore);
+    expect(listRepoFilePaths(github).length).toBeGreaterThan(fetchesBefore);
     expect(
       await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
     ).toBeDefined();
 
     // A further rerun spends nothing and so loads nothing: no config fetch.
-    const settled = github.repoFileCalls.length;
+    const settled = listRepoFilePaths(github).length;
     const idleNotion = stubNotionFetch();
     try {
       await task(second.payload);
@@ -1315,7 +1313,7 @@ describe("generate task", () => {
       idleNotion.restore();
     }
     expect(idleNotion.calls).toEqual([]);
-    expect(github.repoFileCalls.length).toBe(settled);
+    expect(listRepoFilePaths(github).length).toBe(settled);
   });
 
   it("supersedes replaced projections after the newer head succeeds", async () => {
@@ -1323,7 +1321,7 @@ describe("generate task", () => {
     const second = await trigger(HEAD_2); // same job_key, payload now carries head 2
     expect(second.pr.id).toBe(first.pr.id);
 
-    const task = makeTask({ github: stubGitHub(HEAD_2) });
+    const task = makeTask({ github: makeGitHub(HEAD_2) });
     await task(second.payload);
 
     const projection = createGenerationProjection(harness.handle, ctx);
@@ -1335,17 +1333,17 @@ describe("generate task", () => {
 
   it("a push after the last head check keeps its pending row", async () => {
     const first = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     // The ready Entry is the run's second post and follows its last head
     // check; the stub's head never moves, so the run cannot see this push.
     let posts = 0;
-    github.onPostEntryComment = async () => {
+    runAfterEachPost(github, async () => {
       posts += 1;
       if (posts === 2) {
         await new Promise((resolve) => setTimeout(resolve, 5));
         await trigger(HEAD_2);
       }
-    };
+    });
     const task = makeTask({ github });
 
     await task(first.payload);
@@ -1356,6 +1354,29 @@ describe("generate task", () => {
     expect(finished?.status).toBe(GenerationStatuses.SUCCEEDED);
     const pushed = await projection.get(makeTarget(first.pr, HEAD_2));
     expect(pushed?.status).toBe(GenerationStatuses.PENDING);
+  });
+
+  it("a refused installation token mint is transient for graphile's retry", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const refusingApp = {
+      getInstallationOctokit: () => Promise.reject(new Error("mint refused")),
+    } as unknown as AppClient;
+    const generator = stubGenerator();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: createGitHubPort(createAppGitHubBinders(refusingApp)),
+    });
+
+    await expect(task(payload)).rejects.toThrow(TransientJobError);
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.GITHUB_UNAVAILABLE);
+    expect(generator.calls).toEqual([]);
   });
 
   it("rethrows transient failures but retains deterministic ones as failed", async () => {

@@ -30,7 +30,11 @@ import type {
   PullRequestRow,
   TenantRepository,
 } from "persistence";
-import type { GitHubApiError, PullRequestFile, PullRequestInfo } from "github";
+import type {
+  GitHubCallFailure,
+  PullRequestFile,
+  PullRequestInfo,
+} from "github";
 import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";
@@ -199,7 +203,7 @@ export interface AnchorDecisionInputs {
   readonly prevBrief: BriefSpanRow | undefined;
   readonly priorBriefs: readonly BriefSpanRow[];
   /** The prevHead...head compare diff Result, fetched once by the caller. */
-  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
   /** This run's PR base. */
   readonly baseSha: string;
   readonly log: Logger;
@@ -335,7 +339,7 @@ export interface RunInputs {
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
   /** The prevHead...head compare diff Result, fetched before the model call. */
-  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
   readonly repoConfig: AcquiredRepoConfig | undefined;
   readonly loadContext: TicketContextLoader;
   readonly entryCommentAllowed: boolean;
@@ -383,7 +387,7 @@ export interface PrMetadataInputs {
   readonly files: PullRequestFile[];
   readonly prRow: PullRequestRow;
   /** The open-PR list Result; a failure logs and skips the stack. */
-  readonly openPullRequests: Result<OpenPullRequest[], GitHubApiError>;
+  readonly openPullRequests: Result<OpenPullRequest[], GitHubCallFailure>;
   readonly log: Logger;
 }
 
@@ -432,7 +436,7 @@ export interface BriefGenerationInputs {
   readonly priorBriefs: readonly BriefSpanRow[];
   readonly prevBrief: BriefSpanRow | undefined;
   /** The prevHead...head compare diff Result, fetched once by the caller. */
-  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
   readonly prInfo: PullRequestInfo;
   readonly diff: string;
   readonly locator: PrLocator;

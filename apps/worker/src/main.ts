@@ -20,7 +20,11 @@ import {
 } from "persistence";
 import type { Mutable } from "types/utils";
 import { loadConfig } from "./config";
-import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
+import {
+  createAppGitHubBinders,
+  createGitHubPort,
+  type UrlBoxAuthDeps,
+} from "./task/github-port";
 import {
   createGenerateTask,
   createRecoverGenerationTask,
@@ -160,7 +164,10 @@ async function main(): Promise<void> {
   const generateDeps: Mutable<GenerateTaskDeps> = {
     handle,
     generator: generator.value,
-    github: appGitHubPort(createAppClient(githubConfig.value), urlBoxDeps),
+    github: createGitHubPort(
+      createAppGitHubBinders(createAppClient(githubConfig.value)),
+      urlBoxDeps,
+    ),
     publicBaseUrl: config.value.publicBaseUrl,
     // No `spend` block → uncapped.
     spend: config.value.spend,

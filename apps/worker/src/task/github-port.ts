@@ -1,35 +1,35 @@
 // The worker's GitHub boundary: the reads a generate job needs, pre-bound to
-// one PR so the task logic never handles octokit instances or repo
-// coordinates. Two credential worlds share one binding: an App-installation
-// job mints an installation-scoped client (the worker acts as the App); a
-// url-box job resolves its `grant_id` into the VIEWER's token, decrypted
-// lazily, per job, never stored, with the operator PAT as the documented
-// backstop. Tests substitute an in-memory port.
+// one PR so the task logic never handles bindings or repo coordinates. An
+// App-installation job binds the installation; a url-box job binds the
+// VIEWER's grant-resolved token, decrypted lazily, per job, never stored,
+// with the operator token as the probe-decided backstop.
 import {
-  createUserOctokit,
-  deleteComment,
-  fetchComment,
-  fetchCompareDiff,
-  fetchCompareFiles,
-  fetchDiff,
-  fetchIssue,
-  fetchPullRequest,
-  fetchPullRequestFiles,
-  getInstallationClient,
-  getRepoFile,
+  bindInstallationGitHub,
+  bindOperatorGitHub,
+  bindReviewerGitHub,
   GitHubApiErrorCodes,
-  listOpenPullRequests,
-  postEntryComment,
+  isOperatorToken,
   type AppClient,
   type GitHubApiError,
+  type GitHubCall,
+  type GitHubCallFailure,
+  type GitHubReader,
+  type InstallationGitHub,
+  type InstallationRepoClient,
   type IssueInfo,
+  type OperatorToken,
   type OperatorTokenConfig,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
+  type RepoReader,
+  type ReviewerBindingOptions,
+  type ReviewerCredential,
+  type ReviewerGitHub,
 } from "github";
 import type { CompareFiles } from "brief-core";
 import type { OpenPullRequest } from "brief-core/pr-stack";
+import type { Logger } from "logging";
 import {
   createGrantAuth,
   decryptToken,
@@ -40,63 +40,60 @@ import {
   type ReviewerId,
 } from "persistence";
 import { GenerationFailureCodes } from "types/generations";
+import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
 import { PermanentJobError } from "./failure";
 
-/** The GitHub calls a generate job performs, bound to one (installation, repo, PR). */
+/** The Entry comment's operations; only an installation job has them. */
+export type EntryComments = Pick<
+  InstallationRepoClient,
+  "postEntryComment" | "deleteComment" | "fetchComment"
+>;
+
+/** The GitHub calls a generate job performs, bound to one (credential, repo, PR). */
 export interface PullRequestSource {
-  fetchPullRequest(): Promise<Result<PullRequestInfo, GitHubApiError>>;
-  fetchPullRequestFiles(): Promise<Result<PullRequestFile[], GitHubApiError>>;
-  listOpenPullRequests(): Promise<Result<OpenPullRequest[], GitHubApiError>>;
+  fetchPullRequest(): GitHubCall<PullRequestInfo>;
+  fetchPullRequestFiles(): GitHubCall<PullRequestFile[]>;
+  listOpenPullRequests(): GitHubCall<OpenPullRequest[]>;
   /**
    * One issue by number, in any repo the bound credential can see: the
-   * primary ticket may live in a sibling repo of the installation.
+   * primary ticket may live in a sibling repo of the installation. On the
+   * operator token, the job's own repository only.
    */
   fetchIssue(
     owner: string,
     repo: string,
     number: number,
-  ): Promise<Result<IssueInfo, GitHubApiError>>;
+  ): GitHubCall<IssueInfo>;
   /** The whole-PR unified diff at the current head. */
-  fetchDiff(): Promise<Result<string, GitHubApiError>>;
+  fetchDiff(): GitHubCall<string>;
   /** The `base...head` span diff (narrative/marks/delta inputs). */
-  fetchCompareDiff(
-    base: string,
-    head: string,
-  ): Promise<Result<string, GitHubApiError>>;
+  fetchCompareDiff(base: string, head: string): GitHubCall<string>;
   /**
    * The `base...head` compare per-file status metadata: the rename/binary/
    * mode signals the anchoring predicate needs and the raw diff cannot carry.
    */
-  fetchCompareFiles(
-    base: string,
-    head: string,
-  ): Promise<Result<CompareFiles, GitHubApiError>>;
+  fetchCompareFiles(base: string, head: string): GitHubCall<CompareFiles>;
   /**
    * One repo file from the DEFAULT BRANCH (`ref` deliberately unset): a PR
    * head must never be able to weaken its own scrutiny.
    */
-  fetchRepoFile(
-    path: string,
-    maxBytes: number,
-  ): Promise<Result<RepoFileResult, GitHubApiError>>;
-  /** Post the branded Entry comment; returns the comment id. */
-  postEntryComment(
-    body: string,
-  ): Promise<Result<{ readonly commentId: bigint }, GitHubApiError>>;
-  /** Delete a prior Entry comment; a 404 (already gone) maps to ok. */
-  deleteComment(commentId: bigint): Promise<Result<void, GitHubApiError>>;
-  /** Read a prior Entry comment's live body; a 404 (gone) maps to ok undefined. */
-  fetchComment(
-    commentId: bigint,
-  ): Promise<Result<{ readonly body: string } | undefined, GitHubApiError>>;
+  fetchRepoFile(path: string, maxBytes: number): GitHubCall<RepoFileResult>;
+  /** Absent on a url-box job: the viewer's token never writes. */
+  readonly entryComments?: EntryComments;
+}
+
+/** One url-box job's credential reference and the PR it reads. */
+export interface UrlBoxSourceRequest {
+  readonly grantId: GrantRowId;
+  readonly repoSlug: string;
+  readonly prNumber: number;
+  readonly ownerUserId: ReviewerId;
+  readonly log: Logger;
 }
 
 export interface GitHubPort {
-  /**
-   * Open a source on one PR. `repoSlug` is the stored `owner/repo` full name;
-   * minting the installation token is the only network side effect.
-   */
+  /** Open a source on one PR as the App installation. */
   openPullRequestSource(
     installationId: InstallationId,
     repoSlug: string,
@@ -104,26 +101,33 @@ export interface GitHubPort {
   ): Promise<PullRequestSource>;
   /**
    * Open a source for a url-box job: resolve the grant, decrypt the viewer's
-   * access token, and probe the PR once. A viewer denial falls back to the
-   * operator PAT when one is configured and lists `ownerUserId` (a GitHub App
-   * user token is installation-scoped and cannot read a private repo the App
-   * is not installed on, even for the repo's owner). A missing/unreadable
-   * grant is a permanent `github-access` failure: the fix is a fresh paste,
-   * not a retry.
+   * access token, and probe the PR once. A viewer denial switches the job to
+   * the operator token when one is configured and lists `ownerUserId` (a
+   * GitHub App user token is installation-scoped and cannot read a private
+   * repo the App is not installed on, even for the repo's owner). A
+   * missing/unreadable grant is a permanent `github-access` failure: the fix
+   * is a fresh paste, not a retry.
    */
   openUrlBoxPullRequestSource(
-    grantId: GrantRowId,
-    repoSlug: string,
-    prNumber: number,
-    ownerUserId: ReviewerId,
+    request: UrlBoxSourceRequest,
   ): Promise<PullRequestSource>;
+}
+
+/** The three credential bindings; production binds the App, tests the fake. */
+export interface GitHubBinders {
+  bindInstallationGitHub(installationId: InstallationId): InstallationGitHub;
+  bindReviewerGitHub(
+    credential: ReviewerCredential,
+    options: ReviewerBindingOptions,
+  ): ReviewerGitHub;
+  bindOperatorGitHub(token: OperatorToken): GitHubReader;
 }
 
 /** What the url-box credential path needs; absent = url-box jobs refuse. */
 export interface UrlBoxAuthDeps {
   readonly handle: AppDatabase;
   readonly keyProvider: KeyProvider;
-  /** Operator PAT backstop and the reviewers it may be used for; optional. */
+  /** Operator token backstop and the reviewers it may be used for; optional. */
   readonly operatorToken?: OperatorTokenConfig;
 }
 
@@ -143,8 +147,6 @@ export function splitRepoSlug(slug: string): RepoParts | undefined {
   return { owner, repo };
 }
 
-type BoundOctokit = Parameters<typeof fetchPullRequest>[0];
-
 function splitRepoSlugOrThrow(repoSlug: string, prNumber: number): RepoParts {
   const split = splitRepoSlug(repoSlug);
   if (split === undefined) {
@@ -156,60 +158,32 @@ function splitRepoSlugOrThrow(repoSlug: string, prNumber: number): RepoParts {
   return split;
 }
 
-/** The client-agnostic closure wiring: one octokit + one PR ref → source. */
-function bindPullRequestSource(
-  octokit: BoundOctokit,
-  ref: RepoParts & { readonly prNumber: number },
-): PullRequestSource {
+type PullRequestReads = Omit<
+  PullRequestSource,
+  "listOpenPullRequests" | "entryComments"
+>;
+
+/** One binding's reads, bound to one repository's PR. */
+function bindPullRequestReads(
+  github: GitHubReader,
+  reader: RepoReader,
+  prNumber: number,
+): PullRequestReads {
   return {
-    fetchPullRequest: () => fetchPullRequest(octokit, ref),
-    fetchPullRequestFiles: () => fetchPullRequestFiles(octokit, ref),
-    listOpenPullRequests: () =>
-      listOpenPullRequests(octokit, { owner: ref.owner, repo: ref.repo }),
+    fetchPullRequest: () => reader.fetchPullRequest(prNumber),
+    fetchPullRequestFiles: () => reader.fetchPullRequestFiles(prNumber),
     fetchIssue: (owner, repo, number) =>
-      fetchIssue(octokit, { owner, repo, number }),
-    fetchDiff: () => fetchDiff(octokit, ref),
-    fetchCompareDiff: (base, head) =>
-      fetchCompareDiff(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        base,
-        head,
-      }),
-    fetchCompareFiles: (base, head) =>
-      fetchCompareFiles(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        base,
-        head,
-      }),
-    fetchRepoFile: (path, maxBytes) =>
-      getRepoFile(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        path,
-        maxBytes,
-      }),
-    postEntryComment: (body) =>
-      postEntryComment(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        prNumber: ref.prNumber,
-        body,
-      }),
-    deleteComment: (commentId) =>
-      deleteComment(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        commentId,
-      }),
-    fetchComment: (commentId) =>
-      fetchComment(octokit, {
-        owner: ref.owner,
-        repo: ref.repo,
-        commentId,
-      }),
+      github.fetchIssue({ owner, repo, number }),
+    fetchDiff: () => reader.fetchDiff(prNumber),
+    fetchCompareDiff: (base, head) => reader.fetchCompareDiff({ base, head }),
+    fetchCompareFiles: (base, head) => reader.fetchCompareFiles({ base, head }),
+    fetchRepoFile: (path, maxBytes) => reader.fetchRepoFile({ path, maxBytes }),
   };
+}
+
+/** The open list names every PR in a repository the owner cannot see. */
+function listNoOpenPullRequests(): GitHubCall<OpenPullRequest[]> {
+  return Promise.resolve({ ok: true, value: [] });
 }
 
 /**
@@ -220,9 +194,9 @@ function bindPullRequestSource(
  */
 function serveProbeOnce(
   source: PullRequestSource,
-  probe: Result<PullRequestInfo, GitHubApiError>,
+  probe: Result<PullRequestInfo, GitHubCallFailure>,
 ): PullRequestSource {
-  let pending: Result<PullRequestInfo, GitHubApiError> | undefined = probe;
+  let pending: Result<PullRequestInfo, GitHubCallFailure> | undefined = probe;
   return {
     ...source,
     fetchPullRequest: async () => {
@@ -242,97 +216,182 @@ function buildPermanentAccessFailure(message: string): PermanentJobError {
   });
 }
 
-/** The operator PAT, only for a reviewer the Operator listed. */
+/** The operator token, only for a reviewer the Operator listed. */
 function resolveOperatorTokenFor(
   operatorToken: OperatorTokenConfig | undefined,
   ownerUserId: ReviewerId,
-): string | undefined {
+): OperatorToken | undefined {
   if (operatorToken === undefined) {
     return undefined;
   }
   const listed = operatorToken.reviewerIds.has(ownerUserId);
-  return listed ? operatorToken.token : undefined;
+  if (!listed || !isOperatorToken(operatorToken.token)) {
+    return undefined;
+  }
+  return operatorToken.token;
+}
+
+/** The worker holds no refresh token path: a rejected viewer token stays rejected. */
+function createViewerCredential(token: string): ReviewerCredential {
+  return {
+    readToken: async () => ({ ok: true, value: token }),
+    renewToken: async () => undefined,
+  };
+}
+
+function isDeniedProbe(
+  probe: Result<PullRequestInfo, GitHubCallFailure>,
+): boolean {
+  if (probe.ok) {
+    return false;
+  }
+  const { code } = probe.error;
+  return (
+    code === GitHubApiErrorCodes.NOT_FOUND ||
+    code === GitHubApiErrorCodes.FORBIDDEN
+  );
+}
+
+async function readViewerToken(
+  urlBox: UrlBoxAuthDeps,
+  grantId: GrantRowId,
+): Promise<string> {
+  const grant = await createGrantAuth(urlBox.handle).getGrant(grantId);
+  if (grant === undefined) {
+    // The referencing session logged out between enqueue and drain and
+    // the grant was orphan-cleaned; a retry cannot bring it back.
+    throw buildPermanentAccessFailure("github_grant no longer exists");
+  }
+  const token = await decryptToken(
+    urlBox.keyProvider,
+    grant.keyRef,
+    grant.ghTokenCiphertext,
+  );
+  if (!token.ok) {
+    throw buildPermanentAccessFailure(
+      `viewer token unreadable (${token.error.code})`,
+    );
+  }
+  return token.value;
+}
+
+function openInstallationSource(
+  binders: GitHubBinders,
+  installationId: InstallationId,
+  repo: RepoParts,
+  prNumber: number,
+): PullRequestSource {
+  const github = binders.bindInstallationGitHub(installationId);
+  const client = github.forRepo(repo);
+  return {
+    ...bindPullRequestReads(github, client, prNumber),
+    listOpenPullRequests: () => client.listOpenPullRequests(),
+    entryComments: client,
+  };
+}
+
+const ISSUE_OUT_OF_REACH: GitHubApiError = {
+  code: GitHubApiErrorCodes.NOT_FOUND,
+  status: HttpStatuses.NOT_FOUND,
+  message: "issue outside the job's repository",
+};
+
+function isSameRepository(left: RepoParts, right: RepoParts): boolean {
+  const sameOwner = left.owner.toLowerCase() === right.owner.toLowerCase();
+  return sameOwner && left.repo.toLowerCase() === right.repo.toLowerCase();
 }
 
 /**
- * The production port: App-JWT client for installation jobs; grant-resolved
- * viewer token (+ PAT backstop) for url-box jobs. `urlBox` absent = url-box
- * jobs fail permanently: the operator wired no credential path.
+ * Url-box jobs read only, so the operator token is never a write path. A
+ * ticket in another repository answers not-found unsent: the owner reaches
+ * neither repository on a key of their own.
  */
-export function appGitHubPort(
-  app: AppClient,
+function openOperatorSource(
+  binders: GitHubBinders,
+  token: OperatorToken,
+  repo: RepoParts,
+  prNumber: number,
+): PullRequestSource {
+  const github = binders.bindOperatorGitHub(token);
+  const reads = bindPullRequestReads(github, github.forRepo(repo), prNumber);
+  return {
+    ...reads,
+    fetchIssue: async (owner, issueRepo, number) => {
+      if (!isSameRepository(repo, { owner, repo: issueRepo })) {
+        return { ok: false, error: ISSUE_OUT_OF_REACH };
+      }
+      return reads.fetchIssue(owner, issueRepo, number);
+    },
+    listOpenPullRequests: listNoOpenPullRequests,
+  };
+}
+
+async function openUrlBoxSource(
+  binders: GitHubBinders,
+  urlBox: UrlBoxAuthDeps,
+  request: UrlBoxSourceRequest,
+): Promise<PullRequestSource> {
+  const { grantId, repoSlug, prNumber, ownerUserId, log } = request;
+  const repo = splitRepoSlugOrThrow(repoSlug, prNumber);
+  const token = await readViewerToken(urlBox, grantId);
+
+  const viewer = binders.bindReviewerGitHub(createViewerCredential(token), {
+    log,
+  });
+  const client = viewer.forRepo(repo);
+  const viewerSource: PullRequestSource = {
+    ...bindPullRequestReads(viewer, client, prNumber),
+    listOpenPullRequests: () => client.listOpenPullRequests(),
+  };
+  const operatorToken = resolveOperatorTokenFor(
+    urlBox.operatorToken,
+    ownerUserId,
+  );
+  if (operatorToken === undefined) {
+    return viewerSource;
+  }
+
+  // One probe decides the whole job's credential: a denial runs every read
+  // on the operator token; any other outcome keeps the viewer, with the
+  // probe result served once and the task's own reads surfacing any error.
+  const probe = await viewerSource.fetchPullRequest();
+  if (isDeniedProbe(probe)) {
+    return openOperatorSource(binders, operatorToken, repo, prNumber);
+  }
+  return serveProbeOnce(viewerSource, probe);
+}
+
+/** The App's installation binding and the package's reviewer and operator bindings. */
+export function createAppGitHubBinders(app: AppClient): GitHubBinders {
+  return {
+    bindInstallationGitHub: (installationId) =>
+      bindInstallationGitHub(app, installationId),
+    bindReviewerGitHub,
+    bindOperatorGitHub,
+  };
+}
+
+/**
+ * The task's port over `binders`. `urlBox` absent = url-box jobs fail
+ * permanently: the operator wired no credential path.
+ */
+export function createGitHubPort(
+  binders: GitHubBinders,
   urlBox?: UrlBoxAuthDeps,
 ): GitHubPort {
   return {
     async openPullRequestSource(installationId, repoSlug, prNumber) {
-      const split = splitRepoSlugOrThrow(repoSlug, prNumber);
-      const octokit = await getInstallationClient(app, installationId);
-      return bindPullRequestSource(octokit, { ...split, prNumber });
+      const repo = splitRepoSlugOrThrow(repoSlug, prNumber);
+      return openInstallationSource(binders, installationId, repo, prNumber);
     },
 
-    async openUrlBoxPullRequestSource(
-      grantId,
-      repoSlug,
-      prNumber,
-      ownerUserId,
-    ) {
+    async openUrlBoxPullRequestSource(request) {
       if (urlBox === undefined) {
         throw buildPermanentAccessFailure(
           "url-box job with no viewer credential path configured",
         );
       }
-      const split = splitRepoSlugOrThrow(repoSlug, prNumber);
-      const ref = { ...split, prNumber };
-      const grant = await createGrantAuth(urlBox.handle).getGrant(grantId);
-      if (grant === undefined) {
-        // The referencing session logged out between enqueue and drain and
-        // the grant was orphan-cleaned; a retry cannot bring it back.
-        throw buildPermanentAccessFailure("github_grant no longer exists");
-      }
-      const token = await decryptToken(
-        urlBox.keyProvider,
-        grant.keyRef,
-        grant.ghTokenCiphertext,
-      );
-      if (!token.ok) {
-        throw buildPermanentAccessFailure(
-          `viewer token unreadable (${token.error.code})`,
-        );
-      }
-      const viewerSource = bindPullRequestSource(
-        createUserOctokit(token.value),
-        ref,
-      );
-      const operatorToken = resolveOperatorTokenFor(
-        urlBox.operatorToken,
-        ownerUserId,
-      );
-      if (operatorToken === undefined) {
-        return viewerSource;
-      }
-      // One probe decides the fallback: a GitHub App user token cannot read a
-      // private repo the App is not installed on, so a denial here retries as
-      // the operator PAT. Any other outcome keeps the viewer binding, with
-      // the probe result served once, so the task's first read is free, and
-      // lets the task's own reads surface any real error.
-      const probe = await viewerSource.fetchPullRequest();
-      if (
-        !probe.ok &&
-        (probe.error.code === GitHubApiErrorCodes.NOT_FOUND ||
-          probe.error.code === GitHubApiErrorCodes.FORBIDDEN)
-      ) {
-        // The open list names every PR in a repository the owner cannot
-        // see; on the PAT the brief resolves no stack.
-        const operatorSource = bindPullRequestSource(
-          createUserOctokit(operatorToken),
-          ref,
-        );
-        return {
-          ...operatorSource,
-          listOpenPullRequests: async () => ({ ok: true, value: [] }),
-        };
-      }
-      return serveProbeOnce(viewerSource, probe);
+      return openUrlBoxSource(binders, urlBox, request);
     },
   };
 }

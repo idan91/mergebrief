@@ -5,13 +5,14 @@ import {
   type Effort,
   type Generator,
 } from "generators";
+import { FakeFailures } from "github/testing";
 import {
   captureLogger,
   HEAD_1,
+  makeGitHub,
   makeTask,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
 } from "./helpers";
 
@@ -20,12 +21,8 @@ setUpHarness();
 describe("generate task, observability", () => {
   it("logs transient job.fail with attempts and job bindings", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestError = {
-      code: "request-failed",
-      status: 502,
-      message: "failed to fetch pull request: GitHub API returned status 502",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ github, log: logger });
 
@@ -84,12 +81,8 @@ describe("generate task, observability", () => {
 
   it("logs permanent job.fail without rethrowing", async () => {
     const { payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestError = {
-      code: "not-found",
-      status: 404,
-      message: "failed to fetch pull request: GitHub API returned status 404",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ github, log: logger });
 
@@ -105,12 +98,8 @@ describe("generate task, observability", () => {
 
   it("mints job.retries.exhausted on the final attempt", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.fetchPullRequestError = {
-      code: "request-failed",
-      status: 502,
-      message: "failed to fetch pull request: GitHub API returned status 502",
-    };
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ github, log: logger });
 

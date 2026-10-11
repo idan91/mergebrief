@@ -6,17 +6,20 @@ import {
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { RepoConfigPaths, repoConfigArtifactSchema } from "repo-config";
+import { FakeFailures } from "github/testing";
 import {
   BASE,
   buildRepoFile,
   ctx,
   harness,
   HEAD_1,
+  listRepoFilePaths,
+  makeGitHub,
   makeTarget,
   makeTask,
+  REPO,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
 } from "./helpers";
 
@@ -87,24 +90,27 @@ deEmphasize:
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     generator.outputs["brief"] = FIRING_BRIEF;
-    const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(
-      RepoConfigPaths.INSTRUCTIONS,
+    const github = makeGitHub(HEAD_1);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.INSTRUCTIONS },
       buildRepoFile(INSTRUCTIONS_MD, "sha-i"),
     );
-    github.repoFiles.set(
-      RepoConfigPaths.SETTINGS,
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
       buildRepoFile(SETTINGS_YAML, "sha-s"),
     );
-    github.repoFiles.set(
-      RepoConfigPaths.POLICY,
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.POLICY },
       buildRepoFile(POLICY_YAML, "sha-p"),
     );
     const task = makeTask({ generator, github });
 
     await task(payload);
 
-    expect(github.repoFileCalls.toSorted()).toEqual(
+    expect(listRepoFilePaths(github).toSorted()).toEqual(
       [
         RepoConfigPaths.INSTRUCTIONS,
         RepoConfigPaths.SETTINGS,
@@ -173,13 +179,15 @@ deEmphasize:
 
   it("rejects invalid settings wholly while applying valid sibling files", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(
-      RepoConfigPaths.SETTINGS,
+    const github = makeGitHub(HEAD_1);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
       buildRepoFile("version: 2\n", "sha-bad"),
     );
-    github.repoFiles.set(
-      RepoConfigPaths.INSTRUCTIONS,
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.INSTRUCTIONS },
       buildRepoFile(INSTRUCTIONS_MD, "sha-i"),
     );
     const task = makeTask({ github });
@@ -200,14 +208,15 @@ deEmphasize:
 
   it("generates despite per-file fetch failures and records their outcomes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.repoFileErrors.set(RepoConfigPaths.POLICY, {
-      code: "request-failed",
-      status: 502,
-      message: "failed to fetch repo file: GitHub API returned status 502",
-    });
-    github.repoFiles.set(
-      RepoConfigPaths.SETTINGS,
+    const github = makeGitHub(HEAD_1);
+    github.failRepoFile(
+      REPO,
+      { path: RepoConfigPaths.POLICY },
+      FakeFailures.SERVER_ERROR,
+    );
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
       buildRepoFile(SETTINGS_YAML, "sha-s"),
     );
     const task = makeTask({ github });
@@ -226,12 +235,16 @@ deEmphasize:
 
   it("records pre-decode oversize refusals as over-budget with fetch facts", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(RepoConfigPaths.INSTRUCTIONS, {
-      kind: "too-large",
-      blobSha: "sha-big",
-      size: 20_000,
-    });
+    const github = makeGitHub(HEAD_1);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.INSTRUCTIONS },
+      {
+        kind: "too-large",
+        blobSha: "sha-big",
+        size: 20_000,
+      },
+    );
     const task = makeTask({ github });
 
     await task(payload);
@@ -250,19 +263,20 @@ deEmphasize:
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     generator.outputs["brief"] = FIRING_BRIEF;
-    const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(
-      RepoConfigPaths.POLICY,
+    const github = makeGitHub(HEAD_1);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.POLICY },
       buildRepoFile(POLICY_YAML, "sha-p"),
     );
     const task = makeTask({ generator, github });
     await task(payload);
-    const fetchesAfterFirst = github.repoFileCalls.length;
+    const fetchesAfterFirst = listRepoFilePaths(github).length;
     const before = await readStoredRepoConfig(pr, HEAD_1);
 
     await task(payload); // second drain: brief already stored → skip branch
 
-    expect(github.repoFileCalls.length).toBe(fetchesAfterFirst);
+    expect(listRepoFilePaths(github).length).toBe(fetchesAfterFirst);
     expect(await readStoredRepoConfig(pr, HEAD_1)).toEqual(before);
   });
 });

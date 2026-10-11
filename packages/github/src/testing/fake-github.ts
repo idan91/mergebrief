@@ -31,6 +31,9 @@ export function makeFakeGitHub(): FakeGitHub {
     listCalls(operation) {
       return exchange.calls.filter((call) => call.operation === operation);
     },
+    readComments(repo) {
+      return new Map(world.findRepo(repo)?.comments);
+    },
     bindReviewerGitHub(credential, options) {
       const runners = createReviewerRunners(send, credential, options);
       return {

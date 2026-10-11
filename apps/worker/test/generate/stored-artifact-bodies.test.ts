@@ -15,11 +15,13 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  makeGitHub,
   makeReviewerId,
   makeTask,
+  PR_REF,
+  REPO,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
   type StubGenerator,
 } from "./helpers";
@@ -88,10 +90,11 @@ describe("generate task, stored artifact bodies", () => {
     if (options.rev1Output !== undefined) {
       generator.outputs["brief"] = options.rev1Output;
     }
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     if (options.policy !== undefined) {
-      github.repoFiles.set(
-        RepoConfigPaths.POLICY,
+      github.addRepoFile(
+        REPO,
+        { path: RepoConfigPaths.POLICY },
         buildRepoFile(options.policy, "sha-p"),
       );
     }
@@ -112,7 +115,7 @@ describe("generate task, stored artifact bodies", () => {
       generator.outputs["brief"] = options.rev2Output;
     }
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
@@ -180,7 +183,7 @@ describe("generate task, stored artifact bodies", () => {
   it("writes the delta and warns once when its write check fails", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ generator, github, log: logger });
     await task(first.payload);
@@ -199,7 +202,7 @@ describe("generate task, stored artifact bodies", () => {
       wholePrImpact: 7,
     });
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
@@ -223,7 +226,7 @@ describe("generate task, stored artifact bodies", () => {
   it("writes the narrative and warns once when its write check fails", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    const github = stubGitHub(HEAD_1);
+    const github = makeGitHub(HEAD_1);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ generator, github, log: logger });
     await task(first.payload);
@@ -233,7 +236,7 @@ describe("generate task, stored artifact bodies", () => {
       inventedKey: true,
     });
 
-    github.info = { ...github.info, headSha: HEAD_2 };
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await task(second.payload);
 

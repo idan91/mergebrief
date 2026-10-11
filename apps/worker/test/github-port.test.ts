@@ -1,137 +1,58 @@
-// The url-box credential path: grant → lazy decrypt → viewer octokit, with
-// the operator PAT as the probe-decided backstop. GitHub is mocked at the
-// module boundary; the grant/crypto legs run real against PGlite.
-import { randomBytes } from "node:crypto";
-import type * as githubModule from "github";
+// The port over github/testing's fake: which binding each job kind reads
+// through, and the url-box probe that may switch a job to the operator token.
+// The grant and crypto legs run real against PGlite.
+import type { IssueInfo } from "github";
+import { isGrantRowId, parseTenantContext, type GrantRowId } from "persistence";
 import {
-  GitHubApiErrorCodes,
-  createUserOctokit,
-  fetchIssue,
-  fetchPullRequest,
-  listOpenPullRequests,
-} from "github";
-import {
-  createEnvKeyProvider,
-  createGrantAuth,
-  encryptToken,
-  isGrantRowId,
-  isRepoId,
-  isReviewerId,
-  type GrantRowId,
-  type RepoId,
-  type ReviewerId,
-} from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+  CredentialKinds,
+  FakeFailures,
+  type FakeCredential,
+  type FakeGitHub,
+} from "github/testing";
+import { describe, expect, it } from "vitest";
 import { PermanentJobError } from "../src/task/failure";
-import { appGitHubPort } from "../src/task/github-port";
+import { createGitHubPort } from "../src/task/github-port";
+import {
+  makeGitHub,
+  makeReviewerId,
+  openTestPort,
+  PR_REF,
+  REPO,
+  seedViewerGrant,
+  setUpHarness,
+  HEAD_1,
+  VIEWER_TOKEN,
+} from "./generate/helpers";
+import { createNoopLogger } from "../src/task/generate/utils";
 
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  createUserOctokit: vi.fn(),
-  fetchIssue: vi.fn(),
-  fetchPullRequest: vi.fn(),
-  listOpenPullRequests: vi.fn(),
-}));
+setUpHarness();
 
-function brandRepoId(value: bigint): RepoId {
-  if (!isRepoId(value)) {
-    throw new Error("bad repo id");
-  }
-  return value;
-}
-
-function brandReviewerId(value: bigint): ReviewerId {
-  const validReviewerId = isReviewerId(value);
-  if (!validReviewerId) {
-    throw new Error("bad reviewer id");
-  }
-  return value;
-}
-
-const OWNER = brandReviewerId(555n);
-const OPERATOR_TOKEN = {
-  token: "ghp_operator",
+const OWNER = makeReviewerId(555n);
+const OPERATOR_TOKEN = "ghp_operator";
+const LISTED_OPERATOR = {
+  token: OPERATOR_TOKEN,
   reviewerIds: new Set([OWNER]),
 };
+const { installationId } = parseTenantContext({ installationId: 42 });
 
-const KEY_REF = "SESSION_KEY_TEST";
-const keyProvider = createEnvKeyProvider({
-  [KEY_REF]: randomBytes(32).toString("base64"),
-});
-
-// The App client is never touched on the url-box path; a call is a test bug.
-const unusedApp = new Proxy(
-  {},
-  {
-    get() {
-      throw new Error("App client must not be used on the url-box path");
-    },
-  },
-) as githubModule.AppClient;
-
-const INFO: githubModule.PullRequestInfo = {
-  repoId: brandRepoId(7n),
-  repoFullName: "acme/widget",
-  headSha: "a".repeat(40),
-  headRef: "feature/fixture",
-  baseSha: "c".repeat(40),
-  state: "open",
-  draft: false,
-  merged: false,
-  title: "t",
-  body: "",
-  htmlUrl: "https://github.com/acme/widget/pull/7",
-  commitCount: 1,
-  authorLogin: "octocat",
-  closedAt: null,
-  updatedAt: new Date("2026-09-20T10:00:00Z"),
+const AS_VIEWER: FakeCredential = {
+  kind: CredentialKinds.REVIEWER,
+  token: VIEWER_TOKEN,
+};
+const AS_OPERATOR: FakeCredential = {
+  kind: CredentialKinds.OPERATOR,
+  token: OPERATOR_TOKEN,
 };
 
-/** Track which token each minted octokit carries. */
-const octokitTokens = new WeakMap<object, string>();
-
-function stubOctokits(): void {
-  vi.mocked(createUserOctokit).mockImplementation((token: string) => {
-    const octokit = {};
-    octokitTokens.set(octokit, token);
-    return octokit as ReturnType<typeof createUserOctokit>;
-  });
-}
-
-function tokenOf(octokit: unknown): string | undefined {
-  return typeof octokit === "object" && octokit !== null
-    ? octokitTokens.get(octokit)
-    : undefined;
-}
-
-let harness: PgliteHarness;
-beforeEach(async () => {
-  harness = await createPgliteHarness();
-  stubOctokits();
-});
-afterEach(async () => {
-  vi.clearAllMocks();
-  await harness.close();
-});
-
-async function seedGrant(
-  plaintext: string,
-  keyRef = KEY_REF,
-): Promise<GrantRowId> {
-  const sealedAccess = await encryptToken(keyProvider, KEY_REF, plaintext);
-  const sealedRefresh = await encryptToken(keyProvider, KEY_REF, "refresh");
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(harness.handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef,
-    refreshExpiresAt: new Date(Date.now() + 3_600_000),
-  });
-  return grant.id;
-}
+const TICKET: IssueInfo = {
+  title: "Ship widgets",
+  state: "open",
+  stateReason: null,
+  labels: [],
+  milestone: null,
+  body: "",
+  isPullRequest: false,
+};
 
 function missingGrantId(): GrantRowId {
   const value = 999_999n;
@@ -141,276 +62,265 @@ function missingGrantId(): GrantRowId {
   return value;
 }
 
-describe("appGitHubPort openUrlBoxPullRequestSource", () => {
-  it("binds the viewer's decrypted token when the probe succeeds", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
-      expect(tokenOf(octokit)).toBe("ghu_viewer");
-      return { ok: true, value: INFO };
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
+function makeUrlBoxRequest(grantId: GrantRowId, ownerUserId = OWNER) {
+  return {
+    grantId,
+    repoSlug: "acme/widget",
+    prNumber: PR_REF.prNumber,
+    ownerUserId,
+    log: createNoopLogger(),
+  };
+}
 
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
+function listCredentials(github: FakeGitHub): FakeCredential[] {
+  return github.calls.map((call) => call.credential);
+}
+
+describe("createGitHubPort openPullRequestSource", () => {
+  it("reads and writes through the installation binding", async () => {
+    const github = makeGitHub(HEAD_1);
+    const source = await openTestPort(github).openPullRequestSource(
+      installationId,
       "acme/widget",
       7,
-      OWNER,
     );
+
+    const read = await source.fetchPullRequest();
+    const posted = await source.entryComments?.postEntryComment({
+      prNumber: 7,
+      body: "Brief is generating",
+    });
+
+    expect(read.ok).toBe(true);
+    expect(posted?.ok).toBe(true);
+    expect([...github.readComments(REPO).values()]).toEqual([
+      "Brief is generating",
+    ]);
+    expect(listCredentials(github)).toEqual([
+      { kind: CredentialKinds.INSTALLATION, installationId },
+      { kind: CredentialKinds.INSTALLATION, installationId },
+    ]);
+  });
+
+  it("lists the repository's open pull requests", async () => {
+    const github = makeGitHub(HEAD_1);
+    const source = await openTestPort(github).openPullRequestSource(
+      installationId,
+      "acme/widget",
+      7,
+    );
+
+    const open = await source.listOpenPullRequests();
+
+    expect(open.ok && open.value.map((pull) => pull.number)).toEqual([7]);
+  });
+});
+
+describe("createGitHubPort openUrlBoxPullRequestSource", () => {
+  it("binds the viewer's decrypted token when the probe succeeds", async () => {
+    const github = makeGitHub(HEAD_1);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
     // The probe result is served once: the task's first read costs nothing.
     const first = await source.fetchPullRequest();
     expect(first.ok).toBe(true);
-    expect(vi.mocked(fetchPullRequest)).toHaveBeenCalledTimes(1);
+    expect(github.listCalls("fetchPullRequest")).toHaveLength(1);
     // Later reads (the supersession watch) go live again.
     await source.fetchPullRequest();
-    expect(vi.mocked(fetchPullRequest)).toHaveBeenCalledTimes(2);
-    for (const call of vi.mocked(fetchPullRequest).mock.calls) {
-      expect(tokenOf(call[0])).toBe("ghu_viewer");
-    }
+    expect(github.listCalls("fetchPullRequest")).toHaveLength(2);
+    expect(listCredentials(github)).toEqual([AS_VIEWER, AS_VIEWER]);
+    expect(source.entryComments).toBeUndefined();
   });
 
   it("reads an issue in any repo with the same bound token", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockResolvedValue({ ok: true, value: INFO });
-    vi.mocked(fetchIssue).mockResolvedValue({
-      ok: false,
-      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "nope" },
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-    });
-
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
+    const github = makeGitHub(HEAD_1);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(github).openUrlBoxPullRequestSource(
+      makeUrlBoxRequest(grantId),
     );
+
     const result = await source.fetchIssue("acme", "tracker", 42);
 
     expect(result.ok).toBe(false);
-    const call = vi.mocked(fetchIssue).mock.calls.at(-1);
-    expect(tokenOf(call?.[0])).toBe("ghu_viewer");
-    expect(call?.[1]).toEqual({ owner: "acme", repo: "tracker", number: 42 });
+    expect(github.calls.at(-1)).toEqual({
+      operation: "fetchIssue",
+      credential: AS_VIEWER,
+      input: { owner: "acme", repo: "tracker", number: 42 },
+    });
   });
 
-  it("falls back to the operator PAT after a viewer NOT_FOUND probe", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
-      if (tokenOf(octokit) === "ghu_viewer") {
-        return {
-          ok: false,
-          error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
-        };
-      }
-      return { ok: true, value: INFO };
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
-
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
+  it("switches the whole job to the operator after a NOT_FOUND probe", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
     );
-    const result = await source.fetchPullRequest();
-    expect(result.ok).toBe(true);
-    const lastCall = vi.mocked(fetchPullRequest).mock.calls.at(-1);
-    expect(tokenOf(lastCall?.[0])).toBe("ghp_operator");
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
+    const read = await source.fetchPullRequest();
+    await source.fetchDiff();
+    await source.fetchRepoFile(".mergebrief/settings.yaml", 1024);
+
+    expect(read.ok).toBe(true);
+    expect(listCredentials(github)).toEqual([
+      AS_VIEWER,
+      AS_OPERATOR,
+      AS_OPERATOR,
+      AS_OPERATOR,
+    ]);
+    // The repo-config read stays on the default branch on the operator token.
+    expect(github.calls.at(-1)?.input).toEqual({
+      path: ".mergebrief/settings.yaml",
+      maxBytes: 1024,
+      ...REPO,
+    });
+    expect(source.entryComments).toBeUndefined();
   });
 
-  it("lists no open PRs on the operator PAT, so no stack resolves", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
-      if (tokenOf(octokit) === "ghu_viewer") {
-        return {
-          ok: false,
-          error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
-        };
-      }
-      return { ok: true, value: INFO };
-    });
-    vi.mocked(listOpenPullRequests).mockResolvedValue({
-      ok: true,
-      value: [
-        {
-          number: 8,
-          title: "a neighbour",
-          headRef: "deal/x",
-          baseRef: "main",
-          headRepo: { owner: "acme", repo: "widget" },
-          baseRepo: { owner: "acme", repo: "widget" },
-        },
-      ],
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
-
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
+  it("switches to the operator after a FORBIDDEN probe", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.FORBIDDEN,
+      CredentialKinds.REVIEWER,
     );
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
+    const read = await source.fetchPullRequest();
+
+    expect(read.ok).toBe(true);
+    expect(github.calls.at(-1)?.credential).toEqual(AS_OPERATOR);
+  });
+
+  it("lists no open PRs on the operator token, so no stack resolves", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
     const open = await source.listOpenPullRequests();
 
     expect(open).toEqual({ ok: true, value: [] });
-    expect(vi.mocked(listOpenPullRequests)).not.toHaveBeenCalled();
+    expect(github.listCalls("listOpenPullRequests")).toEqual([]);
   });
 
-  it("falls back to the operator PAT after a viewer FORBIDDEN probe", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
-      if (tokenOf(octokit) === "ghu_viewer") {
-        return {
-          ok: false,
-          error: { code: GitHubApiErrorCodes.FORBIDDEN, message: "403" },
-        };
-      }
-      return { ok: true, value: INFO };
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
+  it("reads no issue outside the job's repository on the operator token", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    github.addIssue({ owner: "acme", repo: "widget", number: 3 }, TICKET);
+    github.addIssue(
+      { owner: "other-org", repo: "secrets", number: 12 },
+      TICKET,
+    );
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
-    );
-    const result = await source.fetchPullRequest();
-    expect(result.ok).toBe(true);
-    expect(tokenOf(vi.mocked(fetchPullRequest).mock.calls.at(-1)?.[0])).toBe(
-      "ghp_operator",
-    );
+    const own = await source.fetchIssue("acme", "widget", 3);
+    const foreign = await source.fetchIssue("other-org", "secrets", 12);
+
+    expect(own.ok).toBe(true);
+    expect(foreign.ok || foreign.error.code).toBe("not-found");
+    expect(github.listCalls("fetchIssue")).toHaveLength(1);
   });
 
-  it("an UNAUTHORIZED probe keeps the viewer binding, never the PAT", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockResolvedValue({
-      ok: false,
-      error: { code: GitHubApiErrorCodes.UNAUTHORIZED, message: "401" },
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
+  it("an UNAUTHORIZED probe keeps the viewer binding, never the operator", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.rejectToken(VIEWER_TOKEN);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
 
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
-    );
     const result = await source.fetchPullRequest();
+    await source.fetchPullRequest();
+
     expect(result.ok).toBe(false);
-    for (const call of vi.mocked(fetchPullRequest).mock.calls) {
-      expect(tokenOf(call[0])).toBe("ghu_viewer");
-    }
+    expect(listCredentials(github)).toEqual([AS_VIEWER, AS_VIEWER]);
   });
 
-  it("keeps the viewer binding on a denial when no PAT is configured", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockResolvedValue({
-      ok: false,
-      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-    });
-
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      OWNER,
+  it("keeps the viewer binding on a denial when no operator token is set", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(github).openUrlBoxPullRequestSource(
+      makeUrlBoxRequest(grantId),
     );
+
     // No probe happened (nothing to decide); the task's own read surfaces it.
-    expect(vi.mocked(fetchPullRequest)).not.toHaveBeenCalled();
+    expect(github.calls).toEqual([]);
     const result = await source.fetchPullRequest();
     expect(result.ok).toBe(false);
+    expect(listCredentials(github)).toEqual([AS_VIEWER]);
   });
 
   it("keeps the viewer binding for a reviewer off the list", async () => {
-    const grantId = await seedGrant("ghu_viewer");
-    vi.mocked(fetchPullRequest).mockResolvedValue({
-      ok: false,
-      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
-    });
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-      operatorToken: OPERATOR_TOKEN,
-    });
-
-    const source = await port.openUrlBoxPullRequestSource(
-      grantId,
-      "acme/widget",
-      7,
-      brandReviewerId(556n),
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      LISTED_OPERATOR,
+    ).openUrlBoxPullRequestSource(
+      makeUrlBoxRequest(grantId, makeReviewerId(556n)),
     );
+
     // The same branch as no token at all: no probe, the task's read surfaces it.
-    expect(vi.mocked(fetchPullRequest)).not.toHaveBeenCalled();
+    expect(github.calls).toEqual([]);
     const result = await source.fetchPullRequest();
 
     expect(result.ok).toBe(false);
-    const mintedTokens = vi
-      .mocked(createUserOctokit)
-      .mock.calls.map(([token]) => token);
-    expect(mintedTokens).toEqual(["ghu_viewer"]);
+    expect(listCredentials(github)).toEqual([AS_VIEWER]);
   });
 
   it("a vanished grant is a permanent github-access failure", async () => {
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-    });
     await expect(
-      port.openUrlBoxPullRequestSource(
-        missingGrantId(),
-        "acme/widget",
-        7,
-        OWNER,
+      openTestPort(makeGitHub(HEAD_1)).openUrlBoxPullRequestSource(
+        makeUrlBoxRequest(missingGrantId()),
       ),
     ).rejects.toThrow(PermanentJobError);
   });
 
   it("an unreadable token is a permanent github-access failure", async () => {
-    const grantId = await seedGrant("ghu_viewer", "MISSING_KEY_REF");
-    const port = appGitHubPort(unusedApp, {
-      handle: harness.handle,
-      keyProvider,
-    });
+    const grantId = await seedViewerGrant(VIEWER_TOKEN, "MISSING_KEY_REF");
     await expect(
-      port.openUrlBoxPullRequestSource(grantId, "acme/widget", 7, OWNER),
+      openTestPort(makeGitHub(HEAD_1)).openUrlBoxPullRequestSource(
+        makeUrlBoxRequest(grantId),
+      ),
     ).rejects.toThrow(PermanentJobError);
   });
 
   it("refuses url-box jobs when no credential path is wired", async () => {
-    const port = appGitHubPort(unusedApp);
+    const port = createGitHubPort(makeGitHub(HEAD_1));
     await expect(
-      port.openUrlBoxPullRequestSource(
-        missingGrantId(),
-        "acme/widget",
-        7,
-        OWNER,
-      ),
+      port.openUrlBoxPullRequestSource(makeUrlBoxRequest(missingGrantId())),
     ).rejects.toThrow(PermanentJobError);
   });
 });

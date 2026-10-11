@@ -39,9 +39,14 @@ export type { ParsedGeneratePayload } from "./task/payload";
 export { utcDayBounds } from "./task/spend";
 export type { UtcDay } from "./task/spend";
 
-// The GitHub boundary: installation-scoped PR reads behind a testable port.
-export { appGitHubPort, splitRepoSlug } from "./task/github-port";
+// The GitHub boundary: PR reads over packages/github's bindings behind a testable port.
+export {
+  createAppGitHubBinders,
+  createGitHubPort,
+  splitRepoSlug,
+} from "./task/github-port";
 export type {
+  GitHubBinders,
   GitHubPort,
   PullRequestSource,
   RepoParts,

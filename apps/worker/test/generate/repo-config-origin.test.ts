@@ -7,11 +7,12 @@ import {
   ctx,
   harness,
   HEAD_1,
+  makeGitHub,
   makeTarget,
   makeTask,
+  REPO,
   setUpHarness,
   stubGenerator,
-  stubGitHub,
   trigger,
 } from "./helpers";
 
@@ -23,13 +24,17 @@ describe("generate task, repo-config origin on the generation record", () => {
     const generator = stubGenerator();
     // Deterministic (permanent) generation failure AFTER acquisition.
     generator.failNextWith = new Error("model refused");
-    const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
-      kind: "file",
-      content: "version: 2\n",
-      blobSha: "sha-bad",
-      size: 11,
-    });
+    const github = makeGitHub(HEAD_1);
+    github.addRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      {
+        kind: "file",
+        content: "version: 2\n",
+        blobSha: "sha-bad",
+        size: 11,
+      },
+    );
     const task = makeTask({ generator, github });
 
     await task(payload);
