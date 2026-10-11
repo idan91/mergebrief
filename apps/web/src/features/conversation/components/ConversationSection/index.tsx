@@ -25,7 +25,8 @@ import type {
 } from "../../queries";
 import { useMentionPool } from "../../hooks/useMentionPool";
 import { Button } from "@web/components/Button";
-import { LinkButton } from "@web/components/LinkButton";
+import { CollapsibleBar } from "@web/components/CollapsibleBar";
+import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import rowStyles from "../../rows.module.scss";
 import {
   ReviewVerdictStates,
@@ -40,12 +41,6 @@ import type {
 import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
 import { headSummary } from "./utils";
-import { Icon } from "@web/components/Icon";
-import {
-  IconNames,
-  IconRotations,
-  IconSizes,
-} from "@web/components/Icon/types";
 import styles from "./ConversationSection.module.scss";
 import type { Mutable } from "types/utils";
 
@@ -353,64 +348,40 @@ export function ConversationSection({
   const summary =
     conversation === undefined ? undefined : headSummary(t, conversation);
 
-  return (
-    <section
-      aria-labelledby="conversation-heading"
-      className={styles["section"]}
-      data-conversation-section
+  const refreshAction = open ? (
+    <Button
+      disabled={query.isFetching}
+      loading={query.isFetching}
+      variant="quiet"
+      onClick={refresh}
     >
-      <div className={styles["head"]}>
-        {/* The heading IS the disclosure, and the C shortcut's focus target,
-            a button is natively focusable. */}
-        <h2 className={styles["heading"]}>
-          <LinkButton
-            aria-expanded={open}
-            className={styles["headingToggle"]}
-            id="conversation-heading"
-            onClick={onToggle}
-          >
-            <span
-              aria-hidden
-              className={styles["twist"]}
-              data-open={open || undefined}
-            >
-              <Icon
-                name={IconNames.CARET_DOWN}
-                rotation={
-                  open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
-                }
-                size={IconSizes.SM}
-              />
-            </span>
-            {t("conversation.heading")}
-            {/* Totals ONLY: the header describes the whole conversation;
-                filter state renders in exactly one place, the toolbar's
-                Filter trigger. */}
-            {summary !== undefined ? (
-              <span className={styles["headSummary"]}>{summary}</span>
-            ) : null}
-          </LinkButton>
-        </h2>
-        {open ? (
-          <Button
-            disabled={query.isFetching}
-            loading={query.isFetching}
-            variant="quiet"
-            onClick={refresh}
-          >
-            {query.isFetching
-              ? t("conversation.refreshing")
-              : t("conversation.refresh")}
-          </Button>
-        ) : null}
-      </div>
-      {afterBriefCount > 0 ? (
-        <p className={styles["afterBriefNote"]}>
-          {t("conversation.afterBrief", { count: afterBriefCount })}
-        </p>
-      ) : null}
+      {query.isFetching
+        ? t("conversation.refreshing")
+        : t("conversation.refresh")}
+    </Button>
+  ) : undefined;
+  const afterBriefNote =
+    afterBriefCount > 0 ? (
+      <p className={styles["afterBriefNote"]}>
+        {t("conversation.afterBrief", { count: afterBriefCount })}
+      </p>
+    ) : undefined;
+  return (
+    <CollapsibleBar
+      actions={refreshAction}
+      className={styles["section"]}
+      data-conversation-section=""
+      headingLevel={BarHeadingLevels.H2}
+      note={afterBriefNote}
+      open={open}
+      summary={summary}
+      title={t("conversation.heading")}
+      toggleClassName={styles["headingToggle"]}
+      toggleId="conversation-heading"
+      onToggle={onToggle}
+    >
       {open ? (
-        <>
+        <div className={styles["body"]}>
           {query.isPending ? (
             <p className={rowStyles["note"]} role="status">
               {t("conversation.loading")}
@@ -503,8 +474,8 @@ export function ConversationSection({
               ) : null}
             </>
           ) : null}
-        </>
+        </div>
       ) : null}
-    </section>
+    </CollapsibleBar>
   );
 }

@@ -3,61 +3,19 @@
 
 @layer components {
   .section {
-    @include mixins.single-column-grid;
-
-    gap: functions.to-rem(14px);
-
-    /* Breathing room on BOTH sides so the collapsed header never sits flush
-       against the group list. */
     margin-block: functions.to-rem(20px) functions.to-rem(24px);
-    padding: functions.to-rem(16px);
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-1);
   }
 
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: functions.to-rem(10px);
-  }
-
-  .heading {
-    margin: 0;
-    font-size: var(--font-size-xl);
-
-    // Pinned to the pre-scale rendering: implicit UA bold + body line-height.
-    font-weight: 700;
-    line-height: 1.55;
-  }
-
-  /* Heading disclosure on LinkButton's grammar; the twist glyph carries the
-     affordance, so no underline. */
   .headingToggle {
-    display: inline-flex;
-    align-items: baseline;
-    gap: functions.to-rem(8px);
-    min-height: functions.to-rem(24px);
-    color: var(--color-text-1);
-    text-decoration: none;
-
-    /* The C-shortcut scroll must clear the sticky app header — same offset
-       every other top-aligned scroll compensates. */
     // The WHOLE pinned stack, not just the header: landing on the header's
     // height alone leaves the target under the toolbar beneath it.
     scroll-margin-block-start: var(--sticky-stack-h);
   }
 
-  .twist {
-    display: inline-grid;
-    color: var(--color-text-2);
-  }
+  .body {
+    @include mixins.single-column-grid;
 
-  .headSummary {
-    color: var(--color-text-2);
-    font-size: var(--font-size-md);
-    font-weight: 400;
+    gap: functions.to-rem(14px);
   }
 
   /* How much of the conversation postdates the viewed brief — visible while

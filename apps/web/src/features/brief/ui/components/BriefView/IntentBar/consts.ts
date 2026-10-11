@@ -1,6 +1,7 @@
 import type { TranslationKey } from "i18n";
 
 import { Specificities, type IntentCheck } from "brief-core/types";
+import type { IntentCountSpec } from "./utils";
 
 /** Neutral one-liner shown when the intent source is not checkable. */
 export const UNAVAILABLE_REASON_KEY: Record<
@@ -26,3 +27,15 @@ export const ALARM_GLYPH = "◇";
 
 /** The bar's element id: the mark-ready jump lands on it. One bar per page. */
 export const INTENT_BAR_ID = "intent-bar";
+
+/** The head's counts, in the order the body's buckets read. */
+export const INTENT_COUNTS: readonly IntentCountSpec[] = [
+  { field: "accomplished", labelKey: "brief.intent.accomplished" },
+  {
+    field: "claimedButUnachieved",
+    labelKey: "brief.intent.claimedButUnachieved",
+  },
+  { field: "deviations", labelKey: "brief.intent.deviations" },
+  { field: "statedButMissing", labelKey: "brief.intent.statedButMissing" },
+  { field: "doneButUnstated", labelKey: "brief.intent.doneButUnstated" },
+];

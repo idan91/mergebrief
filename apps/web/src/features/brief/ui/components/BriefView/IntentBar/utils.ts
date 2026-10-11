@@ -14,6 +14,21 @@ export function isHttpUrl(value: string): boolean {
   }
 }
 
+type IntentCountField = keyof Pick<
+  IntentCheck,
+  | "accomplished"
+  | "claimedButUnachieved"
+  | "deviations"
+  | "statedButMissing"
+  | "doneButUnstated"
+>;
+
+/** One count on the bar's head: the intent check's list and its plural label. */
+export interface IntentCountSpec {
+  field: IntentCountField;
+  labelKey: `brief.intent.${IntentCountField}`;
+}
+
 /** One bucket the split body renders: locale-free key, label, contents. */
 export interface IntentBucketSpec {
   key: string;

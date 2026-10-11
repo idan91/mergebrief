@@ -7,22 +7,19 @@
   }
 
   .heading {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     margin: 0 0 functions.to-rem(8px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    font-weight: 600;
   }
 
   .card {
     display: flex;
     flex-direction: column;
     gap: functions.to-rem(8px);
-    border: 1px solid var(--color-outline-1);
+    padding: functions.to-rem(14px) functions.to-rem(16px);
     border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-    padding: functions.to-rem(12px) functions.to-rem(14px);
+    background: var(--color-background);
   }
 
   .ticket {
@@ -73,12 +70,10 @@
     max-inline-size: 100ch;
 
     > dt {
-      color: var(--color-text-3);
-      font-size: var(--font-size-sm);
+      padding-block-start: functions.to-rem(1px);
+      color: var(--color-text-2);
+      font-size: var(--font-size-md);
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding-block-start: functions.to-rem(3px);
     }
 
     > dd {

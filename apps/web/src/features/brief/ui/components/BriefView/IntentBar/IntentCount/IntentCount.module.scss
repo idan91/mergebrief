@@ -1,0 +1,37 @@
+@use "functions";
+
+@layer components {
+  .countNum {
+    margin-inline-end: functions.to-rem(3px);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .count::after {
+    content: "·";
+    margin-inline-start: functions.to-rem(12px);
+    opacity: 0.5;
+  }
+
+  .count:last-of-type::after {
+    content: none;
+  }
+
+  .count[data-zero] {
+    color: var(--color-text-3);
+
+    .countNum {
+      font-weight: 400;
+    }
+  }
+
+  @media (width <= 600px) {
+    .count[data-zero] {
+      display: none;
+    }
+
+    .count::after {
+      content: none;
+    }
+  }
+}

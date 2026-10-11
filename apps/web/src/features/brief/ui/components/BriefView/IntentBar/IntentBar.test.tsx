@@ -108,6 +108,17 @@ describe("IntentBar", () => {
     expect(toggle.textContent).not.toContain("partial");
   });
 
+  it("marks only the empty counts so they can recede", () => {
+    const { container } = render(
+      <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
+    );
+
+    const zero = [...container.querySelectorAll("[data-zero]")].map(
+      (count) => count.textContent,
+    );
+    expect(zero).toEqual(["0 claimed but unachieved", "0 deviations"]);
+  });
+
   it("starts collapsed and never auto-expands, even with a missing ask", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     const toggle = screen.getByRole("button", { name: /intent check/i });
@@ -486,8 +497,9 @@ const item = (intent: string, acknowledged = false) => ({
 
 /** The expanded panel's text, for order assertions. */
 function bodyText(): string {
-  const panel = document.querySelector("[data-intent-bar] div");
-  return panel?.textContent ?? "";
+  const toggle = screen.getByRole("button", { name: /intent check/i });
+  const panelId = toggle.getAttribute("aria-controls") ?? "";
+  return document.getElementById(panelId)?.textContent ?? "";
 }
 
 describe("IntentBar clamp", () => {

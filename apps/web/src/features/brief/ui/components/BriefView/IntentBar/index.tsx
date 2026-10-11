@@ -1,4 +1,4 @@
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { forwardRef, useId, useImperativeHandle, useState } from "react";
 
 import {
@@ -9,21 +9,18 @@ import {
 import { Badge } from "@web/components/Badge";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
-import { ToolbarButton } from "@web/components/ToolbarButton";
+import { CollapsibleBar } from "@web/components/CollapsibleBar";
+import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import {
   ALARM_GLYPH,
   CLAMP_THRESHOLD,
   CLAMP_VISIBLE,
   INTENT_BAR_ID,
+  INTENT_COUNTS,
   UNAVAILABLE_REASON_KEY,
 } from "./consts";
-import { Icon } from "@web/components/Icon";
-import {
-  IconNames,
-  IconRotations,
-  IconSizes,
-} from "@web/components/Icon/types";
 import styles from "./IntentBar.module.scss";
+import { IntentCount } from "./IntentCount";
 import { TicketAlignment } from "./TicketAlignment";
 import {
   isHttpUrl,
@@ -232,7 +229,6 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
   ) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
-    const panelId = useId();
 
     // Stable handle: `setOpen` is referentially fixed, so the empty dep
     // array keeps the ref identity constant across renders.
@@ -240,6 +236,24 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
 
     const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
     const available = specificity === Specificities.PRECISE;
+
+    const summary = available ? (
+      <span className={styles["counts"]}>
+        {INTENT_COUNTS.map(({ field, labelKey }) => (
+          <IntentCount
+            count={intentCheck[field].length}
+            key={field}
+            labelKey={labelKey}
+          />
+        ))}
+      </span>
+    ) : (
+      <span className={styles["unavailable"]}>
+        {t("brief.intent.unavailable", {
+          reason: t(UNAVAILABLE_REASON_KEY[specificity]),
+        })}
+      </span>
+    );
 
     const partition = partitionIntentCheck(intentCheck);
     const ticketUrl = primaryTicket?.url;
@@ -263,119 +277,55 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     ));
 
     return (
-      <section className={styles["bar"]} data-intent-bar="" id={INTENT_BAR_ID}>
-        <h2 className={styles["heading"]}>
-          <ToolbarButton
-            aria-controls={panelId}
-            aria-expanded={open}
-            className={styles["toggle"]}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <span
-              aria-hidden
-              className={styles["twist"]}
-              data-open={open || undefined}
-            >
-              <Icon
-                name={IconNames.CARET_DOWN}
-                rotation={
-                  open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
-                }
-                size={IconSizes.SM}
-              />
-            </span>
-            <span className={styles["title"]}>{t("brief.intent.title")}</span>
-            {available ? (
-              <span className={styles["counts"]}>
-                {/* Every count stays neutral and uncolored, an alarm count
-                  reads exactly like the others; the register lives in the
-                  body's caution lines, not here. */}
-                <span className={styles["count"]}>
-                  <Trans
-                    components={[<b className={styles["countNum"]} key="n" />]}
-                    count={intentCheck.accomplished.length}
-                    i18nKey="brief.intent.accomplished"
-                  />
-                </span>
-                <span className={styles["count"]}>
-                  <Trans
-                    components={[<b className={styles["countNum"]} key="n" />]}
-                    count={intentCheck.claimedButUnachieved.length}
-                    i18nKey="brief.intent.claimedButUnachieved"
-                  />
-                </span>
-                <span className={styles["count"]}>
-                  <Trans
-                    components={[<b className={styles["countNum"]} key="n" />]}
-                    count={intentCheck.deviations.length}
-                    i18nKey="brief.intent.deviations"
-                  />
-                </span>
-                <span className={styles["count"]}>
-                  <Trans
-                    components={[<b className={styles["countNum"]} key="n" />]}
-                    count={intentCheck.statedButMissing.length}
-                    i18nKey="brief.intent.statedButMissing"
-                  />
-                </span>
-                <span className={styles["count"]}>
-                  <Trans
-                    components={[<b className={styles["countNum"]} key="n" />]}
-                    count={intentCheck.doneButUnstated.length}
-                    i18nKey="brief.intent.doneButUnstated"
-                  />
-                </span>
-              </span>
-            ) : (
-              <span className={styles["unavailable"]}>
-                {t("brief.intent.unavailable", {
-                  reason: t(UNAVAILABLE_REASON_KEY[specificity]),
-                })}
-              </span>
-            )}
-          </ToolbarButton>
-        </h2>
-        <div className={styles["panel"]} hidden={!open} id={panelId}>
-          {scopeNote !== "" ? (
-            <p className={styles["scopeNote"]}>{scopeNote}</p>
-          ) : null}
-          {primaryTicket ? (
-            <TicketAlignment
-              alignment={alignment}
-              primaryTicket={primaryTicket}
-              specificity={specificity}
-            />
-          ) : null}
-          {available ? (
-            <div className={styles["split"]}>
-              <div className={styles["splitCol"]}>
-                <h3 className={styles["splitHead"]}>
-                  {t("brief.intent.splitChecksOut")}
-                </h3>
-                {checksOut.length > 0 ? (
-                  checksOut
-                ) : (
-                  <p className={styles["splitEmpty"]}>
-                    {t("brief.intent.emptyChecksOut")}
-                  </p>
-                )}
-              </div>
-              <div className={styles["splitCol"]}>
-                <h3 className={styles["splitHead"]}>
-                  {t("brief.intent.splitNeedsALook")}
-                </h3>
-                {needsALook.length > 0 ? (
-                  needsALook
-                ) : (
-                  <p className={styles["splitEmpty"]}>
-                    {t("brief.intent.emptyNeedsALook")}
-                  </p>
-                )}
-              </div>
+      <CollapsibleBar
+        className={styles["bar"]}
+        data-intent-bar=""
+        headingLevel={BarHeadingLevels.H2}
+        id={INTENT_BAR_ID}
+        open={open}
+        summary={summary}
+        title={t("brief.intent.title")}
+        onToggle={() => setOpen((value) => !value)}
+      >
+        {scopeNote !== "" ? (
+          <p className={styles["scopeNote"]}>{scopeNote}</p>
+        ) : null}
+        {primaryTicket ? (
+          <TicketAlignment
+            alignment={alignment}
+            primaryTicket={primaryTicket}
+            specificity={specificity}
+          />
+        ) : null}
+        {available ? (
+          <div className={styles["split"]}>
+            <div className={styles["splitCol"]}>
+              <h3 className={styles["splitHead"]}>
+                {t("brief.intent.splitChecksOut")}
+              </h3>
+              {checksOut.length > 0 ? (
+                checksOut
+              ) : (
+                <p className={styles["splitEmpty"]}>
+                  {t("brief.intent.emptyChecksOut")}
+                </p>
+              )}
             </div>
-          ) : null}
-        </div>
-      </section>
+            <div className={styles["splitCol"]}>
+              <h3 className={styles["splitHead"]}>
+                {t("brief.intent.splitNeedsALook")}
+              </h3>
+              {needsALook.length > 0 ? (
+                needsALook
+              ) : (
+                <p className={styles["splitEmpty"]}>
+                  {t("brief.intent.emptyNeedsALook")}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </CollapsibleBar>
     );
   },
 );
