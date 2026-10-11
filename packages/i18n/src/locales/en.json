@@ -1259,6 +1259,7 @@
       "behindChip": "new commits",
       "behindChipLabel": "GitHub has commits this brief does not cover.",
       "sourceUrl": "Added from a URL",
+      "byAuthor": "By {{login}}",
       "actions": {
         "openOnGithub": "Open on GitHub",
         "more": "More actions",

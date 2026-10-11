@@ -64,4 +64,12 @@ describe("AuthorChip", () => {
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("../evil")).toBeTruthy();
   });
+
+  it("renders the avatar and login as plain text when unlinked", () => {
+    const { container } = render(<AuthorChip linked={false} login="mira-k" />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByTestId("author-chip").textContent).toBe("mira-k");
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
+  });
 });

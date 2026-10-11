@@ -3,6 +3,7 @@ import { useRef, type CSSProperties, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import type { InboxArchivedFilter, InboxSort } from "types/inbox";
 
+import { AuthorChip } from "@web/components/AuthorChip";
 import { Checkbox } from "@web/components/Checkbox";
 import {
   Chip,
@@ -21,7 +22,12 @@ import { RowActions } from "./RowActions";
 import { RowEnd } from "./RowEnd";
 import { RowMark } from "./RowMark";
 import { useRowGeneration } from "./useRowGeneration";
-import { describeRow, formatAgeLabel, readRowTitle } from "./utils";
+import {
+  describeRow,
+  formatAgeLabel,
+  readOtherAuthor,
+  readRowTitle,
+} from "./utils";
 
 export interface InboxRowProps {
   item: InboxItem;
@@ -90,6 +96,8 @@ export function InboxRow({
   function handleRemoved(): void {
     onRemoved(item);
   }
+
+  const otherAuthor = readOtherAuthor(item);
 
   return (
     <li
@@ -181,6 +189,11 @@ export function InboxRow({
         </span>
         <span className={styles["sub"]}>
           {" "}
+          {otherAuthor === undefined ? null : (
+            <span aria-hidden="true">
+              <AuthorChip linked={false} login={otherAuthor} />
+            </span>
+          )}
           {item.source === PullRequestSources.URL ? (
             <span className={styles["source"]}>
               <Icon name={IconNames.LINK} size={IconSizes.SM} />

@@ -37,4 +37,13 @@
     inline-size: 24px;
     block-size: 24px;
   }
+
+  span.chip {
+    min-block-size: 0;
+  }
+
+  span.chip[data-size="sm"] .avatar {
+    inline-size: 16px;
+    block-size: 16px;
+  }
 }

@@ -126,7 +126,7 @@
     code {
       padding-block: functions.to-rem(1px);
       padding-inline: functions.to-rem(5px);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-chip);
       background: color-mix(in srgb, var(--color-text-1) 8%, transparent);
       font-family: var(--mono);
       /* stylelint-disable-next-line declaration-property-value-allowed-list -- inline code tracks the title's size, DESIGN.md's code step */

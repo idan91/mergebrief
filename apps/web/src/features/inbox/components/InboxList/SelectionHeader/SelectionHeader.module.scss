@@ -9,10 +9,16 @@
     min-block-size: functions.to-rem(40px);
     padding-block: var(--space-1);
     padding-inline: var(--space-5);
-    border: 1px solid var(--color-outline-1);
-    border-start-start-radius: var(--radius-panel);
-    border-start-end-radius: var(--radius-panel);
-    background: var(--color-surface-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-panel);
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease;
+
+    &[data-selected="true"] {
+      border-color: var(--color-outline-2);
+      background: var(--color-surface-2);
+    }
   }
 
   .start {
@@ -29,7 +35,7 @@
   .middle {
     margin: 0;
     color: var(--color-text-1);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     font-variant-numeric: tabular-nums;
   }
 

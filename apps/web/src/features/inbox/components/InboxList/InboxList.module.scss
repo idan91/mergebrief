@@ -30,13 +30,6 @@
     }
   }
 
-  /* The header row joins the first list; the panel corners move up to it. */
-  .lists > .list:first-of-type,
-  .lists > .list:first-of-type > li:first-child {
-    border-start-start-radius: 0;
-    border-start-end-radius: 0;
-  }
-
   .list {
     padding: 0;
     border: 1px solid var(--color-outline-1);

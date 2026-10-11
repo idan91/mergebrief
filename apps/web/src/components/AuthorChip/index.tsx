@@ -9,6 +9,8 @@ export interface AuthorChipProps {
   /** The author's GitHub login, as GitHub sent it. */
   login: string;
   size?: AuthorChipSize;
+  /** Off where the chip sits inside another link, such as an inbox row. */
+  linked?: boolean;
 }
 
 /**
@@ -18,6 +20,7 @@ export interface AuthorChipProps {
 export function AuthorChip({
   login,
   size = AuthorChipSizes.SM,
+  linked = true,
 }: AuthorChipProps) {
   const [failedLogin, setFailedLogin] = useState<string>();
   const links = buildAuthorLinks(login);
@@ -31,6 +34,34 @@ export function AuthorChip({
 
   const showImage = links.avatarUrl !== undefined && failedLogin !== login;
   const initial = login.charAt(0).toUpperCase();
+  const avatar = showImage ? (
+    <img
+      alt=""
+      className={styles["avatar"]}
+      decoding="async"
+      src={links.avatarUrl}
+      onError={() => {
+        setFailedLogin(login);
+      }}
+    />
+  ) : (
+    <span aria-hidden="true" className={styles["avatar"]}>
+      {initial}
+    </span>
+  );
+
+  if (!linked) {
+    return (
+      <span
+        className={styles["chip"]}
+        data-size={size}
+        data-testid="author-chip"
+      >
+        {avatar}
+        {login}
+      </span>
+    );
+  }
 
   return (
     <AccessibleLink
@@ -40,21 +71,7 @@ export function AuthorChip({
       href={links.profileUrl}
       target="_blank"
     >
-      {showImage ? (
-        <img
-          alt=""
-          className={styles["avatar"]}
-          decoding="async"
-          src={links.avatarUrl}
-          onError={() => {
-            setFailedLogin(login);
-          }}
-        />
-      ) : (
-        <span aria-hidden="true" className={styles["avatar"]}>
-          {initial}
-        </span>
-      )}
+      {avatar}
       {login}
     </AccessibleLink>
   );

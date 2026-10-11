@@ -38,8 +38,8 @@ export function formatAgeLabel(t: TFunction, at: string, now: Date): string {
 
 /**
  * The row link's name before its title: review state, status, generation
- * state when a brief is on its way or failed, and the source when it is a
- * URL row. Icons are hidden, so this is what assistive technology reads.
+ * state when a brief is on its way or failed, the source when it is a URL
+ * row, and the author when it is someone else's. Icons are hidden, so this is what assistive technology reads.
  */
 export function describeRow(
   t: TFunction,
@@ -60,5 +60,15 @@ export function describeRow(
   if (item.source === PullRequestSources.URL) {
     parts.push(t("home.inbox.sourceUrl"));
   }
+  const otherAuthor = readOtherAuthor(item);
+  if (otherAuthor !== undefined) {
+    parts.push(t("home.inbox.byAuthor", { login: otherAuthor }));
+  }
   return `${parts.join(". ")}.`;
+}
+
+/** The author a row names: absent on the viewer's own pull requests. */
+export function readOtherAuthor(item: InboxItem): string | undefined {
+  const otherAuthor = item.viewerIsAuthor ? undefined : item.authorLogin;
+  return otherAuthor;
 }

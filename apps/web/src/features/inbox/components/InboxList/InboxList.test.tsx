@@ -204,6 +204,46 @@ describe("InboxList", () => {
     expect(within(link).getByText("balance_minor").tagName).toBe("CODE");
   });
 
+  it("shows the author on rows the viewer did not open", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, authorLogin: "mira-k" }),
+          makeItem({
+            prNumber: 2,
+            authorLogin: "octocat",
+            viewerIsAuthor: true,
+          }),
+          makeItem({ prNumber: 3 }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.MIXED}
+      />,
+    );
+
+    const [others, own, unknown] = readRows();
+    expect(within(others!).getByTestId("author-chip").textContent).toBe(
+      "mira-k",
+    );
+    expect(within(own!).queryByTestId("author-chip")).toBeNull();
+    expect(within(unknown!).queryByTestId("author-chip")).toBeNull();
+  });
+
+  it("names the author in the row link after its state", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, authorLogin: "mira-k" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /Open\. By mira-k\./ });
+    expect(
+      within(link).getByTestId("author-chip").closest("[aria-hidden]"),
+    ).not.toBeNull();
+  });
+
   it("prints the status only when it is not Open", async () => {
     await renderInRouter(
       <InboxList
@@ -508,12 +548,15 @@ describe("InboxList", () => {
     const box = screen.getByRole("checkbox", { name: "Select Alpha" });
     expect(box.closest("a")).toBeNull();
     expect(readSelectionStatus()).toBe("Nothing selected");
+    const header = screen.getByTestId("selection-header");
+    expect(header.getAttribute("data-selected")).toBe("false");
     const status = screen.getByTestId("selection-status");
     expect(status.getAttribute("aria-live")).toBe("polite");
     await act(async () => {
       fireEvent.click(box);
     });
     expect(readRows()[0]?.getAttribute("data-selected")).toBe("true");
+    expect(header.getAttribute("data-selected")).toBe("true");
     expect(readSelectionStatus()).toBe("1 selected");
     expect(
       within(screen.getByTestId("selection-header")).getByText("1 selected"),

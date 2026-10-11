@@ -305,6 +305,7 @@ export type Catalog = typeof en & {
       ageDays: "{{count}}d ago";
       stackChip: "{{index}} of {{size}}";
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
+      byAuthor: "By {{login}}";
       actions: (typeof en)["home"]["inbox"]["actions"] & {
         deletedMany_one: "Deleted {{count}}";
         deletedMany_other: "Deleted {{count}}";
