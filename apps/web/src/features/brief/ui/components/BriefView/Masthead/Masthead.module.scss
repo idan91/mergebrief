@@ -16,7 +16,6 @@
     @include layout.when-story-stacks {
       grid-template:
         "summary"
-        "card"
         "stack"
         / minmax(0, 1fr);
     }
@@ -34,7 +33,7 @@
     align-self: start;
 
     @include layout.when-story-stacks {
-      min-block-size: auto;
+      display: none;
     }
   }
 
@@ -45,8 +44,27 @@
     min-inline-size: 0;
     grid-area: stack;
     align-self: end;
+  }
 
-    &:empty {
+  .stack[data-state="empty"] {
+    display: none;
+
+    @include layout.when-story-stacks {
+      display: flex;
+    }
+  }
+
+  .stackedOnly,
+  .generatedBar {
+    display: none;
+
+    @include layout.when-story-stacks {
+      display: block;
+    }
+  }
+
+  @media (width <= 880px) {
+    :global(.main) .generatedBar {
       display: none;
     }
   }

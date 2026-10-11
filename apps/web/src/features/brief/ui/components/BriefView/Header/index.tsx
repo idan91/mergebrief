@@ -15,6 +15,7 @@ import type {
   CompareOptionFlags,
 } from "../../../../model/comparison/compare-state";
 import type { ProgressTotals } from "../../../utils/progress";
+import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { Brief, LivePrState } from "../../../../model/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
@@ -30,6 +31,7 @@ import { Button } from "@web/components/Button";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
+import { Provenance } from "../Provenance";
 import { BranchPair } from "./BranchPair";
 import { StackChip } from "./StackChip";
 import { StackArrows } from "./StackChip/StackArrows";
@@ -49,6 +51,8 @@ export interface OwnDraftHeaderProps {
 
 export interface HeaderProps {
   brief: Brief;
+  /** Phones have no masthead card, so the meta line carries provenance there. */
+  repoConfig?: RepoConfigContext | null | undefined;
   livePrState?: LivePrState | undefined;
   /** The PR author's GitHub login; the meta line leads with it. */
   authorLogin?: string | undefined;
@@ -89,6 +93,7 @@ function readStickyStackHeight(): number {
 
 export function Header({
   brief,
+  repoConfig,
   livePrState,
   authorLogin,
   briefId,
@@ -265,6 +270,13 @@ export function Header({
                 baseRef={brief.pr.baseRef}
                 headRef={brief.pr.headRef}
               />
+              <span className={styles["phoneProvenance"]}>
+                <Provenance
+                  brief={brief}
+                  model={model}
+                  repoConfig={repoConfig}
+                />
+              </span>
             </span>
           </div>
         </div>

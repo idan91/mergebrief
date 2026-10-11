@@ -214,6 +214,7 @@ function BriefViewContent(props: BriefViewProps) {
                     brief={brief}
                     livePrState={pr?.livePrState}
                     authorLogin={pr?.authorLogin}
+                    repoConfig={repoConfig}
                     briefId={briefId}
                     repoId={pr?.repoId}
                     model={model}

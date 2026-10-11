@@ -1,0 +1,31 @@
+@use "functions";
+
+@layer components {
+  .bar {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(8px);
+    padding: functions.to-rem(12px) functions.to-rem(16px)
+      functions.to-rem(14px);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(8px) functions.to-rem(14px);
+    min-block-size: functions.to-rem(24px);
+  }
+
+  .title {
+    flex: none;
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}

@@ -39,3 +39,12 @@ export interface HeldCardHeightRefs {
   summaryRef: RefObject<HTMLDivElement | null>;
   stackRef: RefObject<HTMLDivElement | null>;
 }
+
+/** A Split segment as the page names it: a concern, or the Unattributed remainder. */
+export interface ConcernSegment {
+  key: string;
+  /** Absent for the remainder, which takes the neutral mark. */
+  concern?: Concern;
+  name: string;
+  share: ConcernShare;
+}

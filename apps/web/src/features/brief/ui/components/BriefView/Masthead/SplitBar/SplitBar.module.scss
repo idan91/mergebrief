@@ -1,0 +1,55 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .meter {
+    display: flex;
+    flex: 1;
+    gap: functions.to-rem(2px);
+    overflow: hidden;
+    min-inline-size: functions.to-rem(80px);
+    block-size: 6px;
+    border-radius: var(--radius-xs);
+  }
+
+  .segment {
+    @include mixins.concern-color;
+
+    display: block;
+    flex-basis: 0;
+    min-inline-size: 3px;
+    background: var(--concern-color);
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(4px) functions.to-rem(14px);
+    margin: 0;
+    padding: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    list-style: none;
+  }
+
+  .item {
+    @include mixins.concern-color;
+
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+  }
+
+  .dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-circle);
+    background: var(--concern-color);
+  }
+
+  .percent {
+    color: var(--color-text-1);
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+}

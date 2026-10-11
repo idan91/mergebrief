@@ -428,7 +428,7 @@ describe("stack chip", () => {
     expect(metaLine?.firstElementChild?.contains(chip)).toBe(true);
   });
 
-  it("keeps the stack then the branches on the meta line", async () => {
+  it("keeps stack then branches, phone provenance last, on the meta line", async () => {
     const stacked = briefWithStack(linear);
     await renderHeader({
       brief: {
@@ -447,7 +447,10 @@ describe("stack chip", () => {
     expect(stackBlock.contains(screen.getByTestId("stack-chip"))).toBe(true);
     expect(metaLine?.firstElementChild).toBe(stackBlock);
     expect(stackBlock.nextElementSibling).toBe(pair);
-    expect(metaLine?.lastElementChild).toBe(pair);
+    expect(pair.nextElementSibling).toBe(metaLine?.lastElementChild);
+    expect(
+      metaLine?.lastElementChild?.querySelector("[data-provider-badge]"),
+    ).not.toBeNull();
   });
 
   it("renders a fork chip without a fraction", async () => {

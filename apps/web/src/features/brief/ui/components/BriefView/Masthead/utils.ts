@@ -1,9 +1,11 @@
+import type { TFunction } from "i18next";
 import { type Concern, Concerns, type ConcernRollup } from "brief-core/types";
 
 import { CARD_MIN_PROPERTY, MIN_SPLIT_CONCERNS } from "./consts";
 import {
   SplitSegmentKinds,
   type CardMinHeightInput,
+  type ConcernSegment,
   type ConcernShare,
   type SplitSegmentKind,
 } from "./types";
@@ -179,4 +181,22 @@ export function hasConcernSplit(shares: readonly ConcernShare[]): boolean {
     (share) => share.kind === SplitSegmentKinds.CONCERN,
   );
   return concerns.length >= MIN_SPLIT_CONCERNS;
+}
+
+/** Names each share for display; the remainder takes the Unattributed label. */
+export function labelConcernShares(
+  t: TFunction,
+  shares: readonly ConcernShare[],
+): ConcernSegment[] {
+  return shares.map((share) => {
+    if (share.kind === SplitSegmentKinds.UNATTRIBUTED_REMAINDER) {
+      return { key: share.kind, name: t("brief.unattributed.label"), share };
+    }
+    return {
+      key: share.concern,
+      concern: share.concern,
+      name: share.concern,
+      share,
+    };
+  });
 }

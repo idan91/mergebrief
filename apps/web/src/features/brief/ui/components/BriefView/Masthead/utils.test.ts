@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import type { ConcernRollup } from "brief-core/types";
+import type { TFunction } from "i18next";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   computeCardMinHeight,
   computeConcernShares,
+  labelConcernShares,
   writeCardMinHeight,
 } from "./utils";
 
@@ -144,5 +146,30 @@ describe("writeCardMinHeight", () => {
     writeCardMinHeight(grid, 428);
 
     expect(setProperty).not.toHaveBeenCalled();
+  });
+});
+
+describe("labelConcernShares", () => {
+  it("names concerns by their vocabulary and the remainder unattributed", () => {
+    const shares = computeConcernShares(
+      [{ concern: "doc", added: 5, deleted: 5 }],
+      { added: 10, deleted: 0 },
+    );
+    const t = ((key: string) => `t:${key}`) as unknown as TFunction;
+
+    expect(
+      labelConcernShares(t, shares).map(({ key, concern, name }) => ({
+        key,
+        concern,
+        name,
+      })),
+    ).toEqual([
+      { key: "doc", concern: "doc", name: "doc" },
+      {
+        key: "unattributed-remainder",
+        concern: undefined,
+        name: "t:brief.unattributed.label",
+      },
+    ]);
   });
 });

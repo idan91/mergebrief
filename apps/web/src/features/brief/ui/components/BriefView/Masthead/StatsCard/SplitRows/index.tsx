@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 
 import { LocSign, LocSigns } from "@web/components/LocSign";
-import { SplitSegmentKinds, type ConcernShare } from "../../types";
+import type { ConcernShare } from "../../types";
+import { labelConcernShares } from "../../utils";
 import styles from "./SplitRows.module.scss";
 
 export interface SplitRowsProps {
@@ -11,6 +12,7 @@ export interface SplitRowsProps {
 /** One row per Split segment: the concern, its share, a bar and its lines. */
 export function SplitRows({ shares }: SplitRowsProps) {
   const { t } = useTranslation();
+  const segments = labelConcernShares(t, shares);
 
   return (
     <ul
@@ -18,18 +20,10 @@ export function SplitRows({ shares }: SplitRowsProps) {
       className={styles["rows"]}
       data-testid="split-rows"
     >
-      {shares.map((share) => {
-        const remainder =
-          share.kind === SplitSegmentKinds.UNATTRIBUTED_REMAINDER;
-        const key = remainder ? share.kind : share.concern;
-        const name = remainder ? t("brief.unattributed.label") : share.concern;
+      {segments.map(({ key, concern, name, share }) => {
         const barStyle = { inlineSize: `${String(share.percent)}%` };
         return (
-          <li
-            className={styles["row"]}
-            data-concern={remainder ? undefined : share.concern}
-            key={key}
-          >
+          <li className={styles["row"]} data-concern={concern} key={key}>
             <span className={styles["name"]}>
               <span aria-hidden="true" className={styles["dot"]} />
               {name}

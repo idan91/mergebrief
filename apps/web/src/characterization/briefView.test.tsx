@@ -321,7 +321,7 @@ describe("brief screen characterization", () => {
     ).toBeTruthy();
   });
 
-  it("leads the masthead's bar stack with the intent bar", async () => {
+  it("places the intent bar in the masthead's bar stack", async () => {
     await renderBriefView({
       ...briefFixture,
       intentCheck: {
@@ -351,7 +351,13 @@ describe("brief screen characterization", () => {
       summary.compareDocumentPosition(intentBar!) &
       Node.DOCUMENT_POSITION_FOLLOWING;
     expect(following).toBeTruthy();
-    expect(intentBar?.parentElement?.firstElementChild).toBe(intentBar);
+    const stack = intentBar?.parentElement;
+    const generatedBar = screen.getByTestId("generated-bar");
+    expect(stack?.contains(generatedBar)).toBe(true);
+    const afterGenerated =
+      generatedBar.compareDocumentPosition(intentBar!) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(afterGenerated).toBeTruthy();
   });
 
   it("focus mode empties the region: summary + toolbar leave", async () => {

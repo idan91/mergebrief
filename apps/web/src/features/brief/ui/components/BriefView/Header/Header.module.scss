@@ -488,3 +488,15 @@
     }
   }
 }
+
+@layer components {
+  .phoneProvenance {
+    display: none;
+  }
+
+  @media (width <= 880px) {
+    .phoneProvenance {
+      display: contents;
+    }
+  }
+}
