@@ -1,6 +1,14 @@
-// Inline-comment route integration tests: `app.request()` against `createApp`
-// over the PGlite harness, GitHub stubbed at the global-fetch boundary (same
-// pattern as mark-ready.test.ts).
+// POST /api/repos/:repoId/pulls/:prNumber/comments (post-now) over the PGlite
+// harness. The route's own GitHub calls reach the `github/testing` fake
+// through the reviewer binding; the repo gate and the OAuth refresh still
+// answer over `fetch`.
+import type { InlineReviewCommentResult, ListedReviewComment } from "github";
+import {
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+  type FakeReview,
+} from "github/testing";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -27,7 +35,6 @@ import {
   type PgliteHarness,
 } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeFakeGitHub } from "github/testing";
 import { createApp, type ApiApp } from "../src/index";
 import { IN_DOUBT_LOOKUP_MARGIN_MS } from "../src/routes/repos/pr/publish/consts";
 import { testLogger, testLogging } from "./logging";
@@ -40,163 +47,71 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   createKeyProvider,
-  getRequestUrl,
-  answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { seedSignIn } from "./sign-in";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
-  UNUSED_INSTALLATION_DEPS,
+  ROTATED_ACCESS_TOKEN,
   arrangeFakePullRequest,
+  arrangeFakeRepository,
+  buildFakeAuthDeps,
   buildFakeInstallationDeps,
+  buildOverriddenAuthDeps,
+  stubGateGitHub,
+  type RepoClientOverrides,
 } from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+
+vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
 const COMMIT_ID = "a".repeat(40);
 const BASE_SHA = "b".repeat(40);
 
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
-
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch): REST /repositories/:id + the comment POST.
+// GitHub as the fake holds it.
 // ---------------------------------------------------------------------------
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
+interface GitHubArrangement {
+  readonly fullName?: string;
+  readonly reviews?: readonly FakeReview[];
+  readonly listed?: readonly ListedReviewComment[];
 }
-function repoOk(): Response {
-  return jsonResponse({ id: REPO_ID, full_name: REPO_SLUG, private: true });
-}
-function repoStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-function commentOk(): Response {
-  return jsonResponse({ id: 999, pull_request_review_id: 555 }, 201);
-}
-function commentStatus(status: number): Response {
-  return jsonResponse({ message: "nope" }, status);
-}
-function tokenSuccess(): Response {
-  return jsonResponse({
-    access_token: ROTATED_ACCESS,
-    refresh_token: ROTATED_REFRESH,
-    expires_in: 28_800,
-    refresh_token_expires_in: 15_897_600,
-    token_type: "bearer",
-    scope: "",
+
+/** The repository the fresh re-resolve reads and the PR a comment lands on. */
+function arrangeGitHub(
+  fake: FakeGitHub,
+  arrangement: GitHubArrangement = {},
+): void {
+  const fullName = arrangement.fullName ?? REPO_SLUG;
+  arrangeFakeRepository(fake, REPO_ID, fullName);
+  arrangeFakePullRequest(fake, {
+    repoId: REPO_ID,
+    fullName,
+    reviews: arrangement.reviews ?? [],
+    reviewComments: { comments: arrangement.listed ?? [], complete: true },
   });
 }
 
-interface StubConfig {
-  readonly repositories?: (call: number) => Response;
-  readonly comments?: (call: number) => Response | Promise<Response>;
-  readonly listComments?: (call: number) => Response;
-  readonly listReviews?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-}
-interface StubCounts {
-  repositories: number;
-  comments: number;
-  listComments: number;
-  listReviews: number;
-  token: number;
-  readonly commentBodies: Array<Record<string, unknown>>;
-  /** Full URL of each comment POST, in order, pins the fresh-slug target. */
-  readonly commentUrls: string[];
-  /** Full URL of each review-comment list GET, in order. */
-  readonly listUrls: string[];
+function countPosts(fake: FakeGitHub): number {
+  return fake.listCalls("createInlineReviewComment").length;
 }
 
-const COMMENT_LIST_PATH = /\/pulls\/\d+\/comments(\?|$)/;
-const REVIEW_LIST_PATH = /\/pulls\/\d+\/reviews(\?|$)/;
+function countRepositoryReads(fake: FakeGitHub): number {
+  return fake.listCalls("fetchRepositoryById").length;
+}
 
-function readMethod(input: string | URL | Request, init?: RequestInit): string {
-  if (init?.method !== undefined) {
-    return init.method.toUpperCase();
+/** The single comment the route sent to GitHub. */
+function readPostedInput(fake: FakeGitHub): unknown {
+  const [call, ...rest] = fake.listCalls("createInlineReviewComment");
+  if (call === undefined || rest.length > 0) {
+    throw new Error("expected exactly one posted comment");
   }
-  if (input instanceof Request) {
-    return input.method.toUpperCase();
-  }
-  return "GET";
-}
-
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = {
-    repositories: 0,
-    comments: 0,
-    listComments: 0,
-    listReviews: 0,
-    token: 0,
-    commentBodies: [],
-    commentUrls: [],
-    listUrls: [],
-  };
-  const fetchFn = vi.fn(
-    async (
-      input: string | URL | Request,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
-      }
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      if (COMMENT_LIST_PATH.test(url) && readMethod(input, init) === "GET") {
-        const i = counts.listComments++;
-        counts.listUrls.push(url);
-        return cfg.listComments
-          ? cfg.listComments(i)
-          : jsonResponse({ message: "unexpected" }, 500);
-      }
-      if (REVIEW_LIST_PATH.test(url) && readMethod(input, init) === "GET") {
-        const i = counts.listReviews++;
-        return cfg.listReviews
-          ? cfg.listReviews(i)
-          : jsonResponse({ message: "unexpected" }, 500);
-      }
-      if (/\/pulls\/\d+\/comments$/.test(url)) {
-        const i = counts.comments++;
-        counts.commentUrls.push(url);
-        const raw =
-          init?.body ??
-          (input instanceof Request ? await input.text() : undefined);
-        if (typeof raw === "string") {
-          const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null) {
-            counts.commentBodies.push({ ...parsed });
-          }
-        }
-        return cfg.comments
-          ? cfg.comments(i)
-          : jsonResponse({ message: "unexpected" }, 500);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
-  return counts;
+  return call.input;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +250,32 @@ async function readWireCode(res: Response): Promise<string> {
   return String(body.code);
 }
 
+/** The ids a 201 answered with. */
+async function readPostedIds(
+  res: Response,
+): Promise<{ commentId: number; reviewId: number }> {
+  const body: unknown = await res.json();
+  const hasIds =
+    typeof body === "object" &&
+    body !== null &&
+    "commentId" in body &&
+    "reviewId" in body;
+  if (!hasIds) {
+    throw new Error("no ids on the response");
+  }
+  return { commentId: Number(body.commentId), reviewId: Number(body.reviewId) };
+}
+
+/** The `since` a review-comment listing asked GitHub for. */
+function readSince(input: unknown): Date {
+  const hasSince =
+    typeof input === "object" && input !== null && "since" in input;
+  if (!hasSince || !(input.since instanceof Date)) {
+    throw new Error("no since on the listing");
+  }
+  return input.since;
+}
+
 /**
  * A session on a NEWER Brief of the same PR, the one thing that freezes the
  * Brief the request names.
@@ -419,16 +360,39 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
+
+  /** An app whose reviewer repo clients answer `overrides` first. */
+  function buildOverriddenApp(overrides: RepoClientOverrides): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildOverriddenAuthDeps(kp, fake, overrides),
+      ...buildFakeInstallationDeps(fake),
+    });
+  }
+
+  function buildCaptureApp(capture: ReturnType<typeof testLogging>): ApiApp {
+    return createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...buildFakeInstallationDeps(fake),
+    });
+  }
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...UNUSED_INSTALLATION_DEPS,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...buildFakeInstallationDeps(fake),
     });
   });
 
@@ -439,99 +403,87 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it("401s absent session cookies without calling GitHub", async () => {
-    const counts = stubGitHub({});
+    const gate = stubGateGitHub({ repoId: REPO_ID });
     const res = await post(app, undefined, named(1n));
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(0);
-    expect(counts.comments).toBe(0);
+    expect(gate.repositoryReads()).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("404 collapse when the viewer has no access to the repo", async () => {
-    const counts = stubGitHub({ repositories: () => repoStatus(403) });
+    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 403 });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
-    expect(counts.comments).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("404s PRs outside the tenant without writing to GitHub", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, named(1n));
     expect(res.status).toBe(404);
-    expect(counts.comments).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("404s a denied fresh repo resolution after the gate passes", async () => {
-    // The gate's access check (call 0) passes; the route's own fresh
-    // fetchRepositoryById (call 1) is denied, a viewer whose access was
-    // revoked inside the positive-cache TTL. Must collapse to the gate's 404
-    // posture and post nothing.
-    const counts = stubGitHub({
-      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
-      comments: () => commentOk(),
-    });
+    // A viewer whose access was revoked inside the positive-cache TTL: the
+    // route's own re-resolve collapses to the gate's 404 and posts nothing.
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
-    expect(counts.repositories).toBe(2);
-    expect(counts.comments).toBe(0);
+    expect(gate.repositoryReads()).toBe(1);
+    expect(countRepositoryReads(fake)).toBe(1);
+    expect(countPosts(fake)).toBe(0);
     expect(await commentAuditCount(harness)).toBe(0);
   });
 
-  it("201 happy path: posts to the FRESH slug, returns ids, audits, no-store", async () => {
-    const counts = stubGitHub({
-      // Gate caches octo/hello; the route's own fresh resolve renames it,
-      // the comment POST must target the fresh owner/name, never the stale slug.
-      repositories: (i) =>
-        i === 0
-          ? repoOk()
-          : jsonResponse({
-              id: REPO_ID,
-              full_name: "octo/renamed",
-              private: true,
-            }),
-      comments: () => commentOk(),
-    });
+  it("201 posts to the fresh slug with ids, audit, no-store, one row read", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake, { fullName: "octo/renamed" });
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
+    const lookups = spyPullRequestLookups(harness);
 
     const res = await post(app, cookie, named(draftId));
+
     expect(res.status).toBe(201);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ commentId: 999, reviewId: 555 });
-    expect(counts.comments).toBe(1);
-    // Single-gate pin: exactly the gate's access check + the route's own
-    // fresh resolve, a third repositories call would mean a stacked gate.
-    expect(counts.repositories).toBe(2);
-    // The POST url carried the FRESHLY-resolved repo name, never the gate's
-    // cached (renamed-away) slug.
-    expect(counts.commentUrls[0]).toContain("/repos/octo/renamed/pulls/");
-    expect(counts.commentUrls[0]).not.toContain("octo/hello");
-    // Pinned commit + the multi-line anchor on the wire body.
-    const body = counts.commentBodies[0];
-    expect(body).toMatchObject({
-      commit_id: COMMIT_ID,
+    expect(await res.json()).toEqual({
+      commentId: expect.any(Number),
+      reviewId: expect.any(Number),
+    });
+    expect(lookups.count()).toBe(1);
+    expect(gate.repositoryReads()).toBe(1);
+    expect(countRepositoryReads(fake)).toBe(1);
+    expect(readPostedInput(fake)).toEqual({
+      owner: "octo",
+      repo: "renamed",
+      prNumber: PR_NUMBER,
+      commitId: COMMIT_ID,
       path: "src/index.ts",
       line: 12,
       side: "RIGHT",
-      start_line: 10,
-      start_side: "RIGHT",
+      startLine: 10,
+      startSide: "RIGHT",
       body: "post now",
     });
     expect(await commentAuditCount(harness)).toBe(1);
   });
 
   it("maps a two-side draft's start leg to GitHub's LEFT", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentOk(),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(
@@ -544,61 +496,48 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
-    expect(counts.commentBodies[0]).toMatchObject({
+    expect(readPostedInput(fake)).toMatchObject({
       path: "src/index.ts",
       line: 12,
       side: "RIGHT",
-      start_line: 10,
-      start_side: "LEFT",
+      startLine: 10,
+      startSide: "LEFT",
       body: "spans both sides",
     });
   });
 
-  it("posts a File comment with subject_type file and no line", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentOk(),
-    });
+  it("posts a File comment with subjectType file and no line", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedFileDraft(harness.handle);
 
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
-    const body = counts.commentBodies[0];
-    expect(body).toEqual({
-      commit_id: COMMIT_ID,
+    expect(readPostedInput(fake)).toEqual({
+      owner: "octo",
+      repo: "hello",
+      prNumber: PR_NUMBER,
+      commitId: COMMIT_ID,
       path: "src/app.ts",
       body: "post now",
-      subject_type: "file",
+      subjectType: "file",
     });
-    if (body === undefined) {
-      throw new Error("expected a posted comment");
-    }
-    expect("line" in body).toBe(false);
-    expect("side" in body).toBe(false);
-    expect("start_line" in body).toBe(false);
-    expect("start_side" in body).toBe(false);
   });
 
   it("keeps 201 and logs audit.fail when post-commit auditing fails", async () => {
     const capture = testLogging();
-    const captureApp = createApp({
-      logger: capture.logger,
-      handle: harness.handle,
-      webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...UNUSED_INSTALLATION_DEPS,
-    });
-    stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
-    // Poison ONLY the audit write: the GitHub post has already committed by
-    // the time the audit insert runs, so the response must stay a 201.
+    // The GitHub post has committed by the time the audit insert runs, so
+    // the response stays a 201.
     await harness.raw("alter table audit_log rename to audit_log_poisoned");
 
-    const res = await post(captureApp, cookie, named(draftId));
+    const res = await post(buildCaptureApp(capture), cookie, named(draftId));
     expect(res.status).toBe(201);
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
@@ -607,52 +546,58 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it("201 with reviewId omitted when GitHub assigns no wrapping review id", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      comments: () =>
-        jsonResponse({ id: 999, pull_request_review_id: null }, 201),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
-    const res = await post(app, cookie, named(draftId));
+    const unwrapped = buildOverriddenApp((client) => ({
+      async createInlineReviewComment(input) {
+        const posted = await client.createInlineReviewComment(input);
+        if (!posted.ok) {
+          return posted;
+        }
+        const value: InlineReviewCommentResult = { commentId: 999n };
+        return { ok: true, value };
+      },
+    }));
+
+    const res = await post(unwrapped, cookie, named(draftId));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ commentId: 999 });
   });
 
   it("409s stale anchors when GitHub rejects the pinned head with 422", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentStatus(422),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.failOn("createInlineReviewComment", FakeFailures.ANCHOR_REJECTED);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(409);
     expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await readWireCode(res)).toBe("pr-changed-since-read");
     expect(await commentAuditCount(harness)).toBe(0);
   });
 
   it("502s a hard GitHub failure after one comment call, no audit row", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentStatus(500),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.failOn("createInlineReviewComment", FakeFailures.SERVER_ERROR);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(502);
-    expect(counts.comments).toBe(1);
+    expect(countPosts(fake)).toBe(1);
     expect(await commentAuditCount(harness)).toBe(0);
   });
 
   it("answers 404 when the comment target is gone", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentStatus(404),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.failOn("createInlineReviewComment", FakeFailures.NOT_FOUND);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
@@ -661,10 +606,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it("answers an honest 403 when GitHub forbids the comment", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      comments: () => commentStatus(403),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.failOn("createInlineReviewComment", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
@@ -673,55 +617,46 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(await readWireCode(res)).toBe("github-permission");
   });
 
-  it("refreshes once after a mid-request write 401 and succeeds", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      comments: (i) => (i === 0 ? commentStatus(401) : commentOk()),
-    });
+  it("renews once after a mid-request 401 and posts once", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.rejectToken(ACCESS_TOKEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
-    expect(counts.token).toBe(1);
-    expect(counts.comments).toBe(2);
+    expect(gate.tokenRefreshes()).toBe(1);
+    expect(fake.listCalls("createInlineReviewComment")).toEqual([
+      expect.objectContaining({
+        credential: { kind: "reviewer", token: ROTATED_ACCESS_TOKEN },
+      }),
+    ]);
   });
 
-  it("401s a second write rejection after the refresh budget is spent", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      comments: () => commentStatus(401),
-    });
+  it("401s a second rejection after the renewal budget is spent", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
+    fake.rejectToken(ACCESS_TOKEN);
+    fake.rejectToken(ROTATED_ACCESS_TOKEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(401);
-    expect(counts.token).toBe(1);
+    expect(gate.tokenRefreshes()).toBe(1);
   });
 
   it("evicts cached PR conversations after posting a comment", async () => {
-    // Read twice to prove a warm cache, then post and read again within the TTL.
-    // The post-write read proves app-level success wiring evicted the entry.
-    const fake = makeFakeGitHub();
-    arrangeFakePullRequest(fake, { repoId: REPO_ID });
-    const evictionApp = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...buildFakeInstallationDeps(fake),
-    });
-    stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeGitHub(fake);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
 
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const get = async () =>
-      await evictionApp.request(conversationPath, {
+      await app.request(conversationPath, {
         headers: { cookie: `__Host-mergebrief_session=${cookie}` },
       });
 
@@ -730,7 +665,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     // Second read served from the cache, the TTL is warm.
     expect(fake.listCalls("fetchPullRequestConversation")).toHaveLength(1);
 
-    const posted = await post(evictionApp, cookie, named(draftId));
+    const posted = await post(app, cookie, named(draftId));
     expect(posted.status).toBe(201);
 
     // The post evicted the entry: the next read reaches GitHub again.
@@ -740,25 +675,29 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   describe("the draft the request names", () => {
     it("400s a payload that names no draft, and a malformed one", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       expect((await post(app, cookie, "{not json")).status).toBe(400);
       expect((await post(app, cookie, { draftId: "x" })).status).toBe(400);
+      expect(fake.calls).toEqual([]);
     });
 
     it("404s a draft this session does not hold, no GitHub write", async () => {
-      const counts = stubGitHub({ repositories: () => repoOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedDraft(harness.handle);
       const res = await post(app, cookie, named(987654321n));
       expect(res.status).toBe(404);
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
     });
 
     it("409 draft-already-published on a repeat, no second GitHub write", async () => {
-      const counts = stubGitHub({ repositories: () => repoOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
@@ -770,11 +709,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const res = await post(app, cookie, named(draftId));
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-already-published");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
     });
 
-    it("409 draft-anchor-orphaned on an orphaned anchor, no GitHub write", async () => {
-      const counts = stubGitHub({ repositories: () => repoOk() });
+    it("409 draft-anchor-orphaned on an orphaned anchor, no GitHub call", async () => {
+      const gate = stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
@@ -788,9 +728,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-anchor-orphaned");
       expect(res.headers.get("cache-control")).toBe("no-store");
-      // Refused before the fresh re-resolve: only the gate's lookup ran.
-      expect(counts.repositories).toBe(1);
-      expect(counts.comments).toBe(0);
+      // Refused before the fresh re-resolve: only the gate's read ran.
+      expect(gate.repositoryReads()).toBe(1);
+      expect(fake.calls).toEqual([]);
       // The draft is still held, nothing is dropped for the reviewer.
       const rows = await harness.raw(
         "select status from review_draft_comment order by id",
@@ -799,10 +739,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("a moved anchor is not orphaned, it posts at its carried coordinates", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
@@ -813,11 +751,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       );
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
-      expect(counts.comments).toBe(1);
+      expect(countPosts(fake)).toBe(1);
     });
 
-    it("409s a frozen session BEFORE spending a GitHub call", async () => {
-      const counts = stubGitHub({ repositories: () => repoOk() });
+    it("409s a frozen session before spending a GitHub call", async () => {
+      const gate = stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -826,14 +765,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const res = await post(app, cookie, named(draftId));
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("pr-changed-since-read");
-      expect(counts.comments).toBe(0);
-      // Only the gate's own access check ran: the route never reached its
-      // fresh re-resolve, let alone the write.
-      expect(counts.repositories).toBe(1);
+      expect(gate.repositoryReads()).toBe(1);
+      expect(fake.calls).toEqual([]);
     });
 
     it("flips the published draft to submitted", async () => {
-      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -847,37 +785,30 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("records the wrapping review id on the session", async () => {
-      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
-      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+      const res = await post(app, cookie, named(draftId));
+      expect(res.status).toBe(201);
+      const { reviewId } = await readPostedIds(res);
 
       const rows = await harness.raw(
         "select github_review_id from review_submitted_review",
       );
       expect(rows.map((row) => String(row["github_review_id"]))).toEqual([
-        "555",
+        String(reviewId),
       ]);
     });
 
     it("logs a plain error, not audit.fail, when the flip fails after the post", async () => {
-      // `audit.fail` names an audit ROW that would not persist. A session-row
-      // publication flip is a different failure, and raising that event for it
-      // alerts the operator on the wrong thing, without its catalogued fields.
+      // `audit.fail` names an audit ROW that would not persist; raising it for
+      // a session-row flip alerts the operator on the wrong thing.
       const capture = testLogging();
-      const captureApp = createApp({
-        logger: capture.logger,
-        handle: harness.handle,
-        webhookSecret: SECRET,
-        auth: buildAuthDeps(kp),
-        ...UNUSED_INSTALLATION_DEPS,
-      });
-      stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -887,7 +818,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
           "check (status <> 'submitted')",
       );
 
-      const res = await post(captureApp, cookie, named(draftId));
+      const res = await post(buildCaptureApp(capture), cookie, named(draftId));
 
       expect(res.status).toBe(201);
       const line = capture
@@ -908,6 +839,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   describe("the claim a post-now holds", () => {
     const IN_DOUBT_AGE_MS = PUBLISH_CLAIM_LEASE_MS + 60_000;
+    const VIEWER_ID = BigInt(REVIEWER_ID);
 
     async function readDraftRow(): Promise<{
       status: unknown;
@@ -968,44 +900,42 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       }
     }
 
-    /** A review the viewer submitted just now, as GitHub lists it. */
-    function makeSubmittedReview(body = ""): unknown {
+    /** A review the viewer submitted just now. */
+    function makeSubmittedReview(body = ""): FakeReview {
       return {
-        id: 778,
-        node_id: "PRR_submitted",
+        reviewId: 778n,
+        reviewNodeId: "PRR_submitted",
         state: "COMMENTED",
         body,
-        user: { id: REVIEWER_ID },
-        submitted_at: new Date().toISOString(),
+        authorId: VIEWER_ID,
+        submittedAt: new Date(),
       };
     }
 
-    /** The viewer's pending review holding comment 777, as GitHub lists it. */
-    function makePendingReview(): unknown {
+    /** The viewer's pending review holding comment 777. */
+    function makePendingReview(): FakeReview {
       return {
-        id: 778,
-        node_id: "PRR_pending",
+        reviewId: 778n,
+        reviewNodeId: "PRR_pending",
         state: "PENDING",
         body: "",
-        user: { id: REVIEWER_ID },
+        authorId: VIEWER_ID,
       };
     }
 
     /** The posted draft as GitHub lists it, by `authorId`. */
-    function makeListedComment(
-      authorId = REVIEWER_ID,
-    ): Record<string, unknown> {
+    function makeListedComment(authorId = VIEWER_ID): ListedReviewComment {
       return {
-        id: 777,
-        pull_request_review_id: 778,
-        user: { id: authorId },
+        commentId: 777n,
+        reviewId: 778n,
+        authorId,
         path: "src/index.ts",
         body: "post now",
-        subject_type: "line",
+        subjectType: "line",
         line: 12,
         side: "RIGHT",
-        start_line: 10,
-        start_side: "RIGHT",
+        startLine: 10,
+        startSide: "RIGHT",
       };
     }
 
@@ -1039,24 +969,26 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
     it("saves the claim before GitHub is called", async () => {
       let claimedAtCall: unknown;
-      stubGitHub({
-        repositories: () => repoOk(),
-        comments: async () => {
-          claimedAtCall = (await readDraftRow()).claim;
-          return commentOk();
-        },
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
+      const watched = buildOverriddenApp((client) => ({
+        async createInlineReviewComment(input) {
+          claimedAtCall = (await readDraftRow()).claim;
+          return client.createInlineReviewComment(input);
+        },
+      }));
 
-      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+      expect((await post(watched, cookie, named(draftId))).status).toBe(201);
 
       expect(typeof claimedAtCall).toBe("string");
     });
 
     it("settles a posted draft: submitted, claim cleared", async () => {
-      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -1070,10 +1002,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("releases the claim when GitHub refuses the comment", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentStatus(422),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
+      fake.failOn("createInlineReviewComment", FakeFailures.ANCHOR_REJECTED);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -1087,11 +1018,26 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect((await editDraft(cookie, draftId)).status).toBe(200);
     });
 
-    it("keeps the claim when GitHub's answer is unknown", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentStatus(504),
+    it("releases the claim when the fresh re-resolve is refused", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
+      fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
+      await seedPr(harness.handle);
+      const { cookie } = await seedSignIn(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(404);
+
+      expect(await readDraftRow()).toEqual({
+        status: DraftCommentStatuses.DRAFT,
+        claim: null,
       });
+    });
+
+    it("keeps the claim when GitHub's answer is unknown", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
+      fake.failOn("createInlineReviewComment", FakeFailures.SERVER_ERROR);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
@@ -1107,10 +1053,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("409s a second post-now while the first is pending", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        comments: () => commentOk(),
-      });
+      const gate = stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1120,17 +1064,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-publish-pending");
-      expect(counts.comments).toBe(0);
-      expect(counts.repositories).toBe(1);
+      expect(gate.repositoryReads()).toBe(1);
+      expect(fake.calls).toEqual([]);
     });
 
     it("settles an in-doubt draft GitHub already holds, posting nothing", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([makeListedComment()]),
-        listReviews: () => jsonResponse([]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { listed: [makeListedComment()] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1140,9 +1080,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(201);
       expect(await res.json()).toEqual({ commentId: 777, reviewId: 778 });
-      expect(counts.comments).toBe(0);
-      const since = new URL(counts.listUrls[0] ?? "").searchParams.get("since");
-      expect(Date.parse(since ?? "")).toBeLessThanOrEqual(
+      expect(countPosts(fake)).toBe(0);
+      const [listing] = fake.listCalls("listReviewCommentsSince");
+      expect(listing?.input).toMatchObject({ since: expect.any(Date) });
+      const since = readSince(listing?.input);
+      expect(since.getTime()).toBeLessThanOrEqual(
         claimedAt.getTime() - IN_DOUBT_LOOKUP_MARGIN_MS,
       );
       expect(await readDraftRow()).toEqual({
@@ -1151,20 +1093,36 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       });
     });
 
+    it("looks for an in-doubt draft on the viewer's token alone", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { listed: [makeListedComment()] });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSignIn(harness.handle, kp);
+      const { briefId, draftId } = await seedDraft(harness.handle);
+      await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+
+      const lookups = [
+        ...fake.listCalls("listReviewsByAuthor"),
+        ...fake.listCalls("listReviewCommentsSince"),
+      ];
+      expect(lookups.map((call) => call.credential)).toEqual([
+        { kind: "reviewer", token: ACCESS_TOKEN },
+        { kind: "reviewer", token: ACCESS_TOKEN },
+      ]);
+    });
+
     it("settles an in-doubt draft whose comment a later push moved", async () => {
-      const moved = {
+      const moved: ListedReviewComment = {
         ...makeListedComment(),
         line: 15,
-        start_line: 13,
-        original_line: 12,
-        original_start_line: 10,
+        startLine: 13,
+        originalLine: 12,
+        originalStartLine: 10,
       };
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([moved]),
-        listReviews: () => jsonResponse([]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { listed: [moved] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1174,7 +1132,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(201);
       expect(await res.json()).toEqual({ commentId: 777, reviewId: 778 });
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       expect(await readDraftRow()).toEqual({
         status: DraftCommentStatuses.SUBMITTED,
         claim: null,
@@ -1182,12 +1140,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("409s already-published when a claim sibling is on GitHub", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([makeListedComment()]),
-        listReviews: () => jsonResponse([]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { listed: [makeListedComment()] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId: landed } = await seedDraft(harness.handle);
@@ -1209,7 +1163,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-already-published");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       expect(await readDraftRows()).toEqual([
         { status: DraftCommentStatuses.SUBMITTED, claim: null },
         { status: DraftCommentStatuses.SUBMITTED, claim: null },
@@ -1222,12 +1176,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         "**`src/index.ts:10-12`**",
         "first line\r\nsecond line",
       ].join("\r\n\r\n");
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([]),
-        listReviews: () => jsonResponse([makeSubmittedReview(folded)]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { reviews: [makeSubmittedReview(folded)] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(
@@ -1240,17 +1190,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       expect(typeof (await readDraftRow()).claim).toBe("string");
     });
 
     it("posts once when the only review since is a post-now's wrapper", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([]),
-        listReviews: () => jsonResponse([makeSubmittedReview()]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { reviews: [makeSubmittedReview()] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1259,7 +1205,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const res = await post(app, cookie, named(draftId));
 
       expect(res.status).toBe(201);
-      expect(counts.comments).toBe(1);
+      expect(countPosts(fake)).toBe(1);
+      expect(countRepositoryReads(fake)).toBe(1);
       expect(await readDraftRow()).toEqual({
         status: DraftCommentStatuses.SUBMITTED,
         claim: null,
@@ -1267,11 +1214,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("409s in-doubt when the draft sits in the viewer's pending review", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([makeListedComment()]),
-        listReviews: () => jsonResponse([makePendingReview()]),
-        comments: () => commentOk(),
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, {
+        reviews: [makePendingReview()],
+        listed: [makeListedComment()],
       });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
@@ -1282,7 +1228,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       const row = await readDraftRow();
       expect(row.status).toBe(DraftCommentStatuses.DRAFT);
       expect(typeof row.claim).toBe("string");
@@ -1291,13 +1237,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect(await readWireCode(edited)).toBe("draft-publish-in-doubt");
     });
 
-    it("409s in-doubt when nothing is listed and reviews cannot be read", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse([]),
-        listReviews: () => jsonResponse({ message: "denied" }, 403),
-        comments: () => commentOk(),
-      });
+    it("409s in-doubt when the viewer's reviews cannot be read", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
+      fake.failOn("listReviewsByAuthor", FakeFailures.FORBIDDEN);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1307,18 +1250,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       expect(typeof (await readDraftRow()).claim).toBe("string");
     });
 
     it("posts an in-doubt draft once when GitHub does not hold it", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        // The same words on the same lines, but another reviewer's comment.
-        listComments: () => jsonResponse([makeListedComment(REVIEWER_ID + 1)]),
-        listReviews: () => jsonResponse([]),
-        comments: () => commentOk(),
-      });
+      // The same words on the same lines, but another reviewer's comment.
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake, { listed: [makeListedComment(VIEWER_ID + 1n)] });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1327,8 +1266,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const res = await post(app, cookie, named(draftId));
 
       expect(res.status).toBe(201);
-      expect(await res.json()).toEqual({ commentId: 999, reviewId: 555 });
-      expect(counts.comments).toBe(1);
+      expect(await res.json()).toEqual({
+        commentId: expect.any(Number),
+        reviewId: expect.any(Number),
+      });
+      expect(countPosts(fake)).toBe(1);
       expect(await readDraftRow()).toEqual({
         status: DraftCommentStatuses.SUBMITTED,
         claim: null,
@@ -1336,12 +1278,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
 
     it("409s draft-publish-in-doubt when the check cannot list comments", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        listComments: () => jsonResponse({ message: "denied" }, 403),
-        listReviews: () => jsonResponse([]),
-        comments: () => commentOk(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeGitHub(fake);
+      fake.failOn("listReviewCommentsSince", FakeFailures.FORBIDDEN);
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
@@ -1351,12 +1290,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
       expect(res.status).toBe(409);
       expect(await readWireCode(res)).toBe("draft-publish-in-doubt");
-      expect(counts.comments).toBe(0);
+      expect(countPosts(fake)).toBe(0);
       expect(typeof (await readDraftRow()).claim).toBe("string");
     });
 
     it("deletes an in-doubt draft on the reviewer's word", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+      stubGateGitHub({ repoId: REPO_ID });
       await seedPr(harness.handle);
       const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);

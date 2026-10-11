@@ -1,8 +1,9 @@
 // The conversation read and the writes that evict it, over the PGlite
 // harness. The read reaches the `github/testing` fake through the
 // installation binding for an Installation row and the reviewer binding for
-// an owner row; the gate, the reply and the review submit still answer over
-// `fetch`. The github suite owns the wire-to-domain mapping.
+// an owner row, and the reply through the reviewer binding; the gate and the
+// review submit still answer over `fetch`. The github suite owns the
+// wire-to-domain mapping.
 import type { PrConversation } from "github";
 import {
   CredentialKinds,
@@ -41,9 +42,11 @@ import {
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   ROTATED_ACCESS_TOKEN,
+  arrangeFakePullRequest,
+  arrangeFakeRepository,
   buildFakeAuthDeps,
   buildFakeInstallationDeps,
-  arrangeFakePullRequest,
+  buildOverriddenAuthDeps,
   listFakeCallTokens,
   stubGateGitHub,
 } from "./reviewer-github";
@@ -59,9 +62,6 @@ const BASE_SHA = "b".repeat(40);
 const HEAD_SHA = "a".repeat(40);
 const REPLY_ID = 3_600_000_001;
 const OPERATOR_PAT = "ghp_OPERATOR_PAT";
-
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 const OWNER: ScopeContext = {
@@ -144,7 +144,8 @@ function listConversationReads(fake: FakeGitHub) {
 }
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch), gate access check, reply POST, token.
+// GitHub HTTP stub (global fetch) for the review submit, which still calls
+// GitHub over octokit.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -157,113 +158,38 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function repoOk(): Response {
-  return jsonResponse({ id: REPO_ID, full_name: REPO_SLUG, private: true });
-}
-function repoStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-function replyCreated(id = REPLY_ID): Response {
-  return jsonResponse({ id }, 201);
-}
-function replyCreatedInReview(reviewId: number): Response {
-  return jsonResponse({ id: REPLY_ID, pull_request_review_id: reviewId }, 201);
-}
-function replyStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-function tokenSuccess(): Response {
-  return jsonResponse({
-    access_token: ROTATED_ACCESS,
-    refresh_token: ROTATED_REFRESH,
-    expires_in: 28_800,
-    refresh_token_expires_in: 15_897_600,
-    token_type: "bearer",
-    scope: "",
-  });
-}
-function reviewCreated(id = 987001): Response {
-  return jsonResponse({ id, node_id: `PRR_${String(id)}` }, 200);
-}
 function reviewSubmitted(): Response {
   return jsonResponse({
     data: { submitPullRequestReview: { pullRequestReview: { id: "PRR" } } },
   });
 }
 
-interface StubConfig {
-  readonly repositories?: (call: number) => Response;
-  readonly reply?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-  readonly createReview?: (call: number) => Response;
-}
-interface StubCounts {
-  repositories: number;
-  reply: number;
-  token: number;
-  createReview: number;
-  /** Parsed JSON body of each reply POST, in order. */
-  readonly replyBodies: unknown[];
-  /** URL of each reply POST, in order, pins the target repo + comment id. */
-  readonly replyUrls: string[];
-}
-
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = {
-    repositories: 0,
-    reply: 0,
-    token: 0,
-    createReview: 0,
-    replyBodies: [],
-    replyUrls: [],
-  };
+/** The gate's reads and the submit's pending review, threads and submit. */
+function stubSubmitGitHub(): void {
   const fetchFn = vi.fn(
-    async (
-      input: string | URL | Request,
-      init?: RequestInit,
-    ): Promise<Response> => {
+    async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
-      }
       const membership = answerInstallationRepositories(url, [REPO_ID]);
       if (membership !== undefined) {
         return membership;
       }
       if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      if (
-        /\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/comments\/\d+\/replies$/.test(url)
-      ) {
-        const i = counts.reply++;
-        counts.replyUrls.push(url);
-        const raw =
-          init?.body ??
-          (input instanceof Request ? await input.text() : undefined);
-        if (typeof raw === "string") {
-          counts.replyBodies.push(JSON.parse(raw));
-        }
-        return cfg.reply ? cfg.reply(i) : replyStatus(500);
+        return jsonResponse({
+          id: REPO_ID,
+          full_name: REPO_SLUG,
+          private: true,
+        });
       }
       if (url.endsWith("/graphql")) {
         return reviewSubmitted();
       }
       if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-        const i = counts.createReview++;
-        return cfg.createReview
-          ? cfg.createReview(i)
-          : jsonResponse({ message: "unexpected" }, 500);
+        return jsonResponse({ id: 987001, node_id: "PRR_987001" });
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
     },
   );
   vi.stubGlobal("fetch", fetchFn);
-  return counts;
 }
 
 // ---------------------------------------------------------------------------
@@ -751,38 +677,76 @@ describe("conversation surface", () => {
   });
 
   describe("POST reply", () => {
-    it("posts and audits with the viewer token and fresh repo name", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreated(),
-      });
+    function listReplies() {
+      return fake.listCalls("createReviewCommentReply");
+    }
+
+    /** The wrapping review id a reply answered with. */
+    async function readReplyReviewId(res: Response): Promise<number> {
+      const body: unknown = await res.json();
+      const hasReviewId =
+        typeof body === "object" && body !== null && "reviewId" in body;
+      if (!hasReviewId || typeof body.reviewId !== "number") {
+        throw new Error("no reviewId on the reply");
+      }
+      return body.reviewId;
+    }
+
+    beforeEach(() => {
+      arrangeFakeRepository(fake, REPO_ID);
+    });
+
+    it("posts and audits with the viewer token and one row read", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const app = makeApp();
-      const res = await postReply(app, cookie, { body: "a follow-up" });
+      const lookups = spyPullRequestLookups(harness);
+
+      const res = await postReply(makeApp(), cookie, { body: "a follow-up" });
+
       expect(res.status).toBe(201);
       expect(res.headers.get("cache-control")).toBe("no-store");
-      expect(await res.json()).toEqual({ commentId: REPLY_ID });
-      // One reply POST, aimed at the fresh-resolved slug + root comment id.
-      expect(counts.reply).toBe(1);
-      expect(counts.replyUrls[0]).toContain(
-        `/repos/octo/hello/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/replies`,
-      );
-      expect(counts.replyBodies[0]).toEqual({ body: "a follow-up" });
-      // Mutation rule: the repo was re-resolved fresh (gate check + re-resolve).
-      expect(counts.repositories).toBeGreaterThanOrEqual(2);
+      expect(await res.json()).toEqual({
+        commentId: expect.any(Number),
+        reviewId: expect.any(Number),
+      });
+      expect(lookups.count()).toBe(1);
+      expect(listReplies()).toEqual([
+        expect.objectContaining({
+          input: {
+            owner: "octo",
+            repo: "hello",
+            prNumber: PR_NUMBER,
+            commentId: ROOT_COMMENT_ID,
+            body: "a follow-up",
+          },
+        }),
+      ]);
+      expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, ACCESS_TOKEN]);
       expect(await replyAuditCount(harness)).toBe(1);
     });
 
-    it("records the reply's review id on the brief the request names", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreatedInReview(555),
-      });
+    it("answers no reviewId when GitHub wraps the reply in none", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
-      const app = makeApp();
+      const app = createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: buildOverriddenAuthDeps(kp, fake, (client) => ({
+          async createReviewCommentReply(input) {
+            const created = await client.createReviewCommentReply(input);
+            if (!created.ok) {
+              return created;
+            }
+            return { ok: true, value: { commentId: REPLY_ID } };
+          },
+        })),
+        ...buildFakeInstallationDeps(fake),
+      });
 
       const res = await postReply(
         app,
@@ -792,26 +756,45 @@ describe("conversation surface", () => {
       );
 
       expect(res.status).toBe(201);
-      expect(await res.json()).toEqual({ commentId: REPLY_ID, reviewId: 555 });
+      expect(await res.json()).toEqual({ commentId: REPLY_ID });
+      const rows = await harness.raw(
+        "select github_review_id from review_submitted_review",
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("records the reply's review id on the brief the request names", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      const { cookie } = await seedSignIn(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      await seedBriefSession(harness.handle);
+      const lookups = spyPullRequestLookups(harness);
+
+      const res = await postReply(
+        makeApp(),
+        cookie,
+        { body: "a follow-up" },
+        `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(201);
+      const reviewId = await readReplyReviewId(res);
+      expect(lookups.count()).toBe(1);
       const rows = await harness.raw(
         "select github_review_id from review_submitted_review",
       );
       expect(rows.map((row) => String(row["github_review_id"]))).toEqual([
-        "555",
+        String(reviewId),
       ]);
     });
 
     it("still posts a reply that names no brief, recording nothing", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreatedInReview(555),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
-      const app = makeApp();
 
-      const res = await postReply(app, cookie, { body: "a follow-up" });
+      const res = await postReply(makeApp(), cookie, { body: "a follow-up" });
 
       expect(res.status).toBe(201);
       const rows = await harness.raw(
@@ -821,17 +804,13 @@ describe("conversation surface", () => {
     });
 
     it("never creates a session for a reviewer who holds none", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreatedInReview(555),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBrief(harness.handle, false);
-      const app = makeApp();
 
       const res = await postReply(
-        app,
+        makeApp(),
         cookie,
         { body: "a follow-up" },
         `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
@@ -847,30 +826,26 @@ describe("conversation surface", () => {
     });
 
     it("keeps 201 when the named brief does not exist", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreatedInReview(555),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const app = makeApp();
 
       const res = await postReply(
-        app,
+        makeApp(),
         cookie,
         { body: "a follow-up" },
         `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
       );
 
       expect(res.status).toBe(201);
-      expect(await res.json()).toEqual({ commentId: REPLY_ID, reviewId: 555 });
+      expect(await res.json()).toEqual({
+        commentId: expect.any(Number),
+        reviewId: expect.any(Number),
+      });
     });
 
     it("400s empty or oversized replies without posting", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreated(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -880,15 +855,12 @@ describe("conversation surface", () => {
         body: "x".repeat(65_537),
       });
       expect(oversized.status).toBe(400);
-      expect(counts.reply).toBe(0);
+      expect(listReplies()).toEqual([]);
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
     it("400s comment ids beyond safe integer precision", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyCreated(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(
@@ -898,44 +870,41 @@ describe("conversation surface", () => {
         replyPath("9007199254740993"),
       );
       expect(res.status).toBe(400);
-      expect(counts.reply).toBe(0);
+      expect(listReplies()).toEqual([]);
     });
 
-    it("refreshes once on an expired token mid-reply and retries", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        // First reply attempt 401s (expired ~8h token), the retry succeeds.
-        reply: (call) => (call === 0 ? replyStatus(401) : replyCreated()),
-        token: () => tokenSuccess(),
-      });
+    it("renews once on a token GitHub rejects mid-reply and posts", async () => {
+      const gate = stubGateGitHub({ repoId: REPO_ID });
+      fake.rejectToken(ACCESS_TOKEN);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(), cookie, {
         body: "after refresh",
       });
       expect(res.status).toBe(201);
-      expect(counts.token).toBe(1);
-      expect(counts.reply).toBe(2);
+      expect(gate.tokenRefreshes()).toBe(1);
+      expect(listFakeCallTokens(fake)).toEqual([
+        ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
+      ]);
+      expect(listReplies()).toHaveLength(1);
     });
 
-    it("502s a reply GitHub answers 500 after one reply call", async () => {
-      const counts = stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyStatus(500),
-      });
+    it("502s a reply GitHub fails upstream after one reply call", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      fake.failOn("createReviewCommentReply", FakeFailures.SERVER_ERROR);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(), cookie, { body: "x" });
       expect(res.status).toBe(502);
-      expect(counts.reply).toBe(1);
+      expect(listReplies()).toHaveLength(1);
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
     it("collapses reply-create 403 to the gate's uniform 404", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyStatus(403),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      fake.failOn("createReviewCommentReply", FakeFailures.FORBIDDEN);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(), cookie, { body: "x" });
@@ -944,19 +913,21 @@ describe("conversation surface", () => {
     });
 
     it("404s a deleted root comment with sanitized copy", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        reply: () => replyStatus(404),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      fake.failOn("createReviewCommentReply", FakeFailures.NOT_FOUND);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(), cookie, { body: "x" });
       expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({
+        error: "not found",
+        code: "not-found",
+      });
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
     it("keeps 201 when auditing fails after posting the reply", async () => {
-      stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const capture = testLogging();
@@ -967,15 +938,14 @@ describe("conversation surface", () => {
         auth: buildFakeAuthDeps(kp, fake),
         ...buildFakeInstallationDeps(fake),
       });
-      // Sabotage the audit table: the GitHub write already happened, so a
-      // local persistence failure must not read as "nothing was posted".
+      // The GitHub write already happened, so a local persistence failure
+      // must not read as "nothing was posted".
       await harness.raw("alter table audit_log rename to audit_log_hidden");
       try {
         const res = await postReply(app, cookie, {
           body: "posted then audit dies",
         });
         expect(res.status).toBe(201);
-        expect(await res.json()).toEqual({ commentId: REPLY_ID });
         // The integrity failure is operator-visible: one audit.fail error
         // line naming the operation whose row never landed.
         const line = capture.lines().find((l) => l["evt"] === "audit.fail");
@@ -988,32 +958,22 @@ describe("conversation surface", () => {
     });
 
     it("collapses a denied fresh re-resolve to the gate's 404 posture", async () => {
-      const counts = stubGitHub({
-        // The gate's own check passes; the route's FRESH re-resolve is denied
-        // (access revoked inside the positive-cache TTL).
-        repositories: (call) => (call === 0 ? repoOk() : repoStatus(403)),
-        reply: () => replyCreated(),
-      });
+      stubGateGitHub({ repoId: REPO_ID });
+      fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(), cookie, { body: "x" });
       expect(res.status).toBe(404);
-      expect(counts.reply).toBe(0);
+      expect(listReplies()).toEqual([]);
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
-    it("posts to the FRESHLY resolved repo slug, never the gate's cached name", async () => {
-      const counts = stubGitHub({
-        // Gate check sees the old name; the fresh re-resolve reports a rename.
-        repositories: (call) =>
-          call === 0
-            ? repoOk()
-            : jsonResponse({
-                id: REPO_ID,
-                full_name: "octo/renamed",
-                private: true,
-              }),
-        reply: () => replyCreated(),
+    it("posts to the freshly resolved repo slug, never the gate's name", async () => {
+      stubGateGitHub({ repoId: REPO_ID });
+      arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
+      arrangeFakePullRequest(fake, {
+        repoId: REPO_ID,
+        fullName: "octo/renamed",
       });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
@@ -1021,11 +981,35 @@ describe("conversation surface", () => {
         body: "to the fresh slug",
       });
       expect(res.status).toBe(201);
-      expect(counts.replyUrls[0]).toContain("/repos/octo/renamed/pulls/");
+      expect(listReplies()).toEqual([
+        expect.objectContaining({
+          input: expect.objectContaining({ owner: "octo", repo: "renamed" }),
+        }),
+      ]);
+    });
+
+    it("refuses a reply behind an operator pass with no-repo-write-access", async () => {
+      stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+      fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
+      const { cookie } = await seedSignIn(harness.handle, kp, {
+        scope: OWNER,
+      });
+      await seedPullRequest(harness.handle, OWNER);
+
+      const res = await postReply(makeApp(OPERATOR_PAT), cookie, {
+        body: "x",
+      });
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({
+        error: expect.any(String),
+        code: "no-repo-write-access",
+      });
+      expect(listReplies()).toEqual([]);
     });
 
     it("evicts the PR's cached conversation so the next read refetches", async () => {
-      stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      stubGateGitHub({ repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp();
@@ -1042,10 +1026,7 @@ describe("conversation surface", () => {
 
   describe("review submit evicts the conversation cache", () => {
     it("drops the PR's cached conversation on a successful review submit", async () => {
-      stubGitHub({
-        repositories: () => repoOk(),
-        createReview: () => reviewCreated(),
-      });
+      stubSubmitGitHub();
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);

@@ -2,8 +2,13 @@
 // `github/testing` fake through the reviewer and installation bindings, while
 // the repo gate's own reads and the OAuth refresh still go over `fetch` until
 // they move onto the binding too.
-import type { PrConversation, PullRequestInfo } from "github";
-import type { FakeGitHub, FakePullRequest } from "github/testing";
+import type {
+  PrConversation,
+  PullRequestInfo,
+  ReviewCommentListing,
+  ReviewerRepoClient,
+} from "github";
+import type { FakeGitHub, FakePullRequest, FakeReview } from "github/testing";
 import type { KeyProvider } from "persistence";
 import type { Mutable } from "types/utils";
 import { vi } from "vitest";
@@ -53,8 +58,12 @@ export function makeFakePullRequestInfo(
 export interface FakePullRequestArrangement {
   readonly repoId: number;
   readonly prNumber?: number;
+  /** The slug GitHub holds the PR under; the gate's verified slug by default. */
+  readonly fullName?: string;
   /** Absent reads as an empty conversation. */
   readonly conversation?: PrConversation;
+  readonly reviews?: readonly FakeReview[];
+  readonly reviewComments?: ReviewCommentListing;
 }
 
 /** The suites' pull request on `fake`, under the gate's verified slug. */
@@ -62,15 +71,68 @@ export function arrangeFakePullRequest(
   fake: FakeGitHub,
   arrangement: FakePullRequestArrangement,
 ): void {
-  const [owner = "", repo = ""] = REPO_SLUG.split("/");
+  const [owner = "", repo = ""] = (arrangement.fullName ?? REPO_SLUG).split(
+    "/",
+  );
   const pull: Mutable<FakePullRequest> = {
     info: makeFakePullRequestInfo({ repoId: arrangement.repoId }),
   };
   if (arrangement.conversation !== undefined) {
     pull.conversation = arrangement.conversation;
   }
+  if (arrangement.reviews !== undefined) {
+    pull.reviews = arrangement.reviews;
+  }
+  if (arrangement.reviewComments !== undefined) {
+    pull.reviewComments = arrangement.reviewComments;
+  }
   const prNumber = arrangement.prNumber ?? PR_NUMBER;
   fake.addPullRequest({ owner, repo, prNumber }, pull);
+}
+
+/** What a mutation's fresh re-resolve reads: the repository by id. */
+export function arrangeFakeRepository(
+  fake: FakeGitHub,
+  repoId: number,
+  fullName = REPO_SLUG,
+): void {
+  fake.addRepository({
+    repoId: brandRepoId(BigInt(repoId)),
+    fullName,
+    private: true,
+    viewerCanPush: true,
+    viewerIsAdmin: false,
+  });
+}
+
+/** Methods a suite answers itself, given the fake's own client to delegate to. */
+export type RepoClientOverrides = (
+  client: ReviewerRepoClient,
+) => Partial<ReviewerRepoClient>;
+
+/**
+ * The auth bundle with the reviewer binding served by `fake`, each repo
+ * client's `overrides` laid over it: for a moment the fake cannot stage,
+ * such as a row read while a call is in flight.
+ */
+export function buildOverriddenAuthDeps(
+  kp: KeyProvider,
+  fake: FakeGitHub,
+  overrides: RepoClientOverrides,
+): AuthDeps {
+  return {
+    ...buildAuthDeps(kp),
+    bindReviewerGitHub: (credential, options) => {
+      const github = fake.bindReviewerGitHub(credential, options);
+      return {
+        ...github,
+        forRepo(repo) {
+          const client = github.forRepo(repo);
+          return { ...client, ...overrides(client) };
+        },
+      };
+    },
+  };
 }
 
 /** The token each fake call carried, in order; an installation call has none. */

@@ -4,12 +4,12 @@
 // `readGitHubAnchor`, and every write rides a client with octokit's retry
 // off, because a replayed POST or mutation is a duplicate comment.
 import {
-  createInlineReviewComment,
-  listReviewCommentsSince,
-  listReviewsByAuthor,
+  CredentialFailureCodes,
   type AuthoredReview,
   type GitHubApiError,
+  type GitHubCallFailure,
   type PendingReview,
+  type ReviewerRepoClient,
 } from "github";
 import type { Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS, type ClaimStamp } from "persistence";
@@ -41,6 +41,7 @@ import {
 import { postReviewThreads } from "./logic/threads";
 import type {
   ClaimLedger,
+  CommentPin,
   CommentPublishFailure,
   CommentPublishResult,
   PostedCommentLookupResult,
@@ -56,21 +57,30 @@ import type {
   ViewerReviewListResult,
 } from "./types";
 
+/** A GitHub refusal of a post-now call, riding the failure whole. */
+function shapeCommentDenied(
+  error: GitHubCallFailure,
+): Result<never, CommentPublishFailure> {
+  return {
+    ok: false,
+    error: { kind: FailureKinds.GITHUB_DENIED, phase: "mutation", error },
+  };
+}
+
 /**
- * Post one held draft as an inline review comment. A 401'd POST created
- * nothing, so the client's refreshed re-run cannot double-post.
+ * Post one held draft as an inline review comment on the bound repo's
+ * retry-off client. A 401'd POST created nothing, so the binding's renewed
+ * re-run cannot double-post.
  */
 export async function publishComment(
-  deps: PublishDeps,
-  target: PublishTarget,
+  repo: ReviewerRepoClient,
+  pin: CommentPin,
   draft: PublishableDraft,
 ): Promise<CommentPublishResult> {
-  const input = shapeInlineCommentInput(shapePublishComment(draft), target);
-  const posted = await deps.github.run((token) =>
-    createInlineReviewComment(deps.github.createMutationOctokit(token), input),
-  );
+  const input = shapeInlineCommentInput(shapePublishComment(draft), pin);
+  const posted = await repo.createInlineReviewComment(input);
   if (!posted.ok) {
-    return buildGitHubDeniedResult(posted.error, "mutation");
+    return shapeCommentDenied(posted.error);
   }
   return posted;
 }
@@ -193,20 +203,14 @@ export function foldEveryDraftIntoBody(
  * failure, not an absence.
  */
 export async function findPostedComment<Draft extends PublishableDraft>(
-  deps: PublishDeps,
-  target: PublishTarget,
+  repo: ReviewerRepoClient,
+  prNumber: number,
   query: PostedCommentQuery<Draft>,
 ): Promise<PostedCommentLookupResult<Draft>> {
-  const listed = await deps.github.run((token) =>
-    listReviewCommentsSince(deps.github.createOctokit(token), {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: target.prNumber,
-      since: deriveLookupSince(query.claimedAt),
-    }),
-  );
+  const since = deriveLookupSince(query.claimedAt);
+  const listed = await repo.listReviewCommentsSince({ prNumber, since });
   if (!listed.ok) {
-    return buildGitHubDeniedResult(listed.error, "mutation");
+    return shapeCommentDenied(listed.error);
   }
 
   const { comments, complete } = listed.value;
@@ -231,18 +235,11 @@ export async function findPostedComment<Draft extends PublishableDraft>(
 
 /** Every review the viewer holds on the PR, pending ones included. */
 export async function listViewerReviews(
-  deps: PublishDeps,
-  target: PublishTarget,
+  repo: ReviewerRepoClient,
+  prNumber: number,
   viewerId: bigint,
 ): Promise<ViewerReviewListResult> {
-  return deps.github.run((token) =>
-    listReviewsByAuthor(deps.github.createOctokit(token), {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: target.prNumber,
-      authorId: viewerId,
-    }),
-  );
+  return repo.listReviewsByAuthor({ prNumber, authorId: viewerId });
 }
 
 /**
@@ -287,10 +284,11 @@ export function hasWriteDeadlinePassed(deadline: Date): boolean {
  * posted it.
  */
 export function isCommentUnsent(failure: CommentPublishFailure): boolean {
-  if (failure.kind === FailureKinds.TOKEN_UNREADABLE) {
+  const { error } = failure;
+  if (error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE) {
     return true;
   }
-  const { status } = failure.error;
+  const { status } = error;
   return status !== undefined && status < HttpStatuses.INTERNAL_SERVER_ERROR;
 }
 

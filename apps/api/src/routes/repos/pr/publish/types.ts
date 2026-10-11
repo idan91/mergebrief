@@ -2,6 +2,7 @@ import type {
   AddReviewThreadInput,
   AuthoredReview,
   GitHubApiError,
+  GitHubCallFailure,
   InlineReviewCommentResult,
   ListedReviewComment,
   PendingReview,
@@ -37,6 +38,12 @@ export interface PublishDeps {
 export interface PublishTarget {
   readonly owner: string;
   readonly repo: string;
+  readonly prNumber: number;
+  readonly commitId: string;
+}
+
+/** The PR and reviewed head a post-now comment pins to, on a bound repo client. */
+export interface CommentPin {
   readonly prNumber: number;
   readonly commitId: string;
 }
@@ -107,8 +114,7 @@ export interface PartitionedReviewComments {
  * viewer's pending review, which submitting on GitHub would post.
  */
 export type PostedCommentLookupFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>
+  | GitHubDeniedFailure<GitHubCallFailure>
   | { readonly kind: "listing-incomplete" }
   | { readonly kind: "draft-in-pending-review" };
 
@@ -120,12 +126,10 @@ export type PostedCommentLookupResult<Draft extends PublishableDraft> = Result<
 
 export type ViewerReviewListResult = Result<
   readonly AuthoredReview[],
-  GitHubApiError | TokenUnreadableFailure
+  GitHubCallFailure
 >;
 
-export type CommentPublishFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>;
+export type CommentPublishFailure = GitHubDeniedFailure<GitHubCallFailure>;
 
 export type CommentPublishResult = Result<
   InlineReviewCommentResult,

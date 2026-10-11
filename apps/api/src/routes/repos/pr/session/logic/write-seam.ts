@@ -1,7 +1,7 @@
 // The shared session write seam: the session op handlers plus the comments
-// and review-submit handlers all reach the same session through these two
-// functions, resolve the write target, and map the store's refusals onto
-// the wire as throws.
+// and review-submit routes all reach the same session through these two
+// functions, bind the write to the access step's row, and map the store's
+// refusals onto the wire as throws.
 import type { Context } from "hono";
 import { ReviewSessionErrorCodes } from "persistence";
 import { ApiErrorCodes } from "contract";
@@ -12,36 +12,33 @@ import {
   NotFound,
 } from "../../../../../shared-errors/api-error";
 import type { AuthRouteDeps } from "../../../../auth/session/types";
-import type { AuthzEnv } from "../../../../../access/types";
-import { prNumberSchema } from "../../../../wire-bounds";
-import { sessionController } from "../controller";
+import type { PullRequestEnv } from "../../../../../access/types";
+import { sessionController, type ResolvedSessionWrite } from "../controller";
 import { spanQuerySchema } from "../schemas";
 import type { SessionWriteFailure } from "../types";
-import { resolvePrScopeFrom } from "../../scope";
 
 /**
- * Resolve the PR and the Brief the request names, throwing the wire posture:
- * a bad span is the deterministic 400, an unknown PR/Brief the subtree's
- * hint-free 404.
+ * Bind the write to the Brief the request names on the access step's row,
+ * throwing the wire posture: a bad span is the deterministic 400, an unknown
+ * Brief the subtree's hint-free 404.
  */
 export async function resolveSessionWrite(
   deps: AuthRouteDeps,
-  c: Context<AuthzEnv>,
-) {
+  c: Context<PullRequestEnv>,
+): Promise<ResolvedSessionWrite> {
   const span = spanQuerySchema.safeParse({
     base: c.req.query("base"),
     head: c.req.query("head"),
   });
-  const prNumber = prNumberSchema.safeParse(c.req.param("prNumber"));
-  if (!span.success || !prNumber.success) {
+  if (!span.success) {
     throw new BadRequest();
   }
+  const access = c.get("pullRequestAccess");
   const resolved = await sessionController.resolveWrite(deps, {
-    ctx: await resolvePrScopeFrom(c, deps.handle, prNumber.data),
-    repoId: c.get("repoId"),
-    prNumber: prNumber.data,
+    ctx: access.rowScope,
+    pullRequestId: access.row.id,
     span: span.data,
-    reviewerId: c.get("session").reviewerId,
+    reviewerId: access.session.reviewerId,
     log: c.get("logger"),
   });
   if (!resolved.ok) {

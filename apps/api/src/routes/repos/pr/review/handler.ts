@@ -10,7 +10,7 @@ import {
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
+import type { PullRequestEnv } from "../../../../access/types";
 import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
@@ -28,7 +28,6 @@ import { throwSubmitFailure } from "./logic/wire-failures";
 import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
-import { resolvePrScopeFrom } from "../scope";
 import {
   deriveWriteDeadline,
   foldEveryDraftIntoBody,
@@ -112,7 +111,7 @@ function assertSubmitRepresentable(
  * retry that posts the review twice.
  */
 async function recordSubmittedDrafts(
-  c: Context<AuthzEnv>,
+  c: Context<PullRequestEnv>,
   resolved: ResolvedSessionWrite,
   claim: DraftClaim,
   reviewId: bigint,
@@ -149,7 +148,7 @@ export function createReviewHandlers(
   evictConversation: EvictConversation,
 ) {
   /** Post ONE formal review with the VIEWER's token: pending, threads, submit. */
-  const submitReview = async (c: Context<AuthzEnv>) => {
+  const submitReview = async (c: Context<PullRequestEnv>) => {
     const parsedBody = submitBodySchema.safeParse(
       await c.req.json().catch(() => undefined),
     );
@@ -159,7 +158,7 @@ export function createReviewHandlers(
     }
     const submitBody = parsedBody.data;
 
-    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
+    const ctx = c.get("pullRequestAccess").rowScope;
     const pr = await createTenantRepository(
       deps.handle,
       ctx,

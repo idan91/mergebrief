@@ -4,16 +4,17 @@ import {
   type CreateInlineReviewCommentInput,
   type CreateLineInlineReviewCommentInput,
   type LineReviewThreadInput,
+  type RepoScoped,
 } from "github";
 import { CommentAnchorKinds, type Mutable } from "types";
 import { SideOnGithub } from "../consts";
 import type {
+  CommentPin,
   FileGitHubAnchor,
   GitHubAnchor,
   LineGitHubAnchor,
   PublishableDraft,
   PublishComment,
-  PublishTarget,
 } from "../types";
 
 export function isFileGitHubAnchor(
@@ -50,29 +51,25 @@ export function shapePublishComment(draft: PublishableDraft): PublishComment {
   return { anchor: readGitHubAnchor(draft), body: draft.body };
 }
 
-/** The REST input for one comment posted on its own. */
+/** The REST input for one comment posted on its own; the binding names the repo. */
 export function shapeInlineCommentInput(
   comment: PublishComment,
-  target: PublishTarget,
-): CreateInlineReviewCommentInput {
+  pin: CommentPin,
+): RepoScoped<CreateInlineReviewCommentInput> {
   const { anchor } = comment;
   if (isFileGitHubAnchor(anchor)) {
     return {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: target.prNumber,
-      commitId: target.commitId,
+      prNumber: pin.prNumber,
+      commitId: pin.commitId,
       path: anchor.path,
       body: comment.body,
       subjectType: anchor.subjectType,
     };
   }
 
-  const input: Mutable<CreateLineInlineReviewCommentInput> = {
-    owner: target.owner,
-    repo: target.repo,
-    prNumber: target.prNumber,
-    commitId: target.commitId,
+  const input: Mutable<RepoScoped<CreateLineInlineReviewCommentInput>> = {
+    prNumber: pin.prNumber,
+    commitId: pin.commitId,
     path: anchor.path,
     line: anchor.line,
     side: anchor.side,

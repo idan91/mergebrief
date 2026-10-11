@@ -233,6 +233,27 @@ describe("makeFakeGitHub writes", () => {
     expect([...github.readComments(REPO)]).toEqual([[1500n, "kept"]]);
   });
 
+  it("answers a rejected anchor as the inline comment's 422", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.failOn("createInlineReviewComment", FakeFailures.ANCHOR_REJECTED);
+
+    const posted = await bindReviewer(github)
+      .forRepo(REPO)
+      .createInlineReviewComment({
+        prNumber: 7,
+        commitId: HEAD_SHA,
+        path: "src/a.ts",
+        line: 3,
+        side: "RIGHT",
+        body: "why",
+      });
+
+    expect(posted).toEqual({
+      ok: false,
+      error: expect.objectContaining({ code: "anchor-rejected", status: 422 }),
+    });
+  });
+
   it("takes a draft out of draft once", async () => {
     const github = makeGitHubWithPullRequest(true);
     const client = bindReviewer(github).forRepo(REPO);

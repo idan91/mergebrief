@@ -74,6 +74,8 @@ export const FakeFailures = {
   UNAUTHORIZED: "unauthorized",
   RATE_LIMITED: "rate-limited",
   SERVER_ERROR: "server-error",
+  /** A 422 on a comment whose anchor the pinned commit's diff no longer holds. */
+  ANCHOR_REJECTED: "anchor-rejected",
 } as const;
 export type FakeFailure = ValueOf<typeof FakeFailures>;
 

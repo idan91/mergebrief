@@ -7,6 +7,7 @@ import {
   isReviewerId,
   parseTenantContext,
   ReviewSessionErrorCodes,
+  type PullRequestRowId,
   type RepoId,
   type TenantContext,
 } from "persistence";
@@ -41,6 +42,7 @@ let harness: PgliteHarness;
 let deps: AuthRouteDeps;
 let ctx: TenantContext;
 let repoId: RepoId;
+let pullRequestId: PullRequestRowId;
 const PR_NUMBER = 7;
 const REVIEWER_ID = 42n;
 
@@ -79,6 +81,7 @@ beforeAll(async () => {
     title: "Add thing",
     state: PrStates.OPEN,
   });
+  pullRequestId = pr.id;
   const written = await createArtifactStore(harness.handle, ctx).briefs.write({
     pullRequestId: pr.id,
     baseSha: "base1",
@@ -102,8 +105,7 @@ describe("sessionController.resolveWrite", () => {
   it("refuses a span that names no stored Brief", async () => {
     const resolved = await sessionController.resolveWrite(deps, {
       ctx,
-      repoId,
-      prNumber: PR_NUMBER,
+      pullRequestId,
       span: { base: "base1", head: "unknown-head" },
       reviewerId: brand(REVIEWER_ID, isReviewerId),
       log,
@@ -117,8 +119,7 @@ describe("sessionController.resolveWrite", () => {
   it("binds a write to the named Brief and runs it", async () => {
     const resolved = await sessionController.resolveWrite(deps, {
       ctx,
-      repoId,
-      prNumber: PR_NUMBER,
+      pullRequestId,
       span: { base: "base1", head: "head1" },
       reviewerId: brand(REVIEWER_ID, isReviewerId),
       log,
@@ -135,6 +136,7 @@ describe("sessionController.resolveWrite", () => {
 
 describe("sessionController.previewSession", () => {
   const UNREADABLE_PR = 8;
+  let unreadablePullRequestId: PullRequestRowId;
 
   async function seedUnreadableNextBrief(): Promise<void> {
     const tenant = createTenantRepository(harness.handle, ctx);
@@ -145,6 +147,7 @@ describe("sessionController.previewSession", () => {
       title: "Change thing",
       state: PrStates.OPEN,
     });
+    unreadablePullRequestId = pr.id;
     const briefs = createArtifactStore(harness.handle, ctx).briefs;
     const seeds = [
       { headSha: "head1", headIndex: 0, body: BRIEF_BODY },
@@ -179,10 +182,13 @@ describe("sessionController.previewSession", () => {
 
   it("refuses a carry-over over an unreadable brief with the store code", async () => {
     await seedUnreadableNextBrief();
-    const earlier = await sessionController.resolveWrite(
-      deps,
-      makeInput("head1"),
-    );
+    const earlier = await sessionController.resolveWrite(deps, {
+      ctx,
+      pullRequestId: unreadablePullRequestId,
+      span: { base: "base1", head: "head1" },
+      reviewerId: brand(REVIEWER_ID, isReviewerId),
+      log,
+    });
     if (!earlier.ok) {
       throw new Error("fixture brief missing");
     }

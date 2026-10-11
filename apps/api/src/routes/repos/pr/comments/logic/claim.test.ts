@@ -1,25 +1,16 @@
-import { createInlineReviewComment } from "github";
-import type * as githubModule from "github";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  PR_NUMBER,
+  REPO_SLUG,
   makeDraftCommentRow,
-  runWithoutRetry,
 } from "../../../../../../test/fixtures";
-import { BadGateway } from "../../../../../shared-errors/api-error";
-import type {
-  ReviewerGitHubClient,
-  UserOctokit,
-} from "../../../../auth/reviewer-github-client";
+import { arrangeFakePullRequest } from "../../../../../../test/reviewer-github";
 import { WRITE_DEADLINE_MARGIN_MS } from "../../publish/consts";
 import type { ClaimLedger } from "../../publish/types";
-import { postClaimedDraft } from "./post-now";
-
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  createInlineReviewComment: vi.fn(),
-}));
+import { postClaimedDraft } from "./claim";
 
 const log: Logger = {
   error: vi.fn(),
@@ -29,23 +20,19 @@ const log: Logger = {
   child: () => log,
 };
 
-const TARGET = {
-  owner: "acme",
-  repo: "app",
-  prNumber: 7,
-  commitId: "a".repeat(40),
-};
+const REPO_ID = 424242;
+const [OWNER = "", REPO = ""] = REPO_SLUG.split("/");
+const PIN = { prNumber: PR_NUMBER, commitId: "a".repeat(40) };
+const MARGIN_SLACK_MS = 1000;
 
-function stubGitHubClient(): ReviewerGitHubClient {
-  return {
-    run: (call) => runWithoutRetry(call, "viewer-token"),
-    runRead: (call) => runWithoutRetry(call, "viewer-token"),
-    createOctokit: () => ({}) as UserOctokit,
-    createMutationOctokit: () => ({}) as UserOctokit,
-    session: () => {
-      throw new Error("stub: no session");
-    },
+function bindRepoClient(fake: FakeGitHub) {
+  const credential = {
+    readToken: async () => ({ ok: true, value: "viewer-token" }) as const,
+    renewToken: async () => undefined,
   };
+  return fake
+    .bindReviewerGitHub(credential, { log })
+    .forRepo({ owner: OWNER, repo: REPO });
 }
 
 function stubLedger(): ClaimLedger {
@@ -54,8 +41,6 @@ function stubLedger(): ClaimLedger {
     release: vi.fn().mockResolvedValue({ ok: true, value: 1 }),
   };
 }
-
-const MARGIN_SLACK_MS = 1000;
 
 function makeClaim(claimedAt: Date) {
   return {
@@ -69,15 +54,14 @@ function makeClaim(claimedAt: Date) {
   };
 }
 
-beforeEach(() => {
-  vi.mocked(createInlineReviewComment).mockReset();
-  vi.mocked(createInlineReviewComment).mockResolvedValue({
-    ok: true,
-    value: { commentId: 1n },
-  });
-});
-
 describe("postClaimedDraft", () => {
+  let fake: FakeGitHub;
+
+  beforeEach(() => {
+    fake = makeFakeGitHub();
+    arrangeFakePullRequest(fake, { repoId: REPO_ID });
+  });
+
   it("posts nothing within 30 seconds of the lease running out", async () => {
     const ledger = stubLedger();
     const leaseEnd = Date.now() - PUBLISH_CLAIM_LEASE_MS;
@@ -85,15 +69,16 @@ describe("postClaimedDraft", () => {
       leaseEnd + WRITE_DEADLINE_MARGIN_MS - MARGIN_SLACK_MS,
     );
 
-    const posted = postClaimedDraft(
-      { github: stubGitHubClient(), log },
+    const posted = await postClaimedDraft(
+      log,
       ledger,
-      TARGET,
+      bindRepoClient(fake),
+      PIN,
       makeClaim(claimedAt),
     );
 
-    await expect(posted).rejects.toBeInstanceOf(BadGateway);
-    expect(createInlineReviewComment).not.toHaveBeenCalled();
+    expect(posted).toEqual({ ok: false, error: { kind: "publish-expired" } });
+    expect(fake.listCalls("createInlineReviewComment")).toEqual([]);
     expect(ledger.release).toHaveBeenCalledWith({ claim: "claim-1" });
   });
 
@@ -105,14 +90,15 @@ describe("postClaimedDraft", () => {
     );
 
     const posted = await postClaimedDraft(
-      { github: stubGitHubClient(), log },
+      log,
       ledger,
-      TARGET,
+      bindRepoClient(fake),
+      PIN,
       makeClaim(claimedAt),
     );
 
-    expect(posted).toEqual({ commentId: 1n });
-    expect(createInlineReviewComment).toHaveBeenCalledTimes(1);
+    expect(posted.ok).toBe(true);
+    expect(fake.listCalls("createInlineReviewComment")).toHaveLength(1);
     expect(ledger.release).not.toHaveBeenCalled();
   });
 });

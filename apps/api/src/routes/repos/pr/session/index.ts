@@ -13,12 +13,14 @@ import {
   type ProductRouter,
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
-import type { AuthzEnv } from "../../../../access/types";
+import type { PullRequestEnv } from "../../../../access/types";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { createSessionHandlers } from "./handler";
 
-export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
-  const app = productRouter<AuthzEnv>();
+export function sessionRoutes(
+  deps: AuthRouteDeps,
+): ProductRouter<PullRequestEnv> {
+  const app = productRouter<PullRequestEnv>();
   const handlers = createSessionHandlers(deps);
 
   app.query(

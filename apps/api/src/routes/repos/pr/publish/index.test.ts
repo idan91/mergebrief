@@ -1,6 +1,5 @@
 import {
   addPullRequestReviewThread,
-  createInlineReviewComment,
   createPullRequestReview,
   deletePendingPullRequestReview,
   GitHubApiErrorCodes,
@@ -9,15 +8,19 @@ import {
   submitPullRequestReview,
 } from "github";
 import type * as githubModule from "github";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import type { ReviewDraftCommentRow } from "persistence";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  PR_NUMBER,
+  REPO_SLUG,
   makeDraftCommentRow,
   runWithoutRetry,
 } from "../../../../../test/fixtures";
+import { arrangeFakePullRequest } from "../../../../../test/reviewer-github";
 import type {
   ReviewerGitHubClient,
   UserOctokit,
@@ -26,7 +29,6 @@ import { isReviewUnsent, publishComment, publishReview } from "./index";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
-  createInlineReviewComment: vi.fn(),
   createPullRequestReview: vi.fn(),
   addPullRequestReviewThread: vi.fn(),
   submitPullRequestReview: vi.fn(),
@@ -48,6 +50,9 @@ const TARGET = {
   commitId: "a".repeat(40),
 };
 
+const PIN = { prNumber: PR_NUMBER, commitId: "a".repeat(40) };
+const [REPO_OWNER = "", REPO_NAME = ""] = REPO_SLUG.split("/");
+
 const OPEN_DEADLINE = new Date(Date.now() + 60 * 60 * 1000);
 const THREAD_DURATION_MS = 1000;
 
@@ -61,6 +66,23 @@ function stubGitHubClient(): ReviewerGitHubClient {
       throw new Error("stub: no session");
     },
   };
+}
+
+/** The viewer's client on the suites' repository, served by `fake`. */
+function bindFakeRepoClient(fake: FakeGitHub) {
+  const credential = {
+    readToken: async () => ({ ok: true, value: "viewer-token" }) as const,
+    renewToken: async () => undefined,
+  };
+  return fake
+    .bindReviewerGitHub(credential, { log })
+    .forRepo({ owner: REPO_OWNER, repo: REPO_NAME });
+}
+
+function makeFakeWithPullRequest(): FakeGitHub {
+  const fake = makeFakeGitHub();
+  arrangeFakePullRequest(fake, { repoId: 424242 });
+  return fake;
 }
 
 const ANCHOR_FIELDS = [
@@ -83,9 +105,11 @@ function pickAnchorFields(input: object): Record<string, unknown> {
 async function readCommentAnchor(
   draft: ReviewDraftCommentRow,
 ): Promise<Record<string, unknown>> {
-  await publishComment({ github: stubGitHubClient(), log }, TARGET, draft);
-  const [, input] = vi.mocked(createInlineReviewComment).mock.calls[0] ?? [];
-  if (input === undefined) {
+  const fake = makeFakeWithPullRequest();
+  await publishComment(bindFakeRepoClient(fake), PIN, draft);
+  const [call] = fake.listCalls("createInlineReviewComment");
+  const input = call?.input;
+  if (typeof input !== "object" || input === null) {
     throw new Error("no inline comment posted");
   }
   return pickAnchorFields(input);
@@ -116,11 +140,6 @@ async function readThreadAnchor(
 }
 
 beforeEach(() => {
-  vi.mocked(createInlineReviewComment).mockReset();
-  vi.mocked(createInlineReviewComment).mockResolvedValue({
-    ok: true,
-    value: { commentId: 1n },
-  });
   vi.mocked(createPullRequestReview).mockReset();
   vi.mocked(createPullRequestReview).mockResolvedValue({
     ok: true,
@@ -183,24 +202,22 @@ describe("publish transports", () => {
 
 describe("publishComment", () => {
   it("wraps a publish denial whole with phase mutation", async () => {
-    vi.mocked(createInlineReviewComment).mockResolvedValue({
-      ok: false,
-      error: {
-        code: GitHubApiErrorCodes.FORBIDDEN,
-        status: 403,
-        message: "denied",
-      },
-    });
+    const fake = makeFakeWithPullRequest();
+    fake.failOn("createInlineReviewComment", FakeFailures.FORBIDDEN);
 
     const result = await publishComment(
-      { github: stubGitHubClient(), log },
-      TARGET,
+      bindFakeRepoClient(fake),
+      PIN,
       makeDraftCommentRow(),
     );
 
     expect(result).toMatchObject({
       ok: false,
-      error: { kind: "github-denied", phase: "mutation" },
+      error: {
+        kind: "github-denied",
+        phase: "mutation",
+        error: { code: GitHubApiErrorCodes.FORBIDDEN },
+      },
     });
   });
 });

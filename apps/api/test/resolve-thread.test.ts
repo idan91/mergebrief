@@ -1,11 +1,14 @@
-// Thread-resolution route tests: `app.request()` against `createApp` over the
-// PGlite harness, GitHub stubbed at the global-fetch boundary
-// (mark-ready.test.ts pattern).
-import { makeFakeGitHub, type FakeGitHub } from "github/testing";
+// The thread resolve and unresolve routes over the PGlite harness. The
+// route's own GitHub calls reach the `github/testing` fake through the
+// reviewer binding; the repo gate and the OAuth refresh still answer over
+// `fetch`.
+import type { PrConversation } from "github";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
   type KeyProvider,
+  type ScopeContext,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -16,20 +19,26 @@ import {
   INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
+  REVIEWER_ID,
+  SAME_ORIGIN_HEADERS,
   SECRET,
   brandInstallationId,
   brandRepoId,
-  buildAuthDeps,
+  brandReviewerId,
+  buildOperatorToken,
   createKeyProvider,
-  getRequestUrl,
-  answerInstallationRepositories,
-  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
+  ROTATED_ACCESS_TOKEN,
   arrangeFakePullRequest,
+  arrangeFakeRepository,
+  buildFakeAuthDeps,
   buildFakeInstallationDeps,
+  listFakeCallTokens,
+  stubGateGitHub,
 } from "./reviewer-github";
-import { seedSignIn } from "./sign-in";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 // Every case drives a full request over the PGlite harness; the slowest
 // measures 3.0s, cold snapshot cache included.
@@ -37,161 +46,47 @@ vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
 const ROOT_COMMENT_ID = 91001;
-const THREAD_NODE_ID = "PRRT_kwDOTHREAD";
-
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
+const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
+const OWNER: ScopeContext = {
+  ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
+};
 
-// ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch), REST /repositories/:id + the GraphQL POST.
-// ---------------------------------------------------------------------------
+const RESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/resolve`;
+const UNRESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/unresolve`;
+const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-function repoOk(): Response {
-  return jsonResponse({ id: REPO_ID, full_name: REPO_SLUG, private: true });
-}
-function repoStatus(status: number): Response {
-  return jsonResponse({ message: "denied" }, status);
-}
-
-/** One walk page holding a single thread whose root is `rootId`. */
-function walkGraphql(
+/** One thread whose root is `rootCommentId`, in `isResolved` state. */
+function makeThreadConversation(
   isResolved: boolean,
-  rootId = String(ROOT_COMMENT_ID),
-): Response {
-  return jsonResponse({
-    data: {
-      repository: {
-        pullRequest: {
-          reviewThreads: {
-            pageInfo: { hasNextPage: false, endCursor: null },
-            nodes: [
-              {
-                id: THREAD_NODE_ID,
-                isResolved,
-                comments: { nodes: [{ fullDatabaseId: rootId }] },
-              },
-            ],
-          },
-        },
+  rootCommentId = ROOT_COMMENT_ID,
+): PrConversation {
+  return {
+    threads: [
+      {
+        rootCommentId,
+        path: "src/a.ts",
+        subjectType: "LINE",
+        isResolved,
+        isOutdated: false,
+        comments: [],
+        hasMoreComments: false,
       },
-    },
-  });
-}
-function resolveMutationGraphql(): Response {
-  return jsonResponse({
-    data: { resolveReviewThread: { thread: { isResolved: true } } },
-  });
-}
-function unresolveMutationGraphql(): Response {
-  return jsonResponse({
-    data: { unresolveReviewThread: { thread: { isResolved: false } } },
-  });
-}
-function forbiddenGraphql(): Response {
-  return jsonResponse({
-    data: null,
-    errors: [
-      { type: "FORBIDDEN", message: "Resource not accessible by integration" },
     ],
-  });
-}
-function graphqlError(): Response {
-  return jsonResponse({
-    data: null,
-    errors: [{ type: "INTERNAL", message: "boom" }],
-  });
-}
-function graphqlUnauthorized(): Response {
-  return jsonResponse({ message: "Bad credentials" }, 401);
-}
-function tokenSuccess(): Response {
-  return jsonResponse({
-    access_token: ROTATED_ACCESS,
-    refresh_token: ROTATED_REFRESH,
-    expires_in: 28_800,
-    refresh_token_expires_in: 15_897_600,
-    token_type: "bearer",
-    scope: "",
-  });
-}
-
-interface StubConfig {
-  readonly repositories?: (call: number) => Response;
-  readonly graphql?: (call: number) => Response;
-  readonly token?: (call: number) => Response;
-}
-interface StubCounts {
-  repositories: number;
-  graphql: number;
-  token: number;
-  readonly graphqlBodies: Array<Record<string, unknown>>;
-}
-
-function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = {
-    repositories: 0,
-    graphql: 0,
-    token: 0,
-    graphqlBodies: [],
+    reviews: [],
+    prComments: [],
+    hasMoreThreads: false,
+    hasMoreReviews: false,
+    hasMorePrComments: false,
   };
-  const fetchFn = vi.fn(
-    async (
-      input: string | URL | Request,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        const i = counts.token++;
-        return cfg.token
-          ? cfg.token(i)
-          : jsonResponse({ error: "unexpected_token" }, 500);
-      }
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.includes("/repositories/")) {
-        const i = counts.repositories++;
-        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      if (url.endsWith("/graphql")) {
-        const i = counts.graphql++;
-        const raw =
-          init?.body ??
-          (input instanceof Request ? await input.text() : undefined);
-        if (typeof raw === "string") {
-          const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null) {
-            counts.graphqlBodies.push({ ...parsed });
-          }
-        }
-        return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
-  return counts;
 }
 
-// ---------------------------------------------------------------------------
-// Seeding + helpers.
-// ---------------------------------------------------------------------------
-
-async function seedPr(handle: AppDatabase): Promise<void> {
-  await createTenantRepository(handle, CTX).pullRequests.upsert({
+async function seedPr(
+  handle: AppDatabase,
+  scope: ScopeContext = CTX,
+): Promise<void> {
+  await createTenantRepository(handle, scope).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
@@ -214,9 +109,6 @@ async function auditCount(
   }
   return n;
 }
-
-const RESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/resolve`;
-const UNRESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/unresolve`;
 
 async function post(
   app: ApiApp,
@@ -241,22 +133,48 @@ describe("thread resolve and unresolve routes", () => {
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
+  function buildApp(operatorToken?: string): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...buildFakeInstallationDeps(fake),
+      operatorToken:
+        operatorToken === undefined
+          ? undefined
+          : buildOperatorToken(operatorToken),
+    });
+  }
+
+  function arrangeThread(isResolved: boolean, rootCommentId?: number): void {
+    arrangeFakeRepository(fake, REPO_ID);
+    arrangeFakePullRequest(fake, {
+      repoId: REPO_ID,
+      conversation: makeThreadConversation(isResolved, rootCommentId),
+    });
+  }
+
   function countConversationReads(): number {
     return fake.listCalls("fetchPullRequestConversation").length;
+  }
+
+  function countResolutions(): number {
+    return fake.listCalls("setReviewThreadResolution").length;
+  }
+
+  async function readConversation(cookie: string): Promise<number> {
+    const res = await app.request(CONVERSATION_PATH, {
+      headers: { cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    return res.status;
   }
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
-    arrangeFakePullRequest(fake, { repoId: REPO_ID });
-    app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...buildFakeInstallationDeps(fake),
-    });
+    app = buildApp();
   });
 
   afterEach(async () => {
@@ -266,32 +184,35 @@ describe("thread resolve and unresolve routes", () => {
   });
 
   it("401 without a session cookie and no GitHub call", async () => {
-    const counts = stubGitHub({});
+    const gate = stubGateGitHub({ repoId: REPO_ID });
     const res = await post(app, undefined, RESOLVE_PATH);
     expect(res.status).toBe(401);
-    expect(counts.repositories).toBe(0);
-    expect(counts.graphql).toBe(0);
+    expect(gate.repositoryReads()).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("404 collapse when the viewer has no access to the repo", async () => {
-    const counts = stubGitHub({ repositories: () => repoStatus(403) });
+    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 403 });
+    arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("404 when the PR is outside the tenant, with no GraphQL call", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+  it("404 when the PR is outside the tenant, with no GitHub call", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("400 on a malformed comment id, 404 on a malformed PR number", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
     const badComment = await post(
@@ -306,52 +227,50 @@ describe("thread resolve and unresolve routes", () => {
       `/api/repos/${REPO_ID}/pulls/nope/comments/${ROOT_COMMENT_ID}/resolve`,
     );
     expect(badPr.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("200 resolve walks, mutates, audits and answers no-store", async () => {
-    const counts = stubGitHub({
-      repositories: (i) =>
-        i === 0
-          ? repoOk() // the gate's access check
-          : jsonResponse({
-              id: REPO_ID,
-              full_name: "octo/renamed",
-              private: true,
-            }),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
+  it("200 resolve flips, audits and answers no-store with one row read", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeRepository(fake, REPO_ID, "octo/renamed");
+    arrangeFakePullRequest(fake, {
+      repoId: REPO_ID,
+      fullName: "octo/renamed",
+      conversation: makeThreadConversation(false),
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
+    const lookups = spyPullRequestLookups(harness);
 
     const res = await post(app, cookie, RESOLVE_PATH);
+
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({
       resolved: true,
       alreadyInTargetState: false,
     });
-    // Gate check + the route's own fresh re-resolve.
-    expect(counts.repositories).toBe(2);
-    // The walk must target the FRESHLY resolved owner/name, never the gate's
-    // cached slug (mutating-route rule).
-    expect(counts.graphqlBodies[0]).toMatchObject({
-      variables: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
-    });
-    // The mutation carries the thread node id, never the PR number.
-    expect(counts.graphqlBodies[1]).toMatchObject({
-      variables: { threadId: THREAD_NODE_ID },
-    });
+    expect(lookups.count()).toBe(1);
+    expect(gate.repositoryReads()).toBe(1);
+    expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+    expect(fake.listCalls("setReviewThreadResolution")).toEqual([
+      expect.objectContaining({
+        input: {
+          owner: "octo",
+          repo: "renamed",
+          prNumber: PR_NUMBER,
+          rootCommentId: ROOT_COMMENT_ID,
+          resolved: true,
+        },
+      }),
+    ]);
     expect(await auditCount(harness, "resolve-thread")).toBe(1);
     expect(await auditCount(harness, "unresolve-thread")).toBe(0);
   });
 
   it("200 unresolve happy path with its own audit action", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) =>
-        i === 0 ? walkGraphql(true) : unresolveMutationGraphql(),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(true);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -365,22 +284,15 @@ describe("thread resolve and unresolve routes", () => {
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
-  it("200 converges without a mutation when already in the target state", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: () => walkGraphql(true), // already resolved
-    });
+  it("200 converges when already in the target state and still evicts", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(true);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
-    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 
-    // Prime the conversation cache first: convergence means SOMEONE ELSE
-    // flipped the thread inside the TTL, so the cached conversation is stale
-    // and the eviction must run on this path too.
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    // Convergence means someone else flipped the thread inside the TTL, so
+    // the cached conversation is stale and the eviction runs on this path too.
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
@@ -389,22 +301,15 @@ describe("thread resolve and unresolve routes", () => {
       resolved: true,
       alreadyInTargetState: true,
     });
-    // Walk only, the read-time state short-circuits the mutation.
-    expect(counts.graphql).toBe(1);
     expect(await auditCount(harness, "resolve-thread")).toBe(1);
 
-    // Converged is still a success: the next read must fetch fresh.
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(2);
   });
 
-  it("200 converges on the unresolve direction without a mutation", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: () => walkGraphql(false), // already unresolved
-    });
+  it("200 converges on the unresolve direction", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -414,7 +319,6 @@ describe("thread resolve and unresolve routes", () => {
       resolved: false,
       alreadyInTargetState: true,
     });
-    expect(counts.graphql).toBe(1);
     expect(await auditCount(harness, "unresolve-thread")).toBe(1);
   });
 
@@ -424,18 +328,15 @@ describe("thread resolve and unresolve routes", () => {
       logger: capture.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...buildFakeInstallationDeps(fake),
     });
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    // Poison ONLY the audit write: the GitHub flip has already committed by
-    // the time the audit insert runs, so the response must stay a 200 (an
-    // error here would invite the FE to retry a done action).
+    // The GitHub flip has committed by the time the audit insert runs, so
+    // the response stays a 200: an error would invite a retry of a done action.
     await harness.raw("alter table audit_log rename to audit_log_poisoned");
 
     const res = await post(captureApp, cookie, RESOLVE_PATH);
@@ -450,41 +351,37 @@ describe("thread resolve and unresolve routes", () => {
     expect(line?.["err"]).toBeDefined();
   });
 
-  it("404 when the walk exhausts without matching the comment id", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: () => walkGraphql(false, "777777"), // some other thread
-    });
+  it("404 when no thread has the comment as its root", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false, 777_777);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(1);
+    expect(countResolutions()).toBe(1);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
   it("404 collapse when the in-route fresh repo resolve is denied", async () => {
-    const counts = stubGitHub({
-      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
-    });
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.failOn("fetchRepositoryById", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
-    expect(counts.graphql).toBe(0);
+    expect(countResolutions()).toBe(0);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
   it("403 github-permission on a mutation-stage FORBIDDEN", async () => {
-    // Gate + fresh re-resolve both succeeded, the viewer has proven repo
-    // access this request, so a mutation-stage FORBIDDEN (raced revocation /
-    // read-only viewer) surfaces honestly instead of hiding existence.
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : forbiddenGraphql()),
-    });
+    // Gate and fresh re-resolve both passed: the viewer proved repo access
+    // this request, so the refusal surfaces honestly.
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.failOn("setReviewThreadResolution", FakeFailures.FORBIDDEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -494,15 +391,13 @@ describe("thread resolve and unresolve routes", () => {
       error: "github-permission",
       code: "github-permission",
     });
-    expect(counts.graphql).toBe(2);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
-  it("502 on a hard GraphQL failure, no audit", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : graphqlError()),
-    });
+  it("502 on a hard GitHub failure, no audit", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.failOn("setReviewThreadResolution", FakeFailures.SERVER_ERROR);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -512,95 +407,83 @@ describe("thread resolve and unresolve routes", () => {
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
-  it("refreshes the token once when a GraphQL call 401s, then succeeds", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      graphql: (call) => {
-        if (call === 0) {
-          return graphqlUnauthorized();
-        }
-        if (call === 1) {
-          return walkGraphql(false);
-        }
-        return resolveMutationGraphql();
-      },
-    });
+  it("renews the token once after a mid-request 401, then flips", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.rejectToken(ACCESS_TOKEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
-    expect(counts.token).toBe(1);
-    expect(counts.graphql).toBe(3);
+    expect(gate.tokenRefreshes()).toBe(1);
+    expect(listFakeCallTokens(fake)).toEqual([
+      ACCESS_TOKEN,
+      ROTATED_ACCESS_TOKEN,
+      ROTATED_ACCESS_TOKEN,
+    ]);
   });
 
-  it("401 when a second GitHub 401 lands after the one refresh", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      token: () => tokenSuccess(),
-      graphql: () => graphqlUnauthorized(),
-    });
+  it("401 when a second rejection lands after the one renewal", async () => {
+    const gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.rejectToken(ACCESS_TOKEN);
+    fake.rejectToken(ROTATED_ACCESS_TOKEN);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(401);
-    expect(counts.token).toBe(1);
+    expect(gate.tokenRefreshes()).toBe(1);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 
-  it("busts the PR's conversation cache so a refetch reflects the write", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
+  it("refuses a flip behind an operator pass with no-repo-write-access", async () => {
+    stubGateGitHub({ repoId: REPO_ID, viewerStatus: 404 });
+    await seedPr(harness.handle, OWNER);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+
+    const res = await post(buildApp(OPERATOR_PAT), cookie, RESOLVE_PATH);
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: expect.any(String),
+      code: "no-repo-write-access",
     });
+    expect(countResolutions()).toBe(0);
+  });
+
+  it("busts the PR's conversation cache so a refetch reflects the write", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
-    // Prime the conversation cache, then verify a second read is served from it.
-    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
 
-    // The write evicted the entry: the next read fetches fresh.
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(2);
   });
 
-  it("does NOT bust the conversation cache on a failed mutation", async () => {
-    stubGitHub({
-      repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(false) : graphqlError()),
-    });
+  it("does not bust the conversation cache on a failed mutation", async () => {
+    stubGateGitHub({ repoId: REPO_ID });
+    arrangeThread(false);
+    fake.failOn("setReviewThreadResolution", FakeFailures.SERVER_ERROR);
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
-    const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(502);
 
-    // Entry still cached, no refetch.
-    expect(
-      (await app.request(conversationPath, { headers: cookieHeader })).status,
-    ).toBe(200);
+    expect(await readConversation(cookie)).toBe(200);
     expect(countConversationReads()).toBe(1);
   });
 });

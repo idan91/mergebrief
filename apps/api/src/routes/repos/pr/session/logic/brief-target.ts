@@ -4,6 +4,7 @@ import {
   createArtifactStore,
   createTenantRepository,
   type BriefRowId,
+  type PullRequestRowId,
   type RepoId,
   type ScopeContext,
 } from "persistence";
@@ -34,12 +35,22 @@ export async function resolveSessionTarget(
   if (pr === undefined) {
     return undefined;
   }
+  return findSessionTarget(deps, ctx, pr.id, span);
+}
+
+/** The Brief `span` names on a row the caller already holds. */
+export async function findSessionTarget(
+  deps: AuthRouteDeps,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  span: BriefSpan,
+): Promise<SessionTarget | undefined> {
   // Lean span listing, never `briefs.get`: the row id is all the session
   // needs, and the body is the one column worth not loading.
   const briefs = await createArtifactStore(
     deps.handle,
     ctx,
-  ).briefs.listForPullRequest(pr.id);
+  ).briefs.listForPullRequest(pullRequestId);
   const current = briefs.find(
     (row) => row.baseSha === span.base && row.headSha === span.head,
   );

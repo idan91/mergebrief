@@ -59,18 +59,13 @@ describe("readGitHubAnchor", () => {
 });
 
 describe("shapeInlineCommentInput", () => {
-  const target = {
-    owner: "o",
-    repo: "r",
-    prNumber: 7,
-    commitId: "a".repeat(40),
-  };
+  const pin = { prNumber: 7, commitId: "a".repeat(40) };
 
   it("pins a File comment with subjectType file and no line", () => {
     expect(
-      shapeInlineCommentInput(shapePublishComment(makeFileDraft()), target),
+      shapeInlineCommentInput(shapePublishComment(makeFileDraft()), pin),
     ).toEqual({
-      ...target,
+      ...pin,
       path: "src/app.ts",
       body: "on the file",
       subjectType: ReviewSubjectTypes.FILE,

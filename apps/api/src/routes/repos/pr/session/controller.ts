@@ -11,6 +11,7 @@ import {
   type DraftClaim,
   type GroupReclassificationInput,
   type NewDraft,
+  type PullRequestRowId,
   type ReleaseClaimInput,
   type RepoId,
   type ReviewDraftCommentRow,
@@ -30,7 +31,11 @@ import type { ReviewOutcome } from "types/reviews";
 import type { Result } from "types/utils";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { BriefSpan } from "./schemas";
-import { resolveSessionTarget, type SessionTarget } from "./logic/brief-target";
+import {
+  findSessionTarget,
+  resolveSessionTarget,
+  type SessionTarget,
+} from "./logic/brief-target";
 import type { SessionPayload } from "contract";
 import { buildSessionPayload } from "./logic/payload";
 import type { HeldDraft, SessionWriteFailure } from "./types";
@@ -87,13 +92,22 @@ export interface ResolvedSessionWrite {
   readonly head: string;
 }
 
-interface ResolveWriteInput {
+interface SessionScopeInput {
   readonly ctx: ScopeContext;
-  readonly repoId: RepoId;
-  readonly prNumber: number;
   readonly span: BriefSpan;
   readonly reviewerId: ReviewerId;
   readonly log: Logger;
+}
+
+/** The session read names its pull request by coordinates. */
+interface PreviewSessionInput extends SessionScopeInput {
+  readonly repoId: RepoId;
+  readonly prNumber: number;
+}
+
+/** A write names the pull request row its access step already loaded. */
+export interface ResolveWriteInput extends SessionScopeInput {
+  readonly pullRequestId: PullRequestRowId;
 }
 
 type ResolveWriteResult = Result<
@@ -119,7 +133,7 @@ type PreviewSessionResult = Result<
 
 /** A refusal the store rides back whole, logged when the Brief is at fault. */
 function rejectSession(
-  input: ResolveWriteInput,
+  input: SessionScopeInput,
   target: SessionTarget,
   error: ReviewSessionError,
 ): { readonly ok: false; readonly error: SessionWriteFailure } {
@@ -146,7 +160,7 @@ interface SessionBinding {
 
 function bindSession(
   deps: AuthRouteDeps,
-  input: ResolveWriteInput,
+  input: SessionScopeInput,
   target: SessionTarget,
 ): SessionBinding {
   return {
@@ -234,7 +248,7 @@ export const sessionController = {
    * write the payload carries the carry-over verdicts evaluated in memory
    * (`preview`), still writing nothing.
    */
-  async previewSession(deps: AuthRouteDeps, input: ResolveWriteInput) {
+  async previewSession(deps: AuthRouteDeps, input: PreviewSessionInput) {
     const target = await resolveSessionTarget(
       deps,
       input.ctx,
@@ -271,16 +285,15 @@ export const sessionController = {
   },
 
   /**
-   * Resolve the PR and the Brief the request names, and bind the write to
-   * them. An unknown PR/Brief is `target-not-found`, the subtree's
-   * hint-free 404 is the handler's judgment.
+   * Resolve the Brief the request names on its row, and bind the write to
+   * it. An unknown Brief is `target-not-found`, the subtree's hint-free 404
+   * is the handler's judgment.
    */
   async resolveWrite(deps: AuthRouteDeps, input: ResolveWriteInput) {
-    const target = await resolveSessionTarget(
+    const target = await findSessionTarget(
       deps,
       input.ctx,
-      input.repoId,
-      input.prNumber,
+      input.pullRequestId,
       input.span,
     );
     if (target === undefined) {
@@ -312,11 +325,10 @@ export const sessionController = {
     input: ResolveWriteInput,
     githubReviewId: bigint,
   ): Promise<ExistingSessionWriteResult<ReviewSubmittedReviewRow>> {
-    const target = await resolveSessionTarget(
+    const target = await findSessionTarget(
       deps,
       input.ctx,
-      input.repoId,
-      input.prNumber,
+      input.pullRequestId,
       input.span,
     );
     if (target === undefined) {

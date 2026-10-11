@@ -7,7 +7,7 @@ import { DispositionDecisions } from "types/dispositions";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
+import type { PullRequestEnv } from "../../../../access/types";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
 import { sessionController } from "./controller";
 import {
@@ -28,7 +28,6 @@ import {
   throwSessionWriteFailure,
 } from "./logic/write-seam";
 import { shapeDraftAnchor, shapeNewDraft } from "./logic/draft-write";
-import { resolvePrScopeFrom } from "../scope";
 import { HttpStatuses } from "types/http";
 
 const NO_STORE = { "cache-control": "no-store" };
@@ -39,7 +38,7 @@ const NO_STORE = { "cache-control": "no-store" };
  * for. The reply counts the rows that changed, which an undo can undershoot.
  */
 async function decide(
-  c: Context<AuthzEnv>,
+  c: Context<PullRequestEnv>,
   deps: AuthRouteDeps,
   decisions: readonly DispositionInput[],
 ) {
@@ -52,13 +51,13 @@ async function decide(
 }
 
 /** The request body, or `undefined` when it is not JSON at all. */
-async function readJsonBody(c: Context<AuthzEnv>) {
+async function readJsonBody(c: Context<PullRequestEnv>) {
   return c.req.json().catch(() => undefined);
 }
 
 export function createSessionHandlers(deps: AuthRouteDeps) {
   /** GET the session, a query: it reads, it projects, it creates nothing. */
-  const readSession = async (c: Context<AuthzEnv>) => {
+  const readSession = async (c: Context<PullRequestEnv>) => {
     const span = spanQuerySchema.safeParse({
       base: c.req.query("base"),
       head: c.req.query("head"),
@@ -69,7 +68,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     }
 
     const previewed = await sessionController.previewSession(deps, {
-      ctx: await resolvePrScopeFrom(c, deps.handle, prNumber.data),
+      ctx: c.get("pullRequestAccess").rowScope,
       repoId: c.get("repoId"),
       prNumber: prNumber.data,
       span: span.data,
@@ -86,7 +85,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     return c.json(previewed.value, HttpStatuses.OK, NO_STORE);
   };
 
-  const createDraftComment = async (c: Context<AuthzEnv>) => {
+  const createDraftComment = async (c: Context<PullRequestEnv>) => {
     const parsed = createDraftSchema.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       throw new BadRequest();
@@ -105,7 +104,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const updateDraftComment = async (c: Context<AuthzEnv>) => {
+  const updateDraftComment = async (c: Context<PullRequestEnv>) => {
     const draftId = rowIdSchema.safeParse(c.req.param("draftId"));
     const parsed = draftBodySchema.safeParse(await readJsonBody(c));
     if (!draftId.success || !parsed.success) {
@@ -125,7 +124,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const reanchorDraftComment = async (c: Context<AuthzEnv>) => {
+  const reanchorDraftComment = async (c: Context<PullRequestEnv>) => {
     const draftId = rowIdSchema.safeParse(c.req.param("draftId"));
     const parsed = anchorSchema.safeParse(await readJsonBody(c));
     if (!draftId.success || !parsed.success) {
@@ -148,7 +147,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const deleteDraftComment = async (c: Context<AuthzEnv>) => {
+  const deleteDraftComment = async (c: Context<PullRequestEnv>) => {
     const draftId = rowIdSchema.safeParse(c.req.param("draftId"));
     if (!draftId.success) {
       throw new BadRequest();
@@ -169,7 +168,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const setChunkRead = async (c: Context<AuthzEnv>) => {
+  const setChunkRead = async (c: Context<PullRequestEnv>) => {
     const chunkId = briefLocalIdSchema.safeParse(c.req.param("chunkId"));
     const parsed = readSchema.safeParse(await readJsonBody(c));
     if (!chunkId.success || !parsed.success) {
@@ -190,7 +189,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     return c.json(written.value, HttpStatuses.OK, NO_STORE);
   };
 
-  const reclassifyGroup = async (c: Context<AuthzEnv>) => {
+  const reclassifyGroup = async (c: Context<PullRequestEnv>) => {
     const groupId = briefLocalIdSchema.safeParse(c.req.param("groupId"));
     const parsed = categorySchema.safeParse(await readJsonBody(c));
     if (!groupId.success || !parsed.success) {
@@ -215,7 +214,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const dismissRisk = async (c: Context<AuthzEnv>) => {
+  const dismissRisk = async (c: Context<PullRequestEnv>) => {
     const parsed = dismissSchema.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       throw new BadRequest();
@@ -232,7 +231,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const addressRisk = async (c: Context<AuthzEnv>) => {
+  const addressRisk = async (c: Context<PullRequestEnv>) => {
     const parsed = addressSchema.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       throw new BadRequest();
@@ -250,7 +249,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     );
   };
 
-  const reopenRisk = async (c: Context<AuthzEnv>) => {
+  const reopenRisk = async (c: Context<PullRequestEnv>) => {
     const parsed = reopenSchema.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       throw new BadRequest();
@@ -264,7 +263,7 @@ export function createSessionHandlers(deps: AuthRouteDeps) {
     return c.json({ flags: reopened.value }, HttpStatuses.OK, NO_STORE);
   };
 
-  const setReviewOutcome = async (c: Context<AuthzEnv>) => {
+  const setReviewOutcome = async (c: Context<PullRequestEnv>) => {
     const parsed = outcomeSchema.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       throw new BadRequest();

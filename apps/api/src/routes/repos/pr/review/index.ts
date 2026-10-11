@@ -12,15 +12,15 @@ import {
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
+import type { PullRequestEnv } from "../../../../access/types";
 import { createReviewHandlers } from "./handler";
 import type { EvictConversation } from "./types";
 
 export function reviewSubmitRoute(
   deps: AuthRouteDeps,
   evictConversation: EvictConversation,
-): ProductRouter<AuthzEnv> {
-  const app = productRouter<AuthzEnv>();
+): ProductRouter<PullRequestEnv> {
+  const app = productRouter<PullRequestEnv>();
   const handlers = createReviewHandlers(deps, evictConversation);
   app.action(
     {
