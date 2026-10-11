@@ -48,7 +48,9 @@ async function renderWritableScreen() {
     session: emptySessionPayload(),
   });
   await waitFor(() =>
-    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    expect(
+      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+    ).toBeTruthy(),
   );
 }
 
@@ -99,7 +101,11 @@ async function renderBriefView(
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(screen.getByText(brief.pr.title)).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { level: 1, name: brief.pr.title }),
+    ).toBeTruthy(),
+  );
   return { queryClient };
 }
 

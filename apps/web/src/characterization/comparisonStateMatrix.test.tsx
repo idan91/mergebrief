@@ -346,7 +346,11 @@ describe("comparison state matrix characterization", () => {
         );
       },
     );
-    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR.title }),
+      ).toBeTruthy(),
+    );
     // The same region must stay mounted across the pick: a remounted one
     // starts with its text and announces nothing.
     const status = screen.getByText("Viewing brief 2 of 2.");
@@ -384,7 +388,11 @@ describe("comparison state matrix characterization", () => {
 
   it("renders the full Brief unchanged at compare=off when one is available", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
-    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR.title }),
+      ).toBeTruthy(),
+    );
 
     expect(screen.getByText("Tighten validation")).toBeTruthy();
     expect(screen.queryByText(/Changes only ·/)).toBeNull();
@@ -394,7 +402,11 @@ describe("comparison state matrix characterization", () => {
 
   it("offers Previous Brief on a later Brief and overlays it on selection", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
-    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR.title }),
+      ).toBeTruthy(),
+    );
 
     const previousBriefButton = screen.getByRole("radio", {
       name: "Previous brief",
@@ -412,7 +424,11 @@ describe("comparison state matrix characterization", () => {
 
   it("offers Your last review as a compare option when a local Delta exists", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
-    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR.title }),
+      ).toBeTruthy(),
+    );
 
     const lastReviewButton = screen.getByRole("radio", {
       name: "Your last review",
@@ -437,7 +453,9 @@ describe("comparison state matrix characterization", () => {
   it("cannot select Changes Only without an available comparison", async () => {
     await renderAt("/briefs/lonely-brief-1");
     await waitFor(() =>
-      expect(screen.getByText(lonelyBrief.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: lonelyBrief.pr.title }),
+      ).toBeTruthy(),
     );
 
     // No comparison is available for this Brief, so both Compare options are
@@ -470,7 +488,11 @@ describe("comparison state matrix characterization", () => {
     const { router } = await renderAt(
       "/briefs/head-brief-2?view=full&compare=off",
     );
-    await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR.title }),
+      ).toBeTruthy(),
+    );
 
     const viewGroup = screen.getByRole("group", { name: "Scope" });
     const compareGroup = screen.getByRole("group", { name: "Compare" });

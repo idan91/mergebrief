@@ -1,0 +1,34 @@
+@use "functions";
+
+@layer components {
+  .largeTitle {
+    display: none;
+  }
+
+  @media (width <= 880px) {
+    .largeTitle {
+      display: flex;
+      flex-direction: column;
+      gap: functions.to-rem(12px);
+      margin-block-end: functions.to-rem(24px);
+    }
+  }
+
+  .title {
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-3xl);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    text-wrap: pretty;
+  }
+
+  .identity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(8px) functions.to-rem(12px);
+    min-inline-size: 0;
+  }
+}

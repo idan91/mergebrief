@@ -17,6 +17,7 @@ import { ChangesOnlyView } from "./ChangesOnlyView";
 import { FocusIndicator } from "./FocusIndicator";
 import { FocusPanel } from "./FocusPanel";
 import { FocusShortcuts } from "./FocusShortcuts";
+import { LargeTitle } from "./LargeTitle";
 import { LineLinkNotice } from "./LineLinkNotice";
 import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
@@ -135,6 +136,8 @@ function BriefViewContent(props: BriefViewProps) {
     shareChunk,
     jumpToChunkUnderStack,
     staleHead,
+    largeTitle,
+    attachLargeTitle,
   } = useBriefViewFacade(props);
 
   // The provider memoizes on this identity, so it has to be stable itself.
@@ -211,10 +214,10 @@ function BriefViewContent(props: BriefViewProps) {
                   <Header
                     toggleShortcuts={session.toggleShortcuts}
                     focusMode={session.focusMode}
+                    largeTitle={largeTitle}
                     brief={brief}
                     livePrState={pr?.livePrState}
                     authorLogin={pr?.authorLogin}
-                    repoConfig={repoConfig}
                     briefId={briefId}
                     repoId={pr?.repoId}
                     model={model}
@@ -274,6 +277,18 @@ function BriefViewContent(props: BriefViewProps) {
                     aria-busy={pendingShown || undefined}
                     inert={pendingShown || undefined}
                   >
+                    {regions.summary ? (
+                      <LargeTitle
+                        ref={attachLargeTitle}
+                        authorLogin={pr?.authorLogin}
+                        brief={brief}
+                        livePrState={pr?.livePrState}
+                        model={model}
+                        ownDraft={ownDraftActive}
+                        repoConfig={repoConfig}
+                        repoId={pr?.repoId}
+                      />
+                    ) : null}
                     {regions.carryOver ? (
                       <CarryOver
                         headSha={brief.pr.sha}

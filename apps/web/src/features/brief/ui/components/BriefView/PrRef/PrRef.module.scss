@@ -1,0 +1,37 @@
+@use "functions";
+
+@layer components {
+  .ref {
+    min-inline-size: 0;
+
+    // Padding and a cancelling margin keep the link's focus ring inside the
+    // clip box.
+    overflow: hidden;
+    padding-block: functions.to-rem(6px);
+    margin-block: functions.to-rem(-6px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    b {
+      color: var(--color-text-2);
+      font-weight: 500;
+    }
+  }
+
+  .link {
+    display: inline-flex;
+    gap: functions.to-rem(4px);
+    align-items: center;
+    color: var(--color-text-2);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-text-1);
+      text-decoration: underline;
+      text-underline-offset: functions.to-rem(3px);
+    }
+  }
+}

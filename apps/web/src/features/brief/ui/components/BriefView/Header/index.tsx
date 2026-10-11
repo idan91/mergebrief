@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { CONTENT_START_ATTR } from "../utils";
 import {
   useEffect,
-  useId,
   useRef,
   useState,
   type CSSProperties,
@@ -15,32 +14,27 @@ import type {
   CompareOptionFlags,
 } from "../../../../model/comparison/compare-state";
 import type { ProgressTotals } from "../../../utils/progress";
-import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { Brief, LivePrState } from "../../../../model/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
   BriefViewModel,
   UnattributedRemainderGroupView,
 } from "../../../../model/utils/view-model";
-import { AccessibleLink } from "@web/components/AccessibleLink";
 import { AuthorChip } from "@web/components/AuthorChip";
-import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
-import { Provenance } from "../Provenance";
-import { BranchPair } from "./BranchPair";
-import { StackChip } from "./StackChip";
-import { StackArrows } from "./StackChip/StackArrows";
-import { resolveStackView } from "./StackChip/utils";
-import { StateBadge } from "./StateBadge";
+import { BranchPair } from "../BranchPair";
+import { PrRef } from "../PrRef";
+import { SelfReviewChip } from "../SelfReviewChip";
+import { StackNav } from "../StackNav";
+import { StateBadge } from "../StateBadge";
+import { useLargeTitleOut } from "./useLargeTitleOut";
 import { SubmitReviewCta } from "./SubmitReviewCta";
 import { ComparisonControls } from "./ComparisonControls";
-import { Icon } from "@web/components/Icon";
-import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./Header.module.scss";
 
 export interface OwnDraftHeaderProps {
@@ -51,8 +45,6 @@ export interface OwnDraftHeaderProps {
 
 export interface HeaderProps {
   brief: Brief;
-  /** Phones have no masthead card, so the meta line carries provenance there. */
-  repoConfig?: RepoConfigContext | null | undefined;
   livePrState?: LivePrState | undefined;
   /** The PR author's GitHub login; the meta line leads with it. */
   authorLogin?: string | undefined;
@@ -79,6 +71,8 @@ export interface HeaderProps {
   toggleShortcuts: () => void;
   /** Focus mode quiets the header and drops its comparison row and progress bar. */
   focusMode: boolean;
+  /** The page's large title block; on phones the bar shows the title once it scrolls under. */
+  largeTitle: HTMLElement | null;
 }
 
 const SETTLE_MS = 200;
@@ -93,7 +87,6 @@ function readStickyStackHeight(): number {
 
 export function Header({
   brief,
-  repoConfig,
   livePrState,
   authorLogin,
   briefId,
@@ -112,19 +105,16 @@ export function Header({
   jumpToGroupHeading,
   toggleShortcuts,
   focusMode,
+  largeTitle,
 }: HeaderProps) {
   const { t } = useTranslation();
-  const stackView = resolveStackView(
-    brief.pr.stack,
-    livePrState?.stack,
-    livePrState?.state,
-  );
   const headerRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
   // The whole pinned stack at rest, not just the header, content must clear
   // the toolbar too. At rest only, or trigger and result chase each other.
   const [restHeight, setRestHeight] = useState(0);
+  const [barHeight, setBarHeight] = useState(0);
 
   useEffect(() => {
     const el = headerRef.current;
@@ -146,6 +136,7 @@ export function Header({
       window.clearTimeout(settle);
       settle = window.setTimeout(() => {
         setRestHeight(readStickyStackHeight());
+        setBarHeight(el.offsetHeight);
       }, SETTLE_MS);
     };
     apply();
@@ -181,6 +172,8 @@ export function Header({
     return () => observer.disconnect();
   }, [restHeight]);
 
+  const largeTitleOut = useLargeTitleOut(barHeight, largeTitle);
+
   const terminalSlotRef = useRef<HTMLButtonElement>(null);
   const terminalSlotFocused = useRef(false);
   const wasOwnDraft = useRef(ownDraft !== undefined);
@@ -196,10 +189,10 @@ export function Header({
     wasOwnDraft.current = isOwnDraftNow;
   }, [ownDraft]);
 
+  const titleOut = largeTitleOut ? "" : undefined;
   const progressStyle: ProgressBarStyle = {
     "--progress-scale": `${progress / 100}`,
   };
-  const prLink = buildGithubPullUrl(brief.pr.repo, brief.pr.number);
   const remainderGroup = model.groups.find(
     (group): group is UnattributedRemainderGroupView =>
       group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
@@ -211,6 +204,7 @@ export function Header({
       ref={headerRef}
       data-collapsed={collapsed ? "" : undefined}
       data-focus={focusMode ? "" : undefined}
+      data-title-out={titleOut}
     >
       <div className={styles["identityRow"]}>
         {/* Lead is inert on wide viewports (display: contents, one flex
@@ -225,21 +219,7 @@ export function Header({
               <h1 className={styles["title"]}>{brief.pr.title}</h1>
               <StateBadge live={livePrState} pr={brief.pr} />
               {ownDraft !== undefined ? <SelfReviewChip /> : null}
-              <span className={styles["repoRef"]}>
-                <b>{brief.pr.repo}</b>{" "}
-                {prLink ? (
-                  <AccessibleLink
-                    className={styles["ghlink"]}
-                    href={prLink}
-                    target="_blank"
-                  >
-                    #{brief.pr.number}
-                    <Icon name={IconNames.GITHUB_LOGO} size={IconSizes.SM} />
-                  </AccessibleLink>
-                ) : (
-                  <span>#{brief.pr.number}</span>
-                )}
-              </span>
+              <PrRef pr={brief.pr} />
             </div>
             {/* PR identity: author, stack, branches. Never wraps above
                 880px: a second wrap would put the block at three lines at
@@ -248,35 +228,15 @@ export function Header({
               {authorLogin !== undefined ? (
                 <AuthorChip login={authorLogin} />
               ) : null}
-              {stackView !== undefined ? (
-                <StackArrows
-                  currentNumber={brief.pr.number}
-                  repoSlug={brief.pr.repo}
-                  repoId={repoId}
-                  stack={stackView.stack}
-                >
-                  <StackChip
-                    asOf={stackView.asOf}
-                    atGeneration={stackView.atGeneration}
-                    currentNumber={brief.pr.number}
-                    repoSlug={brief.pr.repo}
-                    repoId={repoId}
-                    snapshot={stackView.snapshot}
-                    stack={stackView.stack}
-                  />
-                </StackArrows>
-              ) : null}
+              <StackNav
+                brief={brief}
+                livePrState={livePrState}
+                repoId={repoId}
+              />
               <BranchPair
                 baseRef={brief.pr.baseRef}
                 headRef={brief.pr.headRef}
               />
-              <span className={styles["phoneProvenance"]}>
-                <Provenance
-                  brief={brief}
-                  model={model}
-                  repoConfig={repoConfig}
-                />
-              </span>
             </span>
           </div>
         </div>
@@ -383,70 +343,6 @@ export function Header({
         style={progressStyle}
       />
     </header>
-  );
-}
-
-/**
- * The own-draft state label, non-dismissible and own-draft only. WCAG 1.4.13:
- * DISMISSABLE through a capture-phase Escape that hides only the tooltip, so a
- * hovering pointer user need not move and the key never reaches page handling;
- * HOVERABLE via visible-state pointer events; PERSISTENT while hovered or focused.
- */
-function SelfReviewChip() {
-  const { t } = useTranslation();
-  const tooltipId = useId();
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [tooltipDismissed, setTooltipDismissed] = useState(false);
-  const tooltipVisible = (hovered || focused) && !tooltipDismissed;
-  useEffect(() => {
-    if (!tooltipVisible) {
-      return;
-    }
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.stopPropagation();
-      setTooltipDismissed(true);
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [tooltipVisible]);
-  // Re-arm only when BOTH channels are idle: with hover and focus
-  // overlapping, a per-channel re-arm (on mouseleave / on blur) would bring a
-  // dismissed tooltip back while the OTHER channel still holds it visible,
-  // Escape must stick for as long as either channel is active.
-  useEffect(() => {
-    if (!hovered && !focused) {
-      setTooltipDismissed(false);
-    }
-  }, [focused, hovered]);
-  return (
-    <span className={styles["selfReviewChip"]} data-self-review-chip="">
-      <span>{t("brief.header.selfReviewChip")}</span>
-      <span
-        className={styles["chipInfo"]}
-        data-tooltip-dismissed={tooltipDismissed ? "" : undefined}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        {/* oxlint-disable-next-line house/no-raw-button -- tooltip anchor (cursor: help, no onClick): not an action */}
-        <button
-          aria-describedby={tooltipId}
-          aria-label={t("brief.header.ariaLabelAboutSelfReview")}
-          className={styles["chipInfoButton"]}
-          type="button"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        >
-          i
-        </button>
-        <span className={styles["chipTooltip"]} id={tooltipId} role="tooltip">
-          {t("brief.header.selfReviewTooltip")}
-        </span>
-      </span>
-    </span>
   );
 }
 

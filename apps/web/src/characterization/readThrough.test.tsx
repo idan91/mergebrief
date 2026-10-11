@@ -129,7 +129,12 @@ async function renderReadThroughScreen() {
     session: emptySession,
   });
   await waitFor(() =>
-    expect(screen.getByText(readThroughFixture.pr.title)).toBeTruthy(),
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: readThroughFixture.pr.title,
+      }),
+    ).toBeTruthy(),
   );
 }
 

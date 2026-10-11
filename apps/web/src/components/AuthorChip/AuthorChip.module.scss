@@ -32,4 +32,9 @@
     outline-offset: -1px;
     place-items: center;
   }
+
+  .chip[data-size="md"] .avatar {
+    inline-size: 24px;
+    block-size: 24px;
+  }
 }

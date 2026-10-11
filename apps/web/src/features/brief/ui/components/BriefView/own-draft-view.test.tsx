@@ -12,6 +12,7 @@ import {
   fireEvent,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -137,7 +138,9 @@ async function renderBriefView(
 describe("own-draft Brief view", () => {
   it("labels the state with the chip and swaps the terminal-action slot", async () => {
     await renderBriefView({ markReady: vi.fn() });
-    expect(screen.getByText(CHIP_COPY)).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText(CHIP_COPY),
+    ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Mark ready for review" }),
     ).toBeTruthy();
@@ -519,7 +522,9 @@ describe("own-draft Brief view", () => {
     );
     // Stay in-state: the chip is still up and the CTA is re-enabled (the CTA
     // is never hard-disabled, aria-disabled is the pending signal).
-    expect(screen.getByText(CHIP_COPY)).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText(CHIP_COPY),
+    ).toBeTruthy();
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     expect(cta.getAttribute("aria-disabled")).toBe("false");
   });
@@ -957,7 +962,9 @@ describe("own-draft Brief view", () => {
 
   it("vanishes the affordances when draft flips under a live session", async () => {
     const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
-    expect(screen.getByText(CHIP_COPY)).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText(CHIP_COPY),
+    ).toBeTruthy();
     // The refreshed PrView (draft=false) turns the plan undefined, the same
     // view swaps to reviewer affordances without remounting anything else.
     rerenderWith(undefined);

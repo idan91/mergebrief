@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import type { PrStack } from "../../../../../model/types";
+import type { PrStack } from "../../../../model/types";
 import { StackChipOpeners, type StackChipOpener } from "./types";
 import { isLinearPrStack } from "./utils";
 

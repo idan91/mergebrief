@@ -9,7 +9,7 @@ import {
   IconRotations,
   IconSizes,
 } from "@web/components/Icon/types";
-import type { PrStack } from "../../../../../../model/types";
+import type { PrStack } from "../../../../../model/types";
 import {
   NeighbourTargetKinds,
   StackDirections,

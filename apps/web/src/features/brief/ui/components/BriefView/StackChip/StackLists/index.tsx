@@ -1,4 +1,4 @@
-import type { PrStack } from "../../../../../../model/types";
+import type { PrStack } from "../../../../../model/types";
 import { ForkLists } from "../ForkLists";
 import { NeighbourList } from "../NeighbourList";
 import { isLinearPrStack } from "../utils";

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { ForkPrStack } from "../../../../../../model/types";
+import type { ForkPrStack } from "../../../../../model/types";
 import { NeighbourList } from "../NeighbourList";
 import styles from "./ForkLists.module.scss";
 

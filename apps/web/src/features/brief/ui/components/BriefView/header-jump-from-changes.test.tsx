@@ -180,7 +180,9 @@ describe("Header Jump from Changes scope", () => {
 
     await mountBriefHost(<Harness />);
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(
       document.getElementById("unattributed-remainder-heading"),

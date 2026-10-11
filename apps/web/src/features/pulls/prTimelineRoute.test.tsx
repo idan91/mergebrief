@@ -198,7 +198,9 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });
@@ -231,7 +233,9 @@ describe("DB brief route revision timeline", () => {
       timelineMeta({ headSha: null }),
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
@@ -241,7 +245,9 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });

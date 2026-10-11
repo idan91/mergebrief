@@ -1,4 +1,4 @@
-import type { PrStackMember } from "../../../../../../model/types";
+import type { PrStackMember } from "../../../../../model/types";
 import styles from "./MemberRow.module.scss";
 
 export interface MemberRowProps {

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { PrStackMember } from "../../../../../../model/types";
+import type { PrStackMember } from "../../../../../model/types";
 import { NeighbourLink } from "../NeighbourLink";
 import styles from "./NeighbourList.module.scss";
 

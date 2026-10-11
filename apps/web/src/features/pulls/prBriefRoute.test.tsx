@@ -14,6 +14,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -159,7 +160,9 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
     // The header's state badge on the DB route reads the LIVE webhook state
@@ -184,7 +187,12 @@ describe("DB brief route", () => {
         `${base}&verdicts=nonsense,changes-requested,dismissed&reviewers=alice&reviews=all`,
       );
       await waitFor(() =>
-        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+        expect(
+          screen.getByRole("heading", {
+            level: 1,
+            name: briefFixture.pr.title,
+          }),
+        ).toBeTruthy(),
       );
       const search = router.state.location.search;
       expect(search.verdicts).toBe("changes-requested");
@@ -202,7 +210,12 @@ describe("DB brief route", () => {
     it("keeps the span params and defaults the filter keys away", async () => {
       const router = await renderRoute(meta({}), base);
       await waitFor(() =>
-        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+        expect(
+          screen.getByRole("heading", {
+            level: 1,
+            name: briefFixture.pr.title,
+          }),
+        ).toBeTruthy(),
       );
       const search = router.state.location.search;
       expect(search.base).toBe(SPAN.base);
@@ -218,7 +231,12 @@ describe("DB brief route", () => {
         `${base}&thread=9001&reviewers=alice`,
       );
       await waitFor(() =>
-        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+        expect(
+          screen.getByRole("heading", {
+            level: 1,
+            name: briefFixture.pr.title,
+          }),
+        ).toBeTruthy(),
       );
       expect(router.state.location.search.thread).toBe(9001);
       expect(router.state.location.search.reviewers).toBe("alice");
@@ -282,7 +300,9 @@ describe("DB brief route", () => {
     );
     // Renders the CURRENT span (from the meta), exactly like a span-less link…
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     // …and the dangling key is ignored rather than resolved: no revision
     // list means no rev to pin, so nothing is written back.
@@ -300,7 +320,9 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     // Disabled options stay focusable (`aria-disabled`) with the reason in a
     // keyboard-reachable tooltip referenced by aria-describedby.
@@ -329,7 +351,9 @@ describe("DB brief route", () => {
       );
     })();
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     const button = screen.getByRole("radio", { name: /^previous brief$/i });
     expect(button.getAttribute("aria-disabled")).toBeNull();
@@ -494,7 +518,9 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&view=full&compare=off`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     const off = screen.getByRole("radio", { name: /^off$/i });
     expect((off as HTMLButtonElement).disabled).toBe(false);
@@ -518,7 +544,12 @@ describe("DB brief route", () => {
         `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
       );
       await waitFor(() =>
-        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+        expect(
+          screen.getByRole("heading", {
+            level: 1,
+            name: briefFixture.pr.title,
+          }),
+        ).toBeTruthy(),
       );
       const button = screen.getByRole("radio", {
         name: /^your last review$/i,
@@ -537,7 +568,9 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     const button = screen.getByRole("radio", { name: /^your last review$/i });
     expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -558,7 +591,9 @@ describe("DB brief route", () => {
       ).toBeTruthy(),
     );
     // Still pinned: the OLD span's brief renders behind the banner.
-    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+    ).toBeTruthy();
     // The legacy (no-revisions) path carries the stale-submit ack too, the
     // gate is span-derived, not timeline-derived.
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
@@ -581,7 +616,10 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     await waitFor(() =>
-      expect(screen.getByTestId("author-chip").textContent).toContain("mira-k"),
+      expect(
+        within(screen.getByRole("banner")).getByTestId("author-chip")
+          .textContent,
+      ).toContain("mira-k"),
     );
   });
 
@@ -590,7 +628,9 @@ describe("DB brief route", () => {
       meta({ draft: true, viewerIsAuthor: true }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
-    expect(screen.getByText("Self-review — your draft")).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText("Self-review — your draft"),
+    ).toBeTruthy();
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     expect(cta.getAttribute("aria-disabled")).toBe("false");
   });
@@ -608,7 +648,9 @@ describe("DB brief route", () => {
     );
     // The PR is still the viewer's draft, the state label follows STATE,
     // not the revision on screen.
-    expect(screen.getByText("Self-review — your draft")).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText("Self-review — your draft"),
+    ).toBeTruthy();
     // But mark-ready is head-scoped: the gate would list THIS revision's
     // flags, not the current head's, so the action reads disabled (still
     // focusable) and a click explains itself instead of gating on stale
@@ -799,7 +841,9 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     // The Brief renders from a FRESH fetch, the evicted 404 does not resurface
     // as the error boundary.
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(screen.queryByText(/brief failed to load/i)).toBeNull();
   });
@@ -856,7 +900,9 @@ describe("DB brief route, rev param", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(readSearch(router)).toEqual({ rev: 2 });
   });
@@ -898,7 +944,11 @@ describe("DB brief route, rev param", () => {
     expect(readSearch(router).head).toBeUndefined();
     expect(readSearch(router).l).toBe("c1");
     expect(router.history.length).toBe(1);
-    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
+    );
   });
 
   it("pins the latest rev onto a bare link", async () => {
@@ -915,7 +965,9 @@ describe("DB brief route, rev param", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=9`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     expect(
       screen.getByText(/that revision link is no longer available/i),
@@ -930,7 +982,9 @@ describe("DB brief route, rev param", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&l=c1`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     await openRevisionsTab();
     fireEvent.click(listRevisionRows()[0]!);
@@ -975,7 +1029,9 @@ describe("DB brief route, rev param", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&view=full&compare=previous-brief&l=c1`,
     );
     await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      expect(
+        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      ).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));
     await waitFor(() =>

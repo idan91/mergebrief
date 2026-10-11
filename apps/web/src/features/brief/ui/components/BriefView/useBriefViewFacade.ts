@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 
 import { useAddressSync } from "./address/useAddressSync";
 import { useComparison } from "./comparison/useComparison";
@@ -18,6 +19,7 @@ import { resolveDiffViewToggle } from "./utils";
 // it, so a move here is a behaviour change.
 export function useBriefViewFacade(props: BriefViewProps) {
   const { t } = useTranslation();
+  const [largeTitle, attachLargeTitle] = useState<HTMLDivElement | null>(null);
   const ownDraftActive = props.review?.ownDraft !== undefined;
   const staleHead = props.review?.staleHead === true;
 
@@ -109,5 +111,7 @@ export function useBriefViewFacade(props: BriefViewProps) {
     cardTrack,
     diffView,
     toggleDiffView,
+    largeTitle,
+    attachLargeTitle,
   };
 }

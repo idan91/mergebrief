@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
 
 import { AccessibleLink } from "@web/components/AccessibleLink";
-import type { PrStackMember } from "../../../../../../model/types";
+import type { PrStackMember } from "../../../../../model/types";
 import { MemberRow } from "../MemberRow";
 import { NeighbourTargetKinds } from "../types";
 import { resolveNeighbourTarget } from "../utils";

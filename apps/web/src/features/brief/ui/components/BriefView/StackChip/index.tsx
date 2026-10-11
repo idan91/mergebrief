@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Callout } from "@web/components/Callout";
 import { Chip } from "@web/components/Chip";
 import { formatDate, renderedLocale } from "@web/i18n/locale";
-import type { PrStack } from "../../../../../model/types";
+import type { PrStack } from "../../../../model/types";
 import { StackLists } from "./StackLists";
 import { useStackChipFacade } from "./useStackChipFacade";
 import { Icon } from "@web/components/Icon";

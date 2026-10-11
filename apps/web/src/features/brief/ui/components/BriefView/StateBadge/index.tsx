@@ -9,7 +9,7 @@ import {
 } from "@web/components/Icon/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { ValueOf } from "types/utils";
-import type { LivePrState } from "../../../../../model/types";
+import type { LivePrState } from "../../../../model/types";
 import styles from "./StateBadge.module.scss";
 
 export interface StateBadgeProps {

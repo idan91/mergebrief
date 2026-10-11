@@ -84,6 +84,7 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     jumpToGroupHeading: vi.fn(),
     toggleShortcuts: vi.fn(),
     focusMode: false,
+    largeTitle: null,
   };
 }
 
@@ -111,6 +112,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     jumpToGroupHeading: vi.fn(),
     toggleShortcuts: vi.fn(),
     focusMode: false,
+    largeTitle: null,
     ...overrides,
   };
   await renderInRouter(<Header {...props} />, undefined, HEADER_STUB_PATHS);
@@ -216,6 +218,30 @@ describe("Header identity row", () => {
     } finally {
       sentinel.remove();
       document.documentElement.style.removeProperty("--sticky-stack-h");
+    }
+  });
+
+  it("shows its title once the large title scrolls under the bar", async () => {
+    const block = document.createElement("div");
+    document.body.append(block);
+    intersectionObservers.length = 0;
+    try {
+      await renderHeader({ largeTitle: block });
+      const header = document.querySelector("header");
+      await waitFor(() => expect(intersectionObservers.length).toBe(1));
+      const observed = intersectionObservers[0];
+
+      act(() => {
+        observed?.callback([crossingEntry(-20, 0, block)], observed as never);
+      });
+      expect(header?.hasAttribute("data-title-out")).toBe(true);
+
+      act(() => {
+        observed?.callback([crossingEntry(40, 0, block)], observed as never);
+      });
+      expect(header?.hasAttribute("data-title-out")).toBe(false);
+    } finally {
+      block.remove();
     }
   });
 
@@ -428,7 +454,7 @@ describe("stack chip", () => {
     expect(metaLine?.firstElementChild?.contains(chip)).toBe(true);
   });
 
-  it("keeps stack then branches, phone provenance last, on the meta line", async () => {
+  it("keeps the stack then the branches on the meta line", async () => {
     const stacked = briefWithStack(linear);
     await renderHeader({
       brief: {
@@ -447,10 +473,7 @@ describe("stack chip", () => {
     expect(stackBlock.contains(screen.getByTestId("stack-chip"))).toBe(true);
     expect(metaLine?.firstElementChild).toBe(stackBlock);
     expect(stackBlock.nextElementSibling).toBe(pair);
-    expect(pair.nextElementSibling).toBe(metaLine?.lastElementChild);
-    expect(
-      metaLine?.lastElementChild?.querySelector("[data-provider-badge]"),
-    ).not.toBeNull();
+    expect(metaLine?.lastElementChild).toBe(pair);
   });
 
   it("renders a fork chip without a fraction", async () => {

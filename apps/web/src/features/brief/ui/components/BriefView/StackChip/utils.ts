@@ -7,7 +7,7 @@ import type {
   PrStack,
   PrStackMember,
   PullStack,
-} from "../../../../../model/types";
+} from "../../../../model/types";
 import {
   NeighbourTargetKinds,
   StackDirections,

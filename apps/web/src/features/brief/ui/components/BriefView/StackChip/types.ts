@@ -1,6 +1,6 @@
 import type { ValueOf } from "types/utils";
 
-import type { PrStack, PrStackMember } from "../../../../../model/types";
+import type { PrStack, PrStackMember } from "../../../../model/types";
 
 export const StackChipOpeners = {
   HOVER: "hover",

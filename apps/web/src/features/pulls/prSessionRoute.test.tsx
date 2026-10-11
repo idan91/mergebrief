@@ -183,7 +183,9 @@ describe("the session read in the route loader", () => {
     fetchMock.mockResolvedValue(new Response("nope", { status: 500 }));
     await renderRoute();
     // The Brief is on screen…
-    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+    ).toBeTruthy();
     expect(viewedCheckboxes().length).toBeGreaterThan(0);
     // …and every write is off, not just the composer: a read mark or a
     // dismissal made blind is still a write against work the reviewer cannot
