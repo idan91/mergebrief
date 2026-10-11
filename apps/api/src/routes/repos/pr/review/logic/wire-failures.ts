@@ -17,7 +17,7 @@ import {
 import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
 import { resolveFreshRepositoryError } from "../../../logic/fresh-repository";
-import { throwSessionWriteFailure } from "../../session/logic/write-seam";
+import { throwSessionWriteFailure } from "../../session/logic/wire-failures";
 import type { SubmitReviewFailure } from "../types";
 
 /**

@@ -10,7 +10,7 @@ import type { RepoId, ScopeContext } from "persistence";
 import type { Result } from "types/utils";
 import type { GitHubDeniedFailure } from "../../../../shared-errors/failures";
 import type { PublishExpiredFailure } from "../publish/types";
-import type { ResolvedSessionWrite } from "../session/controller";
+import type { ResolvedSessionWrite } from "../session/logic/session-writes";
 import type { BriefSpan } from "../session/schemas";
 import type { SessionWriteFailure } from "../session/types";
 

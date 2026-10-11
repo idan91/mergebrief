@@ -23,8 +23,8 @@ import {
   writeArtifacts,
 } from "./local-briefs-fixtures";
 import { testLogger } from "./logging";
-import { seedSession } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedSignIn } from "./sign-in";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 const LIST_PATH = "/api/local-briefs";
@@ -87,7 +87,7 @@ describe("/api/local-briefs", () => {
   }
 
   async function readSignedIn(app: ApiApp, path: string): Promise<Response> {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     return app.request(path, {
       headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
     });

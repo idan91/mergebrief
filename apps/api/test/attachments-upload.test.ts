@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import type { InstallationGitHubPort } from "../src/routes/github-port";
 import { testLogger } from "./logging";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { UNUSED_INSTALLATION_DEPS, stubGateGitHub } from "./reviewer-github";
 import {
   PR_NUMBER,
   REPO_SLUG,
@@ -22,13 +22,8 @@ import {
   buildAuthDeps,
   createKeyProvider,
 } from "./fixtures";
-import {
-  CTX,
-  REPO_ID,
-  seedApiToken,
-  seedSession,
-  stubGitHub,
-} from "./session/fixtures";
+import { CTX, REPO_ID, seedApiToken } from "./session/fixtures";
+import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -75,7 +70,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       github: made.port,
       attachmentQuota: QUOTA,
     });
-    stubGitHub();
+    stubGateGitHub({ repoId: REPO_ID });
     await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
       repoId: brandRepoId(BigInt(REPO_ID)),
       prNumber: PR_NUMBER,
@@ -98,7 +93,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   }
 
   it("commits the image with the app and answers the branch url", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const response = await upload({
       ...SAME_ORIGIN_HEADERS,
@@ -144,7 +139,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   });
 
   it("answers 429 past the quota, cookie and bearer sharing it", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const token = await seedApiToken(
       harness.handle,
       kp,
@@ -175,7 +170,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   });
 
   it("a refused upload names the repository on its audit row", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request(UPLOAD_PATH, {
       method: "POST",

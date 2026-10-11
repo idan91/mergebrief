@@ -2,13 +2,15 @@
 // sides of materialization, projects the Attention List off the rows it
 // returns, and creates nothing (the invariant the suite exists for). Every
 // case asserts the `review_session` row count across the call.
-import { createTenantRepository } from "persistence";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
+import { createTenantRepository, type KeyProvider } from "persistence";
 import { AnchorStatuses } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
-import { testLogger } from "../logging";
+import { testLogging, type TestLogging } from "../logging";
+import { spyPullRequestLookups } from "../pull-request-lookups";
 import {
   BRIEF_BODY,
   CTX,
@@ -17,17 +19,15 @@ import {
   seedBrief,
   seedPreviousWork,
   seedPullRequest,
-  seedSession,
-  stubGitHub,
 } from "./fixtures";
+import { PR_NUMBER, SECRET, createKeyProvider } from "../fixtures";
 import {
-  PR_NUMBER,
-  SECRET,
-  buildAuthDeps,
-  createKeyProvider,
-} from "../fixtures";
-import type { KeyProvider } from "persistence";
-import { UNUSED_INSTALLATION_DEPS } from "../reviewer-github";
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  stubGateGitHub,
+  type GateGitHub,
+} from "../reviewer-github";
+import { seedSignIn } from "../sign-in";
 
 /** The payload's shape as the assertions read it: the test-side boundary. */
 interface SessionBody {
@@ -63,19 +63,24 @@ describe("read-review-session", () => {
   let app: ApiApp;
   let kp: KeyProvider;
   let cookie: string;
+  let fake: FakeGitHub;
+  let gate: GateGitHub;
+  let logging: TestLogging;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
+    logging = testLogging();
     app = createApp({
-      logger: testLogger(),
+      logger: logging.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-    stubGitHub();
-    cookie = await seedSession(harness.handle, kp);
+    gate = stubGateGitHub({ repoId: REPO_ID });
+    ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
   });
 
@@ -100,10 +105,14 @@ describe("read-review-session", () => {
 
   it("answers a first-ever session with no carry-over and no row", async () => {
     await seedBrief(harness.handle, 1);
+    const lookups = spyPullRequestLookups(harness);
 
     const res = await read("head-1");
 
     expect(res.status).toBe(200);
+    expect(lookups.count()).toBe(1);
+    expect(gate.repositoryReads()).toBe(1);
+    expect(fake.calls).toEqual([]);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await readBody(res);
     expect(body.materialized).toBe(false);
@@ -304,6 +313,13 @@ describe("read-review-session", () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toMatchObject({ code: "internal-error" });
     expect(await sessionRows()).toBe(before);
+    expect(logging.lines()).toContainEqual(
+      expect.objectContaining({
+        level: "error",
+        msg: "brief artifact unreadable, carry-over not evaluated",
+        head: "head-2",
+      }),
+    );
   });
 
   it("treats a body missing the carry keys as unreadable, not as empty facts", async () => {

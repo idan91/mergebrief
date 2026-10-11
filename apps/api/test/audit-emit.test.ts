@@ -30,9 +30,8 @@ import {
   seedApiToken,
   seedBrief,
   seedPullRequest,
-  seedSession,
-  stubGitHub,
 } from "./session/fixtures";
+import { seedSignIn } from "./sign-in";
 import {
   INSTALLATION_ID,
   OPEN_POLICY,
@@ -45,7 +44,7 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { UNUSED_INSTALLATION_DEPS, stubGateGitHub } from "./reviewer-github";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -147,8 +146,8 @@ describe("the audit choke point", () => {
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    stubGitHub();
-    cookie = await seedSession(harness.handle, kp);
+    stubGateGitHub({ repoId: REPO_ID });
+    ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, 1);
   });

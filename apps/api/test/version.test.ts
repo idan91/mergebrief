@@ -21,8 +21,9 @@ import {
   brandReviewerId,
   createTestUserOctokit,
 } from "./fixtures";
-import { seedApiToken, seedSession } from "./session/fixtures";
+import { seedApiToken } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedSignIn } from "./sign-in";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 
@@ -154,7 +155,7 @@ describe("GET /api/version", () => {
   }
 
   it("stores the dismissed version for the viewer and reads it back", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await updateCheck.refresh();
 
     const before = await app.request("/api/version", {
@@ -177,7 +178,7 @@ describe("GET /api/version", () => {
   });
 
   it("serves and stores the canonical triple whatever spelling arrives", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     manifestBody = PREFIXED_MANIFEST;
     await updateCheck.refresh();
 
@@ -194,7 +195,7 @@ describe("GET /api/version", () => {
   });
 
   it("refuses a dismiss of a release that is not the latest", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await updateCheck.refresh();
 
     const res = await dismiss(cookie, { version: "1.5.0" });
@@ -204,7 +205,7 @@ describe("GET /api/version", () => {
   });
 
   it("refuses a dismiss before the check has an answer", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await dismiss(cookie, { version: "1.6.0" });
 
@@ -212,7 +213,7 @@ describe("GET /api/version", () => {
   });
 
   it("refuses a dismiss of a security release", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     manifestBody = SECURITY_MANIFEST;
     await updateCheck.refresh();
 
@@ -247,7 +248,7 @@ describe("GET /api/version", () => {
   });
 
   it("rejects a dismiss body that is not a version", async () => {
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await dismiss(cookie, { version: "latest" });
 

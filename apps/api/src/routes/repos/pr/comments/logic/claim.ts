@@ -21,7 +21,7 @@ import {
   releaseUnsentClaim,
 } from "../../publish";
 import type { ClaimLedger, CommentPin } from "../../publish/types";
-import type { ResolvedSessionWrite } from "../../session/controller";
+import type { ResolvedSessionWrite } from "../../session/logic/session-writes";
 import type { HeldDraft, SessionWriteFailure } from "../../session/types";
 import type { InDoubtCheck, PostNowFailure, PostNowResult } from "../types";
 

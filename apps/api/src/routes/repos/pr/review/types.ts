@@ -2,7 +2,7 @@ import type { RepoId, ScopeContext } from "persistence";
 import type { ReviewOutcome } from "types/reviews";
 import type { Result } from "types/utils";
 import type { PublishedReview, ReviewPublishFailure } from "../publish/types";
-import type { ResolvedSessionWrite } from "../session/controller";
+import type { ResolvedSessionWrite } from "../session/logic/session-writes";
 import type { SessionWriteFailure } from "../session/types";
 
 export type EvictConversation = (

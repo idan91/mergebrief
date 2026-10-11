@@ -13,11 +13,13 @@ import {
 } from "types/dispositions";
 import type { KeyProvider } from "persistence";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp } from "../../src/index";
 import { testLogger } from "../logging";
+import { spyPullRequestLookups } from "../pull-request-lookups";
 import {
   CTX,
   REPO_ID,
@@ -29,17 +31,19 @@ import {
   seedOrphanedDraft,
   seedPreviousWork,
   seedPullRequest,
-  seedSession,
-  stubGitHub,
 } from "./fixtures";
 import {
   PR_NUMBER,
   SECRET,
-  buildAuthDeps,
   createKeyProvider,
   SAME_ORIGIN_HEADERS,
 } from "../fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "../reviewer-github";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  stubGateGitHub,
+} from "../reviewer-github";
+import { seedSignIn } from "../sign-in";
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
@@ -105,24 +109,58 @@ const DRAFT = {
   body: "this allocation is unbounded",
 };
 
+/** Method, path suffix and body: every session write, valid on the seed. */
+type SessionWrite = readonly [string, string, unknown];
+
+function listSessionWrites(draftId: string): readonly SessionWrite[] {
+  return [
+    ["POST", "/comments", DRAFT],
+    ["PATCH", `/comments/${draftId}`, { body: "edited" }],
+    [
+      "PUT",
+      `/comments/${draftId}/anchor`,
+      { filePath: "src/app.ts", side: "new", startLine: 1, endLine: 2 },
+    ],
+    ["PUT", "/chunks/c1/read", { read: true }],
+    [
+      "PUT",
+      "/groups/g1/classification",
+      { category: ChangeGroupCategories.LOGIC_REFACTOR },
+    ],
+    ["POST", "/risks/dismiss", { flags: [FLAG], reason: "covered" }],
+    [
+      "POST",
+      "/risks/address",
+      {
+        flags: [{ ...FLAG, evidence: { kind: "manual-note", ref: "read" } }],
+      },
+    ],
+    ["POST", "/risks/reopen", { flags: [FLAG] }],
+    ["PUT", "/outcome", { outcome: "approve" }],
+    ["DELETE", `/comments/${draftId}`, undefined],
+  ];
+}
+
 describe("the Review Session writes", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
   let cookie: string;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-    stubGitHub();
-    cookie = await seedSession(harness.handle, kp);
+    stubGateGitHub({ repoId: REPO_ID });
+    ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
   });
 
@@ -164,6 +202,57 @@ describe("the Review Session writes", () => {
     const rows = await harness.raw(`select count(*)::int as n from ${table}`);
     return Number(rows[0]?.["n"] ?? -1);
   }
+
+  it("loads the row once per write and calls GitHub never", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const seeded = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.addDraft(
+      { briefId, reviewerId: REVIEWER },
+      {
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/app.ts",
+          side: DiffSides.NEW,
+          startLine: 10,
+          endLine: 12,
+        },
+        body: "seeded",
+      },
+    );
+    if (!seeded.ok) {
+      throw new Error("draft seed failed");
+    }
+    const writes = listSessionWrites(String(seeded.value.id));
+    const lookups = spyPullRequestLookups(harness);
+
+    const counted: [string, string, boolean, number][] = [];
+    for (const [method, suffix, body] of writes) {
+      const before = lookups.count();
+      const res = await write(method, suffix, "head-1", body);
+      counted.push([method, suffix, res.ok, lookups.count() - before]);
+    }
+
+    expect(counted).toEqual(
+      writes.map(([method, suffix]) => [method, suffix, true, 1]),
+    );
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("404s every write whose span names no stored Brief", async () => {
+    await seedBrief(harness.handle, 1);
+    const writes = listSessionWrites("1");
+
+    const refused = await Promise.all(
+      writes.map(([method, suffix, body]) =>
+        write(method, suffix, "head-9", body),
+      ),
+    );
+
+    expect(refused.map((res) => res.status)).toEqual(writes.map(() => 404));
+    expect(await countRows("review_session")).toBe(0);
+  });
 
   it("writes the carry-over on whichever write lands first", async () => {
     const previous = await seedBrief(harness.handle, 1);

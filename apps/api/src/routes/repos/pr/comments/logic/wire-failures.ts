@@ -16,7 +16,7 @@ import {
   type DenialPosture,
 } from "../../../../../shared-errors/github-denial/types";
 import { resolveFreshRepositoryError } from "../../../logic/fresh-repository";
-import { throwSessionWriteFailure } from "../../session/logic/write-seam";
+import { throwSessionWriteFailure } from "../../session/logic/wire-failures";
 import type { CommentDeniedFailure, PostNowFailure } from "../types";
 
 function resolveCommentDeniedError(

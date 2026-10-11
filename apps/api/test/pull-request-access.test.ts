@@ -29,13 +29,9 @@ import {
   createKeyProvider,
   getRequestUrl,
 } from "./fixtures";
-import {
-  REPO_ID,
-  seedApiToken,
-  seedPullRequest,
-  seedSession,
-} from "./session/fixtures";
+import { REPO_ID, seedApiToken, seedPullRequest } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -204,7 +200,7 @@ describe("the descriptor policy over every operation", () => {
   it("answers 404 to a viewer without repo access", async () => {
     stubGitHub({ reach: RepoReaches.DENIED, push: false });
     await seedPullRequest(harness.handle);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations(isPerPullRequest),
@@ -217,7 +213,7 @@ describe("the descriptor policy over every operation", () => {
 
   it("answers 404 to a malformed pull request number", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations(isPerPullRequest),
@@ -240,7 +236,7 @@ describe("the descriptor policy over every operation", () => {
 
   it("answers 404 when a row-required operation names no row", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations((descriptor) => descriptor.rowRequired),
@@ -253,7 +249,7 @@ describe("the descriptor policy over every operation", () => {
 
   it("answers a malformed body on a missing row with 404, not 400", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations(
@@ -296,7 +292,7 @@ describe("the descriptor policy over every operation", () => {
   it("answers 404 to an installation-only operation on an owner-world repo", async () => {
     stubGitHub({ reach: RepoReaches.OWNER, push: true });
     await seedUrlRow(harness.handle);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations((descriptor) => descriptor.installationOnly),
@@ -310,7 +306,7 @@ describe("the descriptor policy over every operation", () => {
   it("answers 404 to a push-required operation for a viewer without push", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: false });
     await seedPullRequest(harness.handle);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
       listOperations((descriptor) => descriptor.pushRequired),
@@ -347,7 +343,7 @@ describe("the audit row's world", () => {
   it("records the url row's world inside an installation-held repo", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     await seedUrlRow(harness.handle);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/archive`,

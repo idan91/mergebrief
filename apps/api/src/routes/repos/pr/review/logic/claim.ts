@@ -7,7 +7,7 @@ import { ReviewOutcomes } from "types/reviews";
 import type { Result } from "types/utils";
 import { MAX_BODY_LENGTH } from "../../../../wire-bounds";
 import { foldEveryDraftIntoBody } from "../../publish";
-import type { ResolvedSessionWrite } from "../../session/controller";
+import type { ResolvedSessionWrite } from "../../session/logic/session-writes";
 import type { HeldDraft } from "../../session/types";
 import type { SubmitReviewFailure, SubmitReviewRequest } from "../types";
 

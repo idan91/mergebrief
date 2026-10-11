@@ -31,14 +31,17 @@ export interface SeededReviewer {
   readonly login: string;
 }
 
-export interface SignInOptions {
+export interface GrantOptions {
+  readonly accessToken?: string;
+  readonly refreshToken?: string;
+  /** Ends the grant's refresh window, and a sign-in's session with it. */
+  readonly expiresAt?: Date;
+}
+
+export interface SignInOptions extends GrantOptions {
   /** The scope the session row lives in; the suites' installation by default. */
   readonly scope?: ScopeContext;
   readonly reviewer?: SeededReviewer;
-  readonly accessToken?: string;
-  readonly refreshToken?: string;
-  /** Ends both the session and the grant's refresh window. */
-  readonly expiresAt?: Date;
 }
 
 export interface SeededSignIn {
@@ -48,20 +51,12 @@ export interface SeededSignIn {
   readonly reviewerId: ReviewerId;
 }
 
-export async function seedSignIn(
+/** The sealed GitHub grant a session or an API token links to. */
+export async function seedGrant(
   handle: AppDatabase,
   kp: KeyProvider,
-  options: SignInOptions = {},
-): Promise<SeededSignIn> {
-  const reviewer = options.reviewer ?? {
-    id: brandReviewerId(BigInt(REVIEWER_ID)),
-    login: "octocat",
-  };
-  const scope = options.scope ?? {
-    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
-  };
-  const expiresAt = options.expiresAt ?? SIGN_IN_EXPIRES_AT;
-
+  options: GrantOptions = {},
+): Promise<GithubGrantRow["id"]> {
   const sealedAccess = await encryptToken(
     kp,
     KEY_REF,
@@ -80,17 +75,35 @@ export async function seedSignIn(
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
-    refreshExpiresAt: expiresAt,
+    refreshExpiresAt: options.expiresAt ?? SIGN_IN_EXPIRES_AT,
   });
+  return grant.id;
+}
+
+export async function seedSignIn(
+  handle: AppDatabase,
+  kp: KeyProvider,
+  options: SignInOptions = {},
+): Promise<SeededSignIn> {
+  const reviewer = options.reviewer ?? {
+    id: brandReviewerId(BigInt(REVIEWER_ID)),
+    login: "octocat",
+  };
+  const scope = options.scope ?? {
+    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+  };
+  const expiresAt = options.expiresAt ?? SIGN_IN_EXPIRES_AT;
+
+  const grantId = await seedGrant(handle, kp, options);
   const cookie = randomBytes(32).toString("base64url");
   const cookieHash = hashSha256Hex(cookie);
   await createTenantRepository(handle, scope).sessions.create({
     sessionTokenHash: cookieHash,
     reviewerId: reviewer.id,
     reviewerLogin: reviewer.login,
-    grantId: grant.id,
+    grantId,
     expiresAt,
   });
 
-  return { cookie, cookieHash, grantId: grant.id, reviewerId: reviewer.id };
+  return { cookie, cookieHash, grantId, reviewerId: reviewer.id };
 }

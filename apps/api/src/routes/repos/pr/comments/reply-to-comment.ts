@@ -3,11 +3,9 @@ import { ReviewSessionErrorCodes } from "persistence";
 import type { PullRequestAccess } from "../../../../access/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import {
-  sessionController,
-  type ExistingSessionWriteFailure,
-} from "../session/controller";
+import { recordSessionReplyReview } from "../session/logic/session-writes";
 import type { BriefSpan } from "../session/schemas";
+import type { ExistingSessionWriteFailure } from "../session/types";
 import { bindFreshRepoClient, shapeMutationDenied } from "./logic/repo-client";
 import type { ReplyInput, ReplyResult } from "./types";
 
@@ -35,15 +33,10 @@ async function recordReplyReview(
   reviewId: number,
 ): Promise<void> {
   try {
-    const recorded = await sessionController.recordReplyReview(
-      deps,
-      {
-        ctx: access.rowScope,
-        pullRequestId: access.row.id,
-        span,
-        reviewerId: access.session.reviewerId,
-        log,
-      },
+    const recorded = await recordSessionReplyReview(
+      { handle: deps.handle, log },
+      access,
+      span,
       BigInt(reviewId),
     );
     if (recorded.ok) {

@@ -24,7 +24,6 @@ import {
   type ApiApp,
 } from "../src/index";
 import { testLogger, testLogging } from "./logging";
-import { seedSession as seedBrowserSession } from "./session/fixtures";
 import {
   INSTALLATION_ID,
   KEY_REF,
@@ -39,6 +38,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedSignIn } from "./sign-in";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -373,7 +373,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout from a foreign origin answers 403 and keeps the session", async () => {
-    const cookie = await seedBrowserSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const capture = testLogging();
     const loggedApp = createApp({
       logger: capture.logger,
@@ -410,7 +410,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout from a sibling subdomain answers 403", async () => {
-    const cookie = await seedBrowserSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/logout", {
       method: "POST",
@@ -426,7 +426,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout with the instance's own Origin goes through", async () => {
-    const cookie = await seedBrowserSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/logout", {
       method: "POST",

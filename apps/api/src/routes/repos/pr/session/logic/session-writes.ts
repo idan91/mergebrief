@@ -1,6 +1,8 @@
-// The machinery every session write shares, Hono-free: bind the write to the
-// Brief the request names. Failures ride the Result, the handler owns the
-// wire posture.
+// The store's session operations bound to the Brief a request names and the
+// reviewer making it. The session writes, post-now and the review submit all
+// write through here, so whichever lands first creates the session and copies
+// the carried work in one transaction. Refusals ride the Result whole.
+import type { Logger } from "logging";
 import {
   createTenantRepository,
   ReviewSessionErrorCodes,
@@ -11,37 +13,32 @@ import {
   type DraftClaim,
   type GroupReclassificationInput,
   type NewDraft,
-  type PullRequestRowId,
   type ReleaseClaimInput,
-  type RepoId,
   type ReviewDraftCommentRow,
-  type ReviewerId,
   type ReviewGroupReclassificationRow,
   type ReviewSessionError,
   type ReviewSessionKey,
   type ReviewSessionRow,
   type ReviewSessionView,
   type ReviewSubmittedReviewRow,
-  type ScopeContext,
   type SessionOperationResult,
   type SettleClaimInput,
 } from "persistence";
-import type { Logger } from "logging";
 import type { ReviewOutcome } from "types/reviews";
 import type { Result } from "types/utils";
-import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { BriefSpan } from "./schemas";
-import {
-  findSessionTarget,
-  resolveSessionTarget,
-  type SessionTarget,
-} from "./logic/brief-target";
-import type { SessionPayload } from "contract";
-import { buildSessionPayload } from "./logic/payload";
-import type { HeldDraft, SessionWriteFailure } from "./types";
-import { FailureKinds } from "../../../../shared-errors/failures";
+import type { PullRequestAccess } from "../../../../../access/types";
+import { FailureKinds } from "../../../../../shared-errors/failures";
+import type { BriefSpan } from "../schemas";
+import type {
+  ExistingSessionWriteFailure,
+  HeldDraft,
+  SessionStoreDeps,
+  SessionTargetNotFoundFailure,
+  SessionWriteFailure,
+} from "../types";
+import { findSessionTarget, type SessionTarget } from "./brief-target";
 
-/** A store operation's outcome with its refusal wrapped for the handler. */
+/** A store operation's outcome with its refusal wrapped for the caller. */
 type SessionWriteResult<Value> = Result<Value, SessionWriteFailure>;
 
 type DraftWriteResult = SessionWriteResult<ReviewDraftCommentRow>;
@@ -92,55 +89,32 @@ export interface ResolvedSessionWrite {
   readonly head: string;
 }
 
-interface SessionScopeInput {
-  readonly ctx: ScopeContext;
-  readonly span: BriefSpan;
-  readonly reviewerId: ReviewerId;
-  readonly log: Logger;
-}
-
-/** The session read names its pull request by coordinates. */
-interface PreviewSessionInput extends SessionScopeInput {
-  readonly repoId: RepoId;
-  readonly prNumber: number;
-}
-
-/** A write names the pull request row its access step already loaded. */
-export interface ResolveWriteInput extends SessionScopeInput {
-  readonly pullRequestId: PullRequestRowId;
-}
-
-type ResolveWriteResult = Result<
+type OpenSessionWriteResult = Result<
   ResolvedSessionWrite,
-  { readonly kind: "target-not-found" }
+  SessionTargetNotFoundFailure
 >;
 
-/** Why a write meant only for a session that already exists wrote nothing. */
-export type ExistingSessionWriteFailure =
-  | { readonly kind: "target-not-found" }
-  | { readonly kind: "no-session" }
-  | SessionWriteFailure;
+interface SessionRejection {
+  readonly ok: false;
+  readonly error: SessionWriteFailure;
+}
 
-type ExistingSessionWriteResult<Written> = Result<
-  Written,
-  ExistingSessionWriteFailure
->;
-
-type PreviewSessionResult = Result<
-  SessionPayload,
-  { readonly kind: "target-not-found" } | SessionWriteFailure
->;
+const TARGET_NOT_FOUND = {
+  ok: false,
+  error: { kind: "target-not-found" },
+} as const;
 
 /** A refusal the store rides back whole, logged when the Brief is at fault. */
-function rejectSession(
-  input: SessionScopeInput,
+export function rejectSession(
+  log: Logger,
+  span: BriefSpan,
   target: SessionTarget,
   error: ReviewSessionError,
-): { readonly ok: false; readonly error: SessionWriteFailure } {
+): SessionRejection {
   if (error.code === ReviewSessionErrorCodes.BRIEF_UNREADABLE) {
-    input.log.error("brief artifact unreadable, carry-over not evaluated", {
+    log.error("brief artifact unreadable, carry-over not evaluated", {
       briefId: String(target.briefId),
-      head: input.span.head,
+      head: span.head,
     });
   }
   return { ok: false, error: { kind: FailureKinds.SESSION_REJECTED, error } };
@@ -159,23 +133,24 @@ interface SessionBinding {
 }
 
 function bindSession(
-  deps: AuthRouteDeps,
-  input: SessionScopeInput,
+  deps: SessionStoreDeps,
+  access: PullRequestAccess,
+  span: BriefSpan,
   target: SessionTarget,
 ): SessionBinding {
   return {
-    sessions: createTenantRepository(deps.handle, input.ctx).reviewSessions,
-    key: { briefId: target.briefId, reviewerId: input.reviewerId },
+    sessions: createTenantRepository(deps.handle, access.rowScope)
+      .reviewSessions,
+    key: { briefId: target.briefId, reviewerId: access.session.reviewerId },
     settle(done) {
       if (!done.ok) {
-        return rejectSession(input, target, done.error);
+        return rejectSession(deps.log, span, target, done.error);
       }
       return done;
     },
   };
 }
 
-/** Bind the store's draft operations; refusals ride the Result whole. */
 function bindDraftWrites({
   sessions,
   key,
@@ -242,107 +217,57 @@ function bindPublishWrites({
   };
 }
 
-export const sessionController = {
-  /**
-   * The session read. PURE: it NEVER creates a session. Before the first
-   * write the payload carries the carry-over verdicts evaluated in memory
-   * (`preview`), still writing nothing.
-   */
-  async previewSession(deps: AuthRouteDeps, input: PreviewSessionInput) {
-    const target = await resolveSessionTarget(
-      deps,
-      input.ctx,
-      input.repoId,
-      input.prNumber,
-      input.span,
-    );
+/**
+ * Bind every write to the Brief `span` names on the access step's row. An
+ * unknown Brief is `target-not-found`; the subtree's hint-free 404 is the
+ * caller's judgment.
+ */
+export async function openSessionWrite(
+  deps: SessionStoreDeps,
+  access: PullRequestAccess,
+  span: BriefSpan,
+): Promise<OpenSessionWriteResult> {
+  const target = await findSessionTarget(deps.handle, access, span);
+  if (target === undefined) {
+    return TARGET_NOT_FOUND;
+  }
 
-    if (target === undefined) {
-      return {
-        ok: false,
-        error: { kind: "target-not-found" },
-      } satisfies PreviewSessionResult;
-    }
+  const binding = bindSession(deps, access, span, target);
+  return {
+    ok: true,
+    value: {
+      head: span.head,
+      drafts: bindDraftWrites(binding),
+      work: bindWorkWrites(binding),
+      publish: bindPublishWrites(binding),
+    },
+  };
+}
 
-    const view = await createTenantRepository(
-      deps.handle,
-      input.ctx,
-    ).reviewSessions.preview({
-      briefId: target.briefId,
-      reviewerId: input.reviewerId,
-    });
-    if (!view.ok) {
-      return rejectSession(
-        input,
-        target,
-        view.error,
-      ) satisfies PreviewSessionResult;
-    }
-    return {
-      ok: true,
-      value: buildSessionPayload(view.value, target.headIndex),
-    } satisfies PreviewSessionResult;
-  },
+/**
+ * Record a reply's wrapping review on a session that already exists, and
+ * nothing when none does. A first write materializes the session and carries
+ * the previous one's work across, which only the reviewer's own review work
+ * may set off.
+ */
+export async function recordSessionReplyReview(
+  deps: SessionStoreDeps,
+  access: PullRequestAccess,
+  span: BriefSpan,
+  githubReviewId: bigint,
+): Promise<Result<ReviewSubmittedReviewRow, ExistingSessionWriteFailure>> {
+  const target = await findSessionTarget(deps.handle, access, span);
+  if (target === undefined) {
+    return TARGET_NOT_FOUND;
+  }
 
-  /**
-   * Resolve the Brief the request names on its row, and bind the write to
-   * it. An unknown Brief is `target-not-found`, the subtree's hint-free 404
-   * is the handler's judgment.
-   */
-  async resolveWrite(deps: AuthRouteDeps, input: ResolveWriteInput) {
-    const target = await findSessionTarget(
-      deps,
-      input.ctx,
-      input.pullRequestId,
-      input.span,
-    );
-    if (target === undefined) {
-      return {
-        ok: false,
-        error: { kind: "target-not-found" },
-      } satisfies ResolveWriteResult;
-    }
-    const binding = bindSession(deps, input, target);
-    return {
-      ok: true,
-      value: {
-        head: input.span.head,
-        drafts: bindDraftWrites(binding),
-        work: bindWorkWrites(binding),
-        publish: bindPublishWrites(binding),
-      },
-    } satisfies ResolveWriteResult;
-  },
-
-  /**
-   * Record a reply's wrapping review on a session that already exists, and
-   * nothing when none does. A first write materializes the session and
-   * carries the previous one's work across, which only the reviewer's own
-   * review work may set off.
-   */
-  async recordReplyReview(
-    deps: AuthRouteDeps,
-    input: ResolveWriteInput,
-    githubReviewId: bigint,
-  ): Promise<ExistingSessionWriteResult<ReviewSubmittedReviewRow>> {
-    const target = await findSessionTarget(
-      deps,
-      input.ctx,
-      input.pullRequestId,
-      input.span,
-    );
-    if (target === undefined) {
-      return { ok: false, error: { kind: "target-not-found" } };
-    }
-
-    const { sessions, key, settle } = bindSession(deps, input, target);
-    const recorded = await sessions.recordReplyReview(key, githubReviewId);
-    if (
-      !recorded.ok &&
-      recorded.error.code === ReviewSessionErrorCodes.SESSION_NOT_FOUND
-    ) {
-      return { ok: false, error: { kind: "no-session" } };
-    }
-    return settle(recorded);
-  },
-};
+  const { sessions, key, settle } = bindSession(deps, access, span, target);
+  const recorded = await sessions.recordReplyReview(key, githubReviewId);
+  const noSession =
+    !recorded.ok &&
+    recorded.error.code === ReviewSessionErrorCodes.SESSION_NOT_FOUND;
+  if (noSession) {
+    return { ok: false, error: { kind: "no-session" } };
+  }
+  return settle(recorded);
+}

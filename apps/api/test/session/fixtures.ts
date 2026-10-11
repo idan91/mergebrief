@@ -2,12 +2,10 @@
 // the seeds that put Briefs and a previous session's work behind it. Shared
 // because the read suite and the write suite must agree on the fixture, a
 // carry-over the read reports and a write writes is the same work.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   createTokenAuth,
   type AppDatabase,
   type BriefRowId,
@@ -19,18 +17,17 @@ import { ChangeGroupCategories } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
 import { PrStates } from "types/pull-requests";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
-import { vi } from "vitest";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  getRequestUrl,
+  hashSha256Hex,
 } from "../fixtures";
+import { seedGrant } from "../sign-in";
 
 export const REPO_ID = 424242;
 
@@ -61,72 +58,6 @@ export const CTX: TenantContext = {
 };
 export const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-/** The gate's two outward calls: the repo access check, then membership. */
-export function stubGitHub(): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/repositories/")) {
-        return jsonResponse({
-          id: REPO_ID,
-          full_name: REPO_SLUG,
-          private: true,
-        });
-      }
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        return jsonResponse({
-          total_count: 1,
-          repositories: [{ id: REPO_ID, full_name: REPO_SLUG }],
-        });
-      }
-      if (url.includes("/user/installations")) {
-        return jsonResponse({
-          total_count: 1,
-          installations: [{ id: INSTALLATION_ID, account: { login: "octo" } }],
-        });
-      }
-      if (url.includes("/installation/repositories")) {
-        return jsonResponse({
-          total_count: 1,
-          repositories: [{ id: REPO_ID, full_name: REPO_SLUG }],
-        });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
-}
-
-/** A browser session; returns the cookie value. */
-export async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const grantId = await seedGrant(handle, kp);
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: createHash("sha256").update(cookie).digest("hex"),
-    reviewerId: REVIEWER,
-    reviewerLogin: "octocat",
-    grantId,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
-}
-
 /** An API token at `scope`; returns the Bearer plaintext. */
 export async function seedApiToken(
   handle: AppDatabase,
@@ -139,31 +70,11 @@ export async function seedApiToken(
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
-    tokenHash: createHash("sha256").update(plaintext).digest("hex"),
+    tokenHash: hashSha256Hex(plaintext),
     grantId: await seedGrant(handle, kp),
     expiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   return plaintext;
-}
-
-async function seedGrant(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<
-  Awaited<ReturnType<ReturnType<typeof createGrantAuth>["createGrant"]>>["id"]
-> {
-  const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-  const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return grant.id;
 }
 
 export async function seedPullRequest(handle: AppDatabase): Promise<void> {
