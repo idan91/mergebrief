@@ -1,11 +1,8 @@
 // Mark-ready route integration tests: `app.request()` against `createApp` over
 // the PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern
 // as review-submit.test.ts).
-import { randomBytes } from "node:crypto";
 import {
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -16,21 +13,18 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
-  REVIEWER_ID,
   SECRET,
   brandInstallationId,
   brandRepoId,
-  brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
 // refresh-once). GraphQL is not throttled, so the only real cost is the
@@ -40,8 +34,6 @@ vi.setConfig({ testTimeout: 10_000 });
 const REPO_ID = 424242;
 const NODE_ID = "PR_kwDOABCD";
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -184,32 +176,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding.
 // ---------------------------------------------------------------------------
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
-
 async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
@@ -312,7 +278,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   it("404 collapse when the viewer has no access to the repo", async () => {
     stubGitHub({ repositories: () => repoStatus(403) });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
     // Row untouched, the mutation never ran.
@@ -328,7 +294,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
@@ -353,7 +319,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
@@ -372,7 +338,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: () => graphqlUnauthorized(),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(401);
@@ -383,7 +349,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
   it("404s PRs outside the tenant without a GitHub mutation", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
     expect(counts.graphql).toBe(0);
@@ -395,7 +361,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
@@ -416,7 +382,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: () => nodeIdGraphql(false),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
@@ -433,7 +399,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : notADraftGraphql()),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
@@ -447,7 +413,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : graphqlError()),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(502);
@@ -466,7 +432,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : forbiddenGraphql()),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(403);
@@ -490,7 +456,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
@@ -518,7 +484,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       },
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
@@ -544,7 +510,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       },
     });
     await seedDraftPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const first = await markReady(app, cookie);
     const second = await markReady(app, cookie);

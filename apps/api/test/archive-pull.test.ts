@@ -1,12 +1,9 @@
 // PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive: the viewer's
 // own archive of one inbox row, behind the per-PR gate, per reviewer. Full
 // wire over PGlite, GitHub stubbed at the global fetch boundary.
-import { randomBytes } from "node:crypto";
 import {
-  createGrantAuth,
   createInboxStore,
   createTenantRepository,
-  encryptToken,
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
@@ -25,7 +22,6 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -35,18 +31,16 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerUserInstallations,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 
 const TENANT: ScopeContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -105,32 +99,6 @@ function stubGitHub(inInstallation: boolean): void {
       throw new Error(`unexpected fetch in archive-pull suite: ${url}`);
     }),
   );
-}
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, OWNER).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
 }
 
 async function seedPr(handle: AppDatabase, ctx: ScopeContext): Promise<void> {
@@ -222,7 +190,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   it("archives an installation row for the viewer and unarchives it again", async () => {
     stubGitHub(true);
     await seedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const put = await archive(cookie, "PUT");
     expect(put.status).toBe(200);
@@ -245,7 +213,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   it("the inbox reports the archived total beside the total", async () => {
     stubGitHub(true);
     await seedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await archive(cookie, "PUT");
 
     const res = await app.request("/api/inbox", {
@@ -258,7 +226,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   it("archives the viewer's own url row through the owner world", async () => {
     stubGitHub(false);
     await seedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const put = await archive(cookie, "PUT");
 
@@ -270,7 +238,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   it("archiving another owner's url row is the viewer's alone", async () => {
     stubGitHub(false);
     await seedPr(harness.handle, OTHER_OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const put = await archive(cookie, "PUT");
 
@@ -301,7 +269,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
 
   it("an unknown pull request is a 404 either way", async () => {
     stubGitHub(true);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     expect((await archive(cookie, "PUT")).status).toBe(404);
     expect((await archive(cookie, "DELETE")).status).toBe(404);

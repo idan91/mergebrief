@@ -1,12 +1,9 @@
 // Inline-comment route integration tests: `app.request()` against `createApp`
 // over the PGlite harness, GitHub stubbed at the global-fetch boundary (same
 // pattern as mark-ready.test.ts).
-import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   type AppDatabase,
   type BriefRowId,
   type DraftAnchor,
@@ -35,7 +32,6 @@ import { IN_DOUBT_LOOKUP_MARGIN_MS } from "../src/routes/repos/pr/publish/consts
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -45,18 +41,16 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
 const COMMIT_ID = "a".repeat(40);
 const BASE_SHA = "b".repeat(40);
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -202,32 +196,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // ---------------------------------------------------------------------------
 // Seeding.
 // ---------------------------------------------------------------------------
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
 
 async function seedPr(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
@@ -490,7 +458,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   it("404 collapse when the viewer has no access to the repo", async () => {
     const counts = stubGitHub({ repositories: () => repoStatus(403) });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
@@ -499,7 +467,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   it("404s PRs outside the tenant without writing to GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, named(1n));
     expect(res.status).toBe(404);
     expect(counts.comments).toBe(0);
@@ -515,7 +483,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentOk(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
@@ -539,7 +507,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentOk(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
 
     const res = await post(app, cookie, named(draftId));
@@ -574,7 +542,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentOk(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(
       harness.handle,
       "spans both sides",
@@ -601,7 +569,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentOk(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedFileDraft(harness.handle);
 
     const res = await post(app, cookie, named(draftId));
@@ -633,7 +601,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     // Poison ONLY the audit write: the GitHub post has already committed by
     // the time the audit insert runs, so the response must stay a 201.
@@ -654,7 +622,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         jsonResponse({ id: 999, pull_request_review_id: null }, 201),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
@@ -667,7 +635,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentStatus(422),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(409);
@@ -681,7 +649,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentStatus(500),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(502);
@@ -695,7 +663,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentStatus(404),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
@@ -707,7 +675,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentStatus(403),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(403);
@@ -721,7 +689,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: (i) => (i === 0 ? commentStatus(401) : commentOk()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
@@ -736,7 +704,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       comments: () => commentStatus(401),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
     const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(401);
@@ -781,7 +749,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const { draftId } = await seedDraft(harness.handle);
 
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
@@ -807,7 +775,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("400s a payload that names no draft, and a malformed one", async () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       expect((await post(app, cookie, "{not json")).status).toBe(400);
       expect((await post(app, cookie, { draftId: "x" })).status).toBe(400);
     });
@@ -815,7 +783,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("404s a draft this session does not hold, no GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedDraft(harness.handle);
       const res = await post(app, cookie, named(987654321n));
       expect(res.status).toBe(404);
@@ -825,7 +793,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("409 draft-already-published on a repeat, no second GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
         harness.handle,
         "already there",
@@ -841,7 +809,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("409 draft-anchor-orphaned on an orphaned anchor, no GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
         harness.handle,
         "stale anchor",
@@ -869,7 +837,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(
         harness.handle,
         "moved note",
@@ -884,7 +852,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("409s a frozen session BEFORE spending a GitHub call", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
       await freezeWithNewerBrief(harness.handle);
 
@@ -900,7 +868,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("flips the published draft to submitted", async () => {
       stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
@@ -914,7 +882,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("records the wrapping review id on the session", async () => {
       stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
@@ -944,7 +912,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
       // Reads still work; only the publication flip is refused.
       await harness.raw(
@@ -1112,7 +1080,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         },
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
@@ -1123,7 +1091,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("settles a posted draft: submitted, claim cleared", async () => {
       stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
@@ -1140,7 +1108,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentStatus(422),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(409);
@@ -1158,7 +1126,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentStatus(504),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { draftId } = await seedDraft(harness.handle);
 
       expect((await post(app, cookie, named(draftId))).status).toBe(502);
@@ -1177,7 +1145,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, 0);
 
@@ -1197,7 +1165,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       const claimedAt = await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1231,7 +1199,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1254,7 +1222,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId: landed } = await seedDraft(harness.handle);
       const folded = await writeDraft(
         harness.handle,
@@ -1294,7 +1262,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(
         harness.handle,
         "first line\nsecond line",
@@ -1317,7 +1285,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1339,7 +1307,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1364,7 +1332,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1385,7 +1353,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1408,7 +1376,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         comments: () => commentOk(),
       });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
@@ -1423,7 +1391,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     it("deletes an in-doubt draft on the reviewer's word", async () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 

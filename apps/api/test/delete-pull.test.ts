@@ -3,12 +3,9 @@
 // fetch boundary. The owner world is a 404 before any call past the gate;
 // the installation world re-reads the repository fresh and needs
 // `permissions.admin` from THAT answer, never the walk's cache.
-import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
-  createGrantAuth,
   createTenantRepository,
-  encryptToken,
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
@@ -21,7 +18,6 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -31,19 +27,17 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerUserInstallations,
   buildOperatorToken,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 777;
 const OTHER_REVIEWER_ID = 999;
@@ -143,32 +137,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
     }),
   );
   return counts;
-}
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, OWNER).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
 }
 
 async function seedBriefedPr(
@@ -307,7 +275,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       repository: () => answerRepo(true),
     });
     await seedBriefedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -330,7 +298,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       repository: () => answerRepo(true),
     });
     await seedBriefedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -351,7 +319,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   it("refuses a non-admin with repo-admin-only and erases nothing", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(false) });
     await seedBriefedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -374,7 +342,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       repository: (call) => answerRepo(call === 0),
     });
     await seedBriefedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -386,7 +354,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -404,7 +372,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   it("an installation holding no row is a 404 that leaves the pasted row", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -415,7 +383,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   it("the owner world's 404 leaves another reviewer's url row alone", async () => {
     stubGitHub({ inInstallation: false, repository: () => answerRepo(false) });
     await seedBriefedPr(harness.handle, OTHER_OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -427,7 +395,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OTHER_OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -438,7 +406,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   it("a row in an installation the viewer cannot reach survives", async () => {
     stubGitHub({ inInstallation: false, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, OTHER_TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -454,7 +422,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     });
     await seedBriefedPr(harness.handle, TENANT);
     await seedBriefedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(
       cookie,
@@ -477,7 +445,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
           : jsonResponse({ message: "Not Found" }, 404),
     });
     await seedBriefedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -488,7 +456,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("an unknown pull request in the resolved world is a 404", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie);
 
@@ -521,7 +489,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
   it("a cross-origin cookie request is forbidden", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
     await seedBriefedPr(harness.handle, TENANT);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie, DELETE_PATH, {
       "sec-fetch-site": "cross-site",
@@ -539,7 +507,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
       repository: () => answerRepo(false),
     });
     await seedBriefedPr(harness.handle, OWNER);
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await del(cookie, `/api/inbox/${REPO_ID}/${PR_NUMBER}`);
 

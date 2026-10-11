@@ -3,13 +3,8 @@
 // fetch boundary, the App's port stubbed at its seam. The owner world is a
 // 404 before any call past the gate; the installation world re-reads the
 // repository fresh and needs `permissions.admin` from THAT answer.
-import { randomBytes } from "node:crypto";
 import {
-  createGrantAuth,
-  createTenantRepository,
-  encryptToken,
   WriteClassifications,
-  type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
@@ -20,25 +15,22 @@ import type { InstallationGitHubPort } from "../src/routes/github-port";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   REPO_SLUG,
   REVIEWER_ID,
   SECRET,
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerUserInstallations,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { seedApiToken } from "./session/fixtures";
+import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const PURGE_PATH = `/api/repos/${REPO_ID}/attachments`;
 
 const OWNER: ScopeContext = {
@@ -109,32 +101,6 @@ function stubGitHub(cfg: StubConfig): { repositories: number } {
     }),
   );
   return counts;
-}
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, OWNER).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
 }
 
 interface AuditRow {
@@ -235,7 +201,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       inInstallation: true,
       repository: () => answerRepo(true),
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -264,7 +230,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       inInstallation: true,
       repository: () => jsonResponse({ message: "Not Found" }, 404),
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -282,7 +248,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
   it("refuses a non-admin with attachments-admin-only and deletes nothing", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(false) });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -308,7 +274,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       walkAdmin: true,
       repository: (call) => answerRepo(call === 0),
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -321,7 +287,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       inInstallation: false,
       repository: () => answerRepo(true),
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -366,7 +332,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       ok: false,
       error: { code: "forbidden", status: 403, message: "denied" },
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -382,7 +348,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       ok: false,
       error: { code: "rule-refused", status: 422, message: "refused" },
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -410,7 +376,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       ok: false,
       error: { code: "not-found", status: 404, message: "gone" },
     });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie);
 
@@ -425,7 +391,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
   it("a cross-origin cookie request is forbidden", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    const cookie = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await purge(cookie, {
       "sec-fetch-site": "cross-site",

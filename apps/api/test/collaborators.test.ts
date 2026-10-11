@@ -2,17 +2,8 @@
 // harness. The installation-token GraphQL read enters through the injected and
 // stubbed `InstallationGitHubPort`, and the gate's access check hits the
 // global-fetch stub. viewerCanPush must deny with NO port call.
-import { randomBytes } from "node:crypto";
 import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
-import {
-  encryptToken,
-  createTenantRepository,
-  createGrantAuth,
-  isReviewerId,
-  type AppDatabase,
-  type InstallationId,
-  type KeyProvider,
-} from "persistence";
+import { type InstallationId, type KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -23,20 +14,18 @@ import {
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   REPO_SLUG,
-  REVIEWER_ID,
   SECRET,
   brandInstallationId,
+  brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
@@ -150,44 +139,6 @@ function stubGitHub(
 // Seeding + request helpers.
 // ---------------------------------------------------------------------------
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-  reviewer: { id: number; login: string } = {
-    id: REVIEWER_ID,
-    login: "octocat",
-  },
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(
-    kp,
-    KEY_REF,
-    "ghr_REFRESH_TOKEN_PLAINTEXT",
-  );
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  const reviewerId = BigInt(reviewer.id);
-  if (!isReviewerId(reviewerId)) {
-    throw new Error("bad reviewer id");
-  }
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId,
-    reviewerLogin: reviewer.login,
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
-
 const COLLABORATORS_PATH = `/api/repos/${REPO_ID}/collaborators`;
 
 async function getCollaborators(
@@ -245,7 +196,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("404s without repo access and leaves the port untouched", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => jsonResponse({ message: "denied" }, 404));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -255,7 +206,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("404s for a push viewer on a repo outside the installation", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(true), []);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(404);
     expect(log.calls).toHaveLength(0);
@@ -264,7 +215,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("404s for a read-only viewer without calling the port", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(false));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -274,7 +225,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("returns the roster with no-store for a push viewer", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -299,10 +250,9 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("shares the per-repo cache across viewers within the TTL", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
-    const { cookie: otherCookie } = await seedSession(harness.handle, kp, {
-      id: 556,
-      login: "hubot",
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const { cookie: otherCookie } = await seedSignIn(harness.handle, kp, {
+      reviewer: { id: brandReviewerId(556n), login: "hubot" },
     });
     const app = makeApp(port);
     const first = await getCollaborators(app, cookie);
@@ -320,10 +270,9 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const { port, log } = stubPort([okResult()]);
     // Gate probes arrive in request order: push viewer first, read-only second.
     stubGitHub((call) => repoOk(call === 0));
-    const { cookie } = await seedSession(harness.handle, kp);
-    const { cookie: readOnlyCookie } = await seedSession(harness.handle, kp, {
-      id: 557,
-      login: "lurker",
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const { cookie: readOnlyCookie } = await seedSignIn(harness.handle, kp, {
+      reviewer: { id: brandReviewerId(557n), login: "lurker" },
     });
     const app = makeApp(port);
     expect((await getCollaborators(app, cookie)).status).toBe(200);
@@ -352,7 +301,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
       },
     };
     stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const notFoundApp = makeApp(stubPort([notFound]).port);
     const notFoundRes = await getCollaborators(notFoundApp, cookie);
@@ -381,7 +330,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
       },
     };
     stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const forbiddenRes = await getCollaborators(
       makeApp(stubPort([forbidden]).port),
@@ -407,7 +356,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     };
     const { port, log } = stubPort([failed, okResult()]);
     stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const app = makeApp(port);
     expect((await getCollaborators(app, cookie)).status).toBe(502);
     expect((await getCollaborators(app, cookie)).status).toBe(200);
@@ -417,7 +366,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("traverses exactly ONE authz gate on a cold read", async () => {
     const { port } = stubPort([okResult()]);
     const { counts } = stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(200);
     expect(counts.repositories).toBe(1);
@@ -426,7 +375,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("serves a per-PR read and the roster from one gate entry", async () => {
     const { port } = stubPort([okResult()]);
     const { counts } = stubGitHub(() => repoOk(true));
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const app = makeApp(port);
     const briefPath = `/api/repos/${REPO_ID}/pulls/7/brief`;
 

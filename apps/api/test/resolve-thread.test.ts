@@ -1,11 +1,8 @@
 // Thread-resolution route tests: `app.request()` against `createApp` over the
 // PGlite harness, GitHub stubbed at the global-fetch boundary
 // (mark-ready.test.ts pattern).
-import { randomBytes } from "node:crypto";
 import {
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -23,21 +20,18 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
-  REVIEWER_ID,
   SECRET,
   brandInstallationId,
   brandRepoId,
-  brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 // Every case drives a full request over the PGlite harness; the slowest
 // measures 3.0s, cold snapshot cache included.
@@ -47,8 +41,6 @@ const REPO_ID = 424242;
 const ROOT_COMMENT_ID = 91001;
 const THREAD_NODE_ID = "PRRT_kwDOTHREAD";
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -200,32 +192,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding + helpers.
 // ---------------------------------------------------------------------------
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
-
 async function seedPr(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
@@ -351,7 +317,7 @@ describe("thread resolve and unresolve routes", () => {
   it("404 collapse when the viewer has no access to the repo", async () => {
     const counts = stubGitHub({ repositories: () => repoStatus(403) });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
     expect(counts.graphql).toBe(0);
@@ -359,7 +325,7 @@ describe("thread resolve and unresolve routes", () => {
 
   it("404 when the PR is outside the tenant, with no GraphQL call", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
     expect(counts.graphql).toBe(0);
@@ -368,7 +334,7 @@ describe("thread resolve and unresolve routes", () => {
   it("400 on a malformed comment id, 404 on a malformed PR number", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const badComment = await post(
       app,
       cookie,
@@ -397,7 +363,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -428,7 +394,7 @@ describe("thread resolve and unresolve routes", () => {
         i === 0 ? walkGraphql(true) : unresolveMutationGraphql(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, UNRESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -446,7 +412,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: () => walkGraphql(true), // already resolved
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 
@@ -481,7 +447,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: () => walkGraphql(false), // already unresolved
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, UNRESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -508,7 +474,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     // Poison ONLY the audit write: the GitHub flip has already committed by
     // the time the audit insert runs, so the response must stay a 200 (an
     // error here would invite the FE to retry a done action).
@@ -532,7 +498,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: () => walkGraphql(false, "777777"), // some other thread
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
@@ -545,7 +511,7 @@ describe("thread resolve and unresolve routes", () => {
       repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(404);
@@ -562,7 +528,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : forbiddenGraphql()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(403);
@@ -580,7 +546,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : graphqlError()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(502);
@@ -603,7 +569,7 @@ describe("thread resolve and unresolve routes", () => {
       },
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
@@ -618,7 +584,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: () => graphqlUnauthorized(),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(401);
@@ -632,7 +598,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
     // Prime the conversation cache, then verify a second read is served from it.
@@ -661,7 +627,7 @@ describe("thread resolve and unresolve routes", () => {
       graphql: (i) => (i === 0 ? walkGraphql(false) : graphqlError()),
     });
     await seedPr(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const cookieHeader = { cookie: `__Host-mergebrief_session=${cookie}` };
 

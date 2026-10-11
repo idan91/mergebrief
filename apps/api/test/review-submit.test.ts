@@ -1,12 +1,9 @@
 // Submit-route integration tests: `app.request()` against `createApp` over the
 // PGlite harness, GitHub stubbed at the global-fetch boundary. Pins that the
 // route never writes the checkpoint, the webhook is its only writer.
-import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   type AppDatabase,
   type BriefRowId,
   type DraftAnchor,
@@ -33,7 +30,6 @@ import { testLogger, testLogging } from "./logging";
 import { BRIEF_BODY } from "./session/fixtures";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -43,11 +39,11 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -60,8 +56,6 @@ const REVIEW_ID = 987001;
 const REVIEW_NODE_ID = "PRR_kwDOpending";
 const STALE_REVIEW_ID = 987000;
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -349,32 +343,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // ---------------------------------------------------------------------------
 // Seeding.
 // ---------------------------------------------------------------------------
-
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
 
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
@@ -701,7 +669,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("404 collapse when the viewer has no access to the repo", async () => {
     stubGitHub({ repositories: () => makeRepoStatus(403) });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     const res = await postSubmit(app, cookie, makeValidBody());
     expect(res.status).toBe(404);
@@ -710,7 +678,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("400s invalid or absent outcomes and non-JSON bodies", async () => {
     stubGitHub({ repositories: () => makeRepoOk() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     for (const bad of [{ outcome: "ship-it" }, { body: "no outcome" }, {}]) {
@@ -723,7 +691,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("400 on a neutral comment submit the session has nothing for", async () => {
     const counts = stubGitHub({ repositories: () => makeRepoOk() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle, []);
     const res = await postSubmit(app, cookie, { outcome: "comment" });
     expect(res.status).toBe(400);
@@ -733,7 +701,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("400s bodyless request-changes without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => makeRepoOk() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     const res = await postSubmit(app, cookie, { outcome: "request-changes" });
     expect(res.status).toBe(400);
@@ -746,7 +714,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     // are rejected deterministically before any upstream side effect.
     const counts = stubGitHub({ repositories: () => makeRepoOk() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle, [
       "x".repeat(40_000),
       "y".repeat(40_000),
@@ -759,7 +727,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("409s orphaned drafts without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => makeRepoOk() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     await seedCarriedDraft(harness.handle, briefId, AnchorStatuses.ORPHANED);
 
@@ -782,7 +750,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("posts moved anchors at their carried coordinates", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     await seedCarriedDraft(
       harness.handle,
@@ -809,7 +777,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("re-anchoring the orphaned draft clears the refusal", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     const draftId = await seedCarriedDraft(
       harness.handle,
@@ -834,7 +802,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("deleting the orphaned draft clears the refusal", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     const draftId = await seedCarriedDraft(
       harness.handle,
@@ -856,7 +824,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
   it("404 when the PR row does not exist in the tenant", async () => {
     stubGitHub({ repositories: () => makeRepoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await postSubmit(app, cookie, makeValidBody());
     expect(res.status).toBe(404);
   });
@@ -864,7 +832,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("opens a pending review, threads every draft, then submits", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -928,7 +896,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("maps a two-side draft to startSide LEFT and side RIGHT", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle, []);
     await seedTwoSideDraft(harness.handle, briefId);
 
@@ -951,7 +919,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("threads a File comment with subjectType FILE and no line", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle, []);
     await seedFileDraft(harness.handle, briefId);
 
@@ -973,7 +941,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         call === 2 ? makeThreadRejected() : makeThreadCreated(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     await seedFileDraft(harness.handle, briefId);
 
@@ -1010,7 +978,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         call === 2 ? makeThreadRejectedByError() : makeThreadCreated(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     await seedFileDraft(harness.handle, briefId);
 
@@ -1030,7 +998,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("folds a rejected two-side range with both sides spelled out", async () => {
     const counts = stubSubmitHappyPath({ thread: () => makeThreadRejected() });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle, []);
     await seedTwoSideDraft(harness.handle, briefId);
 
@@ -1045,7 +1013,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("leaves the body untouched when nothing was rejected", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, { outcome: "approve" });
@@ -1058,7 +1026,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("publishes exactly the held drafts and records the review id", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     // One draft is already on GitHub: it is not the submit's to post again.
     const sessions = createTenantRepository(harness.handle, CTX).reviewSessions;
@@ -1113,7 +1081,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { capture, app: captureApp } = makeCapturingApp();
     stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     // Reads still work; only recording the review is refused.
     await harness.raw(
@@ -1138,7 +1106,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { capture, app: captureApp } = makeCapturingApp();
     stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     await harness.raw("alter table audit_log rename to audit_log_poisoned");
 
@@ -1153,7 +1121,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("409s a frozen session before spending a GitHub write", async () => {
     const counts = stubSubmitHappyPath();
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     // A session on a NEWER Brief of the same PR freezes the one being read.
     const pr = await createTenantRepository(
@@ -1206,7 +1174,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
             }),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1224,7 +1192,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       repositories: (call) => (call === 0 ? makeRepoOk() : makeRepoStatus(403)),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1239,7 +1207,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         call === 0 ? makeReviewStatus(401) : makePendingReview(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1259,7 +1227,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         call === 0 ? makeGraphqlUnauthorized() : makeThreadCreated(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1280,7 +1248,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         call === 0 ? makeThreadCreated() : makeGraphqlFailure(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1301,7 +1269,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       listReviews: () => makeReviewList([makeOwnPendingEntry()]),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1320,7 +1288,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       listReviews: () => makeReviewList([makeOwnPublishedEntry()]),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1345,7 +1313,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       listReviews: () => makeReviewList([]),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1363,7 +1331,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       listReviews: () => makeReviewList([makeStalePendingEntry()]),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1386,7 +1354,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       reviewCommentCount: () => makeReviewCommentCount(3),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1404,7 +1372,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       createReview: () => makeUnknownCommit422(),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const res = await postSubmit(app, cookie, makeValidBody());
@@ -1423,7 +1391,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       createReview: (call) => makePendingReview(REVIEW_ID + call),
     });
     await seedPullRequest(harness.handle);
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
 
     const first = await postSubmit(app, cookie, makeValidBody());
@@ -1559,7 +1527,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("creates no session for a submit with nothing to say", async () => {
       const counts = stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle, []);
 
       const res = await postSubmit(app, cookie, { outcome: "comment" });
@@ -1572,7 +1540,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("creates no session for a submit refused on an orphaned draft", async () => {
       const counts = stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPreviousDrafts(["lost its place"], false);
 
       const res = await postSubmit(app, cookie, makeValidBody());
@@ -1586,7 +1554,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("creates no session for a submit over the fold budget", async () => {
       const counts = stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPreviousDrafts(["x".repeat(40_000), "y".repeat(40_000)], true);
 
       const res = await postSubmit(app, cookie, { outcome: "comment" });
@@ -1599,7 +1567,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("posts the carried drafts once the claim saves the session", async () => {
       const counts = stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPreviousDrafts(["carried across"], true);
 
       const res = await postSubmit(app, cookie, makeValidBody());
@@ -1620,7 +1588,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         },
       });
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle);
 
       expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(201);
@@ -1634,7 +1602,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("settles the submitted drafts and clears their claim", async () => {
       stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle);
 
       expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(201);
@@ -1649,7 +1617,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("releases the claim when the review never went out", async () => {
       stubSubmitHappyPath({ thread: () => makeGraphqlFailure() });
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle);
 
       expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(502);
@@ -1666,7 +1634,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         listReviews: () => makeReviewStatus(403),
       });
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle);
 
       const res = await postSubmit(app, cookie, makeValidBody());
@@ -1683,7 +1651,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("409s draft-publish-in-doubt while a held draft is in doubt", async () => {
       const counts = stubSubmitHappyPath();
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       const briefId = await seedSessionDrafts(harness.handle);
       const claimed = await createTenantRepository(
         harness.handle,
@@ -1709,7 +1677,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     it("answers an honest 403 when GitHub forbids the review", async () => {
       stubSubmitHappyPath({ createReview: () => makeReviewStatus(403) });
       await seedPullRequest(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedSessionDrafts(harness.handle);
 
       const res = await postSubmit(app, cookie, makeValidBody());

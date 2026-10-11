@@ -3,10 +3,8 @@
 import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
-  encryptToken,
   decryptToken,
   createTenantRepository,
-  createGrantAuth,
   createSessionAuth,
   createTokenAuth,
   WriteClassifications,
@@ -36,6 +34,7 @@ import {
   getRequestUrl,
   answerInstallationRepositories,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -43,8 +42,6 @@ import {
 
 const REPO_ID = 424242;
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -155,48 +152,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // ---------------------------------------------------------------------------
 // Seeding helpers.
 // ---------------------------------------------------------------------------
-
-/** Seed a session row with real encrypted tokens; returns the cookie + hash. */
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-  opts?: {
-    accessPlaintext?: string;
-    refreshPlaintext?: string;
-    expiresAt?: Date;
-  },
-): Promise<{ cookie: string; hash: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const hash = hashSha256Hex(cookie);
-  const sealedAccess = await encryptToken(
-    kp,
-    KEY_REF,
-    opts?.accessPlaintext ?? ACCESS_TOKEN,
-  );
-  const sealedRefresh = await encryptToken(
-    kp,
-    KEY_REF,
-    opts?.refreshPlaintext ?? REFRESH_TOKEN,
-  );
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const expiresAt = opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z");
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: expiresAt,
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hash,
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt,
-  });
-  return { cookie, hash };
-}
 
 /** Seed the tenant PR row; returns its branded row id. */
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
@@ -358,7 +313,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("404s repo denial without an audit row or negative cache entry", async () => {
     const counts = stubGitHub({ repositories: () => repoStatus(404) });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const first = await app.request(briefPath("b", "h"), {
@@ -381,7 +336,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("collapses GitHub 403 to a uniform 404", async () => {
     stubGitHub({ repositories: () => repoStatus(403) });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     const res = await app.request(briefPath("b", "h"), {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
@@ -401,7 +356,7 @@ describe("reviewer read API + authz gate", () => {
           },
         }),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const first = await app.request(briefPath("b", "h"), {
@@ -422,7 +377,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: () => repoStatus(401),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const res = await app.request(briefPath("b", "h"), {
@@ -440,7 +395,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("collapses a span diff GitHub refuses with 403 to 404", async () => {
     stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(403) });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const res = await app.request(diffPath("base1", "head1"), {
@@ -452,7 +407,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("returns authorized stored briefs and 404s missing spans", async () => {
     stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
@@ -471,7 +426,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("returns snapshots, null for legacy rows, and 404 for missing rows", async () => {
     stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     const snapshot = '{"files":[],"collisions":[],"policy":null}';
     await seedBrief(harness.handle, "base1", "head1", snapshot);
@@ -510,7 +465,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("returns authorized stored deltas and 404s missing spans", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedDelta(harness.handle, "cp-1", "head-2");
 
@@ -532,7 +487,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("400s delta queries with cross-repo refs or missing parameters", async () => {
     stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const crossRepo = await app.request(deltaPath("evil:main", "head-2"), {
@@ -549,7 +504,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("400s queries missing head", async () => {
     stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=only`,
@@ -562,7 +517,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("checks access once for two authorized reads inside the TTL", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
@@ -581,7 +536,7 @@ describe("reviewer read API + authz gate", () => {
     const counts = stubGitHub({
       repositories: (call) => (call === 0 ? repoOk() : repoStatus(404)),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
@@ -606,7 +561,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
-    const { cookie, hash } = await seedSession(harness.handle, kp);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
@@ -622,7 +577,7 @@ describe("reviewer read API + authz gate", () => {
     // decrypt and compare, an existence check alone proves nothing.
     const rows = await harness.raw(
       "select g.gh_token_ciphertext from auth_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
-      [hash],
+      [cookieHash],
     );
     expect(rows).toHaveLength(1);
     const decrypted = await decryptToken(
@@ -647,13 +602,15 @@ describe("reviewer read API + authz gate", () => {
       repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
-    const { cookie, hash } = await seedSession(harness.handle, kp);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
     // Mint a Bearer token LINKED to the session's grant, the route's exact
     // link-never-copy semantics (tokens.ts passes currentSession.grantId).
-    const resolved = await createSessionAuth(harness.handle).findSession(hash);
+    const resolved = await createSessionAuth(harness.handle).findSession(
+      cookieHash,
+    );
     if (resolved === undefined) {
       throw new Error("seeded session not found");
     }
@@ -698,7 +655,7 @@ describe("reviewer read API + authz gate", () => {
           error_uri: "https://docs.github.com/",
         }),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const res = await app.request(briefPath("base1", "head1"), {
@@ -713,7 +670,7 @@ describe("reviewer read API + authz gate", () => {
 
   it("401s expired sessions with dead refresh tokens and deletes them", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
-    const { cookie } = await seedSession(harness.handle, kp, {
+    const { cookie } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date(Date.now() - 1000),
     });
     await seedPullRequest(harness.handle);
@@ -736,7 +693,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: () => repoOk(),
       diff: () => diffOk(),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const res = await app.request(diffPath("otherowner:sha", "head1"), {
@@ -752,7 +709,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: () => repoOk(),
       diff: () => diffOk(),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const res = await app.request(diffPath("base1", "head1"), {
@@ -772,7 +729,7 @@ describe("reviewer read API + authz gate", () => {
       diff: (call) => (call === 1 ? diffStatus(401) : diffOk()),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const a = await app.request(diffPath("base1", "head1"), {
@@ -800,7 +757,7 @@ describe("reviewer read API + authz gate", () => {
     { timeout: 20_000 },
     async () => {
       stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
 
       const res = await app.request(diffPath("b", "h"), {
@@ -821,7 +778,7 @@ describe("reviewer read API + authz gate", () => {
         jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
       diff: () => diffOk(),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle); // stored slug: octo/hello
 
     const res = await app.request(diffPath("base1", "head1"), {
@@ -842,7 +799,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: () => repoOk(),
       diff: () => diffOk(big),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const first = await app.request(diffPath("b", "h"), {
@@ -865,7 +822,7 @@ describe("reviewer read API + authz gate", () => {
       repositories: () => repoOk(),
       diff: () => diffOk(),
     });
-    const { cookie } = await seedSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
     const first = await app.request(diffPath("base1", "head1"), {

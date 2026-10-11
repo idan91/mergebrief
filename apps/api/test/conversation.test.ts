@@ -1,12 +1,9 @@
 // Installation conversation reads use the injected port; viewer replies and access checks
 // use the HTTP boundary. The github suite owns installation wire-to-domain mapping.
-import { randomBytes } from "node:crypto";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -23,7 +20,6 @@ import {
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
-  KEY_REF,
   PR_NUMBER,
   REPO_SLUG,
   REVIEWER_ID,
@@ -33,11 +29,11 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
-  hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { seedSignIn } from "./sign-in";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -48,8 +44,6 @@ const BASE_SHA = "b".repeat(40);
 const HEAD_SHA = "a".repeat(40);
 const REPLY_ID = 3_600_000_001;
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
@@ -292,32 +286,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding + request helpers.
 // ---------------------------------------------------------------------------
 
-async function seedSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<{ cookie: string }> {
-  const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: hashSha256Hex(cookie),
-    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return { cookie };
-}
-
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepoId(BigInt(REPO_ID)),
@@ -494,7 +462,7 @@ describe("conversation surface", () => {
     it("404s denied viewers without calling the conversation port", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoStatus(404) });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(port), cookie);
       expect(res.status).toBe(404);
@@ -505,7 +473,7 @@ describe("conversation surface", () => {
     it("returns no-store conversation data using the installation token", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(makeApp(port), cookie);
       expect(res.status).toBe(200);
@@ -546,7 +514,7 @@ describe("conversation surface", () => {
       };
       const { port } = stubPort([withEntry]);
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequestWithEntryComment(harness.handle, 424_242n);
       const res = await getConversation(makeApp(port), cookie);
       expect(res.status).toBe(200);
@@ -580,7 +548,7 @@ describe("conversation surface", () => {
       };
       const { port } = stubPort([withBots]);
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       // Stored id targets NEITHER comment (stale rotation), nothing filters.
       await seedPullRequestWithEntryComment(harness.handle, 999_999n);
       const res = await getConversation(makeApp(port), cookie);
@@ -593,7 +561,7 @@ describe("conversation surface", () => {
     it("caches the second read per PR within the TTL", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       const first = await getConversation(app, cookie);
@@ -602,7 +570,7 @@ describe("conversation surface", () => {
       expect(second.status).toBe(200);
       expect(log.calls).toHaveLength(1);
       // The cache is per PR, not per viewer: a SECOND session shares the entry.
-      const other = await seedSession(harness.handle, kp);
+      const other = await seedSignIn(harness.handle, kp);
       const third = await getConversation(app, other.cookie);
       expect(third.status).toBe(200);
       expect(log.calls).toHaveLength(1);
@@ -626,7 +594,7 @@ describe("conversation surface", () => {
         },
       };
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
 
       const first = stubPort([notFound]);
@@ -655,7 +623,7 @@ describe("conversation surface", () => {
         },
       };
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
 
       const res = await getConversation(
@@ -669,7 +637,7 @@ describe("conversation surface", () => {
     it("404s an unknown PR number without touching the port", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoOk() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await getConversation(
         makeApp(port),
@@ -688,7 +656,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       const res = await postReply(app, cookie, { body: "a follow-up" });
@@ -712,7 +680,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreatedInReview(555),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
       const app = makeApp(port);
@@ -740,7 +708,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreatedInReview(555),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
       const app = makeApp(port);
@@ -760,7 +728,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreatedInReview(555),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBrief(harness.handle, false);
       const app = makeApp(port);
@@ -787,7 +755,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreatedInReview(555),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
 
@@ -808,7 +776,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       const empty = await postReply(app, cookie, { body: "" });
@@ -827,7 +795,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(
         makeApp(port),
@@ -847,7 +815,7 @@ describe("conversation surface", () => {
         reply: (call) => (call === 0 ? replyStatus(401) : replyCreated()),
         token: () => tokenSuccess(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, {
         body: "after refresh",
@@ -863,7 +831,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyStatus(500),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
       expect(res.status).toBe(502);
@@ -877,7 +845,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyStatus(403),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
       expect(res.status).toBe(404);
@@ -890,7 +858,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         reply: () => replyStatus(404),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
       expect(res.status).toBe(404);
@@ -900,7 +868,7 @@ describe("conversation surface", () => {
     it("keeps 201 when auditing fails after posting the reply", async () => {
       const { port } = stubPort([okResult(), okResult()]);
       stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const capture = testLogging();
       const app = createApp({
@@ -938,7 +906,7 @@ describe("conversation surface", () => {
         repositories: (call) => (call === 0 ? repoOk() : repoStatus(403)),
         reply: () => replyCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
       expect(res.status).toBe(404);
@@ -960,7 +928,7 @@ describe("conversation surface", () => {
               }),
         reply: () => replyCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, {
         body: "to the fresh slug",
@@ -972,7 +940,7 @@ describe("conversation surface", () => {
     it("evicts the PR's cached conversation so the next read refetches", async () => {
       const { port, log } = stubPort([okResult(), okResult()]);
       stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       await getConversation(app, cookie);
@@ -993,7 +961,7 @@ describe("conversation surface", () => {
         repositories: () => repoOk(),
         createReview: () => reviewCreated(),
       });
-      const { cookie } = await seedSession(harness.handle, kp);
+      const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
       await seedBriefSession(harness.handle);
       const app = makeApp(port);
