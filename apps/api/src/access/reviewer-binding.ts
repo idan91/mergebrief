@@ -76,11 +76,15 @@ async function loadKnownCommits(
   return collectKnownCommits(row, briefs, deltas);
 }
 
+type KnownCommitsLoader = () => Promise<KnownCommits>;
+
+const NO_KNOWN_COMMITS: KnownCommits = new Set();
+
 /** The commits load once, and only when a denied read at commits asks. */
 function buildOperatorReads(
   deps: AuthRouteDeps,
   access: OperatorRepoAccess,
-  granted: OperatorRow,
+  loadKnown: KnownCommitsLoader,
 ): OperatorReads | undefined {
   const token = resolveOperatorTokenFor(deps, access.session.reviewerId);
   const repo = parseOwnerAndName(access.repoFullName);
@@ -93,16 +97,33 @@ function buildOperatorReads(
     repo,
     prNumber: access.prNumber,
     loadKnownCommits() {
-      known ??= loadKnownCommits(deps.handle, granted);
+      known ??= loadKnown();
       return known;
     },
   };
 }
 
+/** Both bindings share the one request credential, so a renewal stays single. */
+function bindWithOperatorReads(
+  deps: AuthRouteDeps,
+  access: RepoAccess,
+  log: Logger,
+  loadKnown: KnownCommitsLoader,
+): ReviewerGitHub {
+  if (access.footing !== AccessFootings.OPERATOR) {
+    return access.github;
+  }
+  const operatorReads = buildOperatorReads(deps, access, loadKnown);
+  if (operatorReads === undefined) {
+    return access.github;
+  }
+  return bindOver(deps, access.credential, { log, operatorReads });
+}
+
 /**
  * The PR's GitHub: the repo access's own binding, except behind an operator
  * pass, where a denied read inside the granted PR retries on the operator
- * token. Both bind the one request credential, so a renewal stays single.
+ * token.
  */
 export function bindPullRequestGitHub(
   deps: AuthRouteDeps,
@@ -110,12 +131,20 @@ export function bindPullRequestGitHub(
   granted: OperatorRow,
   log: Logger,
 ): ReviewerGitHub {
-  if (access.footing !== AccessFootings.OPERATOR) {
-    return access.github;
-  }
-  const operatorReads = buildOperatorReads(deps, access, granted);
-  if (operatorReads === undefined) {
-    return access.github;
-  }
-  return bindOver(deps, access.credential, { log, operatorReads });
+  return bindWithOperatorReads(deps, access, log, () =>
+    loadKnownCommits(deps.handle, granted),
+  );
+}
+
+/**
+ * `bindPullRequestGitHub` for an operation that loads no row: the granted PR's
+ * reads keep the operator rung, and with no row no commit is known, so a read
+ * at commits never takes it.
+ */
+export function bindGrantedPullRequestGitHub(
+  deps: AuthRouteDeps,
+  access: RepoAccess,
+  log: Logger,
+): ReviewerGitHub {
+  return bindWithOperatorReads(deps, access, log, async () => NO_KNOWN_COMMITS);
 }

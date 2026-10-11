@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import {
   bindOperatorGitHub,
   fetchRepositoryById,
@@ -11,7 +10,6 @@ import type { AuthRouteDeps } from "../routes/auth/session/types";
 import { isGitHubDenial } from "../shared-errors/failures";
 import {
   AccessFootings,
-  type AuthzEnv,
   type CachedOperatorRepoAccess,
   type ListedOperatorToken,
   type OperatorRungRequest,
@@ -53,23 +51,6 @@ export function bindOperatorReader(
   return bindOperatorGitHub(token, {
     octokitFactory: deps.auth.createUserOctokit,
   });
-}
-
-/**
- * The operator PAT, but only for a request the gate passed on it, a read
- * behind such a pass has to reach GitHub the same way the gate did, or the
- * page opens onto empty diffs and conversations. `undefined` everywhere
- * else, so an ordinary request can never borrow the operator's reach.
- */
-export function readFallbackTokenFor(
-  c: Context<AuthzEnv>,
-  deps: AuthRouteDeps,
-): string | undefined {
-  const passedOnOperatorToken = c.get("urlBoxOnly") === true;
-  if (!passedOnOperatorToken) {
-    return undefined;
-  }
-  return resolveOperatorTokenFor(deps, c.get("session").reviewerId);
 }
 
 /**

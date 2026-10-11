@@ -1,6 +1,14 @@
 // POST /api/repos/:repoId/pulls/:prNumber/attachments over the full wire:
-// the scope seam in front of the action, the Bearer path the CLI takes, and
-// the audit row. The App's push is stubbed at the installation port.
+// the admission checks, the fresh re-resolve on the viewer's binding and the
+// App's push through the `github/testing` fake, the scope seam in front of
+// the action, the Bearer path the CLI takes, and the audit row.
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeFailure,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createTenantRepository,
   WriteClassifications,
@@ -10,16 +18,23 @@ import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import type { InstallationGitHubPort } from "../src/routes/github-port";
 import { testLogger } from "./logging";
-import { UNUSED_INSTALLATION_DEPS, stubGateGitHub } from "./reviewer-github";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
+  arrangeFakePullRequest,
+  arrangeFakeRepository,
+  buildFakeAuthDeps,
+  buildFakeInstallationDeps,
+  stubGateGitHub,
+  type GateGitHub,
+} from "./reviewer-github";
+import {
+  INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
   SAME_ORIGIN_HEADERS,
   SECRET,
   brandRepoId,
-  buildAuthDeps,
   createKeyProvider,
 } from "./fixtures";
 import { CTX, REPO_ID, seedApiToken } from "./session/fixtures";
@@ -31,52 +46,61 @@ const UPLOAD_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/attachments`;
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
 ]);
+const OVER_CAP_BYTES = 10 * 1024 * 1024 + 1;
 const FILE_NAME_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/;
 
 const QUOTA = { maxFiles: 2, maxBytes: 1024, windowMs: 60_000 };
 
-function makePort(commit = vi.fn()): {
-  port: InstallationGitHubPort;
-  commit: ReturnType<typeof vi.fn>;
-} {
-  commit.mockResolvedValue({ ok: true, value: { commitSha: "abc" } });
-  const port: InstallationGitHubPort = {
-    commitAttachment: commit,
-    deleteAttachmentBranch: async () => {
-      throw new Error("attachment port must not be called in this suite");
-    },
-  };
-  return { port, commit };
+interface WireError {
+  readonly code: string;
+}
+
+async function readCode(response: Response): Promise<string> {
+  const body = (await response.json()) as WireError;
+  return body.code;
+}
+
+function makeOversizedPng(): Uint8Array {
+  const oversized = new Uint8Array(OVER_CAP_BYTES);
+  oversized.set(PNG_BYTES);
+  return oversized;
 }
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
   let app: ApiApp;
-  let commit: ReturnType<typeof vi.fn>;
+  let gate: GateGitHub;
+  let cookieHeaders: Record<string, string>;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    const made = makePort();
-    commit = made.commit;
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...UNUSED_INSTALLATION_DEPS,
-      github: made.port,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...buildFakeInstallationDeps(fake),
       attachmentQuota: QUOTA,
     });
-    stubGateGitHub({ repoId: REPO_ID });
+    gate = stubGateGitHub({ repoId: REPO_ID });
+    arrangeFakeRepository(fake, REPO_ID);
+    arrangeFakePullRequest(fake, { repoId: REPO_ID });
     await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
       repoId: brandRepoId(BigInt(REPO_ID)),
       prNumber: PR_NUMBER,
       repoSlug: REPO_SLUG,
       state: PrStates.OPEN,
     });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    cookieHeaders = {
+      ...SAME_ORIGIN_HEADERS,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    };
   });
 
   afterEach(async () => {
@@ -84,35 +108,51 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     await harness.close();
   });
 
-  function upload(headers: Record<string, string>) {
+  function upload(
+    headers: Record<string, string>,
+    body: string | Uint8Array = PNG_BYTES,
+  ) {
     return app.request(UPLOAD_PATH, {
       method: "POST",
       headers: { "content-type": "image/png", ...headers },
-      body: PNG_BYTES,
+      body,
     });
   }
 
-  it("commits the image with the app and answers the branch url", async () => {
-    const { cookie } = await seedSignIn(harness.handle, kp);
+  function listCommits() {
+    return fake.listCalls("commitAttachment");
+  }
 
-    const response = await upload({
-      ...SAME_ORIGIN_HEADERS,
-      Cookie: `__Host-mergebrief_session=${cookie}`,
-    });
+  function failCommit(failure: FakeFailure) {
+    fake.failOn("commitAttachment", failure, CredentialKinds.INSTALLATION);
+  }
+
+  it("commits the image with the app and answers the branch url", async () => {
+    const lookups = spyPullRequestLookups(harness);
+
+    const response = await upload(cookieHeaders);
 
     expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     const body = (await response.json()) as { url: string };
     const fileName = body.url.split("/").at(-1)?.replace("?raw=true", "");
     expect(fileName).toMatch(FILE_NAME_PATTERN);
     expect(body.url).toBe(
       `https://github.com/${REPO_SLUG}/blob/mergebrief/attachments/${fileName}?raw=true`,
     );
-    expect(commit.mock.calls[0]?.[1]).toMatchObject({
+    const [commit] = listCommits();
+    expect(commit?.credential).toEqual({
+      kind: CredentialKinds.INSTALLATION,
+      installationId: BigInt(INSTALLATION_ID),
+    });
+    expect(commit?.input).toEqual({
       owner: "octo",
       repo: "hello",
       branch: "mergebrief/attachments",
       path: fileName,
+      bytes: PNG_BYTES,
     });
+    expect(lookups.count()).toBe(0);
     const rows = await harness.raw(
       "select operation, outcome, target_type from audit_log order by id",
     );
@@ -125,6 +165,16 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     ]);
   });
 
+  it("re-resolves the repository fresh on the viewer before the push", async () => {
+    await upload(cookieHeaders);
+
+    expect(fake.calls.map((call) => call.operation)).toEqual([
+      "fetchRepositoryById",
+      "commitAttachment",
+    ]);
+    expect(fake.calls[0]?.credential.kind).toBe(CredentialKinds.REVIEWER);
+  });
+
   it("lets an external-write bearer token attach, as the cli does", async () => {
     const token = await seedApiToken(
       harness.handle,
@@ -135,55 +185,135 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     const response = await upload({ authorization: `Bearer ${token}` });
 
     expect(response.status).toBe(201);
-    expect(commit).toHaveBeenCalledTimes(1);
+    expect(listCommits()).toHaveLength(1);
   });
 
   it("answers 429 past the quota, cookie and bearer sharing it", async () => {
-    const { cookie } = await seedSignIn(harness.handle, kp);
     const token = await seedApiToken(
       harness.handle,
       kp,
       WriteClassifications.EXTERNAL_WRITE,
     );
-    const cookieHeaders = {
-      ...SAME_ORIGIN_HEADERS,
-      Cookie: `__Host-mergebrief_session=${cookie}`,
-    };
     expect((await upload(cookieHeaders)).status).toBe(201);
     expect((await upload({ authorization: `Bearer ${token}` })).status).toBe(
       201,
     );
-    const githubCalls = vi.mocked(globalThis.fetch).mock.calls.length;
+    const githubCalls = fake.calls.length;
 
     const refused = await upload(cookieHeaders);
 
     expect(refused.status).toBe(429);
-    expect(((await refused.json()) as { code: string }).code).toBe(
-      "attachment-limit-reached",
-    );
+    expect(await readCode(refused)).toBe("attachment-limit-reached");
     expect(refused.headers.get("cache-control")).toBe("no-store");
     const retryAfterSeconds = Number(refused.headers.get("retry-after"));
     expect(retryAfterSeconds).toBeGreaterThan(0);
     expect(retryAfterSeconds).toBeLessThanOrEqual(60);
-    expect(vi.mocked(globalThis.fetch).mock.calls).toHaveLength(githubCalls);
-    expect(commit).toHaveBeenCalledTimes(2);
+    expect(fake.calls).toHaveLength(githubCalls);
+    expect(listCommits()).toHaveLength(2);
+  });
+
+  it("charges a failed push and never an oversize or mistyped file", async () => {
+    failCommit(FakeFailures.SERVER_ERROR);
+    expect((await upload(cookieHeaders, makeOversizedPng())).status).toBe(413);
+    expect((await upload(cookieHeaders, "not a png")).status).toBe(400);
+    expect((await upload(cookieHeaders)).status).toBe(502);
+    expect((await upload(cookieHeaders)).status).toBe(502);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(429);
+    expect(listCommits()).toHaveLength(2);
+  });
+
+  it("answers 413 over the cap without calling github", async () => {
+    const response = await upload(cookieHeaders, makeOversizedPng());
+
+    expect(response.status).toBe(413);
+    expect(await readCode(response)).toBe("request-too-large");
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("answers 400 for a type outside the allowlist", async () => {
+    const response = await upload(
+      { ...cookieHeaders, "content-type": "image/svg+xml" },
+      "<svg/>",
+    );
+
+    expect(response.status).toBe(400);
+    expect(await readCode(response)).toBe("attachment-unsupported-type");
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("answers 400 when the bytes are not the declared type", async () => {
+    const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 1]);
+
+    const response = await upload(cookieHeaders, jpegBytes);
+
+    expect(response.status).toBe(400);
+    expect(await readCode(response)).toBe("attachment-unsupported-type");
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("answers 403 github-permission when the app itself may not push", async () => {
+    failCommit(FakeFailures.FORBIDDEN);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(403);
+    expect(await readCode(response)).toBe("github-permission");
+  });
+
+  it("answers 403 attachments-disabled when a rule refuses the push", async () => {
+    failCommit(FakeFailures.RULE_REFUSED);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(403);
+    expect(await readCode(response)).toBe("attachments-disabled");
+  });
+
+  it("answers 404 when the app no longer holds the repository", async () => {
+    failCommit(FakeFailures.NOT_FOUND);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("answers 502 when github rejects the app's own credential", async () => {
+    failCommit(FakeFailures.UNAUTHORIZED);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(502);
+  });
+
+  it("answers 502 when the push fails upstream", async () => {
+    failCommit(FakeFailures.SERVER_ERROR);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(502);
+  });
+
+  it("answers 404 when the fresh re-resolve is denied", async () => {
+    fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
+
+    const response = await upload(cookieHeaders);
+
+    expect(response.status).toBe(404);
+    expect(listCommits()).toEqual([]);
+    expect(gate.repositoryReads()).toBe(1);
   });
 
   it("a refused upload names the repository on its audit row", async () => {
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await app.request(UPLOAD_PATH, {
-      method: "POST",
-      headers: {
-        "content-type": "text/plain",
-        ...SAME_ORIGIN_HEADERS,
-        Cookie: `__Host-mergebrief_session=${cookie}`,
-      },
-      body: "not an image",
-    });
+    const res = await upload(
+      { ...cookieHeaders, "content-type": "text/plain" },
+      "not an image",
+    );
 
     expect(res.status).toBe(400);
-    expect(commit).not.toHaveBeenCalled();
+    expect(listCommits()).toEqual([]);
     const rows = await harness.raw(
       "select operation, outcome, target_type, target_id from audit_log order by id",
     );
@@ -207,9 +337,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     const response = await upload({ authorization: `Bearer ${token}` });
 
     expect(response.status).toBe(403);
-    expect(((await response.json()) as { code: string }).code).toBe(
-      "scope-exceeded",
-    );
-    expect(commit).not.toHaveBeenCalled();
+    expect(await readCode(response)).toBe("scope-exceeded");
+    expect(listCommits()).toEqual([]);
   });
 });

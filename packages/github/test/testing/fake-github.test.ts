@@ -349,6 +349,25 @@ describe("makeFakeGitHub writes", () => {
     });
   });
 
+  it("answers a repository rule refusing the attachment push", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.failOn("commitAttachment", FakeFailures.RULE_REFUSED);
+
+    const committed = await github
+      .bindInstallationGitHub(requireInstallationId(99n))
+      .forRepo(REPO)
+      .commitAttachment({
+        branch: "mergebrief/attachments",
+        path: "a.png",
+        bytes: new Uint8Array([1]),
+      });
+
+    expect(committed).toEqual({
+      ok: false,
+      error: expect.objectContaining({ code: "rule-refused", status: 422 }),
+    });
+  });
+
   it("takes a draft out of draft once", async () => {
     const github = makeGitHubWithPullRequest(true);
     const client = bindReviewer(github).forRepo(REPO);

@@ -8,6 +8,8 @@ import {
   GitHubApiErrorCodes,
   type GitHubApiError,
   type GitHubApiErrorCode,
+  type GitHubCallFailure,
+  type ReviewerCredential,
 } from "github";
 import { HttpStatuses, type Result } from "types";
 import {
@@ -138,4 +140,32 @@ export async function fetchBranchAttachmentBytes(
     ok: true,
     value: { body: response.body, contentType: input.file.mediaType },
   };
+}
+
+/**
+ * A branch file on the viewer's own token: a 401 renews the request's
+ * credential once and re-reads, as the bindings do. Never on the operator
+ * PAT: its pass is granted per pull request and a branch file is tied to
+ * none, so borrowing it would serve any file on the branch.
+ */
+export async function readBranchAttachment(
+  fetchImpl: typeof fetch,
+  credential: ReviewerCredential,
+  input: ReadBranchAttachmentInput,
+): Promise<Result<AttachmentBytes, GitHubCallFailure>> {
+  const token = await credential.readToken();
+  if (!token.ok) {
+    return token;
+  }
+
+  const first = await fetchBranchAttachmentBytes(fetchImpl, token.value, input);
+  if (first.ok || first.error.code !== GitHubApiErrorCodes.UNAUTHORIZED) {
+    return first;
+  }
+
+  const renewed = await credential.renewToken(token.value);
+  if (renewed === undefined || renewed === token.value) {
+    return first;
+  }
+  return fetchBranchAttachmentBytes(fetchImpl, renewed, input);
 }

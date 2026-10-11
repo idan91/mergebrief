@@ -1,5 +1,5 @@
-// The per-request reviewer-identity GitHub channel; counterpart of
-// `InstallationGitHubPort`. One instance per request: the stored token is
+// The per-request reviewer-identity GitHub channel; counterpart of the
+// App's installation binding. One instance per request: the stored token is
 // decrypted lazily ONCE, and an expired call spends the request's single
 // refresh (`refreshSessionToken`) before re-running; the token can expire
 // between calls, and per-call-site refresh logic either misses that or

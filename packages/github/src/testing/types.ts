@@ -78,6 +78,8 @@ export const FakeFailures = {
   ANCHOR_REJECTED: "anchor-rejected",
   /** A 422 on a review pinned to a commit the pull request no longer holds. */
   UNKNOWN_COMMIT: "unknown-commit",
+  /** A 422 on a push a repository rule refuses. */
+  RULE_REFUSED: "rule-refused",
   /** A 406: GitHub will not render a diff past its size limits. */
   NOT_ACCEPTABLE: "not-acceptable",
   /** A file read whose path holds a directory, symlink or submodule. */

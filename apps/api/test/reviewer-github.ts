@@ -13,7 +13,6 @@ import type { KeyProvider } from "persistence";
 import type { Mutable } from "types/utils";
 import { vi } from "vitest";
 import type { AppDeps, AuthDeps } from "../src/index";
-import type { InstallationGitHubPort } from "../src/routes/github-port";
 import {
   INSTALLATION_ID,
   PR_NUMBER,
@@ -161,28 +160,17 @@ function failUnexpected(port: string): never {
   throw new Error(`the ${port} port must not be called in this suite`);
 }
 
-/** The App-credential slice of `AppDeps`: the attachment port and the binder. */
-export type InstallationDeps = Pick<
-  AppDeps,
-  "github" | "bindInstallationGitHub"
->;
-
-/** For a suite whose routes make no attachment-branch call. */
-export const UNUSED_INSTALLATION_PORT: InstallationGitHubPort = {
-  commitAttachment: async () => failUnexpected("attachment"),
-  deleteAttachmentBranch: async () => failUnexpected("attachment"),
-};
+/** The App-credential slice of `AppDeps`: the installation binder. */
+export type InstallationDeps = Pick<AppDeps, "bindInstallationGitHub">;
 
 /** For a suite whose routes make no installation-credential call. */
 export const UNUSED_INSTALLATION_DEPS: InstallationDeps = {
-  github: UNUSED_INSTALLATION_PORT,
   bindInstallationGitHub: () => failUnexpected("installation binding"),
 };
 
-/** The installation binding served by `fake`; attachment writes stay unused. */
+/** The installation binding served by `fake`. */
 export function buildFakeInstallationDeps(fake: FakeGitHub): InstallationDeps {
   return {
-    github: UNUSED_INSTALLATION_PORT,
     bindInstallationGitHub: (installationId) =>
       fake.bindInstallationGitHub(installationId),
   };

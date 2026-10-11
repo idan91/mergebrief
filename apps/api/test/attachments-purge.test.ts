@@ -1,8 +1,16 @@
 // DELETE /api/repos/:repoId/attachments, the gated purge of a repository's
-// attachments branch. Full wire over PGlite, GitHub stubbed at the global
-// fetch boundary, the App's port stubbed at its seam. The owner world is a
-// 404 before any call past the gate; the installation world re-reads the
-// repository fresh and needs `permissions.admin` from THAT answer.
+// attachments branch. Full wire over PGlite; the gate's GitHub at the global
+// fetch boundary, the fresh read and the App's delete through the
+// `github/testing` fake. The owner world is a 404 before any call past the
+// gate; the installation world re-reads the repository fresh and needs
+// `permissions.admin` from THAT answer.
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeFailure,
+  type FakeGitHub,
+} from "github/testing";
 import {
   WriteClassifications,
   type KeyProvider,
@@ -11,98 +19,37 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import type { InstallationGitHubPort } from "../src/routes/github-port";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
   REPO_SLUG,
   REVIEWER_ID,
   SECRET,
+  brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   createKeyProvider,
-  getRequestUrl,
-  answerUserInstallations,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import {
+  buildFakeAuthDeps,
+  buildFakeInstallationDeps,
+  stubGateGitHub,
+  type GateGitHubOptions,
+} from "./reviewer-github";
 import { seedApiToken } from "./session/fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 
 vi.setConfig({ testTimeout: 10_000 });
 
 const REPO_ID = 424242;
+const REPO = { owner: "octo", repo: "hello" };
 const PURGE_PATH = `/api/repos/${REPO_ID}/attachments`;
+const ATTACHMENT_BRANCH = "mergebrief/attachments";
 
 const OWNER: ScopeContext = {
   ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
 };
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-function answerRepo(admin: boolean): Response {
-  return jsonResponse({
-    id: REPO_ID,
-    full_name: REPO_SLUG,
-    private: true,
-    permissions: { admin, push: true, pull: true },
-  });
-}
-
-interface StubConfig {
-  /** The installation's listing holds the repo; false is the owner world. */
-  readonly inInstallation: boolean;
-  /** `permissions.admin` on the walk's listing, the cached hint. */
-  readonly walkAdmin?: boolean;
-  /** `GET /repositories/{id}` per call: the gate first, then the fresh read. */
-  readonly repository: (call: number) => Response;
-}
-
-function stubGitHub(cfg: StubConfig): { repositories: number } {
-  const counts = { repositories: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.endsWith("/user/installations?per_page=100")) {
-        return answerUserInstallations([INSTALLATION_ID]);
-      }
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        const repositories = cfg.inInstallation
-          ? [
-              {
-                id: REPO_ID,
-                full_name: REPO_SLUG,
-                permissions: { admin: cfg.walkAdmin ?? false },
-              },
-            ]
-          : [];
-        return jsonResponse({
-          total_count: repositories.length,
-          repositories,
-        });
-      }
-      if (url.includes("/repositories/")) {
-        const call = counts.repositories;
-        counts.repositories += 1;
-        return cfg.repository(call);
-      }
-      throw new Error(`unexpected fetch in attachments-purge suite: ${url}`);
-    }),
-  );
-  return counts;
-}
 
 interface AuditRow {
   readonly installation_id: bigint | null;
@@ -140,41 +87,42 @@ async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
   }));
 }
 
-function makePort(): {
-  port: InstallationGitHubPort;
-  deleteBranch: ReturnType<typeof vi.fn>;
-} {
-  const deleteBranch = vi
-    .fn()
-    .mockResolvedValue({ ok: true, value: { existed: true } });
-  const port: InstallationGitHubPort = {
-    commitAttachment: async () => {
-      throw new Error("commit port must not be called in this suite");
-    },
-    deleteAttachmentBranch: deleteBranch,
-  };
-  return { port, deleteBranch };
+async function readCode(response: Response): Promise<string | undefined> {
+  const body = (await response.json()) as { code?: string };
+  return body.code;
+}
+
+/** What the fresh read answers: the repository as GitHub shows it now. */
+function arrangeFreshRepository(fake: FakeGitHub, viewerIsAdmin: boolean) {
+  fake.addRepository({
+    repoId: brandRepoId(BigInt(REPO_ID)),
+    fullName: REPO_SLUG,
+    private: true,
+    viewerCanPush: true,
+    viewerIsAdmin,
+  });
+  fake.addBranch(REPO, ATTACHMENT_BRANCH);
 }
 
 describe("DELETE /api/repos/:repoId/attachments", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
   let app: ApiApp;
-  let deleteBranch: ReturnType<typeof vi.fn>;
+  let cookie: string;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
-    const made = makePort();
-    deleteBranch = made.deleteBranch;
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
-      ...UNUSED_INSTALLATION_DEPS,
-      github: made.port,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...buildFakeInstallationDeps(fake),
     });
+    ({ cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER }));
   });
 
   afterEach(async () => {
@@ -182,8 +130,11 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     await harness.close();
   });
 
+  function stubGate(options: Partial<GateGitHubOptions> = {}) {
+    return stubGateGitHub({ repoId: REPO_ID, admin: false, ...options });
+  }
+
   async function purge(
-    cookie: string,
     headers: Record<string, string> = SAME_ORIGIN_HEADERS,
   ): Promise<Response> {
     return app.request(PURGE_PATH, {
@@ -192,24 +143,38 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     });
   }
 
-  it("deletes the branch when the fresh read says admin", async () => {
-    const counts = stubGitHub({
-      inInstallation: true,
-      repository: () => answerRepo(true),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+  function listDeletes() {
+    return fake.listCalls("deleteAttachmentBranch");
+  }
 
-    const res = await purge(cookie);
+  function failDelete(failure: FakeFailure) {
+    const credential = CredentialKinds.INSTALLATION;
+    fake.failOn("deleteAttachmentBranch", failure, credential);
+  }
+
+  it("deletes the branch when the fresh read says admin", async () => {
+    const gate = stubGate();
+    arrangeFreshRepository(fake, true);
+    const lookups = spyPullRequestLookups(harness);
+
+    const res = await purge();
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(counts.repositories).toBe(2);
-    expect(deleteBranch).toHaveBeenCalledTimes(1);
-    expect(deleteBranch.mock.calls[0]).toEqual([
-      BigInt(INSTALLATION_ID),
-      { owner: "octo", repo: "hello", branch: "mergebrief/attachments" },
+    expect(gate.repositoryReads()).toBe(1);
+    expect(fake.listCalls("fetchRepositoryById")).toHaveLength(1);
+    expect(listDeletes()).toEqual([
+      {
+        operation: "deleteAttachmentBranch",
+        credential: {
+          kind: CredentialKinds.INSTALLATION,
+          installationId: BigInt(INSTALLATION_ID),
+        },
+        input: { ...REPO, branch: ATTACHMENT_BRANCH },
+      },
     ]);
+    expect(lookups.count()).toBe(0);
     expect(await readAudits(harness)).toContainEqual({
       installation_id: BigInt(INSTALLATION_ID),
       source: "installation",
@@ -222,16 +187,13 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("audits the repo gate's uniform 404 as a refused purge", async () => {
-    stubGitHub({
-      inInstallation: true,
-      repository: () => jsonResponse({ message: "Not Found" }, 404),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate({ viewerStatus: 404 });
+    arrangeFreshRepository(fake, true);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(404);
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",
@@ -243,17 +205,17 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("refuses a non-admin with attachments-admin-only and deletes nothing", async () => {
-    stubGitHub({ inInstallation: true, repository: () => answerRepo(false) });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate();
+    arrangeFreshRepository(fake, false);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({
       error: expect.any(String),
       code: "attachments-admin-only",
     });
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(listDeletes()).toEqual([]);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",
@@ -265,38 +227,40 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("the fresh read decides, never the walk's cached admin bit", async () => {
-    stubGitHub({
-      inInstallation: true,
-      walkAdmin: true,
-      repository: (call) => answerRepo(call === 0),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate({ admin: true });
+    arrangeFreshRepository(fake, false);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(403);
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(listDeletes()).toEqual([]);
+  });
+
+  it("answers 404 when the fresh read is denied", async () => {
+    stubGate();
+    arrangeFreshRepository(fake, true);
+    fake.failOn("fetchRepositoryById", FakeFailures.NOT_FOUND);
+
+    const res = await purge();
+
+    expect(res.status).toBe(404);
+    expect(listDeletes()).toEqual([]);
   });
 
   it("the owner world is a 404 with no call past the gate", async () => {
-    const counts = stubGitHub({
-      inInstallation: false,
-      repository: () => answerRepo(true),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    const gate = stubGate({ inInstallation: false });
+    arrangeFreshRepository(fake, true);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(404);
-    expect(counts.repositories).toBe(1);
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(gate.repositoryReads()).toBe(1);
+    expect(fake.calls).toEqual([]);
   });
 
   it("a Bearer principal is refused as human-only before any fresh read", async () => {
-    const counts = stubGitHub({
-      inInstallation: true,
-      repository: () => answerRepo(true),
-    });
+    const gate = stubGate();
+    arrangeFreshRepository(fake, true);
     const bearer = await seedApiToken(
       harness.handle,
       kp,
@@ -309,9 +273,9 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     });
 
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe("human-only");
-    expect(counts.repositories).toBe(1);
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(await readCode(res)).toBe("human-only");
+    expect(gate.repositoryReads()).toBe(1);
+    expect(fake.calls).toEqual([]);
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",
@@ -323,39 +287,29 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("a delete the App itself may not make is github-permission", async () => {
-    stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    deleteBranch.mockResolvedValue({
-      ok: false,
-      error: { code: "forbidden", status: 403, message: "denied" },
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate();
+    arrangeFreshRepository(fake, true);
+    failDelete(FakeFailures.FORBIDDEN);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe(
-      "github-permission",
-    );
+    expect(await readCode(res)).toBe("github-permission");
   });
 
   it("a delete the repository refuses is attachments-disabled", async () => {
-    stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    deleteBranch.mockResolvedValue({
-      ok: false,
-      error: { code: "rule-refused", status: 422, message: "refused" },
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate();
+    arrangeFreshRepository(fake, true);
+    failDelete(FakeFailures.RULE_REFUSED);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe(
-      "attachments-disabled",
-    );
-    expect(deleteBranch.mock.calls[0]).toEqual([
-      BigInt(INSTALLATION_ID),
-      { owner: "octo", repo: "hello", branch: "mergebrief/attachments" },
-    ]);
+    expect(await readCode(res)).toBe("attachments-disabled");
+    expect(listDeletes()[0]?.input).toEqual({
+      ...REPO,
+      branch: ATTACHMENT_BRANCH,
+    });
     expect(await readAudits(harness)).toContainEqual(
       expect.objectContaining({
         operation: "purge-attachments",
@@ -367,14 +321,11 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
   });
 
   it("a repository the App lost is a 404, never a silent success", async () => {
-    stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    deleteBranch.mockResolvedValue({
-      ok: false,
-      error: { code: "not-found", status: 404, message: "gone" },
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    stubGate();
+    arrangeFreshRepository(fake, true);
+    failDelete(FakeFailures.NOT_FOUND);
 
-    const res = await purge(cookie);
+    const res = await purge();
 
     expect(res.status).toBe(404);
     expect(await readAudits(harness)).toContainEqual(
@@ -385,16 +336,26 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     );
   });
 
-  it("a cross-origin cookie request is forbidden", async () => {
-    stubGitHub({ inInstallation: true, repository: () => answerRepo(true) });
-    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+  it("answers 502 when github rejects the App's own credential", async () => {
+    stubGate();
+    arrangeFreshRepository(fake, true);
+    failDelete(FakeFailures.UNAUTHORIZED);
 
-    const res = await purge(cookie, {
+    const res = await purge();
+
+    expect(res.status).toBe(502);
+  });
+
+  it("a cross-origin cookie request is forbidden", async () => {
+    stubGate();
+    arrangeFreshRepository(fake, true);
+
+    const res = await purge({
       "sec-fetch-site": "cross-site",
       origin: "https://evil.example.test",
     });
 
     expect(res.status).toBe(403);
-    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(listDeletes()).toEqual([]);
   });
 });

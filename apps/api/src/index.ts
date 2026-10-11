@@ -4,10 +4,6 @@ export type { ApiApp } from "./app";
 export type { AppDeps } from "./routes";
 // The audit knobs the composition root reads from persistence config.
 export type { AuditEmitConfig } from "./product-operations/audit";
-// The startup wiring wires `appInstallationPort` over the App-JWT client;
-// tests substitute the port.
-export { appInstallationPort } from "./routes/github-port";
-export type { InstallationGitHubPort } from "./routes/github-port";
 
 // The serialized token-refresh orchestrator: called by the authz middleware
 // on a GitHub 401.

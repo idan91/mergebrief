@@ -1,13 +1,9 @@
-// The attachments domain's failure->throw mapper (gated-route posture).
+import type { AccessFooting } from "../../../../../access/types";
 import { NotFound } from "../../../../../shared-errors/api-error";
-import { FailureKinds } from "../../../../../shared-errors/failures";
-import {
-  resolveGitHubDenialError,
-  unwrapGitHubFailure,
-} from "../../../../../shared-errors/github-denial";
+import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
 import { throwAttachmentBranchFailure } from "../../../logic/attachment-branch-failure";
-import { throwRepoResolveFailure } from "../../../logic/resolve-repo-owner-and-name";
+import { resolveFreshRepositoryError } from "../../../logic/fresh-repository";
 import {
   ReadAttachmentFailureKinds,
   type ReadAttachmentFailure,
@@ -25,21 +21,15 @@ export function throwReadAttachmentFailure(
   if (failure.kind === ReadAttachmentFailureKinds.ASSET_ABSENT) {
     throw new NotFound();
   }
-  throw resolveGitHubDenialError(
-    unwrapGitHubFailure(failure),
-    DenialPostures.COLLAPSE,
-  );
+  throw resolveGitHubDenialError(failure.error, DenialPostures.COLLAPSE);
 }
 
 export function throwUploadAttachmentFailure(
   failure: UploadAttachmentFailure,
-  urlBoxOnly: boolean,
+  footing: AccessFooting,
 ): never {
-  if (
-    failure.kind === FailureKinds.TOKEN_UNREADABLE ||
-    failure.phase === "resolve"
-  ) {
-    throwRepoResolveFailure(failure, urlBoxOnly);
+  if (failure.phase === "resolve") {
+    throw resolveFreshRepositoryError(failure.error, footing);
   }
   throwAttachmentBranchFailure(failure.error);
 }

@@ -21,7 +21,6 @@ import type { OperatorTokenConfig } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
 import type { InstallationBinder } from "../access/types";
-import type { InstallationGitHubPort } from "./github-port";
 import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
@@ -46,8 +45,6 @@ export interface AppDeps {
   readonly logger: Logger;
   /** Reviewer-auth bundle (OAuth creds, crypto boundary, cookie/redirect policy). */
   readonly auth: AuthDeps;
-  /** The App's attachment-branch writes. */
-  readonly github: InstallationGitHubPort;
   /** The App's GitHub on one Installation, bound per request that needs it. */
   readonly bindInstallationGitHub: InstallationBinder;
   /** Exposed by GET /api/version for skew visibility. */

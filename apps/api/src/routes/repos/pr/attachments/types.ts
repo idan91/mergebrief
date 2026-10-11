@@ -1,29 +1,22 @@
-import type { Context } from "hono";
 import type {
   AssetAttachmentSource,
   AttachmentAssetId,
   AttachmentFile,
-  AttachmentMediaType,
   AttachmentSourceKinds,
 } from "contract";
-import type { GitHubApiError } from "github";
-import type { InstallationId, RepoId } from "persistence";
+import type { GitHubCallFailure, RepoReader } from "github";
+import type { InstallationBindingDeps } from "../../../../access/types";
 import {
   FailureKinds,
   type GitHubDeniedFailure,
-  type TokenUnreadableFailure,
 } from "../../../../shared-errors/failures";
-import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../../access/types";
-import type { InstallationGitHubPort } from "../../../github-port";
 import type { Result } from "types/utils";
 import type { TtlCache } from "../../../ttl-cache";
-import type { RepoResolveFailure } from "../../logic/resolve-repo-owner-and-name";
 
-/** The read side needs the viewer's token; the upload also needs the App's. */
-export interface AttachmentsRouteDeps extends AuthRouteDeps {
-  readonly github: InstallationGitHubPort;
+/** The read binds the viewer's GitHub; the upload also binds the App's. */
+export interface AttachmentsRouteDeps
+  extends AuthRouteDeps, InstallationBindingDeps {
   /** Omitted = the default limits. */
   readonly attachmentQuota?: UploadQuotaLimits;
 }
@@ -61,14 +54,6 @@ export interface AttachmentBytes {
   readonly contentType: string;
 }
 
-export interface ReadAttachmentInput {
-  readonly assetId: AttachmentAssetId;
-  readonly owner: string;
-  readonly repo: string;
-  readonly prNumber: number;
-  readonly sessionTokenHash: string;
-}
-
 /** What the `:assetId` param names: a GitHub asset, or a file on the attachments branch. */
 export type AttachmentTarget =
   | AssetAttachmentSource
@@ -76,6 +61,17 @@ export type AttachmentTarget =
       readonly kind: typeof AttachmentSourceKinds.BRANCH;
       readonly file: AttachmentFile;
     };
+
+export interface ReadAttachmentInput {
+  readonly prNumber: number;
+  readonly target: AttachmentTarget;
+}
+
+/** A GitHub asset, looked up in the sources its pull request renders. */
+export interface AssetReadInput {
+  readonly prNumber: number;
+  readonly assetId: AttachmentAssetId;
+}
 
 /** A file on the gated repo's attachments branch, named by the proxy path. */
 export interface ReadBranchAttachmentInput {
@@ -90,43 +86,46 @@ export interface RenderedSources {
   readonly fetchedAt: number;
 }
 
-/** The per-request reviewer channel, the fetch the step runs on, the sources cache. */
-export interface AttachmentsControllerDeps {
-  readonly github: ReviewerGitHubClient;
-  readonly fetchImpl: typeof fetch;
+/** The rendered sources per viewer and PR, and the GitHub call running for each. */
+export interface RenderedSourcesStore {
   /** key `${sessionHash}:${repoId}:${prNumber}` → the PR's rendered image sources. */
-  readonly sourcesCache: TtlCache<RenderedSources>;
+  readonly cache: TtlCache<RenderedSources>;
   /** The same key → the GitHub call already running for it. */
-  readonly sourcesInFlight: Map<
+  readonly inFlight: Map<
     string,
     Promise<Result<RenderedSources, ReadAttachmentFailure>>
   >;
-  readonly repoId: string;
 }
 
-/** The domain's handlers, the shape the route factory mounts. */
-export interface AttachmentsHandlers {
-  readonly readAttachment: (c: Context<AuthzEnv>) => Promise<Response>;
-  readonly uploadAttachment: (c: Context<AuthzEnv>) => Promise<Response>;
+/** One asset looked up in a pull request's rendered sources. */
+export interface RenderedSourceRequest {
+  readonly cacheKey: string;
+  readonly reader: RepoReader;
+  readonly prNumber: number;
+  readonly assetId: AttachmentAssetId;
+}
+
+export interface ReadAttachmentDeps {
+  readonly sources: RenderedSourcesStore;
+  /** The bytes fetch, outside every binding. */
+  readonly fetch: typeof fetch;
 }
 
 export const ReadAttachmentFailureKinds = {
-  TOKEN_UNREADABLE: FailureKinds.TOKEN_UNREADABLE,
   GITHUB_DENIED: FailureKinds.GITHUB_DENIED,
   ASSET_ABSENT: "asset-absent",
 } as const;
 
-/** The per-request reviewer channel for the fresh re-resolve, and the App's port for the push. */
-export interface UploadControllerDeps {
-  readonly reviewer: ReviewerGitHubClient;
-  readonly port: InstallationGitHubPort;
-}
+/** GitHub's refusal of the sources or the bytes, or an asset the PR does not render. */
+export type ReadAttachmentFailure =
+  | { readonly kind: typeof ReadAttachmentFailureKinds.ASSET_ABSENT }
+  | {
+      readonly kind: typeof ReadAttachmentFailureKinds.GITHUB_DENIED;
+      readonly error: GitHubCallFailure;
+    };
 
 export interface UploadAttachmentInput {
-  readonly installationId: InstallationId;
-  readonly repoId: RepoId;
   readonly file: AttachmentFile;
-  readonly mediaType: AttachmentMediaType;
   readonly bytes: Uint8Array;
 }
 
@@ -135,16 +134,5 @@ export interface UploadedAttachment {
   readonly url: string;
 }
 
-/** The fresh re-resolve's failures, then the push's, wrapped whole. */
-export type UploadAttachmentFailure =
-  | RepoResolveFailure
-  | GitHubDeniedFailure<GitHubApiError>;
-
-/** Result-side failures of the proxy read; the diff proxy's two plus an absent asset. */
-export type ReadAttachmentFailure =
-  | TokenUnreadableFailure
-  | { readonly kind: typeof ReadAttachmentFailureKinds.ASSET_ABSENT }
-  | {
-      readonly kind: typeof ReadAttachmentFailureKinds.GITHUB_DENIED;
-      readonly error: GitHubApiError;
-    };
+/** The fresh re-resolve's refusal, then the push's, wrapped whole. */
+export type UploadAttachmentFailure = GitHubDeniedFailure<GitHubCallFailure>;

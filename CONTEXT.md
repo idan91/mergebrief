@@ -314,8 +314,8 @@ _Avoid_: error kind, error message (for the identifier), status-derived kind
 A failure is an expected outcome a caller must judge — it rides the failure side of a `Result` and is named `XxxFailure`. An error is thrown — programmer/infra faults and, at the HTTP layer, the `ApiError` classes — and is named `XxxError`. The suffix carries the contract: a `Failure` type in a signature means the caller unwraps and judges; an `Error` type means it propagates to a boundary handler.
 _Avoid_: using the two words interchangeably; Error-suffixed types on the Result side (in new code)
 
-**Reviewer GitHub client** (vs **Installation GitHub port**):
-The two GitHub identities the API acts under. The installation port is the app's own channel — an installation token injected once at startup, one rate budget shared across viewers. The reviewer GitHub client is the signed-in reviewer's channel — their OAuth token, bound per request; it runs a call with the current token and, on a token-expired failure, refreshes at most once per request and re-runs. Which identity a call runs under decides whose permissions and whose rate budget apply.
+**Reviewer GitHub client** (vs **Installation GitHub binding**):
+The two GitHub identities the API acts under. The installation binding is the app's own channel — the App's installation token, bound per request to the Installation the repository resolves into, one rate budget shared across viewers. The reviewer GitHub client is the signed-in reviewer's channel — their OAuth token, bound per request; it runs a call with the current token and, on a token-expired failure, refreshes at most once per request and re-runs. Which identity a call runs under decides whose permissions and whose rate budget apply.
 _Avoid_: viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
 **Home**:

@@ -25,7 +25,6 @@ import { ExitCodes } from "./boot/types";
 import { SESSION_KEY_REF } from "./config";
 import { handleHealthRequest } from "./health";
 import { migrateQueue } from "./queue";
-import { appInstallationPort } from "./routes/github-port";
 import { createUpdateCheck, type UpdateCheck } from "./update-check";
 
 /** Load the app's `.env` if present, then return the ambient env. */
@@ -90,7 +89,7 @@ async function main(): Promise<void> {
       ? undefined
       : resolveLocalBriefsDir(configuredOutDir, process.cwd());
 
-  // One App client, so the attachment port and the binder share its tokens.
+  // One App client, so every installation binding shares its tokens.
   const githubApp = createAppClient(boot.github);
   const app = createApp({
     handle,
@@ -103,7 +102,6 @@ async function main(): Promise<void> {
       callerIp: boot.persistence.auditCallerIp,
     },
     serverVersion: boot.api.serverVersion,
-    github: appInstallationPort(githubApp),
     bindInstallationGitHub: (installationId) =>
       bindInstallationGitHub(githubApp, installationId),
     operatorToken: boot.github.operatorToken,

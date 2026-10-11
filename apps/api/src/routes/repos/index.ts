@@ -17,7 +17,6 @@ import type { InstallationResolver } from "../installation-resolver";
 import { createAuthzMiddleware } from "../../access";
 import { accessStampLayer, sessionLayer } from "../../access/session-layer";
 import type { AuthzEnv, InstallationBindingDeps } from "../../access/types";
-import type { InstallationGitHubPort } from "../github-port";
 import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
 import { createReposHandlers } from "./handler";
@@ -26,7 +25,6 @@ import type { UploadQuotaLimits } from "./pr/attachments/types";
 
 /** The slice of app deps the repos subtree needs. `AppDeps` satisfies it. */
 export interface ReposRouteDeps extends AuthRouteDeps, InstallationBindingDeps {
-  readonly github: InstallationGitHubPort;
   readonly attachmentQuota?: UploadQuotaLimits;
 }
 

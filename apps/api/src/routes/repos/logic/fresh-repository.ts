@@ -3,7 +3,7 @@
 // and a rename plus name reuse inside that window would aim the write at
 // another repository.
 import { ApiErrorCodes } from "contract";
-import type { GitHubCallFailure, ReviewerGitHub } from "github";
+import type { GitHubCallFailure, RepositoryInfo, ReviewerGitHub } from "github";
 import type { RepoId } from "persistence";
 import type { Result } from "types/utils";
 import { AccessFootings, type AccessFooting } from "../../../access/types";
@@ -20,7 +20,17 @@ import {
 import { resolveGitHubDenialError } from "../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../shared-errors/github-denial/types";
 import { parseOwnerAndName } from "../utils";
-import type { FreshRepository } from "./resolve-repo-owner-and-name";
+
+export interface RepoOwnerAndName {
+  readonly owner: string;
+  readonly repo: string;
+}
+
+/** The repository as GitHub shows it to the viewer NOW, with its current name pair. */
+export interface FreshRepository {
+  readonly info: RepositoryInfo;
+  readonly ownerAndName: RepoOwnerAndName;
+}
 
 /** GitHub refused the re-resolve itself, before the write was tried. */
 export type FreshRepositoryFailure = GitHubDeniedFailure<GitHubCallFailure>;

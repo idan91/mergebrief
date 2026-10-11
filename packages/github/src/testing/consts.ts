@@ -39,6 +39,10 @@ export const FAILURE_ANSWERS: Readonly<Record<FakeFailure, FailureAnswer>> = {
     code: GitHubApiErrorCodes.UNKNOWN_COMMIT,
     status: HttpStatuses.UNPROCESSABLE_CONTENT,
   },
+  [FakeFailures.RULE_REFUSED]: {
+    code: GitHubApiErrorCodes.RULE_REFUSED,
+    status: HttpStatuses.UNPROCESSABLE_CONTENT,
+  },
   [FakeFailures.NOT_ACCEPTABLE]: {
     code: GitHubApiErrorCodes.REQUEST_FAILED,
     status: HttpStatuses.NOT_ACCEPTABLE,
