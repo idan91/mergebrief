@@ -399,11 +399,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/stores/url-box.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/persistence/test/audit.test.ts": {
     "house/no-em-dash": {
       "count": 7

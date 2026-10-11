@@ -520,9 +520,9 @@ export const readsController = {
    * with the viewer's token and held per session (~10s) so walking a stack
    * costs one list, not one per PR. A PR missing from the list (closed or
    * merged) is fetched once for its refs so its open neighbours still resolve.
-   * A resolve is folded into the row's record. An open PR serves the live
-   * resolve; a closed one serves the record, which still holds the
-   * ancestors that merged before it.
+   * A resolve is folded into the row's record: an open PR serves the live
+   * resolve, a closed one the record. An operator-token pass gets no stack:
+   * the open list names every PR in a repository the reader cannot see.
    */
   async readStack(
     deps: ReadsControllerDeps & {
@@ -534,6 +534,7 @@ export const readsController = {
       readonly owner: string;
       readonly repo: string;
       readonly sessionTokenHash: string;
+      readonly urlBoxOnly: boolean;
     },
   ): Promise<Result<PullStackView, StackFailure>> {
     const pr = await deps.tenant.pullRequests.getByNumber(
@@ -542,6 +543,9 @@ export const readsController = {
     );
     if (pr === undefined) {
       throw new NotFound();
+    }
+    if (input.urlBoxOnly) {
+      return { ok: true, value: { stack: null } };
     }
     const target = { owner: input.owner, repo: input.repo };
     const cacheKey = buildOpenPullsCacheKey({

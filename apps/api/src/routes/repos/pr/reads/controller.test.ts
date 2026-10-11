@@ -186,6 +186,7 @@ describe("readsController", () => {
         owner: "acme",
         repo: "app",
         sessionTokenHash,
+        urlBoxOnly: false,
       },
     );
 

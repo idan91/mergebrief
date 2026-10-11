@@ -8,6 +8,7 @@ import {
   createUserOctokit,
   fetchIssue,
   fetchPullRequest,
+  listOpenPullRequests,
 } from "github";
 import {
   createEnvKeyProvider,
@@ -30,6 +31,7 @@ vi.mock("github", async (importOriginal) => ({
   createUserOctokit: vi.fn(),
   fetchIssue: vi.fn(),
   fetchPullRequest: vi.fn(),
+  listOpenPullRequests: vi.fn(),
 }));
 
 function brandRepoId(value: bigint): RepoId {
@@ -223,6 +225,48 @@ describe("appGitHubPort openUrlBoxPullRequestSource", () => {
     expect(result.ok).toBe(true);
     const lastCall = vi.mocked(fetchPullRequest).mock.calls.at(-1);
     expect(tokenOf(lastCall?.[0])).toBe("ghp_operator");
+  });
+
+  it("lists no open PRs on the operator PAT, so no stack resolves", async () => {
+    const grantId = await seedGrant("ghu_viewer");
+    vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
+      if (tokenOf(octokit) === "ghu_viewer") {
+        return {
+          ok: false,
+          error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
+        };
+      }
+      return { ok: true, value: INFO };
+    });
+    vi.mocked(listOpenPullRequests).mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          number: 8,
+          title: "a neighbour",
+          headRef: "deal/x",
+          baseRef: "main",
+          headRepo: { owner: "acme", repo: "widget" },
+          baseRepo: { owner: "acme", repo: "widget" },
+        },
+      ],
+    });
+    const port = appGitHubPort(unusedApp, {
+      handle: harness.handle,
+      keyProvider,
+      operatorToken: OPERATOR_TOKEN,
+    });
+
+    const source = await port.openUrlBoxPullRequestSource(
+      grantId,
+      "acme/widget",
+      7,
+      OWNER,
+    );
+    const open = await source.listOpenPullRequests();
+
+    expect(open).toEqual({ ok: true, value: [] });
+    expect(vi.mocked(listOpenPullRequests)).not.toHaveBeenCalled();
   });
 
   it("falls back to the operator PAT after a viewer FORBIDDEN probe", async () => {

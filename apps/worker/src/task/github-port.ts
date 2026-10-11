@@ -321,7 +321,16 @@ export function appGitHubPort(
         (probe.error.code === GitHubApiErrorCodes.NOT_FOUND ||
           probe.error.code === GitHubApiErrorCodes.FORBIDDEN)
       ) {
-        return bindPullRequestSource(createUserOctokit(operatorToken), ref);
+        // The open list names every PR in a repository the owner cannot
+        // see; on the PAT the brief resolves no stack.
+        const operatorSource = bindPullRequestSource(
+          createUserOctokit(operatorToken),
+          ref,
+        );
+        return {
+          ...operatorSource,
+          listOpenPullRequests: async () => ({ ok: true, value: [] }),
+        };
       }
       return serveProbeOnce(viewerSource, probe);
     },

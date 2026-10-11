@@ -265,12 +265,7 @@ export function createReadsHandlers(
     const result = await readsController.readStack(
       {
         ...(await buildDeps(c, deps.handle, prNumber)),
-        github: createReviewerGitHubClient(
-          deps,
-          session,
-          c.get("logger"),
-          readFallbackTokenFor(c, deps),
-        ),
+        github: createReviewerGitHubClient(deps, session, c.get("logger")),
         openPullsCache,
         log: c.get("logger"),
       },
@@ -280,6 +275,7 @@ export function createReadsHandlers(
         owner: target.owner,
         repo: target.repo,
         sessionTokenHash: session.sessionTokenHash,
+        urlBoxOnly: c.get("urlBoxOnly") === true,
       },
     );
     if (!result.ok) {

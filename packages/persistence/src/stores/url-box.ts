@@ -1,12 +1,10 @@
-// The ONE deliberately unscoped read in this package: url-box rows are
-// instance-visible, so a viewer who proved GitHub access to the repo may open
-// a brief someone else on this instance pasted. It returns an OWNER, never a
-// row — the caller binds a ctx to that owner and every later read goes back
-// through the normal scope boundary.
+// The ONE deliberately unscoped read in this package: a viewer who proved
+// GitHub access to the repo may open a brief someone else here pasted. It
+// returns an OWNER, never a row; every later read binds a ctx to that owner.
 //
-// Writes, deletion, and the personal list stay owner-bound and never call
-// this. Neither does a request the read gate cleared on the operator PAT: a
-// reader who proved nothing may open only what they pasted themselves.
+// Writes behind it land in that owner's world, but per-reviewer rows are
+// keyed by the reviewer. Deletion, the personal list and a request the gate
+// cleared on the operator PAT never call this.
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { pullRequest } from "../schema/pull-request";

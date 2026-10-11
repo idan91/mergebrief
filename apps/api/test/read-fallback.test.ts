@@ -43,6 +43,13 @@ const HEAD_SHA = "a".repeat(40);
 const UNKNOWN_SHA = "c".repeat(40);
 const DIFF_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff`;
 const FILE_RANGE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/file-range`;
+const STACK_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/stack`;
+const NEIGHBOUR_PULL = {
+  number: PR_NUMBER + 1,
+  title: "a neighbour the reader cannot see",
+  head: { ref: "deal/neighbour", repo: { full_name: REPO_SLUG } },
+  base: { ref: "main", repo: { full_name: REPO_SLUG } },
+};
 
 const TENANT_CTX = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -107,6 +114,13 @@ function stubGitHub(): RepoCall[] {
         }
         // The contents read maps a 404 to an absent file, never a denial.
         return jsonResponse({ message: "Forbidden" }, 403);
+      }
+      if (url.includes("/pulls?")) {
+        calls.push({ token });
+        if (token === FALLBACK_PAT) {
+          return jsonResponse([NEIGHBOUR_PULL]);
+        }
+        return jsonResponse({ message: "Not Found" }, 404);
       }
       if (url.includes("/repositories/")) {
         calls.push({ token });
@@ -571,6 +585,21 @@ describe("the per-repo gate's operator-PAT rung", () => {
   // refusal: the uniform 404 reads as "this pull request is gone", which
   // sends a reader hunting for something that is fine. The gate already
   // showed them the brief, so there is no existence left to protect.
+  it("serves no stack on the operator token and lists no open PRs", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedOwnerPullRequest(harness.handle);
+
+    const res = await buildApp(FALLBACK_PAT).request(STACK_PATH, {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+
+    // Gate: reader then PAT. Stack: nothing, the repo's open list is not owed.
+    expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ stack: null });
+  });
+
   it("refuses a write honestly instead of claiming the PR is gone", async () => {
     stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
