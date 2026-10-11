@@ -20,7 +20,7 @@ export interface AuthDeps {
   /** The env var NAME the session tokens seal under (e.g. `"SESSION_KEY_V1"`). */
   readonly sessionKeyRef: string;
   readonly publicBaseUrl: string;
-  /** Builds every user-token GitHub client; reached through `ReviewerGitHubClient`. */
+  /** Builds every user-token GitHub client: the bindings' and the repo gate's. */
   readonly createUserOctokit: UserOctokitFactory;
   /** Binds the reviewer's GitHub; absent binds `github`'s over `createUserOctokit`. */
   readonly bindReviewerGitHub?: typeof bindReviewerGitHub;

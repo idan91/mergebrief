@@ -1,5 +1,9 @@
 import type { OpenPullRequest } from "brief-core/pr-stack";
-import type { RepositoryRef } from "github";
+import {
+  CredentialFailureCodes,
+  GitHubApiErrorCodes,
+  type RepositoryRef,
+} from "github";
 import type { Logger } from "logging";
 import {
   isPullRequestRowId,
@@ -74,6 +78,11 @@ type ReadAnswer =
   | { readonly tokenDead: true }
   | { readonly throws: true };
 
+const REFUSALS = {
+  "not-found": GitHubApiErrorCodes.NOT_FOUND,
+  unavailable: GitHubApiErrorCodes.REQUEST_FAILED,
+} as const;
+
 /** A list reader answering from `answers` in call order, the last one repeating. */
 function stubListOpenPulls(...answers: readonly ReadAnswer[]) {
   let calls = 0;
@@ -84,23 +93,17 @@ function stubListOpenPulls(...answers: readonly ReadAnswer[]) {
       throw new Error(`boom ${target.owner}/${target.repo}`);
     }
     if ("tokenDead" in answer) {
-      return {
-        ok: false as const,
-        tokenUnreadable: true as const,
-        error: { kind: "token-unreadable" as const },
-        retried: false as const,
-      };
+      const code = CredentialFailureCodes.CREDENTIAL_UNREADABLE;
+      return { ok: false as const, error: { code, message: "no token" } };
     }
     if ("refuse" in answer) {
       return {
         ok: false as const,
-        tokenUnreadable: false as const,
-        error: { code: answer.refuse, message: "no" },
-        retried: false,
+        error: { code: REFUSALS[answer.refuse], message: "no" },
       };
     }
     await new Promise((resolve) => setTimeout(resolve, answer.delayMs ?? 0));
-    return { ok: true as const, value: answer.open, retried: false };
+    return { ok: true as const, value: answer.open };
   });
 }
 
@@ -108,7 +111,7 @@ type ListStub = ReturnType<typeof stubListOpenPulls>;
 
 function makeDeps(listOpenPulls: ListStub): LiveStacksDeps {
   return {
-    listOpenPulls: listOpenPulls as unknown as LiveStacksDeps["listOpenPulls"],
+    listOpenPulls,
     openPullsCache: createTtlCache(10),
     log,
   };
@@ -267,7 +270,7 @@ describe("readLiveStacks", () => {
     expect(listOpenPulls).toHaveBeenCalledTimes(2);
     expect(log.warn).toHaveBeenCalledWith(
       "open list failed, no live stacks for the repo",
-      { repoId: "100", code: "unavailable" },
+      { repoId: "100", code: GitHubApiErrorCodes.REQUEST_FAILED },
     );
   });
 
@@ -364,7 +367,7 @@ describe("readLiveStacks", () => {
     expect(listOpenPulls.mock.calls.length).toBeLessThanOrEqual(3);
     expect(log.warn).toHaveBeenCalledWith(
       "viewer token unreadable, no live stack for any row",
-      { repoId: "100", code: "token-unreadable" },
+      { repoId: "100", code: CredentialFailureCodes.CREDENTIAL_UNREADABLE },
     );
   });
 });

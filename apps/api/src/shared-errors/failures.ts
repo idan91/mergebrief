@@ -6,8 +6,6 @@ export const FailureKinds = {
   SESSION_REJECTED: "session-rejected",
 } as const;
 
-// Shared Result-side failure members. They wrap lower-layer errors WHOLE:
-// the handler maps them to posture; nothing translates at the boundary.
 /**
  * A GitHub denial on a reviewer-token call. `phase` is what the handler
  * judges: `resolve` (the fresh repo re-resolve, which always collapses to
@@ -29,30 +27,6 @@ export interface TokenUnreadableFailure {
 export interface SessionRejectedFailure<E> {
   readonly kind: typeof FailureKinds.SESSION_REJECTED;
   readonly error: E;
-}
-
-export function isTokenUnreadableFailure(
-  error: object,
-): error is TokenUnreadableFailure {
-  return "kind" in error && error.kind === FailureKinds.TOKEN_UNREADABLE;
-}
-
-/**
- * Shape a `ReviewerGitHubClient.run` refusal as the shared failure Result:
- * token-unreadable passes through whole, anything else wraps as
- * `github-denied` with the caller's phase.
- */
-export function buildGitHubDeniedResult<E extends object>(
-  error: TokenUnreadableFailure | E,
-  phase: GitHubDeniedFailure<E>["phase"],
-) {
-  if (isTokenUnreadableFailure(error)) {
-    return { ok: false, error } as const;
-  }
-  return {
-    ok: false,
-    error: { kind: FailureKinds.GITHUB_DENIED, phase, error },
-  } as const;
 }
 
 /**

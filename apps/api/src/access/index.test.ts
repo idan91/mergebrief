@@ -113,14 +113,18 @@ function stubInstallations(): InstallationResolver {
   ]);
   return {
     listAllowedRepos: vi.fn<InstallationResolver["listAllowedRepos"]>(
-      async (session) => ({
+      async (request) => ({
         ok: true,
-        value: { allowed, session, expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS },
+        value: {
+          allowed,
+          session: request.credential.session(),
+          expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS,
+        },
       }),
     ),
     resolveInstallationForRepo: vi.fn<
       InstallationResolver["resolveInstallationForRepo"]
-    >(async (session, repoId) => {
+    >(async (request, repoId) => {
       const entry = allowed.get(repoId);
       const world: RepoWorld =
         entry === undefined
@@ -128,7 +132,11 @@ function stubInstallations(): InstallationResolver {
           : { kind: "installation", installationId: entry.installationId };
       return {
         ok: true,
-        value: { world, session, expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS },
+        value: {
+          world,
+          session: request.credential.session(),
+          expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS,
+        },
       };
     }),
   };

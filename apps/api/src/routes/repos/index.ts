@@ -6,26 +6,51 @@
 // GitHub failure is a 401 or 502 rather than a DB-only fallback. Beneath it
 // sit the per-repo attachments purge and collaborators leaves and the per-PR
 // subtree, all behind the ONE repo gate mounted over `/:repoId/*`.
-import { ProductQueryIds } from "contract";
+import { ApiErrorCodes, ProductQueryIds } from "contract";
+import type { Handler } from "hono";
+import { WriteClassifications } from "persistence";
+import { HttpStatuses } from "types/http";
+import { createAuthzMiddleware } from "../../access";
+import { bindRequestGitHub } from "../../access/reviewer-binding";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv, InstallationBindingDeps } from "../../access/types";
 import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
+import { BadGateway, Unauthorized } from "../../shared-errors/api-error";
 import type { AuthRouteDeps } from "../auth/session/types";
 import type { InstallationResolver } from "../installation-resolver";
-import { createAuthzMiddleware } from "../../access";
-import { accessStampLayer, sessionLayer } from "../../access/session-layer";
-import type { AuthzEnv, InstallationBindingDeps } from "../../access/types";
 import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
-import { createReposHandlers } from "./handler";
+import { listRepos } from "./list-repos";
 import { prRoutes } from "./pr";
 import type { UploadQuotaLimits } from "./pr/attachments/types";
+
+const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** The slice of app deps the repos subtree needs. `AppDeps` satisfies it. */
 export interface ReposRouteDeps extends AuthRouteDeps, InstallationBindingDeps {
   readonly attachmentQuota?: UploadQuotaLimits;
+}
+
+function createListReposHandler(
+  deps: AuthRouteDeps,
+  installations: InstallationResolver,
+): Handler<AuthzEnv> {
+  return async (c) => {
+    const log = c.get("logger");
+    const request = bindRequestGitHub(deps, c.get("session"), log);
+    const listed = await listRepos(installations, request, log);
+    if (!listed.ok) {
+      if (listed.error.status === HttpStatuses.UNAUTHORIZED) {
+        throw new Unauthorized();
+      }
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+    }
+
+    return c.json(listed.value, HttpStatuses.OK, NO_STORE);
+  };
 }
 
 /** Mount the repos subtree: the list over the session gate (no `:repoId`,
@@ -36,7 +61,6 @@ export function reposRoutes(
   installations: InstallationResolver,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createReposHandlers(installations);
 
   app.use("/", sessionLayer(deps), accessStampLayer());
 
@@ -50,7 +74,7 @@ export function reposRoutes(
       rowRequired: false,
     },
     "/",
-    handlers.listRepos,
+    createListReposHandler(deps, installations),
   );
 
   // Method-agnostic and over unmatched paths too: every request under a repo

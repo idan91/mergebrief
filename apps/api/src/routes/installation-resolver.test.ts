@@ -1,13 +1,12 @@
 import { randomBytes } from "node:crypto";
-import type * as githubModule from "github";
 import {
   GitHubApiErrorCodes,
-  listInstallationRepositoriesForUser,
+  type GitHubApiError,
   type InstallationRepository,
 } from "github";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import {
-  createEnvKeyProvider,
   encryptToken,
   isGrantRowId,
   isInstallationId,
@@ -15,7 +14,6 @@ import {
   isReviewerId,
   WriteClassifications,
   type InstallationId,
-  type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
@@ -27,25 +25,18 @@ import {
   it,
   vi,
 } from "vitest";
-import { createTestUserOctokit } from "../../test/fixtures";
-import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
+import { KEY_REF, createKeyProvider } from "../../test/fixtures";
+import { buildFakeAuthDeps } from "../../test/reviewer-github";
 import {
-  AuthChannels,
-  type AuthRouteDeps,
-  type ViewerPrincipal,
-} from "./auth/session/types";
+  bindRequestGitHub,
+  type RequestGitHub,
+} from "../access/reviewer-binding";
+import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
+import { AuthChannels, type ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { createInstallationResolver } from "./installation-resolver";
 
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  listInstallationRepositoriesForUser: vi.fn(),
-}));
-
-const KEY_REF = "SESSION_KEY_TEST";
-const keyProvider = createEnvKeyProvider({
-  [KEY_REF]: randomBytes(32).toString("base64"),
-});
+const keyProvider = createKeyProvider();
 
 const log: Logger = {
   error: vi.fn(),
@@ -81,15 +72,15 @@ const OCTO_TWO: InstallationRepository = {
   fullName: "octo/two",
   viewerIsAdmin: false,
 };
-const REPOS_BY_INSTALLATION: ReadonlyMap<
-  InstallationId,
-  Map<RepoId, InstallationRepository>
-> = new Map([
-  [ACME_ID, new Map([[ACME_REPO, ACME_ONE]])],
-  [OCTO_ID, new Map([[OCTO_REPO, OCTO_TWO]])],
-]);
+
+const UPSTREAM_DOWN: GitHubApiError = {
+  code: GitHubApiErrorCodes.REQUEST_FAILED,
+  status: 502,
+  message: "down",
+};
 
 let harness: PgliteHarness;
+let fake: FakeGitHub;
 beforeAll(async () => {
   harness = await createPgliteHarness();
 });
@@ -117,16 +108,34 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
   };
 }
 
-function stubDeps(): AuthRouteDeps {
-  return {
+/** The request's credential and the fake's binding over it. */
+async function bindRequest(
+  principal?: ViewerPrincipal,
+): Promise<RequestGitHub> {
+  const deps = {
     handle: harness.handle,
-    auth: {
-      oauthClientId: "client-id",
-      oauthClientSecret: "client-secret",
-      keyProvider,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: "https://example.test",
-      createUserOctokit: createTestUserOctokit,
+    auth: buildFakeAuthDeps(keyProvider, fake),
+  };
+  return bindRequestGitHub(deps, principal ?? (await stubPrincipal()), log);
+}
+
+/** One installation's listing answers `failure`; the others reach the fake. */
+function failWalkOf(
+  request: RequestGitHub,
+  installationId: InstallationId,
+  failure: GitHubApiError,
+): RequestGitHub {
+  const { github } = request;
+  return {
+    ...request,
+    github: {
+      ...github,
+      async listInstallationRepositories(id) {
+        if (id === installationId) {
+          return { ok: false, error: failure };
+        }
+        return github.listInstallationRepositories(id);
+      },
     },
   };
 }
@@ -137,14 +146,14 @@ function stubReachable(
 ): AccessibleInstallationsResolver {
   return {
     resolve: vi.fn<AccessibleInstallationsResolver["resolve"]>(
-      async (session) => ({
+      async (request) => ({
         ok: true,
         value: {
           installations: ids.map((installationId) => ({
             installationId,
             accountLogin: `org-${String(installationId)}`,
           })),
-          session,
+          session: request.credential.session(),
           expiresAt: Date.now() + expiresIn,
         },
       }),
@@ -152,35 +161,42 @@ function stubReachable(
   };
 }
 
-function answerWalks(): void {
-  vi.mocked(listInstallationRepositoriesForUser).mockImplementation(
-    async (_octokit, installationId) => ({
-      ok: true,
-      value: REPOS_BY_INSTALLATION.get(installationId) ?? new Map(),
-    }),
+function arrangeInstallations(): void {
+  fake.addInstallation(
+    { installationId: ACME_ID, accountLogin: "acme" },
+    new Map([[ACME_REPO, ACME_ONE]]),
+  );
+  fake.addInstallation(
+    { installationId: OCTO_ID, accountLogin: "octo" },
+    new Map([[OCTO_REPO, OCTO_TWO]]),
   );
 }
 
+function listWalkedInstallations(): unknown[] {
+  return fake
+    .listCalls("listInstallationRepositories")
+    .map((call) => (call.input as { installationId: unknown }).installationId);
+}
+
 beforeEach(() => {
-  vi.mocked(listInstallationRepositoriesForUser).mockReset();
+  fake = makeFakeGitHub();
 });
 
 describe("the installation resolver", () => {
   it("names the installation a repo belongs to across every reachable one", async () => {
-    answerWalks();
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID]),
     );
-    const principal = await stubPrincipal();
+    const request = await bindRequest();
 
     const acme = await resolver.resolveInstallationForRepo(
-      principal,
+      request,
       ACME_REPO,
       log,
     );
     const octo = await resolver.resolveInstallationForRepo(
-      principal,
+      request,
       OCTO_REPO,
       log,
     );
@@ -196,16 +212,12 @@ describe("the installation resolver", () => {
   });
 
   it("carries the admin bit GitHub gave per repository into the allowed set", async () => {
-    answerWalks();
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID]),
     );
 
-    const resolved = await resolver.listAllowedRepos(
-      await stubPrincipal(),
-      log,
-    );
+    const resolved = await resolver.listAllowedRepos(await bindRequest(), log);
 
     expect(resolved.ok && resolved.value.allowed.get(ACME_REPO)).toEqual({
       installationId: ACME_ID,
@@ -220,14 +232,11 @@ describe("the installation resolver", () => {
   });
 
   it("drops a repo outside every reachable installation to the owner world", async () => {
-    answerWalks();
-    const resolver = createInstallationResolver(
-      stubDeps(),
-      stubReachable([ACME_ID]),
-    );
+    arrangeInstallations();
+    const resolver = createInstallationResolver(stubReachable([ACME_ID]));
 
     const outside = await resolver.resolveInstallationForRepo(
-      await stubPrincipal(),
+      await bindRequest(),
       OCTO_REPO,
       log,
     );
@@ -236,20 +245,19 @@ describe("the installation resolver", () => {
   });
 
   it("walks every installation in parallel once and caches the union", async () => {
-    answerWalks();
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID]),
     );
-    const principal = await stubPrincipal();
+    const request = await bindRequest();
 
     await Promise.all([
-      resolver.listAllowedRepos(principal, log),
-      resolver.resolveInstallationForRepo(principal, OUTSIDE_REPO, log),
+      resolver.listAllowedRepos(request, log),
+      resolver.resolveInstallationForRepo(request, OUTSIDE_REPO, log),
     ]);
-    const again = await resolver.listAllowedRepos(principal, log);
+    const again = await resolver.listAllowedRepos(request, log);
 
-    expect(listInstallationRepositoriesForUser).toHaveBeenCalledTimes(2);
+    expect(listWalkedInstallations()).toEqual([ACME_ID, OCTO_ID]);
     expect(again.ok && [...again.value.allowed.keys()]).toEqual([
       ACME_REPO,
       OCTO_REPO,
@@ -257,60 +265,38 @@ describe("the installation resolver", () => {
   });
 
   it("fails the whole set when one installation's walk fails", async () => {
-    vi.mocked(listInstallationRepositoriesForUser).mockImplementation(
-      async (_octokit, installationId) =>
-        installationId === ACME_ID
-          ? { ok: true, value: new Map([[ACME_REPO, ACME_ONE]]) }
-          : {
-              ok: false,
-              error: {
-                code: GitHubApiErrorCodes.REQUEST_FAILED,
-                status: 502,
-                message: "down",
-              },
-            },
-    );
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID]),
     );
-    const principal = await stubPrincipal();
+    const request = failWalkOf(await bindRequest(), OCTO_ID, UPSTREAM_DOWN);
 
-    const failed = await resolver.listAllowedRepos(principal, log);
-    const retried = await resolver.listAllowedRepos(principal, log);
+    const failed = await resolver.listAllowedRepos(request, log);
+    const retried = await resolver.listAllowedRepos(request, log);
 
-    expect(failed.ok).toBe(false);
     expect(!failed.ok && failed.error.status).toBe(502);
-    expect(listInstallationRepositoriesForUser).toHaveBeenCalledTimes(4);
     expect(retried.ok).toBe(false);
+    expect(listWalkedInstallations()).toEqual([ACME_ID, ACME_ID]);
   });
 
   it("a denied installation is left out and the others still count", async () => {
-    vi.mocked(listInstallationRepositoriesForUser).mockImplementation(
-      async (_octokit, installationId) =>
-        installationId === OCTO_ID
-          ? {
-              ok: false,
-              error: {
-                code: GitHubApiErrorCodes.FORBIDDEN,
-                status: 403,
-                message: "saml",
-              },
-            }
-          : { ok: true, value: new Map([[ACME_REPO, ACME_ONE]]) },
-    );
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID, HOOLI_ID]),
     );
-    const principal = await stubPrincipal();
+    const denied: GitHubApiError = {
+      code: GitHubApiErrorCodes.FORBIDDEN,
+      status: 403,
+      message: "saml",
+    };
+    const request = failWalkOf(await bindRequest(), OCTO_ID, denied);
 
-    const allowed = await resolver.listAllowedRepos(principal, log);
+    const allowed = await resolver.listAllowedRepos(request, log);
 
     expect(allowed.ok && [...allowed.value.allowed.keys()]).toEqual([
       ACME_REPO,
     ]);
-    expect(listInstallationRepositoriesForUser).toHaveBeenCalledTimes(3);
+    expect(listWalkedInstallations()).toEqual([ACME_ID, HOOLI_ID]);
     expect(log.warn).toHaveBeenCalledWith(
       "installation walk denied, left out of the reachable set",
       expect.objectContaining({ installationId: String(OCTO_ID) }),
@@ -318,62 +304,67 @@ describe("the installation resolver", () => {
   });
 
   it("never starts the walks after the batch with the failed one", async () => {
-    vi.mocked(listInstallationRepositoriesForUser).mockImplementation(
-      async (_octokit, installationId) =>
-        installationId === OCTO_ID
-          ? {
-              ok: false,
-              error: {
-                code: GitHubApiErrorCodes.REQUEST_FAILED,
-                status: 502,
-                message: "down",
-              },
-            }
-          : { ok: true, value: new Map() },
-    );
+    arrangeInstallations();
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID, OCTO_ID, HOOLI_ID, INITECH_ID]),
     );
-    const principal = await stubPrincipal();
+    fake.failOn("listInstallationRepositories", FakeFailures.SERVER_ERROR);
 
-    const failed = await resolver.listAllowedRepos(principal, log);
+    const failed = await resolver.listAllowedRepos(await bindRequest(), log);
 
     expect(failed.ok).toBe(false);
-    const walked = vi
-      .mocked(listInstallationRepositoriesForUser)
-      .mock.calls.map(([, installationId]) => installationId);
-    expect(walked).toEqual([ACME_ID, OCTO_ID, HOOLI_ID]);
+    expect(listWalkedInstallations()).toEqual([ACME_ID, OCTO_ID, HOOLI_ID]);
   });
 
-  it("makes no repository walk when no installation is reachable", async () => {
-    answerWalks();
-    const resolver = createInstallationResolver(stubDeps(), stubReachable([]));
+  it("answers 401 on a walk whose token GitHub keeps refusing", async () => {
+    arrangeInstallations();
+    const resolver = createInstallationResolver(stubReachable([ACME_ID]));
+    fake.rejectToken("ghu_TOKEN");
 
-    const resolved = await resolver.listAllowedRepos(
-      await stubPrincipal(),
+    const failed = await resolver.listAllowedRepos(await bindRequest(), log);
+
+    expect(!failed.ok && failed.error.status).toBe(401);
+  });
+
+  it("answers 401 on a walk whose stored token will not decrypt", async () => {
+    arrangeInstallations();
+    const resolver = createInstallationResolver(stubReachable([ACME_ID]));
+    const principal = await stubPrincipal();
+    const unreadable = { ...principal, ghTokenCiphertext: "sealed" };
+
+    const failed = await resolver.listAllowedRepos(
+      await bindRequest(unreadable),
       log,
     );
 
+    expect(!failed.ok && failed.error.status).toBe(401);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("makes no repository walk when no installation is reachable", async () => {
+    arrangeInstallations();
+    const resolver = createInstallationResolver(stubReachable([]));
+
+    const resolved = await resolver.listAllowedRepos(await bindRequest(), log);
+
     expect(resolved.ok && resolved.value.allowed.size).toBe(0);
-    expect(listInstallationRepositoriesForUser).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 
   it("expires the union no later than the reachable set it came from", async () => {
     vi.useFakeTimers();
-    answerWalks();
+    arrangeInstallations();
     const SOON_MS = 5_000;
     const resolver = createInstallationResolver(
-      stubDeps(),
       stubReachable([ACME_ID], SOON_MS),
     );
-    const principal = await stubPrincipal();
+    const request = await bindRequest();
 
-    await resolver.listAllowedRepos(principal, log);
+    await resolver.listAllowedRepos(request, log);
     vi.advanceTimersByTime(SOON_MS + 1);
-    await resolver.listAllowedRepos(principal, log);
+    await resolver.listAllowedRepos(request, log);
 
-    expect(listInstallationRepositoriesForUser).toHaveBeenCalledTimes(2);
+    expect(listWalkedInstallations()).toEqual([ACME_ID, ACME_ID]);
     vi.useRealTimers();
   });
 
@@ -381,10 +372,10 @@ describe("the installation resolver", () => {
     const dead: AccessibleInstallationsResolver = {
       resolve: async () => ({ ok: false, error: { kind: "auth-dead" } }),
     };
-    const resolver = createInstallationResolver(stubDeps(), dead);
+    const resolver = createInstallationResolver(dead);
 
     const resolved = await resolver.resolveInstallationForRepo(
-      await stubPrincipal(),
+      await bindRequest(),
       ACME_REPO,
       log,
     );

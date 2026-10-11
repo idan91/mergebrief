@@ -1,7 +1,14 @@
-// GET /api/inbox over PGlite with GitHub stubbed: the envelope across an
-// installation and the viewer's own url rows, the defaults, a page past the
-// end, the signed-out and upstream-failure postures, and the live read
-// before the list.
+// GET /api/inbox over PGlite with GitHub on the `github/testing` fake: the
+// envelope across an installation and the viewer's own url rows, the
+// defaults, a page past the end, the signed-out and upstream-failure
+// postures, and the live read before the list.
+import {
+  CredentialKinds,
+  FakeFactsHidings,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -25,16 +32,19 @@ import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
   SECRET,
-  answerUserInstallations,
-  buildAuthDeps,
   buildOperatorToken,
   createKeyProvider,
-  getRequestUrl,
-  listSentTokens,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { spyPullRequestLookups } from "./pull-request-lookups";
+import { seedSignIn } from "./sign-in";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+  makeFakePullRequestInfo,
+  stubNoNetwork,
+} from "./reviewer-github";
 
 const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 111222;
@@ -43,6 +53,8 @@ const REPO_URL = 535353;
 const REPO_PRIVATE = 646464;
 const HEAD = "a".repeat(40);
 const APP_SLUG = "mergebrief-test";
+const REPO = { owner: "o", repo: "r" };
+const URL_PR_NUMBER = 7;
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -64,127 +76,66 @@ const OTHER_TENANT: ScopeContext = {
 };
 const OWNER: ScopeContext = { ownerUserId: REVIEWER };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-
-interface StubCounts {
-  installations: number;
-  graphql: number;
-}
-
 interface OpenListEntry {
   readonly number: number;
   readonly head: string;
   readonly base: string;
 }
 
-function answerOpenList(entries: readonly OpenListEntry[]): Response {
-  const repo = { name: "r", owner: { login: "o" } };
-  return jsonResponse(
-    entries.map((entry) => ({
-      number: entry.number,
-      title: `PR ${entry.number}`,
-      head: { ref: entry.head, repo },
-      base: { ref: entry.base, repo },
-    })),
-  );
+interface InboxGitHub {
+  /** The open pull requests GitHub lists for `o/r`. */
+  readonly openList?: readonly OpenListEntry[];
+  /** Repositories the walk reports the viewer administers. */
+  readonly adminRepoIds?: readonly number[];
 }
 
 /**
- * `GET /user/installations` answers the reachable set; GraphQL the live
- * read; the repo's open list the stacks, empty unless a test hands one.
+ * The viewer reaches the suites' installation, whose walk holds `o/r`; the
+ * repo's open list holds `openList`, and no repo is listed without one.
  */
-function stubGitHub(
-  installationsStatus = 200,
-  repositoriesStatus = 200,
-  openList: readonly OpenListEntry[] | number = [],
-  adminRepoIds: readonly number[] = [],
-): StubCounts {
-  const counts: StubCounts = { installations: 0, graphql: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.endsWith("/user/installations?per_page=100")) {
-        counts.installations += 1;
-        if (installationsStatus !== 200) {
-          return jsonResponse({ message: "down" }, installationsStatus);
-        }
-        return answerUserInstallations([INSTALLATION_ID]);
-      }
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        if (repositoriesStatus !== 200) {
-          return jsonResponse({ message: "down" }, repositoriesStatus);
-        }
-        return jsonResponse({
-          total_count: 1,
-          repositories: [
-            {
-              id: REPO_A,
-              full_name: "o/r",
-              permissions: { admin: adminRepoIds.includes(REPO_A) },
-            },
-          ],
-        });
-      }
-      if (/\/repos\/[^/]+\/[^/]+\/pulls\?/.test(url)) {
-        if (typeof openList === "number") {
-          return jsonResponse({ message: "down" }, openList);
-        }
-        return answerOpenList(openList);
-      }
-      if (url.endsWith("/graphql")) {
-        counts.graphql += 1;
-        return jsonResponse({
-          data: {
-            p0: {
-              databaseId: REPO_URL,
-              nameWithOwner: "o/url",
-              pullRequest: {
-                state: "OPEN",
-                isDraft: false,
-                title: "Live title",
-                closedAt: null,
-                updatedAt: "2026-09-20T10:00:00Z",
-                headRefOid: HEAD,
-                author: { login: "octocat" },
-              },
-            },
-          },
-        });
-      }
-      throw new Error(`unexpected fetch in inbox suite: ${url}`);
-    }),
+function arrangeGitHub(fake: FakeGitHub, options: InboxGitHub = {}): void {
+  const viewerIsAdmin = options.adminRepoIds?.includes(REPO_A) ?? false;
+  fake.addInstallation(
+    {
+      installationId: brand(isInstallationId, INSTALLATION_ID),
+      accountLogin: `org-${INSTALLATION_ID}`,
+    },
+    new Map([[brand(isRepoId, REPO_A), { fullName: "o/r", viewerIsAdmin }]]),
   );
-  return counts;
+  for (const entry of options.openList ?? []) {
+    const info = {
+      ...makeFakePullRequestInfo({ repoId: REPO_A }),
+      title: `PR ${entry.number}`,
+      headRef: entry.head,
+      baseRef: entry.base,
+    };
+    fake.addPullRequest({ ...REPO, prNumber: entry.number }, { info });
+  }
+}
+
+/** The pasted pull request as GitHub holds it now, for the live read. */
+function arrangeLiveUrlPull(fake: FakeGitHub): void {
+  const info = {
+    ...makeFakePullRequestInfo({ repoId: REPO_URL }),
+    repoFullName: "o/url",
+    title: "Live title",
+    headSha: HEAD,
+    updatedAt: new Date("2026-09-20T10:00:00Z"),
+  };
+  fake.addPullRequest({ ...REPO, prNumber: URL_PR_NUMBER }, { info });
 }
 
 /** The live read shows the viewer's own token no pull request at all. */
-function hideLiveReadFromViewer(): void {
-  const answer = vi.mocked(fetch).getMockImplementation();
-  vi.mocked(fetch).mockImplementation(async (input, init) => {
-    const headers = new Headers(init?.headers);
-    const fromViewer = headers.get("authorization")?.endsWith(ACCESS_TOKEN);
-    const viewerGraphqlRead =
-      getRequestUrl(input).endsWith("/graphql") && fromViewer === true;
-    if (viewerGraphqlRead) {
-      return jsonResponse({ data: { p0: null } });
-    }
-    if (answer === undefined) {
-      throw new Error("stubGitHub must run first");
-    }
-    return answer(input, init);
-  });
+function hideLiveReadFromViewer(fake: FakeGitHub): void {
+  fake.hideFacts(
+    { ...REPO, prNumber: URL_PR_NUMBER },
+    CredentialKinds.REVIEWER,
+    FakeFactsHidings.NOT_SHOWN,
+  );
+}
+
+function countLiveReads(fake: FakeGitHub): number {
+  return fake.listCalls("readPullRequestFacts").length;
 }
 
 interface SeedInput {
@@ -271,16 +222,19 @@ describe("GET /api/inbox", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
+    stubNoNetwork();
     resetLiveReadMemory();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       githubAppSlug: APP_SLUG,
     });
@@ -309,20 +263,22 @@ describe("GET /api/inbox", () => {
   }
 
   it("401s a signed-out viewer without calling GitHub", async () => {
-    const counts = stubGitHub();
+    arrangeGitHub(fake);
 
     const res = await get("/api/inbox");
 
     expect(res.status).toBe(401);
-    expect(counts.installations).toBe(0);
+    expect(fake.calls).toEqual([]);
   });
 
   it("a row's stack comes from the repository's live open list", async () => {
-    stubGitHub(200, 200, [
-      { number: 7, head: "feat/one", base: "main" },
-      { number: 8, head: "feat/two", base: "feat/one" },
-      { number: 9, head: "feat/three", base: "feat/two" },
-    ]);
+    arrangeGitHub(fake, {
+      openList: [
+        { number: 7, head: "feat/one", base: "main" },
+        { number: 8, head: "feat/two", base: "feat/one" },
+        { number: 9, head: "feat/three", base: "feat/two" },
+      ],
+    });
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 3 });
@@ -338,7 +294,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("a merged row keeps its recorded stack when the open list is refused", async () => {
-    stubGitHub(200, 200, 404);
+    arrangeGitHub(fake);
+    fake.failOn("listOpenPullRequests", FakeFailures.NOT_FOUND);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
@@ -363,7 +320,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("an open row shows no recorded stack when the open list is refused", async () => {
-    stubGitHub(200, 200, 404);
+    arrangeGitHub(fake);
+    fake.failOn("listOpenPullRequests", FakeFailures.NOT_FOUND);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
@@ -385,7 +343,9 @@ describe("GET /api/inbox", () => {
   });
 
   it("a reopened row the live list holds on its own clears its record", async () => {
-    stubGitHub(200, 200, [{ number: 8, head: "feat/one", base: "main" }]);
+    arrangeGitHub(fake, {
+      openList: [{ number: 8, head: "feat/one", base: "main" }],
+    });
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     const pr = await seedPr(harness.handle, {
       ctx: TENANT,
@@ -410,7 +370,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("lists the reachable installation's rows and the viewer's url rows", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     const tenantRow = await seedPr(harness.handle, {
       ctx: TENANT,
@@ -435,9 +395,12 @@ describe("GET /api/inbox", () => {
       title: "unreachable installation",
     });
 
+    const lookups = spyPullRequestLookups(harness);
+
     const res = await get("/api/inbox", cookie);
 
     expect(res.status).toBe(200);
+    expect(lookups.count()).toBe(0);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await readBody(res);
     expect(body.items.map((item) => item["title"])).toEqual([
@@ -497,7 +460,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("an installation row the viewer administers on GitHub can be deleted", async () => {
-    stubGitHub(200, 200, [], [REPO_A]);
+    arrangeGitHub(fake, { adminRepoIds: [REPO_A] });
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
@@ -512,13 +475,13 @@ describe("GET /api/inbox", () => {
   });
 
   it("an app composed without a slug serves no install link", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     const slugless = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
 
@@ -531,7 +494,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("a page past the end carries no items and the true total", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
@@ -546,7 +509,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("filters read repeated keys and refuse a value outside the vocabulary", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, {
       ctx: TENANT,
@@ -577,7 +540,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("no state key on the wire reads as open and draft", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     const merged = await seedPr(harness.handle, {
@@ -603,7 +566,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("a repository the viewer cannot read stays off the list", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     await seedPr(harness.handle, {
@@ -622,7 +585,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("a caller's installation or repo filter cannot widen the reach", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
     await seedPr(harness.handle, {
@@ -647,7 +610,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("a dead token on the installations check is a 401", async () => {
-    stubGitHub(401);
+    arrangeGitHub(fake);
+    fake.failOn("listUserInstallations", FakeFailures.UNAUTHORIZED);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await get("/api/inbox", cookie);
@@ -655,8 +619,27 @@ describe("GET /api/inbox", () => {
     expect(res.status).toBe(401);
   });
 
+  it("a token that will not decrypt is a 401 and burns the session", async () => {
+    arrangeGitHub(fake);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER,
+    });
+    await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(401);
+    expect(fake.calls).toEqual([]);
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [cookieHash],
+    );
+    expect(sessions).toEqual([]);
+  });
+
   it("a dead token on the repositories walk is a 401", async () => {
-    stubGitHub(200, 401);
+    arrangeGitHub(fake);
+    fake.failOn("listInstallationRepositories", FakeFailures.UNAUTHORIZED);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const res = await get("/api/inbox", cookie);
@@ -665,7 +648,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("a GitHub failure on the repositories walk fails the list", async () => {
-    stubGitHub(200, 422);
+    arrangeGitHub(fake);
+    fake.failOn("listInstallationRepositories", FakeFailures.SERVER_ERROR);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
@@ -676,7 +660,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("a denied repositories walk leaves that installation out, not the list", async () => {
-    stubGitHub(200, 403);
+    arrangeGitHub(fake);
+    fake.failOn("listInstallationRepositories", FakeFailures.FORBIDDEN);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
@@ -687,7 +672,7 @@ describe("GET /api/inbox", () => {
   });
 
   it("an oversized id or page is a 400, never a database error", async () => {
-    stubGitHub();
+    arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
 
     const repo = await get("/api/inbox?repo=9999999999999999999", cookie);
@@ -706,7 +691,8 @@ describe("GET /api/inbox", () => {
   });
 
   it("a GitHub failure on the installations check fails the list", async () => {
-    stubGitHub(403);
+    arrangeGitHub(fake);
+    fake.failOn("listUserInstallations", FakeFailures.FORBIDDEN);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
 
@@ -721,15 +707,16 @@ describe("GET /api/inbox", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       operatorToken: buildOperatorToken(OPERATOR_PAT, reviewerIds),
     });
   }
 
   it("retries a listed viewer's live read on the operator token", async () => {
-    stubGitHub();
-    hideLiveReadFromViewer();
+    arrangeGitHub(fake);
+    arrangeLiveUrlPull(fake);
+    hideLiveReadFromViewer(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
     app = buildAppWithOperatorToken([Number(REVIEWER)]);
@@ -737,15 +724,39 @@ describe("GET /api/inbox", () => {
     const res = await get("/api/inbox", cookie);
 
     expect(res.status).toBe(200);
-    expect(listSentTokens()).toContain(OPERATOR_PAT);
+    expect(listFakeCallTokens(fake)).toContain(OPERATOR_PAT);
     expect((await readBody(res)).items[0]).toMatchObject({
       title: "Live title",
     });
   });
 
+  it("reads the open lists on the viewer's token alone", async () => {
+    arrangeGitHub(fake, {
+      openList: [{ number: 8, head: "feat/one", base: "main" }],
+    });
+    fake.failOn(
+      "listOpenPullRequests",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
+    app = buildAppWithOperatorToken([Number(REVIEWER)]);
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    expect((await readBody(res)).items[0]?.["stack"]).toBeNull();
+    const listings = fake.listCalls("listOpenPullRequests");
+    expect(listings.map((call) => call.credential.kind)).toEqual([
+      CredentialKinds.REVIEWER,
+    ]);
+  });
+
   it("never sends the operator token for an unlisted viewer", async () => {
-    stubGitHub();
-    hideLiveReadFromViewer();
+    arrangeGitHub(fake);
+    arrangeLiveUrlPull(fake);
+    hideLiveReadFromViewer(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, { ctx: OWNER, repoId: REPO_URL, prNumber: 7 });
     app = buildAppWithOperatorToken([Number(REVIEWER) + 1]);
@@ -753,12 +764,13 @@ describe("GET /api/inbox", () => {
     const res = await get("/api/inbox", cookie);
 
     expect(res.status).toBe(200);
-    expect(listSentTokens()).not.toContain(OPERATOR_PAT);
+    expect(listFakeCallTokens(fake)).not.toContain(OPERATOR_PAT);
     expect((await readBody(res)).items[0]).toMatchObject({ title: "PR 7" });
   });
 
   it("reads a stale url row live before listing it", async () => {
-    const counts = stubGitHub();
+    arrangeGitHub(fake);
+    arrangeLiveUrlPull(fake);
     const { cookie } = await seedSignIn(harness.handle, kp, { scope: OWNER });
     await seedPr(harness.handle, {
       ctx: OWNER,
@@ -770,7 +782,7 @@ describe("GET /api/inbox", () => {
     const res = await get("/api/inbox", cookie);
 
     expect(res.status).toBe(200);
-    expect(counts.graphql).toBe(1);
+    expect(countLiveReads(fake)).toBe(1);
     const body = await readBody(res);
     expect(body.items[0]).toMatchObject({
       title: "Live title",

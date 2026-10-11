@@ -3,12 +3,10 @@
 // ownership under the viewer's owner scope is the wall, so a pasted row
 // whose repository nobody can read any more still goes, and the erase
 // cascades every artifact.
-import { randomBytes, createHash } from "node:crypto";
+import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createArtifactStore,
-  createGrantAuth,
   createTenantRepository,
-  encryptToken,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -24,18 +22,19 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
+import { SECRET, createKeyProvider, SAME_ORIGIN_HEADERS } from "./fixtures";
 import {
-  KEY_REF,
-  SECRET,
-  buildAuthDeps,
-  createKeyProvider,
-  SAME_ORIGIN_HEADERS,
-} from "./fixtures";
+  spyPullRequestLookups,
+  type PullRequestLookups,
+} from "./pull-request-lookups";
 import { seedApiToken } from "./session/fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  stubNoNetwork,
+} from "./reviewer-github";
+import { seedSignIn } from "./sign-in";
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const REPO_ID_NUM = 424242;
 const PR_NUMBER = 7;
 
@@ -58,33 +57,6 @@ const OTHER_OWNER_CTX: ScopeContext = { ownerUserId: OTHER_REVIEWER };
 const TENANT_CTX: ScopeContext = {
   installationId: brand(isInstallationId, 987654),
 };
-
-async function seedOwnerSession(
-  handle: AppDatabase,
-  kp: KeyProvider,
-): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const hash = createHash("sha256").update(cookie).digest("hex");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, OWNER_CTX).sessions.create({
-    sessionTokenHash: hash,
-    reviewerId: REVIEWER,
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  return cookie;
-}
 
 async function seedBriefedPr(
   handle: AppDatabase,
@@ -140,37 +112,27 @@ async function countRows(
   return (await harness.raw(`select id from ${table}`)).length;
 }
 
-/** No GitHub call belongs on this path; any fetch is a test failure. */
-function stubNoGitHub(): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: unknown) => {
-      throw new Error(
-        `unexpected fetch in the own-pull delete suite: ${String(
-          input instanceof Request ? input.url : input,
-        )}`,
-      );
-    }),
-  );
-}
-
 describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let app: ApiApp;
+  let fake: FakeGitHub;
+  let lookups: PullRequestLookups;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
+    lookups = spyPullRequestLookups(harness);
     const deps: AppDeps = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     };
     app = createApp(deps);
-    stubNoGitHub();
+    stubNoNetwork();
   });
 
   afterEach(async () => {
@@ -190,12 +152,16 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("erases the viewer's own pasted row with no GitHub call", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER_CTX,
+    });
 
     const res = await del(cookie);
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
+    expect(fake.calls).toEqual([]);
+    expect(lookups.count()).toBe(1);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "brief")).toBe(0);
     const audits = await readAudits(harness);
@@ -218,7 +184,9 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("a tenant row at the same coordinates is an indistinguishable 404", async () => {
     await seedBriefedPr(harness.handle, TENANT_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER_CTX,
+    });
 
     const res = await del(cookie);
 
@@ -229,7 +197,9 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("another reviewer's pasted row at the coordinates survives", async () => {
     await seedBriefedPr(harness.handle, OTHER_OWNER_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER_CTX,
+    });
 
     const res = await del(cookie);
 
@@ -257,7 +227,9 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
   it("a cross-origin cookie request is forbidden", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER_CTX,
+    });
 
     const res = await del(cookie, {
       "sec-fetch-site": "cross-site",
@@ -269,7 +241,9 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   });
 
   it("a malformed repository id is a 404, a bad number a 400", async () => {
-    const cookie = await seedOwnerSession(harness.handle, kp);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: OWNER_CTX,
+    });
 
     const bad = await app.request("/api/inbox/not-an-id/7", {
       method: "DELETE",

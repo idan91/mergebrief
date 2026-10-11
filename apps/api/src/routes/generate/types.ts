@@ -1,34 +1,23 @@
-// The url-box door's internal shapes. The old in-process UrlBriefEngine port
-// is gone: this door only resolves the pasted PR with the viewer's token,
-// upserts the owner-scoped row, and enqueues the worker job.
-import type { GitHubApiError } from "github";
+import type { GitHubCallFailure, GitHubReader } from "github";
 import type { Logger } from "logging";
 import type { AppDatabase, PullRequestRowId } from "persistence";
-import type { ReviewerGitHubClient } from "../auth/reviewer-github-client";
-import type {
-  GitHubDeniedFailure,
-  TokenUnreadableFailure,
-} from "../../shared-errors/failures";
+import type { GitHubDeniedFailure } from "../../shared-errors/failures";
 
-export interface GenerateControllerDeps {
+/** Narrow slices only, never `AppDeps`. */
+export interface GenerateBriefDeps {
   readonly handle: AppDatabase;
-  /** The per-request reviewer channel, one refresh budget for the resolve. */
-  readonly github: ReviewerGitHubClient;
   /**
-   * Operator PAT backstop: a GitHub App user token is installation-scoped
-   * and cannot read a private repo the App is not installed on, even for the
-   * repo's owner. Tried once, only after a NOT_FOUND/FORBIDDEN denial. The
-   * worker holds the same backstop for the generation reads.
+   * The operator's read-only GitHub for a listed reviewer: a GitHub App user
+   * token cannot read a private repo the App is not installed on, even for
+   * the repo's owner. Asked once, only after the viewer's read is denied.
    */
-  readonly fallbackToken?: string;
-  /** Operator-facing lines only: a rejected backstop credential. */
+  readonly operator: GitHubReader | undefined;
+  /** Operator-facing lines only: a rejected operator credential. */
   readonly log: Logger;
 }
 
-/** Result-side failures of the generate op; the handler owns the posture. */
-export type GenerateFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>;
+/** The paste's one GitHub read, refused; the handler owns the posture. */
+export type GenerateFailure = GitHubDeniedFailure<GitHubCallFailure>;
 
 /** What the door returns: where the brief will render, for polling. */
 export interface GenerateAccepted {
@@ -36,7 +25,7 @@ export interface GenerateAccepted {
   readonly prNumber: number;
 }
 
-/** The controller's result: the wire shape plus the audit-stamp row id. */
+/** The operation's result: the wire shape plus the audit-stamp row id. */
 export interface GenerateOutcome extends GenerateAccepted {
   readonly pullRequestId: PullRequestRowId;
 }

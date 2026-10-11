@@ -3,15 +3,13 @@
 // positive results are cached 60 s per credential, one walk at a time per
 // credential, and a failure is never cached.
 import {
+  CredentialFailureCodes,
   GitHubApiErrorCodes,
-  listUserInstallations,
   type UserInstallation,
 } from "github";
-import type { Logger } from "logging";
-import { createSessionAuth } from "persistence";
 import type { Result } from "types/utils";
-import { createReviewerGitHubClient } from "./reviewer-github-client";
-import type { AuthRouteDeps, ViewerPrincipal } from "./session/types";
+import type { RequestGitHub } from "../../access/reviewer-binding";
+import type { ViewerPrincipal } from "./session/types";
 import { AUTHZ_CACHE_TTL_MS } from "../../access/consts";
 import { createTtlCache } from "../ttl-cache";
 
@@ -45,35 +43,25 @@ export type AccessibleSetResolution = Result<
 >;
 
 export interface AccessibleInstallationsResolver {
-  /** Resolve the viewer's reachable set (cache, then GitHub with refresh-once). */
-  resolve(
-    session: ViewerPrincipal,
-    log: Logger,
-  ): Promise<AccessibleSetResolution>;
+  /** Resolve the viewer's reachable set (cache, then GitHub on the request's binding). */
+  resolve(request: RequestGitHub): Promise<AccessibleSetResolution>;
 }
 
 /**
- * `auth-dead` = re-login territory (unreadable stored token, which burns
- * the session, same posture as the repo gate; or a still-unauthorized
- * GitHub answer); `upstream-failed` = GitHub upstream error.
+ * `auth-dead` = re-login territory (an unreadable stored token, which the
+ * credential answers by burning the session, or a still-unauthorized GitHub
+ * answer); `upstream-failed` = GitHub upstream error.
  */
 async function fetchAccessibleInstallations(
-  deps: AuthRouteDeps,
-  session: ViewerPrincipal,
-  log: Logger,
+  request: RequestGitHub,
 ): Promise<AccessibleSetResolution> {
-  const client = createReviewerGitHubClient(deps, session, log);
-  const result = await client.run((accessToken) =>
-    listUserInstallations(accessToken),
-  );
-  if (!result.ok) {
-    if (result.tokenUnreadable) {
-      await createSessionAuth(deps.handle).deleteSession(
-        session.sessionTokenHash,
-      );
-      return { ok: false, error: { kind: "auth-dead" } };
-    }
-    if (result.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
+  const listed = await request.github.listUserInstallations();
+  if (!listed.ok) {
+    const code = listed.error.code;
+    const authDead =
+      code === CredentialFailureCodes.CREDENTIAL_UNREADABLE ||
+      code === GitHubApiErrorCodes.UNAUTHORIZED;
+    if (authDead) {
       return { ok: false, error: { kind: "auth-dead" } };
     }
     return { ok: false, error: { kind: "upstream-failed" } };
@@ -81,38 +69,33 @@ async function fetchAccessibleInstallations(
   return {
     ok: true,
     value: {
-      installations: result.value,
-      session: client.session(),
+      installations: listed.value,
+      session: request.credential.session(),
       expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS,
     },
   };
 }
 
 /** Build the shared resolver. ONE instance per app; the cache is its identity. */
-export function createAccessibleInstallationsResolver(
-  deps: AuthRouteDeps,
-): AccessibleInstallationsResolver {
+export function createAccessibleInstallationsResolver(): AccessibleInstallationsResolver {
   const cache = createTtlCache<CachedSet>(INSTALLATIONS_CACHE_MAX_ENTRIES);
   const inFlight = new Map<string, Promise<AccessibleSetResolution>>();
 
   async function walk(
-    session: ViewerPrincipal,
-    log: Logger,
+    request: RequestGitHub,
+    cacheKey: string,
   ): Promise<AccessibleSetResolution> {
-    const resolved = await fetchAccessibleInstallations(deps, session, log);
+    const resolved = await fetchAccessibleInstallations(request);
     if (resolved.ok) {
       const { installations, expiresAt } = resolved.value;
-      cache.set(
-        session.sessionTokenHash,
-        { installations, expiresAt },
-        expiresAt,
-      );
+      cache.set(cacheKey, { installations, expiresAt }, expiresAt);
     }
     return resolved;
   }
 
   return {
-    async resolve(session, log) {
+    async resolve(request) {
+      const session = request.credential.session();
       const cacheKey = session.sessionTokenHash;
       const cached = cache.get(cacheKey);
       if (cached !== undefined) {
@@ -130,7 +113,7 @@ export function createAccessibleInstallationsResolver(
       if (pending !== undefined) {
         return pending;
       }
-      const started = walk(session, log);
+      const started = walk(request, cacheKey);
       inFlight.set(cacheKey, started);
       try {
         return await started;

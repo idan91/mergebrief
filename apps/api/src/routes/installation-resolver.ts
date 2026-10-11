@@ -7,25 +7,19 @@
 // fail-closed path: a GitHub failure is a 401/502, NEVER a DB-only listing,
 // and a repo in no reachable installation drops to the viewer's own URL rows.
 import {
+  CredentialFailureCodes,
   GitHubApiErrorCodes,
-  listInstallationRepositoriesForUser,
-  type GitHubApiError,
+  type GitHubCallFailure,
   type InstallationRepository,
+  type UserInstallation,
 } from "github";
 import type { Logger } from "logging";
-import {
-  createSessionAuth,
-  type InstallationId,
-  type RepoId,
-} from "persistence";
+import type { InstallationId, RepoId } from "persistence";
 import { HttpStatuses, type Result } from "types";
 import type { AccessibleInstallationsResolver } from "./auth/accessible-installations";
-import {
-  createReviewerGitHubClient,
-  type GitHubCallOutcome,
-} from "./auth/reviewer-github-client";
-import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
+import type { ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
+import type { RequestGitHub } from "../access/reviewer-binding";
 import { runInBatches } from "./batches";
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createTtlCache } from "./ttl-cache";
@@ -68,13 +62,16 @@ interface CachedAllowed {
 }
 
 /**
- * Failure carries the HTTP status the route must return: 401 (auth dead) or
- * 502 (GitHub upstream); the caller NEVER falls back to the DB.
+ * The HTTP status the route must return: 401 (auth dead) or 502 (GitHub
+ * upstream); the caller NEVER falls back to the DB.
  */
-export type AllowedRepoResolution = Result<
-  AllowedRepos,
-  { status: typeof HttpStatuses.UNAUTHORIZED | typeof HttpStatuses.BAD_GATEWAY }
->;
+export interface ResolverFailure {
+  readonly status:
+    | typeof HttpStatuses.UNAUTHORIZED
+    | typeof HttpStatuses.BAD_GATEWAY;
+}
+
+export type AllowedRepoResolution = Result<AllowedRepos, ResolverFailure>;
 
 /** The world a repository lives in for this credential. */
 export type RepoWorld =
@@ -88,36 +85,46 @@ export interface ResolvedRepoWorld {
   readonly expiresAt: number;
 }
 
-export type RepoWorldResolution = Result<
-  ResolvedRepoWorld,
-  { status: typeof HttpStatuses.UNAUTHORIZED | typeof HttpStatuses.BAD_GATEWAY }
->;
+export type RepoWorldResolution = Result<ResolvedRepoWorld, ResolverFailure>;
 
 export interface InstallationResolver {
   /** The installation holding `repoId`, or the owner world when none does. */
   resolveInstallationForRepo(
-    session: ViewerPrincipal,
+    request: RequestGitHub,
     repoId: RepoId,
     log: Logger,
   ): Promise<RepoWorldResolution>;
   /** Every repository the viewer reaches through an installation. */
   listAllowedRepos(
-    session: ViewerPrincipal,
+    request: RequestGitHub,
     log: Logger,
   ): Promise<AllowedRepoResolution>;
 }
 
 interface InstallationWalk {
   readonly installationId: InstallationId;
-  readonly repos: GitHubCallOutcome<unknown, GitHubApiError>;
+  readonly repos: Result<
+    ReadonlyMap<RepoId, InstallationRepository>,
+    GitHubCallFailure
+  >;
 }
 
 /** GitHub refused this one installation to the viewer; the others still count. */
 function isDeniedWalk(walk: InstallationWalk): boolean {
-  if (walk.repos.ok || walk.repos.tokenUnreadable) {
-    return false;
+  return !walk.repos.ok && isGitHubDenial(walk.repos.error);
+}
+
+/** A dead token is re-login (the credential already burned an unreadable one). */
+function resolveWalkFailureStatus(
+  failure: GitHubCallFailure,
+): ResolverFailure["status"] {
+  const authDead =
+    failure.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE ||
+    failure.code === GitHubApiErrorCodes.UNAUTHORIZED;
+  if (authDead) {
+    return HttpStatuses.UNAUTHORIZED;
   }
-  return isGitHubDenial(walk.repos.error);
+  return HttpStatuses.BAD_GATEWAY;
 }
 
 function mergeAllowedRepos(
@@ -142,11 +149,43 @@ function mergeAllowedRepos(
 }
 
 /**
+ * One failed walk fails the whole set, so the walks after it are never
+ * started: a dead token or a GitHub outage costs one batch, not every one.
+ * A denied installation (suspended, SAML-gated) is left out instead, which
+ * is less access, never more. Every walk rides the request's one binding, so
+ * an expired token renews once and every later walk runs on the new one.
+ */
+async function walkInstallations(
+  request: RequestGitHub,
+  installations: readonly UserInstallation[],
+  log: Logger,
+): Promise<InstallationWalk[]> {
+  const walks = await runInBatches(
+    installations,
+    WALK_CONCURRENCY,
+    async ({ installationId }) => {
+      const repos =
+        await request.github.listInstallationRepositories(installationId);
+      return { installationId, repos };
+    },
+    (walk) => !walk.repos.ok && !isDeniedWalk(walk),
+  );
+  for (const walk of walks) {
+    if (!walk.repos.ok && isDeniedWalk(walk)) {
+      log.warn("installation walk denied, left out of the reachable set", {
+        installationId: String(walk.installationId),
+        code: walk.repos.error.code,
+      });
+    }
+  }
+  return walks;
+}
+
+/**
  * Build the shared resolver. ONE instance per app; the cache identity is what
  * makes the list routes and the gate share walks.
  */
 export function createInstallationResolver(
-  deps: AuthRouteDeps,
   installations: AccessibleInstallationsResolver,
 ): InstallationResolver {
   const cache = createTtlCache<CachedAllowed>(ALLOWED_SET_CACHE_MAX_ENTRIES);
@@ -155,10 +194,11 @@ export function createInstallationResolver(
   const inFlight = new Map<string, Promise<AllowedRepoResolution>>();
 
   async function fetchAllowedSet(
-    session: ViewerPrincipal,
+    request: RequestGitHub,
+    cacheKey: string,
     log: Logger,
   ): Promise<AllowedRepoResolution> {
-    const reachable = await installations.resolve(session, log);
+    const reachable = await installations.resolve(request);
     if (!reachable.ok) {
       const status =
         reachable.error.kind === "auth-dead"
@@ -167,56 +207,14 @@ export function createInstallationResolver(
       return { ok: false, error: { status } };
     }
 
-    // One client for every walk: the request's single refresh is shared, so
-    // an expired token rotates once and every walk re-runs on the new one.
-    const client = createReviewerGitHubClient(
-      deps,
-      reachable.value.session,
+    const walks = await walkInstallations(
+      request,
+      reachable.value.installations,
       log,
     );
-    // One failed walk fails the whole set, so the walks after it are never
-    // started: a dead token or a GitHub outage costs one batch, not every one.
-    // A denied installation (suspended, SAML-gated) is left out instead,
-    // which is less access, never more.
-    const walks = await runInBatches(
-      reachable.value.installations,
-      WALK_CONCURRENCY,
-      async ({ installationId }) => {
-        const repos = await client.run((accessToken) =>
-          listInstallationRepositoriesForUser(
-            client.createOctokit(accessToken),
-            installationId,
-          ),
-        );
-        return { installationId, repos };
-      },
-      (walk) => !walk.repos.ok && !isDeniedWalk(walk),
-    );
-    for (const walk of walks) {
-      if (isDeniedWalk(walk) && !walk.repos.ok && !walk.repos.tokenUnreadable) {
-        log.warn("installation walk denied, left out of the reachable set", {
-          installationId: String(walk.installationId),
-          code: walk.repos.error.code,
-        });
-      }
-    }
-
     const failed = walks.find((walk) => !walk.repos.ok && !isDeniedWalk(walk));
     if (failed !== undefined && !failed.repos.ok) {
-      if (failed.repos.tokenUnreadable) {
-        // Unreadable token burns the session; same posture as the repo
-        // gate. (On the Bearer channel this delete is a no-op by hash
-        // namespace; the api_token row stays for its owner to see and
-        // revoke.)
-        await createSessionAuth(deps.handle).deleteSession(
-          session.sessionTokenHash,
-        );
-        return { ok: false, error: { status: HttpStatuses.UNAUTHORIZED } };
-      }
-      const status =
-        failed.repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED
-          ? HttpStatuses.UNAUTHORIZED
-          : HttpStatuses.BAD_GATEWAY;
+      const status = resolveWalkFailureStatus(failed.repos.error);
       return { ok: false, error: { status } };
     }
 
@@ -231,17 +229,16 @@ export function createInstallationResolver(
       Date.now() + AUTHZ_CACHE_TTL_MS,
       reachable.value.expiresAt,
     );
-    cache.set(session.sessionTokenHash, { allowed, expiresAt }, expiresAt);
-    return {
-      ok: true,
-      value: { allowed, session: client.session(), expiresAt },
-    };
+    cache.set(cacheKey, { allowed, expiresAt }, expiresAt);
+    const session = request.credential.session();
+    return { ok: true, value: { allowed, session, expiresAt } };
   }
 
   async function listAllowedRepos(
-    session: ViewerPrincipal,
+    request: RequestGitHub,
     log: Logger,
   ): Promise<AllowedRepoResolution> {
+    const session = request.credential.session();
     const cacheKey = session.sessionTokenHash;
     const cached = cache.get(cacheKey);
     if (cached !== undefined) {
@@ -259,7 +256,7 @@ export function createInstallationResolver(
     if (pending !== undefined) {
       return pending;
     }
-    const walk = fetchAllowedSet(session, log);
+    const walk = fetchAllowedSet(request, cacheKey, log);
     inFlight.set(cacheKey, walk);
     try {
       return await walk;
@@ -271,8 +268,8 @@ export function createInstallationResolver(
   return {
     listAllowedRepos,
 
-    async resolveInstallationForRepo(session, repoId, log) {
-      const resolved = await listAllowedRepos(session, log);
+    async resolveInstallationForRepo(request, repoId, log) {
+      const resolved = await listAllowedRepos(request, log);
       if (!resolved.ok) {
         return resolved;
       }

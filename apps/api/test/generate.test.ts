@@ -1,15 +1,18 @@
 // POST /api/generate route tests: the url-box door end to end over PGlite,
-// viewer-token resolve (GitHub stubbed at global fetch), owner-scoped
-// upsert, and the enqueued worker job. Harness mirrors installations.test.ts.
-import { randomBytes, createHash } from "node:crypto";
+// viewer-token resolve on the `github/testing` fake, owner-scoped upsert,
+// and the enqueued worker job. The read-backs pass the repo gate, whose own
+// reads still go over `fetch`.
 import {
-  encryptToken,
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
+import {
   createTenantRepository,
-  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  type AppDatabase,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
@@ -17,24 +20,26 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
-  KEY_REF,
   SECRET,
-  buildAuthDeps,
   buildOperatorToken,
   createKeyProvider,
-  listSentTokens,
-  answerInstallationRepositories,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  ROTATED_ACCESS_TOKEN,
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+  makeFakePullRequestInfo,
+  stubGateGitHub,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
-const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
-const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const PR_URL = "https://github.com/o/r/pull/7";
+const PR_REF = { owner: "o", repo: "r", prNumber: 7 };
 const HEAD = "a".repeat(40);
 const LIVE_HEAD = "c".repeat(40);
 const BASE = "b".repeat(40);
@@ -54,175 +59,47 @@ function brand<T extends bigint>(
 const REVIEWER: ReviewerId = brand(isReviewerId, 555);
 const OTHER_REVIEWER: ReviewerId = brand(isReviewerId, 556);
 
-/** An OWNER-world session with no installation: the url-box viewer's shape. */
-async function seedSession(
-  handle: AppDatabase,
+interface PastedPull {
+  readonly merged?: boolean;
+}
+
+/** The pasted pull request as GitHub holds it. */
+function arrangePastedPull(fake: FakeGitHub, pasted: PastedPull = {}): void {
+  const merged = pasted.merged === true;
+  const info = {
+    ...makeFakePullRequestInfo({ repoId: REPO_ID }),
+    repoFullName: "o/r",
+    headSha: HEAD,
+    baseSha: BASE,
+    state: merged ? ("closed" as const) : ("open" as const),
+    merged,
+    title: "Add thing",
+    htmlUrl: PR_URL,
+    commitCount: 3,
+    closedAt: merged ? new Date("2026-08-01T00:00:00Z") : null,
+    updatedAt: new Date("2026-09-20T10:00:00Z"),
+  };
+  fake.addPullRequest(PR_REF, { info });
+}
+
+/** The tokens the paste's pull request reads carried, in order. */
+function listPullReadTokens(fake: FakeGitHub): string[] {
+  return fake
+    .listCalls("fetchPullRequest")
+    .map((call) => ("token" in call.credential ? call.credential.token : ""));
+}
+
+/** An owner-world sign-in with no installation: the url-box viewer's shape. */
+async function seedOwnerSignIn(
+  harness: PgliteHarness,
   kp: KeyProvider,
   reviewer: ReviewerId = REVIEWER,
 ): Promise<string> {
-  const cookie = randomBytes(32).toString("base64url");
-  const hash = createHash("sha256").update(cookie).digest("hex");
-  const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-  await createTenantRepository(handle, {
-    ownerUserId: reviewer,
-  }).sessions.create({
-    sessionTokenHash: hash,
-    reviewerId: reviewer,
-    reviewerLogin: "octocat",
-    grantId: grant.id,
-    expiresAt: new Date("2027-01-01T00:00:00Z"),
+  const { cookie } = await seedSignIn(harness.handle, kp, {
+    scope: { ownerUserId: reviewer },
+    reviewer: { id: reviewer, login: "octocat" },
   });
   return cookie;
-}
-
-interface PrEndpointScript {
-  /** Status per bearer token; default 200 with the canned PR. */
-  byToken?: Record<string, number>;
-  merged?: boolean;
-  state?: string;
-  /** Answer the OAuth token endpoint with a rotated pair. */
-  tokenEndpoint?: boolean;
-}
-
-interface FetchCounts {
-  prCallTokens: string[];
-  /** GraphQL reads, the live read's calls. */
-  graphqlCalls: number;
-}
-
-function prJson(script: PrEndpointScript): unknown {
-  return {
-    head: { sha: HEAD },
-    base: {
-      sha: BASE,
-      repo: { id: REPO_ID, full_name: "o/r" },
-    },
-    state: script.state ?? "open",
-    draft: false,
-    merged: script.merged ?? false,
-    title: "Add thing",
-    body: "",
-    html_url: PR_URL,
-    commits: 3,
-    user: { login: "octocat" },
-    closed_at: script.merged === true ? "2026-08-01T00:00:00Z" : null,
-    updated_at: "2026-09-20T10:00:00Z",
-  };
-}
-
-function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
-  const counts: FetchCounts = { prCallTokens: [], graphqlCalls: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: unknown, init?: RequestInit) => {
-      const url = String(input instanceof Request ? input.url : input);
-      const headers = new Headers(
-        input instanceof Request ? input.headers : init?.headers,
-      );
-      if (
-        script.tokenEndpoint === true &&
-        url.includes("/login/oauth/access_token")
-      ) {
-        return new Response(
-          JSON.stringify({
-            access_token: ROTATED_ACCESS,
-            refresh_token: ROTATED_REFRESH,
-            expires_in: 28_800,
-            refresh_token_expires_in: 15_897_600,
-            token_type: "bearer",
-            scope: "",
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json; charset=utf-8",
-              date: new Date().toUTCString(),
-            },
-          },
-        );
-      }
-      const membership = answerInstallationRepositories(url, [REPO_ID]);
-      if (membership !== undefined) {
-        return membership;
-      }
-      if (url.endsWith("/graphql")) {
-        counts.graphqlCalls += 1;
-        return new Response(
-          JSON.stringify({
-            data: {
-              p0: {
-                databaseId: REPO_ID,
-                nameWithOwner: "o/r",
-                pullRequest: {
-                  state: "OPEN",
-                  isDraft: false,
-                  title: "Live title",
-                  closedAt: null,
-                  updatedAt: "2026-09-20T10:00:00Z",
-                  headRefOid: LIVE_HEAD,
-                  author: { login: "octocat" },
-                },
-              },
-            },
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json; charset=utf-8",
-              date: new Date().toUTCString(),
-            },
-          },
-        );
-      }
-      if (url.includes("/repositories/")) {
-        return new Response(
-          JSON.stringify({
-            full_name: "o/r",
-            private: false,
-            permissions: { push: false },
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json; charset=utf-8",
-              date: new Date().toUTCString(),
-            },
-          },
-        );
-      }
-      if (url.includes("/repos/o/r/pulls/7")) {
-        const auth = headers.get("authorization") ?? "";
-        const token = auth.replace(/^(token|Bearer)\s+/i, "");
-        counts.prCallTokens.push(token);
-        const status = script.byToken?.[token] ?? 200;
-        if (status !== 200) {
-          return new Response(JSON.stringify({ message: "Not Found" }), {
-            status,
-            headers: { "content-type": "application/json" },
-          });
-        }
-        return new Response(JSON.stringify(prJson(script)), {
-          status: 200,
-          headers: {
-            "content-type": "application/json; charset=utf-8",
-            date: new Date().toUTCString(),
-          },
-        });
-      }
-      throw new Error(`unexpected fetch in generate suite: ${url}`);
-    }),
-  );
-  return counts;
 }
 
 async function post(
@@ -247,10 +124,13 @@ async function post(
 describe("POST /api/generate: the url-box door", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
+    stubGateGitHub({ repoId: REPO_ID, fullName: "o/r" });
   });
 
   afterEach(async () => {
@@ -266,7 +146,7 @@ describe("POST /api/generate: the url-box door", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       operatorToken:
         fallbackToken === undefined
@@ -277,28 +157,31 @@ describe("POST /api/generate: the url-box door", () => {
   }
 
   it("401 with no session", async () => {
-    stubGitHub();
+    arrangePastedPull(fake);
     const res = await post(buildApp(), undefined, PR_URL);
     expect(res.status).toBe(401);
+    expect(fake.calls).toEqual([]);
   });
 
   it("400 for a non-PR url", async () => {
-    stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    const cookie = await seedOwnerSignIn(harness, kp);
     const res = await post(buildApp(), cookie, "https://example.com/nope");
     expect(res.status).toBe(400);
   });
 
   it("upserts the owner-scoped row, enqueues the worker job, returns coords", async () => {
-    const counts = stubGitHub({ merged: true, state: "closed" });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake, { merged: true });
+    const cookie = await seedOwnerSignIn(harness, kp);
+    const lookups = spyPullRequestLookups(harness);
     const res = await post(buildApp(), cookie, PR_URL);
     expect(res.status).toBe(200);
+    expect(lookups.count()).toBe(0);
     expect(await res.json()).toEqual({
       repoId: String(REPO_ID),
       prNumber: 7,
     });
-    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN]);
+    expect(listPullReadTokens(fake)).toEqual([ACCESS_TOKEN]);
 
     const rows = await harness.raw(
       "select installation_id, owner_user_id, source, state, repo_slug, title from pull_request",
@@ -357,33 +240,8 @@ describe("POST /api/generate: the url-box door", () => {
   });
 
   it("an installation-bound paste lands owner-world and reads back", async () => {
-    stubGitHub();
-    // Same shape as seedSession but bound to a tenant, the pre-url-box norm.
-    const cookie = await (async () => {
-      const raw = randomBytes(32).toString("base64url");
-      const hash = createHash("sha256").update(raw).digest("hex");
-      const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-      const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-      if (!sealedAccess.ok || !sealedRefresh.ok) {
-        throw new Error("seed encrypt failed");
-      }
-      const grant = await createGrantAuth(harness.handle).createGrant({
-        ghTokenCiphertext: sealedAccess.value,
-        ghRefreshTokenCiphertext: sealedRefresh.value,
-        keyRef: KEY_REF,
-        refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-      });
-      await createTenantRepository(harness.handle, {
-        installationId: brand(isInstallationId, 987654),
-      }).sessions.create({
-        sessionTokenHash: hash,
-        reviewerId: REVIEWER,
-        reviewerLogin: "octocat",
-        grantId: grant.id,
-        expiresAt: new Date("2027-01-01T00:00:00Z"),
-      });
-      return raw;
-    })();
+    arrangePastedPull(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
     const app = buildApp();
 
     const res = await post(app, cookie, PR_URL);
@@ -411,8 +269,8 @@ describe("POST /api/generate: the url-box door", () => {
   });
 
   it("opening a url brief reads GitHub live once the row is stale", async () => {
-    const counts = stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    const cookie = await seedOwnerSignIn(harness, kp);
     const app = buildApp();
     expect((await post(app, cookie, PR_URL)).status).toBe(200);
 
@@ -420,8 +278,9 @@ describe("POST /api/generate: the url-box door", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(fresh.status).toBe(200);
-    expect(counts.graphqlCalls).toBe(0);
+    expect(fake.listCalls("readPullRequestFacts")).toHaveLength(0);
 
+    fake.updatePullRequest(PR_REF, { title: "Live title", headSha: LIVE_HEAD });
     await harness.raw(
       "update pull_request set github_read_at = now() - interval '10 minutes'",
     );
@@ -429,7 +288,7 @@ describe("POST /api/generate: the url-box door", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(stale.status).toBe(200);
-    expect(counts.graphqlCalls).toBe(1);
+    expect(fake.listCalls("readPullRequestFacts")).toHaveLength(1);
     const rows = await harness.raw(
       "select title, github_head_sha from pull_request",
     );
@@ -437,7 +296,6 @@ describe("POST /api/generate: the url-box door", () => {
   });
 
   it("when BOTH worlds hold the row, the tenant world wins the read-back", async () => {
-    stubGitHub();
     const tenantCtx = { installationId: brand(isInstallationId, 987654) };
     // Seed the SAME coordinates in both worlds; only the tenant row carries
     // the marker slug.
@@ -459,29 +317,9 @@ describe("POST /api/generate: the url-box door", () => {
       title: "owner title",
       state: "open",
     });
-    const cookie = await (async () => {
-      const raw = randomBytes(32).toString("base64url");
-      const hash = createHash("sha256").update(raw).digest("hex");
-      const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-      const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-      if (!sealedAccess.ok || !sealedRefresh.ok) {
-        throw new Error("seed encrypt failed");
-      }
-      const grant = await createGrantAuth(harness.handle).createGrant({
-        ghTokenCiphertext: sealedAccess.value,
-        ghRefreshTokenCiphertext: sealedRefresh.value,
-        keyRef: KEY_REF,
-        refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-      });
-      await createTenantRepository(harness.handle, tenantCtx).sessions.create({
-        sessionTokenHash: hash,
-        reviewerId: REVIEWER,
-        reviewerLogin: "octocat",
-        grantId: grant.id,
-        expiresAt: new Date("2027-01-01T00:00:00Z"),
-      });
-      return raw;
-    })();
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      scope: tenantCtx,
+    });
 
     const meta = await buildApp().request(`/api/repos/${REPO_ID}/pulls/7`, {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
@@ -494,13 +332,12 @@ describe("POST /api/generate: the url-box door", () => {
   it("a second signed-in reader opens the url-box row another viewer pasted", async () => {
     // Url-box rows are instance-visible: the gate already made this reader
     // prove GitHub access to the repo, and the row is theirs to read.
-    stubGitHub();
+    arrangePastedPull(fake);
     const app = buildApp();
-    expect(
-      (await post(app, await seedSession(harness.handle, kp), PR_URL)).status,
-    ).toBe(200);
+    const pasted = await post(app, await seedOwnerSignIn(harness, kp), PR_URL);
+    expect(pasted.status).toBe(200);
 
-    const other = await seedSession(harness.handle, kp, OTHER_REVIEWER);
+    const other = await seedOwnerSignIn(harness, kp, OTHER_REVIEWER);
     const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
       headers: { Cookie: `__Host-mergebrief_session=${other}` },
     });
@@ -510,8 +347,8 @@ describe("POST /api/generate: the url-box door", () => {
   });
 
   it("re-pasting replaces the pending job instead of stacking a second", async () => {
-    stubGitHub();
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    const cookie = await seedOwnerSignIn(harness, kp);
     const app = buildApp();
     expect((await post(app, cookie, PR_URL)).status).toBe(200);
     const first = await harness.raw(
@@ -535,41 +372,79 @@ describe("POST /api/generate: the url-box door", () => {
   });
 
   it("an expired viewer token spends the one refresh and retries rotated", async () => {
-    const counts = stubGitHub({
-      byToken: { [ACCESS_TOKEN]: 401 },
-      tokenEndpoint: true,
-    });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    fake.rejectToken(ACCESS_TOKEN);
+    const cookie = await seedOwnerSignIn(harness, kp);
     // The PAT is CONFIGURED here so the assertion genuinely excludes it: a
     // 401 must spend the refresh, never escalate to the operator identity.
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
     expect(res.status).toBe(200);
-    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, ROTATED_ACCESS]);
+    expect(listPullReadTokens(fake)).toEqual([
+      ACCESS_TOKEN,
+      ROTATED_ACCESS_TOKEN,
+    ]);
+  });
+
+  it("a token that will not decrypt is a 401 and burns the session", async () => {
+    arrangePastedPull(fake);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp, {
+      scope: { ownerUserId: REVIEWER },
+    });
+    await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
+
+    const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
+
+    expect(res.status).toBe(401);
+    expect(fake.calls).toEqual([]);
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [cookieHash],
+    );
+    expect(sessions).toEqual([]);
   });
 
   it("a viewer denial with no PAT collapses to the uniform 404", async () => {
-    stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    fake.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
+    const cookie = await seedOwnerSignIn(harness, kp);
     const res = await post(buildApp(), cookie, PR_URL);
     expect(res.status).toBe(404);
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 
+  it("a viewer 403 collapses to the uniform 404", async () => {
+    arrangePastedPull(fake);
+    fake.failOn("fetchPullRequest", FakeFailures.FORBIDDEN);
+    const cookie = await seedOwnerSignIn(harness, kp);
+    const res = await post(buildApp(), cookie, PR_URL);
+    expect(res.status).toBe(404);
+  });
+
   it("a viewer denial retries once with the operator PAT", async () => {
-    const counts = stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    fake.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const cookie = await seedOwnerSignIn(harness, kp);
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
     expect(res.status).toBe(200);
-    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect(listPullReadTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 
   it("answers an unlisted reviewer as if no operator PAT were set", async () => {
-    stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    fake.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const cookie = await seedOwnerSignIn(harness, kp);
 
     const unlistedApp = buildApp(FALLBACK_PAT, [Number(OTHER_REVIEWER)]);
     const unlisted = await post(unlistedApp, cookie, PR_URL);
-    const sentTokens = listSentTokens();
+    const sentTokens = listFakeCallTokens(fake);
     const unconfigured = await post(buildApp(), cookie, PR_URL);
 
     expect(sentTokens).toEqual([ACCESS_TOKEN]);
@@ -582,16 +457,19 @@ describe("POST /api/generate: the url-box door", () => {
   // spend the request's one refresh, and it must not send the reader to
   // re-authenticate a credential that is not theirs.
   it("keeps the reader's 404 when the operator PAT is itself rejected", async () => {
-    const counts = stubGitHub({
-      byToken: { [ACCESS_TOKEN]: 404, [FALLBACK_PAT]: 401 },
-      tokenEndpoint: true,
-    });
-    const cookie = await seedSession(harness.handle, kp);
+    arrangePastedPull(fake);
+    fake.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    fake.rejectToken(FALLBACK_PAT);
+    const cookie = await seedOwnerSignIn(harness, kp);
 
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
 
     expect(res.status).toBe(404);
     // One viewer read, one PAT read, and NO rotated-token retry.
-    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    expect(listPullReadTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 });

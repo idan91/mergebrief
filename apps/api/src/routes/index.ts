@@ -77,8 +77,8 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   app.route("/webhooks", webhookRoute(deps));
   // ONE instance of each resolver: every route shares the reachable-set and
   // allowed-set caches, so one GitHub walk serves them all inside the TTL.
-  const installations = createAccessibleInstallationsResolver(deps);
-  const resolver = createInstallationResolver(deps, installations);
+  const installations = createAccessibleInstallationsResolver();
+  const resolver = createInstallationResolver(installations);
   // The Inbox's own open-PR lists, viewer token only: the Brief page's stack
   // read may fill its cache through the operator PAT, and a list the viewer
   // cannot see must never place their rows.
@@ -100,7 +100,11 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   app.route("/generate", generateRoute(deps));
   app.route(
     "/inbox",
-    inboxRoutes(deps, installations, resolver, inboxOpenPullsCache),
+    inboxRoutes(deps, {
+      installations,
+      repos: resolver,
+      openPullsCache: inboxOpenPullsCache,
+    }),
   );
   app.route("/local-briefs", localBriefsRoutes(deps));
   return app;

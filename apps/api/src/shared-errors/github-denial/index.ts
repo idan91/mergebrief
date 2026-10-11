@@ -2,7 +2,11 @@
 // `logic/wire-failures.ts` answers its own codes first and hands the rest
 // here with the posture its call ran under.
 import { ApiErrorCodes } from "contract";
-import { CredentialFailureCodes, GitHubApiErrorCodes } from "github";
+import {
+  CredentialFailureCodes,
+  GitHubApiErrorCodes,
+  type GitHubCallFailure,
+} from "github";
 import {
   BadGateway,
   Forbidden,
@@ -10,13 +14,7 @@ import {
   Unauthorized,
   type ApiError,
 } from "../api-error";
-import { isTokenUnreadableFailure } from "../failures";
-import {
-  DenialPostures,
-  type DenialPosture,
-  type GitHubFailure,
-  type WrappedGitHubFailure,
-} from "./types";
+import { DenialPostures, type DenialPosture } from "./types";
 
 function buildUnauthorized(): ApiError {
   return new Unauthorized();
@@ -50,29 +48,15 @@ const FORBIDDEN_BY_POSTURE: Record<DenialPosture, () => ApiError> = {
   [DenialPostures.APP_WRITE]: buildPermissionDenied,
 };
 
-/** The GitHub failure a domain failure member carries. */
-export function unwrapGitHubFailure(
-  failure: WrappedGitHubFailure,
-): GitHubFailure {
-  if (isTokenUnreadableFailure(failure)) {
-    return failure;
-  }
-  return failure.error;
-}
-
 /**
  * The `ApiError` a GitHub failure answers under `posture`; the caller throws
  * it. Absence is 404 everywhere; an outage, a rate limit and any code the
  * caller did not answer itself are 502, never 404.
  */
 export function resolveGitHubDenialError(
-  failure: GitHubFailure,
+  failure: GitHubCallFailure,
   posture: DenialPosture,
 ): ApiError {
-  if (isTokenUnreadableFailure(failure)) {
-    return new Unauthorized();
-  }
-
   switch (failure.code) {
     case CredentialFailureCodes.CREDENTIAL_UNREADABLE: {
       return new Unauthorized();

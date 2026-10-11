@@ -25,7 +25,12 @@ import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { every } from "hono/combine";
 import { routePath } from "hono/route";
-import { fetchRepositoryById, type GitHubApiError } from "github";
+import {
+  bindReviewerGitHub,
+  fetchRepositoryById,
+  type GitHubApiError,
+} from "github";
+import type { Logger } from "logging";
 import { createSessionAuth, type RepoId } from "persistence";
 import { HttpStatuses } from "types/http";
 import {
@@ -65,7 +70,8 @@ import {
   REPO_ID_PARAM,
 } from "./consts";
 import { resolveOperatorRepoAccess } from "./operator-token";
-import { bindRequestGitHub } from "./reviewer-binding";
+import { bindRequestGitHub, type RequestGitHub } from "./reviewer-binding";
+import { createSessionCredential } from "./session-credential";
 import { sessionLayer } from "./session-layer";
 import { deriveScopeContext } from "./utils";
 import {
@@ -195,17 +201,36 @@ async function resolveRefusedRepoAccess(
   throw denial;
 }
 
+/**
+ * The walk rides the injected octokit, as the gate's own repository read
+ * does, never an injected reviewer binder; with none injected the two are
+ * the same binding.
+ */
+function bindGateWalk(
+  deps: AuthRouteDeps,
+  session: ViewerPrincipal,
+  log: Logger,
+): RequestGitHub {
+  const credential = createSessionCredential(deps, session, log);
+  const octokitFactory = deps.auth.createUserOctokit;
+  const github = bindReviewerGitHub(credential, { log, octokitFactory });
+  return { credential, github };
+}
+
 /** Which installation holds a readable repo; a failure is never cached. */
 async function resolveRepoInstallation(
+  deps: AuthRouteDeps,
   installations: InstallationResolver,
   c: Context<AuthzEnv>,
   client: ReviewerGitHubClient,
   repoId: RepoId,
 ): Promise<ResolvedRepoWorld> {
+  const log = c.get("logger");
+  const walk = bindGateWalk(deps, client.session(), log);
   const resolved = await installations.resolveInstallationForRepo(
-    client.session(),
+    walk,
     repoId,
-    c.get("logger"),
+    log,
   );
   if (resolved.ok) {
     return resolved.value;
@@ -275,6 +300,7 @@ export function repoAuthzLayer(
     }
 
     const resolved = await resolveRepoInstallation(
+      deps,
       installations,
       c,
       client,

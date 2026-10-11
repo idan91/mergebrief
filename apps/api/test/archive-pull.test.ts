@@ -185,12 +185,15 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     const put = await archive(cookie, "PUT");
     expect(put.status).toBe(200);
     expect(await put.json()).toEqual({ ok: true });
+    expect(fake.calls).toEqual([]);
     expect(await readArchivedReviewers(harness)).toEqual([String(REVIEWER_ID)]);
     expect(await listNumbers(cookie)).toEqual([]);
     expect(await listNumbers(cookie, "?archived=only")).toEqual([PR_NUMBER]);
 
+    const callsBeforeDelete = fake.calls.length;
     const del = await archive(cookie, "DELETE");
     expect(del.status).toBe(200);
+    expect(fake.calls).toHaveLength(callsBeforeDelete);
     expect(await readArchivedReviewers(harness)).toEqual([]);
     expect(await listNumbers(cookie)).toEqual([PR_NUMBER]);
 
@@ -198,7 +201,6 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
       "archive-pull",
       "unarchive-pull",
     ]);
-    expect(fake.calls).toEqual([]);
   });
 
   it("reads the row once per archive request", async () => {

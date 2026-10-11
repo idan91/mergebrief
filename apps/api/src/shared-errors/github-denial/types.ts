@@ -1,6 +1,4 @@
-import type { GitHubApiError, GitHubCallFailure } from "github";
 import type { ValueOf } from "types/utils";
-import type { FailureKinds, TokenUnreadableFailure } from "../failures";
 
 /**
  * Which credential a GitHub call ran on and whether its 403 means anything
@@ -17,15 +15,3 @@ export const DenialPostures = {
   APP_WRITE: "app-write",
 } as const;
 export type DenialPosture = ValueOf<typeof DenialPostures>;
-
-/** GitHub's refusal, or a token that would not decrypt. */
-export type GitHubFailure = GitHubCallFailure | TokenUnreadableFailure;
-
-/** A domain failure member carrying GitHub's refusal whole. */
-export interface GitHubDeniedMember {
-  readonly kind: typeof FailureKinds.GITHUB_DENIED;
-  readonly error: GitHubApiError;
-}
-
-/** The two members every viewer-token domain failure shares. */
-export type WrappedGitHubFailure = TokenUnreadableFailure | GitHubDeniedMember;

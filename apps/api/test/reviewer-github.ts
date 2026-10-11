@@ -156,6 +156,16 @@ export function buildFakeAuthDeps(kp: KeyProvider, fake: FakeGitHub): AuthDeps {
   };
 }
 
+/** For a suite whose GitHub is the fake alone: any `fetch` fails the test. */
+export function stubNoNetwork(): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      throw new Error(`unexpected fetch: ${getRequestUrl(input)}`);
+    }),
+  );
+}
+
 function failUnexpected(port: string): never {
   throw new Error(`the ${port} port must not be called in this suite`);
 }

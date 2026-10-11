@@ -4,6 +4,7 @@ import {
   GitHubApiErrorCodes,
   type GitHubApiError,
   type GitHubApiErrorCode,
+  type GitHubCallFailure,
 } from "github";
 import {
   BadGateway,
@@ -12,9 +13,8 @@ import {
   Unauthorized,
   type ApiError,
 } from "../api-error";
-import { FailureKinds, type TokenUnreadableFailure } from "../failures";
-import { DenialPostures, type GitHubFailure } from "./types";
-import { resolveGitHubDenialError, unwrapGitHubFailure } from "./index";
+import { DenialPostures } from "./types";
+import { resolveGitHubDenialError } from "./index";
 
 type ApiErrorClass = abstract new (...args: never[]) => ApiError;
 
@@ -26,7 +26,7 @@ interface DenialAnswer {
 /** One row of the decision table: the answers under collapse, honest, app-read, app-write. */
 interface DenialRow {
   readonly cause: string;
-  readonly failure: GitHubFailure;
+  readonly failure: GitHubCallFailure;
   readonly answers: readonly [
     DenialAnswer,
     DenialAnswer,
@@ -38,10 +38,6 @@ interface DenialRow {
 function makeGitHubError(code: GitHubApiErrorCode): GitHubApiError {
   return { code, message: `failed to read: ${code}` };
 }
-
-const TOKEN_UNREADABLE_FAILURE: TokenUnreadableFailure = {
-  kind: FailureKinds.TOKEN_UNREADABLE,
-};
 
 const E401 = { expectedClass: Unauthorized, expectedCode: "unauthorized" };
 const E404 = { expectedClass: NotFound, expectedCode: "not-found" };
@@ -56,11 +52,6 @@ const POSTURE_ORDER = [
 ] as const;
 
 const TABLE: readonly DenialRow[] = [
-  {
-    cause: "token-unreadable",
-    failure: TOKEN_UNREADABLE_FAILURE,
-    answers: [E401, E401, E401, E401],
-  },
   {
     cause: "credential-unreadable",
     failure: {
@@ -124,16 +115,6 @@ describe("resolveGitHubDenialError", () => {
       expect(error.code).toBe(expectedCode);
     },
   );
-
-  it("unwraps a domain failure to the GitHub failure it carries", () => {
-    const refusal = makeGitHubError(GitHubApiErrorCodes.FORBIDDEN);
-    expect(
-      unwrapGitHubFailure({ kind: FailureKinds.GITHUB_DENIED, error: refusal }),
-    ).toBe(refusal);
-    expect(unwrapGitHubFailure(TOKEN_UNREADABLE_FAILURE)).toBe(
-      TOKEN_UNREADABLE_FAILURE,
-    );
-  });
 
   it("builds a fresh error on every call", () => {
     const failure = makeGitHubError(GitHubApiErrorCodes.NOT_FOUND);

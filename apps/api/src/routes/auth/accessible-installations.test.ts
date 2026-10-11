@@ -1,9 +1,8 @@
 import { randomBytes } from "node:crypto";
-import type * as githubModule from "github";
-import { GitHubApiErrorCodes, listUserInstallations } from "github";
+import { GitHubApiErrorCodes } from "github";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import {
-  createEnvKeyProvider,
   encryptToken,
   isGrantRowId,
   isInstallationId,
@@ -20,24 +19,18 @@ import {
   it,
   vi,
 } from "vitest";
-import { createTestUserOctokit } from "../../../test/fixtures";
+import { KEY_REF, createKeyProvider } from "../../../test/fixtures";
+import { buildFakeAuthDeps } from "../../../test/reviewer-github";
+import { seedSignIn } from "../../../test/sign-in";
 import { AUTHZ_CACHE_TTL_MS } from "../../access/consts";
-import { createAccessibleInstallationsResolver } from "./accessible-installations";
 import {
-  AuthChannels,
-  type AuthRouteDeps,
-  type ViewerPrincipal,
-} from "./session/types";
+  bindRequestGitHub,
+  type RequestGitHub,
+} from "../../access/reviewer-binding";
+import { createAccessibleInstallationsResolver } from "./accessible-installations";
+import { AuthChannels, type ViewerPrincipal } from "./session/types";
 
-vi.mock("github", async (importOriginal) => ({
-  ...(await importOriginal<typeof githubModule>()),
-  listUserInstallations: vi.fn(),
-}));
-
-const KEY_REF = "SESSION_KEY_TEST";
-const keyProvider = createEnvKeyProvider({
-  [KEY_REF]: randomBytes(32).toString("base64"),
-});
+const keyProvider = createKeyProvider();
 
 const log: Logger = {
   error: vi.fn(),
@@ -58,6 +51,7 @@ function brand<T extends bigint>(
 }
 
 let harness: PgliteHarness;
+let fake: FakeGitHub;
 beforeAll(async () => {
   harness = await createPgliteHarness();
 });
@@ -85,18 +79,17 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
   };
 }
 
-function stubDeps(): AuthRouteDeps {
-  return {
+/** A fresh request over `principal`: its own credential and binding. */
+function bindRequest(principal: ViewerPrincipal): RequestGitHub {
+  const deps = {
     handle: harness.handle,
-    auth: {
-      oauthClientId: "client-id",
-      oauthClientSecret: "client-secret",
-      keyProvider,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: "https://example.test",
-      createUserOctokit: createTestUserOctokit,
-    },
+    auth: buildFakeAuthDeps(keyProvider, fake),
   };
+  return bindRequestGitHub(deps, principal, log);
+}
+
+function countInstallationReads(): number {
+  return fake.listCalls("listUserInstallations").length;
 }
 
 const ACME = {
@@ -105,92 +98,108 @@ const ACME = {
 };
 
 beforeEach(() => {
-  vi.mocked(listUserInstallations).mockReset();
+  fake = makeFakeGitHub();
+  fake.addInstallation(ACME, new Map());
   vi.useRealTimers();
 });
 
 describe("the reachable installations resolver", () => {
   it("answers the second call inside the window without GitHub", async () => {
-    vi.mocked(listUserInstallations).mockResolvedValue({
-      ok: true,
-      value: [ACME],
-    });
-    const resolver = createAccessibleInstallationsResolver(stubDeps());
+    const resolver = createAccessibleInstallationsResolver();
     const principal = await stubPrincipal();
 
-    const first = await resolver.resolve(principal, log);
-    const second = await resolver.resolve(principal, log);
+    const first = await resolver.resolve(bindRequest(principal));
+    const second = await resolver.resolve(bindRequest(principal));
 
     expect(first.ok && first.value.installations).toEqual([ACME]);
     expect(second.ok && second.value.installations).toEqual([ACME]);
-    expect(listUserInstallations).toHaveBeenCalledTimes(1);
+    expect(countInstallationReads()).toBe(1);
   });
 
   it("asks GitHub again once the window has passed", async () => {
     vi.useFakeTimers();
-    vi.mocked(listUserInstallations).mockResolvedValue({
-      ok: true,
-      value: [ACME],
-    });
-    const resolver = createAccessibleInstallationsResolver(stubDeps());
+    const resolver = createAccessibleInstallationsResolver();
     const principal = await stubPrincipal();
 
-    await resolver.resolve(principal, log);
+    await resolver.resolve(bindRequest(principal));
     vi.advanceTimersByTime(AUTHZ_CACHE_TTL_MS + 1);
-    await resolver.resolve(principal, log);
+    await resolver.resolve(bindRequest(principal));
 
-    expect(listUserInstallations).toHaveBeenCalledTimes(2);
+    expect(countInstallationReads()).toBe(2);
   });
 
   it("never caches a failure", async () => {
-    vi.mocked(listUserInstallations)
-      .mockResolvedValueOnce({
-        ok: false,
-        error: {
-          code: GitHubApiErrorCodes.REQUEST_FAILED,
-          status: 502,
-          message: "down",
-        },
-      })
-      .mockResolvedValueOnce({ ok: true, value: [ACME] });
-    const resolver = createAccessibleInstallationsResolver(stubDeps());
+    const resolver = createAccessibleInstallationsResolver();
     const principal = await stubPrincipal();
+    const down = bindRequest(principal);
+    const failing: RequestGitHub = {
+      ...down,
+      github: {
+        ...down.github,
+        async listUserInstallations() {
+          const code = GitHubApiErrorCodes.REQUEST_FAILED;
+          return { ok: false, error: { code, status: 502, message: "down" } };
+        },
+      },
+    };
 
-    const failed = await resolver.resolve(principal, log);
-    const recovered = await resolver.resolve(principal, log);
+    const failed = await resolver.resolve(failing);
+    const recovered = await resolver.resolve(bindRequest(principal));
 
-    expect(failed.ok).toBe(false);
+    expect(!failed.ok && failed.error.kind).toBe("upstream-failed");
     expect(recovered.ok).toBe(true);
-    expect(listUserInstallations).toHaveBeenCalledTimes(2);
+    expect(countInstallationReads()).toBe(1);
+  });
+
+  it("reads a still-refused token as auth-dead", async () => {
+    fake.failOn("listUserInstallations", FakeFailures.UNAUTHORIZED);
+    const resolver = createAccessibleInstallationsResolver();
+
+    const resolved = await resolver.resolve(bindRequest(await stubPrincipal()));
+
+    expect(!resolved.ok && resolved.error.kind).toBe("auth-dead");
+  });
+
+  it("burns the session of a token that will not decrypt", async () => {
+    const { cookieHash } = await seedSignIn(harness.handle, keyProvider);
+    const principal = await stubPrincipal();
+    const unreadable = {
+      ...principal,
+      sessionTokenHash: cookieHash,
+      ghTokenCiphertext: "sealed",
+    };
+    const resolver = createAccessibleInstallationsResolver();
+
+    const resolved = await resolver.resolve(bindRequest(unreadable));
+
+    expect(!resolved.ok && resolved.error.kind).toBe("auth-dead");
+    expect(countInstallationReads()).toBe(0);
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [cookieHash],
+    );
+    expect(sessions).toEqual([]);
   });
 
   it("shares one in-flight walk between concurrent callers", async () => {
-    vi.mocked(listUserInstallations).mockResolvedValue({
-      ok: true,
-      value: [ACME],
-    });
-    const resolver = createAccessibleInstallationsResolver(stubDeps());
+    const resolver = createAccessibleInstallationsResolver();
     const principal = await stubPrincipal();
 
     await Promise.all([
-      resolver.resolve(principal, log),
-      resolver.resolve(principal, log),
-      resolver.resolve(principal, log),
+      resolver.resolve(bindRequest(principal)),
+      resolver.resolve(bindRequest(principal)),
+      resolver.resolve(bindRequest(principal)),
     ]);
 
-    expect(listUserInstallations).toHaveBeenCalledTimes(1);
+    expect(countInstallationReads()).toBe(1);
   });
 
   it("keeps one credential's set away from another's", async () => {
-    vi.mocked(listUserInstallations).mockResolvedValue({
-      ok: true,
-      value: [ACME],
-    });
-    const resolver = createAccessibleInstallationsResolver(stubDeps());
+    const resolver = createAccessibleInstallationsResolver();
 
-    await resolver.resolve(await stubPrincipal(), log);
-    await resolver.resolve(await stubPrincipal(), log);
+    await resolver.resolve(bindRequest(await stubPrincipal()));
+    await resolver.resolve(bindRequest(await stubPrincipal()));
 
-    expect(listUserInstallations).toHaveBeenCalledTimes(2);
+    expect(countInstallationReads()).toBe(2);
   });
 });
