@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { ProductOperationRegistry } from "../../product-operations/registry";
-import type { AuthzEnv } from "../authz";
+import type { AuthzEnv } from "../../access/types";
 import { capabilitiesController } from "./controller";
 import type { CapabilitiesBody } from "./types";
 import { HttpStatuses } from "types/http";

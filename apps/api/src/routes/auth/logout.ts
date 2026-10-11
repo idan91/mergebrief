@@ -5,7 +5,8 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { createSessionAuth } from "persistence";
-import { requireSameOrigin, type AuthzEnv } from "../authz";
+import { requireSameOrigin } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import type { AuthRouteDeps } from "./session/types";
 import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "./session/consts";
 import { resolveAllowedOrigin } from "./session/logic/same-origin";

@@ -1,10 +1,6 @@
-// The per-PR subtree (`/:repoId/pulls/:prNumber`), composition plus the ONE
-// per-repo gate. The wildcard `use` is METHOD-AGNOSTIC and covers the whole
-// subtree, unmatched methods/paths included, so every request under the
-// prefix traverses exactly one gate and an unauthorized probe meets the same
-// hint-free 404 posture everywhere.
-import type { InstallationResolver } from "../../installation-resolver";
-import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
+// The per-PR subtree (`/:repoId/pulls/:prNumber`), composition only: the
+// repos router's one gate already covers every request under the prefix.
+import type { AuthzEnv } from "../../../access/types";
 import {
   productRouter,
   type ProductRouter,
@@ -26,11 +22,8 @@ import { sessionRoutes } from "./session";
 
 export function prRoutes(
   deps: ConversationRouteDeps & AttachmentsRouteDeps,
-  installations: InstallationResolver,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const authz = createAuthzMiddleware(deps, installations);
-  app.use("*", authz);
 
   // Conversation built first: it owns the conversation cache, and the write
   // routes evict a PR's entry on their success paths.

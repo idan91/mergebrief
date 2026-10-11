@@ -15,7 +15,7 @@ import {
 } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { Result } from "types/utils";
 import type { TtlCache } from "../../../ttl-cache";

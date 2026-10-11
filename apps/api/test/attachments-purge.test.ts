@@ -259,6 +259,27 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     });
   });
 
+  it("audits the repo gate's uniform 404 as a refused purge", async () => {
+    stubGitHub({
+      inInstallation: true,
+      repository: () => jsonResponse({ message: "Not Found" }, 404),
+    });
+    const cookie = await seedSession(harness.handle, kp);
+
+    const res = await purge(cookie);
+
+    expect(res.status).toBe(404);
+    expect(deleteBranch).not.toHaveBeenCalled();
+    expect(await readAudits(harness)).toContainEqual(
+      expect.objectContaining({
+        operation: "purge-attachments",
+        outcome: "denied",
+        target_type: "repo",
+        target_id: BigInt(REPO_ID),
+      }),
+    );
+  });
+
   it("refuses a non-admin with attachments-admin-only and deletes nothing", async () => {
     stubGitHub({ inInstallation: true, repository: () => answerRepo(false) });
     const cookie = await seedSession(harness.handle, kp);

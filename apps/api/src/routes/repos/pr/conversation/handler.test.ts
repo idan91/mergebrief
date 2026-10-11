@@ -27,7 +27,7 @@ import {
   AuthChannels,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";
 import { createConversationHandlers } from "./handler";

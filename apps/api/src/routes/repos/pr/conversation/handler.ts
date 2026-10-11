@@ -12,7 +12,8 @@ import {
 import { DenialPostures } from "../../../../shared-errors/github-denial/types";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
+import { readFallbackTokenFor } from "../../../../access/operator-token";
+import type { AuthzEnv } from "../../../../access/types";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";

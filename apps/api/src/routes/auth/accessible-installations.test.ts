@@ -21,7 +21,7 @@ import {
   vi,
 } from "vitest";
 import { createTestUserOctokit } from "../../../test/fixtures";
-import { AUTHZ_CACHE_TTL_MS } from "../authz";
+import { AUTHZ_CACHE_TTL_MS } from "../../access/consts";
 import { createAccessibleInstallationsResolver } from "./accessible-installations";
 import {
   AuthChannels,

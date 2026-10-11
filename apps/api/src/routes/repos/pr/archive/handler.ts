@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { prNumberSchema } from "../../../wire-bounds";
 import { resolvePrScopeFrom } from "../scope";
 import { archiveController } from "./controller";

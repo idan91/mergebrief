@@ -422,4 +422,18 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(res.status).toBe(200);
     expect(counts.repositories).toBe(1);
   });
+
+  it("serves a per-PR read and the roster from one gate entry", async () => {
+    const { port } = stubPort([okResult()]);
+    const { counts } = stubGitHub(() => repoOk(true));
+    const { cookie } = await seedSession(harness.handle, kp);
+    const app = makeApp(port);
+    const briefPath = `/api/repos/${REPO_ID}/pulls/7/brief`;
+
+    await getCollaborators(app, cookie, briefPath);
+    const res = await getCollaborators(app, cookie);
+
+    expect(res.status).toBe(200);
+    expect(counts.repositories).toBe(1);
+  });
 });

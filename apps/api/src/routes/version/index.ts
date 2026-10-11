@@ -12,7 +12,8 @@ import {
 } from "../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import { createVersionHandlers } from "./handler";
 import type { VersionControllerDeps } from "./types";
 

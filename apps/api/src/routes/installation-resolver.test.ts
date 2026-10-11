@@ -34,7 +34,7 @@ import {
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "./auth/session/types";
-import { AUTHZ_CACHE_TTL_MS } from "./authz";
+import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { createInstallationResolver } from "./installation-resolver";
 
 vi.mock("github", async (importOriginal) => ({

@@ -43,7 +43,7 @@ import {
   type ViewerPrincipal,
 } from "../../../auth/session/types";
 import { refreshSessionToken } from "../../../auth/session/logic/refresh";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import type { PullRequestInfo } from "github";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";

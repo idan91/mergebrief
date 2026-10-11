@@ -9,7 +9,7 @@ import {
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { createDeleteHandlers } from "./handler";
 
 export function deletePullRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {

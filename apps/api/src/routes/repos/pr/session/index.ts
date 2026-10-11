@@ -13,7 +13,7 @@ import {
   type ProductRouter,
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { createSessionHandlers } from "./handler";
 

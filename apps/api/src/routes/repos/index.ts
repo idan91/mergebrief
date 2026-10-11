@@ -5,7 +5,7 @@
 // array is deliberately unpaginated, the response is `no-store`, and a
 // GitHub failure is a 401 or 502 rather than a DB-only fallback. Beneath it
 // sit the per-repo attachments purge and collaborators leaves and the per-PR
-// subtree, each behind its per-repo gate.
+// subtree, all behind the ONE repo gate mounted over `/:repoId/*`.
 import { ProductQueryIds } from "contract";
 import {
   productRouter,
@@ -14,7 +14,9 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
 import type { InstallationResolver } from "../installation-resolver";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { createAuthzMiddleware } from "../../access";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import type { InstallationGitHubPort } from "../github-port";
 import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
@@ -49,9 +51,12 @@ export function reposRoutes(
     handlers.listRepos,
   );
 
-  app.route("/:repoId/attachments", purgeAttachmentsRoute(deps, installations));
-  app.route("/:repoId/collaborators", collaboratorsRoute(deps, installations));
-  app.route("/:repoId/pulls/:prNumber", prRoutes(deps, installations));
+  // Method-agnostic and over unmatched paths too: every request under a repo
+  // traverses exactly one gate, so one positive cache serves every leaf.
+  app.use("/:repoId/*", createAuthzMiddleware(deps, installations));
+  app.route("/:repoId/attachments", purgeAttachmentsRoute(deps));
+  app.route("/:repoId/collaborators", collaboratorsRoute(deps));
+  app.route("/:repoId/pulls/:prNumber", prRoutes(deps));
 
   return app;
 }

@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 import { describe, expect, it } from "vitest";
 import { ApiErrorCodes } from "contract";
 import { BadRequest } from "../../../../shared-errors/api-error";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { parseQuery, parsePrNumber } from "./utils";
 
 const schema = z.object({ base: z.string().min(1), head: z.string().min(1) });

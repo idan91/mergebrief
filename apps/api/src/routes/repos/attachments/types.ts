@@ -3,7 +3,7 @@ import type { GitHubApiError } from "github";
 import type { InstallationId } from "persistence";
 import type { GitHubDeniedFailure } from "../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../auth/session/types";
-import type { AuthzEnv } from "../../authz";
+import type { AuthzEnv } from "../../../access/types";
 import type { InstallationGitHubPort } from "../../github-port";
 
 /** The fresh admin read needs the viewer's token; the delete needs the App's. */

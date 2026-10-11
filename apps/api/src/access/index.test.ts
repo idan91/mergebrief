@@ -33,23 +33,25 @@ import type {
   AllowedRepo,
   InstallationResolver,
   RepoWorld,
-} from "./installation-resolver";
-import { AUTHZ_CACHE_TTL_MS, repoAuthzLayer, type AuthzEnv } from "./authz";
+} from "../routes/installation-resolver";
+import { repoAuthzLayer } from "./index";
+import { AUTHZ_CACHE_TTL_MS } from "./consts";
+import { AccessFootings, type AuthzEnv } from "./types";
 import { createErrorHandler } from "../shared-errors/on-error";
-import type * as refreshModule from "./auth/session/logic/refresh";
+import type * as refreshModule from "../routes/auth/session/logic/refresh";
 import {
   AuthChannels,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth/session/types";
-import { refreshSessionToken } from "./auth/session/logic/refresh";
+} from "../routes/auth/session/types";
+import { refreshSessionToken } from "../routes/auth/session/logic/refresh";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
   fetchRepositoryById: vi.fn(),
 }));
 
-vi.mock("./auth/session/logic/refresh", async (importOriginal) => ({
+vi.mock("../routes/auth/session/logic/refresh", async (importOriginal) => ({
   ...(await importOriginal<typeof refreshModule>()),
   refreshSessionToken: vi.fn(),
 }));
@@ -194,19 +196,30 @@ async function buildGateApp(
     c.set("session", session);
     await next();
   });
-  // One layer instance, mounted where each probe's params are in scope: the
-  // rung reads `:prNumber`, which a `/:repoId/*` mount never sees.
-  const gate = repoAuthzLayer(deps, installations);
-  app.use("/:repoId/probe", gate);
-  app.use("/:repoId/pulls/:prNumber/*", gate);
+  app.use("/:repoId/*", repoAuthzLayer(deps, installations));
   const reportWorld: Handler<AuthzEnv> = (c) => {
     const world = isOwnerContext(c.get("ctx")) ? "owner" : "installation";
     return c.json({ ok: true, world });
   };
   app.get("/:repoId/probe", reportWorld);
   app.get("/:repoId/pulls/:prNumber/probe", reportWorld);
+  app.get("/:repoId/access", reportAccess);
+  app.get("/:repoId/pulls/:prNumber/access", reportAccess);
   return app;
 }
+
+const reportAccess: Handler<AuthzEnv> = (c) => {
+  const access = c.get("repoAccess");
+  const prNumber =
+    access.footing === AccessFootings.OPERATOR ? access.prNumber : null;
+  return c.json({
+    footing: access.footing,
+    prNumber,
+    repoFullName: access.repoFullName,
+    viewerCanPush: access.viewerCanPush,
+    installation: access.installation.kind,
+  });
+};
 
 function stubDeniedRepo(
   status: number,
@@ -444,5 +457,53 @@ describe("repoAuthzLayer path bounds", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
     expect(fetchRepositoryById).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("repoAuthzLayer repo access", () => {
+  it("sets a reviewer-footed access on the reviewer's own token", async () => {
+    const app = await buildGateApp();
+    vi.mocked(fetchRepositoryById).mockResolvedValue(
+      stubGrantedRepo("acme/inside"),
+    );
+
+    const res = await app.request(`/${REPO_IN_INSTALLATION}/access`);
+
+    expect(await res.json()).toEqual({
+      footing: AccessFootings.REVIEWER,
+      prNumber: null,
+      repoFullName: "acme/inside",
+      viewerCanPush: false,
+      installation: "installation",
+    });
+  });
+
+  it("sets an operator-footed access pinned to the granted PR", async () => {
+    const app = await buildGateApp({ operatorToken: "operator-pat" });
+    await createTenantRepository(harness.handle, {
+      ownerUserId: brand(42n, isReviewerId),
+    }).pullRequests.upsert({
+      repoId: brand(8890n, isRepoId),
+      prNumber: 4,
+      repoSlug: "other/pinned",
+      state: PrStates.OPEN,
+    });
+    vi.mocked(fetchRepositoryById)
+      .mockResolvedValueOnce(stubDeniedRepo(404))
+      .mockResolvedValueOnce(stubGrantedRepo("other/pinned"));
+
+    const first = await app.request("/8890/pulls/4/access");
+    const second = await app.request("/8890/pulls/4/access");
+
+    const expected = {
+      footing: AccessFootings.OPERATOR,
+      prNumber: 4,
+      repoFullName: "other/pinned",
+      viewerCanPush: false,
+      installation: "owner",
+    };
+    expect(await first.json()).toEqual(expected);
+    expect(await second.json()).toEqual(expected);
+    expect(fetchRepositoryById).toHaveBeenCalledTimes(2);
   });
 });

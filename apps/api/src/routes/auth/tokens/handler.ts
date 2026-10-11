@@ -1,7 +1,8 @@
 import type { Context } from "hono";
 import { BadRequest, NotFound } from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
-import { API_TOKEN_PREFIX, type AuthzEnv } from "../../authz";
+import { API_TOKEN_PREFIX } from "../../../access/consts";
+import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
 import { tokensController } from "./controller";
 import { mintBodySchema } from "./schemas";

@@ -8,7 +8,8 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import {
   createAbsentLocalBriefsHandlers,
   createLocalBriefsHandlers,

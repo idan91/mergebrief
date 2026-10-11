@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { BadGateway, Unauthorized } from "../../shared-errors/api-error";
 import type { InstallationResolver } from "../installation-resolver";
-import type { AuthzEnv } from "../authz";
+import type { AuthzEnv } from "../../access/types";
 import { reposController } from "./controller";
 import { ApiErrorCodes } from "contract";
 import { HttpStatuses } from "types/http";

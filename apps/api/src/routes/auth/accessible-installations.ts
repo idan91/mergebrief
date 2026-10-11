@@ -12,7 +12,7 @@ import { createSessionAuth } from "persistence";
 import type { Result } from "types/utils";
 import { createReviewerGitHubClient } from "./reviewer-github-client";
 import type { AuthRouteDeps, ViewerPrincipal } from "./session/types";
-import { AUTHZ_CACHE_TTL_MS } from "../authz";
+import { AUTHZ_CACHE_TTL_MS } from "../../access/consts";
 import { createTtlCache } from "../ttl-cache";
 
 /** Bounded like the other per-credential caches: hashes are never reused. */

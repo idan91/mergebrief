@@ -13,7 +13,8 @@ import {
 import { WriteClassifications } from "persistence";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
 import type { AuthRouteDeps } from "../auth/session/types";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import type { InstallationResolver } from "../installation-resolver";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { TtlCache } from "../ttl-cache";

@@ -7,7 +7,7 @@ import { DispositionDecisions } from "types/dispositions";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { prNumberSchema, rowIdSchema } from "../../../wire-bounds";
 import { assertHuman } from "../../../assert-human";
 import { sessionController } from "./controller";

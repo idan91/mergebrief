@@ -1,5 +1,4 @@
 import { InboxQueryKeys } from "contract";
-import { isInstallationId, isRepoId } from "persistence";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
@@ -12,30 +11,11 @@ import { z } from "zod/v4";
 import {
   MAX_INBOX_FILTER_VALUES,
   MAX_INBOX_PAGE,
-  MAX_ROW_ID,
+  installationIdSchema,
+  repoIdSchema,
 } from "../wire-bounds";
 
 const DEFAULT_STATUSES = [InboxStatuses.OPEN, InboxStatuses.DRAFT];
-
-function brandId<Id extends bigint>(
-  guard: (value: bigint) => value is Id,
-  label: string,
-) {
-  return z
-    .string()
-    .regex(/^[0-9]{1,19}$/, { message: `${label} must be an id`, abort: true })
-    .transform((raw, ctx) => {
-      const value = BigInt(raw);
-      if (value > MAX_ROW_ID || !guard(value)) {
-        ctx.addIssue({ code: "custom", message: `${label} out of range` });
-        return z.NEVER;
-      }
-      return value;
-    });
-}
-
-const repoIdSchema = brandId(isRepoId, "repo");
-const installationIdSchema = brandId(isInstallationId, "installation");
 
 function buildListSchema<Schema extends z.ZodType>(schema: Schema) {
   return z.array(schema).max(MAX_INBOX_FILTER_VALUES).optional();

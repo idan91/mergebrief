@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
 import { BadRequest } from "../../shared-errors/api-error";
-import type { AuthzEnv } from "../authz";
+import type { AuthzEnv } from "../../access/types";
 import { ARTIFACT_HEADERS, NO_STORE } from "./consts";
 import { localBriefsController } from "./controller";
 import { toLocalBriefsError } from "./logic/wire-failures";

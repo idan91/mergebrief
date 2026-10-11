@@ -1,16 +1,10 @@
-// Which world a PR row on the per-PR route lives in. A credential's ctx is
-// its own scope (tenant, or owner for an installation-less session), but the
-// route's coordinates can name a row in EITHER world: an installation-bound
-// viewer still owns the url-box briefs they pasted. The credential's world is
-// tried first — the App door wins for rendering — and the url-box world is
-// the fallback. Absence keeps the credential's ctx, so downstream misses
-// produce the same uniform 404s they always did.
-//
-// The url-box fallback is INSTANCE-wide, not viewer-wide: a reader who proved
-// GitHub access to the repo may open a brief another user on this instance
-// pasted. Per-reviewer state is unaffected — the Review Session's natural key
-// carries the reviewer, so two readers of one url-box brief keep separate
-// sessions and drafts.
+// Which world a PR row on the per-PR route lives in. The route's coordinates
+// can name a row in either world: an installation-bound reviewer still owns
+// the url-box briefs they pasted. The credential's world is tried first, then
+// the url-box world; absence keeps the credential's ctx, so a miss is the
+// same uniform 404. The url-box fallback is INSTANCE-wide: a reader who
+// proved GitHub access may open a brief another reviewer pasted, while the
+// Review Session's natural key keeps sessions and drafts per reviewer.
 import type { Context } from "hono";
 import {
   createTenantRepository,
@@ -21,7 +15,7 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
-import type { AuthzEnv } from "../../authz";
+import type { AuthzEnv } from "../../../access/types";
 
 export async function resolvePrScope(
   handle: AppDatabase,

@@ -16,7 +16,7 @@ import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import { AUTHZ_CACHE_TTL_MS } from "../src/routes/authz";
+import { AUTHZ_CACHE_TTL_MS } from "../src/access/consts";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,

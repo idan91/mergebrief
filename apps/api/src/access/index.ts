@@ -1,0 +1,306 @@
+/* oxlint-disable house/comment-run -- the gate's contract: what it decides,
+   what is cached and never cached, and what the access line carries. */
+// The repo gate, the SINGLE enforcement point for `/api/repos/:repoId/*`:
+// `sessionLayer` then `repoAuthzLayer`. The repo layer brands `:repoId` and
+// verifies the reviewer's read access by NUMERIC id (`GET /repositories/{id}`
+// on their own token, rename-proof). A 403/404 collapses to 404 and names the
+// denial for the audit choke point; a 401 is 401 and an outage or rate limit
+// is 502. On success it resolves the installation holding the repo among
+// those the reviewer reaches (else the owner world) and shapes the context.
+//
+// CACHING: a POSITIVE cache keyed (credential, repo) with a 60s TTL skips the
+// GitHub round-trip. NEGATIVES ARE NEVER CACHED: a revoked grant re-denies on
+// the very next request. The cache is created once per `repoAuthzLayer`, so
+// one per app. The operator-PAT rung caches a restricted entry pinned to its
+// own PR, so a reader stays on that footing for the TTL.
+//
+// REFRESH: a 401 spends the client's one serialized refresh and retries the
+// check once; a failed refresh already deleted the session, so it is a 401.
+//
+// LOGGING: the gate only STAMPS its decision via `stampAccess`, numeric ids
+// only; `requestLogging` emits the line after the handler. On the allowed
+// path the stamp lands after `next()`, so the line's status is the handler's.
+/* oxlint-enable house/comment-run */
+import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
+import type { Context, MiddlewareHandler, Next } from "hono";
+import { every } from "hono/combine";
+import { routePath } from "hono/route";
+import { fetchRepositoryById, type GitHubApiError } from "github";
+import {
+  createSessionAuth,
+  type RepoId,
+  type ReviewerId,
+  type ScopeContext,
+} from "persistence";
+import { HttpStatuses } from "types/http";
+import {
+  AUDIT_REASON_NO_REPO_ACCESS,
+  stampAuditReason,
+  stampAuditTarget,
+} from "../product-operations/audit";
+import { stampAccess } from "../request-logging";
+import {
+  createReviewerGitHubClient,
+  type GitHubCallFailed,
+  type GitHubCallTokenUnreadable,
+  type ReviewerGitHubClient,
+} from "../routes/auth/reviewer-github-client";
+import type { AuthRouteDeps } from "../routes/auth/session/types";
+import type {
+  InstallationResolver,
+  ResolvedRepoWorld,
+  RepoWorld,
+} from "../routes/installation-resolver";
+import { createTtlCache } from "../routes/ttl-cache";
+import {
+  parsePrNumberParam,
+  parseRepoIdParam,
+  type PrNumberParamResult,
+} from "../routes/wire-bounds";
+import { BadGateway, NotFound, Unauthorized } from "../shared-errors/api-error";
+import { resolveGitHubDenialError } from "../shared-errors/github-denial";
+import { DenialPostures } from "../shared-errors/github-denial/types";
+import {
+  AUTHZ_CACHE_TTL_MS,
+  POSITIVE_CACHE_MAX_ENTRIES,
+  PULLS_SEGMENT,
+  REPO_ID_PARAM,
+} from "./consts";
+import { resolveOperatorRepoAccess } from "./operator-token";
+import { sessionLayer } from "./session-layer";
+import {
+  AccessFootings,
+  type AuthzEnv,
+  type CachedRepoAccess,
+  type GateRequest,
+  type OperatorRepoAccess,
+  type RepoAccess,
+  type ReviewerRepoAccess,
+} from "./types";
+
+/**
+ * Keyed by credential and repo. The entry carries the world the repo was
+ * resolved into, so a pass replays under the installation it was proven
+ * for and never under another.
+ */
+function buildPositiveCacheKey(
+  sessionTokenHash: string,
+  repoId: RepoId,
+): string {
+  return `${sessionTokenHash}:${String(repoId)}`;
+}
+
+/** The request context a resolved world addresses. */
+function deriveScopeContext(
+  world: RepoWorld,
+  reviewerId: ReviewerId,
+): ScopeContext {
+  return world.kind === "installation"
+    ? { installationId: world.installationId }
+    : { ownerUserId: reviewerId };
+}
+
+/**
+ * The `:prNumber` segment under `:repoId/pulls/`, read off the path: the gate
+ * mounts above the per-PR subtree, so Hono binds no such param for it.
+ */
+function readPullNumberSegment(c: Context<AuthzEnv>): string | undefined {
+  const repoIdIndex = routePath(c).split("/").indexOf(REPO_ID_PARAM);
+  const segments = c.req.path.split("/");
+  if (repoIdIndex === -1 || segments[repoIdIndex + 1] !== PULLS_SEGMENT) {
+    return undefined;
+  }
+  return segments[repoIdIndex + 2];
+}
+
+/** An operator-footed entry serves only the PR it was granted for. */
+function isServedFromCache(
+  cached: CachedRepoAccess,
+  requestedPr: PrNumberParamResult,
+): boolean {
+  if (cached.footing === AccessFootings.REVIEWER) {
+    return true;
+  }
+  return requestedPr.ok && cached.prNumber === requestedPr.value;
+}
+
+async function serveRepoAccess(
+  c: Context<AuthzEnv>,
+  next: Next,
+  access: RepoAccess,
+  decision: string,
+): Promise<void> {
+  const reviewerId = access.session.reviewerId;
+  c.set("repoAccess", access);
+  c.set("session", access.session);
+  c.set("ctx", deriveScopeContext(access.installation, reviewerId));
+  c.set("repoId", access.repoId);
+  c.set("repoFullName", access.repoFullName);
+  c.set("viewerCanPush", access.viewerCanPush);
+  if (access.footing === AccessFootings.OPERATOR) {
+    c.set("urlBoxOnly", true);
+  }
+  await next();
+  stampAccess(c, decision, { repoId: access.repoId, reviewerId });
+}
+
+/**
+ * The reviewer's own token was refused: the operator rung's access, or a
+ * throw. A 401 is re-login and an outage is 502, neither cached nor taken to
+ * the rung; only a 403/404 reads as absence, and with no rung it is the
+ * uniform 404, never cached. The ledger names the real reason, though a read
+ * is never audited and the gate cannot tell the two apart.
+ */
+async function resolveRefusedRepoAccess(
+  deps: AuthRouteDeps,
+  c: Context<AuthzEnv>,
+  client: ReviewerGitHubClient,
+  request: GateRequest,
+  refused: GitHubCallFailed<GitHubApiError> | GitHubCallTokenUnreadable,
+): Promise<Omit<OperatorRepoAccess, "session">> {
+  const { repoId } = request;
+  if (refused.tokenUnreadable) {
+    const session = c.get("session");
+    await createSessionAuth(deps.handle).deleteSession(
+      session.sessionTokenHash,
+    );
+    stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
+    throw new Unauthorized();
+  }
+
+  const denial = resolveGitHubDenialError(
+    refused.error,
+    DenialPostures.COLLAPSE,
+  );
+  const stampFields = { repoId, reviewerId: client.session().reviewerId };
+  if (!(denial instanceof NotFound)) {
+    stampAuditTarget(c, "repo", repoId);
+    stampAccess(c, String(ApiErrorStatusByCode[denial.code]), stampFields);
+    throw denial;
+  }
+
+  // The url-box door generates behind the operator PAT, so without the rung
+  // a reader holds briefs they cannot open.
+  const operatorAccess = await resolveOperatorRepoAccess(deps, client, {
+    ...request,
+    error: refused.error,
+  });
+  if (operatorAccess !== undefined) {
+    return operatorAccess;
+  }
+  stampAuditReason(c, AUDIT_REASON_NO_REPO_ACCESS);
+  stampAuditTarget(c, "repo", repoId);
+  stampAccess(c, "404", stampFields);
+  throw denial;
+}
+
+/** Which installation holds a readable repo; a failure is never cached. */
+async function resolveRepoInstallation(
+  installations: InstallationResolver,
+  c: Context<AuthzEnv>,
+  client: ReviewerGitHubClient,
+  repoId: RepoId,
+): Promise<ResolvedRepoWorld> {
+  const resolved = await installations.resolveInstallationForRepo(
+    client.session(),
+    repoId,
+    c.get("logger"),
+  );
+  if (resolved.ok) {
+    return resolved.value;
+  }
+  const { status } = resolved.error;
+  stampAccess(c, String(status), {
+    repoId,
+    reviewerId: client.session().reviewerId,
+  });
+  if (status === HttpStatuses.UNAUTHORIZED) {
+    throw new Unauthorized();
+  }
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+}
+
+/**
+ * Verify the resolved session's GitHub access to `:repoId` and set the
+ * `RepoAccess`. Requires `sessionLayer` to have run.
+ */
+export function repoAuthzLayer(
+  deps: AuthRouteDeps,
+  installations: InstallationResolver,
+): MiddlewareHandler<AuthzEnv> {
+  const positiveCache = createTtlCache<CachedRepoAccess>(
+    POSITIVE_CACHE_MAX_ENTRIES,
+  );
+
+  return async (c, next) => {
+    const session = c.get("session");
+    // An ill-shaped id is a 404 (never 400, no shape leak either).
+    const repoId = parseRepoIdParam(c.req.param("repoId"));
+    if (repoId === undefined) {
+      stampAccess(c, "404", { reviewerId: session.reviewerId });
+      throw new NotFound();
+    }
+    const requestedPr = parsePrNumberParam(readPullNumberSegment(c));
+
+    const cacheKey = buildPositiveCacheKey(session.sessionTokenHash, repoId);
+    const cached = positiveCache.get(cacheKey);
+    if (cached !== undefined && isServedFromCache(cached, requestedPr)) {
+      await serveRepoAccess(c, next, { ...cached, session }, "200");
+      return;
+    }
+
+    const client = createReviewerGitHubClient(deps, session, c.get("logger"));
+    const repo = await client.run((token) =>
+      fetchRepositoryById(client.createOctokit(token), repoId),
+    );
+    if (!repo.ok) {
+      const request = { repoId, requestedPr };
+      const operatorAccess = await resolveRefusedRepoAccess(
+        deps,
+        c,
+        client,
+        request,
+        repo,
+      );
+      const expiresAt = Date.now() + AUTHZ_CACHE_TTL_MS;
+      positiveCache.set(cacheKey, operatorAccess, expiresAt);
+      const access = { ...operatorAccess, session: client.session() };
+      await serveRepoAccess(c, next, access, "200-url-box");
+      return;
+    }
+
+    const resolved = await resolveRepoInstallation(
+      installations,
+      c,
+      client,
+      repoId,
+    );
+    const reviewerAccess: Omit<ReviewerRepoAccess, "session"> = {
+      footing: AccessFootings.REVIEWER,
+      repoId,
+      repoFullName: repo.value.fullName,
+      viewerCanPush: repo.value.viewerCanPush,
+      installation: resolved.world,
+    };
+    // Capped to the world's own expiry, so the three caches never stack.
+    const ttlExpiry = Date.now() + AUTHZ_CACHE_TTL_MS;
+    positiveCache.set(
+      cacheKey,
+      reviewerAccess,
+      Math.min(ttlExpiry, resolved.expiresAt),
+    );
+    const access = { ...reviewerAccess, session: resolved.session };
+    await serveRepoAccess(c, next, access, "200");
+  };
+}
+
+/**
+ * The repo gate: `sessionLayer` ∘ `repoAuthzLayer`, built once per app
+ * instance so the positive cache is app-scoped.
+ */
+export function createAuthzMiddleware(
+  deps: AuthRouteDeps,
+  installations: InstallationResolver,
+): MiddlewareHandler<AuthzEnv> {
+  return every(sessionLayer(deps), repoAuthzLayer(deps, installations));
+}

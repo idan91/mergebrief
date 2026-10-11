@@ -25,7 +25,7 @@ import {
   type GitHubCallOutcome,
 } from "./auth/reviewer-github-client";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
-import { AUTHZ_CACHE_TTL_MS } from "./authz";
+import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { runInBatches } from "./batches";
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createTtlCache } from "./ttl-cache";

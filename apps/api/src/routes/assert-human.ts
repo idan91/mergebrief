@@ -2,7 +2,7 @@ import { ApiErrorCodes } from "contract";
 import type { Context } from "hono";
 import { Forbidden } from "../shared-errors/api-error";
 import { AuthChannels } from "./auth/session/types";
-import type { AuthzEnv } from "./authz";
+import type { AuthzEnv } from "../access/types";
 
 /**
  * THE human-only predicate, one site for every operation that signs under

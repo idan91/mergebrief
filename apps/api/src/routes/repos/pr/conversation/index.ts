@@ -16,7 +16,7 @@ import {
   type ProductRouter,
 } from "../../../../product-operations/product-router";
 import type { AuthRouteDeps } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";
 import { CONVERSATION_CACHE_MAX_ENTRIES } from "./consts";

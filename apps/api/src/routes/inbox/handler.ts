@@ -21,7 +21,8 @@ import type {
 } from "../installation-resolver";
 import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
-import { resolveOperatorTokenFor, type AuthzEnv } from "../authz";
+import { resolveOperatorTokenFor } from "../../access/operator-token";
+import type { AuthzEnv } from "../../access/types";
 import { refreshUrlPullRequests } from "../live-read";
 import type { TtlCache } from "../ttl-cache";
 import { INBOX_LIVE_BUDGET_MS } from "./consts";

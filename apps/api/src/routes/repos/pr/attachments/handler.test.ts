@@ -22,7 +22,7 @@ import {
   AuthChannels,
   type ViewerPrincipal,
 } from "../../../auth/session/types";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { DEFAULT_UPLOAD_QUOTA_LIMITS } from "./consts";

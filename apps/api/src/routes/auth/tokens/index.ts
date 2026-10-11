@@ -8,7 +8,8 @@ import {
   type ProductRouter,
 } from "../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
+import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
+import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
 import { createTokensHandlers } from "./handler";
 

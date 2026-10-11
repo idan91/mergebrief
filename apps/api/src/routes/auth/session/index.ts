@@ -5,7 +5,8 @@
 // construction: `sessionLayer` ignores Bearer under `/api/auth/*`. Auth
 // bootstrap like logout, so it is not a Product Operation.
 import { Hono } from "hono";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
+import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
+import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "./types";
 import { shapeViewer } from "../../viewer";
 import { HttpStatuses } from "types/http";

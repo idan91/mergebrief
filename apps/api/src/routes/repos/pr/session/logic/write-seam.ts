@@ -12,7 +12,7 @@ import {
   NotFound,
 } from "../../../../../shared-errors/api-error";
 import type { AuthRouteDeps } from "../../../../auth/session/types";
-import type { AuthzEnv } from "../../../../authz";
+import type { AuthzEnv } from "../../../../../access/types";
 import { prNumberSchema } from "../../../../wire-bounds";
 import { sessionController } from "../controller";
 import { spanQuerySchema } from "../schemas";

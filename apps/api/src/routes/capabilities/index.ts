@@ -8,7 +8,8 @@ import {
 } from "../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import type { AuthzEnv } from "../../access/types";
 import { createCapabilitiesHandlers } from "./handler";
 
 export function capabilitiesRoute(

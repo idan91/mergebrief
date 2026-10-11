@@ -3,7 +3,7 @@
 import type { Context } from "hono";
 import type { z } from "zod/v4";
 import { BadRequest } from "../../../../shared-errors/api-error";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { prNumberSchema } from "../../../wire-bounds";
 
 export function parseQuery<S extends z.ZodType>(

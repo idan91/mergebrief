@@ -3,7 +3,7 @@
 // refusing up front. The Inbox page size lives here too, a server fact the
 // client never sends.
 import { InboxQueryBounds } from "contract";
-import { isRepoId, type RepoId } from "persistence";
+import { isInstallationId, isRepoId, type RepoId } from "persistence";
 import type { Result } from "types/utils";
 import { z } from "zod/v4";
 
@@ -31,16 +31,34 @@ export const commitShaSchema = z
 
 export const prNumberSchema = z.coerce.number().int().positive().max(MAX_INT4);
 
+function buildBrandedIdSchema<Id extends bigint>(
+  guard: (value: bigint) => value is Id,
+  label: string,
+) {
+  return z
+    .string()
+    .regex(/^[0-9]{1,19}$/, { message: `${label} must be an id`, abort: true })
+    .transform((raw, ctx) => {
+      const value = BigInt(raw);
+      if (value > MAX_ROW_ID || !guard(value)) {
+        ctx.addIssue({ code: "custom", message: `${label} out of range` });
+        return z.NEVER;
+      }
+      return value;
+    });
+}
+
+/** A GitHub id on the wire, path segment or query value alike. */
+export const repoIdSchema = buildBrandedIdSchema(isRepoId, "repo");
+export const installationIdSchema = buildBrandedIdSchema(
+  isInstallationId,
+  "installation",
+);
+
 /** Brand a `:repoId` path segment; a malformed or oversized id is `undefined`. */
 export function parseRepoIdParam(raw: string | undefined): RepoId | undefined {
-  if (raw === undefined || !/^[0-9]{1,19}$/.test(raw)) {
-    return undefined;
-  }
-  const value = BigInt(raw);
-  if (value > MAX_ROW_ID || !isRepoId(value)) {
-    return undefined;
-  }
-  return value;
+  const parsed = repoIdSchema.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
 }
 
 const MALFORMED_PR_NUMBER = "malformed-pr-number";

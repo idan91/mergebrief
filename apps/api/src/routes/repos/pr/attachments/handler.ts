@@ -18,11 +18,9 @@ import {
 } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import {
-  readFallbackTokenFor,
-  requireInstallationScope,
-  type AuthzEnv,
-} from "../../../authz";
+import { readFallbackTokenFor } from "../../../../access/operator-token";
+import { requireInstallationScope } from "../../../../access/installation-scope";
+import type { AuthzEnv } from "../../../../access/types";
 import { readRawBodyWithinLimit } from "../../../read-body";
 import type { TtlCache } from "../../../ttl-cache";
 import { HttpStatuses, type Result } from "types";

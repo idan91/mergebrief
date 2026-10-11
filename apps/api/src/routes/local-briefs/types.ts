@@ -4,7 +4,7 @@ import type { Logger } from "logging";
 import type { ValueOf } from "types/utils";
 import type { z } from "zod/v4";
 import type { AuthRouteDeps } from "../auth/session/types";
-import type { AuthzEnv } from "../authz";
+import type { AuthzEnv } from "../../access/types";
 import type {
   comparisonMarksHeaderSchema,
   revisionChangesHeaderSchema,

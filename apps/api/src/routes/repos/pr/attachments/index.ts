@@ -12,7 +12,7 @@ import {
   type ProductRouter,
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "persistence";
-import type { AuthzEnv } from "../../../authz";
+import type { AuthzEnv } from "../../../../access/types";
 import { createTtlCache } from "../../../ttl-cache";
 import {
   DEFAULT_UPLOAD_QUOTA_LIMITS,

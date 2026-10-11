@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { stampAuditTarget } from "../../../product-operations/audit";
-import type { AuthzEnv } from "../../authz";
+import type { AuthzEnv } from "../../../access/types";
 import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "../session/consts";
 import type { AuthRouteDeps } from "../session/types";
 import { sessionsController } from "./controller";

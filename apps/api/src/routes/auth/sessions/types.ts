@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { Logger } from "logging";
-import type { AuthzEnv } from "../../authz";
+import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps, ViewerPrincipal } from "../session/types";
 
 export interface SessionsControllerDeps {

@@ -14,7 +14,7 @@ import type { Mutable } from "types/utils";
 import { BadGateway, Conflict } from "../../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../../auth/reviewer-github-client";
-import type { AuthzEnv } from "../../../../authz";
+import type { AuthzEnv } from "../../../../../access/types";
 import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,

@@ -1,6 +1,6 @@
 // The `/auth` subtree: composition only. OAuth login + logout, the session
 // probe, the revoke-all and the browser-only token-management surface.
-import type { AuthzEnv } from "../authz";
+import type { AuthzEnv } from "../../access/types";
 import {
   productRouter,
   type ProductRouter,
