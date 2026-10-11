@@ -7,39 +7,24 @@ import {
   ReviewSubjectTypes,
 } from "../../src/operations/review-thread";
 import {
+  OLD_TOKEN,
+  PULL,
   REPO,
+  UNAUTHORIZED,
+  answerByToken,
   formatTokenAuthorization,
   makeLogger,
   makeOctokitFactory,
-  makePullRequestBody,
   makeRepositoryBody,
-  requireOperatorToken,
   requireRepoId,
   stubCredential,
   stubGitHubFetch,
-  type RecordedRequest,
-  type StubResponse,
 } from "./helpers";
 
-const OLD_TOKEN = "ghu_old";
 const NEW_TOKEN = "ghu_new";
-const OPERATOR = "ghp_operator";
 const PR_PATH = "/repos/acme/widgets/pulls/7";
 
 const REPO_ID = requireRepoId(4242n);
-
-function answerByToken(
-  answers: Readonly<Record<string, StubResponse>>,
-): (request: RecordedRequest) => StubResponse {
-  return (request) => {
-    const token = request.authorization?.replace("token ", "") ?? "";
-    return answers[token] ?? { status: 500, body: { message: "unrouted" } };
-  };
-}
-
-const UNAUTHORIZED = { status: 401, body: { message: "Bad credentials" } };
-const NOT_FOUND = { status: 404, body: { message: "Not Found" } };
-const PULL = { status: 200, body: makePullRequestBody(7) };
 
 describe("bindReviewerGitHub token renewal", () => {
   it("renews once for concurrent 401s and re-runs each call", async () => {
@@ -183,111 +168,6 @@ describe("bindReviewerGitHub token renewal", () => {
     await github.forRepo(REPO).fetchPullRequest(7);
 
     expect(stub.requests[0]?.path).toBe(PR_PATH);
-  });
-});
-
-describe("bindReviewerGitHub operator reads", () => {
-  function bindWithOperator(stub: ReturnType<typeof stubGitHubFetch>) {
-    const log = makeLogger();
-    const github = bindReviewerGitHub(stubCredential(OLD_TOKEN, undefined), {
-      log,
-      octokitFactory: makeOctokitFactory(stub),
-      operatorReads: { token: requireOperatorToken(OPERATOR), repo: REPO },
-    });
-    return { github, log };
-  }
-
-  it.each([403, 404])(
-    "reads on the operator token after a %i",
-    async (status) => {
-      const stub = stubGitHubFetch(
-        answerByToken({
-          [OLD_TOKEN]: { status, body: { message: "denied" } },
-          [OPERATOR]: PULL,
-        }),
-      );
-      const { github } = bindWithOperator(stub);
-
-      const result = await github.forRepo(REPO).fetchPullRequest(7);
-
-      expect(result.ok && result.value.repoFullName).toBe("acme/widgets");
-      expect(stub.requests.map((request) => request.authorization)).toEqual([
-        formatTokenAuthorization(OLD_TOKEN),
-        formatTokenAuthorization(OPERATOR),
-      ]);
-    },
-  );
-
-  it("answers the reviewer's denial when the operator token gets a 401", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({ [OLD_TOKEN]: NOT_FOUND, [OPERATOR]: UNAUTHORIZED }),
-    );
-    const { github, log } = bindWithOperator(stub);
-
-    const result = await github.forRepo(REPO).fetchPullRequest(7);
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(log.warn).toHaveBeenCalledTimes(1);
-  });
-
-  it("never reads another repository on the operator token", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({ [OLD_TOKEN]: NOT_FOUND, [OPERATOR]: PULL }),
-    );
-    const { github } = bindWithOperator(stub);
-
-    const result = await github
-      .forRepo({ owner: "acme", repo: "secrets" })
-      .fetchPullRequest(7);
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(stub.requests).toHaveLength(1);
-  });
-
-  it("matches the operator repository ignoring case", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({ [OLD_TOKEN]: NOT_FOUND, [OPERATOR]: PULL }),
-    );
-    const { github } = bindWithOperator(stub);
-
-    const result = await github
-      .forRepo({ owner: "Acme", repo: "Widgets" })
-      .fetchPullRequest(7);
-
-    expect(result.ok).toBe(true);
-  });
-
-  it("never writes on the operator token", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({ [OLD_TOKEN]: NOT_FOUND, [OPERATOR]: PULL }),
-    );
-    const { github } = bindWithOperator(stub);
-
-    const result = await github.forRepo(REPO).createInlineReviewComment({
-      prNumber: 7,
-      commitId: "b".repeat(40),
-      path: "src/index.ts",
-      line: 3,
-      side: ReviewCommentSides.RIGHT,
-      body: "why",
-    });
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(stub.requests.map((request) => request.authorization)).toEqual([
-      formatTokenAuthorization(OLD_TOKEN),
-    ]);
-  });
-
-  it("keeps account reads on the reviewer's token", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({ [OLD_TOKEN]: NOT_FOUND, [OPERATOR]: PULL }),
-    );
-    const { github } = bindWithOperator(stub);
-
-    const result = await github.fetchRepositoryById(REPO_ID);
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(stub.requests).toHaveLength(1);
   });
 });
 

@@ -1,5 +1,5 @@
 import { createUserOctokit } from "../auth/oauth";
-import { fetchRepositoryById } from "../operations/repo";
+import { buildAccountReader } from "./account-reader";
 import { buildRepoReader } from "./repo-reader";
 import type {
   CallRunner,
@@ -21,14 +21,9 @@ export function bindOperatorGitHub(
   const run: CallRunner = (call) => call(createOctokit(token));
 
   return {
+    ...buildAccountReader(run),
     forRepo(repo) {
       return buildRepoReader(repo, run);
-    },
-    fetchRepositoryById(repoId) {
-      return run(
-        (octokit) => fetchRepositoryById(octokit, repoId),
-        "fetch repository",
-      );
     },
   };
 }

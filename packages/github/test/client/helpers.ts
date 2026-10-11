@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from "node:crypto";
+import { App, Octokit } from "octokit";
 import { vi, type Mock } from "vitest";
 import type { Logger } from "logging";
 import {
@@ -99,6 +101,24 @@ export function stubCredential(
 
 export const REPO = { owner: "acme", repo: "widgets" } as const;
 
+export const OLD_TOKEN = "ghu_old";
+export const OPERATOR_TOKEN = "ghp_operator";
+export const UNAUTHORIZED = {
+  status: 401,
+  body: { message: "Bad credentials" },
+};
+export const NOT_FOUND = { status: 404, body: { message: "Not Found" } };
+
+/** Answers each request by the token it carries; an unknown token gets a 500. */
+export function answerByToken(
+  answers: Readonly<Record<string, StubResponse>>,
+): RouteHandler {
+  return (request) => {
+    const token = request.authorization?.replace("token ", "") ?? "";
+    return answers[token] ?? { status: 500, body: { message: "unrouted" } };
+  };
+}
+
 export function makeRepositoryBody(fullName: string): unknown {
   return {
     full_name: fullName,
@@ -134,6 +154,8 @@ export function makePullRequestBody(prNumber: number): unknown {
   };
 }
 
+export const PULL = { status: 200, body: makePullRequestBody(7) };
+
 export function formatTokenAuthorization(token: string): string {
   return `token ${token}`;
 }
@@ -157,4 +179,44 @@ export function requireOperatorToken(value: string): OperatorToken {
     throw new Error("test operator token must be non-empty");
   }
   return value;
+}
+
+export const MINTED = "ghs_minted";
+export const MINT_PATH = "/app/installations/99/access_tokens";
+export const MINT_OK = {
+  status: 201,
+  body: { token: MINTED, expires_at: "2099-01-01T00:00:00Z" },
+};
+
+function makeThrowawayPrivateKey(): string {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  return privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+}
+
+let privateKey: string | undefined;
+
+/** An unthrottled App (id 1) whose requests go through `stub`. */
+export function makeApp(stub: GitHubFetchStub): App {
+  privateKey ??= makeThrowawayPrivateKey();
+  return new App({
+    appId: 1,
+    privateKey,
+    Octokit: Octokit.defaults({
+      request: { fetch: stub.fetch },
+      throttle: { enabled: false },
+    }),
+  });
+}
+
+/** Answers installation 99's token mint with `minted`, the rest with `answer`. */
+export function routeMinting(
+  minted: StubResponse,
+  answer: StubResponse,
+): RouteHandler {
+  return (request) => {
+    if (request.path === MINT_PATH) {
+      return minted;
+    }
+    return answer;
+  };
 }

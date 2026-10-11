@@ -1,5 +1,3 @@
-import { generateKeyPairSync } from "node:crypto";
-import { App, Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { bindInstallationGitHub } from "../../src/client/installation";
 import { GitHubApiErrorCodes } from "../../src/errors";
@@ -8,56 +6,20 @@ import {
   gqlCollaborator,
 } from "../fixtures/collaborators-graphql";
 import {
+  MINT_OK,
+  MINT_PATH,
+  MINTED,
   REPO,
   formatTokenAuthorization,
+  makeApp,
   makePullRequestBody,
   requireInstallationId,
   requireRepoId,
+  routeMinting,
   stubGitHubFetch,
-  type GitHubFetchStub,
-  type RecordedRequest,
-  type StubResponse,
 } from "./helpers";
 
-const MINTED = "ghs_minted";
-const MINT_PATH = "/app/installations/99/access_tokens";
-
 const INSTALLATION_ID = requireInstallationId(99n);
-
-function makeThrowawayPrivateKey(): string {
-  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
-  return privateKey.export({ type: "pkcs1", format: "pem" }).toString();
-}
-
-const PRIVATE_KEY = makeThrowawayPrivateKey();
-
-function makeApp(stub: GitHubFetchStub): App {
-  return new App({
-    appId: 1,
-    privateKey: PRIVATE_KEY,
-    Octokit: Octokit.defaults({
-      request: { fetch: stub.fetch },
-      throttle: { enabled: false },
-    }),
-  });
-}
-
-function routeMinting(
-  minted: StubResponse,
-  answer: StubResponse,
-): (request: RecordedRequest) => StubResponse {
-  return (request) => {
-    if (request.path === MINT_PATH) {
-      return minted;
-    }
-    return answer;
-  };
-}
-
-const MINT_OK = {
-  status: 201,
-  body: { token: MINTED, expires_at: "2099-01-01T00:00:00Z" },
-};
 
 describe("bindInstallationGitHub", () => {
   it("mints an installation token and lists collaborators with it", async () => {

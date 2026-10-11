@@ -27,6 +27,16 @@ export interface DeleteCommentInput {
   readonly commentId: bigint;
 }
 
+/** A posted comment's id, the handle a later fetch or delete takes. */
+export interface PostedComment {
+  readonly commentId: bigint;
+}
+
+/** A comment's live body; GitHub's null body reads as empty. */
+export interface FetchedComment {
+  readonly body: string;
+}
+
 export interface FetchCommentInput {
   readonly owner: string;
   readonly repo: string;
@@ -41,7 +51,7 @@ export interface FetchCommentInput {
 export async function fetchComment(
   octokit: Octokit,
   input: FetchCommentInput,
-): Promise<Result<{ readonly body: string } | undefined, GitHubApiError>> {
+): Promise<Result<FetchedComment | undefined, GitHubApiError>> {
   try {
     const response = await octokit.rest.issues.getComment({
       owner: input.owner,
@@ -67,7 +77,7 @@ export async function fetchComment(
 export async function postEntryComment(
   octokit: Octokit,
   input: PostEntryCommentInput,
-): Promise<Result<{ readonly commentId: bigint }, GitHubApiError>> {
+): Promise<Result<PostedComment, GitHubApiError>> {
   try {
     const response = await octokit.rest.issues.createComment({
       owner: input.owner,

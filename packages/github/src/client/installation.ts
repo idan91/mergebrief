@@ -2,9 +2,8 @@ import type { Octokit } from "octokit";
 import type { InstallationId } from "persistence";
 import { getInstallationClient, type AppClient } from "../auth/app";
 import { GitHubApiErrorCodes, type GitHubApiError } from "../errors";
-import { listRepoCollaborators } from "../operations/collaborators";
-import { fetchRepositoryById } from "../operations/repo";
-import { buildRepoReader } from "./repo-reader";
+import { buildAccountReader } from "./account-reader";
+import { buildInstallationRepoClient } from "./installation-repo";
 import type { CallRunner, InstallationGitHub } from "./types";
 
 /** The message is static: nothing from the thrown mint error reaches it. */
@@ -43,22 +42,9 @@ export function bindInstallationGitHub(
   };
 
   return {
+    ...buildAccountReader(run),
     forRepo(repo) {
-      return {
-        ...buildRepoReader(repo, run),
-        listRepoCollaborators() {
-          return run(
-            (octokit) => listRepoCollaborators(octokit, repo),
-            "list repo collaborators",
-          );
-        },
-      };
-    },
-    fetchRepositoryById(repoId) {
-      return run(
-        (octokit) => fetchRepositoryById(octokit, repoId),
-        "fetch repository",
-      );
+      return buildInstallationRepoClient(repo, run);
     },
   };
 }

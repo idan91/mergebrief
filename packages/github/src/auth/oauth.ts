@@ -267,10 +267,16 @@ function deriveAccountLogin(account: InstallationAccount, id: number): string {
  * The installations reachable to the VIEWER token, ids plus account logins.
  * The Inbox walks this set on every list; nothing stores it.
  */
-export async function listUserInstallations(
+export function listUserInstallations(
   accessToken: string,
 ): Promise<Result<UserInstallation[], GitHubApiError>> {
-  const octokit = new Octokit({ auth: accessToken });
+  return fetchUserInstallations(new Octokit({ auth: accessToken }));
+}
+
+/** `listUserInstallations` on a client the caller built and tuned. */
+export async function fetchUserInstallations(
+  octokit: Octokit,
+): Promise<Result<UserInstallation[], GitHubApiError>> {
   try {
     const items: unknown = await octokit.paginate("GET /user/installations", {
       per_page: USER_INSTALLATIONS_PAGE_SIZE,

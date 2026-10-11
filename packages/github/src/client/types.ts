@@ -1,19 +1,68 @@
+import type { CompareFiles } from "brief-core";
+import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Logger } from "logging";
 import type { Octokit } from "octokit";
-import type { RepoId } from "persistence";
+import type { InstallationId, RepoId } from "persistence";
 import type { Brand, Result, ValueOf } from "types/utils";
-import type { UserOctokitFactory } from "../auth/oauth";
+import type { UserInstallation, UserOctokitFactory } from "../auth/oauth";
 import type { GitHubApiError } from "../errors";
+import type {
+  AttachmentBranchDeletion,
+  AttachmentCommit,
+  CommitAttachmentInput,
+} from "../operations/attachment-branch";
+import type { RepoCollaborators } from "../operations/collaborators";
+import type {
+  FetchedComment,
+  PostEntryCommentInput,
+  PostedComment,
+} from "../operations/comments";
+import type {
+  CreateReviewCommentReplyInput,
+  PrConversation,
+  ReviewCommentReplyResult,
+} from "../operations/conversation";
 import type {
   CreateInlineReviewCommentInput,
   InlineReviewCommentResult,
 } from "../operations/inline-comment";
-import type { RepoCollaborators } from "../operations/collaborators";
+import type { IssueInfo, IssueRef } from "../operations/issue";
+import type { LiveReadPage } from "../operations/live-read";
+import type { MarkReadyResult } from "../operations/mark-ready";
 import type {
+  CompareDiffRef,
+  PullRequestFile,
   PullRequestInfo,
+  PullRequestRef,
   RepositoryRef,
 } from "../operations/pull-request/types";
-import type { RepositoryInfo } from "../operations/repo";
+import type {
+  InstallationRepository,
+  RepositoryInfo,
+} from "../operations/repo";
+import type { GetRepoFileInput, RepoFileResult } from "../operations/repo-file";
+import type {
+  SetReviewThreadResolutionInput,
+  SetReviewThreadResolutionResult,
+} from "../operations/resolve-thread";
+import type {
+  CreatePullRequestReviewInput,
+  PendingReview,
+} from "../operations/review";
+import type {
+  ListReviewCommentsSinceInput,
+  ReviewCommentListing,
+} from "../operations/review-comment-list";
+import type {
+  AuthoredReview,
+  DeletePendingPullRequestReviewInput,
+  ListReviewsByAuthorInput,
+} from "../operations/review-pending";
+import type { SubmitPullRequestReviewInput } from "../operations/review-submit";
+import type {
+  AddReviewThreadInput,
+  ReviewThread,
+} from "../operations/review-thread";
 
 export const CredentialFailureCodes = {
   CREDENTIAL_UNREADABLE: "credential-unreadable",
@@ -42,10 +91,16 @@ export interface ReviewerCredential {
 
 export type OperatorToken = Brand<string, "OperatorToken">;
 
-/** The repository a gate passed on the operator token, and that token. */
+/**
+ * The one pull request a gate passed on the operator token, and the commits
+ * recorded for it. A read reaches the operator token only inside this scope.
+ */
 export interface OperatorReads {
   readonly token: OperatorToken;
   readonly repo: RepositoryRef;
+  readonly prNumber: number;
+  /** Full commit SHAs; a branch name or a short SHA never matches. */
+  readonly knownCommits: ReadonlySet<string>;
 }
 
 export interface ReviewerBindingOptions {
@@ -74,27 +129,147 @@ export type CallRunner = <Value>(
   context: string,
 ) => GitHubCall<Value>;
 
-export interface RepoReader {
-  fetchPullRequest(prNumber: number): GitHubCall<PullRequestInfo>;
+/** A read of one pull request. */
+export interface PullRequestReach {
+  readonly prNumber: number;
 }
 
+/** A read at caller-chosen commits; an absent one reads the default branch. */
+export interface CommitReach {
+  readonly commits: readonly (string | undefined)[];
+}
+
+/** What a repository read touches, checked before any operator fallback. */
+export type ReadReach = PullRequestReach | CommitReach;
+
+/** `CallRunner` for a repository read; a runner may ignore the reach. */
+export type RepoReadRunner = <Value>(
+  call: OctokitCall<Value>,
+  context: string,
+  reach: ReadReach,
+) => GitHubCall<Value>;
+
+/** The three runners a reviewer repository client calls through. */
+export interface ReviewerRunners {
+  /** The reviewer's token, then the operator token on a denied read in reach. */
+  readonly read: RepoReadRunner;
+  /** The reviewer's token only. */
+  readonly own: CallRunner;
+  /** The reviewer's token on a retry-off client. */
+  readonly create: CallRunner;
+}
+
+/**
+ * The reads every credential shares, bound to one repository. On a reviewer
+ * binding with `operatorReads`, a denied read retries on the operator token
+ * only under the rule on its method.
+ */
+export interface RepoReader {
+  /** Operator fallback: only for `operatorReads.prNumber`. */
+  fetchPullRequest(prNumber: number): GitHubCall<PullRequestInfo>;
+  /** Operator fallback: only for `operatorReads.prNumber`. */
+  fetchPullRequestFiles(prNumber: number): GitHubCall<PullRequestFile[]>;
+  /** Operator fallback: only for `operatorReads.prNumber`. */
+  fetchDiff(prNumber: number): GitHubCall<string>;
+  /** Operator fallback: only when base and head are both known commits. */
+  fetchCompareDiff(span: RepoScoped<CompareDiffRef>): GitHubCall<string>;
+  /** Operator fallback: only when base and head are both known commits. */
+  fetchCompareFiles(span: RepoScoped<CompareDiffRef>): GitHubCall<CompareFiles>;
+  /** Operator fallback: only at a known commit `ref`; never without one. */
+  fetchRepoFile(
+    input: RepoScoped<GetRepoFileInput>,
+  ): GitHubCall<RepoFileResult>;
+  /** Operator fallback: only for `operatorReads.prNumber`. */
+  fetchPullRequestConversation(prNumber: number): GitHubCall<PrConversation>;
+  /** Operator fallback: only for `operatorReads.prNumber`. */
+  fetchRenderedImageSources(prNumber: number): GitHubCall<readonly string[]>;
+}
+
+/**
+ * Pending-review reads stay off `RepoReader`: GitHub shows a pending review
+ * only to its author, so no other credential may answer for one.
+ */
 export interface ReviewerRepoClient extends RepoReader {
+  /**
+   * The list names every pull request in the repository, so it never reads
+   * on the operator token.
+   */
+  listOpenPullRequests(): GitHubCall<OpenPullRequest[]>;
+  findPendingPullRequestReview(
+    prNumber: number,
+  ): GitHubCall<PendingReview | undefined>;
+  countPendingReviewComments(reviewNodeId: string): GitHubCall<number>;
+  hasPullRequestReviewPublished(
+    review: RepoScoped<DeletePendingPullRequestReviewInput>,
+  ): GitHubCall<boolean>;
+  listReviewsByAuthor(
+    input: RepoScoped<ListReviewsByAuthorInput>,
+  ): GitHubCall<readonly AuthoredReview[]>;
+  listReviewCommentsSince(
+    input: RepoScoped<ListReviewCommentsSinceInput>,
+  ): GitHubCall<ReviewCommentListing>;
+  createPullRequestReview(
+    input: RepoScoped<CreatePullRequestReviewInput>,
+  ): GitHubCall<PendingReview>;
+  addPullRequestReviewThread(
+    input: AddReviewThreadInput,
+  ): GitHubCall<ReviewThread>;
+  submitPullRequestReview(
+    input: SubmitPullRequestReviewInput,
+  ): GitHubCall<void>;
   createInlineReviewComment(
     input: RepoScoped<CreateInlineReviewCommentInput>,
   ): GitHubCall<InlineReviewCommentResult>;
+  createReviewCommentReply(
+    input: RepoScoped<CreateReviewCommentReplyInput>,
+  ): GitHubCall<ReviewCommentReplyResult>;
+  markPullRequestReadyForReview(prNumber: number): GitHubCall<MarkReadyResult>;
+  setReviewThreadResolution(
+    input: RepoScoped<SetReviewThreadResolutionInput>,
+  ): GitHubCall<SetReviewThreadResolutionResult>;
+  deletePendingPullRequestReview(
+    review: RepoScoped<DeletePendingPullRequestReviewInput>,
+  ): GitHubCall<void>;
 }
 
 export interface InstallationRepoClient extends RepoReader {
   listRepoCollaborators(): GitHubCall<RepoCollaborators>;
+  listOpenPullRequests(): GitHubCall<OpenPullRequest[]>;
+  /** `undefined` when the comment is gone. */
+  fetchComment(commentId: bigint): GitHubCall<FetchedComment | undefined>;
+  postEntryComment(
+    input: RepoScoped<PostEntryCommentInput>,
+  ): GitHubCall<PostedComment>;
+  /** A comment already gone is a success. */
+  deleteComment(commentId: bigint): GitHubCall<void>;
+  commitAttachment(
+    input: RepoScoped<CommitAttachmentInput>,
+  ): GitHubCall<AttachmentCommit>;
+  deleteAttachmentBranch(branch: string): GitHubCall<AttachmentBranchDeletion>;
 }
 
-export interface GitHubReader {
-  forRepo(repo: RepositoryRef): RepoReader;
+/** The account-level reads every credential shares. */
+export interface AccountReader {
   fetchRepositoryById(repoId: RepoId): GitHubCall<RepositoryInfo>;
+  /** Throws past `LIVE_READ_PAGE_SIZE` refs. */
+  readPullRequestFacts(
+    refs: readonly PullRequestRef[],
+  ): GitHubCall<LiveReadPage>;
+  /** In any repository the credential sees, not only a bound one. */
+  fetchIssue(ref: IssueRef): GitHubCall<IssueInfo>;
+}
+
+export interface GitHubReader extends AccountReader {
+  forRepo(repo: RepositoryRef): RepoReader;
 }
 
 export interface ReviewerGitHub extends GitHubReader {
   forRepo(repo: RepositoryRef): ReviewerRepoClient;
+  listUserInstallations(): GitHubCall<UserInstallation[]>;
+  /** The installation's repositories this reviewer can also reach. */
+  listInstallationRepositories(
+    installationId: InstallationId,
+  ): GitHubCall<ReadonlyMap<RepoId, InstallationRepository>>;
 }
 
 export interface InstallationGitHub extends GitHubReader {

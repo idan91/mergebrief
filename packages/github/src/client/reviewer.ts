@@ -1,24 +1,27 @@
-import type { Logger } from "logging";
+import type { Octokit } from "octokit";
 import type { Result } from "types/utils";
-import { createUserOctokit, type UserOctokitFactory } from "../auth/oauth";
-import { GitHubApiErrorCodes, type GitHubApiError } from "../errors";
-import { createInlineReviewComment } from "../operations/inline-comment";
+import { createUserOctokit, fetchUserInstallations } from "../auth/oauth";
+import type { GitHubApiError } from "../errors";
 import type { RepositoryRef } from "../operations/pull-request/types";
-import { fetchRepositoryById } from "../operations/repo";
+import { listInstallationRepositoriesForUser } from "../operations/repo";
+import { buildAccountReader } from "./account-reader";
 import { CREATE_OCTOKIT_OPTIONS } from "./consts";
-import { buildRepoReader } from "./repo-reader";
+import {
+  createRepoReadRunner,
+  selectOperatorFallback,
+} from "./operator-fallback";
+import { buildReviewerRepoClient } from "./reviewer-repo";
 import type {
   CallRunner,
   CredentialFailure,
   GitHubCall,
-  GitHubCallFailure,
-  OperatorReads,
-  OperatorToken,
   ReviewerBindingOptions,
   ReviewerCredential,
   ReviewerGitHub,
   ReviewerRepoClient,
+  ReviewerRunners,
 } from "./types";
+import { isUnauthorized } from "./utils";
 
 interface TokenState {
   current(): Promise<Result<string, CredentialFailure>>;
@@ -49,17 +52,6 @@ function createTokenState(credential: ReviewerCredential): TokenState {
   };
 }
 
-function isUnauthorized(result: Result<unknown, GitHubApiError>): boolean {
-  return !result.ok && result.error.code === GitHubApiErrorCodes.UNAUTHORIZED;
-}
-
-function isDenial(error: GitHubCallFailure): boolean {
-  return (
-    error.code === GitHubApiErrorCodes.NOT_FOUND ||
-    error.code === GitHubApiErrorCodes.FORBIDDEN
-  );
-}
-
 async function runOnReviewerToken<Value>(
   state: TokenState,
   call: (token: string) => Promise<Result<Value, GitHubApiError>>,
@@ -83,60 +75,18 @@ async function runOnReviewerToken<Value>(
   return call(renewed);
 }
 
-function isSameRepository(left: RepositoryRef, right: RepositoryRef): boolean {
-  const sameOwner = left.owner.toLowerCase() === right.owner.toLowerCase();
-  return sameOwner && left.repo.toLowerCase() === right.repo.toLowerCase();
-}
-
-function selectOperatorToken(
-  operatorReads: OperatorReads | undefined,
-  repo: RepositoryRef,
-): OperatorToken | undefined {
-  if (operatorReads === undefined) {
-    return undefined;
-  }
-  return isSameRepository(operatorReads.repo, repo)
-    ? operatorReads.token
-    : undefined;
-}
-
-interface OperatorFallback {
-  readonly token: OperatorToken;
-  readonly repo: RepositoryRef;
-  readonly log: Logger;
-}
-
-function createRepoReadRunner(
+function createTokenRunner(
   state: TokenState,
-  createOctokit: UserOctokitFactory,
-  fallback: OperatorFallback | undefined,
+  buildClient: (token: string) => Octokit,
 ): CallRunner {
-  return async (call) => {
-    const own = await runOnReviewerToken(state, (token) =>
-      call(createOctokit(token)),
-    );
-    if (fallback === undefined || own.ok || !isDenial(own.error)) {
-      return own;
-    }
-
-    const operator = await call(createOctokit(fallback.token));
-    if (!isUnauthorized(operator)) {
-      return operator;
-    }
-    // The operator's own key is what GitHub rejected; its 401 would send the
-    // reviewer to sign in again, which cannot repair it.
-    fallback.log.warn("operator token rejected by GitHub", {
-      owner: fallback.repo.owner,
-      repo: fallback.repo.repo,
-    });
-    return own;
-  };
+  return (call) =>
+    runOnReviewerToken(state, (token) => call(buildClient(token)));
 }
 
 /**
  * The reviewer's GitHub, for one request or job. Writes run on the reviewer's
  * token only; `operatorReads` adds the operator token as a second try for a
- * denied read of that one repository.
+ * denied read within that one pull request's reach.
  */
 export function bindReviewerGitHub(
   credential: ReviewerCredential,
@@ -144,33 +94,39 @@ export function bindReviewerGitHub(
 ): ReviewerGitHub {
   const createOctokit = options.octokitFactory ?? createUserOctokit;
   const state = createTokenState(credential);
+  const own = createTokenRunner(state, (token) => createOctokit(token));
+  const create = createTokenRunner(state, (token) =>
+    createOctokit(token, CREATE_OCTOKIT_OPTIONS),
+  );
 
   function forRepo(repo: RepositoryRef): ReviewerRepoClient {
-    const operatorToken = selectOperatorToken(options.operatorReads, repo);
-    let fallback: OperatorFallback | undefined;
-    if (operatorToken !== undefined) {
-      fallback = { token: operatorToken, repo, log: options.log };
-    }
-    const read = createRepoReadRunner(state, createOctokit, fallback);
-
-    return {
-      ...buildRepoReader(repo, read),
-      createInlineReviewComment(input) {
-        return runOnReviewerToken(state, (token) =>
-          createInlineReviewComment(
-            createOctokit(token, CREATE_OCTOKIT_OPTIONS),
-            { ...input, ...repo },
-          ),
-        );
-      },
+    const fallback = selectOperatorFallback(
+      options.operatorReads,
+      repo,
+      options.log,
+    );
+    const runners: ReviewerRunners = {
+      read: createRepoReadRunner(own, createOctokit, fallback),
+      own,
+      create,
     };
+    return buildReviewerRepoClient(repo, runners);
   }
 
   return {
+    ...buildAccountReader(own),
     forRepo,
-    fetchRepositoryById(repoId) {
-      return runOnReviewerToken(state, (token) =>
-        fetchRepositoryById(createOctokit(token), repoId),
+    listUserInstallations() {
+      return own(
+        (octokit) => fetchUserInstallations(octokit),
+        "list user installations",
+      );
+    },
+    listInstallationRepositories(installationId) {
+      return own(
+        (octokit) =>
+          listInstallationRepositoriesForUser(octokit, installationId),
+        "list installation repositories",
       );
     },
   };
