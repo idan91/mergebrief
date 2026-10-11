@@ -167,10 +167,9 @@ export interface PrSummary {
   readonly briefAvailable: boolean;
   /** GitHub draft state; with `viewerIsAuthor` it derives own-draft affordances. */
   readonly draft: boolean;
-  /**
-   * Whether the requesting viewer authored this PR, derived server-side per
-   * request; the author login itself never crosses the wire.
-   */
+  /** The PR author's GitHub login; absent when GitHub sent no user. */
+  readonly authorLogin?: string;
+  /** Whether the requesting viewer authored this PR, derived server-side per request. */
   readonly viewerIsAuthor: boolean;
   /**
    * Read this affordance from PR meta only: list rows omit the push-permission check.
@@ -532,6 +531,10 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["viewerIsAuthor"] !== "boolean") {
     return { ok: false, error: "viewerIsAuthor must be a boolean" };
   }
+  const authorLogin = value["authorLogin"];
+  if (authorLogin !== undefined && !isStringOrNull(authorLogin)) {
+    return { ok: false, error: "authorLogin must be a string or null" };
+  }
   // Deliberately NOT required: a server predating the field parses fine and
   // yields `false`, fail closed, the affordance simply never shows.
   // Present-but-not-a-boolean is still malformed: coercing a truthy string
@@ -588,6 +591,9 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     behind: behind ?? false,
   };
 
+  if (typeof authorLogin === "string") {
+    summary.authorLogin = authorLogin;
+  }
   if (comparisons.value !== undefined) {
     summary.comparisons = comparisons.value;
   }

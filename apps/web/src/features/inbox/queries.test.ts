@@ -30,6 +30,7 @@ const WIRE_PAGE = {
       draft: false,
       source: "installation",
       installationId: "10",
+      authorLogin: "mira-k",
       viewerIsAuthor: false,
       viewerCanDelete: false,
       reviewState: "new",
@@ -83,6 +84,22 @@ describe("buildInboxQueryOptions", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toMatch(
       /\/api\/inbox\?page=2&sort=generated$/,
     );
+  });
+
+  it("reads the author login and a null one as absent", async () => {
+    const [item] = WIRE_PAGE.items;
+    answerWith(200, {
+      ...WIRE_PAGE,
+      items: [item, { ...item, prNumber: 8, authorLogin: null }],
+    });
+
+    const state = await readInbox();
+
+    if (state.kind !== InboxStates.READY) {
+      throw new Error("unreachable");
+    }
+    expect(state.page.items[0]?.authorLogin).toBe("mira-k");
+    expect(state.page.items[1]?.authorLogin).toBeUndefined();
   });
 
   it("a 401 is the signed-out state", async () => {

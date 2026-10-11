@@ -192,6 +192,8 @@ export interface BriefAddress extends Omit<BriefAddressPort, "navigateSearch"> {
 /** Present only where the Brief belongs to a live pull request. */
 export interface PullRequestContext {
   livePrState: LivePrState;
+  /** The PR author's GitHub login; absent when GitHub sent no user. */
+  authorLogin?: string | undefined;
   /** Identity for in-app neighbour links and the hunk-edge file reads. */
   repoId: string;
   openComparison: () => void;

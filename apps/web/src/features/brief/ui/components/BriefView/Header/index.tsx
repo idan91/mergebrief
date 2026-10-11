@@ -23,6 +23,7 @@ import type {
   UnattributedRemainderGroupView,
 } from "../../../../model/utils/view-model";
 import { AccessibleLink } from "@web/components/AccessibleLink";
+import { AuthorChip } from "@web/components/AuthorChip";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
@@ -54,6 +55,8 @@ export interface HeaderProps {
   brief: Brief;
   repoConfig?: RepoConfigContext | null | undefined;
   livePrState?: LivePrState | undefined;
+  /** The PR author's GitHub login; the meta line leads with it. */
+  authorLogin?: string | undefined;
   briefId: string;
   repoId?: string | undefined;
   model: BriefViewModel;
@@ -93,6 +96,7 @@ export function Header({
   brief,
   repoConfig,
   livePrState,
+  authorLogin,
   briefId,
   repoId,
   model,
@@ -244,6 +248,9 @@ export function Header({
                 above 880px: a second wrap would put the block at three lines
                 at rest and two collapsed, which moves --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
+              {authorLogin !== undefined ? (
+                <AuthorChip login={authorLogin} />
+              ) : null}
               {stackView !== undefined ? (
                 <StackArrows
                   currentNumber={brief.pr.number}

@@ -184,6 +184,7 @@ function BriefViewContent(props: BriefViewProps) {
                     focusMode={session.focusMode}
                     brief={brief}
                     livePrState={pr?.livePrState}
+                    authorLogin={pr?.authorLogin}
                     repoConfig={repoConfig}
                     briefId={briefId}
                     repoId={pr?.repoId}

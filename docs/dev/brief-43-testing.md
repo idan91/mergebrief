@@ -88,8 +88,8 @@ In the `OTHER` browser, open the **same** PR's Brief.
       # As OTHER (grab the cookie from the browser devtools) or just trust the UI:
       # the same PR returns viewerIsAuthor:false for OTHER, true for AUTHOR.
       ```
-      No login value ever appears in any `/api/...` response body (the FE never
-      receives logins — only the derived `viewerIsAuthor` boolean).
+      The response carries the PR author's login as `authorLogin`, never the
+      viewer's: authorship reaches the FE only as `viewerIsAuthor`.
 
 ## 4. Soft gate (PR #104)
 

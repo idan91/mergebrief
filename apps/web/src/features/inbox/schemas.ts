@@ -31,6 +31,11 @@ export const inboxItemSchema = z.object({
   draft: z.boolean(),
   source: sourceSchema,
   installationId: z.string().nullable(),
+  authorLogin: z
+    .string()
+    .nullable()
+    .transform((login) => login ?? undefined)
+    .optional(),
   viewerIsAuthor: z.boolean(),
   viewerCanDelete: z.boolean(),
   reviewState: z.enum(InboxReviewStates).nullable(),

@@ -101,11 +101,13 @@ function buildFixtureViewProps(
   const prGiven =
     overrides.repoId !== undefined ||
     overrides.livePrState !== undefined ||
+    overrides.authorLogin !== undefined ||
     overrides.openComparison !== undefined ||
     overrides.headerControls !== undefined;
   if (prGiven) {
     props.pr = {
       livePrState: overrides.livePrState ?? FIXTURE_LIVE_STATE,
+      authorLogin: overrides.authorLogin,
       repoId: overrides.repoId ?? FIXTURE_REPO_ID,
       openComparison: overrides.openComparison ?? ignoreWrite,
       headerControls: overrides.headerControls,

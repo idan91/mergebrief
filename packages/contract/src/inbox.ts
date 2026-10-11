@@ -74,6 +74,8 @@ export interface InboxItem {
   readonly source: PullRequestSource;
   /** Stringified; null for a url row. */
   readonly installationId: string | null;
+  /** The PR author's GitHub login; null when GitHub sent no user. */
+  readonly authorLogin: string | null;
   readonly viewerIsAuthor: boolean;
   /**
    * The viewer may delete this pull request's briefs: their own url row, or

@@ -589,7 +589,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body.generation).not.toHaveProperty("waitReason");
   });
 
-  it("meta: exposes draft status and viewer authorship for an own draft", async () => {
+  it("meta: exposes draft status, author and authorship for an own draft", async () => {
     stubGate();
     // The seeded session's reviewer login is "octocat".
     const cookie = await seedSession(harness.handle, kp);
@@ -605,9 +605,8 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["draft"]).toBe(true);
     expect(body["viewerIsAuthor"]).toBe(true);
-    // The login itself must never cross to the FE.
+    expect(body["authorLogin"]).toBe("octocat");
     expect(JSON.stringify(body)).not.toContain("author_login");
-    expect(body["authorLogin"]).toBeUndefined();
   });
 
   it("meta: carries the instance draftPolicy, default and injected", async () => {
@@ -669,6 +668,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const noAuthor = await get(`/api/repos/${REPO_A}/pulls/8`, cookie);
     const noAuthorBody = (await noAuthor.json()) as Record<string, unknown>;
     expect(noAuthorBody["viewerIsAuthor"]).toBe(false);
+    expect(noAuthorBody["authorLogin"]).toBeNull();
     expect(noAuthorBody["draft"]).toBe(false);
   });
 

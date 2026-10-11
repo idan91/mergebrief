@@ -49,6 +49,7 @@ export function shapeInboxItem(
       pullRequest.installationId === null
         ? null
         : String(pullRequest.installationId),
+    authorLogin: pullRequest.authorLogin,
     viewerIsAuthor: row.viewerIsAuthor,
     viewerCanDelete,
     reviewState: row.reviewState,

@@ -149,6 +149,19 @@ describe("Header identity row", () => {
     );
   });
 
+  it("leads the meta line with the PR author", async () => {
+    await renderHeader({ authorLogin: "mira-k" });
+
+    const chip = screen.getByTestId("author-chip");
+    expect(chip.getAttribute("href")).toBe("https://github.com/mira-k");
+    expect(chip.parentElement?.firstElementChild).toBe(chip);
+  });
+
+  it("renders no author chip without a login", async () => {
+    await renderHeader();
+    expect(screen.queryByTestId("author-chip")).toBeNull();
+  });
+
   it("marks itself in focus mode so its styles can quiet it", async () => {
     await renderHeader({ focusMode: true });
     expect(document.querySelector("header")?.hasAttribute("data-focus")).toBe(

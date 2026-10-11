@@ -55,12 +55,12 @@ export interface PrView {
   readonly briefAvailable: boolean;
   /** GitHub draft state: the FE derives own-draft author affordances. */
   readonly draft: boolean;
+  /** The PR author's GitHub login; null when GitHub sent no user. */
+  readonly authorLogin: string | null;
   /**
    * Whether the requesting viewer is this PR's author, computed PER REQUEST
    * server-side by comparing the session's reviewer login to the row's stored
-   * `author_login`. The login itself is NEVER serialized, only this derived
-   * boolean crosses to the FE. False for any null/missing author or viewer
-   * login.
+   * `author_login`. False for any null/missing author or viewer login.
    */
   readonly viewerIsAuthor: boolean;
   /**
@@ -144,6 +144,7 @@ export function buildPrView(
     headSha,
     briefAvailable,
     draft: row.draft,
+    authorLogin: row.authorLogin,
     viewerIsAuthor,
     viewerCanResolve: viewerCanPush || viewerIsAuthor,
     generation: buildGenerationSummary(latestGeneration, waitReason),

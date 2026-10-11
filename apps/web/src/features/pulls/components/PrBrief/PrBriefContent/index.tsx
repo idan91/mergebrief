@@ -350,7 +350,13 @@ export function PrBriefContent({
         address={address}
         // Live webhook state, the badge never shows the artifact's stale
         // snapshot.
-        pr={{ livePrState, repoId, openComparison, headerControls }}
+        pr={{
+          livePrState,
+          authorLogin: meta.authorLogin,
+          repoId,
+          openComparison,
+          headerControls,
+        }}
         review={review}
         conversation={conversation}
       />

@@ -231,6 +231,23 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary({ ...ROW, viewerCanResolve: null }).ok).toBe(false);
   });
 
+  it("parses authorLogin and reads a null or absent one as absent", () => {
+    const authored = parsePrSummary({ ...ROW, authorLogin: "mira-k" });
+    if (!authored.ok) {
+      throw new Error("unreachable");
+    }
+    expect(authored.value.authorLogin).toBe("mira-k");
+
+    const unknown = parsePrSummary({ ...ROW, authorLogin: null });
+    if (!unknown.ok) {
+      throw new Error("unreachable");
+    }
+    expect(unknown.value).not.toHaveProperty("authorLogin");
+    expect(parsePrSummary(ROW).ok).toBe(true);
+
+    expect(parsePrSummary({ ...ROW, authorLogin: 7 }).ok).toBe(false);
+  });
+
   it("accepts nullable fields on a waiting row with no brief and no title", () => {
     const parsed = parsePrSummary({
       ...ROW,

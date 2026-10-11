@@ -13,6 +13,12 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-11)
+
+- **Added** `authorLogin` (string | null) on `GET /api/repos/:repoId/pulls/:prNumber`
+  and on each `GET /api/inbox` item: the PR author's GitHub login, `null`
+  when the stored row has none. A client that predates it ignores the field.
+
 ## dev (2026-10-06)
 
 - **Added** `attempts-exhausted` to the generation failure codes a

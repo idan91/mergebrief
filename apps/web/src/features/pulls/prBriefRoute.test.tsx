@@ -575,6 +575,16 @@ describe("DB brief route", () => {
     ).toBeTruthy();
   });
 
+  it("shows the PR author from the meta on the header", async () => {
+    await renderRoute(
+      meta({ authorLogin: "mira-k" }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("author-chip").textContent).toContain("mira-k"),
+    );
+  });
+
   it("own-draft on the current head: mark-ready is live", async () => {
     await renderRoute(
       meta({ draft: true, viewerIsAuthor: true }),
