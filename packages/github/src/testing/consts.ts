@@ -6,7 +6,8 @@ import { FakeFailures, type FakeFailure } from "./types";
 
 interface FailureAnswer {
   readonly code: GitHubApiErrorCode;
-  readonly status: number;
+  /** Absent for a refusal the operation finds in a 200's payload. */
+  readonly status?: number;
 }
 
 export const FAILURE_ANSWERS: Readonly<Record<FakeFailure, FailureAnswer>> = {
@@ -38,6 +39,12 @@ export const FAILURE_ANSWERS: Readonly<Record<FakeFailure, FailureAnswer>> = {
     code: GitHubApiErrorCodes.UNKNOWN_COMMIT,
     status: HttpStatuses.UNPROCESSABLE_CONTENT,
   },
+  [FakeFailures.NOT_ACCEPTABLE]: {
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
+    status: HttpStatuses.NOT_ACCEPTABLE,
+  },
+  [FakeFailures.NOT_A_BLOB]: { code: GitHubApiErrorCodes.NOT_A_BLOB },
+  [FakeFailures.NOT_TEXT]: { code: GitHubApiErrorCodes.NOT_TEXT },
 };
 
 /** Where each id sequence starts; distinct so a swapped id never matches. */

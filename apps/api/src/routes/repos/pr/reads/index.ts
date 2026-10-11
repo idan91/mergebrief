@@ -1,8 +1,7 @@
 // The reviewer read API, behind the pr subtree's shared gate: PR meta, the
 // stored artifacts (brief / brief-context / marks / delta / narrative), and
-// the LIVE diff proxy (viewer token, per-session ~60s cache, NEVER
-// persisted). The diff cache is created here, once per `createApp`, so it is
-// scoped to the app instance.
+// the LIVE reads (span diff, file range, stack) on the viewer's binding,
+// cached per session and NEVER persisted.
 import { ProductQueryIds } from "contract";
 import type { Handler } from "hono";
 import type { OpenPullRequest } from "brief-core/pr-stack";
@@ -13,7 +12,6 @@ import type { z } from "zod/v4";
 import { bindOperatorReader } from "../../../../access/operator-token";
 import {
   AccessFootings,
-  type AuthzEnv,
   type PullRequestAccess,
   type PullRequestEnv,
 } from "../../../../access/types";
@@ -24,13 +22,17 @@ import {
 import { NotFound } from "../../../../shared-errors/api-error";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { LiveFactsReader } from "../../../live-read/types";
-import { createTtlCache } from "../../../ttl-cache";
+import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import {
   DIFF_CACHE_MAX_ENTRIES,
   FILE_BLOB_CACHE_MAX_ENTRIES,
   OPEN_PULLS_CACHE_MAX_ENTRIES,
 } from "./consts";
-import { createReadsHandlers } from "./handler";
+import {
+  resolveDiffError,
+  resolveFileRangeError,
+  resolveStackError,
+} from "./logic/wire-failures";
 import {
   readBrief,
   readBriefContext,
@@ -38,17 +40,33 @@ import {
   readMarks,
   readNarrative,
 } from "./read-artifact";
+import { readDiff } from "./read-diff";
+import { readFileRange } from "./read-file-range";
 import { readPull } from "./read-pull";
+import { readStack } from "./read-stack";
 import {
   briefQuerySchema,
   deltaQuerySchema,
+  diffQuerySchema,
+  fileRangeQuerySchema,
   marksQuerySchema,
   narrativeQuerySchema,
 } from "./schemas";
-import type { ReadArtifactResult } from "./types";
+import type {
+  ReadArtifactResult,
+  ReadDiffDeps,
+  ReadFileRangeDeps,
+} from "./types";
 import { parseQuery } from "./utils";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
+
+const PLAIN_TEXT = {
+  "content-type": "text/plain; charset=utf-8",
+  "cache-control": "no-store",
+} as const;
+
+const FILE_RANGE_KEYS = ["ref", "path", "from", "to"] as const;
 
 /** A stored body is ALREADY JSON: served verbatim, never re-serialized. */
 const STORED_JSON = {
@@ -106,12 +124,59 @@ function createReadPullHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
   };
 }
 
+function createReadDiffHandler(deps: ReadDiffDeps): Handler<PullRequestEnv> {
+  return async (c) => {
+    const query = parseQuery(c, diffQuerySchema, ["base", "head"]);
+    const read = await readDiff(deps, c.get("pullRequestAccess"), query);
+    if (!read.ok) {
+      throw resolveDiffError(read.error);
+    }
+
+    return c.body(read.value, HttpStatuses.OK, PLAIN_TEXT);
+  };
+}
+
+function createReadFileRangeHandler(
+  deps: ReadFileRangeDeps,
+): Handler<PullRequestEnv> {
+  return async (c) => {
+    const query = parseQuery(c, fileRangeQuerySchema, FILE_RANGE_KEYS);
+    const read = await readFileRange(deps, c.get("pullRequestAccess"), query);
+    if (!read.ok) {
+      throw resolveFileRangeError(read.error);
+    }
+
+    return c.json(read.value, HttpStatuses.OK, NO_STORE);
+  };
+}
+
+function createReadStackHandler(
+  deps: AuthRouteDeps,
+  openPullsCache: TtlCache<readonly OpenPullRequest[]>,
+): Handler<PullRequestEnv> {
+  return async (c) => {
+    const stackDeps = {
+      handle: deps.handle,
+      openPullsCache,
+      log: c.get("logger"),
+    };
+    const read = await readStack(stackDeps, c.get("pullRequestAccess"));
+    if (!read.ok) {
+      throw resolveStackError(read.error);
+    }
+
+    return c.json(read.value, HttpStatuses.OK, NO_STORE);
+  };
+}
+
 /**
- * The GitHub-proxied reads (span diff, file range, stack), still on the
- * handler and controller pair: they read the Hono bag, not the access value.
+ * The reads that go to GitHub live: the span diff, the file range and the
+ * stack. Their caches are created here, once per `createApp`.
  */
-function githubProxyRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
-  const app = productRouter<AuthzEnv>();
+function declareLiveReads(
+  app: ProductRouter<PullRequestEnv>,
+  deps: AuthRouteDeps,
+): void {
   // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
   const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);
   // key `${sessionHash}:${repoId}:${ref}:${path}` → the SPLIT blob, so the
@@ -123,12 +188,6 @@ function githubProxyRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const openPullsCache = createTtlCache<readonly OpenPullRequest[]>(
     OPEN_PULLS_CACHE_MAX_ENTRIES,
   );
-  const handlers = createReadsHandlers(
-    deps,
-    diffCache,
-    fileCache,
-    openPullsCache,
-  );
   app.query(
     {
       id: ProductQueryIds.READ_DIFF,
@@ -139,7 +198,7 @@ function githubProxyRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       rowRequired: true,
     },
     "/diff",
-    handlers.readDiff,
+    createReadDiffHandler({ diffCache }),
   );
   app.query(
     {
@@ -151,7 +210,7 @@ function githubProxyRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       rowRequired: true,
     },
     "/file-range",
-    handlers.readFileRange,
+    createReadFileRangeHandler({ fileCache }),
   );
   app.query(
     {
@@ -163,9 +222,8 @@ function githubProxyRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       rowRequired: true,
     },
     "/stack",
-    handlers.readStack,
+    createReadStackHandler(deps, openPullsCache),
   );
-  return app;
 }
 
 export function readsRoutes(
@@ -264,6 +322,6 @@ export function readsRoutes(
       readBriefContext,
     ),
   );
-  app.route("/", githubProxyRoutes(deps));
+  declareLiveReads(app, deps);
   return app;
 }

@@ -105,6 +105,23 @@ describe("makeFakeGitHub reads", () => {
     expect(sibling).toEqual({ ok: true, value: { kind: "absent" } });
   });
 
+  it("refuses a path that holds no blob with no HTTP status", async () => {
+    const github = makeGitHubWithPullRequest();
+    github.failRepoFile(REPO, { path: "vendor" }, FakeFailures.NOT_A_BLOB);
+
+    const result = await bindReviewer(github)
+      .forRepo(REPO)
+      .fetchRepoFile({ path: "vendor", maxBytes: 10 });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "not-a-blob",
+        message: "failed to read repo file: not-a-blob",
+      },
+    });
+  });
+
   it("reads an updated pull request with its other facts kept", async () => {
     const github = makeGitHubWithPullRequest();
     github.updatePullRequest(PR, { headSha: "c".repeat(40) });

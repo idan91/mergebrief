@@ -74,29 +74,6 @@ export async function resolvePullRequestRow(
   return loadRowIn(handle, { ownerUserId }, request);
 }
 
-/** The scope alone: a URL row's scope is its owner, so no second row read. */
-export async function resolvePullRequestScope(
-  handle: AppDatabase,
-  request: PullRequestRowRequest,
-): Promise<ScopeContext | undefined> {
-  if (!isOwnerContext(request.repoScope)) {
-    const installed = await loadRowIn(handle, request.repoScope, request);
-    if (installed !== undefined) {
-      return installed.rowScope;
-    }
-  }
-  const ownerUserId = await resolveUrlBoxOwner(
-    handle,
-    request.repoId,
-    request.prNumber,
-    request.reviewerId,
-  );
-  if (ownerUserId === undefined) {
-    return undefined;
-  }
-  return { ownerUserId };
-}
-
 function resolveAccessRow(
   handle: AppDatabase,
   access: RepoAccess,

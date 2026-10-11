@@ -1,6 +1,8 @@
-// Exercise authz and diff caching through app.request over PGlite and the HTTP stub.
-// The stub covers repository access, span diffs and OAuth refresh; counts expose caching.
+// Exercise authz and diff caching through app.request over PGlite. The gate's
+// repository read and the OAuth refresh run over a fetch stub; the span diff
+// reaches the `github/testing` fake through the reviewer binding.
 import { randomBytes } from "node:crypto";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createArtifactStore,
   decryptToken,
@@ -17,6 +19,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   INSTALLATION_ID,
   KEY_REF,
@@ -27,14 +30,18 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
-  buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
 } from "./fixtures";
-import { seedSignIn } from "./sign-in";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  ROTATED_ACCESS_TOKEN,
+  UNUSED_INSTALLATION_DEPS,
+  buildFakeAuthDeps,
+  listFakeCallTokens,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -42,16 +49,16 @@ import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 
 const REPO_ID = 424242;
 
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 const BRIEF_BODY = JSON.stringify({ summary: "the brief", findings: [] });
 const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
+const REPO = { owner: "octo", repo: "hello" };
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch), dispatches on URL, counts calls per family.
+// The gate's GitHub over a global fetch stub, counting calls per family.
 // ---------------------------------------------------------------------------
 
 interface TokenSuccess {
@@ -90,38 +97,20 @@ function repoOk(): Response {
 function repoStatus(status: number): Response {
   return jsonResponse({ message: "denied" }, status);
 }
-function diffOk(text = DIFF_TEXT): Response {
-  return new Response(text, {
-    status: 200,
-    headers: {
-      "content-type": "application/vnd.github.diff; charset=utf-8",
-      date: new Date().toUTCString(),
-    },
-  });
-}
-function diffStatus(status: number): Response {
-  return jsonResponse({ message: "diff denied" }, status);
-}
-
 interface StubConfig {
   readonly repositories?: (call: number) => Response;
-  readonly diff?: (call: number) => Response;
   readonly token?: (call: number) => Response;
 }
 interface StubCounts {
   repositories: number;
-  diff: number;
   token: number;
-  /** Every fetched URL, in order, lets a test assert the requested diff span. */
-  readonly urls: string[];
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0, diff: 0, token: 0, urls: [] };
+  const counts: StubCounts = { repositories: 0, token: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
-      counts.urls.push(url);
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
         return cfg.token
@@ -135,12 +124,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;
         return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-      }
-      if (url.includes("/compare/")) {
-        const i = counts.diff++;
-        return cfg.diff
-          ? cfg.diff(i)
-          : jsonResponse({ message: "not found" }, 404);
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
     },
@@ -216,16 +199,18 @@ describe("reviewer read API + authz gate", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
+  let fake: FakeGitHub;
 
   beforeEach(async () => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
     harness = await createPgliteHarness();
     kp = createKeyProvider();
+    fake = makeFakeGitHub();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: buildAuthDeps(kp),
+      auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
   });
@@ -318,7 +303,8 @@ describe("reviewer read API + authz gate", () => {
   it("answers 401 when the access check still 401s after a refresh", async () => {
     const counts = stubGitHub({
       repositories: () => repoStatus(401),
-      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+      token: () =>
+        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
     });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -334,18 +320,6 @@ describe("reviewer read API + authz gate", () => {
       "select count(*)::int as n from auth_session",
     );
     expect(rows[0]?.["n"]).toBe(1);
-  });
-
-  it("collapses a span diff GitHub refuses with 403 to 404", async () => {
-    stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(403) });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-
-    const res = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(res.status).toBe(404);
-    expect(await res.json()).toMatchObject({ code: "not-found" });
   });
 
   it("checks access once for two authorized reads inside the TTL", async () => {
@@ -392,7 +366,8 @@ describe("reviewer read API + authz gate", () => {
     const counts = stubGitHub({
       // First access check 401s (expired token); after the refresh, 200.
       repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
-      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+      token: () =>
+        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
     });
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -421,7 +396,7 @@ describe("reviewer read API + authz gate", () => {
     if (!decrypted.ok) {
       throw new Error("stored grant ciphertext unreadable");
     }
-    expect(decrypted.value).toBe(ROTATED_ACCESS);
+    expect(decrypted.value).toBe(ROTATED_ACCESS_TOKEN);
   });
 
   it("keeps Bearer access working after browser-triggered grant rotation", async () => {
@@ -433,7 +408,8 @@ describe("reviewer read API + authz gate", () => {
       // First access check 401s (expired access token); every later check,
       // including the Bearer channel's own, made with the ROTATED token, 200s.
       repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
-      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+      token: () =>
+        jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
     });
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -521,157 +497,243 @@ describe("reviewer read API + authz gate", () => {
     expect(rows[0]?.["n"]).toBe(0);
   });
 
-  it("400s cross-repo diff refs without calling GitHub", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      diff: () => diffOk(),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-
-    const res = await app.request(diffPath("otherowner:sha", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(res.status).toBe(400);
-    // Rejected at the Zod boundary, the compare endpoint is never reached.
-    expect(counts.diff).toBe(0);
-  });
-
-  it("proxies the requested base...head diff rather than the whole PR", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      diff: () => diffOk(),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-
-    const res = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(res.status).toBe(200);
-    // The compare request carried the exact requested span.
-    expect(counts.urls.some((u) => u.includes("/compare/base1...head1"))).toBe(
-      true,
-    );
-  });
-
-  it("refreshes expired tokens on cached-authz diff reads and retries", async () => {
-    // span1: diff ok (warms authz + diff cache). span2: diff 401 → refresh → ok.
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      diff: (call) => (call === 1 ? diffStatus(401) : diffOk()),
-      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
-
-    const a = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(a.status).toBe(200);
-    expect(counts.repositories).toBe(1);
-
-    // Different span → authz-cache hit (no new access check), but the lazily
-    // decrypted token 401s the compare fetch → the route refreshes and retries.
-    const b = await app.request(diffPath("base2", "head2"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(b.status).toBe(200);
-    expect(await b.text()).toBe(DIFF_TEXT);
-    expect(counts.repositories).toBe(1); // still cached, no second access check
-    expect(counts.token).toBe(1); // diff-route refresh fired
-    expect(counts.diff).toBe(3); // span1 ok, span2 401 + retry ok
-  });
-
-  // Long timeout: octokit's retry plugin retries a 406 (not in its doNotRetry
-  // list) with backoff before the sanitized error surfaces.
-  it(
-    "maps GitHub's oversized-diff 406 to 413",
-    { timeout: 20_000 },
-    async () => {
-      stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
+  describe("span diff proxy", () => {
+    async function signInWithRow(): Promise<string> {
       const { cookie } = await seedSignIn(harness.handle, kp);
       await seedPullRequest(harness.handle);
+      return cookie;
+    }
 
-      const res = await app.request(diffPath("b", "h"), {
+    function readDiff(cookie: string, base: string, head: string) {
+      return app.request(diffPath(base, head), {
         headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
       });
-      expect(res.status).toBe(413);
-      expect(((await res.json()) as { code?: string }).code).toBe(
-        "diff-too-large",
+    }
+
+    function listDiffCalls() {
+      return fake.listCalls("fetchCompareDiff");
+    }
+
+    it("proxies the requested base...head diff rather than the whole PR", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      fake.addCompare(
+        REPO,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
       );
-    },
-  );
+      const cookie = await signInWithRow();
+      const lookups = spyPullRequestLookups(harness);
 
-  it("diff proxy targets the GitHub-verified repo name, not the stored slug", async () => {
-    // The access check reports the repo under a NEW name (renamed since our
-    // last webhook write). The compare call must follow the verified name.
-    const counts = stubGitHub({
-      repositories: () =>
-        jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
-      diff: () => diffOk(),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle); // stored slug: octo/hello
+      const res = await readDiff(cookie, "base1", "head1");
 
-    const res = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/plain");
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(await res.text()).toBe(DIFF_TEXT);
+      expect(listDiffCalls().map((call) => call.input)).toEqual([
+        { ...REPO, base: "base1", head: "head1" },
+      ]);
+      expect(lookups.count()).toBe(1);
     });
-    expect(res.status).toBe(200);
-    expect(
-      counts.urls.some((u) => u.includes("/repos/octo/renamed/compare/")),
-    ).toBe(true);
-    expect(counts.urls.some((u) => u.includes("/repos/octo/hello/"))).toBe(
-      false,
+
+    it("serves repeated diff reads from the per-session cache", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      fake.addCompare(
+        REPO,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
+      );
+      const cookie = await signInWithRow();
+
+      const first = await readDiff(cookie, "base1", "head1");
+      const second = await readDiff(cookie, "base1", "head1");
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(await second.text()).toBe(DIFF_TEXT);
+      expect(listDiffCalls()).toHaveLength(1);
+    });
+
+    it("serves oversized diffs without caching them", async () => {
+      const big = "x".repeat(1_000_001);
+      stubGitHub({ repositories: () => repoOk() });
+      fake.addCompare(REPO, { base: "b", head: "h" }, { diff: big });
+      const cookie = await signInWithRow();
+
+      const first = await readDiff(cookie, "b", "h");
+      expect((await first.text()).length).toBe(big.length);
+      const second = await readDiff(cookie, "b", "h");
+
+      expect(second.status).toBe(200);
+      expect(listDiffCalls()).toHaveLength(2);
+    });
+
+    it("targets the GitHub-verified repo name, not the stored slug", async () => {
+      stubGitHub({
+        repositories: () =>
+          jsonResponse({
+            id: REPO_ID,
+            full_name: "octo/renamed",
+            private: true,
+          }),
+      });
+      const renamed = { owner: "octo", repo: "renamed" };
+      fake.addCompare(
+        renamed,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
+      );
+      const cookie = await signInWithRow();
+
+      const res = await readDiff(cookie, "base1", "head1");
+
+      expect(res.status).toBe(200);
+      expect(listDiffCalls().map((call) => call.input)).toEqual([
+        { ...renamed, base: "base1", head: "head1" },
+      ]);
+    });
+
+    it("400s cross-repo diff refs without calling GitHub", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      const cookie = await signInWithRow();
+
+      const res = await readDiff(cookie, "otherowner:sha", "head1");
+
+      expect(res.status).toBe(400);
+      expect(fake.calls).toEqual([]);
+    });
+
+    const collapsed = [
+      ["403", FakeFailures.FORBIDDEN],
+      ["404", FakeFailures.NOT_FOUND],
+    ] as const;
+
+    it.each(collapsed)(
+      "collapses a %s span diff to 404",
+      async (_label, failure) => {
+        stubGitHub({ repositories: () => repoOk() });
+        fake.failOn("fetchCompareDiff", failure);
+        const cookie = await signInWithRow();
+
+        const res = await readDiff(cookie, "base1", "head1");
+
+        expect(res.status).toBe(404);
+        expect(await res.json()).toMatchObject({ code: "not-found" });
+      },
     );
-  });
 
-  it("serves oversized diffs without caching them", async () => {
-    const big = "x".repeat(1_000_001); // just over the 1 MB per-entry cap
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      diff: () => diffOk(big),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
+    it("maps GitHub's oversized-diff 406 to 413", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      fake.failOn("fetchCompareDiff", FakeFailures.NOT_ACCEPTABLE);
+      const cookie = await signInWithRow();
 
-    const first = await app.request(diffPath("b", "h"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(first.status).toBe(200);
-    expect((await first.text()).length).toBe(big.length);
-    expect(counts.diff).toBe(1);
+      const res = await readDiff(cookie, "b", "h");
 
-    const second = await app.request(diffPath("b", "h"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      expect(res.status).toBe(413);
+      expect(await res.json()).toMatchObject({ code: "diff-too-large" });
     });
-    expect(second.status).toBe(200);
-    // Not cached (too large) → GitHub was hit again.
-    expect(counts.diff).toBe(2);
-  });
 
-  it("serves repeated diff reads from the per-session cache", async () => {
-    const counts = stubGitHub({
-      repositories: () => repoOk(),
-      diff: () => diffOk(),
-    });
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedPullRequest(harness.handle);
+    it("answers a diff GitHub cannot serve 502", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      fake.failOn("fetchCompareDiff", FakeFailures.SERVER_ERROR);
+      const cookie = await signInWithRow();
 
-    const first = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
-    });
-    expect(first.status).toBe(200);
-    expect(first.headers.get("content-type")).toContain("text/plain");
-    expect(await first.text()).toBe(DIFF_TEXT);
-    expect(counts.diff).toBe(1);
+      const res = await readDiff(cookie, "b", "h");
 
-    const second = await app.request(diffPath("base1", "head1"), {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      expect(res.status).toBe(502);
+      expect(await res.json()).toMatchObject({ code: "github-unavailable" });
     });
-    expect(second.status).toBe(200);
-    expect(await second.text()).toBe(DIFF_TEXT);
-    // Second read hit the diff cache → no second GitHub diff fetch.
-    expect(counts.diff).toBe(1);
+
+    it("refreshes expired tokens on cached-authz diff reads and retries", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        token: () =>
+          jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
+      });
+      fake.addCompare(
+        REPO,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
+      );
+      fake.addCompare(
+        REPO,
+        { base: "base2", head: "head2" },
+        { diff: DIFF_TEXT },
+      );
+      const cookie = await signInWithRow();
+
+      const first = await readDiff(cookie, "base1", "head1");
+      fake.rejectToken(ACCESS_TOKEN);
+      const second = await readDiff(cookie, "base2", "head2");
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(await second.text()).toBe(DIFF_TEXT);
+      expect(counts.repositories).toBe(1);
+      expect(counts.token).toBe(1);
+      expect(listFakeCallTokens(fake)).toEqual([
+        ACCESS_TOKEN,
+        ACCESS_TOKEN,
+        ROTATED_ACCESS_TOKEN,
+      ]);
+    });
+
+    it("answers 401 when the diff still 401s after a good refresh", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        token: () =>
+          jsonResponse(tokenSuccess(ROTATED_ACCESS_TOKEN, ROTATED_REFRESH)),
+      });
+      fake.rejectToken(ACCESS_TOKEN);
+      fake.rejectToken(ROTATED_ACCESS_TOKEN);
+      const cookie = await signInWithRow();
+
+      const res = await readDiff(cookie, "b", "h");
+
+      expect(res.status).toBe(401);
+      expect(await res.json()).toMatchObject({ code: "unauthorized" });
+      expect(counts.token).toBe(1);
+      expect(listDiffCalls()).toHaveLength(2);
+    });
+
+    it("answers 401 when the diff 401s and the refresh fails", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        token: () => jsonResponse({ error: "bad_refresh_token" }),
+      });
+      fake.rejectToken(ACCESS_TOKEN);
+      const cookie = await signInWithRow();
+
+      const res = await readDiff(cookie, "b", "h");
+
+      expect(res.status).toBe(401);
+      expect(counts.token).toBe(1);
+      expect(listDiffCalls()).toHaveLength(1);
+    });
+
+    it("401s an unreadable token behind a cached gate pass", async () => {
+      stubGitHub({ repositories: () => repoOk() });
+      fake.addCompare(
+        REPO,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
+      );
+      const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      expect((await readDiff(cookie, "base1", "head1")).status).toBe(200);
+      await harness.raw(
+        "update github_grant set gh_token_ciphertext = 'sealed'",
+      );
+
+      const res = await readDiff(cookie, "base2", "head2");
+
+      expect(res.status).toBe(401);
+      expect(listDiffCalls()).toHaveLength(1);
+      const sessions = await harness.raw(
+        "select id from auth_session where session_token_hash = $1",
+        [cookieHash],
+      );
+      expect(sessions).toEqual([]);
+    });
   });
 });

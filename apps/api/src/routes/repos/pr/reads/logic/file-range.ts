@@ -1,7 +1,13 @@
 // Pure line slicing for the file-range read. The SPLIT blob stays in the
 // per-session cache; only the window built here reaches the wire.
 import type { FileRangeView } from "contract";
-import { RepoFileKinds, type RepoFileResult } from "github";
+import {
+  GitHubApiErrorCodes,
+  RepoFileKinds,
+  type GitHubCallFailure,
+  type RepoFileResult,
+} from "github";
+import { FailureKinds } from "../../../../../shared-errors/failures";
 import type { FileRangeFailure } from "../types";
 
 /** A NUL byte is the git heuristic for a blob no expander can render. */
@@ -71,4 +77,21 @@ export function classifyRepoFile(
     return { kind: "file-not-text" };
   }
   return undefined;
+}
+
+/**
+ * A directory, symlink or submodule at the path, or a blob that is not
+ * UTF-8, is PERMANENT for this commit, so it must not reach the retryable
+ * upstream posture.
+ */
+export function classifyFileReadFailure(
+  error: GitHubCallFailure,
+): FileRangeFailure {
+  const notText =
+    error.code === GitHubApiErrorCodes.NOT_A_BLOB ||
+    error.code === GitHubApiErrorCodes.NOT_TEXT;
+  if (notText) {
+    return { kind: "file-not-text" };
+  }
+  return { kind: FailureKinds.GITHUB_DENIED, error };
 }

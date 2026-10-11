@@ -3,9 +3,11 @@
 // own token GitHub refuses could hold a brief they could not open. The gate
 // runs the same ladder, but ONLY for a PR the reader owns in the url-box
 // world, so an App-world brief stays governed by the installation alone.
+import { RepoFileKinds } from "github";
 import {
   CredentialKinds,
   FakeFactsHidings,
+  FakeFailures,
   makeFakeGitHub,
   type FakeGitHub,
 } from "github/testing";
@@ -41,6 +43,7 @@ import {
   buildFakeAuthDeps,
   listFakeCallTokens,
 } from "./reviewer-github";
+import { spyPullRequestLookups } from "./pull-request-lookups";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 
 const REPO_ID = 424242;
@@ -51,12 +54,9 @@ const UNKNOWN_SHA = "c".repeat(40);
 const DIFF_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff`;
 const FILE_RANGE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/file-range`;
 const STACK_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/stack`;
-const NEIGHBOUR_PULL = {
-  number: PR_NUMBER + 1,
-  title: "a neighbour the reader cannot see",
-  head: { ref: "deal/neighbour", repo: { full_name: REPO_SLUG } },
-  base: { ref: "main", repo: { full_name: REPO_SLUG } },
-};
+const REPO = { owner: "octo", repo: "hello" };
+const DIFF_TEXT = "diff --git a/f b/f\n";
+const FILE_PATH = "src/app.ts";
 
 const TENANT_CTX = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -95,40 +95,6 @@ function stubGitHub(): RepoCall[] {
         /^(token|Bearer)\s+/i,
         "",
       );
-      if (url.includes("/compare/")) {
-        calls.push({ token });
-        if (token === FALLBACK_PAT) {
-          return new Response("diff --git a/f b/f\n", {
-            status: 200,
-            headers: {
-              "content-type": "application/vnd.github.diff; charset=utf-8",
-              date: new Date().toUTCString(),
-            },
-          });
-        }
-        return jsonResponse({ message: "Not Found" }, 404);
-      }
-      const contentsRead = url.includes("/contents/");
-      if (contentsRead) {
-        if (token === FALLBACK_PAT) {
-          return jsonResponse({
-            type: "file",
-            size: 4,
-            sha: "blob-sha",
-            content: Buffer.from("a\nb\n").toString("base64"),
-            encoding: "base64",
-          });
-        }
-        // The contents read maps a 404 to an absent file, never a denial.
-        return jsonResponse({ message: "Forbidden" }, 403);
-      }
-      if (url.includes("/pulls?")) {
-        calls.push({ token });
-        if (token === FALLBACK_PAT) {
-          return jsonResponse([NEIGHBOUR_PULL]);
-        }
-        return jsonResponse({ message: "Not Found" }, 404);
-      }
       if (url.includes("/repositories/")) {
         calls.push({ token });
         if (token === FALLBACK_PAT) {
@@ -480,138 +446,183 @@ describe("the per-repo gate's operator-PAT rung", () => {
     ]);
   });
 
-  // The gate is not the only door to GitHub: a read route that fetches live
-  // (the span diff, the conversation) has to reach it the same way, or the
-  // page opens onto empty panes.
-  it("fetches the span diff on the same rung that opened the gate", async () => {
-    const calls = stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerBrief(harness.handle);
+  // The gate is not the only door to GitHub: a live read behind an operator
+  // pass reaches the operator token through the binding, and only at commits
+  // recorded for the granted PR.
+  describe("live reads behind an operator pass", () => {
+    async function getLive(app: ApiApp, path: string): Promise<Response> {
+      const cookie = await signIn();
+      return app.request(path, {
+        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      });
+    }
 
-    const res = await buildApp(FALLBACK_PAT).request(
-      `${DIFF_PATH}?base=${BASE_SHA}&head=${HEAD_SHA}`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
+    function arrangeViewerRefusedDiff(head: string): void {
+      fake.addCompare(REPO, { base: BASE_SHA, head }, { diff: DIFF_TEXT });
+      fake.failOn(
+        "fetchCompareDiff",
+        FakeFailures.NOT_FOUND,
+        CredentialKinds.REVIEWER,
+      );
+    }
 
-    expect(res.status).toBe(200);
-    expect(await res.text()).toContain("diff --git");
-    // Gate: reader then PAT. Diff: reader denied, then PAT.
-    expect(calls.map((call) => call.token)).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-    ]);
-  });
+    function arrangeViewerRefusedFile(ref: string): void {
+      fake.addRepoFile(
+        REPO,
+        { path: FILE_PATH, ref },
+        { kind: RepoFileKinds.FILE, content: "a\nb\n", blobSha: "b", size: 4 },
+      );
+      fake.failOn(
+        "fetchRepoFile",
+        FakeFailures.FORBIDDEN,
+        CredentialKinds.REVIEWER,
+      );
+    }
 
-  it("leaves the diff refused when no operator PAT is configured", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerPullRequest(harness.handle);
+    it("fetches the span diff on the same rung that opened the gate", async () => {
+      stubGitHub();
+      await seedOwnerBrief(harness.handle);
+      arrangeViewerRefusedDiff(HEAD_SHA);
+      const lookups = spyPullRequestLookups(harness);
 
-    const res = await buildApp().request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/diff?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${DIFF_PATH}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
 
-    expect(res.status).toBe(404);
-  });
-
-  // The operator's key reads the whole repository; the reader is owed only
-  // the commits recorded for the pull request they pasted.
-  it("a diff at an unknown head 404s without an operator compare", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerBrief(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(
-      `${DIFF_PATH}?base=${BASE_SHA}&head=${UNKNOWN_SHA}`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-
-    expect(res.status).toBe(404);
-    // Gate: reader then PAT. Diff: the reader's own token and nothing after.
-    expect(listSentTokens()).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-      ACCESS_TOKEN,
-    ]);
-  });
-
-  it("a diff at a branch name 404s without an operator compare", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerBrief(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(
-      `${DIFF_PATH}?base=${BASE_SHA}&head=main`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-
-    expect(res.status).toBe(404);
-    expect(listSentTokens()).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-      ACCESS_TOKEN,
-    ]);
-  });
-
-  it("reads a file at a known commit on the operator token", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerBrief(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(
-      `${FILE_RANGE_PATH}?ref=${HEAD_SHA}&path=src/app.ts&from=1&to=2`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
-    expect(listSentTokens()).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-    ]);
-  });
-
-  it("reads no file at an unknown commit on the operator token", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerBrief(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(
-      `${FILE_RANGE_PATH}?ref=${UNKNOWN_SHA}&path=src/app.ts&from=1&to=2`,
-      { headers: { Cookie: `__Host-mergebrief_session=${cookie}` } },
-    );
-
-    expect(res.status).toBe(404);
-    expect(listSentTokens()).toEqual([
-      ACCESS_TOKEN,
-      FALLBACK_PAT,
-      ACCESS_TOKEN,
-    ]);
-  });
-
-  // The write still cannot happen, posting under the operator's token would
-  // put the reader's words on GitHub as the operator. What changes is the
-  // refusal: the uniform 404 reads as "this pull request is gone", which
-  // sends a reader hunting for something that is fine. The gate already
-  // showed them the brief, so there is no existence left to protect.
-  it("serves no stack on the operator token and lists no open PRs", async () => {
-    stubGitHub();
-    const cookie = await signIn();
-    await seedOwnerPullRequest(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(STACK_PATH, {
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe(DIFF_TEXT);
+      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      // The gate rung probes the reader's own url row once, then the row loads.
+      expect(lookups.count()).toBe(2);
     });
 
-    // Gate: reader then PAT. Stack: nothing, the repo's open list is not owed.
-    expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ stack: null });
+    it("leaves the diff refused when no operator PAT is configured", async () => {
+      stubGitHub();
+      await seedOwnerBrief(harness.handle);
+      arrangeViewerRefusedDiff(HEAD_SHA);
+
+      const res = await getLive(
+        buildApp(),
+        `${DIFF_PATH}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(404);
+      expect(fake.calls).toEqual([]);
+    });
+
+    const unknownHeads = [
+      ["an unknown head", UNKNOWN_SHA],
+      ["a branch name", "main"],
+      ["a short SHA", HEAD_SHA.slice(0, 7)],
+    ] as const;
+
+    it.each(unknownHeads)(
+      "a diff at %s 404s without an operator compare",
+      async (_label, head) => {
+        stubGitHub();
+        await seedOwnerBrief(harness.handle);
+        arrangeViewerRefusedDiff(head);
+
+        const res = await getLive(
+          buildApp(FALLBACK_PAT),
+          `${DIFF_PATH}?base=${BASE_SHA}&head=${head}`,
+        );
+
+        expect(res.status).toBe(404);
+        expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+        expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+      },
+    );
+
+    it("a diff missing its head 400s with no GitHub call", async () => {
+      stubGitHub();
+      await seedOwnerBrief(harness.handle);
+      arrangeViewerRefusedDiff(HEAD_SHA);
+
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${DIFF_PATH}?base=${BASE_SHA}`,
+      );
+
+      expect(res.status).toBe(400);
+      expect(fake.calls).toEqual([]);
+    });
+
+    it("reads a file at a known commit on the operator token", async () => {
+      stubGitHub();
+      await seedOwnerBrief(harness.handle);
+      arrangeViewerRefusedFile(HEAD_SHA);
+
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${FILE_RANGE_PATH}?ref=${HEAD_SHA}&path=${FILE_PATH}&from=1&to=2`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
+      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+    });
+
+    it("reads no file at an unknown commit on the operator token", async () => {
+      stubGitHub();
+      await seedOwnerBrief(harness.handle);
+      arrangeViewerRefusedFile(UNKNOWN_SHA);
+
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${FILE_RANGE_PATH}?ref=${UNKNOWN_SHA}&path=${FILE_PATH}&from=1&to=2`,
+      );
+
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ code: "not-found" });
+      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(listFakeCallTokens(fake)).toEqual([ACCESS_TOKEN]);
+    });
+
+    const refusedRefs = [
+      ["a missing ref", ""],
+      ["a branch name", "&ref=main"],
+      ["a short SHA", `&ref=${HEAD_SHA.slice(0, 7)}`],
+    ] as const;
+
+    it.each(refusedRefs)(
+      "a file range at %s 400s with no GitHub call",
+      async (_label, ref) => {
+        stubGitHub();
+        await seedOwnerBrief(harness.handle);
+        arrangeViewerRefusedFile(HEAD_SHA);
+
+        const res = await getLive(
+          buildApp(FALLBACK_PAT),
+          `${FILE_RANGE_PATH}?path=${FILE_PATH}&from=1&to=2${ref}`,
+        );
+
+        expect(res.status).toBe(400);
+        expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+        expect(fake.calls).toEqual([]);
+      },
+    );
+
+    it("serves no stack on the operator token and lists no open PRs", async () => {
+      stubGitHub();
+      await seedOwnerPullRequest(harness.handle);
+      arrangeFakePullRequest(fake, { repoId: REPO_ID });
+      arrangeFakePullRequest(fake, {
+        repoId: REPO_ID,
+        prNumber: PR_NUMBER + 1,
+      });
+
+      const res = await getLive(buildApp(FALLBACK_PAT), STACK_PATH);
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ stack: null });
+      // Gate: reader then PAT. Stack: nothing, the repo's open list is not owed.
+      expect(listSentTokens()).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+      expect(fake.calls).toEqual([]);
+    });
   });
 
   it("refuses a write honestly instead of claiming the PR is gone", async () => {

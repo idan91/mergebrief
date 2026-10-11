@@ -1,6 +1,7 @@
-// The reads domain's failure-to-throw mapping: a controller failure becomes
-// the ApiError the handler throws, and nothing else decides posture.
+// The reads domain's failure-to-throw mapping: an operation failure becomes
+// the ApiError the adapter throws, and nothing else decides posture.
 import { ApiErrorCodes } from "contract";
+import type { GitHubCallFailure } from "github";
 import { HttpStatuses } from "types/http";
 import {
   BadRequest,
@@ -8,29 +9,31 @@ import {
   PayloadTooLarge,
   type ApiError,
 } from "../../../../../shared-errors/api-error";
-import { FailureKinds } from "../../../../../shared-errors/failures";
-import {
-  resolveGitHubDenialError,
-  unwrapGitHubFailure,
-} from "../../../../../shared-errors/github-denial";
+import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
 import type { DiffFailure, FileRangeFailure, StackFailure } from "../types";
+
+function isDiffTooLarge(error: GitHubCallFailure): boolean {
+  return "status" in error && error.status === HttpStatuses.NOT_ACCEPTABLE;
+}
+
+/** Every live read runs on the viewer's credential: a refusal reads as absence. */
+function resolveLiveReadError(failure: DiffFailure): ApiError {
+  if (failure.kind === "not-found") {
+    return new NotFound();
+  }
+  return resolveGitHubDenialError(failure.error, DenialPostures.COLLAPSE);
+}
 
 /**
  * GitHub's 406 refuses to render a diff over its size limits, permanent for
  * this span, so it answers 413 rather than a retryable-looking 502.
  */
 export function resolveDiffError(failure: DiffFailure): ApiError {
-  const tooLarge =
-    failure.kind === FailureKinds.GITHUB_DENIED &&
-    failure.error.status === HttpStatuses.NOT_ACCEPTABLE;
-  if (tooLarge) {
+  if (failure.kind !== "not-found" && isDiffTooLarge(failure.error)) {
     return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
   }
-  return resolveGitHubDenialError(
-    unwrapGitHubFailure(failure),
-    DenialPostures.COLLAPSE,
-  );
+  return resolveLiveReadError(failure);
 }
 
 /**
@@ -50,17 +53,11 @@ export function resolveFileRangeError(failure: FileRangeFailure): ApiError {
       return new BadRequest(ApiErrorCodes.FILE_NOT_TEXT);
     }
     default: {
-      return resolveGitHubDenialError(
-        unwrapGitHubFailure(failure),
-        DenialPostures.COLLAPSE,
-      );
+      return resolveLiveReadError(failure);
     }
   }
 }
 
 export function resolveStackError(failure: StackFailure): ApiError {
-  return resolveGitHubDenialError(
-    unwrapGitHubFailure(failure),
-    DenialPostures.COLLAPSE,
-  );
+  return resolveLiveReadError(failure);
 }

@@ -78,6 +78,12 @@ export const FakeFailures = {
   ANCHOR_REJECTED: "anchor-rejected",
   /** A 422 on a review pinned to a commit the pull request no longer holds. */
   UNKNOWN_COMMIT: "unknown-commit",
+  /** A 406: GitHub will not render a diff past its size limits. */
+  NOT_ACCEPTABLE: "not-acceptable",
+  /** A file read whose path holds a directory, symlink or submodule. */
+  NOT_A_BLOB: "not-a-blob",
+  /** A file read whose blob does not decode as UTF-8 text. */
+  NOT_TEXT: "not-text",
 } as const;
 export type FakeFailure = ValueOf<typeof FakeFailures>;
 

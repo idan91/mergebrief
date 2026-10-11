@@ -10,6 +10,9 @@ export function buildFailure(
   context: string,
 ): GitHubApiError {
   const { code, status } = FAILURE_ANSWERS[failure];
+  if (status === undefined) {
+    return { code, message: `failed to ${context}: ${code}` };
+  }
   return {
     code,
     status,

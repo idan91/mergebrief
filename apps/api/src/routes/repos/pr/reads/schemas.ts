@@ -33,6 +33,7 @@ export const diffQuerySchema = z.object({
   base: diffRefSchema,
   head: diffRefSchema,
 });
+export type DiffQuery = z.infer<typeof diffQuerySchema>;
 /** Same no-`:` rule as the diff route, though this read never reaches GitHub. */
 export const deltaQuerySchema = z.object({
   baseline: diffRefSchema,
@@ -92,3 +93,4 @@ export const fileRangeQuerySchema = z
   .refine((value) => value.to - value.from + 1 <= MAX_FILE_RANGE_LINES, {
     message: "range spans more lines than one read may serve",
   });
+export type FileRangeQuery = z.infer<typeof fileRangeQuerySchema>;
