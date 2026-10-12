@@ -7,11 +7,11 @@ import {
 } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { omitFields } from "@web/test/fields";
 import { renderInRouter } from "../../../../../../test/router";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import type { InboxItem } from "../../../../types";
 import { RowActions } from ".";
-import { omitItemFields } from "../../../../test-utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -50,7 +50,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   };
 }
 
-const URL_ROW = omitItemFields(
+const URL_ROW = omitFields(
   makeItem({ source: "url", viewerCanDelete: true }),
   "installationId",
 );
@@ -121,7 +121,7 @@ describe("RowActions", () => {
   });
 
   it("offers no GitHub link while the repository name is unknown", async () => {
-    await renderActions(omitItemFields(makeItem(), "repoSlug"));
+    await renderActions(omitFields(makeItem(), "repoSlug"));
 
     expect(screen.queryByRole("link", { name: /^Open on GitHub/ })).toBeNull();
   });
@@ -303,14 +303,14 @@ describe("RowActions", () => {
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
     cleanup();
 
-    await renderActions(omitItemFields(makeItem({ behind: true }), "repoSlug"));
+    await renderActions(omitFields(makeItem({ behind: true }), "repoSlug"));
     await openMenu();
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
   it("a row the viewer may not delete has no Delete, whatever its source", async () => {
     await renderActions(
-      omitItemFields(makeItem({ source: "url" }), "installationId"),
+      omitFields(makeItem({ source: "url" }), "installationId"),
     );
 
     await openMenu();

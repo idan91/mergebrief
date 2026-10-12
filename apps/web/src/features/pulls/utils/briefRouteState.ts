@@ -26,15 +26,15 @@ export type BriefRouteState =
   | {
       readonly kind: "waiting";
       readonly status: "pending" | "running";
-      readonly phase: string | null;
+      readonly phase: string | undefined;
       readonly span: Span | undefined;
       readonly waitReason: WaitReason | undefined;
     }
   /** Terminal failure: the catalog code, when known, plus attempts. */
   | {
       readonly kind: "failed";
-      readonly errorCode: GenerationFailureCode | null;
-      readonly errorDetail: string | null;
+      readonly errorCode: GenerationFailureCode | undefined;
+      readonly errorDetail: string | undefined;
       readonly attempts: number;
     }
   /** Aborted because the head advanced; a newer brief is on the way. */
@@ -48,7 +48,7 @@ export type BriefRouteState =
   | { readonly kind: "capped"; readonly cappedAt: string };
 
 function metaSpan(meta: PrSummary): Span | undefined {
-  if (meta.baseSha === null || meta.headSha === null) {
+  if (meta.baseSha === undefined || meta.headSha === undefined) {
     return undefined;
   }
   return { base: meta.baseSha, head: meta.headSha };
@@ -67,7 +67,7 @@ function explicitNamesGeneratingHead(
   meta: PrSummary,
   explicitSpan: Span,
 ): boolean {
-  return meta.headSha !== null && meta.headSha === explicitSpan.head;
+  return meta.headSha === explicitSpan.head;
 }
 
 /**
@@ -95,7 +95,7 @@ export function deriveBriefRouteState(
     return { kind: "render", span };
   }
   const generation = meta.generation;
-  if (generation === null) {
+  if (generation === undefined) {
     return { kind: "empty" };
   }
   switch (generation.status) {

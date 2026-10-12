@@ -57,11 +57,11 @@ export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
   readonly status: GenerationStatus;
-  readonly phase: string | null;
+  readonly phase?: string;
   readonly attempts: number;
-  /** Null when the row never failed, or when the code is one we don't know. */
-  readonly errorCode: GenerationFailureCode | null;
-  readonly errorDetail: string | null;
+  /** Absent when the row never failed, or when the code is one we don't know. */
+  readonly errorCode?: GenerationFailureCode;
+  readonly errorDetail?: string;
   readonly updatedAt: string;
   /** PR meta only, and only while pending; absent means the generic line. */
   readonly waitReason?: WaitReason;
@@ -125,21 +125,21 @@ export interface RevisionSummary {
 export interface DraftPolicySummary {
   /** Whether briefs generate for draft PRs at all on this instance. */
   readonly generate: boolean;
-  /** Draft regeneration damping window (seconds); null = normal window. */
-  readonly debounceSeconds: number | null;
+  /** Draft regeneration damping window (seconds); absent = normal window. */
+  readonly debounceSeconds?: number;
 }
 
 /** One PR as the list and PR-meta endpoints return it. */
 export interface PrSummary {
   readonly repoId: string;
-  readonly repoSlug: string | null;
+  readonly repoSlug?: string;
   readonly prNumber: number;
-  readonly title: string | null;
+  readonly title?: string;
   readonly state: PrState;
-  /** Current span's brief base; null while the span has no brief yet. */
-  readonly baseSha: string | null;
-  /** The current push's head; null only when nothing was ever projected. */
-  readonly headSha: string | null;
+  /** Current span's brief base; absent while the span has no brief yet. */
+  readonly baseSha?: string;
+  /** The current push's head; absent only when nothing was ever projected. */
+  readonly headSha?: string;
   readonly briefAvailable: boolean;
   /** GitHub draft state; with `viewerIsAuthor` it derives own-draft affordances. */
   readonly draft: boolean;
@@ -158,7 +158,7 @@ export interface PrSummary {
    * false and the composer's attach control stays off.
    */
   readonly appInstalled: boolean;
-  readonly generation: GenerationSummary | null;
+  readonly generation?: GenerationSummary;
   readonly updatedAt: string;
   /** GitHub reports a head the latest brief does not cover; a server predating the field reads false. */
   readonly behind: boolean;

@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
+import { omitFields } from "@web/test/fields";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,
@@ -52,10 +53,7 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     behind: false,
     generation: {
       status: "succeeded",
-      phase: null,
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-07-06T12:00:00.000Z",
     },
     updatedAt: "2026-07-06T12:00:00.000Z",
@@ -245,18 +243,18 @@ describe("DB brief route", () => {
 
   it("shows a diff-first wait card before the generated artifact exists", async () => {
     await renderRoute(
-      meta({
-        briefAvailable: false,
-        baseSha: null,
-        generation: {
-          status: "running",
-          phase: "fetching",
-          attempts: 0,
-          errorCode: null,
-          errorDetail: null,
-          updatedAt: "2026-07-06T12:00:00.000Z",
-        },
-      }),
+      omitFields(
+        meta({
+          briefAvailable: false,
+          generation: {
+            status: "running",
+            phase: "fetching",
+            attempts: 0,
+            updatedAt: "2026-07-06T12:00:00.000Z",
+          },
+        }),
+        "baseSha",
+      ),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
     );
     // A phase whose line differs from the generic fallback, so a phase that
@@ -270,18 +268,19 @@ describe("DB brief route", () => {
 
   it("shows the failed card with attempts and the sanitized error", async () => {
     await renderRoute(
-      meta({
-        briefAvailable: false,
-        baseSha: null,
-        generation: {
-          status: "failed",
-          phase: null,
-          attempts: 1,
-          errorCode: "unknown",
-          errorDetail: "model call failed",
-          updatedAt: "2026-07-06T12:00:00.000Z",
-        },
-      }),
+      omitFields(
+        meta({
+          briefAvailable: false,
+          generation: {
+            status: "failed",
+            attempts: 1,
+            errorCode: "unknown",
+            errorDetail: "model call failed",
+            updatedAt: "2026-07-06T12:00:00.000Z",
+          },
+        }),
+        "baseSha",
+      ),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
     );
     await waitFor(() =>
@@ -724,8 +723,6 @@ describe("DB brief route, explicit-span deep link while generating", () => {
       status: "running",
       phase: "generating",
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-07-06T12:00:00.000Z",
     },
   });

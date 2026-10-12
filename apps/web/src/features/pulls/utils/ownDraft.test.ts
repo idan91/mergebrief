@@ -1,5 +1,5 @@
 // The own-draft derivation truth table. The state is derived at READ time
-// from two server-provided booleans — never stored, never self-declared. Both
+// from two server-provided booleans, never stored, never self-declared. Both
 // must hold: someone else's draft and the viewer's own ready PR are both
 // plain reviewer views.
 import { describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ describe("isOwnDraft", () => {
     expect(isOwnDraft({ draft: true, viewerIsAuthor: false })).toBe(false);
   });
 
-  it("is false for the viewer's own ready (non-draft) PR", () => {
+  it("is false for the viewer's own ready PR", () => {
     expect(isOwnDraft({ draft: false, viewerIsAuthor: true })).toBe(false);
   });
 
@@ -30,7 +30,7 @@ describe("draftPolicyNotice", () => {
   const ownDraft = { draft: true, viewerIsAuthor: true };
 
   it("is null for anyone but the draft's own author", () => {
-    const policy = { generate: false, debounceSeconds: null };
+    const policy = { generate: false };
     expect(
       draftPolicyNotice(t, policy, { draft: true, viewerIsAuthor: false }),
     ).toBeNull();
@@ -39,20 +39,17 @@ describe("draftPolicyNotice", () => {
     ).toBeNull();
   });
 
-  it("is null when the policy is absent (list rows) or all-default", () => {
+  it("is null when the policy is absent or all-default", () => {
     expect(draftPolicyNotice(t, undefined, ownDraft)).toBeNull();
-    expect(
-      draftPolicyNotice(t, { generate: true, debounceSeconds: null }, ownDraft),
-    ).toBeNull();
+    expect(draftPolicyNotice(t, { generate: true }, ownDraft)).toBeNull();
   });
 
   it("explains drafts-off, and off wins over damping", () => {
-    for (const debounceSeconds of [null, 900]) {
-      const notice = draftPolicyNotice(
-        t,
-        { generate: false, debounceSeconds },
-        ownDraft,
-      );
+    for (const policy of [
+      { generate: false },
+      { generate: false, debounceSeconds: 900 },
+    ]) {
+      const notice = draftPolicyNotice(t, policy, ownDraft);
       expect(notice?.kind).toBe("drafts-off");
       expect(notice?.text).toContain("off on this instance");
       expect(notice?.text).toContain("marked ready");

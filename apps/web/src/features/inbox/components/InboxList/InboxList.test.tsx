@@ -11,10 +11,10 @@ import { QueryClient } from "@tanstack/react-query";
 import { InboxLayouts, InboxReviewStates, InboxSorts } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { omitFields } from "@web/test/fields";
 import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
 import { InboxList } from ".";
-import { omitItemFields } from "../../test-utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -122,7 +122,7 @@ describe("InboxList", () => {
         items={[
           makeItem({ prNumber: 1, reviewState: InboxReviewStates.REVIEWED }),
           makeItem({ prNumber: 2, reviewState: InboxReviewStates.UPDATED }),
-          omitItemFields(
+          omitFields(
             makeItem({ prNumber: 3, viewerIsAuthor: true }),
             "reviewState",
           ),
@@ -164,7 +164,7 @@ describe("InboxList", () => {
         items={[
           makeItem({ prNumber: 1, reviewState: InboxReviewStates.REVIEWED }),
           makeItem({ prNumber: 2, reviewState: InboxReviewStates.UPDATED }),
-          omitItemFields(
+          omitFields(
             makeItem({ prNumber: 3, viewerIsAuthor: true }),
             "reviewState",
           ),
@@ -275,7 +275,7 @@ describe("InboxList", () => {
     await renderInRouter(
       <InboxList
         items={[
-          omitItemFields(
+          omitFields(
             makeItem({
               source: "url",
               reviewState: InboxReviewStates.IN_PROGRESS,
@@ -306,7 +306,7 @@ describe("InboxList", () => {
     await renderInRouter(
       <InboxList
         items={[
-          omitItemFields(
+          omitFields(
             makeItem({
               source: "url",
               draft: true,

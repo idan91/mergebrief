@@ -77,11 +77,7 @@ describe("deriveRevisionPosture", () => {
 
   it("reads no drift when the meta has no base or no head", () => {
     expect(
-      deriveRevisionPosture(
-        { headSha: null, baseSha: null },
-        makeTimeline([LATEST], 0),
-        "head-2",
-      ),
+      deriveRevisionPosture({}, makeTimeline([LATEST], 0), "head-2"),
     ).toEqual({
       baseDrift: false,
       staleHead: false,

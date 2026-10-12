@@ -48,13 +48,13 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | undefined {
         return false;
       }
       const keepPolling =
-        isInFlight(data.generation ?? undefined) ||
-        isStaleRead(data.generation ?? undefined, item.generation);
+        isInFlight(data.generation) ||
+        isStaleRead(data.generation, item.generation);
       return keepPolling ? ROW_POLL_MS : false;
     },
   }).data;
 
-  const read = meta?.generation ?? undefined;
+  const read = meta?.generation;
   const staleRead = isStaleRead(read, item.generation);
   const settled =
     enabled && read !== undefined && !isInFlight(read) && !staleRead;

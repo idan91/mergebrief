@@ -69,10 +69,7 @@ function meta(): PrSummary {
     behind: false,
     generation: {
       status: "succeeded",
-      phase: null,
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-07-06T12:00:00.000Z",
     },
     updatedAt: "2026-07-06T12:00:00.000Z",

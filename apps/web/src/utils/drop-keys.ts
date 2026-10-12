@@ -3,7 +3,9 @@ import { z } from "zod/v4";
 import { isRecord } from "./typeGuards";
 
 /** An array or a class instance passes through untouched for the object schema to judge. */
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
+export function isPlainRecord(
+  value: unknown,
+): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false;
   }

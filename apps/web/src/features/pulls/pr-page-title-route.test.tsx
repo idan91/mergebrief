@@ -9,6 +9,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
+import { omitFields } from "@web/test/fields";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,
@@ -39,10 +40,7 @@ function makeMeta(overrides: Partial<PrSummary>): PrSummary {
     behind: false,
     generation: {
       status: "succeeded",
-      phase: null,
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-07-06T12:00:00.000Z",
     },
     updatedAt: "2026-07-06T12:00:00.000Z",
@@ -107,11 +105,11 @@ describe("PR brief tab title", () => {
   });
 
   it("titles a PR that has no brief yet", async () => {
-    const waiting = makeMeta({
-      title: null,
-      baseSha: null,
-      briefAvailable: false,
-    });
+    const waiting = omitFields(
+      makeMeta({ briefAvailable: false }),
+      "title",
+      "baseSha",
+    );
     await loadPrRoute(waiting, PR_PATH);
 
     await waitFor(() => {

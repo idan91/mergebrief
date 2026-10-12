@@ -44,7 +44,7 @@ function renderWaitCard(span: Span | undefined): void {
     <I18nProvider>
       <QueryClientProvider client={client}>
         <WaitCard
-          phase={null}
+          phase={undefined}
           prNumber={PR_NUMBER}
           repoId={REPO_ID}
           span={span}

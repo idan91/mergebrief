@@ -64,12 +64,12 @@ const PENDING_CASES: readonly PendingCase[] = [
 
 interface RunningCase {
   readonly name: string;
-  readonly phase: string | null;
+  readonly phase: string | undefined;
   readonly expected: string;
 }
 
 const RUNNING_CASES: readonly RunningCase[] = [
-  { name: "no phase", phase: null, expected: GENERATING_LINE },
+  { name: "no phase", phase: undefined, expected: GENERATING_LINE },
   {
     name: "fetching",
     phase: "fetching",
@@ -94,7 +94,7 @@ describe("waitLabel while pending", () => {
   it.each(PENDING_CASES)("$name", ({ waitReason, pendingNotice, expected }) => {
     const label = waitLabel(t, {
       status: "pending",
-      phase: null,
+      phase: undefined,
       waitReason,
       pendingNotice,
     });
@@ -118,7 +118,7 @@ describe("waitLabel while running", () => {
   it("ignores a damped notice and a stale wait reason", () => {
     const label = waitLabel(t, {
       status: "running",
-      phase: null,
+      phase: undefined,
       waitReason: WaitReasons.WAITING_FOR_SLOT,
       pendingNotice: DAMPED_NOTICE,
     });

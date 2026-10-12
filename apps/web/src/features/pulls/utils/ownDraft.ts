@@ -22,7 +22,7 @@ export function isOwnDraft(view: OwnDraftSource): boolean {
 /** The instance draft-policy slice the notice reads (a `DraftPolicySummary`). */
 export interface DraftPolicyNoticeSource {
   readonly generate: boolean;
-  readonly debounceSeconds: number | null;
+  readonly debounceSeconds?: number;
 }
 
 export interface DraftPolicyNotice {
@@ -53,7 +53,7 @@ export function draftPolicyNotice(
       text: t("pulls.ownDraft.draftsOff"),
     };
   }
-  if (policy.debounceSeconds !== null) {
+  if (policy.debounceSeconds !== undefined) {
     // "can take up to" is an upper bound, deliberately: the FE cannot tell a
     // damped regeneration from the two never-damped pending cases (first
     // generation, review-triggered regen), where the

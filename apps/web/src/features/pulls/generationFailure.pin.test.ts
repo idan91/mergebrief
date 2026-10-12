@@ -33,7 +33,7 @@ describe("generation-failure vocabulary", () => {
 
   it("never renders a template with an empty detail hole", () => {
     for (const code of Object.values(GenerationFailureCodes)) {
-      for (const detail of [null, ""]) {
+      for (const detail of [undefined, ""]) {
         const rendered = failureLine(appI18n.t, code, detail);
         expect(rendered.trimEnd()).toBe(rendered);
         expect(rendered).not.toMatch(/[:\u2014]\s*$/);
@@ -42,10 +42,10 @@ describe("generation-failure vocabulary", () => {
   });
 
   it("keeps a detail that arrived with a code this bundle predates", () => {
-    expect(failureLine(appI18n.t, null, "spend cap reached")).toContain(
+    expect(failureLine(appI18n.t, undefined, "spend cap reached")).toContain(
       "spend cap reached",
     );
-    expect(failureLine(appI18n.t, null, null)).toBe(
+    expect(failureLine(appI18n.t, undefined, undefined)).toBe(
       appI18n.t("pulls.failed.noDetail"),
     );
   });

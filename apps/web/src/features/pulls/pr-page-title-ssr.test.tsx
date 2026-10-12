@@ -22,7 +22,6 @@ const waitingPr: PrSummary = {
   prNumber: PR_NUMBER,
   title: HOSTILE_TITLE,
   state: "open",
-  baseSha: null,
   headSha: "head-1",
   briefAvailable: false,
   draft: false,
@@ -32,10 +31,7 @@ const waitingPr: PrSummary = {
   behind: false,
   generation: {
     status: "pending",
-    phase: null,
     attempts: 0,
-    errorCode: null,
-    errorDetail: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
   },
   updatedAt: "2026-07-06T12:00:00.000Z",

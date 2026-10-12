@@ -19,10 +19,10 @@ export function deriveRevisionPosture(
     timeline !== undefined && timeline.selected.headSha === meta.headSha;
   const selectedBaseIsCurrent =
     timeline !== undefined &&
-    (meta.baseSha === null || timeline.selected.baseSha === meta.baseSha);
+    (meta.baseSha === undefined || timeline.selected.baseSha === meta.baseSha);
   const staleHead =
     renderedHead !== undefined &&
-    meta.headSha !== null &&
+    meta.headSha !== undefined &&
     meta.headSha !== renderedHead;
   const newerRevisionSelectable =
     timeline === undefined ||

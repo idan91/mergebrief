@@ -85,6 +85,30 @@ describe("parsePrSummary behind", () => {
 });
 
 describe("parsePrSummary", () => {
+  it("reads the wire's null PR and generation fields as absent", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      repoSlug: null,
+      title: null,
+      baseSha: null,
+      headSha: null,
+    });
+    const noGeneration = parsePrSummary({ ...ROW, generation: null });
+
+    if (!parsed.ok || !noGeneration.ok) {
+      throw new Error("unreachable");
+    }
+    for (const field of ["repoSlug", "title", "baseSha", "headSha"]) {
+      expect(parsed.value).not.toHaveProperty(field);
+    }
+    expect(parsed.value.generation).toStrictEqual({
+      status: "succeeded",
+      attempts: 0,
+      updatedAt: "2026-07-06T12:00:00.000Z",
+    });
+    expect(noGeneration.value).not.toHaveProperty("generation");
+  });
+
   it("parses the failure code and sanitized detail off the wire", () => {
     const parsed = parsePrSummary({
       ...ROW,
@@ -120,11 +144,25 @@ describe("parsePrSummary", () => {
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.generation?.errorCode).toBeNull();
+    expect(parsed.value.generation).not.toHaveProperty("errorCode");
     expect(parsed.value.generation?.errorDetail).toBe("cap reached");
   });
 
-  it("rejects a non-object errorParams and ignores a non-string detail", () => {
+  it("ignores a top-level errorDetail the wire never sends", () => {
+    for (const errorDetail of ["forged", 5]) {
+      const parsed = parsePrSummary({
+        ...ROW,
+        generation: { ...PENDING_GENERATION, errorDetail },
+      });
+
+      if (!parsed.ok) {
+        throw new Error("unreachable");
+      }
+      expect(parsed.value.generation).not.toHaveProperty("errorDetail");
+    }
+  });
+
+  it("ignores a non-object errorParams and a non-string detail", () => {
     const base = {
       status: "failed",
       phase: null,
@@ -132,10 +170,14 @@ describe("parsePrSummary", () => {
       errorCode: "unknown",
       updatedAt: "2026-07-06T12:00:00.000Z",
     };
-    expect(
-      parsePrSummary({ ...ROW, generation: { ...base, errorParams: "nope" } })
-        .ok,
-    ).toBe(false);
+    const notObject = parsePrSummary({
+      ...ROW,
+      generation: { ...base, errorParams: "nope" },
+    });
+    if (!notObject.ok) {
+      throw new Error("unreachable");
+    }
+    expect(notObject.value.generation).not.toHaveProperty("errorDetail");
     const loose = parsePrSummary({
       ...ROW,
       generation: { ...base, errorParams: { detail: 5 } },
@@ -143,7 +185,7 @@ describe("parsePrSummary", () => {
     if (!loose.ok) {
       throw new Error("unreachable");
     }
-    expect(loose.value.generation?.errorDetail).toBeNull();
+    expect(loose.value.generation).not.toHaveProperty("errorDetail");
   });
 
   it("parses a known wait reason off a pending generation", () => {
@@ -335,7 +377,7 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
     });
   });
 
-  it("parses the zero-config policy with a null debounceSeconds", () => {
+  it("reads the zero-config policy's null debounceSeconds as absent", () => {
     const parsed = parsePrSummary({
       ...ROW,
       draftPolicy: { generate: true, debounceSeconds: null },
@@ -344,17 +386,13 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.draftPolicy).toEqual({
-      generate: true,
-      debounceSeconds: null,
-    });
+    expect(parsed.value.draftPolicy).toStrictEqual({ generate: true });
   });
 
   it("rejects a malformed draftPolicy", () => {
     for (const bad of [
       { generate: "off", debounceSeconds: null },
       { generate: true, debounceSeconds: "900" },
-      { generate: true },
       "off",
     ]) {
       const parsed = parsePrSummary({ ...ROW, draftPolicy: bad });
@@ -493,7 +531,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
 });
 
 describe("parsePrSummary degrade paths", () => {
-  it("reads a mistyped failure code as null and a null wait reason as absent", () => {
+  it("reads a mistyped failure code and a null wait reason as absent", () => {
     const parsed = parsePrSummary({
       ...ROW,
       generation: { ...PENDING_GENERATION, errorCode: 7, waitReason: null },
@@ -502,7 +540,7 @@ describe("parsePrSummary degrade paths", () => {
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.generation?.errorCode).toBeNull();
+    expect(parsed.value.generation).not.toHaveProperty("errorCode");
     expect(parsed.value.generation).not.toHaveProperty("waitReason");
   });
 

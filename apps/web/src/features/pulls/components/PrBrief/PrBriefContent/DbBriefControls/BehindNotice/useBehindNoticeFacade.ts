@@ -80,7 +80,7 @@ export function useBehindNoticeFacade(
   if (regenerate.isError) {
     notice.failure = briefErrorDetail(t, regenerate.error);
   }
-  const url = buildGithubPullUrl(meta.repoSlug ?? undefined, prNumber);
+  const url = buildGithubPullUrl(meta.repoSlug, prNumber);
   if (url !== undefined) {
     notice.onRegenerate = () => regenerate.mutate(url);
   }

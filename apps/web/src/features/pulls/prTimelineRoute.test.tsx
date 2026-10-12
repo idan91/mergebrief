@@ -29,6 +29,7 @@ import {
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/model";
+import { omitFields } from "@web/test/fields";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,
@@ -84,10 +85,7 @@ function timelineMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     behind: false,
     generation: {
       status: "succeeded",
-      phase: null,
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-07-06T12:00:00.000Z",
     },
     updatedAt: "2026-07-06T12:00:00.000Z",
@@ -230,7 +228,7 @@ describe("DB brief route revision timeline", () => {
   it("shows no notice when the meta has no head to compare against", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
-      timelineMeta({ headSha: null }),
+      omitFields(timelineMeta(), "headSha"),
     );
     await waitFor(() =>
       expect(

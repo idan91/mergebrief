@@ -7,10 +7,10 @@ import {
 import { failureLine } from "./utils";
 
 export interface FailedCardProps {
-  /** Null when the code is absent or one this bundle doesn't know. */
-  errorCode: GenerationFailureCode | null;
+  /** Absent when the wire sent none or one this bundle doesn't know. */
+  errorCode: GenerationFailureCode | undefined;
   /** Sanitized detail for the two codes that carry one. */
-  errorDetail: string | null;
+  errorDetail: string | undefined;
   attempts: number;
 }
 

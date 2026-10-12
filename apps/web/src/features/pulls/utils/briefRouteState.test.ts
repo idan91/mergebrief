@@ -19,7 +19,6 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     prNumber: 7,
     title: "t",
     state: "open",
-    baseSha: null,
     headSha: "head-2",
     briefAvailable: false,
     draft: false,
@@ -27,7 +26,6 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     viewerCanResolve: false,
     appInstalled: true,
     behind: false,
-    generation: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
   };
@@ -36,10 +34,7 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
 function generation(overrides: Partial<GenerationSummary>): GenerationSummary {
   return {
     status: "running",
-    phase: null,
     attempts: 0,
-    errorCode: null,
-    errorDetail: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
   };

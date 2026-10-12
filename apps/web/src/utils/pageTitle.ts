@@ -4,9 +4,9 @@ const PAGE_TITLE_SEPARATOR = " · ";
 
 /** The PR fields a tab title is built from, as the PR meta endpoint carries them. */
 export interface PrPageTitleInput {
-  readonly title: string | null;
+  readonly title?: string | undefined;
   readonly prNumber: number;
-  readonly repoSlug: string | null;
+  readonly repoSlug?: string | undefined;
 }
 
 export type PageTitle = string;
@@ -37,7 +37,7 @@ export function buildPrPageTitle(
   segments.push(
     translate("shell.pageTitle.prNumber", { number: input.prNumber }),
   );
-  if (input.repoSlug !== null) {
+  if (input.repoSlug !== undefined) {
     segments.push(input.repoSlug);
   }
 

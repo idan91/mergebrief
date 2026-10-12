@@ -104,19 +104,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/FailedCard/utils.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/utils/ownDraft.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/review/session/disposition.ts": {
     "house/no-em-dash": {
       "count": 1

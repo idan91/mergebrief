@@ -66,7 +66,6 @@ function meta(overrides: Partial<PrSummary> = {}): PrSummary {
     viewerCanResolve: false,
     appInstalled: true,
     behind: false,
-    generation: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
   };

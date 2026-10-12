@@ -3,15 +3,19 @@ import { z } from "zod/v4";
 import type { Result } from "types/utils";
 
 import type { ForkPrStack, PullStack } from "@web/features/brief/model";
-import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
+import {
+  dropInvalidKeys,
+  dropNullKeys,
+  isPlainRecord,
+} from "@web/utils/drop-keys";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
+import { isRecord } from "@web/utils/typeGuards";
 
 import {
   GenerationFailureCodes,
   GenerationStatuses,
   PrStates,
   type AvailableLastReviewComparison,
-  type GenerationSummary,
   type PrSummary,
   type UnavailableLastReviewComparison,
 } from "./types";
@@ -23,35 +27,35 @@ import {
  */
 const repoIdSchema = z.string().regex(/^\d+$/);
 
-function readErrorDetail(
-  params: Readonly<Record<string, unknown>> | null | undefined,
-): string | null {
-  const detail = params?.["detail"];
-  if (typeof detail === "string") {
-    return detail;
+/** The wire nests the failure detail in `errorParams.detail`; the summary carries it flat. */
+function liftErrorDetail(value: unknown): unknown {
+  if (!isPlainRecord(value)) {
+    return value;
   }
-  return null;
+  const { errorParams, errorDetail: _unlifted, ...generation } = value;
+  const detail = isRecord(errorParams) ? errorParams["detail"] : undefined;
+  if (typeof detail !== "string") {
+    return generation;
+  }
+  return { ...generation, errorDetail: detail };
 }
 
 /** An unknown failure code or wait reason degrades to the generic line: the server may ship one this bundle predates. */
-export const generationSummarySchema = dropInvalidKeys(
-  z.object({
-    status: z.enum(GenerationStatuses),
-    phase: z.string().nullable(),
-    attempts: z.number(),
-    errorCode: z.enum(GenerationFailureCodes).nullable().catch(null),
-    errorParams: z.record(z.string(), z.unknown()).nullable().exactOptional(),
-    updatedAt: z.string(),
-    waitReason: z.enum(WaitReasons).exactOptional(),
-  }),
-  ["waitReason"],
-)
-  .transform(
-    ({ errorParams, ...generation }) =>
-      ({
-        ...generation,
-        errorDetail: readErrorDetail(errorParams),
-      }) satisfies GenerationSummary,
+export const generationSummarySchema = z
+  .preprocess(
+    liftErrorDetail,
+    dropInvalidKeys(
+      z.object({
+        status: z.enum(GenerationStatuses),
+        phase: z.string().exactOptional(),
+        attempts: z.number(),
+        errorCode: z.enum(GenerationFailureCodes).exactOptional(),
+        errorDetail: z.string().exactOptional(),
+        updatedAt: z.string(),
+        waitReason: z.enum(WaitReasons).exactOptional(),
+      }),
+      ["phase", "errorCode", "waitReason"],
+    ),
   )
   .readonly();
 
@@ -112,9 +116,13 @@ export const revisionSummarySchema = z
   })
   .readonly();
 
-export const draftPolicySummarySchema = z
-  .object({ generate: z.boolean(), debounceSeconds: z.number().nullable() })
-  .readonly();
+export const draftPolicySummarySchema = dropNullKeys(
+  z.object({
+    generate: z.boolean(),
+    debounceSeconds: z.number().exactOptional(),
+  }),
+  ["debounceSeconds"],
+).readonly();
 
 /**
  * `draft` and `viewerIsAuthor` are required: they gate author-only
@@ -124,26 +132,26 @@ export const draftPolicySummarySchema = z
 export const prSummarySchema = dropNullKeys(
   z.object({
     repoId: repoIdSchema,
-    repoSlug: z.string().nullable(),
+    repoSlug: z.string().exactOptional(),
     prNumber: z.number(),
-    title: z.string().nullable(),
+    title: z.string().exactOptional(),
     state: z.enum(PrStates),
-    baseSha: z.string().nullable(),
-    headSha: z.string().nullable(),
+    baseSha: z.string().exactOptional(),
+    headSha: z.string().exactOptional(),
     briefAvailable: z.boolean(),
     draft: z.boolean(),
     authorLogin: z.string().exactOptional(),
     viewerIsAuthor: z.boolean(),
     viewerCanResolve: z.boolean().default(false),
     appInstalled: z.boolean().default(false),
-    generation: generationSummarySchema.nullable(),
+    generation: generationSummarySchema.exactOptional(),
     updatedAt: z.string(),
     behind: z.boolean().default(false),
     comparisons: prComparisonsSchema.exactOptional(),
     draftPolicy: draftPolicySummarySchema.exactOptional(),
     revisions: z.array(revisionSummarySchema).readonly().exactOptional(),
   }),
-  ["authorLogin"],
+  ["repoSlug", "title", "baseSha", "headSha", "authorLogin", "generation"],
 ).readonly();
 
 export function parsePrSummary(value: unknown): Result<PrSummary, string> {

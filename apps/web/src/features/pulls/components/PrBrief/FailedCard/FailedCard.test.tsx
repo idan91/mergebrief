@@ -32,7 +32,7 @@ describe("FailedCard", () => {
         <FailedCard
           attempts={0}
           errorCode="provider-rate-limit"
-          errorDetail={null}
+          errorDetail={undefined}
         />
       </I18nProvider>,
     );
@@ -45,7 +45,7 @@ describe("FailedCard", () => {
         <FailedCard
           attempts={0}
           errorCode="attempts-exhausted"
-          errorDetail={null}
+          errorDetail={undefined}
         />
       </I18nProvider>,
     );
@@ -61,7 +61,7 @@ describe("FailedCard", () => {
         <FailedCard
           attempts={2}
           errorCode="attempts-exhausted"
-          errorDetail={null}
+          errorDetail={undefined}
         />
       </I18nProvider>,
     );
@@ -75,7 +75,7 @@ describe("FailedCard", () => {
         <FailedCard
           attempts={2}
           errorCode="provider-timeout"
-          errorDetail={null}
+          errorDetail={undefined}
         />
       </I18nProvider>,
     );
@@ -98,7 +98,11 @@ describe("FailedCard", () => {
   it("falls back to the no-detail line when the failure carried none", () => {
     render(
       <I18nProvider>
-        <FailedCard attempts={0} errorCode={null} errorDetail={null} />
+        <FailedCard
+          attempts={0}
+          errorCode={undefined}
+          errorDetail={undefined}
+        />
       </I18nProvider>,
     );
     expect(screen.getByText("No failure detail was recorded.")).toBeTruthy();

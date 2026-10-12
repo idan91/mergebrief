@@ -10,7 +10,7 @@ import { LiveDiffPreview } from "./LiveDiffPreview";
 
 export interface WaitCardProps {
   status: "pending" | "running";
-  phase: string | null;
+  phase: string | undefined;
   /** Known span → diff-first wait; unknown (first brief) → phase-only. */
   span: Span | undefined;
   repoId: string;
@@ -26,7 +26,7 @@ export interface WaitCardProps {
 
 export interface WaitLabelInput {
   status: "pending" | "running";
-  phase: string | null;
+  phase: string | undefined;
   waitReason: WaitReason | undefined;
   pendingNotice: string | undefined;
 }
@@ -60,7 +60,7 @@ export function waitLabel(t: TFunction, input: WaitLabelInput): string {
   }
 
   const phaseKey =
-    input.phase === null ? undefined : PHASE_KEYS.get(input.phase);
+    input.phase === undefined ? undefined : PHASE_KEYS.get(input.phase);
   return t(phaseKey ?? "pulls.wait.generating");
 }
 

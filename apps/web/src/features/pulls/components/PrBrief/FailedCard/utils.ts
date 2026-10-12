@@ -9,7 +9,7 @@ const DETAIL_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The failure sentence. A known code renders `generationError.<code>` — the
+ * The failure sentence. A known code renders `generationError.<code>`, the
  * verbatim-code lookup the spec specifies, so no mapping table can drift.
  * A detail-carrying code with no detail, and an unrecognized code with no
  * detail, both degrade to the no-detail copy rather than printing a template
@@ -18,11 +18,11 @@ const DETAIL_CODES: ReadonlySet<string> = new Set([
  */
 export function failureLine(
   t: TFunction,
-  errorCode: GenerationFailureCode | null,
-  errorDetail: string | null,
+  errorCode: GenerationFailureCode | undefined,
+  errorDetail: string | undefined,
 ): string {
   const detail = errorDetail ?? "";
-  if (errorCode === null) {
+  if (errorCode === undefined) {
     return detail === ""
       ? t("pulls.failed.noDetail")
       : t("generationError.unknown", { detail });

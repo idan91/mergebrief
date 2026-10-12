@@ -18,7 +18,6 @@ describe("buildPrPageTitle", () => {
 
   it("drops a missing PR title", () => {
     const title = buildPrPageTitle(translate, {
-      title: null,
       prNumber: 42,
       repoSlug: "acme/shop",
     });
@@ -30,7 +29,6 @@ describe("buildPrPageTitle", () => {
     const title = buildPrPageTitle(translate, {
       title: "Fix the login redirect",
       prNumber: 42,
-      repoSlug: null,
     });
 
     expect(title).toBe("Fix the login redirect · #42 · MergeBrief");
@@ -40,7 +38,6 @@ describe("buildPrPageTitle", () => {
     const title = buildPrPageTitle(translate, {
       title: "   ",
       prNumber: 7,
-      repoSlug: null,
     });
 
     expect(title).toBe("#7 · MergeBrief");
@@ -50,7 +47,6 @@ describe("buildPrPageTitle", () => {
     const title = buildPrPageTitle(translate, {
       title: "</title><script>alert(1)</script> & more",
       prNumber: 1,
-      repoSlug: null,
     });
 
     expect(title).toBe(

@@ -5,6 +5,7 @@ import {
 } from "types/inbox";
 import { describe, expect, it } from "vitest";
 
+import { omitFields } from "@web/test/fields";
 import {
   buildInboxSearch,
   formatAge,
@@ -16,7 +17,6 @@ import {
   readInboxEmptiness,
 } from "./utils";
 import { InboxEmptinesses, type InboxItem } from "./types";
-import { omitItemFields } from "./test-utils";
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -69,7 +69,7 @@ describe("splitAtFold", () => {
     ];
     const below = [
       makeItem({ prNumber: 4, reviewState: InboxReviewStates.REVIEWED }),
-      omitItemFields(
+      omitFields(
         makeItem({ prNumber: 5, viewerIsAuthor: true }),
         "reviewState",
       ),
@@ -92,9 +92,7 @@ describe("splitAtFold", () => {
     expect(
       needsReviewer(makeItem({ reviewState: InboxReviewStates.REVIEWED })),
     ).toBe(false);
-    expect(needsReviewer(omitItemFields(makeItem(), "reviewState"))).toBe(
-      false,
-    );
+    expect(needsReviewer(omitFields(makeItem(), "reviewState"))).toBe(false);
   });
 
   it("a draft or a merged row sits below the fold whatever its state", () => {
@@ -110,14 +108,11 @@ describe("pickAgeAt", () => {
     expect(pickAgeAt(item, InboxSorts.UPDATED)).toBe("2026-09-20T10:00:00Z");
     expect(pickAgeAt(item, InboxSorts.GENERATED)).toBe("2026-09-19T10:00:00Z");
     expect(
-      pickAgeAt(
-        omitItemFields(makeItem(), "latestBriefAt"),
-        InboxSorts.GENERATED,
-      ),
+      pickAgeAt(omitFields(makeItem(), "latestBriefAt"), InboxSorts.GENERATED),
     ).toBe("2026-09-20T10:00:00Z");
     expect(
       pickAgeAt(
-        omitItemFields(makeItem(), "latestBriefAt", "githubUpdatedAt"),
+        omitFields(makeItem(), "latestBriefAt", "githubUpdatedAt"),
         InboxSorts.UPDATED,
       ),
     ).toBeUndefined();

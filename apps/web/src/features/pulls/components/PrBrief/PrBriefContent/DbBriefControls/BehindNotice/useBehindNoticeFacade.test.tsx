@@ -4,6 +4,7 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { omitFields } from "@web/test/fields";
 import type { PrSummary } from "../../../../../types";
 import { useBehindNoticeFacade } from "./useBehindNoticeFacade";
 
@@ -29,7 +30,6 @@ function makeMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     viewerIsAuthor: false,
     viewerCanResolve: false,
     appInstalled: true,
-    generation: null,
     updatedAt: "2026-09-20T10:00:00.000Z",
     behind: true,
     ...overrides,
@@ -118,10 +118,7 @@ describe("useBehindNoticeFacade", () => {
       makeMeta({
         generation: {
           status: "pending",
-          phase: null,
           attempts: 0,
-          errorCode: null,
-          errorDetail: null,
           updatedAt: "2026-09-20T10:00:00.000Z",
         },
       }),
@@ -143,10 +140,7 @@ describe("useBehindNoticeFacade", () => {
   it("carries the draft window while the author's regeneration is queued", () => {
     const pending = {
       status: "pending" as const,
-      phase: null,
       attempts: 0,
-      errorCode: null,
-      errorDetail: null,
       updatedAt: "2026-09-20T10:00:00.000Z",
     };
     const ownDraft = renderNotice(
@@ -172,7 +166,7 @@ describe("useBehindNoticeFacade", () => {
   });
 
   it("offers no button while the repository name is unknown", () => {
-    const { result } = renderNotice(makeMeta({ repoSlug: null }));
+    const { result } = renderNotice(omitFields(makeMeta(), "repoSlug"));
 
     expect(result.current.notice?.onRegenerate).toBeUndefined();
   });
