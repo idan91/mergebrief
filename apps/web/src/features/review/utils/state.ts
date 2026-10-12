@@ -233,7 +233,7 @@ export interface CarriedInput {
 /** The anchor a stored disposition keys on, as both resolutions read it. */
 export interface FlagAnchor {
   filePath: string;
-  attribute: string | null;
+  attribute: string | undefined;
   startLine: number;
   endLine: number;
 }
@@ -295,7 +295,7 @@ function buildCarriedDraftItem(
   item: SessionAttentionItem,
 ): CarriedItem | undefined {
   const id = item.subject.id;
-  if (id === null) {
+  if (id === undefined) {
     return undefined;
   }
   const live = input.comments.find(

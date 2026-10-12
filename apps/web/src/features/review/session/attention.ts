@@ -27,10 +27,10 @@ export interface SessionAttentionItem {
   kind: AttentionItemKind;
   subject: {
     type: AttentionSubjectType;
-    /** A draft comment always names its row; null on a disposition. */
-    id: string | null;
+    /** A draft comment always names its row; absent on a disposition. */
+    id?: string;
     /** The flag's attribute, on a disposition only. */
-    attribute: string | null;
+    attribute?: string;
   };
   location: SessionAttentionLocation;
   /** Non-empty: an item nothing can clear is not an item. */

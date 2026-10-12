@@ -87,7 +87,6 @@ function sessionWith(
 ): ReviewSessionPayload {
   return {
     materialized: false,
-    carriedFrom: null,
     attention: [],
     reviewOutcome: "comment",
     draftComments,

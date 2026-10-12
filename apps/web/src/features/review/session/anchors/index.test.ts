@@ -58,8 +58,6 @@ function makeDismissalFromWire(wire: FlagAnchorWire): SessionDisposition {
     ...wire,
     decision: "dismissed",
     reason: "not here",
-    evidence: null,
-    carryStatus: null,
   };
 }
 

@@ -46,8 +46,8 @@ export interface ReviewSessionState {
    * the own-comment join keys against fetched conversation threads.
    */
   submittedReviewIds: number[];
-  /** The span this session's carried work came from; null = nothing carried. */
-  carriedFrom: SessionCarriedFrom | null;
+  /** The span this session's carried work came from; absent = nothing carried. */
+  carriedFrom: SessionCarriedFrom | undefined;
   attention: SessionAttentionItem[];
 }
 
@@ -208,7 +208,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
     unplacedDrafts: [],
     reviewOutcome: "comment",
     submittedReviewIds: [],
-    carriedFrom: null,
+    carriedFrom: undefined,
     attention: [],
   };
 }

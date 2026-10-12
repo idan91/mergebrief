@@ -125,7 +125,34 @@ describe("parseReviewSessionPayload", () => {
       submittedReviewIds: ["42"],
     };
 
-    expect(parseReviewSessionPayload(body)).toEqual({ ok: true, value: body });
+    const {
+      reason: _reason,
+      carryStatus: _carry,
+      ...disposition
+    } = DISPOSITION;
+    const { evidence: _evidence, ...unevidenced } = disposition;
+    const { attribute: _attribute, ...subject } = ATTENTION_ITEM.subject;
+
+    expect(parseReviewSessionPayload(body)).toStrictEqual({
+      ok: true,
+      value: {
+        ...body,
+        attention: [{ ...ATTENTION_ITEM, subject }],
+        dispositions: [disposition, unevidenced],
+      },
+    });
+  });
+
+  it("reads a first-ever session's null carriedFrom as absent", () => {
+    const parsed = parseReviewSessionPayload({
+      ...emptySessionPayload(),
+      carriedFrom: null,
+    });
+
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value).not.toHaveProperty("carriedFrom");
   });
 
   it("accepts a file draft whatever line fields it carries", () => {

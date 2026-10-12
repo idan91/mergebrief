@@ -59,7 +59,6 @@ function seedDrafts(drafts: ReviewSessionPayload["draftComments"]): void {
 function buildSessionPayload(): ReviewSessionPayload {
   return {
     materialized: false,
-    carriedFrom: null,
     attention: [],
     reviewOutcome: "comment",
     draftComments: seededDrafts,

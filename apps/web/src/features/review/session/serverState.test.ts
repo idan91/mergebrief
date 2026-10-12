@@ -272,8 +272,6 @@ describe("sessionInitialState", () => {
             regionEnd: Math.max(...bounds.map((range) => range.end)),
             decision: "dismissed",
             reason: "not in this PR",
-            evidence: null,
-            carryStatus: null,
           },
           // Right file and attribute, a region no chunk carries: dropped.
           {
@@ -282,9 +280,7 @@ describe("sessionInitialState", () => {
             regionStart: 9000,
             regionEnd: 9001,
             decision: "addressed",
-            reason: null,
             evidence: { kind: "manual-note", ref: "elsewhere" },
-            carryStatus: null,
           },
         ],
       }),

@@ -72,7 +72,7 @@ export function useCarryOver({
   // A first-ever session carried nothing, and neither did a previous one that
   // wrote only an outcome, so a row claiming otherwise is worse than the
   // header's progress alone.
-  if (carriedFrom === null || carriedFrom.items === 0) {
+  if (carriedFrom === undefined || carriedFrom.items === 0) {
     return null;
   }
 

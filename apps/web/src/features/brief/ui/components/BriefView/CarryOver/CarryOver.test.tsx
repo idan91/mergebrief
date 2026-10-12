@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ReviewSessionPayload } from "@web/features/review/session";
 import { makeSessionReadDriver } from "@web/features/review/utils";
 import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
+import { omitFields } from "@web/test/fields";
 
 afterEach(cleanup);
 
@@ -60,7 +61,7 @@ function buildOrphanedDraft(): ReviewSessionPayload {
     attention: [
       {
         kind: "orphaned-anchor",
-        subject: { type: "draft-comment", id: DRAFT_ID, attribute: null },
+        subject: { type: "draft-comment", id: DRAFT_ID },
         location: {
           kind: "line",
           filePath: FLAG_FILE,
@@ -86,8 +87,6 @@ function buildCarriedDisposition(
         regionStart: 10,
         regionEnd: 13,
         decision: "addressed",
-        reason: null,
-        evidence: null,
         carryStatus,
       },
     ],
@@ -96,7 +95,6 @@ function buildCarriedDisposition(
         kind,
         subject: {
           type: "disposition",
-          id: null,
           attribute: FLAG_ATTRIBUTE,
         },
         location: {
@@ -126,14 +124,16 @@ function getRowStatus(): HTMLElement {
 
 describe("carry-over row", () => {
   it("renders no row at all on a first-ever session", async () => {
-    await mountBriefView({ session: buildPayload({ carriedFrom: null }) });
+    await mountBriefView({
+      session: omitFields(buildPayload({}), "carriedFrom"),
+    });
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
   it("renders the row from a session read that lands later", async () => {
     const reads = makeSessionReadDriver();
     await mountBriefView({
-      session: buildPayload({ carriedFrom: null }),
+      session: omitFields(buildPayload({}), "carriedFrom"),
       sessionReads: reads.source,
     });
     expect(screen.queryByTestId("carry-over-row")).toBeNull();

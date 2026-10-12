@@ -4,11 +4,11 @@ import type {
   DiffSide,
   DispositionCarryStatus,
   DispositionDecision,
+  DispositionEvidence,
   ReviewOutcome,
 } from "types";
 import type { BriefViewModel } from "@web/features/brief/model";
 import type { ReviewComment } from "../utils/comments";
-import type { RiskEvidence } from "../utils/state";
 import type { SessionAttentionItem } from "./attention";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 import {
@@ -50,10 +50,10 @@ export interface SessionDisposition {
   regionStart: number;
   regionEnd: number;
   decision: DispositionDecision;
-  reason: string | null;
-  evidence: { kind: RiskEvidence["kind"]; ref: string | null } | null;
-  /** The carry-over verdict on this row; null on a fresh decision. */
-  carryStatus: DispositionCarryStatus | null;
+  reason?: string;
+  evidence?: DispositionEvidence;
+  /** The carry-over verdict on this row; absent on a fresh decision. */
+  carryStatus?: DispositionCarryStatus;
 }
 
 export interface SessionReclassification {
@@ -62,7 +62,7 @@ export interface SessionReclassification {
 }
 
 /**
- * The span the carry-over row states. Null is a first-ever session and
+ * The span the carry-over row states. Absent is a first-ever session and
  * nothing else, the row itself does not render.
  */
 export interface SessionCarriedFrom {
@@ -78,7 +78,7 @@ export interface SessionCarriedFrom {
 export interface ReviewSessionPayload {
   /** False = no session row exists yet; every list is an in-memory verdict. */
   materialized: boolean;
-  carriedFrom: SessionCarriedFrom | null;
+  carriedFrom?: SessionCarriedFrom;
   attention: SessionAttentionItem[];
   reviewOutcome: ReviewOutcome;
   draftComments: SessionDraftComment[];
@@ -92,7 +92,6 @@ export interface ReviewSessionPayload {
 export function emptySessionPayload(): ReviewSessionPayload {
   return {
     materialized: false,
-    carriedFrom: null,
     attention: [],
     reviewOutcome: "comment",
     draftComments: [],

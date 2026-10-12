@@ -97,7 +97,7 @@ export function buildEvidenceWire(evidence: RiskEvidence): EvidenceWire {
 export function resolveEvidence(
   evidence: SessionDisposition["evidence"],
 ): RiskEvidence | undefined {
-  if (evidence === null) {
+  if (evidence === undefined) {
     return undefined;
   }
 

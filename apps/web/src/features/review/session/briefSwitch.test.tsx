@@ -20,7 +20,6 @@ afterEach(cleanup);
 function sessionWithReadMark(chunkId: string): ReviewSessionPayload {
   return {
     materialized: false,
-    carriedFrom: null,
     attention: [],
     reviewOutcome: "comment",
     draftComments: [],

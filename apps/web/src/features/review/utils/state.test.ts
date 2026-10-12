@@ -286,7 +286,7 @@ const carriedChunk = {
 function buildOrphanItem(): SessionAttentionItem {
   return {
     kind: "orphaned-anchor",
-    subject: { type: "draft-comment", id: "comment-1", attribute: null },
+    subject: { type: "draft-comment", id: "comment-1" },
     location: {
       kind: CommentAnchorKinds.LINE,
       filePath: "src/a.ts",
@@ -300,7 +300,7 @@ function buildOrphanItem(): SessionAttentionItem {
 function buildDispositionItem(kind: AttentionItemKind): SessionAttentionItem {
   return {
     kind,
-    subject: { type: "disposition", id: null, attribute: "no-tests" },
+    subject: { type: "disposition", attribute: "no-tests" },
     location: {
       kind: CommentAnchorKinds.LINE,
       filePath: "src/a.ts",
