@@ -12,11 +12,8 @@ import {
   apiFetch,
   apiJsonFromResponse,
 } from "../../data/apiFetch";
-import {
-  parseCollaborators,
-  parseConversation,
-  type PrConversation,
-} from "./types";
+import { parseCollaborators, parseConversation } from "./schemas";
+import type { PrConversation } from "./types";
 
 export type ConversationResult =
   | { readonly kind: "ready"; readonly conversation: PrConversation }
