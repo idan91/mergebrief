@@ -58,7 +58,7 @@ describe("RowMark", () => {
 
   it("shows nothing when the pointer leaves before the delay", () => {
     vi.useFakeTimers();
-    render(<RowMark reviewState={null} />);
+    render(<RowMark reviewState={undefined} />);
     const mark = screen.getByTestId("inbox-row-mark");
 
     fireEvent.pointerEnter(mark);

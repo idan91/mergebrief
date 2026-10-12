@@ -45,24 +45,24 @@ export interface InboxStackPosition {
 
 export interface InboxItem {
   repoId: string;
-  repoSlug: string | null;
+  repoSlug?: string;
   prNumber: number;
-  title: string | null;
+  title?: string;
   state: PrState;
   draft: boolean;
   source: PullRequestSource;
-  installationId: string | null;
+  installationId?: string;
   /** Absent when GitHub sent no user. */
   authorLogin?: string;
   viewerIsAuthor: boolean;
   viewerCanDelete: boolean;
-  reviewState: InboxReviewState | null;
+  reviewState?: InboxReviewState;
   behind: boolean;
   unreachable: boolean;
-  generation: InboxGeneration | null;
-  latestBriefAt: string | null;
-  githubUpdatedAt: string | null;
-  stack: InboxStackPosition | null;
+  generation?: InboxGeneration;
+  latestBriefAt?: string;
+  githubUpdatedAt?: string;
+  stack?: InboxStackPosition;
 }
 
 export interface InboxCounts {
@@ -73,7 +73,7 @@ export interface InboxCounts {
 }
 
 export interface InboxViewer {
-  login: string | null;
+  login?: string;
   avatarUrl: string;
 }
 
@@ -84,7 +84,7 @@ export interface ReachableInstallation {
 
 export interface InboxRepository {
   repoId: string;
-  repoSlug: string | null;
+  repoSlug?: string;
 }
 
 export interface InboxPage {
@@ -97,7 +97,7 @@ export interface InboxPage {
   viewer: InboxViewer;
   reachableInstallations: ReachableInstallation[];
   repositories: InboxRepository[];
-  installUrl: string | null;
+  installUrl?: string;
 }
 
 export const AgeUnits = {

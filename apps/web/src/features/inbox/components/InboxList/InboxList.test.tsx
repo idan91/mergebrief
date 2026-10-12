@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
 import { InboxList } from ".";
+import { omitItemFields } from "../../test-utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -48,7 +49,6 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     generation: { status: "succeeded", updatedAt: "2026-09-20T10:00:00Z" },
     latestBriefAt: "2026-09-20T10:00:00Z",
     githubUpdatedAt: "2026-09-20T09:00:00Z",
-    stack: null,
     ...overrides,
   };
 }
@@ -122,7 +122,10 @@ describe("InboxList", () => {
         items={[
           makeItem({ prNumber: 1, reviewState: InboxReviewStates.REVIEWED }),
           makeItem({ prNumber: 2, reviewState: InboxReviewStates.UPDATED }),
-          makeItem({ prNumber: 3, reviewState: null, viewerIsAuthor: true }),
+          omitItemFields(
+            makeItem({ prNumber: 3, viewerIsAuthor: true }),
+            "reviewState",
+          ),
           makeItem({ prNumber: 4, reviewState: InboxReviewStates.NEW }),
         ]}
         sort={InboxSorts.UPDATED}
@@ -161,7 +164,10 @@ describe("InboxList", () => {
         items={[
           makeItem({ prNumber: 1, reviewState: InboxReviewStates.REVIEWED }),
           makeItem({ prNumber: 2, reviewState: InboxReviewStates.UPDATED }),
-          makeItem({ prNumber: 3, reviewState: null, viewerIsAuthor: true }),
+          omitItemFields(
+            makeItem({ prNumber: 3, viewerIsAuthor: true }),
+            "reviewState",
+          ),
         ]}
         layout={InboxLayouts.MIXED}
         sort={InboxSorts.UPDATED}
@@ -269,13 +275,15 @@ describe("InboxList", () => {
     await renderInRouter(
       <InboxList
         items={[
-          makeItem({
-            source: "url",
-            installationId: null,
-            reviewState: InboxReviewStates.IN_PROGRESS,
-            stack: { index: 2, size: 4 },
-            unreachable: true,
-          }),
+          omitItemFields(
+            makeItem({
+              source: "url",
+              reviewState: InboxReviewStates.IN_PROGRESS,
+              stack: { index: 2, size: 4 },
+              unreachable: true,
+            }),
+            "installationId",
+          ),
         ]}
         sort={InboxSorts.UPDATED}
         layout={InboxLayouts.FOLDED}
@@ -298,16 +306,18 @@ describe("InboxList", () => {
     await renderInRouter(
       <InboxList
         items={[
-          makeItem({
-            source: "url",
-            installationId: null,
-            draft: true,
-            generation: {
-              status: "pending",
-              updatedAt: "2026-09-20T10:00:00Z",
-            },
-            title: "Retry deliveries",
-          }),
+          omitItemFields(
+            makeItem({
+              source: "url",
+              draft: true,
+              generation: {
+                status: "pending",
+                updatedAt: "2026-09-20T10:00:00Z",
+              },
+              title: "Retry deliveries",
+            }),
+            "installationId",
+          ),
         ]}
         sort={InboxSorts.UPDATED}
         layout={InboxLayouts.FOLDED}

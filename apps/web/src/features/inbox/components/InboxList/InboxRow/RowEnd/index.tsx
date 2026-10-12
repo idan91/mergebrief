@@ -9,7 +9,7 @@ import { RowSignalKinds, type RowSignalKind } from "./types";
 import { readGenerationSignal, readStatusSignal } from "./utils";
 
 export interface RowEndProps {
-  generation: InboxGeneration | null;
+  generation: InboxGeneration | undefined;
   state: InboxItem["state"];
   draft: boolean;
 }

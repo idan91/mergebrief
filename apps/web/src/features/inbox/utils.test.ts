@@ -16,6 +16,7 @@ import {
   readInboxEmptiness,
 } from "./utils";
 import { InboxEmptinesses, type InboxItem } from "./types";
+import { omitItemFields } from "./test-utils";
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -32,10 +33,8 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
-    generation: null,
     latestBriefAt: "2026-09-19T10:00:00Z",
     githubUpdatedAt: "2026-09-20T10:00:00Z",
-    stack: null,
     ...overrides,
   };
 }
@@ -70,7 +69,10 @@ describe("splitAtFold", () => {
     ];
     const below = [
       makeItem({ prNumber: 4, reviewState: InboxReviewStates.REVIEWED }),
-      makeItem({ prNumber: 5, reviewState: null, viewerIsAuthor: true }),
+      omitItemFields(
+        makeItem({ prNumber: 5, viewerIsAuthor: true }),
+        "reviewState",
+      ),
     ];
 
     const split = splitAtFold([below[0]!, ...above, below[1]!]);
@@ -90,7 +92,9 @@ describe("splitAtFold", () => {
     expect(
       needsReviewer(makeItem({ reviewState: InboxReviewStates.REVIEWED })),
     ).toBe(false);
-    expect(needsReviewer(makeItem({ reviewState: null }))).toBe(false);
+    expect(needsReviewer(omitItemFields(makeItem(), "reviewState"))).toBe(
+      false,
+    );
   });
 
   it("a draft or a merged row sits below the fold whatever its state", () => {
@@ -106,14 +110,17 @@ describe("pickAgeAt", () => {
     expect(pickAgeAt(item, InboxSorts.UPDATED)).toBe("2026-09-20T10:00:00Z");
     expect(pickAgeAt(item, InboxSorts.GENERATED)).toBe("2026-09-19T10:00:00Z");
     expect(
-      pickAgeAt(makeItem({ latestBriefAt: null }), InboxSorts.GENERATED),
+      pickAgeAt(
+        omitItemFields(makeItem(), "latestBriefAt"),
+        InboxSorts.GENERATED,
+      ),
     ).toBe("2026-09-20T10:00:00Z");
     expect(
       pickAgeAt(
-        makeItem({ latestBriefAt: null, githubUpdatedAt: null }),
+        omitItemFields(makeItem(), "latestBriefAt", "githubUpdatedAt"),
         InboxSorts.UPDATED,
       ),
-    ).toBeNull();
+    ).toBeUndefined();
   });
 });
 

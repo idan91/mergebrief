@@ -84,8 +84,9 @@ export function InboxRow({
       t("home.inbox.number", { number: item.prNumber }),
   );
   const repoLabel = item.repoSlug ?? item.repoId;
-  const stackPosition = item.stack === null ? null : { ...item.stack };
-  const age = ageAt === null ? null : formatAgeLabel(t, ageAt, now);
+  const stackPosition =
+    item.stack === undefined ? undefined : { ...item.stack };
+  const age = ageAt === undefined ? undefined : formatAgeLabel(t, ageAt, now);
   const description = describeRow(t, item, generation);
   const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
 
@@ -144,7 +145,7 @@ export function InboxRow({
               ),
             )}
           </span>{" "}
-          {stackPosition === null ? null : (
+          {stackPosition === undefined ? null : (
             <Chip
               as={ChipElements.SPAN}
               className={styles["chip"]}
@@ -202,7 +203,9 @@ export function InboxRow({
           ) : null}
           <span className={styles["repo"]}>{repoLabel}</span>{" "}
           <span>{t("home.inbox.number", { number: item.prNumber })}</span>{" "}
-          {age === null ? null : <span suppressHydrationWarning>{age}</span>}
+          {age === undefined ? null : (
+            <span suppressHydrationWarning>{age}</span>
+          )}
         </span>
       </Link>
       <span className={styles["end"]}>

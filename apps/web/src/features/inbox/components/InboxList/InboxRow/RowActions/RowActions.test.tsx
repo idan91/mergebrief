@@ -11,6 +11,7 @@ import { renderInRouter } from "../../../../../../test/router";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import type { InboxItem } from "../../../../types";
 import { RowActions } from ".";
+import { omitItemFields } from "../../../../test-utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -45,19 +46,14 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
-    generation: null,
-    latestBriefAt: null,
-    githubUpdatedAt: null,
-    stack: null,
     ...overrides,
   };
 }
 
-const URL_ROW = makeItem({
-  source: "url",
-  installationId: null,
-  viewerCanDelete: true,
-});
+const URL_ROW = omitItemFields(
+  makeItem({ source: "url", viewerCanDelete: true }),
+  "installationId",
+);
 const ADMIN_ROW = makeItem({ viewerCanDelete: true });
 
 function readRequestBody(init: RequestInit | undefined): unknown {
@@ -125,7 +121,7 @@ describe("RowActions", () => {
   });
 
   it("offers no GitHub link while the repository name is unknown", async () => {
-    await renderActions(makeItem({ repoSlug: null }));
+    await renderActions(omitItemFields(makeItem(), "repoSlug"));
 
     expect(screen.queryByRole("link", { name: /^Open on GitHub/ })).toBeNull();
   });
@@ -307,13 +303,15 @@ describe("RowActions", () => {
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
     cleanup();
 
-    await renderActions(makeItem({ behind: true, repoSlug: null }));
+    await renderActions(omitItemFields(makeItem({ behind: true }), "repoSlug"));
     await openMenu();
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
   it("a row the viewer may not delete has no Delete, whatever its source", async () => {
-    await renderActions(makeItem({ source: "url", installationId: null }));
+    await renderActions(
+      omitItemFields(makeItem({ source: "url" }), "installationId"),
+    );
 
     await openMenu();
 

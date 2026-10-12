@@ -68,7 +68,7 @@ export function useRowActionsFacade(
 
   async function regenerate(): Promise<void> {
     const url = buildGithubPullUrl(item.repoSlug, item.prNumber);
-    if (url === null) {
+    if (url === undefined) {
       return;
     }
     setRegenerating(true);

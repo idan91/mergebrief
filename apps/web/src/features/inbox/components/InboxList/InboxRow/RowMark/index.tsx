@@ -11,8 +11,8 @@ import { ReviewMark } from "@web/components/ReviewMark";
 import styles from "./RowMark.module.scss";
 
 export interface RowMarkProps {
-  /** Null for the viewer's own pull request. */
-  reviewState: InboxReviewState | null;
+  /** Absent for the viewer's own pull request. */
+  reviewState: InboxReviewState | undefined;
 }
 
 /**
@@ -26,7 +26,7 @@ export function RowMark({ reviewState }: RowMarkProps) {
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
   const hover = useCalloutHover();
   const label =
-    reviewState === null
+    reviewState === undefined
       ? t("shell.marks.yoursTip")
       : t(ReviewMarkLabelKeys[reviewState]);
 
@@ -41,7 +41,7 @@ export function RowMark({ reviewState }: RowMarkProps) {
         onPointerLeave={hover.disarm}
         ref={setAnchor}
       >
-        {reviewState === null ? (
+        {reviewState === undefined ? (
           <Icon name={IconNames.USER} />
         ) : (
           <ReviewMark size={IconSizes.LG} state={reviewState} />

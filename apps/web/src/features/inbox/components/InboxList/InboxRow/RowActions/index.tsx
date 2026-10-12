@@ -53,13 +53,13 @@ export function RowActions({
   const facade = useRowActionsFacade(item, href, onAnnounce, onRemoved);
   const inArchive = archived === InboxArchivedFilters.ONLY;
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
-  const canRegenerate = item.behind && githubUrl !== null;
+  const canRegenerate = item.behind && githubUrl !== undefined;
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 
   return (
     <div className={styles["actions"]}>
-      {githubUrl === null ? null : (
+      {githubUrl === undefined ? null : (
         <AccessibleLink
           className={styles["link"]}
           href={githubUrl}

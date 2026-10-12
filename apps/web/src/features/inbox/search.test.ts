@@ -244,7 +244,7 @@ describe("readLastPage and listRepoOptions", () => {
       listRepoOptions([
         { repoId: "2", repoSlug: "z/last" },
         { repoId: "1", repoSlug: "a/first" },
-        { repoId: "3", repoSlug: null },
+        { repoId: "3" },
       ]),
     ).toEqual([
       { value: "3", label: "3" },

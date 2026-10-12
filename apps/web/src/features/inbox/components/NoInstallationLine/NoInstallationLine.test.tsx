@@ -20,7 +20,7 @@ describe("NoInstallationLine", () => {
   });
 
   it("keeps the line and drops the link when there is no page to name", () => {
-    render(<NoInstallationLine installUrl={null} />);
+    render(<NoInstallationLine installUrl={undefined} />);
 
     expect(screen.getByText(/installed on no repository/)).toBeTruthy();
     expect(screen.queryByRole("link")).toBeNull();

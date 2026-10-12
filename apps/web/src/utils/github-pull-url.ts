@@ -1,10 +1,10 @@
-/** The pull request's page on GitHub; null while its repository name is unknown. */
+/** The pull request's page on GitHub; absent while its repository name is unknown. */
 export function buildGithubPullUrl(
-  repoSlug: string | null,
+  repoSlug: string | undefined,
   prNumber: number,
-): string | null {
-  if (repoSlug === null) {
-    return null;
+): string | undefined {
+  if (repoSlug === undefined) {
+    return undefined;
   }
   return `https://github.com/${repoSlug}/pull/${String(prNumber)}`;
 }

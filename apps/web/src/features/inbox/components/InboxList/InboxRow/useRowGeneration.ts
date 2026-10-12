@@ -7,7 +7,7 @@ import type { InboxGeneration, InboxItem } from "../../../types";
 import { INBOX_QUERY_ROOT, ROW_POLL_MS } from "../../../consts";
 
 function isInFlight(
-  generation: Pick<InboxGeneration, "status"> | null | undefined,
+  generation: Pick<InboxGeneration, "status"> | undefined,
 ): boolean {
   return (
     generation?.status === GenerationStatuses.PENDING ||
@@ -20,10 +20,10 @@ function isInFlight(
  * run's cached answer, not this run's end; ISO stamps compare as strings.
  */
 function isStaleRead(
-  read: InboxGeneration | null | undefined,
-  listed: InboxGeneration | null,
+  read: InboxGeneration | undefined,
+  listed: InboxGeneration | undefined,
 ): boolean {
-  if (read === null || read === undefined || isInFlight(read)) {
+  if (read === undefined || isInFlight(read)) {
     return false;
   }
   return read.updatedAt < (listed?.updatedAt ?? "");
@@ -34,7 +34,7 @@ function isStaleRead(
  * read; the list itself never polls. Once the poll reports a terminal state
  * the list re-reads, so the row picks up its new brief and review state.
  */
-export function useRowGeneration(item: InboxItem): InboxGeneration | null {
+export function useRowGeneration(item: InboxItem): InboxGeneration | undefined {
   const queryClient = useQueryClient();
   const enabled = isInFlight(item.generation);
   const meta = useQuery({
@@ -48,15 +48,16 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | null {
         return false;
       }
       const keepPolling =
-        isInFlight(data.generation) ||
-        isStaleRead(data.generation, item.generation);
+        isInFlight(data.generation ?? undefined) ||
+        isStaleRead(data.generation ?? undefined, item.generation);
       return keepPolling ? ROW_POLL_MS : false;
     },
   }).data;
 
-  const read = meta?.generation ?? null;
+  const read = meta?.generation ?? undefined;
   const staleRead = isStaleRead(read, item.generation);
-  const settled = enabled && read !== null && !isInFlight(read) && !staleRead;
+  const settled =
+    enabled && read !== undefined && !isInFlight(read) && !staleRead;
   useEffect(() => {
     if (!settled) {
       return;
@@ -67,7 +68,7 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | null {
   // Once the list no longer holds the row in flight, the list wins: a stale
   // read from a poll that ended on an error must not outrank it, and neither
   // does a prior run's terminal answer while this run is still queued.
-  if (!enabled || read === null || staleRead) {
+  if (!enabled || read === undefined || staleRead) {
     return item.generation;
   }
   return { status: read.status, updatedAt: read.updatedAt };

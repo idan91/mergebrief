@@ -26,6 +26,6 @@ describe("readRowTitle", () => {
     expect(readRowTitle("Fix the thing")).toBe("Fix the thing");
     expect(readRowTitle("   ")).toBeUndefined();
     expect(readRowTitle("")).toBeUndefined();
-    expect(readRowTitle(null)).toBeUndefined();
+    expect(readRowTitle(undefined)).toBeUndefined();
   });
 });

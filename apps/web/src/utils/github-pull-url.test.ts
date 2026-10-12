@@ -7,6 +7,6 @@ describe("buildGithubPullUrl", () => {
     expect(buildGithubPullUrl("acme/payments", 7)).toBe(
       "https://github.com/acme/payments/pull/7",
     );
-    expect(buildGithubPullUrl(null, 7)).toBeNull();
+    expect(buildGithubPullUrl(undefined, 7)).toBeUndefined();
   });
 });

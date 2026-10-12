@@ -1,3 +1,5 @@
+import type { InboxItem } from "./types";
+
 /** A realistic `GET /api/inbox` body, as the route answers it. */
 export const wireInboxPageFixture = {
   items: [
@@ -32,3 +34,21 @@ export const wireInboxPageFixture = {
   repositories: [{ repoId: "424242", repoSlug: "o/r" }],
   installUrl: "https://github.com/apps/mergebrief/installations/new",
 };
+
+type OptionalItemField = {
+  [Field in keyof InboxItem]-?: undefined extends InboxItem[Field]
+    ? Field
+    : never;
+}[keyof InboxItem];
+
+/** The item without the listed fields, the way the parser leaves a wire null. */
+export function omitItemFields(
+  item: InboxItem,
+  ...fields: OptionalItemField[]
+): InboxItem {
+  const copy = { ...item };
+  for (const field of fields) {
+    delete copy[field];
+  }
+  return copy;
+}

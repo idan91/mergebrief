@@ -37,7 +37,7 @@ describe("parseInboxResponse", () => {
     });
   });
 
-  it("keeps the wire's nulls on a pasted row with no brief yet", () => {
+  it("reads a pasted row's wire nulls as absent fields", () => {
     const pasted = {
       ...ITEM,
       repoSlug: null,
@@ -53,14 +53,28 @@ describe("parseInboxResponse", () => {
       ...WIRE_PAGE,
       items: [pasted],
       viewer: { login: null, avatarUrl: "https://a/1" },
+      repositories: [{ repoId: "5", repoSlug: null }],
       installUrl: null,
     });
 
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.items[0]).toEqual(pasted);
-    expect(parsed.value.installUrl).toBeNull();
+    const {
+      repoSlug: _repoSlug,
+      title: _title,
+      installationId: _installationId,
+      reviewState: _reviewState,
+      generation: _generation,
+      latestBriefAt: _latestBriefAt,
+      githubUpdatedAt: _githubUpdatedAt,
+      stack: _stack,
+      ...present
+    } = pasted;
+    expect(parsed.value.items[0]).toStrictEqual(present);
+    expect(parsed.value.viewer).toStrictEqual({ avatarUrl: "https://a/1" });
+    expect(parsed.value.repositories).toStrictEqual([{ repoId: "5" }]);
+    expect(parsed.value).not.toHaveProperty("installUrl");
   });
 
   it.each(UNSAFE_LINKS)("reads install url %j as no install link", (link) => {
@@ -69,7 +83,7 @@ describe("parseInboxResponse", () => {
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.installUrl).toBeNull();
+    expect(parsed.value).not.toHaveProperty("installUrl");
   });
 
   it("reads a null author login as absent", () => {

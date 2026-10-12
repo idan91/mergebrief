@@ -16,7 +16,7 @@ export interface RowSignal {
 
 /** The generation state worth printing: a brief on its way, or one that stopped. */
 export function readGenerationSignal(
-  generation: InboxGeneration | null,
+  generation: InboxGeneration | undefined,
 ): RowSignal | null {
   switch (generation?.status) {
     case GenerationStatuses.PENDING:

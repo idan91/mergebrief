@@ -23,10 +23,6 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
-    generation: null,
-    latestBriefAt: null,
-    githubUpdatedAt: null,
-    stack: null,
     ...overrides,
   };
 }

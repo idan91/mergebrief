@@ -31,6 +31,6 @@ describe("readGenerationSignal", () => {
     expect(
       readGenerationSignal({ status: "succeeded", updatedAt: at }),
     ).toBeNull();
-    expect(readGenerationSignal(null)).toBeNull();
+    expect(readGenerationSignal(undefined)).toBeNull();
   });
 });

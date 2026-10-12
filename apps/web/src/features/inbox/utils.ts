@@ -91,7 +91,10 @@ export function needsReviewer(item: InboxItem): boolean {
 }
 
 /** The timestamp the age reads, by sort; a missing one falls back to the other. */
-export function pickAgeAt(item: InboxItem, sort: InboxSort): string | null {
+export function pickAgeAt(
+  item: InboxItem,
+  sort: InboxSort,
+): string | undefined {
   if (sort === InboxSorts.GENERATED) {
     return item.latestBriefAt ?? item.githubUpdatedAt;
   }

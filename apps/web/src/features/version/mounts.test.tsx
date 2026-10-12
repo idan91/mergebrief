@@ -60,7 +60,6 @@ async function loadHome(): Promise<void> {
       viewer: { login: "octocat", avatarUrl: "https://avatars.example/o.png" },
       reachableInstallations: [],
       repositories: [],
-      installUrl: null,
     },
   };
   const queryClient = new QueryClient({

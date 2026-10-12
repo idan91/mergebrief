@@ -12,8 +12,8 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 /** The title when it has text; a blank one falls back like a missing one. */
-export function readRowTitle(title: string | null): string | undefined {
-  if (title === null || title.trim() === "") {
+export function readRowTitle(title: string | undefined): string | undefined {
+  if (title === undefined || title.trim() === "") {
     return undefined;
   }
   return title;
@@ -44,11 +44,11 @@ export function formatAgeLabel(t: TFunction, at: string, now: Date): string {
 export function describeRow(
   t: TFunction,
   item: InboxItem,
-  generation: InboxGeneration | null,
+  generation: InboxGeneration | undefined,
 ): string {
   const status = readStatusSignal(item.state, item.draft);
   const parts = [
-    item.reviewState === null
+    item.reviewState === undefined
       ? t("shell.marks.yours")
       : t(ReviewMarkLabelKeys[item.reviewState]),
     t(status?.label ?? "home.inbox.status.open"),

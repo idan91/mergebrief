@@ -36,9 +36,6 @@ function makeItem(
     behind: false,
     unreachable: false,
     generation: { status, updatedAt },
-    latestBriefAt: null,
-    githubUpdatedAt: null,
-    stack: null,
   };
 }
 

@@ -102,7 +102,7 @@ export function resolveNeighbourTarget(
     };
   }
   const href = buildGithubPullUrl(repoSlug, member.number);
-  if (href === null) {
+  if (href === undefined) {
     return { kind: NeighbourTargetKinds.NONE };
   }
   return { kind: NeighbourTargetKinds.GITHUB, href };
