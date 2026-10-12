@@ -2,6 +2,7 @@ import { LastReviewUnavailableReasons, WaitReasons } from "contract";
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
 
+import type { ForkPrStack, PullStack } from "@web/features/brief/model";
 import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
@@ -147,4 +148,38 @@ export const prSummarySchema = dropNullKeys(
 
 export function parsePrSummary(value: unknown): Result<PrSummary, string> {
   return parseWithSchema(prSummarySchema, value);
+}
+
+export const prStackMemberSchema = z.object({
+  number: z.number(),
+  title: z.string(),
+});
+
+export const linearPrStackSchema = z.object({
+  members: z.array(prStackMemberSchema),
+  index: z.number(),
+});
+
+/** The wire union discriminates on `members`: a chain carries them, so their presence rules a fork out. */
+export const forkPrStackSchema = z
+  .object({
+    parent: prStackMemberSchema.optional(),
+    children: z.array(prStackMemberSchema),
+    members: z.never().exactOptional(),
+  })
+  .transform(({ members: _absent, ...fork }) => fork satisfies ForkPrStack);
+
+const recordedAtSchema = z
+  .string()
+  .refine((value) => !Number.isNaN(Date.parse(value)), {
+    error: "asOf must be a date string",
+  });
+
+export const pullStackSchema = z.object({
+  stack: z.union([linearPrStackSchema, forkPrStackSchema]).nullable(),
+  asOf: recordedAtSchema.exactOptional(),
+});
+
+export function parsePullStack(value: unknown): Result<PullStack, string> {
+  return parseWithSchema(pullStackSchema, value);
 }

@@ -8,16 +8,27 @@ import type { z } from "zod/v4";
 
 import {
   parsePrSummary,
+  parsePullStack,
   type availableLastReviewSchema,
   type draftPolicySummarySchema,
+  type forkPrStackSchema,
   type generationSummarySchema,
   type lastReviewComparisonSchema,
+  type linearPrStackSchema,
   type prComparisonsSchema,
   type previousBriefComparisonSchema,
+  type prStackMemberSchema,
   type prSummarySchema,
+  type pullStackSchema,
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
 } from "./schemas";
+import type {
+  ForkPrStack,
+  LinearPrStack,
+  PrStackMember,
+  PullStack,
+} from "@web/features/brief/model";
 import type {
   AvailableLastReviewComparison,
   DraftPolicySummary,
@@ -647,6 +658,75 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 });
 
+describe("parsePullStack", () => {
+  it("parses a null stack, a chain and a fork", () => {
+    expect(parsePullStack({ stack: null })).toEqual({
+      ok: true,
+      value: { stack: null },
+    });
+    const chain = {
+      members: [
+        { number: 6, title: "Bottom" },
+        { number: 7, title: "Top" },
+      ],
+      index: 2,
+    };
+    expect(parsePullStack({ stack: chain })).toEqual({
+      ok: true,
+      value: { stack: chain },
+    });
+    const fork = {
+      parent: { number: 6, title: "Bottom" },
+      children: [
+        { number: 8, title: "Left" },
+        { number: 9, title: "Right" },
+      ],
+    };
+    expect(parsePullStack({ stack: fork })).toEqual({
+      ok: true,
+      value: { stack: fork },
+    });
+    expect(parsePullStack({ stack: { children: fork.children } })).toEqual({
+      ok: true,
+      value: { stack: { children: fork.children } },
+    });
+  });
+
+  it("keeps the recorded read time and refuses an unreadable one", () => {
+    const chain = { members: [{ number: 6, title: "x" }], index: 1 };
+    const asOf = "2026-09-19T12:00:00.000Z";
+    expect(parsePullStack({ stack: chain, asOf })).toEqual({
+      ok: true,
+      value: { stack: chain, asOf },
+    });
+    expect(parsePullStack({ stack: chain, asOf: 5 }).ok).toBe(false);
+    expect(parsePullStack({ stack: chain, asOf: "garbage" }).ok).toBe(false);
+  });
+
+  it("refuses a malformed member or a missing index", () => {
+    expect(
+      parsePullStack({
+        stack: { members: [{ number: "6", title: "x" }], index: 1 },
+      }).ok,
+    ).toBe(false);
+    expect(
+      parsePullStack({ stack: { members: [{ number: 6, title: "x" }] } }).ok,
+    ).toBe(false);
+    expect(parsePullStack({ stack: "nope" }).ok).toBe(false);
+    expect(parsePullStack([]).ok).toBe(false);
+  });
+
+  it("refuses an invalid chain even when it also carries children", () => {
+    const stack = {
+      members: [{ number: "6", title: "x" }],
+      index: 1,
+      children: [{ number: 8, title: "Left" }],
+    };
+
+    expect(parsePullStack({ stack }).ok).toBe(false);
+  });
+});
+
 const SCHEMA_PINS = {
   GenerationSummary: true satisfies Equals<
     z.output<typeof generationSummarySchema>,
@@ -681,9 +761,22 @@ const SCHEMA_PINS = {
     DraftPolicySummary
   >,
   PrSummary: true satisfies Equals<z.output<typeof prSummarySchema>, PrSummary>,
+  PrStackMember: true satisfies Equals<
+    z.output<typeof prStackMemberSchema>,
+    PrStackMember
+  >,
+  LinearPrStack: true satisfies Equals<
+    z.output<typeof linearPrStackSchema>,
+    LinearPrStack
+  >,
+  ForkPrStack: true satisfies Equals<
+    z.output<typeof forkPrStackSchema>,
+    ForkPrStack
+  >,
+  PullStack: true satisfies Equals<z.output<typeof pullStackSchema>, PullStack>,
 } as const;
 
-describe("PR summary schemas match their interfaces", () => {
+describe("pulls schemas match their interfaces", () => {
   it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
     expect(pinned).toBe(true);
   });

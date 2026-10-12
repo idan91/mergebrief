@@ -32,7 +32,6 @@ export {
   type MarkReadyResultKind,
   type PostCommentResult,
   type PostCommentResultKind,
-  type PrStack,
   type PrStackMember,
   type PullStack,
   type RevisionPoint,
