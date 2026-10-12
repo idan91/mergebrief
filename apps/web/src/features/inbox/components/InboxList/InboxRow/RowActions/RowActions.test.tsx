@@ -16,11 +16,14 @@ import { RowActions } from ".";
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
 const writeText = vi.fn<(text: string) => Promise<void>>();
+const realLocation = window.location;
 
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
   writeText.mockReset();
+  vi.stubGlobal("location", realLocation);
+  window.localStorage.clear();
 });
 
 beforeEach(() => {
@@ -255,6 +258,23 @@ describe("RowActions", () => {
     expect(onRemoved).not.toHaveBeenCalled();
   });
 
+  it("an archive GitHub refused for the session sends the viewer to sign in", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
+    );
+    const { onRemoved } = await renderActions(makeItem());
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    });
+
+    expect(assign).toHaveBeenCalledWith("/api/auth/github");
+    expect(onRemoved).not.toHaveBeenCalled();
+  });
+
   it("a row behind GitHub regenerates through the paste path", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ repoId: "424242", prNumber: 7 }), {
@@ -286,6 +306,8 @@ describe("RowActions", () => {
       new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
     );
     const { onAnnounce } = await renderActions(makeItem({ behind: true }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
 
     await openMenu();
     await act(async () => {
@@ -295,6 +317,7 @@ describe("RowActions", () => {
     expect(onAnnounce).toHaveBeenCalledWith(
       expect.stringContaining("sign in again"),
     );
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("a current row, or one with no repository name, has no Regenerate", async () => {

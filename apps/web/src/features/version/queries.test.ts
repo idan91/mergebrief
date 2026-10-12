@@ -9,9 +9,13 @@ import { resolvePollInterval } from "./utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
+const assign = vi.fn();
+vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
 
 afterEach(() => {
   fetchMock.mockReset();
+  assign.mockReset();
+  window.sessionStorage.clear();
 });
 
 function answerWith(status: number, body: unknown): void {
@@ -90,6 +94,7 @@ describe("buildVersionQueryOptions", () => {
     await expect(readVersion()).resolves.toEqual({
       kind: VersionStates.SIGNED_OUT,
     });
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("drops a body with no version string", async () => {

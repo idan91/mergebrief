@@ -32,6 +32,7 @@ type ResolveFailureKind = Exclude<
 // the codeless-403 fallback for the github-permission kind.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: ResolveThreadResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: ResolveThreadResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: ResolveThreadResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: ResolveThreadResultKinds.GITHUB_PERMISSION,
   [ApiErrorCodes.GITHUB_PERMISSION]: ResolveThreadResultKinds.GITHUB_PERMISSION,

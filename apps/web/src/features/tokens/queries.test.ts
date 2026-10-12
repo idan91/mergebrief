@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // queryFn-level tests: component tests seed the cache and BYPASS the wire
 // parser, so these prove the apiFetch boundary actually runs the parser and
 // surfaces a typed MALFORMED for bad 200 bodies.

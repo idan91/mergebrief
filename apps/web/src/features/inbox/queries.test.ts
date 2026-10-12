@@ -15,9 +15,13 @@ import { InboxStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
+const assign = vi.fn();
+vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
 
 afterEach(() => {
   fetchMock.mockReset();
+  assign.mockReset();
+  window.sessionStorage.clear();
 });
 
 function answerWith(status: number, body: unknown): void {
@@ -75,6 +79,7 @@ describe("buildInboxQueryOptions", () => {
     await expect(readInbox()).resolves.toEqual({
       kind: InboxStates.SIGNED_OUT,
     });
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("a malformed page throws typed, never renders", async () => {

@@ -53,6 +53,8 @@ function isNotFoundError(error: unknown): boolean {
 
 /** A missing PR/brief becomes a real 404 on SSR, not a 500. */
 function mapLoaderError(error: unknown): never {
+  // A signed-out session stays signed out: only a live session GitHub
+  // refused goes back through sign-in.
   if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
     throw redirect({ href: "/api/auth/github" });
   }

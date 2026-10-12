@@ -75,12 +75,12 @@ const POST_FAILURES = {
   // no write access to this repository.
   [PostCommentResultKinds.NO_WRITE_ACCESS]: {
     copy: "pulls.briefError.no-repo-write-access",
-    outcome: PostDraftOutcomes.REJECTED,
+    outcome: PostDraftOutcomes.NO_PERMISSION,
   },
   // Definitively not posted: GitHub refused the viewer's own permission.
   [PostCommentResultKinds.GITHUB_PERMISSION]: {
     copy: POST_COMMENT_COPY_KEYS.GITHUB_PERMISSION,
-    outcome: PostDraftOutcomes.REJECTED,
+    outcome: PostDraftOutcomes.NO_PERMISSION,
   },
   // Indeterminate: an earlier attempt may have posted it, or still may.
   [PostCommentResultKinds.PUBLISH_PENDING]: {

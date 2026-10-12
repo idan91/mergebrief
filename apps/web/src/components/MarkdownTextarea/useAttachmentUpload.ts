@@ -12,6 +12,7 @@ import {
   ApiErrorCodes,
   apiFetch,
   errorFromResponse,
+  isSignInRequired,
 } from "@web/data/apiFetch";
 import type { Result } from "types/utils";
 import { useAttachmentScope } from "../Markdown/context";
@@ -173,7 +174,7 @@ function failureCopy(t: TFunction, error: unknown): string {
   if (error.code === ApiErrorCodes.ATTACHMENT_LIMIT_REACHED) {
     return t("shell.attach.limitReached");
   }
-  if (error.code === ApiErrorCodes.UNAUTHORIZED) {
+  if (isSignInRequired(error.code)) {
     return t("shell.attach.unauthorized");
   }
   return t("shell.attach.failed");

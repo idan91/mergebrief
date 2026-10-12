@@ -279,6 +279,8 @@ export interface FilePathParts {
 export const PostDraftOutcomes = {
   POSTED: "posted",
   REJECTED: "rejected",
+  /** GitHub or the repository refused the viewer's own permission to comment. */
+  NO_PERMISSION: "no-permission",
   UNAUTHORIZED: "unauthorized",
   STALE: "stale",
   NOT_FOUND: "not-found",

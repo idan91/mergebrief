@@ -24,6 +24,11 @@ deprecation note here, removal only at a major.
   replaced and the process restarts. The token now serves only the GitHub
   account that owns it; `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` is no longer
   read. No response shape changes.
+- **Added** the wire code `signed-out` (401): a cookie request with no
+  session cookie, an unknown session or an expired one answers
+  `401 signed-out` (was `401 unauthorized`), so a browser can tell a
+  session that is gone from a live one GitHub refused. A refused Bearer
+  token and every other 401 still answer `unauthorized`.
 - **Changed** the check order under `/api/repos/:repoId/pulls/:prNumber`:
   a pull request this instance holds no row for answers `404 not-found`
   before the body or query is read (a malformed body was `400`), and a
@@ -59,6 +64,13 @@ deprecation note here, removal only at a major.
   submit already does. The viewer proved access at the gate and the fresh
   re-resolve, so the refusal is their permission to comment, not absence.
   The draft's claim is released as before.
+- **Changed** a GitHub 403 whose message names a secondary rate limit, with
+  no `retry-after` and budget left in `x-ratelimit-remaining`, answers
+  `502 github-unavailable` like any other rate limit (it was read as a
+  permission refusal: `404 not-found` or `403 github-permission`).
+- **Changed** the `error` line of `github-unavailable` reads
+  `github is unavailable or rate limited` (was `upstream error`). The code
+  and status are unchanged.
 
 ## dev (2026-10-06)
 

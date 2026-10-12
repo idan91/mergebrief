@@ -697,34 +697,40 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(0);
   });
 
-  it("batch with a permission refusal says rejected, not indeterminate", async () => {
-    seedDrafts([comment("c1", "chunk-a", "draft")]);
-    const markReady = vi.fn(() =>
-      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-    );
-    const postComment = vi.fn((_draftId: string) =>
-      Promise.resolve<PostCommentResult>({ kind: "github-permission" }),
-    );
-    await renderBriefView({ markReady, postComment });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(
-      await screen.findByText("You have 1 unposted draft comment."),
-    ).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+  it.each(["github-permission", "no-write-access"] as const)(
+    "batch stopped by %s points at access on GitHub",
+    async (kind) => {
+      seedDrafts([comment("c1", "chunk-a", "draft")]);
+      const markReady = vi.fn(() =>
+        Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+      );
+      const postComment = vi.fn((_draftId: string) =>
+        Promise.resolve<PostCommentResult>({ kind }),
+      );
+      await renderBriefView({ markReady, postComment });
+      fireEvent.click(
+        screen.getByRole("button", { name: "Mark ready for review" }),
+      );
+      expect(
+        await screen.findByText("You have 1 unposted draft comment."),
+      ).toBeTruthy();
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Mark ready anyway" }),
+      );
 
-    expect(
-      await screen.findByText(
-        markReadyBatchFailureCopy(appI18n.t, 0, 1, "rejected"),
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByText(/may or may not have posted/)).toBeNull();
-    expect(markReady).toHaveBeenCalledTimes(0);
-  });
+      expect(
+        await screen.findByText(
+          "Posted 0 of 1. One comment could not be posted: your GitHub account does not have permission to comment on this pull request. Check your access on GitHub. The PR was NOT marked ready.",
+        ),
+      ).toBeTruthy();
+      expect(screen.queryByText(/edit the draft/)).toBeNull();
+      expect(screen.queryByText(/may or may not have posted/)).toBeNull();
+      expect(markReady).toHaveBeenCalledTimes(0);
+    },
+  );
 
   it("batch with a guard-blocked draft states the deterministic summary", async () => {
     // A guard-path rejection (over-cap body, the deterministic-400 mirror)

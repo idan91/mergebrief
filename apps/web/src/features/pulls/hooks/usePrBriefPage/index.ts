@@ -10,6 +10,7 @@ import {
   selectBriefRouteState,
   type BriefRouteState,
 } from "../../utils/briefRouteState";
+import { resolveOutagePollMs } from "../../utils/poll-backoff";
 import { resolveDbTimeline } from "../../utils/dbTimeline";
 import type { PrBriefPage, UsePrBriefPageInput } from "./types";
 import { useConversationFilterParams } from "./useConversationFilterParams";
@@ -49,7 +50,10 @@ export function usePrBriefPage({
     ...buildPrMetaQueryOptions(repoId, prNumber),
     refetchInterval: (query) => {
       const loaded = query.state.data;
-      return loaded === undefined ? false : resolveMetaPollMs(loaded);
+      if (loaded === undefined) {
+        return false;
+      }
+      return resolveOutagePollMs(query.state, resolveMetaPollMs(loaded));
     },
   }).data;
 

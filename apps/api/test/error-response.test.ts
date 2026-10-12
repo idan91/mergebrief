@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(37);
+    expect(codes).toHaveLength(38);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -55,6 +55,7 @@ describe("errorJson", () => {
   it("pins the full code to status table, a flip is a contract decision", () => {
     expect(ApiErrorStatusByCode).toEqual({
       unauthorized: 401,
+      "signed-out": 401,
       "invalid-signature": 401,
       forbidden: 403,
       "github-permission": 403,

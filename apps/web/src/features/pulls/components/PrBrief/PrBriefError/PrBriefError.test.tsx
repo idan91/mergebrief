@@ -45,4 +45,18 @@ describe("PrBriefError", () => {
     );
     expect(screen.queryByRole("link", { name: /sign in/i })).toBeNull();
   });
+
+  it("offers the sign-in CTA and its copy to a signed-out viewer", () => {
+    render(
+      <I18nProvider>
+        <PrBriefError
+          error={new ApiError(ApiErrorCodes.SIGNED_OUT, 401, "/api/pulls")}
+        />
+      </I18nProvider>,
+    );
+
+    const rendered = screen.getByTestId("pr-brief-error").textContent ?? "";
+    expect(rendered).toContain(t("pulls.briefError.signed-out"));
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeDefined();
+  });
 });

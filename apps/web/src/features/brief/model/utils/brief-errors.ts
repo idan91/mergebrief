@@ -29,6 +29,7 @@ export function briefErrorDetail(t: TFunction, error: unknown): string {
     case ApiErrorCodes.INVALID_REQUEST:
       return t("briefError.not-a-pr-url");
     case ApiErrorCodes.UNAUTHORIZED:
+    case ApiErrorCodes.SIGNED_OUT:
       return t("briefError.sessionExpired");
     case ApiErrorCodes.NOT_FOUND:
       return t("briefError.signedFetchFailed");

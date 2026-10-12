@@ -8,6 +8,7 @@ import {
   apiFetch,
   apiJsonFromResponse,
   errorFromResponse,
+  SIGNED_OUT_READ,
 } from "../../data/apiFetch";
 import { parseViewer } from "./schemas";
 import { ViewerStates, type ViewerState } from "./types";
@@ -20,7 +21,7 @@ export function buildViewerQueryOptions() {
     queryKey: ["account", "viewer"],
     staleTime: VIEWER_STALE_MS,
     queryFn: async (): Promise<ViewerState> => {
-      const response = await apiFetch(SESSION_PATH);
+      const response = await apiFetch(SESSION_PATH, SIGNED_OUT_READ);
       if (response.status === 401) {
         return { kind: ViewerStates.SIGNED_OUT };
       }

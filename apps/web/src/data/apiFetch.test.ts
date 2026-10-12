@@ -43,8 +43,9 @@ describe("apiJsonFromResponse", () => {
     [409, "pr-changed-since-read"],
     [413, "request-too-large"],
     [500, "internal-error"],
-    [502, "github-unavailable"],
-    [503, "github-unavailable"],
+    [502, "internal-error"],
+    [503, "internal-error"],
+    [504, "internal-error"],
   ])(
     "throws a typed ApiError with the status-bucket code for a codeless %i",
     async (status, code) => {
@@ -129,13 +130,26 @@ describe("apiJsonFromResponse", () => {
 });
 
 describe("errorFromResponse", () => {
-  it("tolerates a non-JSON error body", async () => {
+  it("reads a codeless proxy 502 as the server, never GitHub", async () => {
     const error = await errorFromResponse(
       new Response("<html>bad gateway</html>", { status: 502 }),
       "/x",
     );
-    expect(error.code).toBe(ApiErrorCodes.GITHUB_UNAVAILABLE);
+    expect(error.code).toBe(ApiErrorCodes.INTERNAL_ERROR);
     expect(error.status).toBe(502);
+  });
+
+  it("keeps GitHub unavailable when the API wrote that code", async () => {
+    const error = await errorFromResponse(
+      new Response(
+        '{"error":"github is unavailable or rate limited","code":"github-unavailable"}',
+        {
+          status: 502,
+        },
+      ),
+      "/x",
+    );
+    expect(error.code).toBe(ApiErrorCodes.GITHUB_UNAVAILABLE);
   });
 });
 

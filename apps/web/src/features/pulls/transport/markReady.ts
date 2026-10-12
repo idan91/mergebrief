@@ -42,6 +42,7 @@ type MarkReadyFailureKind = Exclude<
 // any kind is safe: the operation is idempotent server-side.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: MarkReadyResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: MarkReadyResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: MarkReadyResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: MarkReadyResultKinds.GITHUB_PERMISSION,
   [ApiErrorCodes.GITHUB_PERMISSION]: MarkReadyResultKinds.GITHUB_PERMISSION,

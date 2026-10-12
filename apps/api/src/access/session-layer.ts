@@ -1,7 +1,9 @@
 // The session layer: opaque cookie or Bearer token → principal → expiry →
 // owner ctx. No credential, an unknown one or an expired session is a 401
-// with no hint that any repo exists. Reused ALONE by session-scoped
+// with no hint that any repo exists: `signed-out` on the cookie path, the
+// plain `unauthorized` for a Bearer token. Reused ALONE by session-scoped
 // endpoints that carry no `:repoId`; the repo gate composes it first.
+import { ApiErrorCodes } from "contract";
 import type { Context, MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import {
@@ -138,12 +140,13 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       return;
     }
 
-    // No cookie / unknown session both → 401 with no GitHub call and no
-    // repo-existence hint.
+    // No cookie, an unknown session and an expired one all answer 401
+    // `signed-out`, with no GitHub call and no repo-existence hint, so a
+    // browser tells a session that is gone from one GitHub refused.
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
       stampAccess(c, "401", {});
-      throw new Unauthorized();
+      throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
     }
     const sessionTokenHash = sha256Hex(cookie);
     const resolved = await createSessionAuth(deps.handle).findSession(
@@ -151,7 +154,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     );
     if (resolved === undefined) {
       stampAccess(c, "401", {});
-      throw new Unauthorized();
+      throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
     }
     // `findSession` does not filter on expiry, so it is enforced here.
     // `expires_at` tracks the refresh token's lifetime: past it there is no
@@ -160,7 +163,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     if (resolved.session.expiresAt.getTime() <= startedAt) {
       await createSessionAuth(deps.handle).deleteSession(sessionTokenHash);
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
-      throw new Unauthorized();
+      throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
     }
 
     // No credential holds an installation: the audit world starts as the

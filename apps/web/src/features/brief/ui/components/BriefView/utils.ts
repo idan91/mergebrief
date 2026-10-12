@@ -240,6 +240,7 @@ export function discriminateNarrativeArtifact(
  */
 const BATCH_CAUSE_KEYS = {
   [PostDraftOutcomes.REJECTED]: "brief.markReadyBatch.causeRejected",
+  [PostDraftOutcomes.NO_PERMISSION]: "brief.markReadyBatch.causeNoPermission",
   [PostDraftOutcomes.UNAUTHORIZED]: "brief.markReadyBatch.causeUnauthorized",
   [PostDraftOutcomes.STALE]: "brief.markReadyBatch.causeStale",
   [PostDraftOutcomes.NOT_FOUND]: "brief.markReadyBatch.causeNotFound",

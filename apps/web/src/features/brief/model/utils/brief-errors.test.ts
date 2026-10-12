@@ -22,6 +22,18 @@ describe("prBriefErrorDetail", () => {
     }
   });
 
+  it("blames GitHub, not MergeBrief, when GitHub is unavailable", () => {
+    const outage = new ApiError(
+      ApiErrorCodes.GITHUB_UNAVAILABLE,
+      502,
+      "/api/x",
+    );
+
+    expect(prBriefErrorDetail(t, outage)).toBe(
+      "GitHub could not be reached or is limiting requests right now. Try again in a moment.",
+    );
+  });
+
   it("degrades a non-ApiError to the generic sentence", () => {
     expect(prBriefErrorDetail(t, RAW_FAILURE)).toBe(
       t("pulls.briefError.generic"),
@@ -40,5 +52,11 @@ describe("briefErrorDetail", () => {
     expect(briefErrorDetail(t, missing)).toBe(
       t("briefError.signedFetchFailed"),
     );
+  });
+
+  it("asks a signed-out viewer to sign in again", () => {
+    const signedOut = new ApiError(ApiErrorCodes.SIGNED_OUT, 401, "/api/x");
+
+    expect(briefErrorDetail(t, signedOut)).toBe(t("briefError.sessionExpired"));
   });
 });

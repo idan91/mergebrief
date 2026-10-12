@@ -50,6 +50,7 @@ const FAILURE_COPY: Partial<Record<ApiErrorCode, TranslationKey>> = {
   [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "review.writeError.publishInDoubt",
   [ApiErrorCodes.HUMAN_ONLY]: "review.writeError.humanOnly",
   [ApiErrorCodes.UNAUTHORIZED]: "review.writeError.unauthorized",
+  [ApiErrorCodes.SIGNED_OUT]: "review.writeError.unauthorized",
 };
 
 const FROZEN: SessionWriteFailure = {

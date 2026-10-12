@@ -5,7 +5,11 @@
 import { createSerializationAdapter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { ApiErrorCodes } from "contract";
+import { HttpStatuses } from "types/http";
 import type { ValueOf } from "types/utils";
+
+import { requestSignIn } from "./sign-in";
+import { reportSignedOut } from "./signed-out";
 
 // The wire vocabulary, owned by `contract`, plus the ONE web-local member:
 // `malformed` is a 2xx whose body failed to parse, a contract error surfaced
@@ -33,6 +37,14 @@ export function readWireCode(body: unknown): ApiErrorCode | undefined {
   return typeof body.code === "string" && isWireCode(body.code)
     ? body.code
     : undefined;
+}
+
+/** Whether the code asks the viewer to sign in: the session is gone, or GitHub refused it. */
+export function isSignInRequired(code: ApiErrorCode): boolean {
+  return (
+    code === WebApiErrorCodes.UNAUTHORIZED ||
+    code === WebApiErrorCodes.SIGNED_OUT
+  );
 }
 
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
@@ -118,12 +130,10 @@ function codeForStatus(status: number): ApiErrorCode {
       return WebApiErrorCodes.PR_CHANGED_SINCE_READ;
     case 413:
       return WebApiErrorCodes.REQUEST_TOO_LARGE;
-    case 500:
-      return WebApiErrorCodes.INTERNAL_ERROR;
-    // A codeless 503 is typically a proxy answering for a down backend, not
-    // the generation feature, bucket it with unreachable, never a coded 503.
+    // A codeless 5xx is a proxy answering for a down backend: only a code
+    // the API wrote can name GitHub as the side that failed.
     default:
-      return WebApiErrorCodes.GITHUB_UNAVAILABLE;
+      return WebApiErrorCodes.INTERNAL_ERROR;
   }
 }
 
@@ -165,12 +175,72 @@ export interface ApiFetchInit {
   /** A Blob is the image upload, sent from the browser only. */
   readonly body?: string | Blob;
   readonly signal?: AbortSignal;
+  /**
+   * The caller reads a 401 as the signed-out state it renders, so the
+   * browser stays put. Every other read's 401 GitHub answered for a live
+   * session sends the viewer to sign in; a write's never does.
+   */
+  readonly unauthorizedIsSignedOut?: boolean;
+  /**
+   * A write with nothing typed to lose: its 401 GitHub answered for a live
+   * session sends the viewer to sign in, as a read's does.
+   */
+  readonly unauthorizedLeavesForSignIn?: boolean;
+}
+
+/** The init for a read whose 401 is the signed-out state it renders. */
+export const SIGNED_OUT_READ: ApiFetchInit = { unauthorizedIsSignedOut: true };
+
+/** The wire code of a 401, read off a clone so the caller keeps the body. */
+async function readUnauthorizedCode(
+  response: Response,
+): Promise<ApiErrorCode | undefined> {
+  const body: unknown = await response
+    .clone()
+    .json()
+    .catch(() => undefined);
+  return readWireCode(body);
+}
+
+/**
+ * A `signed-out` 401 never leaves: GitHub would sign an authorized viewer
+ * straight back in, undoing a sign-out from another tab. A write's 401
+ * stays with its caller, which shows its own outcome while the text the
+ * viewer typed is still on the page.
+ */
+async function answerUnauthorized(
+  response: Response,
+  leavesForSignIn: boolean,
+): Promise<void> {
+  const code = await readUnauthorizedCode(response);
+  if (code === WebApiErrorCodes.SIGNED_OUT) {
+    reportSignedOut();
+    return;
+  }
+  if (leavesForSignIn) {
+    requestSignIn();
+  }
+}
+
+function isRead(init: ApiFetchInit): boolean {
+  return init.method === undefined || init.method === "GET";
 }
 
 const dispatch = createIsomorphicFn()
-  .client(
-    (path: string, init?: ApiFetchInit): Promise<Response> => fetch(path, init),
-  )
+  .client(async (path: string, init?: ApiFetchInit): Promise<Response> => {
+    const {
+      unauthorizedIsSignedOut = false,
+      unauthorizedLeavesForSignIn = false,
+      ...request
+    } = init ?? {};
+    const response = await fetch(path, request);
+    if (response.status === HttpStatuses.UNAUTHORIZED) {
+      const mayLeave = isRead(request) || unauthorizedLeavesForSignIn;
+      const leavesForSignIn = mayLeave && !unauthorizedIsSignedOut;
+      await answerUnauthorized(response, leavesForSignIn);
+    }
+    return response;
+  })
   .server(async (path: string, init?: ApiFetchInit): Promise<Response> => {
     const [{ getRequestHeader }, { fetchFromApi }] = await Promise.all([
       import("@tanstack/react-start/server"),

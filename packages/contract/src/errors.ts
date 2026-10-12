@@ -8,6 +8,7 @@ import { HttpStatuses, type HttpStatus, type ValueOf } from "types";
 
 export const ApiErrorCodes = {
   UNAUTHORIZED: "unauthorized",
+  SIGNED_OUT: "signed-out",
   INVALID_SIGNATURE: "invalid-signature",
   FORBIDDEN: "forbidden",
   GITHUB_PERMISSION: "github-permission",
@@ -75,6 +76,7 @@ export type ApiErrorBody =
 // from its one login site; a future non-403 site mints a new code.
 export const ApiErrorStatusByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: HttpStatuses.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: HttpStatuses.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: HttpStatuses.UNAUTHORIZED,
   [ApiErrorCodes.FORBIDDEN]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.GITHUB_PERMISSION]: HttpStatuses.FORBIDDEN,
@@ -120,6 +122,7 @@ export const ApiErrorStatusByCode = {
  */
 export const ApiErrorEnglishByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCodes.SIGNED_OUT]: "signed out",
   [ApiErrorCodes.INVALID_SIGNATURE]: "invalid signature",
   [ApiErrorCodes.FORBIDDEN]: "forbidden",
   [ApiErrorCodes.GITHUB_PERMISSION]: "github-permission",
@@ -167,7 +170,7 @@ export const ApiErrorEnglishByCode = {
     "pull request was rewritten since it was read",
   [ApiErrorCodes.APP_NOT_INSTALLED]:
     "the app is not installed for this account",
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream error",
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "github is unavailable or rate limited",
   [ApiErrorCodes.GENERATION_FAILED]: "generation failed",
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "url generation unavailable",
   [ApiErrorCodes.GENERATION_CONFIG]: "{{detail}}",

@@ -7,9 +7,13 @@ import { ViewerStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
+const assign = vi.fn();
+vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
 
 afterEach(() => {
   fetchMock.mockReset();
+  assign.mockReset();
+  window.sessionStorage.clear();
 });
 
 function answerWith(status: number, body: unknown): void {
@@ -57,6 +61,7 @@ describe("buildViewerQueryOptions", () => {
     await expect(readViewer()).resolves.toEqual({
       kind: ViewerStates.SIGNED_OUT,
     });
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("any other failure throws so the read is retried later", async () => {

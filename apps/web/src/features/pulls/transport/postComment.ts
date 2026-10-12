@@ -26,6 +26,7 @@ type PostCommentFailureKind = Exclude<
 // Orphaned/published drafts are neither stale nor retryable; 413 requires a body edit.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: PostCommentResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: PostCommentResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: PostCommentResultKinds.UPSTREAM,
   [ApiErrorCodes.GITHUB_PERMISSION]: PostCommentResultKinds.GITHUB_PERMISSION,

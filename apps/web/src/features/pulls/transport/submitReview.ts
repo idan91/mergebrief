@@ -36,6 +36,7 @@ const PROXY_TIMEOUT_STATUS = 504;
 // 413 is deterministic (over-long body): edit, never retry-as-is.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: SubmitReviewResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: SubmitReviewResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: SubmitReviewResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: SubmitReviewResultKinds.UPSTREAM,
   [ApiErrorCodes.GITHUB_PERMISSION]: SubmitReviewResultKinds.GITHUB_PERMISSION,

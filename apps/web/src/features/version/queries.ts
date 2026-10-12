@@ -11,6 +11,7 @@ import {
   apiFetch,
   apiJsonFromResponse,
   errorFromResponse,
+  SIGNED_OUT_READ,
 } from "../../data/apiFetch";
 import { parseVersion } from "./schemas";
 import { VersionStates, type VersionState } from "./types";
@@ -27,7 +28,7 @@ export function buildVersionQueryOptions() {
     refetchInterval: (query) => resolvePollInterval(query.state.data),
     refetchIntervalInBackground: false,
     queryFn: async (): Promise<VersionState> => {
-      const response = await apiFetch(VERSION_PATH);
+      const response = await apiFetch(VERSION_PATH, SIGNED_OUT_READ);
       if (response.status === 401) {
         return { kind: VersionStates.SIGNED_OUT };
       }

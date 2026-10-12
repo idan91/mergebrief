@@ -30,7 +30,10 @@ function selectLocale(id: string): void {
 /** Whether the server ended the session; a refused or unreachable route did not. */
 async function postLogout(): Promise<boolean> {
   try {
-    const response = await apiFetch(LOGOUT_PATH, { method: "POST" });
+    const response = await apiFetch(LOGOUT_PATH, {
+      method: "POST",
+      unauthorizedIsSignedOut: true,
+    });
     return response.ok;
   } catch {
     return false;
@@ -40,7 +43,10 @@ async function postLogout(): Promise<boolean> {
 /** Whether the server ended every session of the viewer, this one included. */
 async function deleteSessions(): Promise<boolean> {
   try {
-    const response = await apiFetch(SESSIONS_PATH, { method: "DELETE" });
+    const response = await apiFetch(SESSIONS_PATH, {
+      method: "DELETE",
+      unauthorizedIsSignedOut: true,
+    });
     return response.ok;
   } catch {
     return false;

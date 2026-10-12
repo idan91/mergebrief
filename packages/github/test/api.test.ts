@@ -35,8 +35,9 @@ const LEAKED_TOKEN = "ghs_PLANTED_INSTALLATION_TOKEN";
 function requestError(
   status: number,
   responseHeaders: Record<string, string> = {},
+  message = `HTTP ${status}`,
 ): RequestError {
-  return new RequestError(`HTTP ${status}`, status, {
+  return new RequestError(message, status, {
     request: {
       method: "GET",
       url: "https://api.github.com/repositories/1",
@@ -569,6 +570,23 @@ describe("mapRequestError rate-limit classification", () => {
       throw new Error("unreachable");
     }
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
+  });
+
+  it("classifies a 403 naming a secondary limit as rate-limited", async () => {
+    const secondary = requestError(
+      403,
+      { "x-ratelimit-remaining": "42" },
+      "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.",
+    );
+    const request = vi.fn().mockRejectedValue(secondary);
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
+    expect(result.error.message).not.toContain("secondary");
   });
 
   it("keeps a plain 403 with remaining budget as forbidden", async () => {

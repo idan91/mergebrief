@@ -368,6 +368,30 @@ describe("buildPrStackQueryOptions polling", () => {
     expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
   });
 
+  it("backs off while GitHub is unavailable and resumes on success", async () => {
+    vi.useFakeTimers();
+    apiFetchJsonMock.mockReset();
+    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    observeStack();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+
+    apiFetchJsonMock.mockRejectedValueOnce(
+      new ApiError("github-unavailable", 502, "/api/x"),
+    );
+    await vi.advanceTimersByTimeAsync(pollMs);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(pollMs);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(pollMs);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(3);
+
+    await vi.advanceTimersByTimeAsync(pollMs);
+    expect(apiFetchJsonMock).toHaveBeenCalledTimes(4);
+  });
+
   it("pauses while the tab is hidden and catches up on focus", async () => {
     vi.useFakeTimers();
     apiFetchJsonMock.mockReset();

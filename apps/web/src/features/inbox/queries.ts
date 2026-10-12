@@ -13,6 +13,7 @@ import {
   apiJsonFromResponse,
   errorFromResponse,
   readWireCode,
+  SIGNED_OUT_READ,
   type ApiErrorCode,
 } from "../../data/apiFetch";
 import { INBOX_QUERY_ROOT } from "./consts";
@@ -40,7 +41,7 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
     staleTime: (query) =>
       query.state.data?.kind === InboxStates.FAILED ? 0 : INBOX_STALE_MS,
     queryFn: async (): Promise<InboxState> => {
-      const response = await apiFetch(path);
+      const response = await apiFetch(path, SIGNED_OUT_READ);
       if (response.status === 401) {
         return { kind: InboxStates.SIGNED_OUT };
       }
@@ -67,6 +68,7 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
 // here instead of silently becoming "failed".
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: RowWriteResultKinds.FAILED,
+  [ApiErrorCodes.SIGNED_OUT]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.INVALID_SIGNATURE]: RowWriteResultKinds.FAILED,
   [ApiErrorCodes.FORBIDDEN]: RowWriteResultKinds.FORBIDDEN,
   [ApiErrorCodes.GITHUB_PERMISSION]: RowWriteResultKinds.FORBIDDEN,
@@ -136,7 +138,10 @@ export async function purgeAttachments(
   repoId: string,
 ): Promise<PurgeAttachmentsResult> {
   const path = `/api/repos/${encodeURIComponent(repoId)}/attachments`;
-  const response = await apiFetch(path, { method: "DELETE" });
+  const response = await apiFetch(path, {
+    method: "DELETE",
+    unauthorizedLeavesForSignIn: true,
+  });
   if (response.ok) {
     return { kind: RowWriteResultKinds.PURGED };
   }
@@ -156,7 +161,10 @@ export async function deletePull(
   prNumber: number,
 ): Promise<DeletePullResult> {
   const path = buildPullPath(repoId, prNumber);
-  const response = await apiFetch(path, { method: "DELETE" });
+  const response = await apiFetch(path, {
+    method: "DELETE",
+    unauthorizedLeavesForSignIn: true,
+  });
   if (!response.ok) {
     return { kind: await readRowWriteFailure(response, path) };
   }
@@ -172,7 +180,10 @@ async function writeArchive(
     | typeof RowWriteResultKinds.UNARCHIVED,
 ): Promise<ArchivePullResult> {
   const path = `${buildPullPath(repoId, prNumber)}/archive`;
-  const response = await apiFetch(path, { method });
+  const response = await apiFetch(path, {
+    method,
+    unauthorizedLeavesForSignIn: true,
+  });
   if (!response.ok) {
     const kind = await readRowWriteFailure(response, path);
     return {

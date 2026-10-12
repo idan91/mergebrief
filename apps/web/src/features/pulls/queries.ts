@@ -40,6 +40,7 @@ import type { ComparisonBaselineLabel } from "types/comparisons";
 import { LIVE_POLL_MS } from "./consts";
 import { parsePrSummary, parsePullStack } from "./schemas";
 import type { PrSummary } from "./types";
+import { resolveOutagePollMs } from "./utils/poll-backoff";
 
 function spanQuery(base: string, head: string): string {
   return `base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`;
@@ -84,7 +85,7 @@ export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
       return parsed.value;
     },
     staleTime: STACK_STALE_MS,
-    refetchInterval: LIVE_POLL_MS,
+    refetchInterval: (query) => resolveOutagePollMs(query.state, LIVE_POLL_MS),
     retry: false,
   });
 }

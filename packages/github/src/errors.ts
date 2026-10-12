@@ -39,12 +39,19 @@ export interface GitHubApiError {
   readonly message: string;
 }
 
+/** The phrase octokit's throttling plugin keys its secondary-limit retry on. */
+const SECONDARY_RATE_LIMIT_PATTERN = /\bsecondary rate\b/i;
+
 /**
- * GitHub signals throttling with a 403 (NOT 429) plus rate-limit headers:
- * `x-ratelimit-remaining: 0` for the primary limit, or `retry-after` for a
- * secondary/abuse limit. Headers only, never the body.
+ * GitHub signals throttling with a 403 (NOT 429): `x-ratelimit-remaining: 0`
+ * for the primary limit, `retry-after` for a secondary one, or a secondary
+ * one with neither header, named only in the message. The message is read
+ * here and never copied into the result.
  */
 function isRateLimited403(error: RequestError): boolean {
+  if (SECONDARY_RATE_LIMIT_PATTERN.test(error.message)) {
+    return true;
+  }
   const headers = error.response?.headers;
   if (headers === undefined) {
     return false;

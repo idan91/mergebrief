@@ -126,8 +126,8 @@ describe("GET /api/capabilities", () => {
     const res = await app.request("/api/capabilities");
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({
-      error: "unauthorized",
-      code: "unauthorized",
+      error: "signed out",
+      code: "signed-out",
     });
   });
 });

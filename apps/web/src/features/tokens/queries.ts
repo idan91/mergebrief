@@ -1,11 +1,12 @@
-// The feature's queryOptions door, referenced by routes. The list read goes
-// through the isomorphic boundary; mint and revoke are client-only fetches
-// (mutations never run during SSR).
+// The feature's queryOptions door, referenced by routes. Every call goes
+// through the isomorphic boundary; mint and revoke only ever run in the
+// browser (mutations never run during SSR).
 import { queryOptions } from "@tanstack/react-query";
 
 import {
   ApiError,
   ApiErrorCodes,
+  apiFetch,
   apiFetchJson,
   errorFromResponse,
 } from "../../data/apiFetch";
@@ -39,7 +40,7 @@ export interface MintTokenInput {
 
 /** POST the mint; the response is the ONE body carrying token material. */
 export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
-  const response = await fetch("/api/auth/tokens", {
+  const response = await apiFetch("/api/auth/tokens", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -73,7 +74,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
 /** DELETE = owner-scoped soft revoke; repeat revoke is an idempotent 200. */
 export async function revokeToken(tokenId: string): Promise<void> {
   const path = `/api/auth/tokens/${tokenId}`;
-  const response = await fetch(path, { method: "DELETE" });
+  const response = await apiFetch(path, { method: "DELETE" });
   if (!response.ok) {
     throw await errorFromResponse(response, path);
   }

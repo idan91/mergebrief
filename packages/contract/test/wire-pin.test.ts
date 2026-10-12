@@ -13,6 +13,12 @@ describe("wire error pin between api and catalog", () => {
     );
   });
 
+  it("names GitHub as the side that failed in github-unavailable", () => {
+    expect(ApiErrorEnglishByCode[ApiErrorCodes.GITHUB_UNAVAILABLE]).toBe(
+      "github is unavailable or rate limited",
+    );
+  });
+
   it("every en template equals the api's composed English line", () => {
     for (const code of Object.values(ApiErrorCodes)) {
       expect(en.errors[code], `errors.${code}`).toBe(

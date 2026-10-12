@@ -35,6 +35,7 @@ type ReplyFailureKind = Exclude<
 // deterministic (over-long body): edit, never retry-as-is.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: ReplyResultKinds.UNAUTHORIZED,
+  [ApiErrorCodes.SIGNED_OUT]: ReplyResultKinds.UNAUTHORIZED,
   [ApiErrorCodes.INVALID_SIGNATURE]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.FORBIDDEN]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.GITHUB_PERMISSION]: ReplyResultKinds.UPSTREAM,

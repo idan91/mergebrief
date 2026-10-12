@@ -21,6 +21,7 @@ describe("ApiError classes", () => {
     new BadRequest(ApiErrorCodes.NOT_A_PR_URL),
     new BadRequest(ApiErrorCodes.SIGN_IN_FAILED),
     new Unauthorized(),
+    new Unauthorized(ApiErrorCodes.SIGNED_OUT),
     new Unauthorized(ApiErrorCodes.INVALID_SIGNATURE),
     new Forbidden(),
     new Forbidden(ApiErrorCodes.GITHUB_PERMISSION),
@@ -89,7 +90,7 @@ describe("ApiError classes", () => {
       "not-found" | "file-not-found"
     >();
     expectTypeOf<CodeFor<401>>().toEqualTypeOf<
-      "unauthorized" | "invalid-signature"
+      "unauthorized" | "signed-out" | "invalid-signature"
     >();
     // @ts-expect-error, a 403 code cannot construct a NotFound
     void new NotFound(ApiErrorCodes.FORBIDDEN);
