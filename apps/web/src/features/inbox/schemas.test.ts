@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
+import { UNSAFE_LINKS } from "@web/test/links";
+
 import {
   parseInboxResponse,
   type inboxCountsSchema,
@@ -58,6 +60,15 @@ describe("parseInboxResponse", () => {
       throw new Error("unreachable");
     }
     expect(parsed.value.items[0]).toEqual(pasted);
+    expect(parsed.value.installUrl).toBeNull();
+  });
+
+  it.each(UNSAFE_LINKS)("reads install url %j as no install link", (link) => {
+    const parsed = parseInboxResponse({ ...WIRE_PAGE, installUrl: link });
+
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
     expect(parsed.value.installUrl).toBeNull();
   });
 

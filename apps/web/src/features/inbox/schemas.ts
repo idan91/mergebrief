@@ -8,6 +8,7 @@ import {
   PullRequestSources,
 } from "@web/features/pulls/types";
 import { dropNullKeys } from "@web/utils/drop-keys";
+import { httpsUrlSchema } from "@web/utils/https-url";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import type { InboxPage } from "./types";
@@ -82,7 +83,7 @@ export const inboxResponseSchema = z.object({
   viewer: inboxViewerSchema,
   reachableInstallations: z.array(reachableInstallationSchema),
   repositories: z.array(inboxRepositorySchema),
-  installUrl: z.string().nullable(),
+  installUrl: httpsUrlSchema.nullable().catch(null),
 });
 
 export function parseInboxResponse(body: unknown): Result<InboxPage, string> {

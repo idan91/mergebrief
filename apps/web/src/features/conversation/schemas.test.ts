@@ -7,6 +7,8 @@ import type { z } from "zod/v4";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 
+import { UNSAFE_LINKS } from "@web/test/links";
+
 import {
   parseCollaborators,
   parseConversation,
@@ -210,6 +212,24 @@ describe("parseConversation", () => {
     if (threads[0]) {
       threads[0]["rootCommentId"] = 999_999;
     }
+    expect(parseConversation(body).ok).toBe(false);
+  });
+
+  it.each(
+    ["threads", "reviews", "prComments"].flatMap((list) =>
+      UNSAFE_LINKS.map((link) => [list, link]),
+    ),
+  )("rejects a %s entry linking %j", (list, link) => {
+    const body = wireConversation() as Record<string, unknown[]>;
+    const target = body[list]?.[0] as Record<string, unknown>;
+    const linked =
+      list === "threads"
+        ? (target["comments"] as Array<Record<string, unknown>>)[0]
+        : target;
+    if (linked) {
+      linked["url"] = link;
+    }
+
     expect(parseConversation(body).ok).toBe(false);
   });
 

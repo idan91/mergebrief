@@ -3,6 +3,7 @@ import type { Result } from "types/utils";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { dropInvalidKeys } from "@web/utils/drop-keys";
+import { httpsUrlSchema } from "@web/utils/https-url";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import {
@@ -17,14 +18,11 @@ const githubIdSchema = z.int().positive();
 const lineSchema = z.int().positive();
 const threadSideSchema = z.enum(ThreadSides);
 
-/** The avatar lands in an `<img src>`: a non-https value drops the field, never the author. */
-const httpsAvatarUrlSchema = z.string().startsWith("https://");
-
 export const conversationAuthorSchema = dropInvalidKeys(
   z.object({
     login: z.string(),
     isBot: z.boolean(),
-    avatarUrl: httpsAvatarUrlSchema.exactOptional(),
+    avatarUrl: httpsUrlSchema.exactOptional(),
   }),
   ["avatarUrl"],
 ).readonly();
@@ -35,7 +33,7 @@ export const conversationCommentSchema = z
     author: conversationAuthorSchema,
     body: z.string(),
     createdAt: z.string(),
-    url: z.string(),
+    url: httpsUrlSchema,
     reviewId: githubIdSchema.exactOptional(),
   })
   .readonly();
@@ -86,7 +84,7 @@ export const conversationReviewSchema = z
     state: z.enum(ReviewVerdictStates),
     body: z.string(),
     submittedAt: z.string().exactOptional(),
-    url: z.string(),
+    url: httpsUrlSchema,
   })
   .readonly();
 
@@ -96,7 +94,7 @@ export const prLevelCommentSchema = z
     author: conversationAuthorSchema,
     body: z.string(),
     createdAt: z.string(),
-    url: z.string(),
+    url: httpsUrlSchema,
   })
   .readonly();
 
@@ -115,7 +113,7 @@ export const mentionCandidateSchema = dropInvalidKeys(
   z.object({
     login: z.string(),
     name: z.string().optional(),
-    avatarUrl: httpsAvatarUrlSchema.optional(),
+    avatarUrl: httpsUrlSchema.optional(),
   }),
   ["avatarUrl"],
 ).readonly();

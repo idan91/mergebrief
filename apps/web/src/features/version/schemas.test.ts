@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
+import { UNSAFE_LINKS } from "@web/test/links";
+
 import { parseVersion, type versionResponseSchema } from "./schemas";
 
 const versionResponsePin = true satisfies Equals<
@@ -33,6 +35,12 @@ describe("parseVersion", () => {
       throw new Error("unreachable");
     }
     expect(Object.keys(parsed.value)).toEqual(["version"]);
+  });
+
+  it.each(UNSAFE_LINKS)("drops release notes url %j", (link) => {
+    const parsed = parseVersion({ version: "1.4.0", releaseNotesUrl: link });
+
+    expect(parsed).toEqual({ ok: true, value: { version: "1.4.0" } });
   });
 
   it("drops fields the wire adds", () => {
