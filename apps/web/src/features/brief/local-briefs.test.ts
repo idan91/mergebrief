@@ -183,6 +183,18 @@ describe("buildLocalBriefQueryOptions", () => {
     ).rejects.toMatchObject({ code: "artifact-unreadable" });
   });
 
+  it("refuses a view without a body or with an unknown kind", async () => {
+    apiFetch.mockResolvedValueOnce(stubJson({ artifactKind: "brief" }));
+    await expect(
+      runQuery(buildLocalBriefQueryOptions(BRIEF_ID)),
+    ).rejects.toMatchObject({ code: "malformed" });
+
+    apiFetch.mockResolvedValueOnce(stubJson({ artifactKind: "x", body: {} }));
+    await expect(
+      runQuery(buildLocalBriefQueryOptions(BRIEF_ID)),
+    ).rejects.toMatchObject({ code: "malformed" });
+  });
+
   it("carries the wire code of a refused read", async () => {
     apiFetch.mockResolvedValueOnce(stubWireError("not-found", 404));
 

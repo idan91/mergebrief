@@ -9,6 +9,15 @@
 // The operation is idempotent server-side, so retrying after any failure kind
 // is always safe.
 import type { QueryKey } from "@tanstack/react-query";
+import { z } from "zod/v4";
+
+import {
+  MarkReadyResultKinds,
+  type MarkReadyAction,
+  type MarkReadyResult,
+  type MarkReadyResultKind,
+} from "@web/features/brief/model";
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import {
   ApiError,
@@ -18,12 +27,6 @@ import {
   type ApiErrorCode,
 } from "../../../data/apiFetch";
 import { buildPrMetaQueryOptions } from "../queries";
-import {
-  MarkReadyResultKinds,
-  type MarkReadyAction,
-  type MarkReadyResult,
-  type MarkReadyResultKind,
-} from "@web/features/brief/model";
 
 type MarkReadyFailureKind = Exclude<
   MarkReadyResultKind,
@@ -80,14 +83,7 @@ const KindForCode = {
   [ApiErrorCodes.MALFORMED]: MarkReadyResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
 
-function isReadyBody(value: unknown): value is { draft: false } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "draft" in value &&
-    value.draft === false
-  );
-}
+const readyBodySchema = z.object({ draft: z.literal(false) });
 
 export async function markPrReady(
   repoId: string,
@@ -105,7 +101,8 @@ export async function markPrReady(
   } catch {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  if (!isReadyBody(body)) {
+  const ready = parseWithSchema(readyBodySchema, body);
+  if (!ready.ok) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   return { kind: MarkReadyResultKinds.READY };

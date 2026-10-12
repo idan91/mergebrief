@@ -11,6 +11,7 @@ import {
 import { HttpStatuses } from "types/http";
 import { z } from "zod/v4";
 
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   ApiError,
   ApiErrorCodes,
@@ -100,13 +101,12 @@ function parseJsonText(text: string): Result<unknown> {
   }
 }
 
-function isLocalBriefView(value: unknown): value is LocalBriefView {
-  if (typeof value !== "object" || value === null || !("body" in value)) {
-    return false;
-  }
-  const kind = "artifactKind" in value ? value.artifactKind : undefined;
-  return Object.values(LocalBriefKinds).some((known) => known === kind);
-}
+/** The body itself is read by the artifact kind's own reader; here it only has to be present. */
+const localBriefViewSchema = z.object({
+  artifactKind: z.enum(LocalBriefKinds),
+  body: z.custom<unknown>((value) => value !== undefined),
+  reviewComments: z.unknown().optional(),
+});
 
 /** The stored body and its comments sidecar, read by the artifact kind's own reader. */
 async function parseLocalBriefView(
@@ -114,23 +114,25 @@ async function parseLocalBriefView(
   path: string,
   status: number,
 ): Promise<Brief> {
-  if (!isLocalBriefView(view)) {
+  const parsedView = parseWithSchema(localBriefViewSchema, view);
+  if (!parsedView.ok) {
     throw new ApiError(ApiErrorCodes.MALFORMED, status, path);
   }
+  const localView: LocalBriefView = parsedView.value;
 
-  const text = JSON.stringify(view.body);
+  const text = JSON.stringify(localView.body);
   const parsed =
-    view.artifactKind === LocalBriefKinds.DELTA
+    localView.artifactKind === LocalBriefKinds.DELTA
       ? parseDeltaBrief(text)
       : parseBrief(text, await getSsrWarnSink());
   if (!parsed.ok) {
     throw buildUnreadableError(path, status);
   }
-  if (view.reviewComments === undefined) {
+  if (localView.reviewComments === undefined) {
     return parsed.value;
   }
 
-  const comments = parseAddressedReviewComments(view.reviewComments);
+  const comments = parseAddressedReviewComments(localView.reviewComments);
   if (!comments.ok) {
     throw buildUnreadableError(path, status);
   }

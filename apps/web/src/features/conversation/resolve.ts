@@ -6,6 +6,9 @@
 // The only 400 is a malformed route param from already-parsed server data,
 // so there is no cap to mirror. Both directions are idempotent server-side
 // (a converged state answers 200), so a retry after any failure is safe.
+import { z } from "zod/v4";
+
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   ApiError,
   ApiErrorCodes,
@@ -72,18 +75,10 @@ const KindForCode = {
   [ApiErrorCodes.MALFORMED]: ResolveThreadResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, ResolveFailureKind>;
 
-function isResolutionBody(
-  value: unknown,
-): value is { resolved: boolean; alreadyInTargetState: boolean } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "resolved" in value &&
-    typeof value.resolved === "boolean" &&
-    "alreadyInTargetState" in value &&
-    typeof value.alreadyInTargetState === "boolean"
-  );
-}
+const resolutionBodySchema = z.object({
+  resolved: z.boolean(),
+  alreadyInTargetState: z.boolean(),
+});
 
 /**
  * Flip one thread's resolution. `resolved` picks the ROUTE (the two directions
@@ -107,14 +102,14 @@ export async function setThreadResolution(
   } catch {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  // A body echoing the OTHER direction would have the UI announce a state the
-  // server never set: a contract violation, so it throws rather than lying.
-  if (!isResolutionBody(parsed) || parsed.resolved !== resolved) {
+  const resolution = parseWithSchema(resolutionBodySchema, parsed);
+  if (!resolution.ok) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  return {
-    kind: ResolveThreadResultKinds.DONE,
-    resolved: parsed.resolved,
-    alreadyInTargetState: parsed.alreadyInTargetState,
-  };
+  // A body echoing the OTHER direction would have the UI announce a state the
+  // server never set: a contract violation, so it throws rather than lying.
+  if (resolution.value.resolved !== resolved) {
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
+  }
+  return { kind: ResolveThreadResultKinds.DONE, ...resolution.value };
 }

@@ -2,6 +2,9 @@
 // statuses are RESULT KINDS the flow renders, the fail-closed 409, the clean
 // 401 re-login, and upstream rejections, never throws for those; only a
 // malformed 2xx throws (contract violation).
+import { z } from "zod/v4";
+
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   ApiError,
   ApiErrorCodes,
@@ -78,24 +81,11 @@ const KindForCode = {
   [ApiErrorCodes.MALFORMED]: SubmitReviewResultKinds.UPSTREAM,
 } as const satisfies Record<ApiErrorCode, SubmitFailureKind>;
 
-interface SubmittedBody {
-  reviewId: number;
-  commentsFolded: number;
-  commentsTotal: number;
-}
-
-function isSubmittedBody(value: unknown): value is SubmittedBody {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "reviewId" in value &&
-    typeof value.reviewId === "number" &&
-    "commentsFolded" in value &&
-    typeof value.commentsFolded === "number" &&
-    "commentsTotal" in value &&
-    typeof value.commentsTotal === "number"
-  );
-}
+const submittedBodySchema = z.object({
+  reviewId: z.number(),
+  commentsFolded: z.number(),
+  commentsTotal: z.number(),
+});
 
 export async function submitReview(
   repoId: string,
@@ -126,13 +116,9 @@ export async function submitReview(
   } catch {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  if (!isSubmittedBody(body)) {
+  const submitted = parseWithSchema(submittedBodySchema, body);
+  if (!submitted.ok) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  return {
-    kind: SubmitReviewResultKinds.SUBMITTED,
-    reviewId: body.reviewId,
-    commentsFolded: body.commentsFolded,
-    commentsTotal: body.commentsTotal,
-  };
+  return { kind: SubmitReviewResultKinds.SUBMITTED, ...submitted.value };
 }
