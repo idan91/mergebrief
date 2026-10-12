@@ -18,8 +18,12 @@ export interface TokenSettingsProps {
   enabled: boolean;
 }
 
-function formatWhen(iso: string | null, locale: string, never: string): string {
-  if (iso === null) {
+function formatWhen(
+  iso: string | undefined,
+  locale: string,
+  never: string,
+): string {
+  if (iso === undefined) {
     return never;
   }
   return formatDate(iso, locale, {
@@ -194,7 +198,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
         {(state.tokens ?? []).map((token) => (
           <div
             className={styles["row"]}
-            data-revoked={token.revokedAt !== null}
+            data-revoked={token.revokedAt !== undefined}
             key={token.id}
           >
             <span className={styles["rowName"]}>{token.name}</span>
@@ -202,7 +206,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
               {t(SCOPE_LABEL_KEY[token.scope])}
             </span>
             <span className={styles["rowMeta"]}>
-              {token.revokedAt !== null
+              {token.revokedAt !== undefined
                 ? t("tokens.rowRevoked", {
                     when: formatWhen(
                       token.revokedAt,
@@ -212,7 +216,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
                   })
                 : t("tokens.rowActive", {
                     expires:
-                      token.expiresAt === null
+                      token.expiresAt === undefined
                         ? t("tokens.never")
                         : formatWhen(
                             token.expiresAt,
@@ -226,7 +230,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
                     ),
                   })}
             </span>
-            {token.revokedAt === null ? (
+            {token.revokedAt === undefined ? (
               <Button
                 // Token-specific accessible name: multiple rows must be
                 // distinguishable when navigating by buttons.

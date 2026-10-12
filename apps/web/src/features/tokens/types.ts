@@ -18,11 +18,11 @@ export interface ApiTokenView {
   readonly id: string;
   readonly name: string;
   readonly scope: TokenScope;
-  readonly userLogin: string | null;
-  /** ISO timestamp, or null for a no-expiry token. */
-  readonly expiresAt: string | null;
-  readonly lastUsedAt: string | null;
-  readonly revokedAt: string | null;
+  readonly userLogin?: string;
+  /** ISO timestamp; absent on a no-expiry token. */
+  readonly expiresAt?: string;
+  readonly lastUsedAt?: string;
+  readonly revokedAt?: string;
   readonly createdAt: string;
 }
 

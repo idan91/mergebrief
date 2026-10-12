@@ -32,13 +32,28 @@ describe("parseTokensView", () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it("parses the /api/auth/tokens list body", () => {
+  it("parses the list body and reads its null timestamps as absent", () => {
     const parsed = parseTokensView({ tokens: [WIRE_TOKEN] });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.tokens[0]).toEqual(WIRE_TOKEN);
+    const {
+      lastUsedAt: _lastUsed,
+      revokedAt: _revoked,
+      ...present
+    } = WIRE_TOKEN;
+    expect(parsed.value.tokens[0]).toStrictEqual(present);
+  });
+
+  it("reads a null owner login as absent", () => {
+    const parsed = parseTokensView({
+      tokens: [{ ...WIRE_TOKEN, userLogin: null }],
+    });
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.tokens[0]).not.toHaveProperty("userLogin");
   });
 
   it("accepts no-expiry and used/revoked timestamps", () => {
@@ -52,7 +67,11 @@ describe("parseTokensView", () => {
         },
       ],
     });
-    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.tokens[0]).not.toHaveProperty("expiresAt");
+    expect(parsed.value.tokens[0]?.revokedAt).toBe("2026-07-09T14:00:00.000Z");
   });
 
   it("rejects a body missing tokens[] or with a malformed entry", () => {

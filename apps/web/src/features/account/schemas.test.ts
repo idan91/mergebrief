@@ -14,17 +14,21 @@ describe("parseViewer", () => {
     });
   });
 
-  it("reads a missing or non-string login as null", () => {
+  it("reads a missing, null or non-string login as absent", () => {
     const expected = {
       kind: ViewerStates.SIGNED_IN,
-      login: null,
       avatarUrl: VIEWER.avatarUrl,
     };
 
-    expect(parseViewer({ viewer: { avatarUrl: VIEWER.avatarUrl } })).toEqual(
+    expect(
+      parseViewer({ viewer: { avatarUrl: VIEWER.avatarUrl } }),
+    ).toStrictEqual(expected);
+    expect(parseViewer({ viewer: { ...VIEWER, login: null } })).toStrictEqual(
       expected,
     );
-    expect(parseViewer({ viewer: { ...VIEWER, login: 7 } })).toEqual(expected);
+    expect(parseViewer({ viewer: { ...VIEWER, login: 7 } })).toStrictEqual(
+      expected,
+    );
   });
 
   it("answers unknown for a body without a usable viewer", () => {

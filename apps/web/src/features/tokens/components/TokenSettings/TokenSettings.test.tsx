@@ -33,8 +33,6 @@ const LIVE_TOKEN: ApiTokenView = {
   scope: "external-write",
   userLogin: "octocat",
   expiresAt: "2026-10-07T00:00:00.000Z",
-  lastUsedAt: null,
-  revokedAt: null,
   createdAt: "2026-07-09T12:00:00.000Z",
 };
 

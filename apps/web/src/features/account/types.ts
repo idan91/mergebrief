@@ -10,7 +10,7 @@ export const ViewerStates = {
 export type ViewerState =
   | {
       readonly kind: typeof ViewerStates.SIGNED_IN;
-      readonly login: string | null;
+      readonly login?: string;
       readonly avatarUrl: string;
     }
   | { readonly kind: typeof ViewerStates.SIGNED_OUT }

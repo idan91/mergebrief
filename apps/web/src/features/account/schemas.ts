@@ -1,14 +1,15 @@
 import { z } from "zod/v4";
 
+import { dropInvalidKeys } from "@web/utils/drop-keys";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import { ViewerStates, type ViewerState } from "./types";
 
 const sessionBodySchema = z.object({
-  viewer: z.object({
-    login: z.string().nullable().catch(null),
-    avatarUrl: z.string(),
-  }),
+  viewer: dropInvalidKeys(
+    z.object({ login: z.string().exactOptional(), avatarUrl: z.string() }),
+    ["login"],
+  ),
 });
 
 /** The `viewer` of the session response; anything else is unknown, never a throw. */
@@ -17,6 +18,5 @@ export function parseViewer(body: unknown): ViewerState {
   if (!parsed.ok) {
     return { kind: ViewerStates.UNKNOWN };
   }
-  const { login, avatarUrl } = parsed.value.viewer;
-  return { kind: ViewerStates.SIGNED_IN, login, avatarUrl };
+  return { kind: ViewerStates.SIGNED_IN, ...parsed.value.viewer };
 }

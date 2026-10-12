@@ -46,7 +46,7 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
 
   const signedIn = viewer.kind === ViewerStates.SIGNED_IN;
   const label =
-    signedIn && viewer.login !== null
+    signedIn && viewer.login !== undefined
       ? t("shell.accountMenu.ariaLabelTriggerSignedIn", { login: viewer.login })
       : t("shell.accountMenu.ariaLabelTrigger");
   const triggerLabel =
@@ -90,7 +90,7 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
           </IconButton>
         </Menu.Trigger>
         <Menu.Content>
-          {signedIn && viewer.login !== null ? (
+          {signedIn && viewer.login !== undefined ? (
             <Menu.Label>
               {t("shell.accountMenu.signedInAs", { login: viewer.login })}
             </Menu.Label>

@@ -1,22 +1,24 @@
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
 
+import { dropNullKeys } from "@web/utils/drop-keys";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import { TokenScopes, type MintedToken, type TokensView } from "./types";
 
-export const apiTokenSchema = z
-  .object({
+export const apiTokenSchema = dropNullKeys(
+  z.object({
     id: z.string(),
     name: z.string(),
     scope: z.enum(TokenScopes),
-    userLogin: z.string().nullable(),
-    expiresAt: z.string().nullable(),
-    lastUsedAt: z.string().nullable(),
-    revokedAt: z.string().nullable(),
+    userLogin: z.string().exactOptional(),
+    expiresAt: z.string().exactOptional(),
+    lastUsedAt: z.string().exactOptional(),
+    revokedAt: z.string().exactOptional(),
     createdAt: z.string(),
-  })
-  .readonly();
+  }),
+  ["userLogin", "expiresAt", "lastUsedAt", "revokedAt"],
+).readonly();
 
 export const tokensViewSchema = z
   .object({ tokens: z.array(apiTokenSchema) })
