@@ -1,7 +1,6 @@
-// Repo-config snapshot support: wire parsing, display-weight resolution, and
-// the lockstep pins. The mirrored floor list must never drift from its source,
-// which is imported here at dev time only. The path matcher is no longer
-// mirrored; the screen calls its owner.
+// Repo-config display-weight resolution and the lockstep pins. The mirrored
+// floor list must never drift from its source, which is imported here at dev
+// time only. The path matcher is no longer mirrored; the screen calls its owner.
 import { describe, expect, it } from "vitest";
 import { matchesGlob } from "brief-core/path-matching";
 import {
@@ -22,90 +21,10 @@ import {
   NAME_MAX_CHARS,
   NAME_PATTERN,
   OUTCOMES,
-  parseBriefContext,
   SLOT_PATHS,
   type RepoConfigContext,
 } from "./repo-config";
-
-const SNAPSHOT: RepoConfigContext = {
-  files: [
-    { path: ".mergebrief/instructions.md", blobSha: "i", outcome: "applied" },
-    { path: ".mergebrief/settings.yaml", blobSha: null, outcome: "absent" },
-    { path: ".mergebrief/policy.yaml", blobSha: "p", outcome: "applied" },
-  ],
-  collisions: ["touches-auth"],
-  policy: {
-    firedCustomAttributes: [
-      {
-        name: "touches-billing",
-        criteria: "modifies invoicing code",
-        implication: "needs finance review",
-        paths: ["services/billing/**"],
-      },
-    ],
-    deEmphasize: [
-      { attribute: "widens-error-handling" },
-      { attribute: "no-tests", paths: ["generated/**"] },
-    ],
-  },
-};
-
-describe("parseBriefContext", () => {
-  it("parses a full envelope round-trip", () => {
-    const parsed = parseBriefContext({ repoConfig: SNAPSHOT });
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value).toEqual(SNAPSHOT);
-  });
-
-  it("null snapshot parses to null", () => {
-    const parsed = parseBriefContext({ repoConfig: null });
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value).toBeNull();
-  });
-
-  it.each([
-    ["not an object", "x"],
-    ["missing files", { repoConfig: { collisions: [], policy: null } }],
-    [
-      "bad outcome",
-      {
-        repoConfig: {
-          files: [{ path: "p", blobSha: null, outcome: "nope" }],
-          collisions: [],
-          policy: null,
-        },
-      },
-    ],
-    [
-      "bad fired attr",
-      {
-        repoConfig: {
-          files: [],
-          collisions: [],
-          policy: { firedCustomAttributes: [{ name: 1 }], deEmphasize: [] },
-        },
-      },
-    ],
-    [
-      "bad rule",
-      {
-        repoConfig: {
-          files: [],
-          collisions: [],
-          policy: { firedCustomAttributes: [], deEmphasize: [{ paths: [] }] },
-        },
-      },
-    ],
-  ])("rejects %s", (_label, value) => {
-    expect(parseBriefContext(value).ok).toBe(false);
-  });
-});
+import { repoConfigContextFixture as SNAPSHOT } from "../../test-utils/fixtures";
 
 describe("attributeDisplayMeta", () => {
   it("no snapshot / no policy → plain built-in meta", () => {
@@ -234,54 +153,5 @@ describe("lockstep pins on the values this screen copies", () => {
     ["***z", "bbbbz", true],
   ])("matches %s against %s", (pattern, file, expected) => {
     expect(matchesGlob(pattern, file)).toBe(expected);
-  });
-});
-
-describe("parseBriefContext canonical-shape tightening", () => {
-  const slots = SNAPSHOT.files;
-  it.each([
-    ["missing a slot", { ...SNAPSHOT, files: slots.slice(0, 2) }],
-    ["reordered slots", { ...SNAPSHOT, files: [slots[1], slots[0], slots[2]] }],
-    [
-      "foreign path",
-      {
-        ...SNAPSHOT,
-        files: [slots[0], slots[1], { ...slots[2], path: "evil.yaml" }],
-      },
-    ],
-    [
-      "off-charset fired name",
-      {
-        ...SNAPSHOT,
-        policy: {
-          firedCustomAttributes: [{ name: "Bad Name", criteria: "c" }],
-          deEmphasize: [],
-        },
-      },
-    ],
-    [
-      "over-cap criteria",
-      {
-        ...SNAPSHOT,
-        policy: {
-          firedCustomAttributes: [
-            { name: "ok-name", criteria: "x".repeat(4001) },
-          ],
-          deEmphasize: [],
-        },
-      },
-    ],
-    [
-      "floor attribute in deEmphasize",
-      {
-        ...SNAPSHOT,
-        policy: {
-          firedCustomAttributes: [],
-          deEmphasize: [{ attribute: "touches-auth" }],
-        },
-      },
-    ],
-  ])("rejects a snapshot with %s", (_label, snapshot) => {
-    expect(parseBriefContext({ repoConfig: snapshot }).ok).toBe(false);
   });
 });

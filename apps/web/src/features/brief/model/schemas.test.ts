@@ -10,12 +10,17 @@ import type { z } from "zod/v4";
 
 import {
   parseAddressedReviewComment,
+  parseBriefContext,
   parseAddressedReviewComments,
   parseComparisonMarks,
   parseFileDiffPatches,
   parseLocalBriefSummaries,
   type addressedReviewCommentSchema,
   type comparisonMarksSchema,
+  type deEmphasisRuleSchema,
+  type firedCustomAttributeSchema,
+  type repoConfigContextSchema,
+  type repoConfigFileOutcomeSchema,
   type fileDiffPatchSchema,
   type localBriefSummarySchema,
   type localComparisonAvailabilitySchema,
@@ -23,7 +28,16 @@ import {
   type localPreviousBriefAvailabilitySchema,
   type revisionChangeFileSchema,
 } from "./schemas";
-import { briefFixture } from "../test-utils/fixtures";
+import {
+  briefFixture,
+  repoConfigContextFixture as SNAPSHOT,
+} from "../test-utils/fixtures";
+import type {
+  DeEmphasisRule,
+  FiredCustomAttribute,
+  RepoConfigContext,
+  RepoConfigFileOutcome,
+} from "./utils/repo-config";
 import type {
   AddressedReviewComment,
   ComparisonMarks,
@@ -370,6 +384,177 @@ describe("parseLocalBriefSummaries", () => {
   });
 });
 
+describe("parseBriefContext", () => {
+  it("parses a full envelope round-trip", () => {
+    const parsed = parseBriefContext({ repoConfig: SNAPSHOT });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value).toEqual(SNAPSHOT);
+  });
+
+  it("null snapshot parses to null", () => {
+    const parsed = parseBriefContext({ repoConfig: null });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value).toBeNull();
+  });
+
+  it.each([
+    ["not an object", "x"],
+    ["missing files", { repoConfig: { collisions: [], policy: null } }],
+    [
+      "bad outcome",
+      {
+        repoConfig: {
+          files: [{ path: "p", blobSha: null, outcome: "nope" }],
+          collisions: [],
+          policy: null,
+        },
+      },
+    ],
+    [
+      "bad fired attr",
+      {
+        repoConfig: {
+          files: [],
+          collisions: [],
+          policy: { firedCustomAttributes: [{ name: 1 }], deEmphasize: [] },
+        },
+      },
+    ],
+    [
+      "bad rule",
+      {
+        repoConfig: {
+          files: [],
+          collisions: [],
+          policy: { firedCustomAttributes: [], deEmphasize: [{ paths: [] }] },
+        },
+      },
+    ],
+  ])("rejects %s", (_label, value) => {
+    expect(parseBriefContext(value).ok).toBe(false);
+  });
+});
+
+describe("parseBriefContext canonical-shape tightening", () => {
+  const slots = SNAPSHOT.files;
+  it.each([
+    ["missing a slot", { ...SNAPSHOT, files: slots.slice(0, 2) }],
+    ["reordered slots", { ...SNAPSHOT, files: [slots[1], slots[0], slots[2]] }],
+    [
+      "foreign path",
+      {
+        ...SNAPSHOT,
+        files: [slots[0], slots[1], { ...slots[2], path: "evil.yaml" }],
+      },
+    ],
+    [
+      "off-charset fired name",
+      {
+        ...SNAPSHOT,
+        policy: {
+          firedCustomAttributes: [{ name: "Bad Name", criteria: "c" }],
+          deEmphasize: [],
+        },
+      },
+    ],
+    [
+      "over-cap criteria",
+      {
+        ...SNAPSHOT,
+        policy: {
+          firedCustomAttributes: [
+            { name: "ok-name", criteria: "x".repeat(4001) },
+          ],
+          deEmphasize: [],
+        },
+      },
+    ],
+    [
+      "floor attribute in deEmphasize",
+      {
+        ...SNAPSHOT,
+        policy: {
+          firedCustomAttributes: [],
+          deEmphasize: [{ attribute: "touches-auth" }],
+        },
+      },
+    ],
+  ])("rejects a snapshot with %s", (_label, snapshot) => {
+    expect(parseBriefContext({ repoConfig: snapshot }).ok).toBe(false);
+  });
+});
+
+function readSlot(index: number): RepoConfigFileOutcome {
+  const slot = SNAPSHOT.files[index];
+  if (slot === undefined) {
+    throw new Error("fixture");
+  }
+  return slot;
+}
+
+describe("parseBriefContext tolerances", () => {
+  const instructions = readSlot(0);
+  const settings = readSlot(1);
+  const policyFile = readSlot(2);
+
+  it("keeps optional outcome fields and accepts an empty rule path", () => {
+    const snapshot = {
+      ...SNAPSHOT,
+      files: [
+        { ...instructions, detail: "d", warning: "w", bytesUsed: 1 },
+        settings,
+        { ...policyFile, bytesBudget: 4 },
+      ],
+      policy: {
+        firedCustomAttributes: [],
+        deEmphasize: [{ attribute: "no-tests", paths: [""] }],
+      },
+    };
+
+    expect(parseBriefContext({ repoConfig: snapshot })).toEqual({
+      ok: true,
+      value: snapshot,
+    });
+  });
+
+  it.each([
+    ["an empty fired path", { paths: [""] }],
+    ["an empty implication", { implication: "" }],
+  ])("rejects a fired attribute with %s", (_label, extra) => {
+    const policy = {
+      firedCustomAttributes: [{ name: "ok-name", criteria: "c", ...extra }],
+      deEmphasize: [],
+    };
+
+    expect(parseBriefContext({ repoConfig: { ...SNAPSHOT, policy } }).ok).toBe(
+      false,
+    );
+  });
+
+  it("rejects a slot with a non-number byte count or no blobSha", () => {
+    const { blobSha: _sha, ...withoutSha } = instructions;
+    const badBytes = [
+      { ...instructions, bytesUsed: "1" },
+      settings,
+      policyFile,
+    ];
+    const noSha = [withoutSha, settings, policyFile];
+
+    expect(
+      parseBriefContext({ repoConfig: { ...SNAPSHOT, files: badBytes } }).ok,
+    ).toBe(false);
+    expect(
+      parseBriefContext({ repoConfig: { ...SNAPSHOT, files: noSha } }).ok,
+    ).toBe(false);
+  });
+});
+
 const SCHEMA_PINS = {
   AddressedReviewComment: true satisfies Equals<
     z.output<typeof addressedReviewCommentSchema>,
@@ -402,6 +587,22 @@ const SCHEMA_PINS = {
   LocalBriefSummary: true satisfies Equals<
     z.output<typeof localBriefSummarySchema>,
     LocalBriefSummary
+  >,
+  RepoConfigFileOutcome: true satisfies Equals<
+    z.output<typeof repoConfigFileOutcomeSchema>,
+    RepoConfigFileOutcome
+  >,
+  FiredCustomAttribute: true satisfies Equals<
+    z.output<typeof firedCustomAttributeSchema>,
+    FiredCustomAttribute
+  >,
+  DeEmphasisRule: true satisfies Equals<
+    z.output<typeof deEmphasisRuleSchema>,
+    DeEmphasisRule
+  >,
+  RepoConfigContext: true satisfies Equals<
+    z.output<typeof repoConfigContextSchema>,
+    RepoConfigContext
   >,
 } as const;
 

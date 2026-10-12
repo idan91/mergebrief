@@ -10,6 +10,16 @@ import type {
   ComparisonMarks,
   FileDiffPatch,
 } from "./types";
+import {
+  CRITERIA_MAX_CHARS,
+  IMPLICATION_MAX_CHARS,
+  isFloorAttribute,
+  NAME_MAX_CHARS,
+  NAME_PATTERN,
+  OUTCOMES,
+  SLOT_PATHS,
+  type RepoConfigContext,
+} from "./utils/repo-config";
 
 const nullableIntegerSchema = z.int().nullable();
 
@@ -127,4 +137,70 @@ export function parseLocalBriefSummaries(
   value: unknown,
 ): Result<LocalBriefSummary[], string> {
   return parseWithSchema(z.array(localBriefSummarySchema), value);
+}
+
+export const repoConfigFileOutcomeSchema = z.object({
+  path: z.string(),
+  blobSha: z.string().nullable(),
+  outcome: z.enum(OUTCOMES),
+  detail: z.string().exactOptional(),
+  bytesUsed: z.number().exactOptional(),
+  bytesBudget: z.number().exactOptional(),
+  warning: z.string().exactOptional(),
+});
+
+/** Custom names later extend a model json_schema enum: charset and caps mirror the writer's. */
+export const firedCustomAttributeSchema = z.object({
+  name: z.string().max(NAME_MAX_CHARS).regex(NAME_PATTERN),
+  criteria: z.string().min(1).max(CRITERIA_MAX_CHARS),
+  implication: z.string().min(1).max(IMPLICATION_MAX_CHARS).exactOptional(),
+  paths: z.array(z.string().min(1)).exactOptional(),
+});
+
+/** The writer forbids de-emphasizing a floor attribute; a snapshot that does is not trustworthy display input. */
+export const deEmphasisRuleSchema = z.object({
+  attribute: z.string().refine((attribute) => !isFloorAttribute(attribute), {
+    error: "a floor attribute cannot be de-emphasized",
+  }),
+  paths: z.array(z.string()).exactOptional(),
+});
+
+function isCanonicalSlotOrder(
+  files: readonly { readonly path: string }[],
+): boolean {
+  return files.every((file, index) => file.path === SLOT_PATHS[index]);
+}
+
+export const repoConfigContextSchema = z.object({
+  files: z
+    .array(repoConfigFileOutcomeSchema)
+    .length(SLOT_PATHS.length)
+    .refine(isCanonicalSlotOrder, {
+      error: "expected the canonical slots in order",
+    }),
+  collisions: z.array(z.string()),
+  policy: z
+    .object({
+      firedCustomAttributes: z.array(firedCustomAttributeSchema),
+      deEmphasize: z.array(deEmphasisRuleSchema),
+    })
+    .nullable(),
+});
+
+const briefContextBodySchema = z.object({
+  repoConfig: repoConfigContextSchema.nullable(),
+});
+
+/**
+ * The /brief-context envelope `{ repoConfig: <snapshot|null> }`. `null`
+ * (generation recorded nothing) renders as if no repo config exists.
+ */
+export function parseBriefContext(
+  value: unknown,
+): Result<RepoConfigContext | null, string> {
+  const parsed = parseWithSchema(briefContextBodySchema, value);
+  if (!parsed.ok) {
+    return parsed;
+  }
+  return { ok: true, value: parsed.value.repoConfig };
 }

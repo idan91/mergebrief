@@ -49,9 +49,9 @@ export {
   GroupViewKinds,
   isUnattributedRemainderChunk,
 } from "./utils/remainder";
-export { parseBriefContext, type RepoConfigContext } from "./utils/repo-config";
+export type { RepoConfigContext } from "./utils/repo-config";
 export { buildRevisionTimeline } from "./utils/revision-timeline";
-export { parseComparisonMarks } from "./schemas";
+export { parseBriefContext, parseComparisonMarks } from "./schemas";
 export {
   parseBrief,
   parseDeltaBrief,

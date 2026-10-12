@@ -3,6 +3,7 @@ import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
 import { type RowRef, RowRefKinds } from "../model/expansion/types";
 import { type Brief, type BriefChunk } from "../model/types";
+import type { RepoConfigContext } from "../model/utils/repo-config";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
@@ -113,3 +114,26 @@ export function makeChunk(): BriefChunk {
     diff: [{ kind: "add", content: "b", newLine: 10 }],
   };
 }
+
+export const repoConfigContextFixture: RepoConfigContext = {
+  files: [
+    { path: ".mergebrief/instructions.md", blobSha: "i", outcome: "applied" },
+    { path: ".mergebrief/settings.yaml", blobSha: null, outcome: "absent" },
+    { path: ".mergebrief/policy.yaml", blobSha: "p", outcome: "applied" },
+  ],
+  collisions: ["touches-auth"],
+  policy: {
+    firedCustomAttributes: [
+      {
+        name: "touches-billing",
+        criteria: "modifies invoicing code",
+        implication: "needs finance review",
+        paths: ["services/billing/**"],
+      },
+    ],
+    deEmphasize: [
+      { attribute: "widens-error-handling" },
+      { attribute: "no-tests", paths: ["generated/**"] },
+    ],
+  },
+};
