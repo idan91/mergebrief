@@ -29,23 +29,3 @@ export interface SignOutFlow {
   readonly pending: SignOutScope | undefined;
   readonly failed: boolean;
 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** The `viewer` of the session response; anything else is unknown, never a throw. */
-export function parseViewer(body: unknown): ViewerState {
-  if (!isRecord(body) || !isRecord(body["viewer"])) {
-    return { kind: ViewerStates.UNKNOWN };
-  }
-  const { login, avatarUrl } = body["viewer"];
-  if (typeof avatarUrl !== "string") {
-    return { kind: ViewerStates.UNKNOWN };
-  }
-  return {
-    kind: ViewerStates.SIGNED_IN,
-    login: typeof login === "string" ? login : null,
-    avatarUrl,
-  };
-}

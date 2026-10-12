@@ -1,8 +1,17 @@
 // Parser tests against REALISTIC wire bodies: route tests that seed the query
 // cache bypass the parser, so a shape drift would otherwise ship green.
 import { describe, expect, it } from "vitest";
+import type { Equals } from "types/utils";
+import type { z } from "zod/v4";
 
-import { parseMintedToken, parseTokensView } from "./types";
+import {
+  parseMintedToken,
+  parseTokensView,
+  type apiTokenSchema,
+  type mintedTokenSchema,
+  type tokensViewSchema,
+} from "./schemas";
+import type { ApiTokenView, MintedToken, TokensView } from "./types";
 
 const WIRE_TOKEN = {
   id: "3",
@@ -68,5 +77,26 @@ describe("parseMintedToken", () => {
 
   it("rejects a response without token material", () => {
     expect(parseMintedToken({ apiToken: WIRE_TOKEN }).ok).toBe(false);
+  });
+});
+
+const SCHEMA_PINS = {
+  ApiTokenView: true satisfies Equals<
+    z.output<typeof apiTokenSchema>,
+    ApiTokenView
+  >,
+  TokensView: true satisfies Equals<
+    z.output<typeof tokensViewSchema>,
+    TokensView
+  >,
+  MintedToken: true satisfies Equals<
+    z.output<typeof mintedTokenSchema>,
+    MintedToken
+  >,
+} as const;
+
+describe("token schemas match their interfaces", () => {
+  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
   });
 });

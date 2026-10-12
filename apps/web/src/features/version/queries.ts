@@ -12,7 +12,8 @@ import {
   apiJsonFromResponse,
   errorFromResponse,
 } from "../../data/apiFetch";
-import { parseVersion, VersionStates, type VersionState } from "./types";
+import { parseVersion } from "./schemas";
+import { VersionStates, type VersionState } from "./types";
 import { resolvePollInterval } from "./utils";
 
 const VERSION_STALE_MS = 60_000;

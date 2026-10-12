@@ -9,13 +9,8 @@ import {
   apiFetchJson,
   errorFromResponse,
 } from "../../data/apiFetch";
-import {
-  parseMintedToken,
-  parseTokensView,
-  type MintedToken,
-  type TokensView,
-  type TokenScope,
-} from "./types";
+import { parseMintedToken, parseTokensView } from "./schemas";
+import type { MintedToken, TokensView, TokenScope } from "./types";
 
 export function buildTokensQueryOptions() {
   return queryOptions({

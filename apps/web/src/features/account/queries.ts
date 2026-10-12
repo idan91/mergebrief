@@ -9,7 +9,8 @@ import {
   apiJsonFromResponse,
   errorFromResponse,
 } from "../../data/apiFetch";
-import { parseViewer, ViewerStates, type ViewerState } from "./types";
+import { parseViewer } from "./schemas";
+import { ViewerStates, type ViewerState } from "./types";
 
 const VIEWER_STALE_MS = 5 * 60_000;
 const SESSION_PATH = "/api/auth/session";
