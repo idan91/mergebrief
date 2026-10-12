@@ -25,12 +25,12 @@ import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
 import {
   parseAddressedReviewComments,
   parseComparisonMarks,
+  parseFileDiffPatches,
+  parseLocalBriefSummaries,
 } from "./model/schemas";
 import {
   parseBrief,
   parseDeltaBrief,
-  parseFileDiffPatches,
-  parseLocalBriefSummaries,
   parseRevisionNarrativeArtifact,
   type Result,
 } from "./model/utils/validation";
