@@ -389,27 +389,9 @@
       "count": 5
     }
   },
-  "packages/repo-config/src/origin.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/repo-config/test/instructions.test.ts": {
     "house/test-title": {
       "count": 1
-    }
-  },
-  "packages/repo-config/test/origin.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "packages/repo-config/test/outcomes.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 13
     }
   },
   "tools/categorizer/eval/cases/copybutton-new-export/expected.ts": {

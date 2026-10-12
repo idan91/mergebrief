@@ -171,6 +171,107 @@ function transformNode(
   return strict;
 }
 
+const DEFS_PREFIX = "#/$defs/";
+const GENERATED_DEF_ID = /^__schema\d+$/;
+
+function countDefRefs(node: unknown, counts: Map<string, number>): void {
+  if (Array.isArray(node)) {
+    for (const entry of node) {
+      countDefRefs(entry, counts);
+    }
+    return;
+  }
+  if (!isRecord(node)) {
+    return;
+  }
+  const ref = node["$ref"];
+  if (typeof ref === "string") {
+    counts.set(ref, (counts.get(ref) ?? 0) + 1);
+  }
+  for (const value of Object.values(node)) {
+    countDefRefs(value, counts);
+  }
+}
+
+interface DefTable {
+  readonly defs: Record<string, unknown>;
+  readonly counts: ReadonlyMap<string, number>;
+  readonly renames: ReadonlyMap<string, string>;
+}
+
+function inlineRefs(node: unknown, table: DefTable): unknown {
+  if (Array.isArray(node)) {
+    return node.map((entry) => inlineRefs(entry, table));
+  }
+  if (!isRecord(node)) {
+    return node;
+  }
+
+  const { $ref: ref, ...siblings } = node;
+  const isSingleUseRef = typeof ref === "string" && table.counts.get(ref) === 1;
+  if (isSingleUseRef) {
+    const target = table.defs[ref.slice(DEFS_PREFIX.length)];
+    if (isRecord(target)) {
+      return inlineRefs({ ...target, ...siblings }, table);
+    }
+  }
+
+  const inlined: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    inlined[key] = inlineRefs(value, table);
+  }
+  if (typeof ref === "string") {
+    inlined["$ref"] = table.renames.get(ref) ?? ref;
+  }
+  return inlined;
+}
+
+/** zod's generated ids renumbered over the kept defs; an explicit id stays. */
+function renameKeptDefs(keptNames: readonly string[]): Map<string, string> {
+  const renames = new Map<string, string>();
+  keptNames.forEach((name, index) => {
+    const renamed = GENERATED_DEF_ID.test(name) ? `__schema${index}` : name;
+    renames.set(DEFS_PREFIX + name, DEFS_PREFIX + renamed);
+  });
+  return renames;
+}
+
+/**
+ * Only a subschema referenced more than once stays in `$defs`. The strict
+ * transform drops a `$ref` node's siblings, so a single-use ref would lose
+ * the `description` zod writes beside it.
+ */
+function inlineSingleUseDefs(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const { $defs: defs, ...root } = schema;
+  if (!isRecord(defs)) {
+    return schema;
+  }
+
+  const counts = new Map<string, number>();
+  countDefRefs(schema, counts);
+  const keptNames = Object.keys(defs).filter(
+    (name) => (counts.get(DEFS_PREFIX + name) ?? 0) > 1,
+  );
+  const renames = renameKeptDefs(keptNames);
+  const table: DefTable = { defs, counts, renames };
+
+  const inlinedRoot = inlineRefs(root, table);
+  if (!isRecord(inlinedRoot)) {
+    return schema;
+  }
+  if (keptNames.length === 0) {
+    return inlinedRoot;
+  }
+  const keptDefs: Record<string, unknown> = {};
+  for (const name of keptNames) {
+    const renamed = renames.get(DEFS_PREFIX + name) ?? DEFS_PREFIX + name;
+    keptDefs[renamed.slice(DEFS_PREFIX.length)] = inlineRefs(defs[name], table);
+  }
+  return { ...inlinedRoot, $defs: keptDefs };
+}
+
 /**
  * Rebuild a JSON schema into the platform's strict form, preserving
  * `enum`/`const`. Deep-clones the input; the original is never mutated.
@@ -247,7 +348,7 @@ export function enumPreservingJsonSchema(
       "enumPreservingJsonSchema: z.toJSONSchema did not return an object",
     );
   }
-  return toStrictJsonSchema(jsonSchema);
+  return toStrictJsonSchema(inlineSingleUseDefs(jsonSchema));
 }
 
 /**

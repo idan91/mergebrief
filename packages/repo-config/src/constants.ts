@@ -46,6 +46,9 @@ export const PARKED_ATTRIBUTE_CANDIDATES = [
 
 export const RESERVED_ATTRIBUTE_WORDS = ["uncertain"] as const;
 
+/** Charset-legal names that would shadow an object's own prototype members. */
+export const UNSAFE_ATTRIBUTE_NAMES = ["constructor", "prototype"] as const;
+
 /**
  * Per-file outcome vocabulary. `fetch-failed` is stamped by the worker
  * (fail-open on a GitHub 5xx), never by validation; it lives here so the

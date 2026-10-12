@@ -1,5 +1,5 @@
 // The brief.repo_config artifact contract: the read boundary must reject
-// snapshots that could not have come from the writer — wrong, reordered or
+// snapshots that could not have come from the writer: wrong, reordered or
 // duplicated slot paths, unconstrained fired definitions, floor attributes in
 // deEmphasize.
 import { describe, expect, it } from "vitest";
@@ -21,7 +21,7 @@ function artifact(overrides: Record<string, unknown> = {}) {
   return { files: CANONICAL, collisions: [], policy: null, ...overrides };
 }
 
-describe("repoConfigArtifactSchema — slot tuple", () => {
+describe("repoConfigArtifactSchema slot tuple", () => {
   it("accepts the canonical three-slot table", () => {
     expect(repoConfigArtifactSchema.safeParse(artifact()).success).toBe(true);
   });
@@ -42,7 +42,7 @@ describe("repoConfigArtifactSchema — slot tuple", () => {
   });
 });
 
-describe("repoConfigArtifactSchema — policy snapshot constraints", () => {
+describe("repoConfigArtifactSchema policy snapshot constraints", () => {
   function withPolicy(policy: unknown) {
     return artifact({ policy });
   }
@@ -73,6 +73,7 @@ describe("repoConfigArtifactSchema — policy snapshot constraints", () => {
       { name: "ok-name", criteria: "c", implication: "x".repeat(501) },
     ],
     ["over-cap name", { name: "x".repeat(51), criteria: "c" }],
+    ["prototype-shadowing name", { name: "constructor", criteria: "c" }],
     ["empty path glob", { name: "ok-name", criteria: "c", paths: [""] }],
   ])("rejects a fired definition with %s", (_label, fired) => {
     const parsed = repoConfigArtifactSchema.safeParse(

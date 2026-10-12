@@ -16,6 +16,7 @@ import {
   FLOOR_ATTRIBUTES,
   IMPLICATION_MAX_CHARS,
   MAX_CUSTOM_ATTRIBUTES,
+  UNSAFE_ATTRIBUTE_NAMES,
 } from "./constants";
 
 // --- settings.yaml (v1) -----------------------------------------------------
@@ -56,17 +57,24 @@ export const customAttributeSchema = z
 
 export type CustomAttribute = z.infer<typeof customAttributeSchema>;
 
+const UNSAFE_ATTRIBUTE_NAME_SET: ReadonlySet<string> = new Set(
+  UNSAFE_ATTRIBUTE_NAMES,
+);
+
 /**
  * Custom attribute NAME schema: lower-kebab charset + length cap. These names
  * later extend a model json_schema enum per generation, so the charset
  * restriction is a SECURITY CONTROL: anything off-charset is rejected
  * (whole-file invalid), never sanitized.
  */
-const attributeNameSchema = z
+export const attributeNameSchema = z
   .string()
   .min(1)
   .max(ATTRIBUTE_NAME_MAX_CHARS)
-  .regex(ATTRIBUTE_NAME_PATTERN);
+  .regex(ATTRIBUTE_NAME_PATTERN)
+  .refine((name) => !UNSAFE_ATTRIBUTE_NAME_SET.has(name), {
+    error: "reserved attribute name",
+  });
 
 /**
  * A single de-emphasis rule: quiet an attribute's render, optionally scoped to

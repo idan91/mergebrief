@@ -1,18 +1,16 @@
 // The artifact-facing shape of repo-config origin data: the JSON the worker
 // serializes into `brief.repo_config` and the read surfaces (api/web) parse
-// back. One Zod schema owns the contract so writer and readers cannot drift —
+// back. One Zod schema owns the contract so writer and readers cannot drift;
 // the FE renders from THIS snapshot, never from live policy.
 import { z } from "zod/v4";
 import {
-  ATTRIBUTE_NAME_MAX_CHARS,
-  ATTRIBUTE_NAME_PATTERN,
   CRITERIA_MAX_CHARS,
   FLOOR_ATTRIBUTES,
   IMPLICATION_MAX_CHARS,
   RepoConfigOutcomes,
   RepoConfigPaths,
 } from "./constants";
-import { deEmphasisRuleSchema } from "./schemas";
+import { attributeNameSchema, deEmphasisRuleSchema } from "./schemas";
 
 const outcomeEnum = z.enum([
   RepoConfigOutcomes.APPLIED,
@@ -23,7 +21,7 @@ const outcomeEnum = z.enum([
 ]);
 
 /**
- * Per-file origin row — mirrors `RepoConfigFileOutcome` (validate.ts), pinned
+ * Per-file origin row, mirroring `RepoConfigFileOutcome` (validate.ts), pinned
  * to ONE canonical slot path per tuple position: the read boundary must
  * reject reordered/duplicated/foreign paths, not just trust the writer.
  */
@@ -50,11 +48,7 @@ function slotOutcomeSchema<P extends string>(path: P) {
  */
 const firedCustomAttributeSchema = z
   .object({
-    name: z
-      .string()
-      .min(1)
-      .max(ATTRIBUTE_NAME_MAX_CHARS)
-      .regex(ATTRIBUTE_NAME_PATTERN),
+    name: attributeNameSchema,
     criteria: z.string().min(1).max(CRITERIA_MAX_CHARS),
     implication: z.string().min(1).max(IMPLICATION_MAX_CHARS).optional(),
     paths: z.array(z.string().min(1)).optional(),
@@ -64,7 +58,7 @@ const firedCustomAttributeSchema = z
 const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 
 /**
- * `generation.repo_config` — the per-file outcome table (EXACTLY the three
+ * `generation.repo_config`: the per-file outcome table (EXACTLY the three
  * fixed paths, stable order instructions/settings/policy) + collision
  * disclosures, written right after acquisition so failed and superseded
  * generations keep their outcomes. The brief artifact's schema below EXTENDS
@@ -82,9 +76,9 @@ export const repoConfigOriginSchema = z
   .strict();
 
 /**
- * `brief.repo_config` — the origin table plus the policy snapshot in
+ * `brief.repo_config`: the origin table plus the policy snapshot in
  * effect at generation time (`null` when no valid policy applied). Floor
- * attributes can never appear de-emphasized in a stored snapshot — same
+ * attributes can never appear de-emphasized in a stored snapshot, the same
  * invariant as the live schema.
  */
 export const repoConfigArtifactSchema = repoConfigOriginSchema

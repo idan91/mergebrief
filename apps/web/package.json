@@ -43,7 +43,7 @@
     "shiki": "4.4.3",
     "types": "workspace:*",
     "unist-util-visit": "5.1.0",
-    "zod": "^3.25.76",
+    "zod": "^4.6.5",
     "zustand": "5.0.14"
   },
   "devDependencies": {

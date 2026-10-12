@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "types": "workspace:*",
-    "zod": "^3.25.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

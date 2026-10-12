@@ -3,8 +3,8 @@ import { RepoConfigOutcomes, RepoConfigPaths } from "../src/constants";
 import { validateRepoConfig } from "../src/validate";
 import { instructionsFile, policyFile, settingsFile, yaml } from "./helpers";
 
-describe("validateRepoConfig — outcome table", () => {
-  it("returns exactly three outcomes in stable order (instructions, settings, policy)", () => {
+describe("validateRepoConfig outcome table", () => {
+  it("returns instructions, settings and policy outcomes in that order", () => {
     const result = validateRepoConfig({});
     expect(result.outcomes).toHaveLength(3);
     expect(result.outcomes.map((o) => o.path)).toEqual([
@@ -48,7 +48,7 @@ describe("validateRepoConfig — outcome table", () => {
     expect(result.outcomes[1]?.blobSha).toBe("sha-fake");
   });
 
-  it("reports the canonical slot path in the origin, not the caller-supplied path", () => {
+  it("reports the canonical slot path, not the caller-supplied one", () => {
     const result = validateRepoConfig({
       settings: {
         path: "../evil/elsewhere.yaml",
@@ -60,7 +60,7 @@ describe("validateRepoConfig — outcome table", () => {
     expect(JSON.stringify(result.outcomes)).not.toContain("evil");
   });
 
-  it("keeps the outcome slot ordering fixed even when only the middle file is present", () => {
+  it("keeps the slot order when only the middle file is present", () => {
     const result = validateRepoConfig({
       settings: settingsFile(yaml({ version: 1 })),
     });
@@ -70,7 +70,7 @@ describe("validateRepoConfig — outcome table", () => {
   });
 });
 
-describe("validateRepoConfig — prototype pollution resistance", () => {
+describe("validateRepoConfig prototype pollution resistance", () => {
   // Pins the invariant against a future yaml/zod upgrade regressing their
   // built-in guards: `__proto__`/`constructor` keys must never mutate a
   // prototype. Read at assertion time, so it reflects any live mutation.
@@ -83,7 +83,7 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
     expect(Object.getPrototypeOf({})).toBe(Object.prototype);
   });
 
-  it("never makes a __proto__ attribute a live custom attribute, and does not pollute", () => {
+  it("never turns a __proto__ attribute into a live attribute", () => {
     // The record parser drops `__proto__` before it can become a definition:
     // attributes end up empty (applied), never a live attribute, no pollution.
     const content =
@@ -101,11 +101,7 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
     expect(result.collisions).toEqual([]);
   });
 
-  it("rejects a constructor-named attribute (fails safe), with no pollution", () => {
-    // Rejection here is INCIDENTAL, not a deliberate guard: the own
-    // `constructor` property shadows the record's, so zod's `isPlainObject`
-    // fails it. If a dependency upgrade changes that heuristic, the fix is an
-    // explicit `constructor`/`prototype` reject in attribute-name validation.
+  it("rejects a constructor-named attribute without polluting", () => {
     const content =
       "version: 1\nattributes:\n  constructor:\n    criteria: x\n";
     const result = validateRepoConfig({ policy: policyFile(content) });
@@ -113,9 +109,16 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
     expect(result.policy).toBeUndefined();
     expect(freshProbe["criteria"]).toBeUndefined();
   });
+
+  it("rejects a prototype-named attribute", () => {
+    const content = "version: 1\nattributes:\n  prototype:\n    criteria: x\n";
+    const result = validateRepoConfig({ policy: policyFile(content) });
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+    expect(result.policy).toBeUndefined();
+  });
 });
 
-describe("validateRepoConfig — error hygiene (no content echo)", () => {
+describe("validateRepoConfig error hygiene", () => {
   const CANARY = "SECRET-CANARY-9f3a";
 
   function assertNoCanary(result: ReturnType<typeof validateRepoConfig>) {
@@ -127,7 +130,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     expect(JSON.stringify(result.outcomes)).not.toContain(CANARY);
   }
 
-  it("does not echo the file's text in a YAML parse error (settings)", () => {
+  it("does not echo settings text in a YAML parse error", () => {
     // Unbalanced brackets + a canary value → yaml throws; detail must be a class message.
     const bad = `version: 1\nentryCommentOnDrafts: [${CANARY}\nbroken: {${CANARY}`;
     const result = validateRepoConfig({ settings: settingsFile(bad) });
@@ -136,7 +139,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     assertNoCanary(result);
   });
 
-  it("does not echo the file's text in a YAML parse error (policy)", () => {
+  it("does not echo policy text in a YAML parse error", () => {
     const bad = `version: 1\nattributes:\n  my-attr:\n    criteria: "${CANARY}\n  : : :`;
     const result = validateRepoConfig({ policy: policyFile(bad) });
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
@@ -144,7 +147,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
   });
 
   it("does not echo values or key names in a schema-invalid error", () => {
-    // A canary as an unknown key name and as a value — neither may surface.
+    // A canary as an unknown key name and as a value; neither may surface.
     const content = yaml({
       version: 1,
       [CANARY]: CANARY,
@@ -155,9 +158,9 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     assertNoCanary(result);
   });
 
-  it("suppresses the YAML parser's warning channel (no source echo to process warnings)", () => {
+  it("keeps the YAML parser from echoing source to process warnings", () => {
     // At the default log level, an unresolved tag makes the yaml lib emit the
-    // offending source line via process.emitWarning — a content leak. The parse
+    // offending source line via process.emitWarning, a content leak. The parse
     // must run silent.
     const emitted: string[] = [];
     const spy = vi
@@ -171,7 +174,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     expect(emitted.join("")).not.toContain(CANARY);
   });
 
-  it("does not echo an off-charset attribute NAME via a policy invalid_key path", () => {
+  it("does not echo an off-charset attribute name via invalid_key", () => {
     // Zod's invalid_key issue carries the raw record key in its path; the
     // sanitized detail must not surface it.
     const content = yaml({
@@ -183,7 +186,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     assertNoCanary(result);
   });
 
-  it("does not echo an attribute NAME that collides with a safe path-segment word", () => {
+  it("does not echo an attribute name that matches a path-segment word", () => {
     // `criteria` is a valid custom attribute name AND a structural field word;
     // at the record-key position it must still be redacted.
     const content = yaml({
