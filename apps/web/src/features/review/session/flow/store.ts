@@ -1,10 +1,10 @@
+import { DraftCommentStatuses } from "types/comments";
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
 import {
   isLineCommentAnchor,
-  ReviewCommentStatuses,
   type CommentAnchor,
   type LineSelection,
 } from "../../utils/comments";
@@ -300,7 +300,7 @@ export function createReviewFlowStore(
             const saved = await session.saveComment({
               anchor,
               body: trimmed,
-              status: ReviewCommentStatuses.DRAFT,
+              status: DraftCommentStatuses.DRAFT,
               collapsed: false,
             });
             if (saved) {

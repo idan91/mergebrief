@@ -1,7 +1,11 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 import {
   buildSuggestionDiffRows,
@@ -13,7 +17,6 @@ import {
   MAX_POSTED_COMMENT_LENGTH,
   postCommentBlockedReason,
   reviewCommentSubmitLabel,
-  ReviewCommentStatuses,
   countDraftComments,
   findDraftComment,
   type ReviewComment,
@@ -315,7 +318,7 @@ describe("resolveJumpChunkId", () => {
             selectedText: "",
           },
           body: "note",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           collapsed: false,
         },
         [{ id: "other", file: "src/a.ts" }],
@@ -330,7 +333,7 @@ describe("resolveJumpChunkId", () => {
           id: "c1",
           anchor: createFileCommentAnchor("src/a.ts"),
           body: "note",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           collapsed: false,
         },
         [
@@ -348,7 +351,7 @@ describe("resolveJumpChunkId", () => {
           id: "c1",
           anchor: createFileCommentAnchor("gone.ts"),
           body: "note",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           collapsed: false,
         },
         [{ id: "first", file: "src/a.ts" }],
@@ -387,15 +390,15 @@ describe("countDraftComments", () => {
   it("counts draft line and file comments and ignores submitted", () => {
     expect(
       countDraftComments([
-        makeComment({ id: "line-draft", status: ReviewCommentStatuses.DRAFT }),
+        makeComment({ id: "line-draft", status: DraftCommentStatuses.DRAFT }),
         makeComment({
           id: "file-draft",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           file: true,
         }),
         makeComment({
           id: "submitted",
-          status: ReviewCommentStatuses.SUBMITTED,
+          status: DraftCommentStatuses.SUBMITTED,
         }),
       ]),
     ).toBe(2);
@@ -407,10 +410,10 @@ describe("countDraftComments", () => {
 });
 
 describe("findDraftComment", () => {
-  const draft = makeComment({ id: "a", status: ReviewCommentStatuses.DRAFT });
+  const draft = makeComment({ id: "a", status: DraftCommentStatuses.DRAFT });
   const submitted = makeComment({
     id: "b",
-    status: ReviewCommentStatuses.SUBMITTED,
+    status: DraftCommentStatuses.SUBMITTED,
   });
 
   it("finds the draft by id", () => {

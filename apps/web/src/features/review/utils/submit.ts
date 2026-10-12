@@ -3,7 +3,13 @@
 // below rebuilds the exact string the route measures, so it must track
 // `foldCommentsIntoBody` in apps/api's publish module character for character.
 import type { TFunction } from "i18next";
-import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
+import {
+  CommentAnchorKinds,
+  type DiffSide,
+  DiffSides,
+  DraftCommentStatuses,
+  type ReviewOutcome,
+} from "types";
 import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 
 import type {
@@ -11,13 +17,11 @@ import type {
   UnplacedDrafts,
 } from "../session/serverState";
 import {
-  ReviewCommentStatuses,
   isLineCommentAnchor,
   listDraftComments,
   type ReviewComment,
 } from "./comments";
 import type { Receipt } from "./receipt";
-import type { ReviewOutcome } from "./state";
 import type { SubmitReviewResult } from "./types";
 
 /**
@@ -135,7 +139,7 @@ interface FoldedDraft {
 export function listUnplacedDrafts(
   drafts: readonly SessionDraftComment[],
 ): UnplacedDrafts {
-  return drafts.filter((draft) => draft.status === ReviewCommentStatuses.DRAFT);
+  return drafts.filter((draft) => draft.status === DraftCommentStatuses.DRAFT);
 }
 
 function shapeFoldedDraft(draft: ReviewComment): FoldedDraft {

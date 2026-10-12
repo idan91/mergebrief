@@ -4,12 +4,13 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
-import { ReviewSessionProvider, useReviewSession } from "..";
 import {
-  ReviewCommentStatuses,
-  type CommentAnchor,
-} from "../../utils/comments";
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
+import { ReviewSessionProvider, useReviewSession } from "..";
+import { type CommentAnchor } from "../../utils/comments";
 import { useCreateReviewFlowStore } from "./provider";
 
 afterEach(() => {
@@ -150,7 +151,7 @@ describe("flow store per brief", () => {
       result.current.sessionComments.map((comment) => comment.body),
     ).toEqual(["on the new brief"]);
     expect(result.current.sessionComments[0]?.status).toBe(
-      ReviewCommentStatuses.DRAFT,
+      DraftCommentStatuses.DRAFT,
     );
   });
 });

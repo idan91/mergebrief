@@ -4,10 +4,11 @@ import type {
   DiffSide,
   DispositionCarryStatus,
   DispositionDecision,
+  ReviewOutcome,
 } from "types";
 import type { BriefViewModel } from "@web/features/brief/model";
 import type { ReviewComment } from "../utils/comments";
-import type { ReviewOutcome, RiskEvidence } from "../utils/state";
+import type { RiskEvidence } from "../utils/state";
 import type { SessionAttentionItem } from "./attention";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 import {

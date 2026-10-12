@@ -1,3 +1,4 @@
+import type { ReviewOutcome } from "types/reviews";
 import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
@@ -8,7 +9,7 @@ import { MarkdownTextareaFrames } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { useReviewActions } from "../../session/flow/provider";
-import { reviewOutcomeLabel, type ReviewOutcome } from "../../utils/state";
+import { reviewOutcomeLabel } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
 
 const OUTCOMES: readonly ReviewOutcome[] = [

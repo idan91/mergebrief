@@ -1,21 +1,18 @@
+import type { DispositionEvidenceKind } from "types/dispositions";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Button } from "@web/components/Button";
 import { Modal } from "@web/components/Modal";
 import type { ReviewComment } from "../../utils/comments";
-import {
-  commentLocation,
-  type EvidenceTarget,
-  type RiskEvidenceKind,
-} from "../../utils/state";
+import { commentLocation, type EvidenceTarget } from "../../utils/state";
 import styles from "@web/components/Modal/Modal.module.scss";
 
 export interface EvidenceModalProps {
   cancel: () => void;
   comments: ReviewComment[];
   confirm: (
-    kind: RiskEvidenceKind,
+    kind: DispositionEvidenceKind,
     commentId: string | undefined,
     note: string | undefined,
   ) => void;
@@ -52,7 +49,7 @@ export interface EvidenceFormProps {
   cancel: () => void;
   comments: ReviewComment[];
   confirm: (
-    kind: RiskEvidenceKind,
+    kind: DispositionEvidenceKind,
     commentId: string | undefined,
     note: string | undefined,
   ) => void;
@@ -69,7 +66,7 @@ function EvidenceForm({
   target,
 }: EvidenceFormProps) {
   const { t } = useTranslation();
-  const [kind, setKind] = useState<RiskEvidenceKind>(
+  const [kind, setKind] = useState<DispositionEvidenceKind>(
     comments.length > 0 ? "linked-comment" : "chunk-reviewed",
   );
   const [commentId, setCommentId] = useState(comments[0]?.id ?? "");

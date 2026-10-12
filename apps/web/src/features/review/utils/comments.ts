@@ -7,7 +7,8 @@ import {
   type CommentAnchorKind,
   DiffSides,
   type DiffSide,
-  type ValueOf,
+  DraftCommentStatuses,
+  type DraftCommentStatus,
 } from "types";
 
 export interface CommentAnchorBase {
@@ -52,17 +53,11 @@ export interface FileCommentAnchor extends CommentAnchorBase {
 
 export type CommentAnchor = LineCommentAnchor | FileCommentAnchor;
 
-export const ReviewCommentStatuses = {
-  DRAFT: "draft",
-  SUBMITTED: "submitted",
-} as const;
-export type ReviewCommentStatus = ValueOf<typeof ReviewCommentStatuses>;
-
 export interface ReviewComment {
   id: string;
   anchor: CommentAnchor;
   body: string;
-  status: ReviewCommentStatus;
+  status: DraftCommentStatus;
   collapsed: boolean;
 }
 
@@ -70,7 +65,7 @@ export function listDraftComments(
   comments: readonly ReviewComment[],
 ): ReviewComment[] {
   return comments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+    (comment) => comment.status === DraftCommentStatuses.DRAFT,
   );
 }
 
@@ -84,7 +79,7 @@ export function findDraftComment(
   }
   return comments.find(
     (comment) =>
-      comment.id === id && comment.status === ReviewCommentStatuses.DRAFT,
+      comment.id === id && comment.status === DraftCommentStatuses.DRAFT,
   );
 }
 

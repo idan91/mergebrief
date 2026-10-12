@@ -5,7 +5,6 @@
 // matching an own server thread is reported for flipping, so a missed
 // sessionStorage flip can never re-ship posted comments.
 import {
-  ReviewCommentStatuses,
   isLineCommentAnchor,
   type ReviewComment,
 } from "@web/features/review/utils";
@@ -15,7 +14,7 @@ import {
   type ConversationThread,
   type ThreadSide,
 } from "../types";
-import { DiffSides, type DiffSide } from "types/comments";
+import { DiffSides, type DiffSide, DraftCommentStatuses } from "types/comments";
 
 export interface OwnCommentReconciliation {
   /** Root comment ids of threads created by this reviewer's recorded submits. */
@@ -84,7 +83,7 @@ export function reconcileOwnComments(
   const resurrectedDraftIds = localComments
     .filter(
       (comment) =>
-        comment.status === ReviewCommentStatuses.DRAFT &&
+        comment.status === DraftCommentStatuses.DRAFT &&
         pointers.has(comment.id),
     )
     .map((comment) => comment.id);
@@ -154,7 +153,7 @@ export function demotedSubmittedCommentIds(
   ownThreads: readonly ConversationThread[],
 ): ReadonlySet<string> {
   const submitted = localComments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
+    (comment) => comment.status === DraftCommentStatuses.SUBMITTED,
   );
   return new Set(matchLocalsToOwnThreads(submitted, ownThreads).keys());
 }

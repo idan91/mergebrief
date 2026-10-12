@@ -15,8 +15,7 @@ import {
   type SessionWrites,
 } from ".";
 import { makeSessionReadDriver } from "../utils/session-read-driver";
-import { CommentAnchorKinds } from "types/comments";
-import { ReviewCommentStatuses } from "../utils/comments";
+import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import type { SessionDraftComment } from "./serverState";
 import type { SessionWriteResult } from "./writes";
 
@@ -327,7 +326,7 @@ describe("ReviewSessionProvider reads", () => {
       filePath: "src/elsewhere.ts",
       kind: CommentAnchorKinds.FILE,
       body: "left the brief",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     const read = makeReadSource();
     const { result } = renderSession({

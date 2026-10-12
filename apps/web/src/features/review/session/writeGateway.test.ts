@@ -6,8 +6,7 @@ import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
 import { createSessionWriteGateway } from "./writeGateway";
 import type { SessionWrites } from "./writes";
-import { CommentAnchorKinds } from "types/comments";
-import { ReviewCommentStatuses } from "../utils/comments";
+import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]?.id;
@@ -70,7 +69,7 @@ describe("createSessionWriteGateway", () => {
     await gateway.createComment({
       anchor: { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" },
       body: "on the file",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(writes.createDraft).toHaveBeenCalledWith({

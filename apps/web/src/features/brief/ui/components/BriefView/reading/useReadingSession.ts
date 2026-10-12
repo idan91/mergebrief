@@ -2,6 +2,7 @@
 // progress/receipt derivation, and the scroll/nav machinery (scroll to target,
 // scroll-spy, focus mode, read-through). Exposes only the members the screen
 // (or a sibling flow hook) consumes.
+import type { ReviewOutcome } from "types/reviews";
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { createI18n } from "i18n";
 import { useStore } from "zustand";
@@ -13,7 +14,6 @@ import {
   deriveUnresolvedItems,
   type Receipt,
   type ReviewComment,
-  type ReviewOutcome,
   type UnresolvedItem,
 } from "@web/features/review/utils";
 import {

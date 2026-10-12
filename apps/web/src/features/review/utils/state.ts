@@ -6,9 +6,13 @@ import {
   isUnattributedRemainderChunk,
   type RiskFlag,
 } from "@web/features/brief/model";
-import { CommentAnchorKinds } from "types/comments";
 import {
-  ReviewCommentStatuses,
+  CommentAnchorKinds,
+  type DispositionEvidenceKind,
+  DraftCommentStatuses,
+  type ReviewOutcome,
+} from "types";
+import {
   resolveJumpChunkId,
   isFileCommentAnchor,
   isLineCommentAnchor,
@@ -17,12 +21,6 @@ import {
 import type { Disposition } from "../session/disposition";
 import type { SessionAttentionItem } from "../session/attention";
 import { UnresolvedItemKinds, type UnresolvedItemKind } from "./types";
-
-export type ReviewOutcome = "comment" | "approve" | "request-changes";
-export type RiskEvidenceKind =
-  | "linked-comment"
-  | "chunk-reviewed"
-  | "manual-note";
 
 /**
  * @description A batch of flags a dismiss modal is open FOR, with its display
@@ -41,7 +39,7 @@ export interface EvidenceTarget {
 }
 
 export interface RiskEvidence {
-  kind: RiskEvidenceKind;
+  kind: DispositionEvidenceKind;
   commentId?: string;
   chunkId?: string;
   note?: string;
@@ -185,7 +183,7 @@ export function deriveUnresolvedItems(
   }
 
   for (const comment of input.comments) {
-    if (comment.status === ReviewCommentStatuses.DRAFT) {
+    if (comment.status === DraftCommentStatuses.DRAFT) {
       items.push({
         id: `comment:${comment.id}`,
         kind: UnresolvedItemKinds.DRAFT_COMMENT,
@@ -302,7 +300,7 @@ function buildCarriedDraftItem(
   }
   const live = input.comments.find(
     (comment) =>
-      comment.id === id && comment.status === ReviewCommentStatuses.DRAFT,
+      comment.id === id && comment.status === DraftCommentStatuses.DRAFT,
   );
   if (live !== undefined) {
     // Re-anchored: the draft the reviewer re-placed no longer sits where the

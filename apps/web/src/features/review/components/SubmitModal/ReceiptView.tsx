@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { Button } from "@web/components/Button";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { receiptText, type Receipt } from "../../utils/receipt";
-import { type ReviewOutcome } from "../../utils/state";
+import type { ReviewOutcome } from "types/reviews";
 import { ReceiptAccordion } from "./ReceiptAccordion";
 import styles from "./SubmitModal.module.scss";
 

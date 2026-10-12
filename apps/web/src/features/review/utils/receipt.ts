@@ -5,12 +5,13 @@ import type {
   BriefViewModel,
   RepoConfigContext,
 } from "@web/features/brief/model";
-import { CommentAnchorKinds, type DiffSide } from "types/comments";
 import {
-  isFileCommentAnchor,
-  ReviewCommentStatuses,
-  type ReviewCommentStatus,
-} from "./comments";
+  CommentAnchorKinds,
+  type DiffSide,
+  DraftCommentStatuses,
+  type DraftCommentStatus,
+} from "types/comments";
+import { isFileCommentAnchor } from "./comments";
 import type { SessionSnapshot } from "../session";
 import {
   riskDispositionCounts,
@@ -68,7 +69,7 @@ export interface ReceiptCommentBase {
    * @description `draft` ships on the NEXT submit; `submitted` was already
    * posted to GitHub by an earlier one.
    */
-  status: ReviewCommentStatus;
+  status: DraftCommentStatus;
 }
 
 export interface ReceiptLineComment extends ReceiptCommentBase {
@@ -376,11 +377,11 @@ function renderProgressLines(receipt: Receipt): string[] {
   const chunksDone = progress.reviewedChunks >= progress.chunkTotal;
   const surfaceDone = addressed.length + dismissed.length >= progress.flagTotal;
   const posted = comments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
+    (comment) => comment.status === DraftCommentStatuses.SUBMITTED,
   );
   const postedPart = posted.length > 0 ? ` · ${posted.length} posted` : "";
   const drafts = comments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+    (comment) => comment.status === DraftCommentStatuses.DRAFT,
   );
 
   return [
@@ -429,10 +430,10 @@ function rawReceiptText(receipt: Receipt): string {
   // Drafts ship on the next submit; submitted ones were already posted and
   // are listed as the record they are.
   const drafts = comments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+    (comment) => comment.status === DraftCommentStatuses.DRAFT,
   );
   const posted = comments.filter(
-    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
+    (comment) => comment.status === DraftCommentStatuses.SUBMITTED,
   );
 
   // One array entry per receipt line. An empty section contributes an empty

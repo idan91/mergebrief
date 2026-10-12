@@ -1,9 +1,15 @@
 // Closure-free BriefView logic: derivations extracted from the view hooks
 // so they are unit-testable directly, without rendering.
+import {
+  type DiffSide,
+  DiffSides,
+  type DispositionEvidenceKind,
+  type Result,
+  type ValueOf,
+} from "types";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
-import { type Result, type ValueOf, type DiffSide, DiffSides } from "types";
 import {
   type RevisionNarrativeSkipReason,
   Specificities,
@@ -13,7 +19,6 @@ import {
 import {
   type LineLinkTarget,
   type RiskEvidence,
-  type RiskEvidenceKind,
 } from "@web/features/review/utils";
 import {
   ViewportBands,
@@ -289,7 +294,7 @@ export function toggleSetMember(
  * falls back to chunk-reviewed on the flag's chunk.
  */
 export function resolveRiskEvidence(
-  kind: RiskEvidenceKind,
+  kind: DispositionEvidenceKind,
   commentId: string | undefined,
   note: string | undefined,
   chunkId: string,

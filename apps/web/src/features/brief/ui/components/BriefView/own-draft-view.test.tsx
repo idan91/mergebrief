@@ -14,6 +14,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import type { DraftCommentStatus } from "types/comments";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../../i18n/I18nProvider";
@@ -91,7 +92,7 @@ function markReadyCta(): HTMLButtonElement {
 function comment(
   id: string,
   chunkId: "chunk-a" | "chunk-b",
-  status: "draft" | "submitted",
+  status: DraftCommentStatus,
 ): ReviewSessionPayload["draftComments"][number] {
   const anchor =
     chunkId === "chunk-a"

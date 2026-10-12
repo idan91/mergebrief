@@ -8,10 +8,14 @@ import {
   GroupViewKinds,
   type RiskFlag,
 } from "@web/features/brief/model";
-import { ReviewCommentStatuses, type ReviewComment } from "./comments";
+import { type ReviewComment } from "./comments";
 import type { SessionAttentionItem } from "../session/attention";
 import type { Disposition } from "../session/disposition";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import {
   deriveCarriedItems,
   deriveUnresolvedItems,
@@ -69,7 +73,7 @@ const reviewComment = {
     selectedText: "return next;",
   },
   body: "Could we cover this branch?",
-  status: ReviewCommentStatuses.DRAFT,
+  status: DraftCommentStatuses.DRAFT,
   collapsed: false,
 } satisfies ReviewComment;
 

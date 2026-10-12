@@ -2,6 +2,7 @@
 // once then accepts, and address-with-evidence; both commit through the session
 // store and sweep the flow store's selection. The TARGETS live in the ReviewFlow
 // store; only the dismiss modal's input state is local here.
+import type { DispositionEvidenceKind } from "types/dispositions";
 import { useCallback, useState } from "react";
 
 import type { DismissTarget } from "@web/features/review";
@@ -11,10 +12,7 @@ import {
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
-import type {
-  RiskEvidence,
-  RiskEvidenceKind,
-} from "@web/features/review/utils";
+import type { RiskEvidence } from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../model/utils/view-model";
 import { resolveRiskEvidence } from "../utils";
 import { useTranslation } from "react-i18next";
@@ -34,7 +32,7 @@ export interface UseRiskFlagModalsFacadeValue {
   evidenceTarget: EvidenceTarget | null;
   cancelEvidence: () => void;
   confirmEvidence: (
-    kind: RiskEvidenceKind,
+    kind: DispositionEvidenceKind,
     commentId: string | undefined,
     note: string | undefined,
   ) => void;
@@ -101,7 +99,7 @@ export function useRiskFlagModalsFacade(
 
   const confirmEvidence = useCallback(
     (
-      kind: RiskEvidenceKind,
+      kind: DispositionEvidenceKind,
       commentId: string | undefined,
       note: string | undefined,
     ) => {

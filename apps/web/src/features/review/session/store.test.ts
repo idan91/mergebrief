@@ -2,13 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
-import { ReviewCommentStatuses, type ReviewComment } from "../utils/comments";
+import { type ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import { createReviewSessionStore, deriveInitialState } from "./store";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -131,7 +135,7 @@ describe("comments + outcome", () => {
         selectedText: "validate(a);",
       },
       body: "first",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     };
     const commentId = "chunk-a-new-10-10-1";
@@ -163,13 +167,13 @@ describe("comments + outcome", () => {
     void store.getState().actions.saveComment({
       anchor,
       body: "same-side",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     void store.getState().actions.saveComment({
       anchor: { ...anchor, startSide: DiffSides.OLD },
       body: "two-side",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     const ids = store.getState().reviewComments.map((comment) => comment.id);
@@ -190,7 +194,7 @@ describe("comments + outcome", () => {
         selectedText: "validate(a);",
       },
       body: "posted text",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     };
     void store.getState().actions.saveComment(comment);
@@ -222,7 +226,7 @@ describe("comments + outcome", () => {
         selectedText: "validate(a);",
       },
       body: "first",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     };
     void store.getState().actions.saveComment(comment);
@@ -251,14 +255,14 @@ describe("comments + outcome", () => {
           filePath: "src/gone.ts",
           kind: CommentAnchorKinds.FILE,
           body: "left the brief",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
         },
         {
           id: "kept",
           filePath: "src/kept.ts",
           kind: CommentAnchorKinds.FILE,
           body: "added after the click",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
         },
       ],
     });
@@ -274,7 +278,7 @@ describe("comments + outcome", () => {
     void store.getState().actions.saveComment({
       anchor: { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" },
       body: "on the file",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(store.getState().reviewComments[0]?.id).toBe("file-src/leak.ts-1");
@@ -409,7 +413,7 @@ describe("per-action writes", () => {
     const saved = await store.getState().actions.saveComment({
       anchor: anchorFor("c1"),
       body: "look here",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(saved).toBe(true);
@@ -421,7 +425,7 @@ describe("per-action writes", () => {
     const saved = await store.getState().actions.saveComment({
       anchor: anchorFor("c1"),
       body: "look here",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(saved).toBe(false);

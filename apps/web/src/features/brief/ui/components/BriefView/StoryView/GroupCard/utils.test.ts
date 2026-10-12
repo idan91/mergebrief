@@ -4,12 +4,13 @@
 // linked-id half of the filter would render "evidence comment missing" for a
 // disposition the reviewer legitimately recorded.
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
-
 import {
-  ReviewCommentStatuses,
-  type ReviewComment,
-} from "@web/features/review/utils";
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
+
+import { type ReviewComment } from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../../model/utils/view-model";
 import { selectGroupReviewComments } from "./utils";
 
@@ -27,7 +28,7 @@ function comment(id: string, chunkId: string): ReviewComment {
       selectedText: "",
     },
     body: `${id} body`,
-    status: ReviewCommentStatuses.DRAFT,
+    status: DraftCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -102,7 +103,7 @@ describe("selectGroupReviewComments", () => {
         file: "src/x.ts",
       },
       body: "on the file",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     };
     const result = selectGroupReviewComments(

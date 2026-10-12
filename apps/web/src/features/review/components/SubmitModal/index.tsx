@@ -1,9 +1,10 @@
+import type { ReviewOutcome } from "types/reviews";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Modal } from "@web/components/Modal";
 import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
 import { type Receipt } from "../../utils/receipt";
-import { type ReviewOutcome, type UnresolvedItem } from "../../utils/state";
+import { type UnresolvedItem } from "../../utils/state";
 import { AdvisoryView } from "./AdvisoryView";
 import { ReceiptView } from "./ReceiptView";
 import { VerdictView } from "./VerdictView";

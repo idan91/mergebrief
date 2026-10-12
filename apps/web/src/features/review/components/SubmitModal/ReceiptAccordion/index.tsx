@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { Receipt } from "../../../utils/receipt";
-import type { ReviewOutcome } from "../../../utils/state";
+import type { ReviewOutcome } from "types/reviews";
 import { CommentList } from "./CommentList";
 import { CoverageMetrics } from "./CoverageMetrics";
 import { NotCheckedList } from "./NotCheckedList";

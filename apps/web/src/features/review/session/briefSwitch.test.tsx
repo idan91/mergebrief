@@ -10,8 +10,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
-import { CommentAnchorKinds } from "types/comments";
-import { ReviewCommentStatuses } from "../utils/comments";
+import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import { ReviewSessionProvider, useReviewSession, useUnplacedDrafts } from ".";
 import type { ReviewSessionPayload, SessionDraftComment } from "./serverState";
 
@@ -37,7 +36,7 @@ const GONE_DRAFT: SessionDraftComment = {
   filePath: "src/gone.ts",
   kind: CommentAnchorKinds.FILE,
   body: "left the brief",
-  status: ReviewCommentStatuses.DRAFT,
+  status: DraftCommentStatuses.DRAFT,
 };
 
 function sessionWithUnplacedDraft(): ReviewSessionPayload {

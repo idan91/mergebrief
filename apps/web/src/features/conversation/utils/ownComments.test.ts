@@ -1,11 +1,15 @@
 // Server-backed threads win on exact review-id joins while local records retain links.
 // Matching drafts must become submitted so a missed local flip cannot resurrect a post.
-import { describe, expect, it } from "vitest";
 import {
-  ReviewCommentStatuses,
-  type ReviewComment,
-  type ReviewCommentStatus,
-} from "@web/features/review/utils";
+  CommentAnchorKinds,
+  type DiffSide,
+  DiffSides,
+  type DraftCommentStatus,
+  DraftCommentStatuses,
+  type Mutable,
+} from "types";
+import { describe, expect, it } from "vitest";
+import { type ReviewComment } from "@web/features/review/utils";
 import {
   ThreadSubjectTypes,
   ThreadSides,
@@ -13,12 +17,6 @@ import {
   type ConversationThread,
   type ThreadSide,
 } from "../types";
-import {
-  CommentAnchorKinds,
-  type Mutable,
-  DiffSides,
-  type DiffSide,
-} from "types";
 import {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
@@ -31,7 +29,7 @@ function localComment(overrides: {
   startLine?: number;
   endLine?: number;
   body?: string;
-  status?: ReviewCommentStatus;
+  status?: DraftCommentStatus;
 }): ReviewComment {
   return {
     id: overrides.id,
@@ -46,7 +44,7 @@ function localComment(overrides: {
       selectedText: "added line",
     },
     body: overrides.body ?? "my note",
-    status: overrides.status ?? ReviewCommentStatuses.SUBMITTED,
+    status: overrides.status ?? DraftCommentStatuses.SUBMITTED,
     collapsed: false,
   };
 }
@@ -164,7 +162,7 @@ describe("reconcileOwnComments", () => {
       [
         localComment({
           id: "ghost-draft",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
         }),
       ],
       [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
@@ -183,12 +181,12 @@ describe("reconcileOwnComments", () => {
       [
         localComment({
           id: "unposted",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           body: "different note",
         }),
         localComment({
           id: "posted",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           body: "exact note",
         }),
       ],
@@ -213,7 +211,7 @@ describe("reconcileOwnComments", () => {
     const stripped = { ...sideless };
     delete (stripped as { side?: unknown }).side;
     const result = reconcileOwnComments(
-      [localComment({ id: "draft-1", status: ReviewCommentStatuses.DRAFT })],
+      [localComment({ id: "draft-1", status: DraftCommentStatuses.DRAFT })],
       [stripped],
       [MY_REVIEW],
     );
@@ -239,7 +237,7 @@ describe("reconcileOwnComments", () => {
       [
         localComment({
           id: "still-draft",
-          status: ReviewCommentStatuses.DRAFT,
+          status: DraftCommentStatuses.DRAFT,
           endLine: 42,
         }),
       ],
@@ -268,7 +266,7 @@ describe("demotedSubmittedCommentIds display half", () => {
         [
           localComment({
             id: "local-1",
-            status: ReviewCommentStatuses.SUBMITTED,
+            status: DraftCommentStatuses.SUBMITTED,
           }),
         ],
         [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
@@ -280,10 +278,10 @@ describe("demotedSubmittedCommentIds display half", () => {
     expect(
       demotedSubmittedCommentIds(
         [
-          localComment({ id: "draft-1", status: ReviewCommentStatuses.DRAFT }),
+          localComment({ id: "draft-1", status: DraftCommentStatuses.DRAFT }),
           localComment({
             id: "other-line",
-            status: ReviewCommentStatuses.SUBMITTED,
+            status: DraftCommentStatuses.SUBMITTED,
             endLine: 40,
           }),
         ],
@@ -298,7 +296,7 @@ describe("demotedSubmittedCommentIds display half", () => {
         [
           localComment({
             id: "local-1",
-            status: ReviewCommentStatuses.SUBMITTED,
+            status: DraftCommentStatuses.SUBMITTED,
           }),
         ],
         [],
@@ -311,7 +309,7 @@ describe("demotedSubmittedCommentIds display half", () => {
       id: "file-local",
       anchor: { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
       body: "on the file",
-      status: ReviewCommentStatuses.SUBMITTED,
+      status: DraftCommentStatuses.SUBMITTED,
       collapsed: false,
     };
     const rootComment: Mutable<ConversationComment> = {

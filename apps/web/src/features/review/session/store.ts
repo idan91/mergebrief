@@ -1,16 +1,19 @@
+import {
+  type ChangeGroupCategory,
+  DraftCommentStatuses,
+  type ReviewOutcome,
+} from "types";
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { ChangeGroupCategory } from "types";
 import { type BriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   isFileCommentAnchor,
-  ReviewCommentStatuses,
   type CommentAnchor,
   type LineCommentAnchor,
   type ReviewComment,
 } from "../utils/comments";
-import type { ReviewOutcome, RiskEvidence } from "../utils/state";
+import type { RiskEvidence } from "../utils/state";
 import type { SessionAttentionItem } from "./attention";
 import type { BulkDisposition, Disposition } from "./disposition";
 import { createSessionLedger } from "./ledger";
@@ -436,7 +439,7 @@ export function createReviewSessionStore(
           const before = get().reviewComments.find(
             (comment) =>
               comment.id === id &&
-              comment.status === ReviewCommentStatuses.DRAFT,
+              comment.status === DraftCommentStatuses.DRAFT,
           );
           if (before === undefined) {
             return;
@@ -445,8 +448,7 @@ export function createReviewSessionStore(
             reviewComments: state.reviewComments.map((comment) =>
               // Submitted comments are immutable: GitHub holds the posted text,
               // and a local edit would never ship (re-submits are drafts-only).
-              comment.id === id &&
-              comment.status === ReviewCommentStatuses.DRAFT
+              comment.id === id && comment.status === DraftCommentStatuses.DRAFT
                 ? { ...comment, body, collapsed: false }
                 : comment,
             ),
@@ -466,15 +468,14 @@ export function createReviewSessionStore(
           const before = get().reviewComments.find(
             (comment) =>
               comment.id === id &&
-              comment.status === ReviewCommentStatuses.DRAFT,
+              comment.status === DraftCommentStatuses.DRAFT,
           );
           if (before === undefined) {
             return false;
           }
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
-              comment.id === id &&
-              comment.status === ReviewCommentStatuses.DRAFT
+              comment.id === id && comment.status === DraftCommentStatuses.DRAFT
                 ? { ...comment, anchor, collapsed: false }
                 : comment,
             ),
@@ -512,7 +513,7 @@ export function createReviewSessionStore(
           const index = comments.findIndex(
             (comment) =>
               comment.id === id &&
-              comment.status === ReviewCommentStatuses.DRAFT,
+              comment.status === DraftCommentStatuses.DRAFT,
           );
           const removed = comments[index];
           if (removed === undefined) {
@@ -522,7 +523,7 @@ export function createReviewSessionStore(
             reviewComments: state.reviewComments.filter(
               (comment) =>
                 comment.id !== id ||
-                comment.status === ReviewCommentStatuses.SUBMITTED,
+                comment.status === DraftCommentStatuses.SUBMITTED,
             ),
           }));
           void landed(
@@ -554,13 +555,13 @@ export function createReviewSessionStore(
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
               flipped.has(comment.id)
-                ? { ...comment, status: ReviewCommentStatuses.SUBMITTED }
+                ? { ...comment, status: DraftCommentStatuses.SUBMITTED }
                 : comment,
             ),
             unplacedDrafts: state.unplacedDrafts.map((draft) => {
               const submitted = flipped.has(draft.id);
               return submitted
-                ? { ...draft, status: ReviewCommentStatuses.SUBMITTED }
+                ? { ...draft, status: DraftCommentStatuses.SUBMITTED }
                 : draft;
             }),
           }));

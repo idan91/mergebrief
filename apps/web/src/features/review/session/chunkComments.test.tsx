@@ -7,8 +7,12 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
-import { ReviewCommentStatuses, type CommentAnchor } from "../utils/comments";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { type CommentAnchor } from "../utils/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import {
   ReviewSessionProvider,
   useChunkReviewComments,
@@ -116,7 +120,7 @@ describe("useChunkReviewComments", () => {
         anchor: anchorFor("chunk-a", 11),
         body: "first",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
     });
     const aAfterSave = result.current.a;
@@ -156,13 +160,13 @@ describe("useChunkReviewComments", () => {
         anchor: anchorFor("chunk-a", 11),
         body: "on a",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
       void result.current.actions.saveComment({
         anchor: anchorFor("chunk-b", 21),
         body: "on b",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
     });
     expect(result.current.a.map((comment) => comment.body)).toEqual(["on a"]);
@@ -183,7 +187,7 @@ describe("useChunkReviewComments", () => {
         anchor: { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
         body: "on the file",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
     });
     expect(result.current.a).toEqual([]);
@@ -208,13 +212,13 @@ describe("useReviewCommentsForChunks", () => {
         anchor: anchorFor("chunk-a", 11),
         body: "on a",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
       void result.current.actions.saveComment({
         anchor: anchorFor("chunk-b", 21),
         body: "on b",
         collapsed: false,
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       });
     });
     expect(result.current.both.map((comment) => comment.body)).toEqual([

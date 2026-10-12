@@ -39,8 +39,7 @@ import {
   ReadingPositionProvider,
 } from "../../../reading/reading-position";
 import { ChunkCard, type ChunkCardProps } from "..";
-import { CommentAnchorKinds } from "types/comments";
-import { ReviewCommentStatuses } from "@web/features/review/utils";
+import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import { ThreadSubjectTypes } from "@web/features/conversation/types";
 import { ReviewPostureProvider } from "../../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../../utils/review-posture";
@@ -115,7 +114,7 @@ function makeFileDraftSession(): ReviewSessionPayload {
         kind: CommentAnchorKinds.FILE,
         filePath: chunk.file,
         body: "saved file note",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       },
     ],
   };

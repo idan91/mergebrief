@@ -1,10 +1,9 @@
+import { CommentAnchorKinds, DiffSides, DraftCommentStatuses } from "types";
 import { describe, expect, it } from "vitest";
 
-import { CommentAnchorKinds, DiffSides } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
 import {
-  ReviewCommentStatuses,
   type CommentAnchor,
   type FileCommentAnchor,
   type LineCommentAnchor,
@@ -41,7 +40,7 @@ crossChunk.diff = [
 const model = buildBriefViewModel(crossBrief);
 
 function makeDraftFromWire(wire: DraftAnchorWire): SessionDraftComment {
-  const base = { id: "7", body: "draft", status: ReviewCommentStatuses.DRAFT };
+  const base = { id: "7", body: "draft", status: DraftCommentStatuses.DRAFT };
   if (wire.kind === CommentAnchorKinds.FILE) {
     return { ...base, ...wire };
   }
@@ -118,7 +117,7 @@ describe("draft anchors", () => {
       filePath: "src/deleted-since.ts",
       kind: CommentAnchorKinds.FILE,
       body: "gone",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     expect(resolveDraftComments([gone], model)).toEqual({
       reviewComments: [],

@@ -12,7 +12,7 @@ import {
   type ReviewComment,
 } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
-import type { ReviewOutcome } from "../utils/state";
+import type { ReviewOutcome } from "types/reviews";
 import type { SessionDraftComment } from "../session/serverState";
 import type { ReviewSessionActions } from "../session/store";
 import type { ReviewFlowStore } from "../session/flow/store";

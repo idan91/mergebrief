@@ -1,11 +1,8 @@
+import type { ReviewOutcome } from "types/reviews";
 import { useTranslation } from "react-i18next";
 
 import type { Receipt } from "../../../utils/receipt";
-import {
-  reviewOutcomeLabel,
-  summarySignatureLine,
-  type ReviewOutcome,
-} from "../../../utils/state";
+import { reviewOutcomeLabel, summarySignatureLine } from "../../../utils/state";
 import styles from "./ReceiptAccordion.module.scss";
 
 export interface OutcomeCardProps {

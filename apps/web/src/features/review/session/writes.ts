@@ -1,6 +1,13 @@
 // Send one request per action; never queue or retry it implicitly.
 // Snapshot PUTs would clobber concurrent fields and erase per-operation audit/scope checks.
 // Bulk dismiss/address is one operation carrying ids, not a batch of separate writes.
+import type {
+  ChangeGroupCategory,
+  CommentAnchorKinds,
+  DiffSide,
+  Mutable,
+  ReviewOutcome,
+} from "types";
 import type { TranslationKey } from "i18n";
 
 import {
@@ -10,13 +17,7 @@ import {
   type ApiErrorCode,
   type ApiFetchInit,
 } from "../../../data/apiFetch";
-import type {
-  ChangeGroupCategory,
-  CommentAnchorKinds,
-  DiffSide,
-  Mutable,
-} from "types";
-import type { ReviewOutcome, RiskEvidence } from "../utils/state";
+import type { RiskEvidence } from "../utils/state";
 
 /** The Brief a write names, the same span the session read took. */
 export interface SessionWriteTarget {

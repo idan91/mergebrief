@@ -1,7 +1,6 @@
 // Curated utils entry: the review vocabulary other features read. Internal
 // review files import the modules directly, never this index.
 export {
-  ReviewCommentStatuses,
   countAnchorLines,
   resolveJumpChunkId,
   createCommentAnchor,
@@ -19,7 +18,6 @@ export {
   type LineLinkTarget,
   type LineSelection,
   type ReviewComment,
-  type ReviewCommentStatus,
 } from "./comments";
 export { resolveChunkForLine } from "./chunk-for-line";
 export {
@@ -33,9 +31,7 @@ export {
   deriveUnresolvedItems,
   riskEvidenceLabel,
   type CarriedItem,
-  type ReviewOutcome,
   type RiskEvidence,
-  type RiskEvidenceKind,
   type UnresolvedItem,
 } from "./state";
 export {

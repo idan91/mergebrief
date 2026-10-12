@@ -14,10 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
-import {
-  ReviewCommentStatuses,
-  type CommentAnchor,
-} from "../../utils/comments";
+import { type CommentAnchor } from "../../utils/comments";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   createReviewFlowStore,
@@ -27,7 +24,11 @@ import {
 } from "../../session";
 import { CommentComposer } from ".";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 afterEach(cleanup);
 
@@ -141,7 +142,7 @@ describe("CommentComposer store-backed submit label", () => {
         startLine: 11,
         endLine: 11,
         body: "existing",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       },
     ]);
     expect(

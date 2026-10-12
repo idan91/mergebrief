@@ -2,11 +2,12 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { type CommentAnchor } from "../../utils/comments";
 import {
-  ReviewCommentStatuses,
-  type CommentAnchor,
-} from "../../utils/comments";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import {
   createReviewFlowStore,
   type ReviewFlowSessionActions,
@@ -78,7 +79,7 @@ describe("ReviewFlow store", () => {
       expect(session.saveComment).toHaveBeenCalledWith({
         anchor,
         body: "looks wrong",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
         collapsed: false,
       });
       // Still open, and saying so, while the write is in flight.

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 import {
   createFileCommentAnchor,
   type LineCommentAnchor,
   type ReviewComment,
-  ReviewCommentStatuses,
 } from "./comments";
 import type { Receipt } from "./receipt";
 import type { SessionDraftComment } from "../session/serverState";
@@ -46,7 +49,7 @@ function comment(
     id,
     anchor: anchor(anchorOverrides),
     body,
-    status: ReviewCommentStatuses.DRAFT,
+    status: DraftCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -72,7 +75,7 @@ function makeUnplacedDraft(
     filePath: "src/gone.ts",
     kind: CommentAnchorKinds.FILE,
     body: "left the brief",
-    status: ReviewCommentStatuses.DRAFT,
+    status: DraftCommentStatuses.DRAFT,
     ...overrides,
   } as SessionDraftComment;
 }
@@ -153,7 +156,7 @@ describe("submitBlockedReason", () => {
   it("blocks a comment submit whose drafts were already submitted", () => {
     const submitted: ReviewComment = {
       ...comment("a"),
-      status: ReviewCommentStatuses.SUBMITTED,
+      status: DraftCommentStatuses.SUBMITTED,
     };
     expect(
       getBlockedReason({ outcome: "comment", comments: [submitted] }),
@@ -211,7 +214,7 @@ describe("submitBlockedReason", () => {
   it("leaves an unplaced draft out once it is submitted", () => {
     const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
     const posted = makeUnplacedDraft({
-      status: ReviewCommentStatuses.SUBMITTED,
+      status: DraftCommentStatuses.SUBMITTED,
     });
     expect(
       getBlockedReason({ comments: drafts, unplacedDrafts: [posted] }),
@@ -345,7 +348,7 @@ describe("foldDraftsIntoBody", () => {
         startLine: 4,
         endLine: 6,
         body: "gone range",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       },
       {
         id: "gone-crossing",
@@ -356,7 +359,7 @@ describe("foldDraftsIntoBody", () => {
         startLine: 8,
         endLine: 9,
         body: "gone crossing",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       },
     ];
 

@@ -20,10 +20,7 @@ import {
   type Brief,
   type BriefChunk,
 } from "@web/features/brief/model";
-import {
-  ReviewCommentStatuses,
-  type ReviewComment,
-} from "@web/features/review/utils";
+import { type ReviewComment } from "@web/features/review/utils";
 import {
   createReviewFlowStore,
   ReviewSessionProvider,
@@ -37,7 +34,11 @@ import {
   ThreadSides,
   type PrConversation,
 } from "../../types";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
@@ -539,7 +540,7 @@ describe("ConversationSection", () => {
         selectedText: "b",
       },
       body: "This null check looks inverted.",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
       collapsed: false,
     };
     const withOwn = conversation();

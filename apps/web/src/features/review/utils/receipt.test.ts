@@ -1,6 +1,10 @@
 import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 import { Roles } from "brief-core/types";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -10,7 +14,6 @@ import {
   type Brief,
 } from "@web/features/brief/model";
 import type { SessionSnapshot } from "../session";
-import { ReviewCommentStatuses } from "./comments";
 import { buildReceipt } from "./receipt";
 
 const t = createI18n().t;
@@ -160,7 +163,7 @@ describe("buildReceipt", () => {
             id: "c1",
             anchor,
             body: "Please add a test.\nSecond line.",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
             collapsed: false,
           },
           {
@@ -169,7 +172,7 @@ describe("buildReceipt", () => {
             id: "c0",
             anchor,
             body: "Already posted.",
-            status: ReviewCommentStatuses.SUBMITTED,
+            status: DraftCommentStatuses.SUBMITTED,
             collapsed: false,
           },
         ],
@@ -187,7 +190,7 @@ describe("buildReceipt", () => {
         startLine: 10,
         endLine: 12,
         firstLine: "Please add a test.",
-        status: ReviewCommentStatuses.DRAFT,
+        status: DraftCommentStatuses.DRAFT,
       },
       {
         id: "c0",
@@ -197,7 +200,7 @@ describe("buildReceipt", () => {
         startLine: 10,
         endLine: 12,
         firstLine: "Already posted.",
-        status: ReviewCommentStatuses.SUBMITTED,
+        status: DraftCommentStatuses.SUBMITTED,
       },
     ]);
   });

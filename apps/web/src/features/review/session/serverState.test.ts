@@ -1,20 +1,24 @@
 // The wire→store resolution: the payload is keyed by content anchors, the
 // store by brief-local ids, and everything that does not resolve is dropped
 // rather than guessed at.
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+  type Equals,
+} from "types";
 import { describe, expect, it } from "vitest";
 
 import type {
   FileDraftCommentPayload,
   LineDraftCommentPayload,
 } from "contract";
-import { CommentAnchorKinds, type Equals, DiffSides } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   createFileCommentAnchor,
   isLineCommentAnchor,
   type ReviewComment,
-  ReviewCommentStatuses,
 } from "../utils/comments";
 import {
   emptySessionPayload,
@@ -102,7 +106,7 @@ describe("sessionInitialState", () => {
             startLine: line,
             endLine: line,
             body: "carried draft",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
           // No chunk in this Brief owns this file, dropped, not guessed.
           {
@@ -113,7 +117,7 @@ describe("sessionInitialState", () => {
             startLine: 1,
             endLine: 1,
             body: "orphan",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),
@@ -139,14 +143,14 @@ describe("sessionInitialState", () => {
             filePath: chunk.file,
             kind: CommentAnchorKinds.FILE,
             body: "whole file",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
           {
             id: "52",
             filePath: "src/deleted-since.ts",
             kind: CommentAnchorKinds.FILE,
             body: "orphan file",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),
@@ -167,7 +171,7 @@ describe("sessionInitialState", () => {
       filePath: "src/deleted-since.ts",
       kind: CommentAnchorKinds.FILE,
       body: "gone file",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     const goneLine: SessionDraftComment = {
       id: "72",
@@ -177,7 +181,7 @@ describe("sessionInitialState", () => {
       startLine: 4,
       endLine: 6,
       body: "gone line",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     const state = sessionInitialState(
       model,
@@ -189,7 +193,7 @@ describe("sessionInitialState", () => {
             filePath: chunk.file,
             kind: CommentAnchorKinds.FILE,
             body: "placed",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
           goneLine,
         ],
@@ -240,7 +244,7 @@ describe("sessionInitialState", () => {
             startLine: 50,
             endLine: 50,
             body: "leftover line",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),
@@ -326,7 +330,7 @@ describe("sessionInitialState", () => {
             startLine: 10,
             endLine: 12,
             body: "spans both sides",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),
@@ -373,7 +377,7 @@ describe("sessionInitialState", () => {
             startLine: 10,
             endLine: 20,
             body: "backwards across blocks",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),
@@ -402,7 +406,7 @@ describe("sessionInitialState", () => {
             startLine: 5,
             endLine: 10,
             body: "unresolvable start",
-            status: ReviewCommentStatuses.DRAFT,
+            status: DraftCommentStatuses.DRAFT,
           },
         ],
       }),

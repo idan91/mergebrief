@@ -1,7 +1,7 @@
-import type { ChangeGroupCategory } from "types";
+import type { ChangeGroupCategory, ReviewOutcome } from "types";
 import type { BriefViewModel } from "@web/features/brief/model";
 import type { CommentAnchor, ReviewComment } from "../utils/comments";
-import type { ReviewOutcome, RiskEvidence } from "../utils/state";
+import type { RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
 import {
   buildDraftAnchorWire,

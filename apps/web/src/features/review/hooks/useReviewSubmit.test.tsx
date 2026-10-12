@@ -5,11 +5,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  ReviewCommentStatuses,
-  type CommentAnchor,
-  type ReviewComment,
-} from "../utils/comments";
+import { type CommentAnchor, type ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
 import type { SessionDraftComment } from "../session/serverState";
 import {
@@ -24,7 +20,11 @@ import {
 } from "../utils/submit";
 import type { SubmitReviewResult } from "../utils/types";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
 
 const RECEIPT: Receipt = {
   subject: { repo: "octo/hello", number: 7, sha: "c".repeat(40) },
@@ -53,7 +53,7 @@ function draft(id: string): ReviewComment {
     id,
     anchor: ANCHOR,
     body: "note",
-    status: ReviewCommentStatuses.DRAFT,
+    status: DraftCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -499,7 +499,7 @@ describe("useReviewSubmit", () => {
       filePath: "src/gone.ts",
       kind: CommentAnchorKinds.FILE,
       body: "left the brief",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
 
     const placedOnly = setup({ comments: [filling] });
@@ -524,7 +524,7 @@ describe("useReviewSubmit", () => {
       filePath: "src/gone.ts",
       kind: CommentAnchorKinds.FILE,
       body: "left the brief",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     const { rendered, action } = setup({ unplacedDrafts: [unplaced] });
     action.mockResolvedValue({
@@ -549,7 +549,7 @@ describe("useReviewSubmit", () => {
       filePath: "src/gone.ts",
       kind: CommentAnchorKinds.FILE,
       body: "left the brief",
-      status: ReviewCommentStatuses.DRAFT,
+      status: DraftCommentStatuses.DRAFT,
     };
     const { rendered, action, markSubmitted } = setup({
       unplacedDrafts: [unplaced],
