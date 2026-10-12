@@ -10,6 +10,7 @@ import {
   deletePull,
   unarchivePull,
 } from "./queries";
+import { wireInboxPageFixture as WIRE_PAGE } from "./test-utils";
 import { InboxStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -18,40 +19,6 @@ vi.stubGlobal("fetch", fetchMock);
 afterEach(() => {
   fetchMock.mockReset();
 });
-
-const WIRE_PAGE = {
-  items: [
-    {
-      repoId: "424242",
-      repoSlug: "o/r",
-      prNumber: 7,
-      title: "Retry failed webhook deliveries",
-      state: "open",
-      draft: false,
-      source: "installation",
-      installationId: "10",
-      authorLogin: "mira-k",
-      viewerIsAuthor: false,
-      viewerCanDelete: false,
-      reviewState: "new",
-      behind: false,
-      unreachable: false,
-      generation: { status: "succeeded", updatedAt: "2026-09-20T10:00:00Z" },
-      latestBriefAt: "2026-09-20T10:00:00Z",
-      githubUpdatedAt: "2026-09-20T09:00:00Z",
-      stack: { index: 2, size: 4 },
-    },
-  ],
-  page: 1,
-  pageSize: 25,
-  total: 1,
-  archivedTotal: 0,
-  counts: { new: 1, inProgress: 0, reviewed: 0, updated: 0 },
-  viewer: { login: "octocat", avatarUrl: "https://a/1" },
-  reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
-  repositories: [{ repoId: "424242", repoSlug: "o/r" }],
-  installUrl: "https://github.com/apps/mergebrief/installations/new",
-};
 
 function answerWith(status: number, body: unknown): void {
   fetchMock.mockResolvedValue(

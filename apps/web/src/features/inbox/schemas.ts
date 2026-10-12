@@ -7,6 +7,10 @@ import {
   PrStates,
   PullRequestSources,
 } from "@web/features/pulls/types";
+import { dropNullKeys } from "@web/utils/drop-keys";
+import { parseWithSchema } from "@web/utils/parse-with-schema";
+
+import type { InboxPage } from "./types";
 
 const prStateSchema = z.enum(PrStates);
 const sourceSchema = z.enum(PullRequestSources);
@@ -17,35 +21,34 @@ export const inboxGenerationSchema = z.object({
   updatedAt: z.string(),
 });
 
-const inboxStackSchema = z.object({
+export const inboxStackPositionSchema = z.object({
   index: z.number().int().min(1),
   size: z.number().int().min(1),
 });
 
-export const inboxItemSchema = z.object({
-  repoId: z.string().min(1),
-  repoSlug: z.string().nullable(),
-  prNumber: z.number().int().min(1),
-  title: z.string().nullable(),
-  state: prStateSchema,
-  draft: z.boolean(),
-  source: sourceSchema,
-  installationId: z.string().nullable(),
-  authorLogin: z
-    .string()
-    .nullable()
-    .transform((login) => login ?? undefined)
-    .optional(),
-  viewerIsAuthor: z.boolean(),
-  viewerCanDelete: z.boolean(),
-  reviewState: z.enum(InboxReviewStates).nullable(),
-  behind: z.boolean(),
-  unreachable: z.boolean(),
-  generation: inboxGenerationSchema.nullable(),
-  latestBriefAt: z.string().nullable(),
-  githubUpdatedAt: z.string().nullable(),
-  stack: inboxStackSchema.nullable(),
-});
+export const inboxItemSchema = dropNullKeys(
+  z.object({
+    repoId: z.string().min(1),
+    repoSlug: z.string().nullable(),
+    prNumber: z.number().int().min(1),
+    title: z.string().nullable(),
+    state: prStateSchema,
+    draft: z.boolean(),
+    source: sourceSchema,
+    installationId: z.string().nullable(),
+    authorLogin: z.string().exactOptional(),
+    viewerIsAuthor: z.boolean(),
+    viewerCanDelete: z.boolean(),
+    reviewState: z.enum(InboxReviewStates).nullable(),
+    behind: z.boolean(),
+    unreachable: z.boolean(),
+    generation: inboxGenerationSchema.nullable(),
+    latestBriefAt: z.string().nullable(),
+    githubUpdatedAt: z.string().nullable(),
+    stack: inboxStackPositionSchema.nullable(),
+  }),
+  ["authorLogin"],
+);
 
 export const inboxCountsSchema = z.object({
   new: z.number().int().min(0),
@@ -54,12 +57,12 @@ export const inboxCountsSchema = z.object({
   updated: z.number().int().min(0),
 });
 
-const inboxViewerSchema = z.object({
+export const inboxViewerSchema = z.object({
   login: z.string().nullable(),
   avatarUrl: z.string(),
 });
 
-const reachableInstallationSchema = z.object({
+export const reachableInstallationSchema = z.object({
   installationId: z.string(),
   accountLogin: z.string(),
 });
@@ -82,12 +85,6 @@ export const inboxResponseSchema = z.object({
   installUrl: z.string().nullable(),
 });
 
-export function parseInboxResponse(
-  body: unknown,
-): Result<z.infer<typeof inboxResponseSchema>, string> {
-  const parsed = inboxResponseSchema.safeParse(body);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
-  }
-  return { ok: true, value: parsed.data };
+export function parseInboxResponse(body: unknown): Result<InboxPage, string> {
+  return parseWithSchema(inboxResponseSchema, body);
 }

@@ -7,17 +7,13 @@ import {
   type InboxLayout,
 } from "types/inbox";
 import type { ValueOf } from "types/utils";
-import type { z } from "zod/v4";
 
 import type { ApiErrorCode } from "../../data/apiFetch";
-
 import type {
-  inboxCountsSchema,
-  inboxGenerationSchema,
-  inboxItemSchema,
-  inboxRepositorySchema,
-  inboxResponseSchema,
-} from "./schemas";
+  GenerationStatus,
+  PrState,
+  PullRequestSource,
+} from "@web/features/pulls/types";
 
 /**
  * What the Inbox query answers: a 401 is the signed-out Home and any other
@@ -36,11 +32,73 @@ export const FailureSides = {
 } as const;
 export type FailureSide = ValueOf<typeof FailureSides>;
 
-export type InboxPage = z.infer<typeof inboxResponseSchema>;
-export type InboxItem = z.infer<typeof inboxItemSchema>;
-export type InboxCounts = z.infer<typeof inboxCountsSchema>;
-export type InboxGeneration = z.infer<typeof inboxGenerationSchema>;
-export type InboxRepository = z.infer<typeof inboxRepositorySchema>;
+export interface InboxGeneration {
+  status: GenerationStatus;
+  updatedAt: string;
+}
+
+/** The row's place in its stack, 1-based. */
+export interface InboxStackPosition {
+  index: number;
+  size: number;
+}
+
+export interface InboxItem {
+  repoId: string;
+  repoSlug: string | null;
+  prNumber: number;
+  title: string | null;
+  state: PrState;
+  draft: boolean;
+  source: PullRequestSource;
+  installationId: string | null;
+  /** Absent when GitHub sent no user. */
+  authorLogin?: string;
+  viewerIsAuthor: boolean;
+  viewerCanDelete: boolean;
+  reviewState: InboxReviewState | null;
+  behind: boolean;
+  unreachable: boolean;
+  generation: InboxGeneration | null;
+  latestBriefAt: string | null;
+  githubUpdatedAt: string | null;
+  stack: InboxStackPosition | null;
+}
+
+export interface InboxCounts {
+  new: number;
+  inProgress: number;
+  reviewed: number;
+  updated: number;
+}
+
+export interface InboxViewer {
+  login: string | null;
+  avatarUrl: string;
+}
+
+export interface ReachableInstallation {
+  installationId: string;
+  accountLogin: string;
+}
+
+export interface InboxRepository {
+  repoId: string;
+  repoSlug: string | null;
+}
+
+export interface InboxPage {
+  items: InboxItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  archivedTotal: number;
+  counts: InboxCounts;
+  viewer: InboxViewer;
+  reachableInstallations: ReachableInstallation[];
+  repositories: InboxRepository[];
+  installUrl: string | null;
+}
 
 export const AgeUnits = {
   MINUTES: "minutes",

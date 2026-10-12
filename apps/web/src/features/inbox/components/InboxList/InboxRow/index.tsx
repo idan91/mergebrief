@@ -84,6 +84,7 @@ export function InboxRow({
       t("home.inbox.number", { number: item.prNumber }),
   );
   const repoLabel = item.repoSlug ?? item.repoId;
+  const stackPosition = item.stack === null ? null : { ...item.stack };
   const age = ageAt === null ? null : formatAgeLabel(t, ageAt, now);
   const description = describeRow(t, item, generation);
   const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
@@ -143,7 +144,7 @@ export function InboxRow({
               ),
             )}
           </span>{" "}
-          {item.stack === null ? null : (
+          {stackPosition === null ? null : (
             <Chip
               as={ChipElements.SPAN}
               className={styles["chip"]}
@@ -151,10 +152,10 @@ export function InboxRow({
             >
               <Icon name={IconNames.STACK} size={IconSizes.SM} />
               <ScreenReaderOnly>
-                {t("home.inbox.stackChipLabel", item.stack)}
+                {t("home.inbox.stackChipLabel", stackPosition)}
               </ScreenReaderOnly>
               <span aria-hidden="true">
-                {t("home.inbox.stackChip", item.stack)}
+                {t("home.inbox.stackChip", stackPosition)}
               </span>
             </Chip>
           )}
