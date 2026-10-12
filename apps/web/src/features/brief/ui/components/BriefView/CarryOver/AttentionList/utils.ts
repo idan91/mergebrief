@@ -1,10 +1,10 @@
 import type { TranslationKey } from "i18n";
 
-import { ProductActionIds } from "contract";
 import {
   AttentionItemKinds,
+  ProductActionIds,
   type AttentionItemKind,
-} from "@web/features/review/session";
+} from "contract";
 import type { CarriedItem } from "@web/features/review/utils";
 
 /**

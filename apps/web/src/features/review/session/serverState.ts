@@ -2,26 +2,13 @@ import type {
   ChangeGroupCategory,
   CommentAnchorKinds,
   DiffSide,
-  Result,
+  DispositionCarryStatus,
+  DispositionDecision,
 } from "types";
 import type { BriefViewModel } from "@web/features/brief/model";
 import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
-import {
-  isAttentionItem,
-  type DispositionCarryStatus,
-  type SessionAttentionItem,
-} from "./attention";
-import { isRecord } from "@web/utils/typeGuards";
-import {
-  isArrayOf,
-  isCarriedFrom,
-  isDisposition,
-  isDraftComment,
-  isReclassification,
-  isReviewOutcome,
-  isStringArray,
-} from "./payloadGuards";
+import type { SessionAttentionItem } from "./attention";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 import {
   getChunkRegions,
@@ -61,7 +48,7 @@ export interface SessionDisposition {
   attribute: string;
   regionStart: number;
   regionEnd: number;
-  decision: "addressed" | "dismissed";
+  decision: DispositionDecision;
   reason: string | null;
   evidence: { kind: RiskEvidence["kind"]; ref: string | null } | null;
   /** The carry-over verdict on this row; null on a fresh decision. */
@@ -161,68 +148,5 @@ export function sessionInitialState(
       .filter((id) => Number.isSafeInteger(id)),
     carriedFrom: payload.carriedFrom,
     attention: payload.attention,
-  };
-}
-
-/**
- * Boundary guard for the session read. A malformed payload FAILS rather than
- * degrading item-by-item: a silently dropped draft is a comment the reviewer
- * writes a second time.
- */
-export function parseReviewSessionPayload(
-  body: unknown,
-): Result<ReviewSessionPayload, string> {
-  if (!isRecord(body)) {
-    return { ok: false, error: "session: not an object" };
-  }
-  const materialized = body["materialized"];
-  const carriedFrom = body["carriedFrom"];
-  const attention = body["attention"];
-  const reviewOutcome = body["reviewOutcome"];
-  const draftComments = body["draftComments"];
-  const readMarks = body["readMarks"];
-  const reclassifications = body["reclassifications"];
-  const dispositions = body["dispositions"];
-  const submittedReviewIds = body["submittedReviewIds"];
-  if (typeof materialized !== "boolean") {
-    return { ok: false, error: "session: materialized" };
-  }
-  if (carriedFrom !== null && !isCarriedFrom(carriedFrom)) {
-    return { ok: false, error: "session: carriedFrom" };
-  }
-  if (!isArrayOf(attention, isAttentionItem)) {
-    return { ok: false, error: "session: attention" };
-  }
-  if (!isReviewOutcome(reviewOutcome)) {
-    return { ok: false, error: "session: reviewOutcome" };
-  }
-  if (!isArrayOf(draftComments, isDraftComment)) {
-    return { ok: false, error: "session: draftComments" };
-  }
-  if (!isStringArray(readMarks)) {
-    return { ok: false, error: "session: readMarks" };
-  }
-  if (!isArrayOf(reclassifications, isReclassification)) {
-    return { ok: false, error: "session: reclassifications" };
-  }
-  if (!isArrayOf(dispositions, isDisposition)) {
-    return { ok: false, error: "session: dispositions" };
-  }
-  if (!isStringArray(submittedReviewIds)) {
-    return { ok: false, error: "session: submittedReviewIds" };
-  }
-  return {
-    ok: true,
-    value: {
-      materialized,
-      carriedFrom,
-      attention,
-      reviewOutcome,
-      draftComments,
-      readMarks,
-      reclassifications,
-      dispositions,
-      submittedReviewIds,
-    },
   };
 }

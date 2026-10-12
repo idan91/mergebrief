@@ -301,6 +301,7 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
     expect(warn.mock.calls[0]?.[0]).toContain(
       "malformed review-session payload",
     );
+    expect(warn.mock.calls[0]?.[1]).toEqual({ reason: expect.any(String) });
   });
 
   it("throws typed with no sink in the browser", async () => {

@@ -167,9 +167,9 @@ export function buildSessionQueryOptions(
         // This runs during route-loader SSR prefetch, where the rejection is
         // absorbed into cache state and the UI quietly degrades to read-only.
         // The server side is the only one with an operator to tell.
-        (await getSsrWarnSink())?.warn(
-          `malformed review-session payload: ${parsed.error}`,
-        );
+        (await getSsrWarnSink())?.warn("malformed review-session payload", {
+          reason: parsed.error,
+        });
         throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
       }
       return parsed.value;

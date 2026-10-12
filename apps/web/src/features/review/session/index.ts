@@ -5,13 +5,9 @@ export {
   type ReviewSessionActions,
 } from "./store";
 export { serializeSnapshot, type SessionSnapshot } from "./snapshot";
-export { AttentionItemKinds, type AttentionItemKind } from "./attention";
 export { getChunkRegions } from "./anchors";
-export {
-  emptySessionPayload,
-  parseReviewSessionPayload,
-  type ReviewSessionPayload,
-} from "./serverState";
+export { parseReviewSessionPayload } from "./schemas";
+export { emptySessionPayload, type ReviewSessionPayload } from "./serverState";
 export { createSessionWrites, type SessionWrites } from "./writes";
 export {
   ReviewSessionProvider,

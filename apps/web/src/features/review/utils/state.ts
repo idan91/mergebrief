@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import { Roles } from "brief-core/types";
+import { AttentionItemKinds, type AttentionItemKind } from "contract";
 import {
   type BriefChunk,
   isUnattributedRemainderChunk,
@@ -14,11 +15,7 @@ import {
   type ReviewComment,
 } from "./comments";
 import type { Disposition } from "../session/disposition";
-import type {
-  AttentionItemKind,
-  SessionAttentionItem,
-} from "../session/attention";
-import { AttentionItemKinds } from "../session/attention";
+import type { SessionAttentionItem } from "../session/attention";
 import { UnresolvedItemKinds, type UnresolvedItemKind } from "./types";
 
 export type ReviewOutcome = "comment" | "approve" | "request-changes";

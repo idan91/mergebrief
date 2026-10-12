@@ -18,7 +18,6 @@ import {
 } from "../utils/comments";
 import {
   emptySessionPayload,
-  parseReviewSessionPayload,
   sessionInitialState,
   type ReviewSessionPayload,
   type SessionDraftComment,
@@ -412,59 +411,5 @@ describe("sessionInitialState", () => {
     expect(anchor?.startSide).toBe("old");
     expect(anchor?.rowIds).toEqual([]);
     expect(anchor?.selectedText).toBe("");
-  });
-
-  it("accepts a payload draft carrying startSide", () => {
-    const parsed = parseReviewSessionPayload({
-      ...emptySessionPayload(),
-      draftComments: [
-        {
-          id: "1",
-          filePath: "a.ts",
-          kind: CommentAnchorKinds.LINE,
-          side: DiffSides.NEW,
-          startSide: DiffSides.OLD,
-          startLine: 10,
-          endLine: 12,
-          body: "x",
-          status: ReviewCommentStatuses.DRAFT,
-        },
-      ],
-    });
-    expect(parsed.ok).toBe(true);
-  });
-
-  it("rejects a draft whose startSide is outside the vocabulary", () => {
-    const parsed = parseReviewSessionPayload({
-      ...emptySessionPayload(),
-      draftComments: [
-        {
-          id: "1",
-          filePath: "a.ts",
-          kind: CommentAnchorKinds.LINE,
-          side: DiffSides.NEW,
-          startSide: "sideways",
-          startLine: 10,
-          endLine: 12,
-          body: "x",
-          status: ReviewCommentStatuses.DRAFT,
-        },
-      ],
-    });
-    expect(parsed.ok).toBe(false);
-  });
-
-  it("fails whole rather than dropping a malformed draft", () => {
-    // A silently dropped draft is a comment the reviewer writes twice.
-    const parsed = parseReviewSessionPayload({
-      ...emptySessionPayload(),
-      draftComments: [{ id: "1", filePath: "a.ts", side: "sideways" }],
-    });
-    expect(parsed.ok).toBe(false);
-  });
-
-  it("rejects a body that is not an object", () => {
-    expect(parseReviewSessionPayload(null).ok).toBe(false);
-    expect(parseReviewSessionPayload("{}").ok).toBe(false);
   });
 });

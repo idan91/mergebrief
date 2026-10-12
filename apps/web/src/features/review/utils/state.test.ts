@@ -1,4 +1,5 @@
 import { Roles } from "brief-core/types";
+import type { AttentionItemKind } from "contract";
 import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
@@ -8,10 +9,7 @@ import {
   type RiskFlag,
 } from "@web/features/brief/model";
 import { ReviewCommentStatuses, type ReviewComment } from "./comments";
-import type {
-  AttentionItemKind,
-  SessionAttentionItem,
-} from "../session/attention";
+import type { SessionAttentionItem } from "../session/attention";
 import type { Disposition } from "../session/disposition";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import {
