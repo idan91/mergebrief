@@ -50,7 +50,7 @@ export function isSameStack(left: PrStack, right: PrStack): boolean {
  * Which stack the chip shows. The read wins once it has answered, carrying
  * the record's `asOf` when that is what it served; the generation-time one
  * stands in until then, and rides along as `snapshot` when the two disagree.
- * A null answer hides the chip on an open PR, since GitHub sees no stack,
+ * A stackless answer hides the chip on an open PR, since GitHub sees no stack,
  * and on a closed one means nothing was ever recorded, so the snapshot is
  * the last stack anyone saw.
  */
@@ -62,7 +62,7 @@ export function resolveStackView(
   if (live === undefined) {
     return snapshot === undefined ? undefined : { stack: snapshot };
   }
-  if (live.stack === null) {
+  if (live.stack === undefined) {
     return resolveClosedFallback(snapshot, state);
   }
 

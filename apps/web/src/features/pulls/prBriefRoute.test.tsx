@@ -400,7 +400,6 @@ describe("DB brief route", () => {
         baselineSha: "cp-1",
         headSha: SPAN.head,
         baselineLabel: "checkpoint",
-        baselineIndex: null,
         files: [],
       },
     );
@@ -469,7 +468,6 @@ describe("DB brief route", () => {
         baselineSha: "cp-1",
         headSha: SPAN.head,
         baselineLabel: "checkpoint",
-        baselineIndex: null,
         files: [],
       },
     );

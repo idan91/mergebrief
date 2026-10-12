@@ -8,16 +8,19 @@ import styles from "./AddressedComments.module.scss";
 
 /** Formats the line range suffix for an addressed (shipped) review comment. */
 export function addressedCommentRange(comment: AddressedReviewComment): string {
-  if (comment.startLine !== null && comment.line !== null) {
+  if (comment.startLine !== undefined && comment.line !== undefined) {
     return `:${comment.startLine}-${comment.line}`;
   }
-  if (comment.line !== null) {
+  if (comment.line !== undefined) {
     return `:${comment.line}`;
   }
-  if (comment.originalStartLine !== null && comment.originalLine !== null) {
+  if (
+    comment.originalStartLine !== undefined &&
+    comment.originalLine !== undefined
+  ) {
     return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   }
-  if (comment.originalLine !== null) {
+  if (comment.originalLine !== undefined) {
     return `:original ${comment.originalLine}`;
   }
   return "";

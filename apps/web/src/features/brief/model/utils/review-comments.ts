@@ -8,8 +8,8 @@ export function pathOnlyFileCommentsForChunk(
   return comments.filter(
     (comment) =>
       comment.file === chunk.file &&
-      comment.line === null &&
-      comment.originalLine === null,
+      comment.line === undefined &&
+      comment.originalLine === undefined,
   );
 }
 
@@ -44,10 +44,10 @@ export function reviewCommentMatchesDiffLine(
   if (comment.file !== chunkFile) {
     return false;
   }
-  if (comment.line !== null) {
+  if (comment.line !== undefined) {
     return line.newLine === comment.line;
   }
-  if (comment.originalLine !== null) {
+  if (comment.originalLine !== undefined) {
     return line.oldLine === comment.originalLine;
   }
   return false;
@@ -58,12 +58,12 @@ function reviewCommentBelongsToChunk(
   chunk: BriefChunk,
 ): boolean {
   const currentLine = comment.line;
-  if (currentLine !== null) {
+  if (currentLine !== undefined) {
     return lineInRanges(currentLine, chunk.addedRanges);
   }
 
   const originalLine = comment.originalLine;
-  if (originalLine === null) {
+  if (originalLine === undefined) {
     return false;
   }
   return (

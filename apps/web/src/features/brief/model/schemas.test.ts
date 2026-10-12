@@ -60,13 +60,15 @@ const REVIEW_COMMENT = {
 
 describe("parseAddressedReviewComment", () => {
   it("reads every field of a stored review comment", () => {
-    expect(parseAddressedReviewComment(REVIEW_COMMENT)).toEqual({
+    const { inReplyToId: _reply, ...present } = REVIEW_COMMENT;
+
+    expect(parseAddressedReviewComment(REVIEW_COMMENT)).toStrictEqual({
       ok: true,
-      value: REVIEW_COMMENT,
+      value: present,
     });
   });
 
-  it("reads absent optional lines as null and derives outdated from line", () => {
+  it("reads null or absent lines as absent and derives outdated from line", () => {
     const parsed = parseAddressedReviewComment({
       id: "c2",
       file: "src/a.ts",
@@ -76,15 +78,11 @@ describe("parseAddressedReviewComment", () => {
       inReplyToId: "c1",
     });
 
-    expect(parsed).toEqual({
+    expect(parsed).toStrictEqual({
       ok: true,
       value: {
         id: "c2",
         file: "src/a.ts",
-        startLine: null,
-        line: null,
-        originalStartLine: null,
-        originalLine: null,
         author: "bob",
         body: "gone",
         inReplyToId: "c1",
@@ -115,15 +113,13 @@ describe("parseAddressedReviewComment", () => {
     expect(parsed.value.outdated).toBe(false);
   });
 
-  it("refuses a comment missing its line, reply link or id", () => {
-    const { line: _line, ...withoutLine } = REVIEW_COMMENT;
-    const { inReplyToId: _reply, ...withoutReply } = REVIEW_COMMENT;
-
-    expect(parseAddressedReviewComment(withoutLine).ok).toBe(false);
-    expect(parseAddressedReviewComment(withoutReply).ok).toBe(false);
+  it("refuses a comment with a mistyped id or line", () => {
     expect(parseAddressedReviewComment({ ...REVIEW_COMMENT, id: 1 }).ok).toBe(
       false,
     );
+    expect(
+      parseAddressedReviewComment({ ...REVIEW_COMMENT, line: "12" }).ok,
+    ).toBe(false);
   });
 
   it("refuses a list that is not an array", () => {
@@ -151,13 +147,16 @@ describe("parseComparisonMarks", () => {
     expect(parseComparisonMarks(MARKS)).toEqual({ ok: true, value: MARKS });
   });
 
-  it("reads an absent baselineIndex as null", () => {
+  it("reads a null or absent baselineIndex as absent", () => {
     const { baselineIndex: _index, ...withoutIndex } = MARKS;
 
-    expect(parseComparisonMarks(withoutIndex)).toEqual({
+    expect(parseComparisonMarks(withoutIndex)).toStrictEqual({
       ok: true,
-      value: { ...withoutIndex, baselineIndex: null },
+      value: withoutIndex,
     });
+    expect(
+      parseComparisonMarks({ ...MARKS, baselineIndex: null }),
+    ).toStrictEqual({ ok: true, value: withoutIndex });
   });
 
   it("refuses an unknown baseline label, a fractional range or no files", () => {

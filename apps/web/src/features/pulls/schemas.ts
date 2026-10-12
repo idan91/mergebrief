@@ -183,10 +183,13 @@ const recordedAtSchema = z
     error: "asOf must be a date string",
   });
 
-export const pullStackSchema = z.object({
-  stack: z.union([linearPrStackSchema, forkPrStackSchema]).nullable(),
-  asOf: recordedAtSchema.exactOptional(),
-});
+export const pullStackSchema = dropNullKeys(
+  z.object({
+    stack: z.union([linearPrStackSchema, forkPrStackSchema]).exactOptional(),
+    asOf: recordedAtSchema.exactOptional(),
+  }),
+  ["stack"],
+);
 
 export function parsePullStack(value: unknown): Result<PullStack, string> {
   return parseWithSchema(pullStackSchema, value);

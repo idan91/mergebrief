@@ -84,22 +84,20 @@ describe("resolveStackView", () => {
   });
 
   it("hides the chip when GitHub reports no stack for an open PR", () => {
-    expect(resolveStackView(chain, { stack: null }, "open")).toBeUndefined();
-    expect(resolveStackView(chain, { stack: null }, undefined)).toBeUndefined();
+    expect(resolveStackView(chain, {}, "open")).toBeUndefined();
+    expect(resolveStackView(chain, {}, undefined)).toBeUndefined();
   });
 
   it("falls back to the snapshot for a merged PR with no live stack", () => {
-    expect(resolveStackView(chain, { stack: null }, "merged")).toEqual({
+    expect(resolveStackView(chain, {}, "merged")).toEqual({
       stack: chain,
       atGeneration: true,
     });
-    expect(resolveStackView(chain, { stack: null }, "closed")).toEqual({
+    expect(resolveStackView(chain, {}, "closed")).toEqual({
       stack: chain,
       atGeneration: true,
     });
-    expect(
-      resolveStackView(undefined, { stack: null }, "merged"),
-    ).toBeUndefined();
+    expect(resolveStackView(undefined, {}, "merged")).toBeUndefined();
   });
 
   it("carries the recorded stack's read time", () => {

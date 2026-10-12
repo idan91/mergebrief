@@ -414,7 +414,7 @@ describe("stack chip", () => {
   it("drops the chip when GitHub reports no stack for an open PR", async () => {
     await renderHeader({
       brief: briefWithStack(linear),
-      livePrState: { state: "open", draft: false, stack: { stack: null } },
+      livePrState: { state: "open", draft: false, stack: {} },
     });
     expect(screen.queryByTestId("stack-chip")).toBeNull();
   });
@@ -422,7 +422,7 @@ describe("stack chip", () => {
   it("keeps the generation-time stack for a merged PR with no live one", async () => {
     await renderHeader({
       brief: briefWithStack(linear),
-      livePrState: { state: "merged", draft: false, stack: { stack: null } },
+      livePrState: { state: "merged", draft: false, stack: {} },
     });
     const chip = screen.getByTestId("stack-chip");
     expect(chip.textContent).toBe("2/3");

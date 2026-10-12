@@ -36,9 +36,9 @@ export interface ForkPrStack {
 
 export type PrStack = LinearPrStack | ForkPrStack;
 
-/** The stack read: null when the PR sits in no open stack and none was recorded. */
+/** The stack read: no stack when the PR sits in no open stack and none was recorded. */
 export interface PullStack {
-  stack: PrStack | null;
+  stack?: PrStack;
   /** ISO time the served stack was recorded; present only for a recorded one. */
   asOf?: string;
 }
@@ -121,13 +121,13 @@ export type GuestRowReason = ValueOf<typeof GuestRowReasons>;
 export interface AddressedReviewComment {
   id: string;
   file: string;
-  startLine: number | null;
-  line: number | null;
-  originalStartLine: number | null;
-  originalLine: number | null;
+  startLine?: number;
+  line?: number;
+  originalStartLine?: number;
+  originalLine?: number;
   author: string;
   body: string;
-  inReplyToId: string | null;
+  inReplyToId?: string;
   outdated: boolean;
 }
 
@@ -162,7 +162,7 @@ export interface ComparisonMarksSummary {
   baselineSha: string;
   headSha: string;
   baselineLabel: ComparisonBaselineLabel;
-  baselineIndex: number | null;
+  baselineIndex?: number;
 }
 
 /**

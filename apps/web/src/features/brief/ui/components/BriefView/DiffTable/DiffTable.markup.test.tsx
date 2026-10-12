@@ -216,13 +216,9 @@ describe("DiffTable markup", () => {
     const addressed: AddressedReviewComment = {
       id: "a1",
       file: "src/a.ts",
-      startLine: null,
       line: 10,
-      originalStartLine: null,
-      originalLine: null,
       author: "bob",
       body: "addressed already",
-      inReplyToId: null,
       outdated: false,
     };
     const session: ReviewSessionPayload = {

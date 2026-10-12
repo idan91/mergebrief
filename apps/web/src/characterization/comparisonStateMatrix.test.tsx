@@ -194,7 +194,6 @@ const marksCheckpoint: ComparisonMarks = {
   baselineSha: CHECKPOINT_SHA,
   headSha: HEAD_SHA,
   baselineLabel: "checkpoint",
-  baselineIndex: null,
   files: [
     {
       file: "src/a.ts",

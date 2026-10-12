@@ -59,6 +59,15 @@ const REVIEW_COMMENT = {
   inReplyToId: null,
   outdated: false,
 };
+const PARSED_REVIEW_COMMENT = {
+  id: "c1",
+  file: "src/a.ts",
+  line: 3,
+  originalLine: 3,
+  author: "octocat",
+  body: "why?",
+  outdated: false,
+};
 const FILES = [
   { file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] },
 ];
@@ -144,8 +153,8 @@ describe("buildLocalBriefQueryOptions", () => {
     expect(brief).toMatchObject({
       artifactKind: "brief",
       summary: "s",
-      reviewComments: [REVIEW_COMMENT],
     });
+    expect(brief).toHaveProperty("reviewComments", [PARSED_REVIEW_COMMENT]);
     expect(apiFetch).toHaveBeenCalledWith(BRIEF_PATH);
   });
 
@@ -248,9 +257,11 @@ describe("buildLocalComparisonMarksQueryOptions", () => {
     };
     apiFetch.mockResolvedValueOnce(stubJson(marks));
 
+    const { baselineIndex: _index, ...parsed } = marks;
+
     await expect(
       runQuery(buildLocalComparisonMarksQueryOptions("m1")),
-    ).resolves.toEqual(marks);
+    ).resolves.toStrictEqual(parsed);
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/local-briefs/m1/comparison-marks",
     );

@@ -249,7 +249,7 @@ export const ChunkCard = memo(function ChunkCard({
       ? pathOnlyFileCommentsForChunk(addressedReviewComments, chunk)
       : [];
   const unlinkedSummaryComments = chunkReviewComments.filter(
-    (comment) => comment.outdated || comment.line === null,
+    (comment) => comment.outdated || comment.line === undefined,
   );
   const topReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
@@ -257,7 +257,7 @@ export const ChunkCard = memo(function ChunkCard({
   const inlineReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
     : chunkReviewComments.filter(
-        (comment) => !comment.outdated && comment.line !== null,
+        (comment) => !comment.outdated && comment.line !== undefined,
       );
   return (
     <article

@@ -3,6 +3,7 @@ import { LocalBriefKinds, type LocalBriefSummary } from "contract";
 import { ComparisonBaselineLabels, type Result } from "types";
 import { z } from "zod/v4";
 
+import { dropNullKeys } from "@web/utils/drop-keys";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import type {
@@ -24,26 +25,34 @@ import {
 const nullableIntegerSchema = z.int().nullable();
 
 /** An absent `outdated` derives from the comment having lost its line. */
-export const addressedReviewCommentSchema = z
-  .object({
+export const addressedReviewCommentSchema = dropNullKeys(
+  z.object({
     id: z.string(),
     file: z.string(),
-    startLine: nullableIntegerSchema.default(null),
-    line: nullableIntegerSchema,
-    originalStartLine: nullableIntegerSchema.default(null),
-    originalLine: nullableIntegerSchema.default(null),
+    startLine: z.int().exactOptional(),
+    line: z.int().exactOptional(),
+    originalStartLine: z.int().exactOptional(),
+    originalLine: z.int().exactOptional(),
     author: z.string(),
     body: z.string(),
-    inReplyToId: z.string().nullable(),
-    outdated: z.boolean().nullish(),
-  })
-  .transform(
-    ({ outdated, ...comment }) =>
-      ({
-        ...comment,
-        outdated: outdated ?? comment.line === null,
-      }) satisfies AddressedReviewComment,
-  );
+    inReplyToId: z.string().exactOptional(),
+    outdated: z.boolean().exactOptional(),
+  }),
+  [
+    "startLine",
+    "line",
+    "originalStartLine",
+    "originalLine",
+    "inReplyToId",
+    "outdated",
+  ],
+).transform(
+  ({ outdated, ...comment }) =>
+    ({
+      ...comment,
+      outdated: outdated ?? comment.line === undefined,
+    }) satisfies AddressedReviewComment,
+);
 
 export const revisionChangeFileSchema = z.object({
   file: z.string(),
@@ -51,13 +60,16 @@ export const revisionChangeFileSchema = z.object({
   removedRanges: z.array(LineRangeSchema),
 });
 
-export const comparisonMarksSchema = z.object({
-  baselineSha: z.string(),
-  headSha: z.string(),
-  baselineLabel: z.enum(ComparisonBaselineLabels),
-  baselineIndex: nullableIntegerSchema.default(null),
-  files: z.array(revisionChangeFileSchema),
-});
+export const comparisonMarksSchema = dropNullKeys(
+  z.object({
+    baselineSha: z.string(),
+    headSha: z.string(),
+    baselineLabel: z.enum(ComparisonBaselineLabels),
+    baselineIndex: z.int().exactOptional(),
+    files: z.array(revisionChangeFileSchema),
+  }),
+  ["baselineIndex"],
+);
 
 export function parseAddressedReviewComment(
   value: unknown,

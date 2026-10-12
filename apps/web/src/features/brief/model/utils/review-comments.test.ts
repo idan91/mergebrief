@@ -1,6 +1,8 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
+import { omitFields } from "@web/test/fields";
+
 import {
   pathOnlyFileCommentsForChunk,
   reviewCommentMatchesDiffLine,
@@ -20,18 +22,15 @@ const chunk = {
   riskSurface: [],
 } satisfies BriefChunk;
 
-const comment = {
+const comment: AddressedReviewComment = {
   id: "3419186366",
   file: "src/components/Accordion/Accordion.tsx",
-  startLine: null,
   line: 103,
-  originalStartLine: null,
   originalLine: 101,
   author: "Idan91",
   body: "Let's make the open-close state typesafe.",
-  inReplyToId: null,
   outdated: false,
-} satisfies AddressedReviewComment;
+};
 
 describe("reviewCommentsForChunk", () => {
   it("falls back to same-file comments without addressed ids", () => {
@@ -50,8 +49,7 @@ describe("reviewCommentsForChunk", () => {
 
   it("associates outdated comments with new-file chunks", () => {
     const outdated = {
-      ...comment,
-      line: null,
+      ...omitFields(comment, "line"),
       originalLine: 103,
       outdated: true,
     } satisfies AddressedReviewComment;
@@ -114,8 +112,7 @@ describe("reviewCommentMatchesDiffLine", () => {
 
   it("matches outdated comments on the old-side original line", () => {
     const outdated = {
-      ...comment,
-      line: null,
+      ...omitFields(comment, "line"),
       originalLine: 101,
       outdated: true,
     } satisfies AddressedReviewComment;
@@ -132,8 +129,7 @@ describe("reviewCommentMatchesDiffLine", () => {
 
   it("does not match outdated comments on added lines", () => {
     const outdated = {
-      ...comment,
-      line: null,
+      ...omitFields(comment, "line"),
       originalLine: 103,
       outdated: true,
     } satisfies AddressedReviewComment;
@@ -152,12 +148,8 @@ describe("reviewCommentMatchesDiffLine", () => {
 describe("file-level GitHub comments", () => {
   it("does not attach a path-only comment to the chunk diff", () => {
     const fileComment = {
-      ...comment,
+      ...omitFields(comment, "line", "originalLine"),
       id: "file-1",
-      line: null,
-      originalLine: null,
-      startLine: null,
-      originalStartLine: null,
     } satisfies AddressedReviewComment;
 
     expect(reviewCommentsForChunk([fileComment], chunk)).toEqual([]);
@@ -172,12 +164,8 @@ describe("file-level GitHub comments", () => {
 
   it("selects path-only comments for the matching file", () => {
     const fileComment = {
-      ...comment,
+      ...omitFields(comment, "line", "originalLine"),
       id: "file-1",
-      line: null,
-      originalLine: null,
-      startLine: null,
-      originalStartLine: null,
     } satisfies AddressedReviewComment;
     const otherFile = {
       ...fileComment,

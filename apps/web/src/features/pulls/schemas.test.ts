@@ -697,10 +697,10 @@ describe("parsePrSummary revisions on PR-meta", () => {
 });
 
 describe("parsePullStack", () => {
-  it("parses a null stack, a chain and a fork", () => {
-    expect(parsePullStack({ stack: null })).toEqual({
+  it("parses a null stack as none, a chain and a fork", () => {
+    expect(parsePullStack({ stack: null })).toStrictEqual({
       ok: true,
-      value: { stack: null },
+      value: {},
     });
     const chain = {
       members: [
