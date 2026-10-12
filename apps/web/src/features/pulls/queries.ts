@@ -37,7 +37,8 @@ import {
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { LIVE_POLL_MS } from "./consts";
-import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
+import { parsePrSummary } from "./schemas";
+import { parsePullStack, type PrSummary } from "./types";
 
 function spanQuery(base: string, head: string): string {
   return `base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`;
