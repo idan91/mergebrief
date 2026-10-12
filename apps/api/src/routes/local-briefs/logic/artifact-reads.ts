@@ -4,7 +4,7 @@ import {
   type LocalBriefView,
 } from "contract";
 import type { Logger } from "logging";
-import type { Mutable, Result } from "types/utils";
+import { ComparisonBaselineLabels, type Mutable, type Result } from "types";
 import {
   BRIEF_DIFFS_SUFFIX,
   BRIEF_SUFFIX,
@@ -15,11 +15,7 @@ import {
   REVISION_CHANGES_SUFFIX,
   REVISION_NARRATIVE_SUFFIX,
 } from "../consts";
-import {
-  ComparisonBaselineLabels,
-  type BriefArtifactFile,
-  type LocalBriefsFailure,
-} from "../types";
+import { type BriefArtifactFile, type LocalBriefsFailure } from "../types";
 import {
   isNotFound,
   parseArtifactJson,

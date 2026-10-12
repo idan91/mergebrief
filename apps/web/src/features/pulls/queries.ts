@@ -36,6 +36,7 @@ import {
   type SessionReadSource,
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
+import type { ComparisonBaselineLabel } from "types/comparisons";
 import { LIVE_POLL_MS } from "./consts";
 import { parsePrSummary, parsePullStack } from "./schemas";
 import type { PrSummary } from "./types";
@@ -268,7 +269,7 @@ export function buildDbComparisonMarksQueryOptions(
   prNumber: number,
   baselineSha: string,
   headSha: string,
-  baselineLabel: "previous-brief" | "checkpoint",
+  baselineLabel: ComparisonBaselineLabel,
   baselineIndex: number | null,
 ) {
   const queryKey: QueryKey = [

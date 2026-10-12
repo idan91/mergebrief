@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { BRIEF_ID_PATTERN, MAX_BRIEF_ID_LENGTH } from "./consts";
-import { ComparisonBaselineLabels } from "./types";
+import { ComparisonBaselineLabels } from "types/comparisons";
 
 export const briefIdParamSchema = z
   .string()

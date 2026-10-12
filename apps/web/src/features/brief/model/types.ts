@@ -4,7 +4,7 @@ import type {
   LineRange,
   UnattributedFile as StoredUnattributedFile,
 } from "brief-core/types";
-import type { ValueOf } from "types";
+import type { ComparisonBaselineLabel, ValueOf } from "types";
 import type { PostedComment } from "../../../data/postedComment";
 import type { DiffLine } from "../../../utils/diffTokens/types";
 
@@ -151,9 +151,6 @@ export interface Brief extends Omit<
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;
 }
-
-/** Which comparison baseline a mechanical marks sidecar is relative to. */
-export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
 
 /**
  * @description Top-level fields of a `.comparison.json` marks sidecar

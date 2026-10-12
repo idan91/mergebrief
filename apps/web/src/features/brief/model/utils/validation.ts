@@ -26,14 +26,7 @@ import {
 } from "contract";
 import type { LogFields } from "logging";
 import type { Mutable, Result as SharedResult, ValueOf } from "types";
-import type {
-  AddressedReviewComment,
-  Brief,
-  ComparisonMarks,
-  ComparisonMarksSummary,
-  FileDiffPatch,
-  RevisionChangeFile,
-} from "../types";
+import type { Brief, FileDiffPatch } from "../types";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
 export type Result<T> = SharedResult<T, string>;
@@ -63,10 +56,6 @@ function isNullableInteger(value: unknown): value is number | null {
   return value === null || isInteger(value);
 }
 
-function isNullableString(value: unknown): value is string | null {
-  return value === null || isString(value);
-}
-
 function isOptional<Value>(
   value: unknown,
   guard: (candidate: unknown) => candidate is Value,
@@ -82,112 +71,6 @@ function isOneOf<T extends Record<string, string>>(
   return isString(value) && Object.values(values).includes(value);
 }
 
-export function parseAddressedReviewComment(
-  value: unknown,
-): Result<AddressedReviewComment> {
-  if (!isRecord(value)) {
-    return { ok: false, error: "Expected review comment to be an object" };
-  }
-  const id = value["id"];
-  const file = value["file"];
-  const startLine = value["startLine"] ?? null;
-  const line = value["line"];
-  const originalStartLine = value["originalStartLine"] ?? null;
-  const originalLine = value["originalLine"] ?? null;
-  const author = value["author"];
-  const body = value["body"];
-  const inReplyToId = value["inReplyToId"];
-  const outdated = value["outdated"] ?? line === null;
-  if (
-    !isString(id) ||
-    !isString(file) ||
-    !isNullableInteger(startLine) ||
-    !isNullableInteger(line) ||
-    !isNullableInteger(originalStartLine) ||
-    !isNullableInteger(originalLine) ||
-    !isString(author) ||
-    !isString(body) ||
-    !isNullableString(inReplyToId) ||
-    typeof outdated !== "boolean"
-  ) {
-    return {
-      ok: false,
-      error:
-        "Expected review comment id, file, startLine, line, originalStartLine, originalLine, author, body, inReplyToId, and outdated",
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      id,
-      file,
-      startLine,
-      line,
-      originalStartLine,
-      originalLine,
-      author,
-      body,
-      inReplyToId,
-      outdated,
-    },
-  };
-}
-
-export function parseAddressedReviewComments(
-  value: unknown,
-): Result<AddressedReviewComment[]> {
-  return parseArray(value, parseAddressedReviewComment, "reviewComments");
-}
-
-function parseLineRange(value: unknown): Result<LineRange> {
-  if (!isRecord(value)) {
-    return { ok: false, error: "Expected line range start/end integers" };
-  }
-  const start = value["start"];
-  const end = value["end"];
-  if (!isInteger(start) || !isInteger(end)) {
-    return { ok: false, error: "Expected line range start/end integers" };
-  }
-  return { ok: true, value: { start, end } };
-}
-
-function parseRevisionChangeFile(value: unknown): Result<RevisionChangeFile> {
-  if (!isRecord(value)) {
-    return {
-      ok: false,
-      error: "Expected revision-change file to be an object",
-    };
-  }
-  const file = value["file"];
-  if (!isString(file)) {
-    return { ok: false, error: "Expected revision-change file path" };
-  }
-  const addedRanges = parseArray(
-    value["addedRanges"],
-    parseLineRange,
-    "addedRanges",
-  );
-  if (!addedRanges.ok) {
-    return addedRanges;
-  }
-  const removedRanges = parseArray(
-    value["removedRanges"],
-    parseLineRange,
-    "removedRanges",
-  );
-  if (!removedRanges.ok) {
-    return removedRanges;
-  }
-  return {
-    ok: true,
-    value: {
-      file,
-      addedRanges: addedRanges.value,
-      removedRanges: removedRanges.value,
-    },
-  };
-}
-
 /** 1-based, ordered, non-overlapping (ascending, gap-free of inversions). */
 function isCanonicalRanges(ranges: LineRange[]): boolean {
   let previousEnd = 0;
@@ -201,69 +84,6 @@ function isCanonicalRanges(ranges: LineRange[]): boolean {
     previousEnd = range.end;
   }
   return true;
-}
-
-const ComparisonBaselineLabels = {
-  PREVIOUS_BRIEF: "previous-brief",
-  CHECKPOINT: "checkpoint",
-} as const;
-
-/**
- * Parse the header fields of a `.comparison.json` marks sidecar
- * needed for comparison availability, deliberately ignores `files`, which
- * availability scanning never needs.
- */
-function parseComparisonMarksSummary(
-  value: unknown,
-): Result<ComparisonMarksSummary> {
-  if (!isRecord(value)) {
-    return { ok: false, error: "Expected comparison marks to be an object" };
-  }
-  const baselineSha = value["baselineSha"];
-  const headSha = value["headSha"];
-  const baselineLabel = value["baselineLabel"];
-  const baselineIndex = value["baselineIndex"] ?? null;
-  if (
-    !isString(baselineSha) ||
-    !isString(headSha) ||
-    !isOneOf(ComparisonBaselineLabels, baselineLabel) ||
-    !isNullableInteger(baselineIndex)
-  ) {
-    return {
-      ok: false,
-      error:
-        "Expected comparison marks baselineSha, headSha, baselineLabel, and baselineIndex",
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      baselineSha,
-      headSha,
-      baselineLabel,
-      baselineIndex,
-    },
-  };
-}
-
-/**
- * Parse a full `.comparison.json` marks sidecar: the header fields
- * (via `parseComparisonMarksSummary`) plus the per-file changed-line ranges
- * (reusing the revision-change file parser, identical `files` shape).
- */
-export function parseComparisonMarks(value: unknown): Result<ComparisonMarks> {
-  const summary = parseComparisonMarksSummary(value);
-  if (!summary.ok) {
-    return summary;
-  }
-  if (!isRecord(value)) {
-    return { ok: false, error: "Expected comparison marks to be an object" };
-  }
-  const files = parseArray(value["files"], parseRevisionChangeFile, "files");
-  if (!files.ok) {
-    return files;
-  }
-  return { ok: true, value: { ...summary.value, files: files.value } };
 }
 
 function parseArray<T>(

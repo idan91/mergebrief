@@ -24,8 +24,10 @@ import { FileRangeResultKinds } from "./model/expansion/types";
 import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
 import {
   parseAddressedReviewComments,
-  parseBrief,
   parseComparisonMarks,
+} from "./model/schemas";
+import {
+  parseBrief,
   parseDeltaBrief,
   parseFileDiffPatches,
   parseLocalBriefSummaries,

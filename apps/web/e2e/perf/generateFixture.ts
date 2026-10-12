@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 
 import { checkBriefForWrite } from "brief-core/artifact";
 import type { LineRange } from "brief-core/types";
+import { parseComparisonMarks } from "../../src/features/brief/model/schemas";
 import {
   parseBrief,
-  parseComparisonMarks,
   parseRevisionNarrativeArtifact,
 } from "../../src/features/brief/model/utils/validation";
 import { parseUnifiedDiffPatch } from "../../src/features/brief/model/utils/diff-slicing";

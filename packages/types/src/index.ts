@@ -69,4 +69,8 @@ export {
   type ChangeGroupCategory,
   type ReviewOutcome,
 } from "./reviews";
+export {
+  ComparisonBaselineLabels,
+  type ComparisonBaselineLabel,
+} from "./comparisons";
 export { TicketTrackers, type TicketTracker } from "./trackers";

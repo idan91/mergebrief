@@ -5,10 +5,9 @@ import {
   type LocalLastReviewAvailability,
   type LocalPreviousBriefAvailability,
 } from "contract";
-import type { Mutable } from "types/utils";
+import { ComparisonBaselineLabels, type Mutable } from "types";
 import { SHORT_SHA_LENGTH } from "../consts";
 import {
-  ComparisonBaselineLabels,
   type ComparisonMarksEntry,
   type ComparisonSources,
   type RevisionChangesEntry,

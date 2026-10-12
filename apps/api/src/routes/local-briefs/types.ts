@@ -38,13 +38,6 @@ export interface LocalBriefsFailure {
   readonly kind: LocalBriefsFailureKind;
 }
 
-export const ComparisonBaselineLabels = {
-  PREVIOUS_BRIEF: "previous-brief",
-  CHECKPOINT: "checkpoint",
-} as const;
-/** @public */
-export type ComparisonBaselineLabel = ValueOf<typeof ComparisonBaselineLabels>;
-
 export type ComparisonMarksHeader = z.infer<typeof comparisonMarksHeaderSchema>;
 export type RevisionChangesHeader = z.infer<typeof revisionChangesHeaderSchema>;
 
