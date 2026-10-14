@@ -18,7 +18,9 @@ function answerWith(
   code: ApiErrorCode = ApiErrorCodes.UNAUTHORIZED,
 ): void {
   fetchMock.mockImplementation(() =>
-    Promise.resolve(new Response(JSON.stringify({ code }), { status })),
+    Promise.resolve(
+      new Response(JSON.stringify({ error: code, code }), { status }),
+    ),
   );
 }
 
@@ -100,7 +102,10 @@ describe("apiFetch in the browser", () => {
 
     expect(assign).not.toHaveBeenCalled();
     expect(signedOutListener).toHaveBeenCalledTimes(1);
-    expect(await response.json()).toEqual({ code: "signed-out" });
+    expect(await response.json()).toEqual({
+      error: "signed-out",
+      code: "signed-out",
+    });
   });
 
   it("reports a signed-out 401 on a read that renders signed out", async () => {

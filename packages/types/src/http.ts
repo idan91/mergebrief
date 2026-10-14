@@ -13,6 +13,7 @@ export type HttpMethod = ValueOf<typeof HttpMethods>;
 export const HttpStatuses = {
   OK: 200,
   CREATED: 201,
+  NO_CONTENT: 204,
   FOUND: 302,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,

@@ -184,7 +184,6 @@ export function buildLocalBriefQueryOptions(briefId: string) {
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
   });
 }
 
@@ -211,7 +210,6 @@ export function buildLocalBriefDiffsQueryOptions(briefId: string) {
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
   });
 }
 
@@ -233,7 +231,6 @@ export function buildLocalComparisonMarksQueryOptions(marksId: string) {
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
     retryOnMount: false,
     refetchOnWindowFocus: false,
   });
@@ -260,7 +257,6 @@ export function buildLocalRevisionNarrativeQueryOptions(narrativeId: string) {
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
     retryOnMount: false,
     refetchOnWindowFocus: false,
   });
@@ -289,7 +285,6 @@ export function buildLocalBriefsQueryOptions() {
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
   });
 }
 
@@ -372,7 +367,6 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
     // rows blank while the read is in flight.
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: false,
   });
 }
 

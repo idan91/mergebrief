@@ -31,7 +31,9 @@
   },
   "dependencies": {
     "commander": "^14.0.2",
+    "contract": "workspace:*",
     "i18n": "workspace:*",
+    "types": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -39,11 +41,9 @@
     "@electric-sql/pglite-socket": "^0.2.11",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "contract": "workspace:*",
     "persistence": "workspace:*",
     "tsup": "^8.5.0",
     "tsx": "^4.19.0",
-    "types": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
   }

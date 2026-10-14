@@ -341,7 +341,9 @@ describe("buildPrStackQueryOptions polling", () => {
   });
 
   function observeStack(): void {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     client.mount();
     const observer = new QueryObserver(
       client,

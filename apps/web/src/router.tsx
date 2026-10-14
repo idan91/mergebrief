@@ -9,7 +9,11 @@ export interface RouterContext {
 }
 
 export function getRouter() {
-  const queryClient = new QueryClient();
+  // Every read maps a failure to a state or a typed error the screen renders;
+  // a silent retry would hide a 4xx behind a spinner.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const router = createRouter({
     routeTree,
     context: { queryClient },

@@ -6,6 +6,7 @@ import type {
 } from "brief-core/types";
 import type { ComparisonBaselineLabel, ValueOf } from "types";
 import type { PostedComment } from "../../../data/postedComment";
+import { WriteFailureKinds } from "../../../data/request/types";
 import type { DiffLine } from "../../../utils/diffTokens/types";
 
 /** Built-in or repo-policy risk key; the closed vocabulary is per-generation. */
@@ -255,11 +256,12 @@ export type PostCommentResult =
 
 export const MarkReadyResultKinds = {
   READY: "ready",
-  UNAUTHORIZED: "unauthorized",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
   NOT_FOUND: "not-found",
   GITHUB_PERMISSION: "github-permission",
   NO_WRITE_ACCESS: "no-write-access",
   UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
 } as const;
 export type MarkReadyResultKind = ValueOf<typeof MarkReadyResultKinds>;
 
@@ -279,7 +281,9 @@ export type MarkReadyResult =
    * write to. Never a retry: it clears by installing the App there.
    */
   | { kind: typeof MarkReadyResultKinds.NO_WRITE_ACCESS }
-  | { kind: typeof MarkReadyResultKinds.UPSTREAM };
+  | { kind: typeof MarkReadyResultKinds.UPSTREAM }
+  /** The request never got an answer: the flip may or may not have happened. */
+  | { kind: typeof MarkReadyResultKinds.INDETERMINATE };
 
 /** The route-injected action shape the Brief screen's own-draft flow calls. */
 export type MarkReadyAction = () => Promise<MarkReadyResult>;

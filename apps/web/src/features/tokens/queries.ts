@@ -26,7 +26,6 @@ export function buildTokensQueryOptions() {
       return parsed.value;
     },
     staleTime: 0,
-    retry: false,
   });
 }
 

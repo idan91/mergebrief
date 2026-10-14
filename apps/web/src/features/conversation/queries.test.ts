@@ -87,10 +87,9 @@ describe("buildConversationQueryOptions queryFn", () => {
     await expect(run()).resolves.toEqual({ kind: "unavailable" });
   });
 
-  it("locks refresh: 30s stale, refetch on mount and focus, no retry", () => {
+  it("locks refresh: 30s stale, refetch on mount and focus", () => {
     const options = buildConversationQueryOptions("42", 7);
     expect(options.staleTime).toBe(30_000);
-    expect(options.retry).toBe(false);
     expect(options.refetchOnMount).toBe("always");
     expect(options.refetchOnWindowFocus).toBe("always");
   });
@@ -170,10 +169,9 @@ describe("buildCollaboratorsQueryOptions queryFn", () => {
     await expect(runCollaborators()).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("locks the refresh policy: long staleTime, no retry, no poll", () => {
+  it("locks the refresh policy: long staleTime, no poll", () => {
     const options = buildCollaboratorsQueryOptions("42");
     expect(options.staleTime).toBe(5 * 60 * 1000);
-    expect(options.retry).toBe(false);
     expect(
       "refetchInterval" in options && options.refetchInterval !== undefined,
     ).toBe(false);

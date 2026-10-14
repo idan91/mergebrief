@@ -64,7 +64,6 @@ export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
       return parsed.value;
     },
     staleTime: 2_000,
-    retry: false,
   });
 }
 
@@ -86,7 +85,6 @@ export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
     },
     staleTime: STACK_STALE_MS,
     refetchInterval: (query) => resolveOutagePollMs(query.state, LIVE_POLL_MS),
-    retry: false,
   });
 }
 
@@ -113,7 +111,6 @@ export function buildDbBriefQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -141,7 +138,6 @@ export function buildDbBriefContextQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -189,7 +185,6 @@ export function buildSessionQueryOptions(
     // window old, and the store is derived from the payload, so a cached one
     // would drop everything written since.
     refetchOnMount: "always",
-    retry: false,
   });
 }
 
@@ -302,7 +297,6 @@ export function buildDbComparisonMarksQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -340,7 +334,6 @@ export function buildDbDeltaQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -375,7 +368,6 @@ export function buildDbRevisionNarrativeQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -397,6 +389,5 @@ export function buildPrDiffQueryOptions(
       apiFetchText(`${prPath(repoId, prNumber)}/diff?${spanQuery(base, head)}`),
     staleTime: 60_000,
     gcTime: 5 * 60 * 1000,
-    retry: false,
   });
 }

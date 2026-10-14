@@ -1,6 +1,5 @@
-// Single-file bundle: everything, commander, zod and the workspace `i18n`
-// catalog included, bundles into dist/mergebrief.js (compile-time `types` aside,
-// i18n is the one workspace runtime dep).
+// Single-file bundle: everything, commander, zod and the workspace packages
+// (`i18n`, `contract`, `types`) included, bundles into dist/mergebrief.js.
 // The shebang lives in src/bin.ts and survives the bundle.
 import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";

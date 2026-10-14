@@ -1,8 +1,9 @@
-// Mark-ready mutation behavior: expected failure statuses map to typed result
-// kinds the own-draft flow renders as toast copy; only a malformed 2xx throws
-// (contract violation). The route has NO deterministic 400 reachable from a
-// valid UI state (400 = malformed prNumber only), so there is no
-// recoverable-copy mirror to keep in lockstep; a 400 collapses into upstream.
+// Mark-ready mutation behavior: every failure maps to a typed result kind the
+// own-draft flow renders as toast copy. The route has NO deterministic 400
+// reachable from a valid UI state (400 = malformed prNumber only), so there is
+// no recoverable-copy mirror to keep in lockstep; a 400 collapses into
+// upstream. The request's own fetch boundary is mocked, so the kind table is
+// exercised end to end over realistic wire bodies.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -12,7 +13,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn() };
 });
 
-import { apiFetch, ApiError } from "../../../data/apiFetch";
+import { apiFetch } from "../../../data/apiFetch";
 import { createMarkReadyAction, markPrReady } from "./markReady";
 import type { MarkReadyResult } from "@web/features/brief/model";
 
@@ -72,6 +73,16 @@ describe("markPrReady", () => {
     await expect(run()).resolves.toEqual({ kind: "github-permission" });
   });
 
+  it("maps a thrown fetch to the indeterminate kind", async () => {
+    apiFetchMock.mockRejectedValue(new TypeError("network down"));
+    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
+  });
+
+  it("maps the proxy's 504 to the indeterminate kind", async () => {
+    apiFetchMock.mockResolvedValue(new Response("<html>", { status: 504 }));
+    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
+  });
+
   it("maps a 502 and the unreachable 400 to the upstream kind", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "upstream error" }), {
@@ -105,13 +116,13 @@ describe("markPrReady", () => {
     }
   });
 
-  it("throws a typed malformed error on a 200 that is not draft false", async () => {
+  it("maps a 200 that is not draft false to the indeterminate kind", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draft: true }), { status: 200 }),
     );
-    await expect(run()).rejects.toBeInstanceOf(ApiError);
+    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
     apiFetchMock.mockResolvedValue(new Response("not-json", { status: 200 }));
-    await expect(run()).rejects.toBeInstanceOf(ApiError);
+    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
   });
 });
 
@@ -172,6 +183,7 @@ describe("createMarkReadyAction", () => {
       "not-found",
       "github-permission",
       "upstream",
+      "indeterminate",
     ] as const) {
       const invalidateQueries = vi.fn(() => Promise.resolve());
       const action = createMarkReadyAction(

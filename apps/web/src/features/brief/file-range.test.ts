@@ -87,7 +87,7 @@ describe("buildFileRangeQueryOptions", () => {
 
   it("reports a blob past the budget as a result, not a throw", async () => {
     apiFetch.mockResolvedValueOnce(
-      stubResponse({ code: "file-too-large" }, 413),
+      stubResponse({ error: "refused", code: "file-too-large" }, 413),
     );
 
     await expect(runQuery()).resolves.toEqual({ kind: "too-large" });
@@ -95,7 +95,7 @@ describe("buildFileRangeQueryOptions", () => {
 
   it("reports a non-text blob by its code, not its status", async () => {
     apiFetch.mockResolvedValueOnce(
-      stubResponse({ code: "file-not-text" }, 400),
+      stubResponse({ error: "refused", code: "file-not-text" }, 400),
     );
 
     await expect(runQuery()).resolves.toEqual({ kind: "not-text" });
@@ -103,7 +103,7 @@ describe("buildFileRangeQueryOptions", () => {
 
   it("reports a 400 this build cannot name as unavailable", async () => {
     apiFetch.mockResolvedValueOnce(
-      stubResponse({ code: "invalid-request" }, 400),
+      stubResponse({ error: "refused", code: "invalid-request" }, 400),
     );
 
     await expect(runQuery()).resolves.toEqual({ kind: "unavailable" });
@@ -111,7 +111,7 @@ describe("buildFileRangeQueryOptions", () => {
 
   it("reports an upstream refusal as unavailable", async () => {
     apiFetch.mockResolvedValueOnce(
-      stubResponse({ code: "github-unavailable" }, 502),
+      stubResponse({ error: "refused", code: "github-unavailable" }, 502),
     );
 
     await expect(runQuery()).resolves.toEqual({ kind: "unavailable" });
@@ -119,7 +119,7 @@ describe("buildFileRangeQueryOptions", () => {
 
   it("reports a path missing at this commit as a result", async () => {
     apiFetch.mockResolvedValueOnce(
-      stubResponse({ code: "file-not-found" }, 404),
+      stubResponse({ error: "refused", code: "file-not-found" }, 404),
     );
 
     await expect(runQuery()).resolves.toEqual({ kind: "not-found" });

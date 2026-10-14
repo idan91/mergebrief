@@ -68,7 +68,6 @@ export function buildConversationQueryOptions(
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
     gcTime: 5 * 60 * 1000,
-    retry: false,
   });
 }
 
@@ -121,6 +120,5 @@ export function buildCollaboratorsQueryOptions(repoId: string) {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry: false,
   });
 }

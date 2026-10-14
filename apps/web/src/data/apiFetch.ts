@@ -4,8 +4,13 @@
 // A transport failure returns a sanitized 503 without internal details.
 import { createSerializationAdapter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import { ApiErrorCodes } from "contract";
-import { HttpStatuses, type ValueOf } from "types";
+import { ApiErrorCodes, parseApiErrorBody } from "contract";
+import {
+  HttpMethods,
+  HttpStatuses,
+  type HttpMethod,
+  type ValueOf,
+} from "types";
 
 import { requestSignIn } from "./sign-in";
 import { reportSignedOut } from "./signed-out";
@@ -20,18 +25,9 @@ const WebApiErrorCodes = {
 export { WebApiErrorCodes as ApiErrorCodes };
 export type ApiErrorCode = ValueOf<typeof WebApiErrorCodes>;
 
-function isWireCode(value: string): value is ApiErrorCode {
-  return Object.values(ApiErrorCodes).some((code) => code === value);
-}
-
 /** The `code` a wire body carries, when it is one of the vocabulary; a codeless body is undefined. */
 export function readWireCode(body: unknown): ApiErrorCode | undefined {
-  if (typeof body !== "object" || body === null || !("code" in body)) {
-    return undefined;
-  }
-  return typeof body.code === "string" && isWireCode(body.code)
-    ? body.code
-    : undefined;
+  return parseApiErrorBody(body)?.code;
 }
 
 /** Whether the code asks the viewer to sign in: the session is gone, or GitHub refused it. */
@@ -136,7 +132,7 @@ export async function errorFromResponse(
  * accepts.
  */
 export interface ApiFetchInit {
-  readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  readonly method?: HttpMethod;
   readonly headers?: Readonly<Record<string, string>>;
   /** A Blob is the image upload, sent from the browser only. */
   readonly body?: string | Blob;
@@ -189,7 +185,7 @@ async function answerUnauthorized(
 }
 
 function isRead(init: ApiFetchInit): boolean {
-  return init.method === undefined || init.method === "GET";
+  return init.method === undefined || init.method === HttpMethods.GET;
 }
 
 const dispatch = createIsomorphicFn()

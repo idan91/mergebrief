@@ -50,6 +50,35 @@ export interface ApiErrorBody {
   readonly code: ApiErrorCode;
 }
 
+const WIRE_CODES: ReadonlySet<string> = new Set(Object.values(ApiErrorCodes));
+
+function isApiErrorCode(value: string): value is ApiErrorCode {
+  return WIRE_CODES.has(value);
+}
+
+/**
+ * The one reader of a wire error body: `{ error, code }` when `body` carries
+ * a string line and a code in the vocabulary, else `undefined`. Tolerant by
+ * design, a proxy error page or an unknown code is no body at all.
+ */
+export function parseApiErrorBody(body: unknown): ApiErrorBody | undefined {
+  if (typeof body !== "object" || body === null) {
+    return undefined;
+  }
+  const hasFields = "error" in body && "code" in body;
+  if (!hasFields) {
+    return undefined;
+  }
+
+  const { error, code } = body;
+  const isWireBody = typeof error === "string" && typeof code === "string";
+  const isApiErrorBody = isWireBody && isApiErrorCode(code);
+  if (!isApiErrorBody) {
+    return undefined;
+  }
+  return { error, code };
+}
+
 // 1:1, so a code needing two statuses is two codes.
 export const ApiErrorStatusByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: HttpStatuses.UNAUTHORIZED,

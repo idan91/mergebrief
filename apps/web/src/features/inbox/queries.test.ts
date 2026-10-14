@@ -74,7 +74,7 @@ describe("buildInboxQueryOptions", () => {
   });
 
   it("a 401 is the signed-out state", async () => {
-    answerWith(401, { code: "unauthorized" });
+    answerWith(401, { error: "refused", code: "unauthorized" });
 
     await expect(readInbox()).resolves.toEqual({
       kind: InboxStates.SIGNED_OUT,
@@ -89,7 +89,7 @@ describe("buildInboxQueryOptions", () => {
   });
 
   it("a refusal is the failed state carrying its wire code", async () => {
-    answerWith(502, { code: "github-unavailable" });
+    answerWith(502, { error: "refused", code: "github-unavailable" });
 
     await expect(readInbox()).resolves.toEqual({
       kind: InboxStates.FAILED,

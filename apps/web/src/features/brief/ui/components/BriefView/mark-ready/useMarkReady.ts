@@ -66,6 +66,10 @@ export function useMarkReady(input: UseMarkReadyInput): UseMarkReadyValue {
             announce(t("pulls.markReady.upstream"));
             break;
           }
+          case MarkReadyResultKinds.INDETERMINATE: {
+            announce(t("pulls.markReady.failed"));
+            break;
+          }
         }
       } catch (error) {
         console.error("mark-ready failed", error);

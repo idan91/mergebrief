@@ -41,6 +41,7 @@ export {
   ApiErrorCodes,
   ApiErrorEnglishByCode,
   ApiErrorStatusByCode,
+  parseApiErrorBody,
   type ApiErrorBody,
   type ApiErrorCode,
 } from "./errors";

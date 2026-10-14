@@ -1,7 +1,8 @@
 // Keep success bodies verbatim. Non-2xx responses become one stderr line plus an exit code.
 // Known wire codes use catalog templates and HTTP status; unknown ones relay server error text.
 // Inject fetch so CLI tests exercise the real Hono app without network calls.
-import { createI18n, en } from "i18n";
+import { parseApiErrorBody } from "contract";
+import { createI18n } from "i18n";
 import type { Mutable, Result } from "types/utils";
 import { CliError, ExitCodes, exitCodeForStatus, type ExitCode } from "./exit";
 import { VERSION_HEADER } from "./version";
@@ -79,25 +80,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isKnownErrorCode(value: string): value is keyof typeof en.errors {
-  return Object.hasOwn(en.errors, value);
-}
-
 /**
  * Best-effort extraction of the server's one-line error text. Tolerant
  * probe: a known wire `code` renders its catalog line; an unknown or absent
  * code, or a render that comes back empty, relays the `error` field verbatim.
  */
 function resolveCatalogErrorLine(
-  body: Record<string, unknown>,
+  body: unknown,
   statusLabel: string,
 ): string | undefined {
-  const code = body["code"];
-  if (typeof code !== "string" || !isKnownErrorCode(code)) {
+  const wireBody = parseApiErrorBody(body);
+  if (wireBody === undefined) {
     return undefined;
   }
 
-  const rendered = i18n.t(`errors.${code}`);
+  const rendered = i18n.t(`errors.${wireBody.code}`);
   if (rendered.trim() === "") {
     return undefined;
   }
@@ -108,20 +105,22 @@ function resolveCatalogErrorLine(
 function serverErrorLine(bodyText: string, statusLabel: string): string {
   try {
     const parsed: unknown = JSON.parse(bodyText);
+    const catalogLine = resolveCatalogErrorLine(parsed, statusLabel);
+    if (catalogLine !== undefined) {
+      return catalogLine;
+    }
     if (isRecord(parsed)) {
-      const catalogLine = resolveCatalogErrorLine(parsed, statusLabel);
-      if (catalogLine !== undefined) {
-        return catalogLine;
-      }
       const error = parsed["error"];
       if (typeof error === "string") {
-        return `${error} (${statusLabel})`;
+        const relayed = `${error} (${statusLabel})`;
+        return relayed;
       }
     }
   } catch {
     // Non-JSON error body, fall through to the generic line.
   }
-  return `request failed (${statusLabel})`;
+  const fallback = `request failed (${statusLabel})`;
+  return fallback;
 }
 
 /** Seconds until an IMF-fixdate, rounded up; a past date waits 0. */
