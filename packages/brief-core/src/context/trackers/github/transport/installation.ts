@@ -18,6 +18,17 @@ export interface InstallationBounds {
     | undefined;
 }
 
+/** GitHub owner and repo names ignore letter case. */
+function isSameRepository(
+  left: Pick<IssueLocator, "owner" | "repo">,
+  right: Pick<IssueLocator, "owner" | "repo">,
+): boolean {
+  const sameOwner = left.owner.toLowerCase() === right.owner.toLowerCase();
+  const sameName = left.repo.toLowerCase() === right.repo.toLowerCase();
+  const sameRepository = sameOwner && sameName;
+  return sameRepository;
+}
+
 /**
  * The worker's transport over one job's credential. A url-box job reads
  * with the viewer's token for an instance-wide brief, so it stays inside
@@ -31,8 +42,7 @@ export function createInstallationTransport(
     async readIssue(locator, signal) {
       const { onlyRepo } = bounds;
       const outside =
-        onlyRepo !== undefined &&
-        (locator.owner !== onlyRepo.owner || locator.repo !== onlyRepo.repo);
+        onlyRepo !== undefined && !isSameRepository(locator, onlyRepo);
       if (outside) {
         return {
           ok: false,

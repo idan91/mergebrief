@@ -246,6 +246,18 @@ describe("GitHubTransports.INSTALLATION", () => {
     expect(calls).toEqual([]);
   });
 
+  it("reads a bound repo named in different letter case", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls), {
+      onlyRepo: { owner: "Acme", repo: "Widget" },
+    });
+    await expect(transport.readIssue(LOCATOR, signal)).resolves.toEqual({
+      ok: true,
+      value: ISSUE,
+    });
+    expect(calls).toEqual([LOCATOR]);
+  });
+
   it("lists both implementations under create", () => {
     expect(GitHubTransports.GH.create).toBe(createGhTransport);
     expect(GitHubTransports.INSTALLATION.create).toBe(
