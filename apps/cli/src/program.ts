@@ -3,7 +3,7 @@
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
 import { ProductActionIds } from "contract";
-import type { Mutable } from "types/utils";
+import { type Mutable, ReviewOutcomes } from "types";
 import operationsMap from "../product-operations.map.json";
 import {
   CLI_VERSION,
@@ -77,6 +77,8 @@ import {
   runAttach,
   type AttachDraftTarget,
 } from "./commands/attach";
+
+const REVIEW_OUTCOME_CHOICES = Object.values(ReviewOutcomes).join(" | ");
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -684,10 +686,7 @@ export function buildProgram(deps: CliDeps): Command {
       "-F, --file <path>",
       'full JSON payload from a file, or "-" for stdin',
     )
-    .option(
-      "--outcome <outcome>",
-      "comment | approve | request-changes (flag form)",
-    )
+    .option("--outcome <outcome>", `${REVIEW_OUTCOME_CHOICES} (flag form)`)
     .option("--body <text>", "review body (flag form)")
     .option("--base <sha>", "span base of the brief you reviewed")
     .option("--head <sha>", "span head of the brief you reviewed")
@@ -1178,7 +1177,7 @@ export function buildProgram(deps: CliDeps): Command {
     .command("outcome")
     .description("set your session's review intent (publishing is `submit`)")
     .argument("<number>", "PR number")
-    .argument("<outcome>", "comment | approve | request-changes")
+    .argument("<outcome>", REVIEW_OUTCOME_CHOICES)
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
     .action(
@@ -1244,7 +1243,7 @@ export function buildProgram(deps: CliDeps): Command {
       const global = globals();
       const prNumber = parsePrNumber(raw);
       const { client, repoId } = await resolveTarget(deps, global);
-      await runReady(client, repoId, prNumber, readIo(deps, global));
+      await runReady(client, repoId, prNumber);
     });
 
   program

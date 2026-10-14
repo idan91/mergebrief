@@ -3,7 +3,7 @@
 // pinned to the head of the Brief the request names. Deliberately NOT here:
 // the checkpoint write. The `pull_request_review` webhook, including the
 // echo of this very submit, is the ONLY checkpoint writer.
-import { ProductActionIds } from "contract";
+import { ProductActionIds, type SubmitReviewResponse } from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
@@ -57,7 +57,7 @@ function createSubmitReviewHandler(
     const { reviewId, commentsFolded, commentsTotal } = submitted.value;
     // `commentsDegraded` stays one release for the CLI receipt; the counts
     // are what the web copy reads.
-    const body = {
+    const body: SubmitReviewResponse = {
       reviewId: Number(reviewId),
       commentsDegraded: commentsFolded > 0,
       commentsFolded,

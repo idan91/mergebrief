@@ -193,7 +193,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     const res = await markReady(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(fake.listCalls("markPullRequestReadyForReview")).toEqual([
       expect.objectContaining({
         input: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
@@ -212,7 +212,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(listCallsPastGate(fake)).toEqual([]);
   });
 
-  it("200s a fresh flip with the mirror, the audit and one row read", async () => {
+  it("204s a fresh flip with the mirror, the audit and one row read", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);
     await seedDraftPr(harness.handle);
@@ -221,16 +221,16 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     const res = await markReady(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ draft: false });
+    expect(await res.text()).toBe("");
     expect(lookups.count()).toBe(1);
     expect(fake.listCalls("markPullRequestReadyForReview")).toHaveLength(1);
     expect(await readDraft(harness.handle)).toBe(false);
     expect(await countReadyAudits(harness)).toBe(1);
   });
 
-  it("converges two POSTs to 200 with an audit row each", async () => {
+  it("converges two POSTs to 204 with an audit row each", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);
     await seedDraftPr(harness.handle);
@@ -239,9 +239,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     const first = await markReady(cookie);
     const second = await markReady(cookie);
 
-    expect(first.status).toBe(200);
-    expect(second.status).toBe(200);
-    expect(await second.json()).toEqual({ draft: false });
+    expect(first.status).toBe(204);
+    expect(second.status).toBe(204);
+    expect(await second.text()).toBe("");
     expect(await readDraft(harness.handle)).toBe(false);
     expect(await countReadyAudits(harness)).toBe(2);
   });
@@ -289,7 +289,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     const res = await markReady(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(gate.tokenRefreshes()).toBe(1);
     expect(listFakeCallTokens(fake)).toEqual([
       ACCESS_TOKEN,
@@ -321,7 +321,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     arrangeRepository(fake);
     await seedDraftPr(harness.handle);
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
-    expect((await markReady(cookie)).status).toBe(200);
+    expect((await markReady(cookie)).status).toBe(204);
     await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
 
     const res = await markReady(cookie);

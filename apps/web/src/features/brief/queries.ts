@@ -2,9 +2,12 @@ import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import {
   LocalBriefKinds,
+  ProductActionIds,
   ProductQueryIds,
   RequestBounds,
   type FileRangeView,
+  type GenerateBriefBody,
+  type GenerateBriefResponse,
   type LocalBriefSummary,
   type LocalBriefView,
 } from "contract";
@@ -25,6 +28,7 @@ import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import { FileRangeResultKinds } from "./model/expansion/types";
 import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
 import {
+  generateBriefResponseSchema,
   parseAddressedReviewComments,
   parseComparisonMarks,
   parseFileDiffPatches,
@@ -37,47 +41,21 @@ import {
   type Result,
 } from "./model/utils/validation";
 
-function stringField(value: unknown, key: string): string | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  const field: unknown = Reflect.get(value, key);
-  return typeof field === "string" ? field : undefined;
-}
-
-/** Where a just-enqueued url-box brief will render (the repo route). */
-export interface GenerateAccepted {
-  readonly repoId: string;
-  readonly prNumber: number;
-}
-
 /**
  * The url-box door: resolve + enqueue with the VIEWER's token: it works for
  * any repo the account can read, no App installation. Generation runs in the
  * worker; the coords point at the repo route, whose meta poll shows progress.
+ * A refusal throws its `ApiError` for the caller's `briefErrorDetail`.
  */
-export async function generateBriefViaApi(
+export function generateBriefViaApi(
   url: string,
-): Promise<GenerateAccepted> {
-  const response = await apiFetch("/api/generate", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
-  const body = await apiJsonFromResponse(response, "/api/generate");
-  const repoId = stringField(body, "repoId");
-  const prNumber =
-    typeof body === "object" && body !== null && "prNumber" in body
-      ? body.prNumber
-      : undefined;
-  if (repoId === undefined || typeof prNumber !== "number") {
-    throw new ApiError(
-      ApiErrorCodes.MALFORMED,
-      response.status,
-      "/api/generate",
-    );
-  }
-  return { repoId, prNumber };
+): Promise<GenerateBriefResponse> {
+  const body: GenerateBriefBody = { url };
+  return request(
+    ProductActionIds.GENERATE_BRIEF,
+    { params: {}, body },
+    generateBriefResponseSchema,
+  );
 }
 
 const LOCAL_BRIEFS_PATH = "/api/local-briefs";

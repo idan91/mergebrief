@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { RequestBounds } from "contract";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -38,6 +39,12 @@ export function useUrlBoxFacade() {
     if (url.trim() === "") {
       return;
     }
+    if (url.length > RequestBounds.GENERATE_URL_LENGTH) {
+      setError(t("home.urlBox.tooLong"));
+      inputRef.current?.focus();
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {

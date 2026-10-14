@@ -8,6 +8,7 @@ import {
   makeFakeGitHub,
   type FakeGitHub,
 } from "github/testing";
+import { RequestBounds } from "contract";
 import {
   createTenantRepository,
   isInstallationId,
@@ -169,12 +170,22 @@ describe("POST /api/generate: the url-box door", () => {
     expect(res.status).toBe(400);
   });
 
-  it("upserts the owner-scoped row, enqueues the worker job, returns coords", async () => {
+  it("400s a url past the contract bound before any GitHub call", async () => {
+    arrangePastedPull(fake);
+    const cookie = await seedOwnerSignIn(harness, kp);
+    const padding = "x".repeat(RequestBounds.GENERATE_URL_LENGTH);
+    const res = await post(buildApp(), cookie, `${PR_URL}?${padding}`);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "invalid-request" });
+    expect(listPullReadTokens(fake)).toEqual([]);
+  });
+
+  it("202s the paste, upserts the owner row, enqueues the job", async () => {
     arrangePastedPull(fake, { merged: true });
     const cookie = await seedOwnerSignIn(harness, kp);
     const lookups = spyPullRequestLookups(harness);
     const res = await post(buildApp(), cookie, PR_URL);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(lookups.count()).toBe(0);
     expect(await res.json()).toEqual({
       repoId: String(REPO_ID),
@@ -244,7 +255,7 @@ describe("POST /api/generate: the url-box door", () => {
     const app = buildApp();
 
     const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     const rows = await harness.raw(
       "select installation_id, owner_user_id from pull_request",
     );
@@ -271,7 +282,7 @@ describe("POST /api/generate: the url-box door", () => {
     arrangePastedPull(fake);
     const cookie = await seedOwnerSignIn(harness, kp);
     const app = buildApp();
-    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+    expect((await post(app, cookie, PR_URL)).status).toBe(202);
 
     const fresh = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
@@ -332,7 +343,7 @@ describe("POST /api/generate: the url-box door", () => {
     arrangePastedPull(fake);
     const app = buildApp();
     const pasted = await post(app, await seedOwnerSignIn(harness, kp), PR_URL);
-    expect(pasted.status).toBe(200);
+    expect(pasted.status).toBe(202);
 
     const other = await seedOwnerSignIn(harness, kp, OTHER_REVIEWER);
     const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
@@ -347,11 +358,11 @@ describe("POST /api/generate: the url-box door", () => {
     arrangePastedPull(fake);
     const cookie = await seedOwnerSignIn(harness, kp);
     const app = buildApp();
-    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+    expect((await post(app, cookie, PR_URL)).status).toBe(202);
     const first = await harness.raw(
       "select run_at from graphile_worker.jobs where task_identifier = 'generate'",
     );
-    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+    expect((await post(app, cookie, PR_URL)).status).toBe(202);
 
     const prs = await harness.raw("select id from pull_request");
     expect(prs).toHaveLength(1);
@@ -375,7 +386,7 @@ describe("POST /api/generate: the url-box door", () => {
     // The PAT is CONFIGURED here so the assertion genuinely excludes it: a
     // 401 must spend the refresh, never escalate to the operator identity.
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(listPullReadTokens(fake)).toEqual([
       ACCESS_TOKEN,
       ROTATED_ACCESS_TOKEN,
@@ -424,7 +435,7 @@ describe("POST /api/generate: the url-box door", () => {
     );
     const cookie = await seedOwnerSignIn(harness, kp);
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(listPullReadTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 

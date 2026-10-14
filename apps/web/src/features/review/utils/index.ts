@@ -37,7 +37,6 @@ export {
 export {
   buildSubmitPayload,
   type SubmitDraftInput,
-  type SubmitPayload,
   type SubmitReviewAction,
 } from "./submit";
 export {

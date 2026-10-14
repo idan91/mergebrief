@@ -24,10 +24,8 @@ function run(): ReturnType<typeof markPrReady> {
 }
 
 describe("markPrReady", () => {
-  it("posts to the ready route and parses a fresh or converged 200", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draft: false }), { status: 200 }),
-    );
+  it("posts to the ready route and reads its 204 as ready", async () => {
+    apiFetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(run()).resolves.toEqual({ kind: "ready" });
     expect(apiFetchMock).toHaveBeenCalledWith(
       "/api/repos/424242/pulls/7/ready",
@@ -116,11 +114,7 @@ describe("markPrReady", () => {
     }
   });
 
-  it("maps a 200 that is not draft false to the indeterminate kind", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draft: true }), { status: 200 }),
-    );
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
+  it("maps an unreadable 2xx body to the indeterminate kind", async () => {
     apiFetchMock.mockResolvedValue(new Response("not-json", { status: 200 }));
     await expect(run()).resolves.toEqual({ kind: "indeterminate" });
   });

@@ -75,6 +75,8 @@ export {
 } from "./inbox";
 export {
   WaitReasons,
+  type GenerateBriefBody,
+  type GenerateBriefResponse,
   type GenerationSummaryView,
   type WaitReason,
 } from "./generation";
@@ -111,6 +113,7 @@ export {
   type ProductQueryRow,
 } from "./operations/types";
 export type { PullMetaView } from "./pull-meta";
+export type { SubmitReviewBody, SubmitReviewResponse } from "./review";
 export type {
   AddressRiskBody,
   CarriedFromPayload,

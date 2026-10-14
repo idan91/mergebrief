@@ -223,12 +223,14 @@ Receipt: `{"resolved":true,"alreadyInTargetState":false}`.
 ### `ready <n>`
 
 Mark a draft PR ready for review (GitHub enforces who may). No span.
-Receipt: `{"draft":false}`.
+Prints nothing on success.
 
 ### `generate <url>`
 
 Generate a brief for a PR URL on demand — no confirm prompt (your own
-key, mirroring the web URL box). Receipt: `{"briefId":"octo-hello-7_1_4c0a…"}`.
+key, mirroring the web URL box). The server queues the run and answers
+where the brief will render: `{"repoId":"42001","prNumber":7}`. Poll
+`pr <n>` for progress.
 
 ### `collaborators`
 

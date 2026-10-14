@@ -9,10 +9,11 @@ import {
   ReviewCommentSides,
   ReviewOutcomes,
   type DiffSide,
+  type Mutable,
   type ReviewCommentSide,
   type ReviewOutcome,
 } from "types";
-import { RequestBounds } from "contract";
+import { RequestBounds, type SubmitReviewBody } from "contract";
 import type { TFunction } from "i18next";
 
 import type {
@@ -26,16 +27,6 @@ import {
 } from "./comments";
 import type { Receipt } from "./receipt";
 import type { SubmitReviewResult } from "./types";
-
-/**
- * The submit route's body. It carries NO comments: the session already holds
- * every draft, so sending them back would make two copies and a which-wins
- * rule. The commit comes off the Brief the request names.
- */
-export interface SubmitPayload {
-  outcome: ReviewOutcome;
-  body?: string;
-}
 
 export interface BuildSubmitPayloadInput {
   outcome: ReviewOutcome;
@@ -54,8 +45,8 @@ const SIDE_TO_WIRE: Record<DiffSide, ReviewCommentSide> = {
  */
 export function buildSubmitPayload(
   input: BuildSubmitPayloadInput,
-): SubmitPayload {
-  const payload: SubmitPayload = { outcome: input.outcome };
+): SubmitReviewBody {
+  const payload: Mutable<SubmitReviewBody> = { outcome: input.outcome };
 
   if (input.body !== undefined) {
     payload.body = input.body;

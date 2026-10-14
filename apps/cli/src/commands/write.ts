@@ -4,8 +4,10 @@
 import {
   ProductActionIds,
   ProductOperations,
+  type GenerateBriefBody,
   type ReplyToCommentBody,
 } from "contract";
+import { ReviewOutcomes } from "types/reviews";
 import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
 import { buildRequestPath } from "./request-path";
@@ -43,10 +45,6 @@ export function requireSpan(
     );
   }
   return { base, head };
-}
-
-export function spanQuery(span: BriefSpan): string {
-  return `?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
 }
 
 /** POST one reply under a review comment; the receipt is passthrough. */
@@ -101,37 +99,33 @@ export async function runThreadResolution(
   io.stdout(`${response.bodyText}\n`);
 }
 
-/** POST mark-ready; receipt passthrough ({draft:false}). */
+/** POST mark-ready; its success is a 204, so stdout stays empty. */
 export async function runReady(
   client: ApiClient,
   repoId: string,
   prNumber: number,
-  io: WriteIo,
 ): Promise<void> {
-  const response = await client.request({
-    method: "POST",
-    path: `/api/repos/${repoId}/pulls/${prNumber}/ready`,
+  await client.request({
+    method: ProductOperations[ProductActionIds.MARK_READY].method,
+    path: buildRequestPath(ProductActionIds.MARK_READY, { repoId, prNumber }),
   });
-  if (io.json) {
-    io.stdout(response.bodyText); // verbatim receipt
-    return;
-  }
-  io.stdout(`${response.bodyText}\n`);
 }
 
 /**
- * POST /api/generate, URL-box generation, no confirm prompt (the operator's
- * own key, mirroring the web URL box). Receipt passthrough ({repoId, prNumber}).
+ * POST generate-brief, URL-box generation, no confirm prompt (the operator's
+ * own key, mirroring the web URL box). The 202 body ({repoId, prNumber}) is
+ * passthrough.
  */
 export async function runGenerate(
   client: ApiClient,
   url: string,
   io: WriteIo,
 ): Promise<void> {
+  const body: GenerateBriefBody = { url };
   const response = await client.request({
-    method: "POST",
-    path: "/api/generate",
-    body: { url },
+    method: ProductOperations[ProductActionIds.GENERATE_BRIEF].method,
+    path: buildRequestPath(ProductActionIds.GENERATE_BRIEF, {}),
+    body,
   });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim receipt
@@ -147,6 +141,7 @@ export async function runGenerate(
 export interface SubmitInput {
   /** Parsed `-F` payload, if one was given. */
   readonly payload?: unknown;
+  /** The raw flag: the server validates it, so an unknown value relays its 400. */
   readonly outcome?: string | undefined;
   readonly body?: string | undefined;
 }
@@ -179,7 +174,9 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
     return input.payload;
   }
 
-  const payload: SubmitFlagPayload = { outcome: input.outcome ?? "comment" };
+  const payload: SubmitFlagPayload = {
+    outcome: input.outcome ?? ReviewOutcomes.COMMENT,
+  };
 
   if (input.body !== undefined) {
     payload.body = input.body;
@@ -203,8 +200,12 @@ export async function runSubmit(
   io: WriteIo,
 ): Promise<void> {
   const response = await client.request({
-    method: "POST",
-    path: `/api/repos/${repoId}/pulls/${prNumber}/review${spanQuery(span)}`,
+    method: ProductOperations[ProductActionIds.SUBMIT_REVIEW].method,
+    path: buildRequestPath(
+      ProductActionIds.SUBMIT_REVIEW,
+      { repoId, prNumber },
+      { base: span.base, head: span.head },
+    ),
     body: payload,
   });
 

@@ -65,6 +65,16 @@ deprecation note here, removal only at a major.
 - `POST .../session/comments` (`201 { draftId }`) and
   `PUT .../session/outcome` (`200 { outcome }`, read back off the stored
   session) are unchanged.
+- **Changed** `POST /api/repos/:repoId/pulls/:prNumber/ready` to answer
+  `204` with no body (was `200 { draft: false }`, an echo of the request).
+  Removed before the first release. `mergebrief ready` now prints nothing
+  on success and exits 0.
+- **Changed** `POST /api/generate` to answer `202 { repoId, prNumber }`
+  (was `200` with the same body): the request queues generation in the
+  worker. `mergebrief generate` relays the body verbatim. A `url` longer
+  than 500 characters is still a deterministic `400 invalid-request`.
+- `POST /api/repos/:repoId/pulls/:prNumber/review` (`201 { reviewId,
+  commentsDegraded, commentsFolded, commentsTotal }`) is unchanged.
 
 ## dev (2026-10-11)
 

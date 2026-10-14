@@ -1,6 +1,7 @@
 // POST /api/repos/:repoId/pulls/:prNumber/ready marks the pull request ready
 // with the VIEWER's token, which GitHub checks against the author and
-// maintainers. The later `ready_for_review` webhook lands as a no-op.
+// maintainers. The later `ready_for_review` webhook lands as a no-op. Success
+// is a 204: the caller already knows the PR is no longer a draft.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";
@@ -25,7 +26,7 @@ function createMarkReadyHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
     }
 
     stampAuditTarget(c, "pull_request", marked.value);
-    return c.json({ draft: false }, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 

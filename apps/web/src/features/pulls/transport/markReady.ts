@@ -3,7 +3,6 @@
 // any kind is safe.
 import type { QueryKey } from "@tanstack/react-query";
 import { ProductActionIds } from "contract";
-import { z } from "zod/v4";
 
 import {
   MarkReadyResultKinds,
@@ -25,8 +24,8 @@ type MarkReadyFailureKind = Exclude<
 // A 403 on this route is ONLY the missing `contents: write` (the fresh-resolve
 // denial collapses to 404 server-side), so a codeless 403 reads the same.
 // The route's only 400 is a malformed :prNumber, unreachable from a valid UI
-// state, so it stays in the upstream fallback. A malformed 2xx means the flip
-// may have landed, so it reads as indeterminate.
+// state, so it stays in the upstream fallback. An unreadable 2xx body means
+// the flip may have landed, so it reads as indeterminate.
 const ReadyKinds: WriteKindTable<MarkReadyFailureKind> = {
   [ApiErrorCodes.FORBIDDEN]: MarkReadyResultKinds.GITHUB_PERMISSION,
   [ApiErrorCodes.GITHUB_PERMISSION]: MarkReadyResultKinds.GITHUB_PERMISSION,
@@ -36,18 +35,14 @@ const ReadyKinds: WriteKindTable<MarkReadyFailureKind> = {
   fallback: MarkReadyResultKinds.UPSTREAM,
 };
 
-const readyBodySchema = z.object({ draft: z.literal(false) });
-
 export async function markPrReady(
   repoId: string,
   prNumber: number,
 ): Promise<MarkReadyResult> {
   try {
-    await request(
-      ProductActionIds.MARK_READY,
-      { params: { repoId, prNumber } },
-      readyBodySchema,
-    );
+    await request(ProductActionIds.MARK_READY, {
+      params: { repoId, prNumber },
+    });
     return { kind: MarkReadyResultKinds.READY };
   } catch (error) {
     return { kind: readFailureKind(error, ReadyKinds) };

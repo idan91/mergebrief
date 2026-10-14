@@ -5,9 +5,13 @@
 // denial posture is a uniform 404: FORBIDDEN and NOT_FOUND are
 // indistinguishable to the caller (no existence leak), mirroring the
 // cold-denial posture of the gated routes. Generation itself runs in the
-// worker; the response carries the PR coordinates the web polls.
+// worker, so the answer is a 202 carrying the PR coordinates the web polls.
 import { parsePrUrl, type PrLocator } from "brief-core/pr-url";
-import { ApiErrorCodes, ProductActionIds } from "contract";
+import {
+  ApiErrorCodes,
+  ProductActionIds,
+  type GenerateBriefResponse,
+} from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";
 import { bindOperatorReader } from "../../access/operator-token";
@@ -60,7 +64,8 @@ function createGenerateBriefHandler(deps: AuthRouteDeps): Handler<AuthzEnv> {
 
     stampAuditTarget(c, "pull_request", generated.value.pullRequestId);
     const { repoId, prNumber } = generated.value;
-    return c.json({ repoId, prNumber }, HttpStatuses.OK, NO_STORE);
+    const accepted: GenerateBriefResponse = { repoId, prNumber };
+    return c.json(accepted, HttpStatuses.ACCEPTED, NO_STORE);
   };
 }
 

@@ -1,3 +1,4 @@
+import type { GenerateBriefResponse } from "contract";
 import type { GitHubCallFailure, GitHubReader } from "github";
 import type { Logger } from "logging";
 import type { AppDatabase, PullRequestRowId } from "persistence";
@@ -19,13 +20,7 @@ export interface GenerateBriefDeps {
 /** The paste's one GitHub read, refused; the handler owns the posture. */
 export type GenerateFailure = GitHubDeniedFailure<GitHubCallFailure>;
 
-/** What the door returns: where the brief will render, for polling. */
-export interface GenerateAccepted {
-  readonly repoId: string;
-  readonly prNumber: number;
-}
-
 /** The operation's result: the wire shape plus the audit-stamp row id. */
-export interface GenerateOutcome extends GenerateAccepted {
+export interface GenerateOutcome extends GenerateBriefResponse {
   readonly pullRequestId: PullRequestRowId;
 }

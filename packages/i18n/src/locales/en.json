@@ -1234,7 +1234,8 @@
       "ariaLabel": "Pull request URL",
       "placeholder": "Paste a pull request URL",
       "generate": "Generate brief",
-      "reading": "Reading the pull request from GitHub"
+      "reading": "Reading the pull request from GitHub",
+      "tooLong": "That URL is too long to be a pull request link. Paste the link from the pull request page."
     },
     "inbox": {
       "heading": "Briefs",

@@ -1,7 +1,12 @@
 // Every deterministic route rejection maps to recoverable copy (the FE
 // resubmits the same state); the 503 config path surfaces the server-authored
 // env-name copy verbatim.
+import type { GenerateBriefResponse } from "contract";
+import type { Equals } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
+import type { z } from "zod/v4";
+
+import type { generateBriefResponseSchema } from "./model/schemas";
 
 const apiFetch = vi.hoisted(() => vi.fn());
 vi.mock("../../data/apiFetch", async (importOriginal) => ({
@@ -11,6 +16,20 @@ vi.mock("../../data/apiFetch", async (importOriginal) => ({
 
 const { generateBriefViaApi } = await import("./queries");
 
+const generateResponsePin = true satisfies Equals<
+  z.output<typeof generateBriefResponseSchema>,
+  GenerateBriefResponse
+>;
+
+/** Every field the parser reads is one the contract sends. */
+const readsWireFieldsPin = true satisfies Equals<
+  Exclude<
+    keyof z.input<typeof generateBriefResponseSchema>,
+    keyof GenerateBriefResponse
+  >,
+  never
+>;
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -19,9 +38,9 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 describe("generateBriefViaApi", () => {
-  it("posts the url and returns the repo-route coords", async () => {
+  it("posts the url and returns the coords from the 202", async () => {
     apiFetch.mockResolvedValue(
-      jsonResponse({ repoId: "424242", prNumber: 7 }, 200),
+      jsonResponse({ repoId: "424242", prNumber: 7 }, 202),
     );
     await expect(
       generateBriefViaApi("https://github.com/o/r/pull/7"),
@@ -46,8 +65,25 @@ describe("generateBriefViaApi", () => {
     });
   });
 
-  it("falls back to generic copy on a malformed 200", async () => {
-    apiFetch.mockResolvedValue(jsonResponse({ nope: true }, 200));
+  it("falls back to generic copy on a malformed 202", async () => {
+    apiFetch.mockResolvedValue(jsonResponse({ nope: true }, 202));
+    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
+      code: "malformed",
+    });
+  });
+
+  it("pins the parser to the contract receipt", () => {
+    expect(generateResponsePin).toBe(true);
+  });
+
+  it("reads only the fields the contract sends", () => {
+    expect(readsWireFieldsPin).toBe(true);
+  });
+
+  it("refuses a 202 whose prNumber is not a number", async () => {
+    apiFetch.mockResolvedValue(
+      jsonResponse({ repoId: "424242", prNumber: "7" }, 202),
+    );
     await expect(generateBriefViaApi("u")).rejects.toMatchObject({
       code: "malformed",
     });

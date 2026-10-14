@@ -526,17 +526,22 @@ describe("disposition commands over the real api app", () => {
     });
   });
 
-  it("ready marks the PR ready over GitHub; receipt verbatim; no span taken", async () => {
+  it("ready marks the PR ready with empty stdout and no span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    stubGitHub(world, [
-      { repository: { pullRequest: { id: "PR_node1", isDraft: true } } },
-      { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } },
-    ]);
-    const result = await run(["ready", "7", "--json"]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual({ draft: false });
+    for (const argv of [
+      ["ready", "7", "--json"],
+      ["ready", "7"],
+    ]) {
+      stubGitHub(world, [
+        { repository: { pullRequest: { id: "PR_node1", isDraft: true } } },
+        { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } },
+      ]);
+      const result = await run(argv);
+      expect(result.err).toEqual([]);
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toBe("");
+    }
   });
 
   it("an invalid PR number exits 2 on every disposition command", async () => {

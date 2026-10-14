@@ -1,5 +1,9 @@
 import { LineRangeSchema } from "brief-core/types";
-import { LocalBriefKinds, type LocalBriefSummary } from "contract";
+import {
+  LocalBriefKinds,
+  type GenerateBriefResponse,
+  type LocalBriefSummary,
+} from "contract";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -148,6 +152,10 @@ export function parseLocalBriefSummaries(
 ): Result<LocalBriefSummary[], string> {
   return parseWithSchema(z.array(localBriefSummarySchema), value);
 }
+
+export const generateBriefResponseSchema = z
+  .object({ repoId: z.string(), prNumber: z.number() })
+  .readonly() satisfies z.ZodType<GenerateBriefResponse, GenerateBriefResponse>;
 
 export const repoConfigFileOutcomeSchema = z.object({
   path: z.string(),

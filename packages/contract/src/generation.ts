@@ -31,3 +31,14 @@ export interface GenerationSummaryView {
    */
   readonly waitReason?: WaitReason;
 }
+
+/** `generate-brief`: a GitHub pull request URL. */
+export interface GenerateBriefBody {
+  readonly url: string;
+}
+
+/** What `generate-brief` answers, with 202: where the queued brief will render. */
+export interface GenerateBriefResponse {
+  readonly repoId: string;
+  readonly prNumber: number;
+}

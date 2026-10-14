@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { RequestBounds } from "contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
@@ -62,5 +63,24 @@ describe("UrlBox", () => {
     expect(
       screen.getByRole("textbox", { name: "Pull request URL" }),
     ).toBeTruthy();
+  });
+
+  it("refuses a URL past the server's bound before sending it", async () => {
+    await renderInRouter(<UrlBox />);
+    const field = screen.getByRole("textbox", { name: "Pull request URL" });
+    const padding = "x".repeat(RequestBounds.GENERATE_URL_LENGTH);
+
+    fireEvent.change(field, {
+      target: { value: `https://github.com/o/r/pull/7?${padding}` },
+    });
+    await act(async () => {
+      fireEvent.submit(field.closest("form")!);
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "That URL is too long to be a pull request link. Paste the link from the pull request page.",
+    );
+    expect(document.activeElement).toBe(field);
   });
 });
