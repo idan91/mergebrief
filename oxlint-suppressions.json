@@ -261,14 +261,6 @@
       "count": 1
     }
   },
-  "packages/i18n/test/create.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/i18n/test/helpers.ts": {
     "house/no-em-dash": {
       "count": 6

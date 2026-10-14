@@ -18,12 +18,6 @@ export function briefErrorDetail(t: TFunction, error: unknown): string {
   if (!(error instanceof ApiError)) {
     return t("briefError.unexpected");
   }
-  if (
-    error.code === ApiErrorCodes.GENERATION_CONFIG &&
-    error.params !== undefined
-  ) {
-    return t("errors.generation-config", { detail: error.params.detail });
-  }
   switch (error.code) {
     case ApiErrorCodes.NOT_A_PR_URL:
     case ApiErrorCodes.INVALID_REQUEST:

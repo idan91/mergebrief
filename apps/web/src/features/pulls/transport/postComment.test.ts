@@ -101,7 +101,6 @@ describe("postInlineComment", () => {
       ["scope-exceeded", "upstream"],
       ["human-only", "upstream"],
       ["draft-limit-reached", "upstream"],
-      ["app-not-installed", "upstream"],
       ["github-unavailable", "upstream"],
       ["internal-error", "upstream"],
     ] as const) {

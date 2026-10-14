@@ -16,10 +16,10 @@ export function createErrorHandler<E extends RequestLogEnv>(
 ): (err: Error, c: Context<E>) => Response {
   return (err, c) => {
     if (err instanceof ApiError) {
-      return buildErrorResponse(c, err.code, err.params);
+      return buildErrorResponse(c, err.code);
     }
     const log: Logger | undefined = c.get("logger");
     (log ?? fallback).error("unhandled route error", { err });
-    return buildErrorResponse(c, ApiErrorCodes.INTERNAL_ERROR, undefined);
+    return buildErrorResponse(c, ApiErrorCodes.INTERNAL_ERROR);
   };
 }

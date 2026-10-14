@@ -41,8 +41,9 @@ third style — evolved past its response-smuggling.
 
 ### Error classes
 
-Abstract base `ApiError(code, params?)` plus exactly one subclass per HTTP
-status in `API_ERROR_STATUS` (`ApiErrorStatusByCode`): `BadRequest` 400, `Unauthorized` 401,
+Abstract base `ApiError(code~~, params?~~)` **(amended 2026-10-12,
+BRIEF-333: no code carries params; the error body is `{ error, code }`)**
+plus exactly one subclass per HTTP status in `API_ERROR_STATUS` (`ApiErrorStatusByCode`): `BadRequest` 400, `Unauthorized` 401,
 `Forbidden` 403, `NotFound` 404, `Conflict` 409, `PayloadTooLarge` 413,
 `InternalError` 500, `BadGateway` 502, `ServiceUnavailable` 503. No
 speculative classes. Class = HTTP vocabulary; the `ApiErrorCode` product code

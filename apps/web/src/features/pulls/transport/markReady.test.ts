@@ -93,7 +93,6 @@ describe("markPrReady", () => {
       ["invalid-request", "upstream"],
       ["scope-exceeded", "upstream"],
       ["human-only", "upstream"],
-      ["app-not-installed", "upstream"],
       ["github-unavailable", "upstream"],
       ["internal-error", "upstream"],
     ] as const) {

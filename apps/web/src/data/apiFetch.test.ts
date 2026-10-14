@@ -71,39 +71,6 @@ describe("apiJsonFromResponse", () => {
     });
   });
 
-  it("keeps validated generation-config params on the typed error", async () => {
-    const attempt = apiJsonFromResponse(
-      new Response(
-        JSON.stringify({
-          error: "ANTHROPIC_API_KEY is required",
-          code: "generation-config",
-          params: { detail: "ANTHROPIC_API_KEY is required" },
-        }),
-        { status: 503 },
-      ),
-      "/api/generate",
-    );
-    await expect(attempt).rejects.toMatchObject({
-      code: "generation-config",
-      params: { detail: "ANTHROPIC_API_KEY is required" },
-    });
-  });
-
-  it("drops malformed params instead of trusting the wire body", async () => {
-    const error = await errorFromResponse(
-      new Response(
-        JSON.stringify({
-          error: "x",
-          code: "generation-config",
-          params: { detail: 42 },
-        }),
-        { status: 503 },
-      ),
-      "/api/generate",
-    );
-    expect(error.params).toBeUndefined();
-  });
-
   it("ignores an unknown wire code and keeps the status bucket", async () => {
     const attempt = apiJsonFromResponse(
       new Response('{"error":"x","code":"brand-new-code"}', { status: 404 }),
@@ -183,22 +150,8 @@ describe("apiErrorSerializationAdapter", () => {
       code: ApiErrorCodes.NOT_FOUND,
       status: 404,
       path: "/api/local-briefs/missing",
-      params: undefined,
     });
     expect(restored.message).toBe(error.message);
-  });
-
-  it("keeps the params a generation-config refusal carries", () => {
-    const error = new ApiError(
-      ApiErrorCodes.GENERATION_CONFIG,
-      503,
-      "/api/generate",
-      { detail: "no provider key" },
-    );
-
-    const restored = runSerializationRoundTrip(error);
-
-    expect(restored.params).toEqual({ detail: "no provider key" });
   });
 
   it("claims only ApiError, leaving other errors to the default", () => {

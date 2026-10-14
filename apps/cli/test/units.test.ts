@@ -198,36 +198,17 @@ describe("client proxy/IdP detection", () => {
     });
   });
 
-  it("renders a known wire code from the catalog with params", async () => {
+  it("renders a known wire code from the catalog", async () => {
     const client = clientWith(
       new Response(
-        JSON.stringify({
-          error: "MODEL unset",
-          code: "generation-config",
-          params: { detail: "MODEL unset" },
-        }),
-        { status: 503, headers: { "content-type": "application/json" } },
+        JSON.stringify({ error: "server line", code: "diff-too-large" }),
+        { status: 413, headers: { "content-type": "application/json" } },
       ),
     );
     await expect(
       client.request({ path: "/api/generate" }),
     ).rejects.toMatchObject({
-      message: "MODEL unset (HTTP 503)",
-    });
-  });
-
-  it("relays verbatim when a parameterized code arrives without params", async () => {
-    const client = clientWith(
-      new Response(
-        JSON.stringify({ error: "MODEL unset", code: "generation-config" }),
-        { status: 503, headers: { "content-type": "application/json" } },
-      ),
-    );
-    await expect(
-      client.request({ path: "/api/generate" }),
-    ).rejects.toMatchObject({
-      // The un-interpolated template must never reach stderr.
-      message: "MODEL unset (HTTP 503)",
+      message: "diff too large to render (HTTP 413)",
     });
   });
 

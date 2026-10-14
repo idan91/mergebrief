@@ -5,8 +5,7 @@
 import { createSerializationAdapter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { ApiErrorCodes } from "contract";
-import { HttpStatuses } from "types/http";
-import type { ValueOf } from "types/utils";
+import { HttpStatuses, type ValueOf } from "types";
 
 import { requestSignIn } from "./sign-in";
 import { reportSignedOut } from "./signed-out";
@@ -20,10 +19,6 @@ const WebApiErrorCodes = {
 } as const;
 export { WebApiErrorCodes as ApiErrorCodes };
 export type ApiErrorCode = ValueOf<typeof WebApiErrorCodes>;
-
-export interface ApiErrorParams {
-  readonly detail: string;
-}
 
 function isWireCode(value: string): value is ApiErrorCode {
   return Object.values(ApiErrorCodes).some((code) => code === value);
@@ -50,20 +45,13 @@ export function isSignInRequired(code: ApiErrorCode): boolean {
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
-  readonly params: ApiErrorParams | undefined;
   readonly status: number;
   readonly path: string;
 
-  constructor(
-    code: ApiErrorCode,
-    status: number,
-    path: string,
-    params?: ApiErrorParams,
-  ) {
+  constructor(code: ApiErrorCode, status: number, path: string) {
     super(`api request failed: ${code} (${status}) for ${path}`);
     this.name = "ApiError";
     this.code = code;
-    this.params = params;
     this.status = status;
     this.path = path;
   }
@@ -74,7 +62,6 @@ interface SerializedApiError {
   readonly code: ApiErrorCode;
   readonly status: number;
   readonly path: string;
-  readonly params: ApiErrorParams | undefined;
 }
 
 /**
@@ -92,27 +79,10 @@ export const apiErrorSerializationAdapter = createSerializationAdapter<
     code: error.code,
     status: error.status,
     path: error.path,
-    params: error.params,
   }),
   fromSerializable: (value) =>
-    new ApiError(value.code, value.status, value.path, value.params),
+    new ApiError(value.code, value.status, value.path),
 });
-
-function configParams(value: unknown): ApiErrorParams | undefined {
-  if (typeof value !== "object" || value === null || !("params" in value)) {
-    return undefined;
-  }
-  const params: unknown = value.params;
-  if (
-    typeof params !== "object" ||
-    params === null ||
-    !("detail" in params) ||
-    typeof params.detail !== "string"
-  ) {
-    return undefined;
-  }
-  return { detail: params.detail };
-}
 
 // Fallback for a body that carries no code (a proxy error page, a legacy
 // server): the pre-contract status buckets, expressed in the new vocabulary.
@@ -148,20 +118,16 @@ export async function errorFromResponse(
   path: string,
 ): Promise<ApiError> {
   let code = codeForStatus(response.status);
-  let params: ApiErrorParams | undefined;
   try {
     const body: unknown = await response.json();
     const wireCode = readWireCode(body);
     if (wireCode !== undefined) {
       code = wireCode;
-      if (code === WebApiErrorCodes.GENERATION_CONFIG) {
-        params = configParams(body);
-      }
     }
   } catch {
     // Non-JSON error body, the status bucket stands.
   }
-  return new ApiError(code, response.status, path, params);
+  return new ApiError(code, response.status, path);
 }
 
 /**

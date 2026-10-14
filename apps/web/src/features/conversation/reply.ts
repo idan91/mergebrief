@@ -66,11 +66,7 @@ const KindForCode = {
   [ApiErrorCodes.PENDING_REVIEW_HELD]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: ReplyResultKinds.UPSTREAM,
-  [ApiErrorCodes.APP_NOT_INSTALLED]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.GITHUB_UNAVAILABLE]: ReplyResultKinds.UPSTREAM,
-  [ApiErrorCodes.GENERATION_FAILED]: ReplyResultKinds.UPSTREAM,
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: ReplyResultKinds.UPSTREAM,
-  [ApiErrorCodes.GENERATION_CONFIG]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.ARTIFACT_UNREADABLE]: ReplyResultKinds.UPSTREAM,
   [ApiErrorCodes.INTERNAL_ERROR]: ReplyResultKinds.UPSTREAM,
   // Web-local; never on the wire: errorFromResponse cannot produce it.

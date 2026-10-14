@@ -209,7 +209,7 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
   // root's sanitized-500 renderer.
   app.onError((err, c) => {
     if (err instanceof ApiError) {
-      return buildErrorResponse(c, err.code, err.params);
+      return buildErrorResponse(c, err.code);
     }
     throw err;
   });

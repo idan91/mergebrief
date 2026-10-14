@@ -22,30 +22,15 @@ describe("errorJson", () => {
     expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
   });
 
-  it("composes the English line from the template and carries params", async () => {
-    const app = appFor((c) =>
-      errorJson(c, ApiErrorCodes.GENERATION_CONFIG, {
-        detail: "missing ANTHROPIC_API_KEY",
-      }),
-    );
-    const res = await app.request("/probe");
-    expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({
-      error: "missing ANTHROPIC_API_KEY",
-      code: "generation-config",
-      params: { detail: "missing ANTHROPIC_API_KEY" },
-    });
-  });
-
-  it("omits params entirely for paramless codes", async () => {
+  it("sends only the error line and the code", async () => {
     const app = appFor((c) => errorJson(c, ApiErrorCodes.UNAUTHORIZED));
     const body: unknown = await (await app.request("/probe")).json();
-    expect(body).not.toHaveProperty("params");
+    expect(body).toEqual({ error: "unauthorized", code: "unauthorized" });
   });
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(38);
+    expect(codes).toHaveLength(34);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -85,11 +70,7 @@ describe("errorJson", () => {
       "pending-review-held": 409,
       "pr-changed-since-read": 409,
       "pr-rewritten-since-read": 409,
-      "app-not-installed": 403,
       "github-unavailable": 502,
-      "generation-failed": 502,
-      "generation-unavailable": 503,
-      "generation-config": 503,
       "artifact-unreadable": 500,
       "internal-error": 500,
     });

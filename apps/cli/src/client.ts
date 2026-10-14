@@ -85,29 +85,24 @@ function isKnownErrorCode(value: string): value is keyof typeof en.errors {
 
 /**
  * Best-effort extraction of the server's one-line error text. Tolerant
- * probe: a known wire `code` renders the catalog template (with `params`
- * interpolated); an unknown/absent code, or a render that comes back
- * empty, relays the `error` field verbatim.
+ * probe: a known wire `code` renders its catalog line; an unknown or absent
+ * code, or a render that comes back empty, relays the `error` field verbatim.
  */
 function resolveCatalogErrorLine(
   body: Record<string, unknown>,
   statusLabel: string,
 ): string | undefined {
   const code = body["code"];
-  const params = body["params"];
   if (typeof code !== "string" || !isKnownErrorCode(code)) {
     return undefined;
   }
 
-  // `replace` isolates the params: a wire param named `count` would otherwise
-  // steer i18next's plural lookup.
-  const rendered = i18n.t(`errors.${code}`, {
-    replace: isRecord(params) ? params : {},
-  });
-  if (rendered.trim() === "" || rendered.includes("{{")) {
+  const rendered = i18n.t(`errors.${code}`);
+  if (rendered.trim() === "") {
     return undefined;
   }
-  return `${rendered} (${statusLabel})`;
+  const line = `${rendered} (${statusLabel})`;
+  return line;
 }
 
 function serverErrorLine(bodyText: string, statusLabel: string): string {

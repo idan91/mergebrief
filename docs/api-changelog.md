@@ -26,6 +26,11 @@ deprecation note here, removal only at a major.
   from `mergebrief capabilities --json`. Removed before the first release,
   so no shipped client reads them. The version number is the skew signal;
   `--require` still checks the operations an agent needs.
+- **Removed** the error codes `app-not-installed`, `generation-failed`,
+  `generation-unavailable` and `generation-config`, which no route emitted,
+  and the `params` field of the error body: every `/api/*` error body is now
+  `{ error, code }`. Removed before the first release, so no shipped client
+  reads them.
 
 ## dev (2026-10-11)
 

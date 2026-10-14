@@ -9,7 +9,6 @@ import {
   InternalError,
   NotFound,
   PayloadTooLarge,
-  ServiceUnavailable,
   TooManyRequests,
   Unauthorized,
   type CodeFor,
@@ -31,7 +30,6 @@ describe("ApiError classes", () => {
     new Forbidden(ApiErrorCodes.REPO_ADMIN_ONLY),
     new Forbidden(ApiErrorCodes.ATTACHMENTS_DISABLED),
     new Forbidden(ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY),
-    new Forbidden(ApiErrorCodes.APP_NOT_INSTALLED),
     new NotFound(),
     new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED),
     new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED),
@@ -52,11 +50,6 @@ describe("ApiError classes", () => {
     new InternalError(),
     new InternalError(ApiErrorCodes.ARTIFACT_UNREADABLE),
     new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE),
-    new BadGateway(ApiErrorCodes.GENERATION_FAILED),
-    new ServiceUnavailable(ApiErrorCodes.GENERATION_UNAVAILABLE),
-    new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
-      detail: "missing key",
-    }),
   ];
 
   it("covers every code with exactly one class instance", () => {
@@ -77,14 +70,6 @@ describe("ApiError classes", () => {
     expect(err.name).toBe("NotFound");
   });
 
-  it("carries params when the code takes them, undefined otherwise", () => {
-    const withParams = new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
-      detail: "missing key",
-    });
-    expect(withParams.params).toEqual({ detail: "missing key" });
-    expect(new NotFound().params).toBeUndefined();
-  });
-
   it("CodeFor pins class-code agreement at the type level", () => {
     expectTypeOf<CodeFor<404>>().toEqualTypeOf<
       "not-found" | "file-not-found"
@@ -94,9 +79,7 @@ describe("ApiError classes", () => {
     >();
     // @ts-expect-error, a 403 code cannot construct a NotFound
     void new NotFound(ApiErrorCodes.FORBIDDEN);
-    // @ts-expect-error, a paramful code requires its params
-    void new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG);
-    // @ts-expect-error, a paramless code takes no params
+    // @ts-expect-error, a class takes its code and nothing else
     void new NotFound(ApiErrorCodes.NOT_FOUND, { detail: "x" });
   });
 });

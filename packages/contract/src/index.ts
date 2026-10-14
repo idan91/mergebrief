@@ -43,9 +43,6 @@ export {
   ApiErrorStatusByCode,
   type ApiErrorBody,
   type ApiErrorCode,
-  type ApiErrorParamCode,
-  type ApiErrorParamlessCode,
-  type ApiErrorParams,
 } from "./errors";
 export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
 export {

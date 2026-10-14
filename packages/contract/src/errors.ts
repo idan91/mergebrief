@@ -38,42 +38,19 @@ export const ApiErrorCodes = {
   PENDING_REVIEW_HELD: "pending-review-held",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
   PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
-  APP_NOT_INSTALLED: "app-not-installed",
   GITHUB_UNAVAILABLE: "github-unavailable",
-  GENERATION_FAILED: "generation-failed",
-  GENERATION_UNAVAILABLE: "generation-unavailable",
-  GENERATION_CONFIG: "generation-config",
   ARTIFACT_UNREADABLE: "artifact-unreadable",
   INTERNAL_ERROR: "internal-error",
 } as const;
 export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
 
-/**
- * Codes that carry interpolation params, typed per code. Adding params to a
- * code is additive; a param value is never free-form upstream text unless
- * pre-sanitized (`sanitizeErrorDetail`) by the producing route.
- */
-export interface ApiErrorParams {
-  [ApiErrorCodes.GENERATION_CONFIG]: { readonly detail: string };
+/** The wire shape. `error` is the English line composed server-side. */
+export interface ApiErrorBody {
+  readonly error: string;
+  readonly code: ApiErrorCode;
 }
 
-/** Codes whose body carries `params`, and the rest. */
-export type ApiErrorParamCode = keyof ApiErrorParams;
-export type ApiErrorParamlessCode = Exclude<ApiErrorCode, ApiErrorParamCode>;
-
-/** The wire shape. `error` is the English line composed server-side. */
-export type ApiErrorBody =
-  | { readonly error: string; readonly code: ApiErrorParamlessCode }
-  | {
-      [K in ApiErrorParamCode]: {
-        readonly error: string;
-        readonly code: K;
-        readonly params: ApiErrorParams[K];
-      };
-    }[ApiErrorParamCode];
-
-// 1:1, so a code needing two statuses is two codes. `app-not-installed` is 403
-// from its one login site; a future non-403 site mints a new code.
+// 1:1, so a code needing two statuses is two codes.
 export const ApiErrorStatusByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: HttpStatuses.UNAUTHORIZED,
   [ApiErrorCodes.SIGNED_OUT]: HttpStatuses.UNAUTHORIZED,
@@ -106,17 +83,13 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.PENDING_REVIEW_HELD]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: HttpStatuses.CONFLICT,
-  [ApiErrorCodes.APP_NOT_INSTALLED]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.GITHUB_UNAVAILABLE]: HttpStatuses.BAD_GATEWAY,
-  [ApiErrorCodes.GENERATION_FAILED]: HttpStatuses.BAD_GATEWAY,
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: HttpStatuses.SERVICE_UNAVAILABLE,
-  [ApiErrorCodes.GENERATION_CONFIG]: HttpStatuses.SERVICE_UNAVAILABLE,
   [ApiErrorCodes.ARTIFACT_UNREADABLE]: HttpStatuses.INTERNAL_SERVER_ERROR,
   [ApiErrorCodes.INTERNAL_ERROR]: HttpStatuses.INTERNAL_SERVER_ERROR,
 } as const satisfies Record<ApiErrorCode, HttpStatus>;
 
 /**
- * The English line the API composes on the wire, i18next `{{param}}` syntax.
+ * The English line the API sends on the wire.
  * `test/wire-pin.test.ts` pins the catalog's `errors.<code>` equal to it, so
  * the two cannot drift.
  */
@@ -168,12 +141,7 @@ export const ApiErrorEnglishByCode = {
     "pull request changed since it was read",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]:
     "pull request was rewritten since it was read",
-  [ApiErrorCodes.APP_NOT_INSTALLED]:
-    "the app is not installed for this account",
   [ApiErrorCodes.GITHUB_UNAVAILABLE]: "github is unavailable or rate limited",
-  [ApiErrorCodes.GENERATION_FAILED]: "generation failed",
-  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "url generation unavailable",
-  [ApiErrorCodes.GENERATION_CONFIG]: "{{detail}}",
   [ApiErrorCodes.ARTIFACT_UNREADABLE]: "artifact unreadable",
   [ApiErrorCodes.INTERNAL_ERROR]: "internal error",
 } as const satisfies Record<ApiErrorCode, string>;

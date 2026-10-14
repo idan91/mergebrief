@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
-import { ApiErrorCodes } from "contract";
 import type { RequestLogEnv } from "../request-logging";
-import { NotFound, ServiceUnavailable } from "./api-error";
+import { NotFound } from "./api-error";
 import { createErrorHandler } from "./on-error";
 
 function buildApp(): {
@@ -27,11 +26,6 @@ function buildApp(): {
   app.get("/api-error", () => {
     throw new NotFound();
   });
-  app.get("/api-error-params", () => {
-    throw new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
-      detail: "missing ANTHROPIC_API_KEY",
-    });
-  });
   app.get("/boom", () => {
     throw new Error("secret internals");
   });
@@ -46,17 +40,6 @@ describe("createErrorHandler", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
     expect(errorSpy).not.toHaveBeenCalled();
-  });
-
-  it("interpolates params into the English line and carries them", async () => {
-    const { app } = buildApp();
-    const res = await app.request("/api-error-params");
-    expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({
-      error: "missing ANTHROPIC_API_KEY",
-      code: "generation-config",
-      params: { detail: "missing ANTHROPIC_API_KEY" },
-    });
   });
 
   it("renders a non-ApiError throw as a sanitized 500, internals logged", async () => {

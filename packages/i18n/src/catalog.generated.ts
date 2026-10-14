@@ -2,9 +2,6 @@
 import type en from "./locales/en.json";
 
 export type Catalog = typeof en & {
-  errors: (typeof en)["errors"] & {
-    "generation-config": "{{detail}}";
-  };
   generationError: (typeof en)["generationError"] & {
     "generation-config": "Generator configuration is invalid: {{detail}}";
     unknown: "Generation failed: {{detail}}";
