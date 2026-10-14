@@ -6,7 +6,6 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer } from "../../access/session-layer";
 import type { AuthzEnv } from "../../access/types";
@@ -21,11 +20,10 @@ export function capabilitiesRoute(
   app.query(
     {
       id: ProductQueryIds.READ_CAPABILITIES,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/",
     handlers.readCapabilities,

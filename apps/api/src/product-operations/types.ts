@@ -1,36 +1,27 @@
-import { WriteClassifications, type WriteClassification } from "persistence";
-
-export const OperationKinds = {
-  QUERY: "query",
-  ACTION: "action",
-} as const;
-
-export type ExternalWriteClassification =
-  typeof WriteClassifications.EXTERNAL_WRITE;
-export type PrivateWriteClassification =
-  typeof WriteClassifications.PRIVATE_WRITE;
-export type ActionClassification =
-  | PrivateWriteClassification
-  | ExternalWriteClassification;
+import type {
+  ActionClassification,
+  OperationKinds,
+  ProductEndpoint,
+  ProductOperationId,
+} from "contract";
+import { AccessLevels, type AccessLevel } from "types/access-levels";
 
 // Ranks, not map order, are what the check compares; adding a rung means placing it here.
 const ScopeRanks = {
-  [WriteClassifications.READ]: 0,
-  [WriteClassifications.PRIVATE_WRITE]: 1,
-  [WriteClassifications.EXTERNAL_WRITE]: 2,
-} as const satisfies Record<WriteClassification, number>;
+  [AccessLevels.READ]: 0,
+  [AccessLevels.PRIVATE_WRITE]: 1,
+  [AccessLevels.EXTERNAL_WRITE]: 2,
+} as const satisfies Record<AccessLevel, number>;
 
 export function scopeReaches(
-  scope: WriteClassification,
-  classification: WriteClassification,
+  scope: AccessLevel,
+  classification: AccessLevel,
 ): boolean {
   return ScopeRanks[scope] >= ScopeRanks[classification];
 }
 
-export function isWriteClassification(
-  value: unknown,
-): value is WriteClassification {
-  return Object.values(WriteClassifications).some((known) => known === value);
+export function isAccessLevel(value: unknown): value is AccessLevel {
+  return Object.values(AccessLevels).some((known) => known === value);
 }
 
 /**
@@ -39,25 +30,36 @@ export function isWriteClassification(
  * four: a route added later cannot inherit a permissive default by omission.
  */
 export interface OperationPolicy {
-  /** A Bearer token answers 403 `human-only`: the act signs as the reviewer. */
-  readonly humanOnly: boolean;
-  /** Without the push bit the operation answers 404. */
-  readonly pushRequired: boolean;
-  /** Outside an Installation the surface does not exist: 404. */
-  readonly installationOnly: boolean;
-  /** The pull request row loads before the handler; a miss is 404. */
-  readonly rowRequired: boolean;
+  /**
+   * Irreversible acts a browser confirm approves, and the reviewer's own risk
+   * and draft decisions: an API token (CLI, agents) answers 403 `human-only`.
+   */
+  readonly browserSessionOnly: boolean;
+  /**
+   * Replays GitHub's rule where the App's credential reads what only push
+   * holders see (the collaborator list): 404 without push.
+   */
+  readonly requiresPushAccess: boolean;
+  /**
+   * The feature needs the App's credential or the Installation's stored pull
+   * requests: a repo reached only by URL answers 404.
+   */
+  readonly requiresInstallation: boolean;
+  /**
+   * The per-PR access step loads the stored pull request (Installation or URL)
+   * onto `pullRequestAccess` before the handler; none stored answers 404.
+   */
+  readonly requiresStoredPullRequest: boolean;
 }
 
 interface OperationDescriptorBase extends OperationPolicy {
-  readonly id: string;
-  /** `METHOD /full/composed/path`, stamped by the router from the mount prefixes. */
-  readonly endpoint: string;
+  readonly id: ProductOperationId;
+  readonly endpoint: ProductEndpoint;
 }
 
 export interface ProductQueryDescriptor extends OperationDescriptorBase {
   readonly kind: typeof OperationKinds.QUERY;
-  readonly classification: typeof WriteClassifications.READ;
+  readonly classification: typeof AccessLevels.READ;
 }
 
 export interface ProductActionDescriptor extends OperationDescriptorBase {

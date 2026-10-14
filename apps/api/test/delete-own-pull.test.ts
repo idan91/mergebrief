@@ -10,14 +10,13 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type RepoId,
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
@@ -205,7 +204,7 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
     const res = await app.request(`/api/inbox/${REPO_ID_NUM}/${PR_NUMBER}`, {

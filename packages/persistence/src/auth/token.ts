@@ -15,10 +15,13 @@ import {
   type ApiTokenRowId,
   type GrantRowId,
   type ReviewerId,
-  type WriteClassification,
 } from "../types";
-import type { Result, ValueOf } from "types/utils";
-import { PullRequestSources } from "types/pull-requests";
+import {
+  PullRequestSources,
+  type Result,
+  type ValueOf,
+  type AccessLevel,
+} from "types";
 import type { GithubGrantRow } from "./grant";
 
 // The issuance row this store writes INSIDE the mint transaction, a mint that
@@ -112,7 +115,7 @@ export interface TokenMintInput {
   readonly userLogin?: string;
   readonly name: string;
   /** Immutable for the token's life, there is no re-scope operation. */
-  readonly scope: WriteClassification;
+  readonly scope: AccessLevel;
   readonly tokenHash: string;
   /** The minting session's grant. LINKED, never copied. */
   readonly grantId: GrantRowId;

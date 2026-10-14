@@ -27,15 +27,7 @@ const SOURCE_ROOTS = [
   join(PACKAGE_ROOT, "test"),
   join(PACKAGE_ROOT, "scripts"),
   join(PACKAGE_ROOT, "package.json"),
-  join(
-    PACKAGE_ROOT,
-    "..",
-    "..",
-    "packages",
-    "contract",
-    "src",
-    "operations.ts",
-  ),
+  join(PACKAGE_ROOT, "..", "..", "packages", "contract", "src", "operations"),
 ];
 
 const OUTCOME_LINE = {

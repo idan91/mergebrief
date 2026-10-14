@@ -3,7 +3,6 @@
 // on a fresh repository read; the purge's audit row names the reviewer.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
@@ -37,13 +36,11 @@ export function deletePullRoute(
   app.action(
     {
       id: ProductActionIds.DELETE_PULL,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: true,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: true,
+      requiresStoredPullRequest: true,
     },
-    "delete",
     "/",
     createDeletePullHandler(deps),
   );

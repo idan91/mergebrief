@@ -8,7 +8,6 @@ import {
   createGrantAuth,
   isReviewerId,
   createTokenAuth,
-  WriteClassifications,
 } from "persistence";
 import { describe, expect, it } from "vitest";
 import type { ApiClient } from "../src/client";
@@ -25,6 +24,7 @@ import { startCliApiHarness } from "./harness/api";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AccessLevels } from "types/access-levels";
 
 const SERVER_FINGERPRINT = "f".repeat(64);
 
@@ -308,7 +308,7 @@ describe("mergebrief capabilities against the real api", () => {
       });
       const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
       await createTokenAuth(harness.handle).mintToken({
-        scope: WriteClassifications.READ,
+        scope: AccessLevels.READ,
         userId: reviewerId,
         name: "caps-test",
         tokenHash: createHash("sha256").update(plaintext).digest("hex"),

@@ -2,7 +2,7 @@
 import type { ValueOf } from "types/utils";
 
 /**
- * The reach a token carries, mirroring the api's write classification. Three
+ * The reach a token carries, one rung of the api's access ladder. Three
  * rungs, widening: read only, this instance's own state, and writes that leave
  * the instance for GitHub. Immutable for the token's life.
  */

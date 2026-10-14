@@ -7,12 +7,11 @@ import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createArtifactStore,
   createTenantRepository,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -393,7 +392,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
     const res = await app.request(DELETE_PATH, {

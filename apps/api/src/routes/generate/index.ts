@@ -9,7 +9,6 @@
 import { parsePrUrl, type PrLocator } from "brief-core/pr-url";
 import { ApiErrorCodes, ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import { bindOperatorReader } from "../../access/operator-token";
 import { bindRequestGitHub } from "../../access/reviewer-binding";
@@ -71,13 +70,11 @@ export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.GENERATE_BRIEF,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "post",
     "/",
     createGenerateBriefHandler(deps),
   );

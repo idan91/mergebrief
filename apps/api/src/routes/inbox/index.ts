@@ -7,7 +7,6 @@
 // so a pasted row whose repository nobody can read any more still goes.
 import { InboxQueryKeys, ProductActionIds, ProductQueryIds } from "contract";
 import type { Context, Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import { bindOperatorReader } from "../../access/operator-token";
 import { bindRequestGitHub } from "../../access/reviewer-binding";
@@ -104,11 +103,10 @@ export function inboxRoutes(
   app.query(
     {
       id: ProductQueryIds.LIST_INBOX,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/",
     createListInboxHandler(deps, shared),
@@ -116,13 +114,11 @@ export function inboxRoutes(
   app.action(
     {
       id: ProductActionIds.DELETE_OWN_PULL,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "delete",
     "/:repoId/:prNumber",
     createDeleteOwnPullHandler(deps),
   );

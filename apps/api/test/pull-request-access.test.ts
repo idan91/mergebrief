@@ -3,14 +3,12 @@
 // follows the agreed check order whatever the route's own code does.
 import {
   createTenantRepository,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { PrStates } from "types/pull-requests";
-import type { ValueOf } from "types/utils";
+import { PrStates, type ValueOf, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
@@ -190,7 +188,7 @@ describe("the descriptor policy over every operation", () => {
 
   it("declares a row only under a pull request", () => {
     const misplaced = listOperations(() => true)
-      .filter((descriptor) => descriptor.rowRequired)
+      .filter((descriptor) => descriptor.requiresStoredPullRequest)
       .filter((descriptor) => !isPerPullRequest(descriptor))
       .map((descriptor) => descriptor.id);
 
@@ -234,12 +232,12 @@ describe("the descriptor policy over every operation", () => {
     expect(mismatches).toEqual([]);
   });
 
-  it("answers 404 when a row-required operation names no row", async () => {
+  it("answers 404 when requiresStoredPullRequest finds no stored PR", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.rowRequired),
+      listOperations((descriptor) => descriptor.requiresStoredPullRequest),
       404,
       (descriptor) => sendAsCookie(descriptor, cookie),
     );
@@ -253,7 +251,8 @@ describe("the descriptor policy over every operation", () => {
 
     const mismatches = await collectMismatches(
       listOperations(
-        (descriptor) => descriptor.rowRequired && hasBody(descriptor),
+        (descriptor) =>
+          descriptor.requiresStoredPullRequest && hasBody(descriptor),
       ),
       404,
       (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
@@ -262,16 +261,18 @@ describe("the descriptor policy over every operation", () => {
     expect(mismatches).toEqual([]);
   });
 
-  it("refuses a Bearer token on a human-only operation with 403", async () => {
+  it("refuses a Bearer token on a browserSessionOnly operation with 403", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     await seedPullRequest(harness.handle);
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
-    const operations = listOperations((descriptor) => descriptor.humanOnly);
+    const operations = listOperations(
+      (descriptor) => descriptor.browserSessionOnly,
+    );
     const codes: string[] = [];
     for (const descriptor of operations) {
       const { method, path } = buildOperationRequest(descriptor);
@@ -289,13 +290,13 @@ describe("the descriptor policy over every operation", () => {
     );
   });
 
-  it("answers 404 to an installation-only operation on an owner-world repo", async () => {
+  it("answers 404 to requiresInstallation on a repo in no Installation", async () => {
     stubGitHub({ reach: RepoReaches.OWNER, push: true });
     await seedUrlRow(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.installationOnly),
+      listOperations((descriptor) => descriptor.requiresInstallation),
       404,
       (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
     );
@@ -303,13 +304,13 @@ describe("the descriptor policy over every operation", () => {
     expect(mismatches).toEqual([]);
   });
 
-  it("answers 404 to a push-required operation for a viewer without push", async () => {
+  it("answers 404 to requiresPushAccess for a viewer without push", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: false });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.pushRequired),
+      listOperations((descriptor) => descriptor.requiresPushAccess),
       404,
       (descriptor) => sendAsCookie(descriptor, cookie),
     );

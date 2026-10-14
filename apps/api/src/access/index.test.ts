@@ -18,12 +18,10 @@ import {
   isRepoId,
   isReviewerId,
   createTenantRepository,
-  WriteClassifications,
   type RepoId,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { type Mutable, PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Mutable } from "types/utils";
 import {
   afterAll,
   beforeAll,
@@ -176,7 +174,7 @@ async function buildGateApp(
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassifications.EXTERNAL_WRITE,
+    scope: AccessLevels.EXTERNAL_WRITE,
     channel: options.channel ?? AuthChannels.COOKIE,
   };
   const deps: Mutable<AuthRouteDeps> = {

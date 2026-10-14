@@ -2,7 +2,7 @@
 // holds: an action writes exactly ONE row keyed on its descriptor id, a
 // denial writes one saying why, a read writes none at all, and the
 // private-writes knob switches the one class it is allowed to switch.
-import { AuditClientSchema, WriteClassifications } from "persistence";
+import { AuditClientSchema } from "persistence";
 import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
@@ -18,7 +18,7 @@ import {
 import { productRouter } from "../src/product-operations/product-router";
 import type { RequestLogEnv } from "../src/request-logging";
 import { createProductOperationRegistry } from "../src/product-operations/registry";
-import type { Mutable } from "types/utils";
+import { type Mutable, AccessLevels } from "types";
 import {
   createApp,
   type ApiApp,
@@ -172,7 +172,7 @@ describe("the audit choke point", () => {
       outcome: "ok",
       // The acting credential's tenant keys the row.
       installation_id: String(INSTALLATION_ID),
-      classification: WriteClassifications.PRIVATE_WRITE,
+      classification: AccessLevels.PRIVATE_WRITE,
       ...OPEN_POLICY,
       channel: "cookie",
       client: CLI_AGENT,
@@ -196,11 +196,7 @@ describe("the audit choke point", () => {
   });
 
   it("records a scope denial with its reason token", async () => {
-    const readOnly = await seedApiToken(
-      harness.handle,
-      kp,
-      WriteClassifications.READ,
-    );
+    const readOnly = await seedApiToken(harness.handle, kp, AccessLevels.READ);
 
     const res = await readMark(appWith(), {
       Authorization: `Bearer ${readOnly}`,
@@ -267,11 +263,7 @@ describe("the audit choke point", () => {
     expect(ok.status).toBe(200);
     expect(await auditRows(harness)).toHaveLength(0);
 
-    const readOnly = await seedApiToken(
-      harness.handle,
-      kp,
-      WriteClassifications.READ,
-    );
+    const readOnly = await seedApiToken(harness.handle, kp, AccessLevels.READ);
     const refused = await readMark(app, {
       Authorization: `Bearer ${readOnly}`,
     });
@@ -333,26 +325,24 @@ describe("the ledger's tenant", () => {
         id: 1n,
         reviewerId: BigInt(REVIEWER_ID),
         installationId: BigInt(INSTALLATION_ID),
-        scope: WriteClassifications.EXTERNAL_WRITE,
+        scope: AccessLevels.EXTERNAL_WRITE,
         channel: "cookie",
       });
       stampAuditScope(c, { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) });
       await next();
     });
     gated.action(
-      {
-        id: ProductActionIds.SET_CHUNK_READ,
-        classification: WriteClassifications.PRIVATE_WRITE,
-        ...OPEN_POLICY,
-      },
-      "put",
-      "/read",
+      { id: ProductActionIds.SET_CHUNK_READ, ...OPEN_POLICY },
+      "/session/chunks/:chunkId/read",
       (c) => c.json({ ok: true }),
     );
-    root.route("/gated", gated);
+    root.route("/api/repos/:repoId/pulls/:prNumber", gated);
     root.commit(registry);
 
-    const res = await root.app.request("/gated/read", { method: "PUT" });
+    const res = await root.app.request(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read`,
+      { method: "PUT" },
+    );
 
     expect(res.status).toBe(200);
     const rows = await harness.raw(
@@ -401,10 +391,10 @@ describe("the emit's two pure rules", () => {
 
   it("switches private writes only, and only when they succeeded", () => {
     const cases = [
-      [WriteClassifications.PRIVATE_WRITE, "ok", false, false],
-      [WriteClassifications.PRIVATE_WRITE, "denied", false, true],
-      [WriteClassifications.EXTERNAL_WRITE, "ok", false, true],
-      [WriteClassifications.PRIVATE_WRITE, "ok", true, true],
+      [AccessLevels.PRIVATE_WRITE, "ok", false, false],
+      [AccessLevels.PRIVATE_WRITE, "denied", false, true],
+      [AccessLevels.EXTERNAL_WRITE, "ok", false, true],
+      [AccessLevels.PRIVATE_WRITE, "ok", true, true],
     ] as const;
     for (const [classification, outcome, privateWrites, written] of cases) {
       expect(isAuditRowWritten(classification, outcome, privateWrites)).toBe(

@@ -1,18 +1,17 @@
 // Any session write may materialize carried state atomically before applying its action.
 // Pre-materialization draft ids must resolve to copies; frozen sessions refuse all writes.
 // Repeated read marks are idempotent and every write inherits the router scope gate.
+import { createTenantRepository, PUBLISH_CLAIM_LEASE_MS } from "persistence";
 import {
-  createTenantRepository,
-  PUBLISH_CLAIM_LEASE_MS,
-  WriteClassifications,
-} from "persistence";
-import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
-import {
+  ChangeGroupCategories,
+  CommentAnchorKinds,
+  DiffSides,
   DispositionDecisions,
   DispositionEvidenceKinds,
-} from "types/dispositions";
+  ReviewOutcomes,
+  AccessLevels,
+} from "types";
 import type { KeyProvider } from "persistence";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -876,15 +875,11 @@ describe("the Review Session writes", () => {
 
   it("gates the writes on the credential's scope", async () => {
     await seedBrief(harness.handle, 1);
-    const readOnly = await seedApiToken(
-      harness.handle,
-      kp,
-      WriteClassifications.READ,
-    );
+    const readOnly = await seedApiToken(harness.handle, kp, AccessLevels.READ);
     const writer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.PRIVATE_WRITE,
+      AccessLevels.PRIVATE_WRITE,
     );
 
     async function asToken(bearer: string): Promise<Response> {
@@ -1023,7 +1018,7 @@ describe("the Review Session writes", () => {
       harness.handle,
       kp,
       // The widest scope there is: this refusal is not about scope.
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
     async function asAgent(

@@ -13,7 +13,6 @@ import {
   type KeyProvider,
   type ReviewerId,
   type ScopeContext,
-  type WriteClassification,
 } from "persistence";
 import {
   INSTALLATION_ID,
@@ -23,6 +22,7 @@ import {
   brandReviewerId,
   hashSha256Hex,
 } from "./fixtures";
+import type { AccessLevel } from "types/access-levels";
 
 export const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 export const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -115,7 +115,7 @@ export async function seedSignIn(
 export async function seedApiToken(
   handle: AppDatabase,
   kp: KeyProvider,
-  scope: WriteClassification,
+  scope: AccessLevel,
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   await createTokenAuth(handle).mintToken({

@@ -14,12 +14,11 @@ import {
   createTenantRepository,
   createSessionAuth,
   createTokenAuth,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type BriefWriteInput,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -405,7 +404,7 @@ describe("reviewer read API + authz gate", () => {
     }
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "cli-agent",
       tokenHash: hashSha256Hex(bearer),

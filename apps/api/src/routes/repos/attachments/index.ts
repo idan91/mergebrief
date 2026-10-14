@@ -4,7 +4,6 @@
 // the branch breaks; the audit row names the reviewer and the repository.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { AuthzEnv, InstallationBindingDeps } from "../../../access/types";
 import {
@@ -46,13 +45,11 @@ export function purgeAttachmentsRoute(
   app.action(
     {
       id: ProductActionIds.PURGE_ATTACHMENTS,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: true,
-      rowRequired: false,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: true,
+      requiresStoredPullRequest: false,
     },
-    "delete",
     "/",
     createPurgeAttachmentsHandler({ bindInstallationGitHub }),
   );

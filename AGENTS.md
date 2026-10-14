@@ -80,6 +80,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Function declarations over arrow consts at top level.
 - Names use the domain's own nouns; no invented shorthand. Generic type parameters get descriptive names, not bare `T`, when more than one is in play.
 - Before introducing a name, search CONTEXT.md and the code: a name that already means something else (`useReviewActions`, `LineTarget`, "landing page") is taken. Name a module for the mechanism it implements (`scroll-to-target`), not a metaphor for it.
+- A name tells a reader who knows only CONTEXT.md and the call site what it holds and why it exists. A boolean policy flag names the requirement in domain nouns (`requiresInstallation`), never the check it runs or the status it answers. A value with a known shape gets a literal or template type, not `string`.
 - Blocks nest at most three deep inside a function; extract a function or return early past that. `max-depth` holds this at error.
 - Every `if`, `else`, `for` and `while` body takes braces, one-liners included. `curly` holds it at error.
 - A function reads in one screen; about 60 lines is the signal to split, not a cap. A component whose logic sits above a wall of JSX splits into sub-components; a hook longer than one screen splits into sub-hooks or pure functions.

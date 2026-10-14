@@ -12,18 +12,18 @@ import { internal } from "../src/db/handle";
 import { auditLog } from "../src/schema/audit-log";
 import {
   AuditChannels,
-  WriteClassifications,
   AuditOutcomes,
   AuditActorTypes,
   isInstallationId,
   type InstallationId,
 } from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
+import { AccessLevels } from "types/access-levels";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 
-describe("writeAudit — append-only emit", () => {
-  it("inserts a generate emit with a dangling numeric target (no FK)", async () => {
+describe("writeAudit append-only emit", () => {
+  it("inserts a generate emit with a dangling numeric target and no FK", async () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
@@ -31,7 +31,7 @@ describe("writeAudit — append-only emit", () => {
       operation: "generate",
       outcome: AuditOutcomes.OK,
       targetType: "brief",
-      targetId: 424242n, // no such brief row — audit has NO outbound FK
+      targetId: 424242n, // no such brief row: audit has NO outbound FK
       metadata: { kind: "brief" },
     };
 
@@ -96,7 +96,7 @@ describe("writeAudit — append-only emit", () => {
     expect(unresolved.operation).toBe("unresolve-thread");
   });
 
-  it("metadata keys are open — any snake_case token is accepted", () => {
+  it("metadata keys are open: any snake_case token is accepted", () => {
     // `writeAudit()` runs this same schema with `.parse()`, so these throw there.
     expect(
       AuditMetadataSchema.safeParse({ carry_status: "settled" }).success,
@@ -116,7 +116,7 @@ describe("writeAudit — append-only emit", () => {
     );
   });
 
-  it("metadata values are closed — token, finite number, or boolean only", () => {
+  it("metadata values are closed: token, finite number, or boolean only", () => {
     expect(AuditMetadataSchema.safeParse({ kind: "mark-ready" }).success).toBe(
       true,
     );
@@ -147,7 +147,7 @@ describe("writeAudit — append-only emit", () => {
     );
   });
 
-  it("rejects non-finite numbers (JSON would silently null them in jsonb)", () => {
+  it("rejects non-finite numbers that jsonb would silently null", () => {
     expect(AuditMetadataSchema.safeParse({ count: Infinity }).success).toBe(
       false,
     );
@@ -172,7 +172,7 @@ describe("writeAudit — append-only emit", () => {
     expect(AuditTargetTypeSchema.safeParse("PullRequest").success).toBe(false);
     expect(AuditTargetTypeSchema.safeParse("a".repeat(65)).success).toBe(false);
 
-    // writeAudit() enforces it (throws — programmer error, same as metadata).
+    // writeAudit() enforces it (throws, a programmer error, same as metadata).
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
@@ -208,7 +208,7 @@ async function seedAged(
   });
 }
 
-describe("writeAudit — the forensic call-shape fields", () => {
+describe("writeAudit forensic call-shape fields", () => {
   it("rejects a request id, client or caller IP that is not its own shape", async () => {
     const handle = await freshDatabase();
     const base: AuditEntry = {
@@ -247,7 +247,7 @@ describe("writeAudit — the forensic call-shape fields", () => {
       client: "mergebrief/0.1.0",
       callerIp: "203.0.113.7",
       channel: AuditChannels.BEARER,
-      classification: WriteClassifications.EXTERNAL_WRITE,
+      classification: AccessLevels.EXTERNAL_WRITE,
       credentialId: 42n,
     });
     expect(row.client).toBe("mergebrief/0.1.0");
@@ -256,7 +256,7 @@ describe("writeAudit — the forensic call-shape fields", () => {
   });
 });
 
-describe("sweepAuditLog — instance-wide retention", () => {
+describe("sweepAuditLog instance-wide retention", () => {
   it("keeps everything when retention is unset", async () => {
     const handle = await freshDatabase();
     await seedAged(handle, TENANT, daysAgo(4000));
@@ -265,7 +265,7 @@ describe("sweepAuditLog — instance-wide retention", () => {
     expect(await internal(handle).select().from(auditLog)).toHaveLength(1);
   });
 
-  it("erases rows past the window across every installation and records the count", async () => {
+  it("erases rows past the window in every installation and counts them", async () => {
     const handle = await freshDatabase();
     await seedAged(handle, TENANT, daysAgo(120));
     await seedAged(handle, TENANT, daysAgo(90));

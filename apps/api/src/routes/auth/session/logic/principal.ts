@@ -1,9 +1,6 @@
-import {
-  WriteClassifications,
-  type SessionWithGrant,
-  type TokenWithGrant,
-} from "persistence";
+import type { SessionWithGrant, TokenWithGrant } from "persistence";
 import { AuthChannels, type ViewerPrincipal } from "../types";
+import { AccessLevels } from "types/access-levels";
 
 /** Shape a resolved cookie session (+ its grant) into the principal. */
 export function derivePrincipalFromSession(
@@ -15,7 +12,7 @@ export function derivePrincipalFromSession(
     keyRef: resolved.grant.keyRef,
     // A cookie has no row to hold a limit and the person is at the keyboard:
     // the browser is unlimited by construction, not by a stored value.
-    scope: WriteClassifications.EXTERNAL_WRITE,
+    scope: AccessLevels.EXTERNAL_WRITE,
     channel: AuthChannels.COOKIE,
   };
 }

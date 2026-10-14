@@ -6,6 +6,7 @@
   "description": "Shared type helpers, cross-package shapes, and as const maps for closed vocabularies two packages both need as values. Zero dependencies.",
   "exports": {
     ".": "./src/index.ts",
+    "./access-levels": "./src/access-levels.ts",
     "./comments": "./src/comments.ts",
     "./comparisons": "./src/comparisons.ts",
     "./dispositions": "./src/dispositions.ts",

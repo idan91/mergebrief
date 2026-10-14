@@ -11,7 +11,6 @@ import {
   createEnvKeyProvider,
   createGrantAuth,
   createTokenAuth,
-  WriteClassifications,
   type KeyProvider,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -23,6 +22,7 @@ import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
 import { KEY_REF, brandReviewerId, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { AccessLevels } from "types/access-levels";
 
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
@@ -79,7 +79,7 @@ describe("GET /api/capabilities", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.READ,
+      scope: AccessLevels.READ,
       userId: brandReviewerId(555n),
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),

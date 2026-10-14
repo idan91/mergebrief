@@ -10,7 +10,7 @@ import {
   type FakeFailure,
   type FakeGitHub,
 } from "github/testing";
-import { WriteClassifications, type KeyProvider } from "persistence";
+import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -34,6 +34,7 @@ import {
   type GateGitHubOptions,
 } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { AccessLevels } from "types/access-levels";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -256,7 +257,7 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
     const res = await app.request(PURGE_PATH, {

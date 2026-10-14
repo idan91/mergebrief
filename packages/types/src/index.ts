@@ -16,8 +16,14 @@ export {
   type DiffSide,
   type DraftCommentStatus,
 } from "./comments";
-export { HttpStatuses, type HttpStatus } from "./http";
+export {
+  HttpMethods,
+  HttpStatuses,
+  type HttpMethod,
+  type HttpStatus,
+} from "./http";
 export { Runtimes, type Runtime } from "./runtime";
+export { AccessLevels, type AccessLevel } from "./access-levels";
 
 export type { DraftPolicy } from "./drafts";
 export type {
@@ -26,11 +32,17 @@ export type {
   UrlBoxGenerateJobPayload,
 } from "./jobs";
 export {
+  InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxFoldStates,
+  InboxLayouts,
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
+  type InboxArchivedFilter,
   type InboxAuthorFilter,
+  type InboxFoldState,
+  type InboxLayout,
   type InboxReviewState,
   type InboxSort,
   type InboxStatus,

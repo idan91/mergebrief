@@ -28,11 +28,11 @@ describe("product operation manifest", () => {
   it("renders a stable, pretty-printed envelope with a trailing newline", () => {
     const rendered = renderManifest([
       {
-        id: "probe-op",
+        id: "list-inbox",
         kind: "query",
         classification: "read",
         ...OPEN_POLICY,
-        endpoint: "GET /api/probe",
+        endpoint: "GET /api/inbox",
       },
     ]);
     expect(rendered).toBe(
@@ -40,10 +40,10 @@ describe("product operation manifest", () => {
         {
           operations: [
             {
-              id: "probe-op",
+              id: "list-inbox",
               kind: "query",
               classification: "read",
-              endpoint: "GET /api/probe",
+              endpoint: "GET /api/inbox",
             },
           ],
         },
@@ -73,18 +73,18 @@ describe("product operation manifest", () => {
 
 describe("computeCatalogFingerprint", () => {
   const probe = {
-    id: "probe-op",
+    id: "list-inbox",
     kind: "query",
     classification: "read",
     ...OPEN_POLICY,
-    endpoint: "GET /api/probe",
+    endpoint: "GET /api/inbox",
   } as const;
   const other = {
-    id: "other-op",
+    id: "list-repos",
     kind: "query",
     classification: "read",
     ...OPEN_POLICY,
-    endpoint: "GET /api/other",
+    endpoint: "GET /api/repos",
   } as const;
 
   it("is the sha256 hex of the rendered manifest bytes", () => {
@@ -109,7 +109,7 @@ describe("computeCatalogFingerprint", () => {
   });
 
   it("changes when any descriptor field changes", () => {
-    const moved = { ...probe, endpoint: "GET /api/probe2" } as const;
+    const moved = { ...probe, endpoint: "GET /api/auth/tokens" } as const;
     expect(computeCatalogFingerprint([moved])).not.toBe(
       computeCatalogFingerprint([probe]),
     );

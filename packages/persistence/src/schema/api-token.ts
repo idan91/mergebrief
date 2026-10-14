@@ -4,14 +4,10 @@
 // and installation offboarding leaves it: access ends when GitHub stops
 // confirming it.
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type {
-  ApiTokenRowId,
-  GrantRowId,
-  ReviewerId,
-  WriteClassification,
-} from "../types";
+import type { ApiTokenRowId, GrantRowId, ReviewerId } from "../types";
 import { githubGrant } from "./github-grant";
 import { idColumn, stampColumns } from "./columns";
+import type { AccessLevel } from "types/access-levels";
 
 export const apiToken = pgTable(
   "api_token",
@@ -21,7 +17,7 @@ export const apiToken = pgTable(
     userId: bigint("user_id", { mode: "bigint" }).$type<ReviewerId>().notNull(),
     userLogin: text("user_login"),
     name: text("name").notNull(),
-    scope: text("scope").$type<WriteClassification>().notNull(),
+    scope: text("scope").$type<AccessLevel>().notNull(),
     grantId: bigint("grant_id", { mode: "bigint" })
       .$type<GrantRowId>()
       .notNull()

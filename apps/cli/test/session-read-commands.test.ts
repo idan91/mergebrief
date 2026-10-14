@@ -15,16 +15,14 @@ import {
   isRepoId,
   isReviewerId,
   createTokenAuth,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ReviewOutcomes } from "types/reviews";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import {
@@ -127,7 +125,7 @@ describe("session read commands over the real api app", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: REVIEWER,
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),

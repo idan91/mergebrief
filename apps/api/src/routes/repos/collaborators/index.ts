@@ -7,7 +7,6 @@
 // to any read-access viewer. A non-push viewer gets the router's 404 first.
 import { ProductQueryIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { AuthzEnv, InstallationBindingDeps } from "../../../access/types";
 import {
@@ -47,11 +46,10 @@ export function collaboratorsRoute(
   app.query(
     {
       id: ProductQueryIds.LIST_COLLABORATORS,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: true,
-      installationOnly: true,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: true,
+      requiresInstallation: true,
+      requiresStoredPullRequest: false,
     },
     "/",
     createListCollaboratorsHandler({ bindInstallationGitHub, cache }),

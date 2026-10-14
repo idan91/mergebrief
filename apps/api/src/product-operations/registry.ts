@@ -6,10 +6,10 @@ import type { OperationPolicy, ProductOperationDescriptor } from "./types";
 const KEBAB_CASE_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 const POLICY_FIELDS = [
-  "humanOnly",
-  "pushRequired",
-  "installationOnly",
-  "rowRequired",
+  "browserSessionOnly",
+  "requiresPushAccess",
+  "requiresInstallation",
+  "requiresStoredPullRequest",
 ] as const satisfies readonly (keyof OperationPolicy)[];
 
 function isSameDescriptor(

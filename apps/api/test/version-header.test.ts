@@ -1,7 +1,7 @@
 // `MergeBrief-Version`: stamped on every /api response whose session layer
 // resolved a principal, absent on a 401, a login redirect and a webhook, so a
 // stranger learns nothing the gated /api/version did not already say.
-import { WriteClassifications, type KeyProvider } from "persistence";
+import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -9,6 +9,7 @@ import { testLogger } from "./logging";
 import { buildAuthDeps, createKeyProvider } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedApiToken } from "./sign-in";
+import { AccessLevels } from "types/access-levels";
 
 const HEADER = "MergeBrief-Version";
 
@@ -35,7 +36,7 @@ describe("MergeBrief-Version response header", () => {
   });
 
   function mintBearer(): Promise<string> {
-    return seedApiToken(harness.handle, kp, WriteClassifications.READ);
+    return seedApiToken(harness.handle, kp, AccessLevels.READ);
   }
 
   it("stamps the server version on a gated response", async () => {

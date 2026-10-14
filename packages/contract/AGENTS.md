@@ -11,6 +11,13 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **One owner per vocabulary.** A consumer imports the map, it never re-declares one. Where a consumer's shape legitimately differs, such as `apps/web`'s parsed `LastReviewComparison` with its `kind` discriminant, the difference is pinned with `Equals` against the shape here rather than mirrored by hand.
 - **`apps/web` extends, it does not fork.** Its `ApiErrorCodes` spreads this package's map and adds the ONE web-local member, `malformed`, which never appears on the wire.
 
+## Operation table
+
+- `src/operations/index.ts` holds the operation table (its vocabularies in `types.ts` beside it): one row per Product Operation keyed by its id, carrying kind, classification (its rung on `AccessLevels`), method and full path. It is the one place a full path is written; clients build requests from the row.
+- A new operation adds its id to `ProductQueryIds` or `ProductActionIds` and its row here first; a missing row or a row of the wrong kind is a compile error.
+- `apps/api` mounts each route under its row's method, composes its path mechanically and asserts every composed `METHOD /full/path` against the row at commit, so the table and the served surface cannot drift. A method change edits only the row; a path change edits the row and the route's relative path.
+- Policy beyond the classification (`browserSessionOnly`, `requiresPushAccess`, `requiresInstallation`, `requiresStoredPullRequest`) stays on the api declaration, keyed by the id.
+
 ## Adding a wire error code
 
 The recipe lives in `apps/api/AGENTS.md`; step 1 happens here, in `src/errors.ts`, and `test/wire-pin.test.ts` is what fails if the catalog does not follow.

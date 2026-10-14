@@ -16,13 +16,10 @@ import {
   TokenAuthErrorCodes,
   type TokenMintInput,
 } from "../src/auth/token";
-import {
-  isReviewerId,
-  WriteClassifications,
-  type ReviewerId,
-} from "../src/types";
+import { isReviewerId, type ReviewerId } from "../src/types";
 import type { AppDatabase } from "../src/db/handle";
 import { brandWith, freshDatabase } from "./helpers";
+import { AccessLevels } from "types/access-levels";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -141,7 +138,7 @@ function mintInput(
     userId: USER,
     userLogin: "octocat",
     name: "ci-token",
-    scope: WriteClassifications.EXTERNAL_WRITE,
+    scope: AccessLevels.EXTERNAL_WRITE,
     tokenHash: HASH,
     grantId: grant.id,
     expiresAt: FUTURE,
@@ -163,7 +160,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
     // Chosen at mint, and on the metadata projection the settings list reads.
-    expect(minted.scope).toBe(WriteClassifications.EXTERNAL_WRITE);
+    expect(minted.scope).toBe(AccessLevels.EXTERNAL_WRITE);
 
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);

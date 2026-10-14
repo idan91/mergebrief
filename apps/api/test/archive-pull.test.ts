@@ -6,18 +6,18 @@ import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createInboxStore,
   createTenantRepository,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxLayouts,
   InboxSorts,
-} from "types/inbox";
+  PrStates,
+  AccessLevels,
+} from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -248,7 +248,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.PRIVATE_WRITE,
+      AccessLevels.PRIVATE_WRITE,
     );
 
     const res = await app.request(ARCHIVE_PATH, {
@@ -263,11 +263,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
   it("a read-only Bearer principal is refused by scope", async () => {
     arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
-    const bearer = await seedApiToken(
-      harness.handle,
-      kp,
-      WriteClassifications.READ,
-    );
+    const bearer = await seedApiToken(harness.handle, kp, AccessLevels.READ);
 
     const res = await app.request(ARCHIVE_PATH, {
       method: "PUT",

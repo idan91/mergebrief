@@ -4,12 +4,9 @@
 // rows that only carry `action`, applies 0025, and asserts the history reads
 // the same afterwards; a denial must not backfill as a success.
 import { describe, expect, it } from "vitest";
-import {
-  AuditChannels,
-  AuditOutcomes,
-  WriteClassifications,
-} from "../src/types";
+import { AuditChannels, AuditOutcomes } from "../src/types";
 import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
+import { AccessLevels } from "types/access-levels";
 
 describe("migration 0025 audit_log operation and outcome", () => {
   it("carries `action` over and reads denials off the decision metadata", async () => {
@@ -61,8 +58,8 @@ describe("migration 0025 audit_log operation and outcome", () => {
         await readCheckValues(client, "audit_log_classification_check")
       ).toSorted(),
     ).toEqual(
-      Object.values(WriteClassifications)
-        .filter((value) => value !== WriteClassifications.READ)
+      Object.values(AccessLevels)
+        .filter((value) => value !== AccessLevels.READ)
         .toSorted(),
     );
   });

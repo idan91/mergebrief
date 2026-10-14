@@ -1,5 +1,15 @@
 import type { ValueOf } from "./utils";
 
+export const HttpMethods = {
+  GET: "GET",
+  POST: "POST",
+  PUT: "PUT",
+  PATCH: "PATCH",
+  DELETE: "DELETE",
+} as const;
+
+export type HttpMethod = ValueOf<typeof HttpMethods>;
+
 export const HttpStatuses = {
   OK: 200,
   CREATED: 201,

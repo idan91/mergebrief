@@ -3,13 +3,8 @@ import type {
   bindReviewerGitHub,
   OwnedOperatorToken,
 } from "github";
-import type {
-  AppDatabase,
-  AuthSessionRow,
-  KeyProvider,
-  WriteClassification,
-} from "persistence";
-import type { DraftPolicy, ValueOf } from "types";
+import type { AppDatabase, AuthSessionRow, KeyProvider } from "persistence";
+import type { DraftPolicy, ValueOf, AccessLevel } from "types";
 
 /** The auth bundle injected into `createApp`; nothing here reads `process.env`. */
 export interface AuthDeps {
@@ -58,7 +53,7 @@ export type ViewerPrincipal = AuthSessionRow & {
   readonly channel: AuthChannel;
   readonly ghTokenCiphertext: string;
   readonly keyRef: string;
-  readonly scope: WriteClassification;
+  readonly scope: AccessLevel;
 };
 
 export const RefreshErrorCodes = {

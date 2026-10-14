@@ -7,7 +7,6 @@ import {
   isGrantRowId,
   isInstallationId,
   isReviewerId,
-  WriteClassifications,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
@@ -29,6 +28,7 @@ import {
 } from "../../access/reviewer-binding";
 import { createAccessibleInstallationsResolver } from "./accessible-installations";
 import { AuthChannels, type ViewerPrincipal } from "./session/types";
+import { AccessLevels } from "types/access-levels";
 
 const keyProvider = createKeyProvider();
 
@@ -74,7 +74,7 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassifications.EXTERNAL_WRITE,
+    scope: AccessLevels.EXTERNAL_WRITE,
     channel: AuthChannels.COOKIE,
   };
 }

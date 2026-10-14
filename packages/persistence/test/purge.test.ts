@@ -35,18 +35,21 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  WriteClassifications,
   type GrantRowId,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
 } from "../src/types";
-import { ChangeGroupCategories } from "types/reviews";
-import { DispositionDecisions } from "types/dispositions";
-import { DiffSides } from "types/comments";
-import { GenerationStatuses } from "types/generations";
-import { PrStates, type PrState } from "types/pull-requests";
+import {
+  ChangeGroupCategories,
+  DiffSides,
+  DispositionDecisions,
+  GenerationStatuses,
+  type PrState,
+  PrStates,
+  AccessLevels,
+} from "types";
 import { brandWith, freshPglite } from "./helpers";
 
 /** Seed one grant row so secret-bearing referents can link it. */
@@ -564,7 +567,7 @@ describe("createPurgeRoutines.purgeInstallation, tenant-isolated offboarding", (
       tokenHash: "e".repeat(64),
       userId: REVIEWER,
       name: "ci-token",
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       grantId: await insertGrant(raw),
       expiresAt: null,
     });

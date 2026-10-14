@@ -1,6 +1,7 @@
 import type { Logger } from "logging";
-import type { ApiTokenMetadataRow, WriteClassification } from "persistence";
+import type { ApiTokenMetadataRow } from "persistence";
 import type { AuthRouteDeps, ViewerPrincipal } from "../session/types";
+import type { AccessLevel } from "types/access-levels";
 
 export interface TokensControllerDeps {
   readonly deps: AuthRouteDeps;
@@ -20,7 +21,7 @@ export interface MintedToken {
 
 export interface MintInput {
   readonly name: string;
-  readonly scope: WriteClassification;
+  readonly scope: AccessLevel;
   /** `null` = no expiry; `undefined` = the default window. */
   readonly expiresInDays: number | null | undefined;
   /** The opaque secret's scanner-friendly prefix (authz owns the constant). */

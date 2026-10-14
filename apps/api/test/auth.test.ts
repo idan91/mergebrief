@@ -9,7 +9,6 @@ import {
   createGrantAuth,
   createSessionAuth,
   createTokenAuth,
-  WriteClassifications,
   type KeyProvider,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -36,6 +35,7 @@ import {
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
+import { AccessLevels } from "types/access-levels";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -553,7 +553,7 @@ describe("reviewer auth routes", () => {
     // A minted token shares the grant, so the grant SURVIVES the logout and
     // the rotation proceeds, only the session-expiry mirror can notice.
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "shares-the-grant",
       tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
@@ -603,7 +603,7 @@ describe("reviewer auth routes", () => {
     });
     const bearerHash = hashSha256Hex(randomBytes(32).toString("base64url"));
     const minted = await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "revoked-mid-flight",
       tokenHash: bearerHash,

@@ -72,11 +72,27 @@ export {
   type LocalPreviousBriefAvailability,
 } from "./local-briefs";
 export {
+  ProductOperations,
+  formatEndpoint,
+  formatProductEndpoint,
+  type ProductEndpoint,
+  type RouteEndpoint,
+} from "./operations";
+export {
+  OperationKinds,
   ProductActionIds,
   ProductQueryIds,
+  type ActionClassification,
+  type ActionHttpMethod,
+  type OperationKind,
   type ProductActionId,
+  type ProductActionRow,
+  type ProductOperationId,
+  type ProductOperationRow,
+  type ProductOperationTable,
   type ProductQueryId,
-} from "./operations";
+  type ProductQueryRow,
+} from "./operations/types";
 export type {
   CarriedFromPayload,
   DispositionPayload,

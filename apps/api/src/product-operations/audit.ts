@@ -1,4 +1,9 @@
-import type { Mutable } from "types/utils";
+import {
+  type Mutable,
+  type PullRequestSource,
+  PullRequestSources,
+  AccessLevels,
+} from "types";
 // ONE emit for every Product Action and every denial of one.
 //
 // Mounted at the ROOT, not inside `action()`: the per-repo gate refuses
@@ -17,21 +22,17 @@ import {
   AuditOutcomes,
   AuditRequestIdSchema,
   isOwnerContext,
-  WriteClassifications,
   type AppDatabase,
   type InstallationId,
   type AuditChannel,
   type AuditOutcome,
   type ScopeContext,
 } from "persistence";
-import {
-  PullRequestSources,
-  type PullRequestSource,
-} from "types/pull-requests";
+import { OperationKinds } from "contract";
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
 import { createOperationResolver } from "./resolve-operation";
-import { OperationKinds, type ProductActionDescriptor } from "./types";
+import type { ProductActionDescriptor } from "./types";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -119,11 +120,11 @@ export function isAuditRowWritten(
   outcome: AuditOutcome,
   privateWrites: boolean,
 ): boolean {
-  return (
+  const written =
     privateWrites ||
     outcome !== AuditOutcomes.OK ||
-    classification !== WriteClassifications.PRIVATE_WRITE
-  );
+    classification !== AccessLevels.PRIVATE_WRITE;
+  return written;
 }
 
 const SERVER_ERROR = 500;

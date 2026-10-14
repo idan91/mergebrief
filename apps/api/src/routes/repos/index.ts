@@ -8,7 +8,6 @@
 // subtree, all behind the ONE repo gate mounted over `/:repoId/*`.
 import { ApiErrorCodes, ProductQueryIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import { createAuthzMiddleware } from "../../access";
 import { bindRequestGitHub } from "../../access/reviewer-binding";
@@ -67,11 +66,10 @@ export function reposRoutes(
   app.query(
     {
       id: ProductQueryIds.LIST_REPOS,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/",
     createListReposHandler(deps, installations),

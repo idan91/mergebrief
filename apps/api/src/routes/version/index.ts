@@ -10,7 +10,6 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer } from "../../access/session-layer";
 import type { AuthzEnv } from "../../access/types";
@@ -37,13 +36,11 @@ export function versionDismissRoutes(
   app.action(
     {
       id: ProductActionIds.DISMISS_VERSION_NOTICE,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "post",
     "/",
     handlers.dismissVersion,
   );

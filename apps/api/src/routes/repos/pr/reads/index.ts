@@ -6,7 +6,7 @@ import { ProductQueryIds } from "contract";
 import type { Handler } from "hono";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
-import { WriteClassifications, type AppDatabase } from "persistence";
+import type { AppDatabase } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { z } from "zod/v4";
 import { bindOperatorReader } from "../../../../access/operator-token";
@@ -191,11 +191,10 @@ function declareLiveReads(
   app.query(
     {
       id: ProductQueryIds.READ_DIFF,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/diff",
     createReadDiffHandler({ diffCache }),
@@ -203,11 +202,10 @@ function declareLiveReads(
   app.query(
     {
       id: ProductQueryIds.READ_FILE_RANGE,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/file-range",
     createReadFileRangeHandler({ fileCache }),
@@ -215,11 +213,10 @@ function declareLiveReads(
   app.query(
     {
       id: ProductQueryIds.READ_STACK,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/stack",
     createReadStackHandler(deps, openPullsCache),
@@ -233,11 +230,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_PULL,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/",
     createReadPullHandler(deps),
@@ -245,11 +241,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_BRIEF,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/brief",
     createArtifactHandler(deps, briefQuerySchema, ["base", "head"], readBrief),
@@ -257,11 +252,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_MARKS,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/marks",
     createArtifactHandler(
@@ -274,11 +268,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_DELTA,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/delta",
     createArtifactHandler(
@@ -291,11 +284,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_NARRATIVE,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/narrative",
     createArtifactHandler(
@@ -308,11 +300,10 @@ export function readsRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_BRIEF_CONTEXT,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/brief-context",
     createArtifactHandler(

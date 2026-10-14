@@ -12,7 +12,6 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  WriteClassifications,
   type InstallationId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -35,6 +34,7 @@ import type { AccessibleInstallationsResolver } from "./auth/accessible-installa
 import { AuthChannels, type ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { createInstallationResolver } from "./installation-resolver";
+import { AccessLevels } from "types/access-levels";
 
 const keyProvider = createKeyProvider();
 
@@ -103,7 +103,7 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassifications.EXTERNAL_WRITE,
+    scope: AccessLevels.EXTERNAL_WRITE,
     channel: AuthChannels.COOKIE,
   };
 }

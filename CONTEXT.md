@@ -307,7 +307,7 @@ The attribute-keyed navigation row beside the group TOC: fired attribute names w
 _Avoid_: risk ranking, hotspot list
 
 **Operation table**:
-The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the credential scope it needs, and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond the scope (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
+The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the access level it needs (the same ladder a token's scope is chosen from), and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond the scope (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
 _Avoid_: catalog or manifest (for the table itself: the manifest is a rendering of it), registry (the API's runtime store), route table
 
 **Wire error code**:

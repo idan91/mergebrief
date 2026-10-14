@@ -41,11 +41,11 @@ const GENERATOR = join(PACKAGE_ROOT, "scripts", "generate-manifest.ts");
 const TSX = join(PACKAGE_ROOT, "node_modules", ".bin", "tsx");
 
 const SAMPLE: ProductOperationDescriptor = {
-  id: "probe-op",
+  id: "list-inbox",
   kind: "query",
   classification: "read",
   ...OPEN_POLICY,
-  endpoint: "GET /api/probe",
+  endpoint: "GET /api/inbox",
 };
 
 const tempRoots: string[] = [];

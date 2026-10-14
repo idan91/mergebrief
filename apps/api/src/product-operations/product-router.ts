@@ -5,54 +5,55 @@
 // Endpoints are assembled mechanically: each router keeps its declarations
 // under router-relative paths, `.route()` absorbs a child's entries beneath
 // the mount prefix (the child is sealed, declare before mounting), and the
-// composition root's `commit` stamps `METHOD /full/path` and registers.
+// composition root's `commit` stamps `METHOD /full/path`, asserts it against
+// the operation table and registers.
 import { Hono } from "hono";
 import { every } from "hono/combine";
 import type { Env, H, MiddlewareHandler } from "hono/types";
-import { WriteClassifications } from "persistence";
-import type { ValueOf } from "types/utils";
-import type { ProductActionId, ProductQueryId } from "contract";
+import { HttpMethods, type HttpMethod, type ValueOf } from "types";
+import {
+  OperationKinds,
+  ProductOperations,
+  formatEndpoint,
+  formatProductEndpoint,
+  type ActionHttpMethod,
+  type OperationKind,
+  type ProductActionId,
+  type ProductActionRow,
+  type ProductEndpoint,
+  type ProductOperationId,
+  type ProductOperationRow,
+  type ProductOperationTable,
+  type ProductQueryId,
+  type ProductQueryRow,
+} from "contract";
 import type { PullRequestEnv } from "../access/types";
 import { buildErrorResponse } from "../error-response";
 import { ApiError } from "../shared-errors/api-error";
 import { createPolicyGate } from "./policy-gate";
 import type { ProductOperationRegistry } from "./registry";
-import {
-  OperationKinds,
-  type ActionClassification,
-  type OperationPolicy,
-  type ProductActionDescriptor,
-  type ProductQueryDescriptor,
+import type {
+  OperationPolicy,
+  ProductActionDescriptor,
+  ProductQueryDescriptor,
 } from "./types";
 
-export const ActionMethods = {
-  POST: "post",
-  DELETE: "delete",
-  PATCH: "patch",
-  PUT: "put",
-} as const;
-export type ActionMethod = ValueOf<typeof ActionMethods>;
-
-/** A query declaration, id from the query vocabulary, read-only by type. */
 export interface ProductQueryDeclaration<
-  RowRequired extends boolean = boolean,
+  RequiresStoredPullRequest extends boolean = boolean,
 > extends OperationPolicy {
   readonly id: ProductQueryId;
-  readonly classification: typeof WriteClassifications.READ;
-  readonly rowRequired: RowRequired;
+  readonly requiresStoredPullRequest: RequiresStoredPullRequest;
 }
 
-/** An action declaration, id from the action vocabulary, a write class. */
 export interface ProductActionDeclaration<
-  RowRequired extends boolean = boolean,
+  RequiresStoredPullRequest extends boolean = boolean,
 > extends OperationPolicy {
   readonly id: ProductActionId;
-  readonly classification: ActionClassification;
-  readonly rowRequired: RowRequired;
+  readonly requiresStoredPullRequest: RequiresStoredPullRequest;
 }
 
-/** A router whose handlers read the loaded row admits only operations that load one. */
-type RowRequirementFor<E extends Env> = E extends PullRequestEnv
+/** A router whose handlers read the stored pull request admits only operations that load one. */
+type StoredPullRequestRequirementFor<E extends Env> = E extends PullRequestEnv
   ? true
   : boolean;
 
@@ -61,9 +62,9 @@ type PendingDescriptor =
   | Omit<ProductActionDescriptor, "endpoint">;
 
 interface PendingOperation {
+  readonly id: ProductOperationId;
   readonly descriptor: PendingDescriptor;
-  /** Uppercase HTTP method. */
-  readonly method: string;
+  readonly method: HttpMethod;
   /** Router-relative path; prefixed on each absorb toward the root. */
   readonly path: string;
 }
@@ -77,25 +78,87 @@ function joinPaths(prefix: string, path: string): string {
   return `${left}${path}`;
 }
 
+function resolveRow<Id extends ProductOperationId>(
+  id: Id,
+): ProductOperationTable[Id] {
+  const row: ProductOperationTable[Id] | undefined = ProductOperations[id];
+  if (row === undefined) {
+    throw new Error(
+      `product operation "${id}" has no row in the operation table`,
+    );
+  }
+  return row;
+}
+
+function stampEndpoint(entry: PendingOperation): ProductEndpoint {
+  const composed = formatEndpoint(entry.method, entry.path);
+  const endpoint = formatProductEndpoint(entry.id);
+  if (composed !== endpoint) {
+    throw new Error(
+      `product operation "${entry.id}" composes as "${composed}" but its operation table row is "${endpoint}"`,
+    );
+  }
+  return endpoint;
+}
+
+function isActionHttpMethod(method: HttpMethod): method is ActionHttpMethod {
+  return method !== HttpMethods.GET;
+}
+
+function formatKindMismatch(
+  id: ProductOperationId,
+  actual: OperationKind,
+  declared: OperationKind,
+): string {
+  const message = `product operation "${id}" has kind "${actual}", not "${declared}"`;
+  return message;
+}
+
+// A declaration's id is typed only, so a suppressed type error must fail at
+// declaration rather than mount under a method its row does not carry.
+function resolveQueryRow(id: ProductOperationId): ProductQueryRow {
+  const row: ProductOperationRow = resolveRow(id);
+  if (row.kind !== OperationKinds.QUERY) {
+    throw new Error(formatKindMismatch(id, row.kind, OperationKinds.QUERY));
+  }
+  return row;
+}
+
+function resolveActionRow(id: ProductOperationId): ProductActionRow {
+  const row: ProductOperationRow = resolveRow(id);
+  if (row.kind !== OperationKinds.ACTION) {
+    throw new Error(formatKindMismatch(id, row.kind, OperationKinds.ACTION));
+  }
+  if (!isActionHttpMethod(row.method)) {
+    throw new Error(`product action "${id}" cannot mount under GET`);
+  }
+  return row;
+}
+
 /** At least one handler, matches Hono's own path-plus-handlers signature. */
 type RouteHandlers<E extends Env, P extends string> = [H<E, P>, ...H<E, P>[]];
 
-function mountAction<E extends Env, P extends string>(
+type MountAction = <E extends Env, P extends string>(
   app: Hono<E>,
-  method: ActionMethod,
   path: P,
   handlers: RouteHandlers<E, P>,
-): void {
-  if (method === ActionMethods.POST) {
-    app.post(path, ...handlers);
-  } else if (method === ActionMethods.DELETE) {
-    app.delete(path, ...handlers);
-  } else if (method === ActionMethods.PATCH) {
-    app.patch(path, ...handlers);
-  } else {
-    app.put(path, ...handlers);
-  }
-}
+) => void;
+
+const MOUNT_BY_ACTION_METHOD: Readonly<Record<ActionHttpMethod, MountAction>> =
+  {
+    [HttpMethods.POST]: (app, path, handlers) => {
+      app.post(path, ...handlers);
+    },
+    [HttpMethods.PUT]: (app, path, handlers) => {
+      app.put(path, ...handlers);
+    },
+    [HttpMethods.PATCH]: (app, path, handlers) => {
+      app.patch(path, ...handlers);
+    },
+    [HttpMethods.DELETE]: (app, path, handlers) => {
+      app.delete(path, ...handlers);
+    },
+  };
 
 const SealReasons = {
   MOUNTED: "mounted",
@@ -108,13 +171,6 @@ const SEAL_CAUSE: Readonly<Record<SealReason, string>> = {
   [SealReasons.COMMITTED]: "committed",
 };
 
-function isActionClassification(value: string): value is ActionClassification {
-  return (
-    value === WriteClassifications.PRIVATE_WRITE ||
-    value === WriteClassifications.EXTERNAL_WRITE
-  );
-}
-
 export interface ProductRouter<E extends Env> {
   /** The underlying Hono, for serving/mounting, never for adding routes. */
   readonly app: Hono<E>;
@@ -123,14 +179,13 @@ export interface ProductRouter<E extends Env> {
   use(path: string, ...middleware: MiddlewareHandler<E>[]): void;
   /** Declare-and-mount a Product Query as GET. */
   query<P extends string>(
-    descriptor: ProductQueryDeclaration<RowRequirementFor<E>>,
+    descriptor: ProductQueryDeclaration<StoredPullRequestRequirementFor<E>>,
     path: P,
     ...handlers: RouteHandlers<E, P>
   ): void;
-  /** Declare-and-mount a Product Action. */
+  /** Declare-and-mount a Product Action under its table row's method. */
   action<P extends string>(
-    descriptor: ProductActionDeclaration<RowRequirementFor<E>>,
-    method: ActionMethod,
+    descriptor: ProductActionDeclaration<StoredPullRequestRequirementFor<E>>,
     path: P,
     ...handlers: RouteHandlers<E, P>
   ): void;
@@ -139,7 +194,10 @@ export interface ProductRouter<E extends Env> {
     prefix: string,
     child: ProductRouter<ChildEnv> | Hono<ChildEnv>,
   ): void;
-  /** Stamp full endpoints and register, call once, on the composition root. */
+  /**
+   * Stamp full endpoints, assert each against its operation table row and
+   * register; call once, on the composition root.
+   */
   commit(registry: ProductOperationRegistry): void;
 }
 
@@ -179,44 +237,39 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
     },
     query(descriptor, path, ...handlers) {
       assertOpen(`cannot declare query "${descriptor.id}"`);
-      if (descriptor.classification !== WriteClassifications.READ) {
-        throw new Error(
-          `product query "${descriptor.id}" must be classified "read"`,
-        );
-      }
+      const row = resolveQueryRow(descriptor.id);
       pending.push({
-        descriptor: { ...descriptor, kind: OperationKinds.QUERY },
-        method: "GET",
+        id: descriptor.id,
+        descriptor: {
+          ...descriptor,
+          kind: OperationKinds.QUERY,
+          classification: row.classification,
+        },
+        method: row.method,
         path,
       });
       app.get(
         path,
-        every(
-          createPolicyGate(descriptor, descriptor.classification),
-          ...handlers,
-        ),
+        every(createPolicyGate(descriptor, row.classification), ...handlers),
       );
     },
-    action(descriptor, method, path, ...handlers) {
+    action(descriptor, path, ...handlers) {
       assertOpen(`cannot declare action "${descriptor.id}"`);
-      if (!isActionClassification(descriptor.classification)) {
-        throw new Error(
-          `product action "${descriptor.id}" must be classified "private-write" or "external-write"`,
-        );
-      }
+      const row = resolveActionRow(descriptor.id);
       pending.push({
-        descriptor: { ...descriptor, kind: OperationKinds.ACTION },
-        method: method.toUpperCase(),
+        id: descriptor.id,
+        descriptor: {
+          ...descriptor,
+          kind: OperationKinds.ACTION,
+          classification: row.classification,
+        },
+        method: row.method,
         path,
       });
       // ONE composed handler, not a prepended one: Hono records a route-table
       // entry per handler, and a doubled entry would read as a double mount.
-      mountAction(app, method, path, [
-        every(
-          createPolicyGate(descriptor, descriptor.classification),
-          ...handlers,
-        ),
-      ]);
+      const gate = createPolicyGate(descriptor, row.classification);
+      MOUNT_BY_ACTION_METHOD[row.method](app, path, [every(gate, ...handlers)]);
     },
     route(prefix, child) {
       assertOpen(`cannot mount "${prefix}"`);
@@ -241,13 +294,18 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
     },
     commit(registry) {
       assertOpen("cannot commit");
-      for (const entry of pending) {
-        const endpoint = `${entry.method} ${entry.path}`;
+      // Every entry is checked before any registers: a mismatch leaves the
+      // registry as it was.
+      const stamped = pending.map((entry) => ({
+        descriptor: entry.descriptor,
+        endpoint: stampEndpoint(entry),
+      }));
+      for (const { descriptor, endpoint } of stamped) {
         // Branch per kind so the registered union member stays discriminated.
-        if (entry.descriptor.kind === OperationKinds.QUERY) {
-          registry.register({ ...entry.descriptor, endpoint });
+        if (descriptor.kind === OperationKinds.QUERY) {
+          registry.register({ ...descriptor, endpoint });
         } else {
-          registry.register({ ...entry.descriptor, endpoint });
+          registry.register({ ...descriptor, endpoint });
         }
       }
       // Post-commit declarations would serve but never register.

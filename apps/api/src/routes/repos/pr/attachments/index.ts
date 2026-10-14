@@ -20,7 +20,6 @@ import {
   type AttachmentMediaType,
 } from "contract";
 import type { Context, Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import { bindGrantedPullRequestGitHub } from "../../../../access/reviewer-binding";
 import type { AuthzEnv } from "../../../../access/types";
@@ -218,11 +217,10 @@ export function attachmentsRoute(
   app.query(
     {
       id: ProductQueryIds.READ_ATTACHMENT,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/:assetId",
     createReadAttachmentHandler(deps, sources),
@@ -231,13 +229,11 @@ export function attachmentsRoute(
   app.action(
     {
       id: ProductActionIds.UPLOAD_ATTACHMENT,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: true,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: true,
+      requiresStoredPullRequest: false,
     },
-    "post",
     "/",
     createUploadAttachmentHandler(deps, quota),
   );

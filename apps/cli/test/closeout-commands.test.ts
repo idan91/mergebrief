@@ -10,7 +10,6 @@ import {
   createGrantAuth,
   isReviewerId,
   createTokenAuth,
-  WriteClassifications,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
@@ -24,6 +23,7 @@ import {
   type CliApiHarness,
 } from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
+import { AccessLevels } from "types/access-levels";
 
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
@@ -163,7 +163,7 @@ describe("generate + collaborators over the real api app", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: REVIEWER,
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),

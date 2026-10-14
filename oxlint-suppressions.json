@@ -358,14 +358,6 @@
       "count": 1
     }
   },
-  "packages/persistence/test/audit.test.ts": {
-    "house/no-em-dash": {
-      "count": 7
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
   "packages/persistence/test/ping.test.ts": {
     "house/no-em-dash": {
       "count": 1

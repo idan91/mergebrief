@@ -97,7 +97,6 @@ export interface PullRequestVariables extends AuthzVariables {
   readonly pullRequestAccess: PullRequestAccess;
 }
 
-/** A row-required operation's env: its handler reads the loaded row. */
 export interface PullRequestEnv {
   readonly Variables: PullRequestVariables;
 }

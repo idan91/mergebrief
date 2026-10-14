@@ -9,7 +9,7 @@ import type {
   DispositionEvidenceStatus,
   ValueOf,
 } from "types";
-import type { ProductActionId } from "./operations";
+import type { ProductActionId } from "./operations/types";
 
 /**
  * The displayed kind. `MISSING_EVIDENCE` is the persistence vocabulary's own

@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { WriteClassifications } from "persistence";
+import { AccessLevels } from "types/access-levels";
 import { MAX_EXPIRY_DAYS } from "./consts";
 
 /**
@@ -14,9 +14,9 @@ export const mintBodySchema = z.object({
   // silently lacks what its owner expects, surfacing as an unexplained 403.
   // The mint form asks, and the list shows what was asked for.
   scope: z.enum([
-    WriteClassifications.READ,
-    WriteClassifications.PRIVATE_WRITE,
-    WriteClassifications.EXTERNAL_WRITE,
+    AccessLevels.READ,
+    AccessLevels.PRIVATE_WRITE,
+    AccessLevels.EXTERNAL_WRITE,
   ]),
   expiresInDays: z
     .number()

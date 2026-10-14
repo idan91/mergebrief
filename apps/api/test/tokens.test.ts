@@ -8,14 +8,12 @@ import {
   isRepoId,
   isReviewerId,
   createTokenAuth,
-  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
-  type WriteClassification,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, type AccessLevel, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -164,13 +162,13 @@ async function seedApiToken(
   overrides: {
     expiresAt?: Date | null;
     revoke?: boolean;
-    scope?: WriteClassification;
+    scope?: AccessLevel;
   } = {},
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   const grantId = await seedGrant(handle, kp);
   const minted = await createTokenAuth(handle).mintToken({
-    scope: overrides.scope ?? WriteClassifications.EXTERNAL_WRITE,
+    scope: overrides.scope ?? AccessLevels.EXTERNAL_WRITE,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
@@ -314,7 +312,7 @@ describe("Bearer presentation on /api/*", () => {
     });
     await seedPr(harness.handle);
     const readOnly = await seedApiToken(harness.handle, kp, {
-      scope: WriteClassifications.READ,
+      scope: AccessLevels.READ,
     });
 
     // The same credential reads fine…
@@ -707,7 +705,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
         "content-type": "application/json",
         Cookie: `__Host-mergebrief_session=${cookie}`,
       },
-      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
     });
 
     expect(res.status).toBe(403);
@@ -730,7 +728,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
         "sec-fetch-site": "same-site",
         origin: "https://evil.example.test",
       },
-      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
     });
 
     expect(res.status).toBe(403);
@@ -747,7 +745,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
         Cookie: `__Host-mergebrief_session=${cookie}`,
         origin: "https://app.example.test",
       },
-      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
     });
 
     expect(res.status).toBe(201);

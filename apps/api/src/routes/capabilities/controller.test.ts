@@ -1,22 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { computeCatalogFingerprint } from "../../product-operations/manifest";
-import { WriteClassifications } from "persistence";
-import {
-  OperationKinds,
-  type ProductOperationDescriptor,
-} from "../../product-operations/types";
+import { AccessLevels } from "types/access-levels";
+import { OperationKinds } from "contract";
+import type { ProductOperationDescriptor } from "../../product-operations/types";
 import { capabilitiesController } from "./controller";
 
 const OPERATIONS: readonly ProductOperationDescriptor[] = [
   {
     id: "read-capabilities",
     kind: OperationKinds.QUERY,
-    classification: WriteClassifications.READ,
+    classification: AccessLevels.READ,
     endpoint: "GET /api/capabilities",
-    humanOnly: false,
-    pushRequired: false,
-    installationOnly: false,
-    rowRequired: false,
+    browserSessionOnly: false,
+    requiresPushAccess: false,
+    requiresInstallation: false,
+    requiresStoredPullRequest: false,
   },
 ];
 

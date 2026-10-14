@@ -7,7 +7,6 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
 import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
 import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
@@ -22,24 +21,21 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.MINT_TOKEN,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "post",
     "/",
     handlers.mintToken,
   );
   app.query(
     {
       id: ProductQueryIds.LIST_TOKENS,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/",
     handlers.listTokens,
@@ -47,13 +43,11 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.REVOKE_TOKEN,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "delete",
     "/:id",
     handlers.revokeToken,
   );

@@ -8,9 +8,7 @@
 // `evictConversation` hook.
 import { ProductActionIds } from "contract";
 import type { Context, Handler } from "hono";
-import { WriteClassifications } from "persistence";
-import { HttpStatuses } from "types/http";
-import type { Mutable } from "types/utils";
+import { HttpStatuses, type Mutable } from "types";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import {
@@ -169,52 +167,44 @@ export function commentWriteRoutes(
   app.action(
     {
       id: ProductActionIds.CREATE_INLINE_COMMENT,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/",
     createPostNowHandler(deps, evictConversation),
   );
   app.action(
     {
       id: ProductActionIds.REPLY_TO_COMMENT,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/:commentId/replies",
     createReplyHandler(deps, evictConversation),
   );
   app.action(
     {
       id: ProductActionIds.RESOLVE_THREAD,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/:commentId/resolve",
     createResolutionHandler(evictConversation, true),
   );
   app.action(
     {
       id: ProductActionIds.UNRESOLVE_THREAD,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/:commentId/unresolve",
     createResolutionHandler(evictConversation, false),
   );

@@ -1,9 +1,13 @@
-import type { CommentAnchorKind, DiffSide } from "types/comments";
 import type {
+  Brand,
+  CommentAnchorKind,
+  DiffSide,
   GenerationFailureCode,
   GenerationFailureCodes,
-} from "types/generations";
-import type { Brand, ValueOf } from "types/utils";
+  ValueOf,
+  AccessLevel,
+  AccessLevels,
+} from "types";
 
 /**
  * Branded identifiers. These prevent the exact installation_id/repo_id swap
@@ -52,20 +56,6 @@ export function isGrantRowId(value: bigint): value is GrantRowId {
 export function isReviewSessionId(value: bigint): value is ReviewSessionId {
   return isPositiveBigInt(value);
 }
-
-/**
- * `api_token.scope`: the same three rungs the Product Operation catalog
- * classifies every operation by, cumulative left to right. One vocabulary for
- * both is what keeps the scope check a lookup rather than a mapping, so
- * `apps/api` imports this map rather than declaring its own. Chosen at
- * mint, immutable for the token's life.
- */
-export const WriteClassifications = {
-  READ: "read",
-  PRIVATE_WRITE: "private-write",
-  EXTERNAL_WRITE: "external-write",
-} as const;
-export type WriteClassification = ValueOf<typeof WriteClassifications>;
 
 /**
  * Work a webhook event names that a stored Brief for its base and head pair
@@ -165,8 +155,8 @@ export type AuditActorType = ValueOf<typeof AuditActorTypes>;
 /** `audit_log.classification`: where the audited write landed. The same
  * vocabulary `api_token.scope` uses, minus `read`: reads are never audited. */
 export type AuditClassification = Exclude<
-  WriteClassification,
-  typeof WriteClassifications.READ
+  AccessLevel,
+  typeof AccessLevels.READ
 >;
 
 /** `audit_log.channel`: the credential surface the call arrived on. */

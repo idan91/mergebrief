@@ -43,10 +43,10 @@ export const PR_NUMBER = 7;
 
 /** A declaration's policy with every restriction off. */
 export const OPEN_POLICY = {
-  humanOnly: false,
-  pushRequired: false,
-  installationOnly: false,
-  rowRequired: false,
+  browserSessionOnly: false,
+  requiresPushAccess: false,
+  requiresInstallation: false,
+  requiresStoredPullRequest: false,
 } as const satisfies OperationPolicy;
 
 export function createKeyProvider(): KeyProvider {

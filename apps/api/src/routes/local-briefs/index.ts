@@ -3,7 +3,6 @@
 // varies; with no directory configured each path answers as an unmounted one,
 // ahead of any session check. Composition only.
 import { ProductQueryIds } from "contract";
-import { WriteClassifications } from "persistence";
 import {
   productRouter,
   type ProductRouter,
@@ -20,15 +19,13 @@ function declareLocalBriefQueries(
   app: ProductRouter<AuthzEnv>,
   handlers: LocalBriefsHandlers,
 ): void {
-  const read = WriteClassifications.READ;
   app.query(
     {
       id: ProductQueryIds.LIST_LOCAL_BRIEFS,
-      classification: read,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/",
     handlers.listLocalBriefs,
@@ -36,11 +33,10 @@ function declareLocalBriefQueries(
   app.query(
     {
       id: ProductQueryIds.READ_LOCAL_BRIEF,
-      classification: read,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/:briefId",
     handlers.readLocalBrief,
@@ -48,11 +44,10 @@ function declareLocalBriefQueries(
   app.query(
     {
       id: ProductQueryIds.READ_LOCAL_BRIEF_DIFFS,
-      classification: read,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/:briefId/diffs",
     handlers.readLocalBriefDiffs,
@@ -60,11 +55,10 @@ function declareLocalBriefQueries(
   app.query(
     {
       id: ProductQueryIds.READ_LOCAL_COMPARISON_MARKS,
-      classification: read,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/:briefId/comparison-marks",
     handlers.readLocalComparisonMarks,
@@ -72,11 +66,10 @@ function declareLocalBriefQueries(
   app.query(
     {
       id: ProductQueryIds.READ_LOCAL_REVISION_NARRATIVE,
-      classification: read,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
     "/:briefId/revision-narrative",
     handlers.readLocalRevisionNarrative,

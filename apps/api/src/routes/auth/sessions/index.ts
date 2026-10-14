@@ -8,7 +8,6 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WriteClassifications } from "persistence";
 import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
 import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
@@ -21,13 +20,11 @@ export function sessionsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.REVOKE_SESSIONS,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: false,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
     },
-    "delete",
     "/",
     handlers.revokeAll,
   );

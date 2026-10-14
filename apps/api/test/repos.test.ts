@@ -8,12 +8,11 @@ import {
   createTenantRepository,
   isInstallationId,
   isRepoId,
-  WriteClassifications,
   type KeyProvider,
   type RepoId,
   type TenantContext,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
+import { PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -120,7 +119,7 @@ describe("GET /api/repos", () => {
     const bearer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
     const res = await getRepos({ Authorization: `Bearer ${bearer}` });
     expect(res.status).toBe(200);

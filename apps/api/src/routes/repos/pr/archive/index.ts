@@ -3,7 +3,6 @@
 // class may call them.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
@@ -41,26 +40,22 @@ export function archivePullRoutes(
   app.action(
     {
       id: ProductActionIds.ARCHIVE_PULL,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "put",
     "/",
     createArchiveHandler(deps, archivePull),
   );
   app.action(
     {
       id: ProductActionIds.UNARCHIVE_PULL,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "delete",
     "/",
     createArchiveHandler(deps, unarchivePull),
   );

@@ -5,11 +5,7 @@
 // entry on success.
 import { ProductQueryIds } from "contract";
 import type { Handler } from "hono";
-import {
-  WriteClassifications,
-  type RepoId,
-  type ScopeContext,
-} from "persistence";
+import type { RepoId, ScopeContext } from "persistence";
 import { HttpStatuses } from "types/http";
 import type {
   InstallationBindingDeps,
@@ -63,11 +59,10 @@ export function conversationRoute(
   app.query(
     {
       id: ProductQueryIds.READ_CONVERSATION,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/",
     createReadConversationHandler({ bindInstallationGitHub, cache }),

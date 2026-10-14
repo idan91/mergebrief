@@ -10,7 +10,6 @@ import {
   isRepoId,
   isReviewerId,
   isGrantRowId,
-  WriteClassifications,
   type AppDatabase,
   type RepoId,
 } from "persistence";
@@ -31,6 +30,7 @@ import {
   bindRequestGitHub,
 } from "./reviewer-binding";
 import { AccessFootings, type RepoAccess } from "./types";
+import { AccessLevels } from "types/access-levels";
 
 const VIEWER_TOKEN = "ghu_viewer";
 const OPERATOR_PAT = "ghp_operator";
@@ -70,7 +70,7 @@ async function makeSession(kp: AuthRouteDeps["auth"]["keyProvider"]) {
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassifications.READ,
+    scope: AccessLevels.READ,
     channel: AuthChannels.COOKIE,
   };
   return session;

@@ -4,7 +4,7 @@
 // scope-less tokens, applies 0024, and asserts every existing credential keeps
 // the reach it had rather than being narrowed on deploy day.
 import { describe, expect, it } from "vitest";
-import { WriteClassifications } from "../src/types";
+import { AccessLevels } from "types/access-levels";
 import { applyMigrationFile, pgliteBefore } from "./helpers";
 
 describe("migration 0024 api_token.scope", () => {
@@ -31,10 +31,10 @@ describe("migration 0024 api_token.scope", () => {
       "select token_hash, scope from api_token order by token_hash",
     );
     expect(rows.rows).toEqual([
-      { token_hash: "hash-live", scope: WriteClassifications.EXTERNAL_WRITE },
+      { token_hash: "hash-live", scope: AccessLevels.EXTERNAL_WRITE },
       {
         token_hash: "hash-revoked",
-        scope: WriteClassifications.EXTERNAL_WRITE,
+        scope: AccessLevels.EXTERNAL_WRITE,
       },
     ]);
 
@@ -55,8 +55,6 @@ describe("migration 0024 api_token.scope", () => {
     const accepted = [
       ...(constraint.rows[0]?.def ?? "").matchAll(/'([^']*)'/g),
     ].map((match) => match[1] ?? "");
-    expect(accepted.toSorted()).toEqual(
-      Object.values(WriteClassifications).toSorted(),
-    );
+    expect(accepted.toSorted()).toEqual(Object.values(AccessLevels).toSorted());
   });
 });

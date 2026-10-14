@@ -3,7 +3,6 @@
 // maintainers. The later `ready_for_review` webhook lands as a no-op.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
@@ -37,13 +36,11 @@ export function markReadyRoute(
   app.action(
     {
       id: ProductActionIds.MARK_READY,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/",
     createMarkReadyHandler(deps),
   );

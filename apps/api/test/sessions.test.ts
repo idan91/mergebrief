@@ -8,7 +8,6 @@ import {
   createTenantRepository,
   createTokenAuth,
   encryptToken,
-  WriteClassifications,
   type AppDatabase,
   type GithubGrantRow,
   type KeyProvider,
@@ -29,6 +28,7 @@ import {
 } from "./fixtures";
 import { testLogger } from "./logging";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { AccessLevels } from "types/access-levels";
 
 const OTHER_REVIEWER_ID = 777;
 const REVOKE_PATH = "/api/auth/sessions";
@@ -144,7 +144,7 @@ describe("DELETE /api/auth/sessions", () => {
     const seeded = await seedSessionFor(harness.handle, kp, reviewer);
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.READ,
+      scope: AccessLevels.READ,
       userId: reviewer,
       userLogin: "octocat",
       name: "ci-token",
@@ -168,7 +168,7 @@ describe("DELETE /api/auth/sessions", () => {
     const seeded = await seedSessionFor(harness.handle, kp, reviewer);
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: reviewer,
       userLogin: "octocat",
       name: "ci-token",

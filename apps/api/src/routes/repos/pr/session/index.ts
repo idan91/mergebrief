@@ -7,7 +7,6 @@
 // frozen session refuses every write with `pr-changed-since-read`.
 import { ProductActionIds, ProductQueryIds } from "contract";
 import type { Context, Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
 import {
@@ -332,11 +331,10 @@ export function sessionRoutes(
   app.query(
     {
       id: ProductQueryIds.READ_REVIEW_SESSION,
-      classification: WriteClassifications.READ,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
     "/",
     createReadSessionHandler(deps),
@@ -344,78 +342,66 @@ export function sessionRoutes(
   app.action(
     {
       id: ProductActionIds.CREATE_DRAFT_COMMENT,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/comments",
     createDraftCommentHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.UPDATE_DRAFT_COMMENT,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "patch",
     "/comments/:draftId",
     createUpdateDraftHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "put",
     "/comments/:draftId/anchor",
     createReanchorDraftHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.DELETE_DRAFT_COMMENT,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "delete",
     "/comments/:draftId",
     createDeleteDraftHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.SET_CHUNK_READ,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "put",
     "/chunks/:chunkId/read",
     createSetChunkReadHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.RECLASSIFY_GROUP,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "put",
     "/groups/:groupId/classification",
     createReclassifyGroupHandler(deps),
   );
@@ -426,52 +412,44 @@ export function sessionRoutes(
   app.action(
     {
       id: ProductActionIds.DISMISS_RISK,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/risks/dismiss",
     createDismissRiskHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.ADDRESS_RISK,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/risks/address",
     createAddressRiskHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.REOPEN_RISK,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: true,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: true,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/risks/reopen",
     createReopenRiskHandler(deps),
   );
   app.action(
     {
       id: ProductActionIds.SET_REVIEW_OUTCOME,
-      classification: WriteClassifications.PRIVATE_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "put",
     "/outcome",
     createSetOutcomeHandler(deps),
   );

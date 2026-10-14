@@ -5,7 +5,6 @@
 // echo of this very submit, is the ONLY checkpoint writer.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
-import { WriteClassifications } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
@@ -76,13 +75,11 @@ export function reviewSubmitRoute(
   app.action(
     {
       id: ProductActionIds.SUBMIT_REVIEW,
-      classification: WriteClassifications.EXTERNAL_WRITE,
-      humanOnly: false,
-      pushRequired: false,
-      installationOnly: false,
-      rowRequired: true,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
     },
-    "post",
     "/",
     createSubmitReviewHandler(deps, evictConversation),
   );

@@ -2,7 +2,13 @@
 // instead of inline strings, and the router accepts ONLY the derived
 // unions, so an id outside the vocabulary is a compile error and adding an
 // operation starts here.
-import type { ValueOf } from "types/utils";
+import type {
+  AccessLevel,
+  AccessLevels,
+  HttpMethod,
+  HttpMethods,
+  ValueOf,
+} from "types";
 
 export const ProductQueryIds = {
   LIST_INBOX: "list-inbox",
@@ -64,3 +70,40 @@ export const ProductActionIds = {
   DISMISS_VERSION_NOTICE: "dismiss-version-notice",
 } as const;
 export type ProductActionId = ValueOf<typeof ProductActionIds>;
+
+export type ProductOperationId = ProductQueryId | ProductActionId;
+
+export const OperationKinds = {
+  QUERY: "query",
+  ACTION: "action",
+} as const;
+export type OperationKind = ValueOf<typeof OperationKinds>;
+
+export type ActionHttpMethod = Exclude<HttpMethod, typeof HttpMethods.GET>;
+
+export type ActionClassification = Exclude<
+  AccessLevel,
+  typeof AccessLevels.READ
+>;
+
+export interface ProductQueryRow {
+  readonly kind: typeof OperationKinds.QUERY;
+  readonly classification: typeof AccessLevels.READ;
+  readonly method: typeof HttpMethods.GET;
+  readonly path: string;
+}
+
+export interface ProductActionRow {
+  readonly kind: typeof OperationKinds.ACTION;
+  readonly classification: ActionClassification;
+  readonly method: ActionHttpMethod;
+  readonly path: string;
+}
+
+export type ProductOperationRow = ProductQueryRow | ProductActionRow;
+
+export type ProductOperationTable = {
+  readonly [Id in ProductQueryId]: ProductQueryRow;
+} & {
+  readonly [Id in ProductActionId]: ProductActionRow;
+};

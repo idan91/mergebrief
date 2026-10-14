@@ -4,19 +4,15 @@
 // routes keep their own typed view of the same variables.
 import { ApiErrorCodes } from "contract";
 import type { Context, Env, MiddlewareHandler } from "hono";
-import { WriteClassifications, type WriteClassification } from "persistence";
+import { AccessLevels, type AccessLevel } from "types/access-levels";
 import { AuthChannels } from "../routes/auth/session/types";
 import { Forbidden, NotFound, Unauthorized } from "../shared-errors/api-error";
-import {
-  isWriteClassification,
-  scopeReaches,
-  type OperationPolicy,
-} from "./types";
+import { isAccessLevel, scopeReaches, type OperationPolicy } from "./types";
 
 declare module "hono" {
   interface ContextVariableMap {
     /**
-     * Set by the subtree that owns a row-required operation's row; the gate
+     * Set by the subtree that loads a stored pull request; the gate
      * runs it after every other check and before the handler.
      */
     loadOperationRow?: () => Promise<void>;
@@ -25,7 +21,7 @@ declare module "hono" {
 
 /** What the gate reads off the principal and the repo gate's access value. */
 interface PolicyFacts {
-  readonly scope: WriteClassification | undefined;
+  readonly scope: AccessLevel | undefined;
   readonly channel: unknown;
   readonly viewerCanPush: boolean;
   readonly inInstallation: boolean;
@@ -38,12 +34,15 @@ function hasKey<K extends string>(
   return typeof value === "object" && value !== null && key in value;
 }
 
-function readScope(session: unknown): WriteClassification | undefined {
+function readScope(session: unknown): AccessLevel | undefined {
   if (!hasKey(session, "scope")) {
     return undefined;
   }
   const scope: unknown = session.scope;
-  return isWriteClassification(scope) ? scope : undefined;
+  if (!isAccessLevel(scope)) {
+    return undefined;
+  }
+  return scope;
 }
 
 function readPolicyFacts(variables: unknown): PolicyFacts {
@@ -69,10 +68,10 @@ function readPolicyFacts(variables: unknown): PolicyFacts {
  * repo gate, so both fail closed as the absence they would have found.
  */
 function assertRepoPolicy(policy: OperationPolicy, facts: PolicyFacts): void {
-  if (policy.pushRequired && !facts.viewerCanPush) {
+  if (policy.requiresPushAccess && !facts.viewerCanPush) {
     throw new NotFound();
   }
-  if (policy.installationOnly && !facts.inInstallation) {
+  if (policy.requiresInstallation && !facts.inInstallation) {
     throw new NotFound();
   }
 }
@@ -80,23 +79,25 @@ function assertRepoPolicy(policy: OperationPolicy, facts: PolicyFacts): void {
 async function loadRow(c: Context): Promise<void> {
   const load = c.get("loadOperationRow");
   if (load === undefined) {
-    throw new Error("a row-required operation is mounted without a row loader");
+    throw new Error(
+      "an operation requiring a stored pull request is mounted without a row loader",
+    );
   }
   await load();
 }
 
 /**
- * Scope, human-only, push-required, installation-only, then the row: the
- * first failure answers. Only actions need the scope check, since `read` is
+ * Scope, browser session, push access, Installation, then the stored pull
+ * request: the first failure answers. Only actions need the scope check, since `read` is
  * the bottom rung. No principal where one is needed means a route mounted
  * without its gate, so it fails closed with 401.
  */
 export function createPolicyGate<E extends Env>(
   policy: OperationPolicy,
-  classification: WriteClassification,
+  classification: AccessLevel,
 ): MiddlewareHandler<E> {
   const needsPrincipal =
-    policy.humanOnly || classification !== WriteClassifications.READ;
+    policy.browserSessionOnly || classification !== AccessLevels.READ;
   return async (c, next) => {
     const facts = readPolicyFacts(c.var);
     if (needsPrincipal && facts.scope === undefined) {
@@ -108,11 +109,11 @@ export function createPolicyGate<E extends Env>(
     ) {
       throw new Forbidden(ApiErrorCodes.SCOPE_EXCEEDED);
     }
-    if (policy.humanOnly && facts.channel !== AuthChannels.COOKIE) {
+    if (policy.browserSessionOnly && facts.channel !== AuthChannels.COOKIE) {
       throw new Forbidden(ApiErrorCodes.HUMAN_ONLY);
     }
     assertRepoPolicy(policy, facts);
-    if (policy.rowRequired) {
+    if (policy.requiresStoredPullRequest) {
       await loadRow(c);
     }
     await next();

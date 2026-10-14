@@ -7,7 +7,6 @@ import {
   createEnvKeyProvider,
   createGrantAuth,
   createTokenAuth,
-  WriteClassifications,
   type KeyProvider,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -23,6 +22,7 @@ import {
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { AccessLevels } from "types/access-levels";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 
@@ -95,7 +95,7 @@ describe("GET /api/version", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassifications.EXTERNAL_WRITE,
+      scope: AccessLevels.EXTERNAL_WRITE,
       userId: brandReviewerId(555n),
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),
@@ -222,7 +222,7 @@ describe("GET /api/version", () => {
     const token = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.PRIVATE_WRITE,
+      AccessLevels.PRIVATE_WRITE,
     );
     await updateCheck.refresh();
 

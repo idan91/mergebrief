@@ -97,10 +97,13 @@ kind, classification, method and full path. Clients build requests from the
 row instead of retyping URLs. Composition still assembles the path
 mechanically, and `commit` now asserts the assembled `METHOD /full/path`
 equals the row, throwing at composition like the other registration-seam
-failures. The manifest becomes a pure rendering of the table, so the
+failures. A route declares only its relative path and reads its method from
+the row. The manifest becomes a pure rendering of the table, so the
 generator needs no database and no composed app. Policy beyond the
 classification (human-only, push, installation, row) stays on the api
-descriptor, keyed by the operation's id.
+descriptor, keyed by the operation's id. Its fields are named for the rule
+each states: `browserSessionOnly`, `requiresPushAccess`,
+`requiresInstallation` and `requiresStoredPullRequest`.
 
 ### Manifests and CI gates
 

@@ -9,12 +9,8 @@ import {
   type FakeFailure,
   type FakeGitHub,
 } from "github/testing";
-import {
-  createTenantRepository,
-  WriteClassifications,
-  type KeyProvider,
-} from "persistence";
-import { PrStates } from "types/pull-requests";
+import { createTenantRepository, type KeyProvider } from "persistence";
+import { PrStates, AccessLevels } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -179,7 +175,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     const token = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
 
     const response = await upload({ authorization: `Bearer ${token}` });
@@ -192,7 +188,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
     const token = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassifications.EXTERNAL_WRITE,
+      AccessLevels.EXTERNAL_WRITE,
     );
     expect((await upload(cookieHeaders)).status).toBe(201);
     expect((await upload({ authorization: `Bearer ${token}` })).status).toBe(
@@ -331,11 +327,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
   });
 
   it("refuses a read-scoped bearer token at the router seam", async () => {
-    const token = await seedApiToken(
-      harness.handle,
-      kp,
-      WriteClassifications.READ,
-    );
+    const token = await seedApiToken(harness.handle, kp, AccessLevels.READ);
 
     const response = await upload({ authorization: `Bearer ${token}` });
 
