@@ -11,7 +11,7 @@ import styles from "./SubmitModal.module.scss";
 
 export interface ReceiptViewProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   receipt: Receipt;
   close: () => void;
   backToVerdict: () => void;

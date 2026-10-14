@@ -5,7 +5,13 @@
 // Each binds through the session write seam, so whichever write lands first
 // creates the session and copies the carried work in one transaction. And a
 // frozen session refuses every write with `pr-changed-since-read`.
-import { ProductActionIds, ProductQueryIds } from "contract";
+import {
+  ProductActionIds,
+  ProductQueryIds,
+  type CreateDraftCommentResponse,
+  type RiskWriteResponse,
+  type SetReviewOutcomeResponse,
+} from "contract";
 import type { Context, Handler } from "hono";
 import { HttpStatuses } from "types/http";
 import type { PullRequestEnv } from "../../../../access/types";
@@ -98,7 +104,9 @@ function createDraftCommentHandler(
       throwSessionFailure(added.error);
     }
 
-    const body = { draftId: String(added.value.id) };
+    const body: CreateDraftCommentResponse = {
+      draftId: String(added.value.id),
+    };
     return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };
 }
@@ -124,8 +132,7 @@ function createUpdateDraftHandler(
       throwSessionFailure(edited.error);
     }
 
-    const body = { draftId: String(edited.value.id) };
-    return c.json(body, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -150,8 +157,7 @@ function createReanchorDraftHandler(
       throwSessionFailure(moved.error);
     }
 
-    const body = { draftId: String(moved.value.id) };
-    return c.json(body, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -174,8 +180,7 @@ function createDeleteDraftHandler(
       throwSessionFailure(deleted.error);
     }
 
-    const body = { draftId: String(deleted.value.id) };
-    return c.json(body, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -227,7 +232,7 @@ function createReclassifyGroupHandler(
       throwSessionFailure(written.error);
     }
 
-    return c.json(reclassification, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -251,7 +256,8 @@ function createDismissRiskHandler(
       throwSessionFailure(dismissed.error);
     }
 
-    return c.json({ flags: dismissed.value }, HttpStatuses.OK, NO_STORE);
+    const body: RiskWriteResponse = { count: dismissed.value };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }
 
@@ -274,7 +280,8 @@ function createAddressRiskHandler(
       throwSessionFailure(addressed.error);
     }
 
-    return c.json({ flags: addressed.value }, HttpStatuses.OK, NO_STORE);
+    const body: RiskWriteResponse = { count: addressed.value };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }
 
@@ -295,7 +302,8 @@ function createReopenRiskHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
       throwSessionFailure(reopened.error);
     }
 
-    return c.json({ flags: reopened.value }, HttpStatuses.OK, NO_STORE);
+    const body: RiskWriteResponse = { count: reopened.value };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }
 
@@ -318,7 +326,9 @@ function createSetOutcomeHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
 
     // Read back off the row, not the request: the picker is server-
     // authoritative, and a new session starts at `comment` regardless.
-    const body = { outcome: written.value.reviewOutcome };
+    const body: SetReviewOutcomeResponse = {
+      outcome: written.value.reviewOutcome,
+    };
     return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }

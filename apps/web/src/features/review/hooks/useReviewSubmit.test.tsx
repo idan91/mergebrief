@@ -145,6 +145,27 @@ describe("useReviewSubmit", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it("never sends a submit while no outcome is picked", () => {
+    const { rendered, input, action } = setup({ outcome: undefined });
+    expect(rendered.result.current.blockedReasonWith("")).toMatch(
+      /pick an outcome/i,
+    );
+    act(() => rendered.result.current.submit());
+    expect(action).not.toHaveBeenCalled();
+
+    rendered.rerender({ ...input, outcome: "approve" });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 1,
+      commentsFolded: 0,
+      commentsTotal: 1,
+    });
+    act(() => rendered.result.current.submit());
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "approve" }),
+    );
+  });
+
   it("blocks submit while blocked, then unblocks when it clears", () => {
     // Same-tab re-ship window: a post-now still in flight when the submit
     // machinery mounts would ship the still-draft comment, so submit must
@@ -565,6 +586,34 @@ describe("useReviewSubmit", () => {
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
 
     expect(markSubmitted).toHaveBeenCalledWith(["a", "gone"]);
+  });
+
+  it("counts and flips a draft of an unknown anchor the route posts", async () => {
+    const held: SessionDraftComment = {
+      id: "held",
+      filePath: "src/a.ts",
+      kind: "unknown",
+      body: "anchored where this bundle cannot read",
+      status: DraftCommentStatuses.DRAFT,
+    };
+    const { rendered, action, markSubmitted } = setup({
+      unplacedDrafts: [held],
+    });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 9,
+      commentsFolded: 0,
+      commentsTotal: 2,
+    });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(action).toHaveBeenCalledWith({
+      outcome: "approve",
+      body: buildSignatureLine(RECEIPT, 2),
+    });
+    expect(markSubmitted).toHaveBeenCalledWith(["a", "held"]);
   });
 
   it("evaluates blockedReasonWith per caller draft", () => {

@@ -25,14 +25,14 @@ import {
   type ScopeContext,
   PUBLISH_CLAIM_LEASE_MS,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
-import { ReviewOutcomes } from "types/reviews";
 import {
+  type AnchorStatus,
   AnchorStatuses,
   CommentAnchorKinds,
   DiffSides,
-  type AnchorStatus,
-} from "types/comments";
+  PrStates,
+  ReviewOutcomes,
+} from "types";
 import {
   createPgliteHarness,
   stampDraftAnchorStatus,
@@ -663,7 +663,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     );
     expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(409);
 
-    expect((await reanchorDraft(app, cookie, draftId)).status).toBe(200);
+    expect((await reanchorDraft(app, cookie, draftId)).status).toBe(204);
 
     const res = await postSubmit(app, cookie, makeValidBody());
     expect(res.status).toBe(201);
@@ -689,7 +689,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     );
     expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(409);
 
-    expect((await deleteDraft(app, cookie, draftId)).status).toBe(200);
+    expect((await deleteDraft(app, cookie, draftId)).status).toBe(204);
 
     const res = await postSubmit(app, cookie, makeValidBody());
     expect(res.status).toBe(201);
@@ -1538,7 +1538,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       expect(await readDraftStatuses(harness)).toEqual(["draft", "draft"]);
       expect(await readClaims()).toEqual([null, null]);
       const edited = await editDraft(cookie, await readFirstDraftId());
-      expect(edited.status).toBe(200);
+      expect(edited.status).toBe(204);
     });
 
     it("keeps the claim when the submit cannot be confirmed", async () => {

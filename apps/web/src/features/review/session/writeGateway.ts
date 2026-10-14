@@ -9,11 +9,8 @@ import {
   buildEvidenceWire,
   buildFlagAnchorWires,
 } from "./anchors";
-import type {
-  FlagAnchorWire,
-  SessionWriteResult,
-  SessionWrites,
-} from "./writes";
+import type { FlagAnchorWire } from "contract";
+import type { SessionWriteResult, SessionWrites } from "./writes";
 
 /** The write side of the store, one method per user action. */
 export interface SessionWriteGateway {

@@ -3,7 +3,7 @@
 // Inject fetch so CLI tests exercise the real Hono app without network calls.
 import { parseApiErrorBody } from "contract";
 import { createI18n } from "i18n";
-import type { Mutable, Result } from "types/utils";
+import { HttpMethods, type HttpMethod, type Mutable, type Result } from "types";
 import { CliError, ExitCodes, exitCodeForStatus, type ExitCode } from "./exit";
 import { VERSION_HEADER } from "./version";
 
@@ -63,7 +63,7 @@ export interface BytesBody {
 }
 
 export interface ApiRequest {
-  readonly method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  readonly method?: HttpMethod;
   readonly path: string;
   /** JSON-encoded; exclusive with `bytes`. */
   readonly body?: unknown;
@@ -219,7 +219,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }
 
       const init: Mutable<FetchInit> = {
-        method: req.method ?? "GET",
+        method: req.method ?? HttpMethods.GET,
         headers,
         // Redirects are a PROXY smell, not an API behavior, surface them.
         redirect: "manual",

@@ -26,7 +26,7 @@ What the layout can't show:
 
 ## Invariants (enforced, don't weaken)
 
-- **Stream/exit contract:** exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The exit codes are a public surface — additive-only, never renumbered.
+- **Stream/exit contract:** exit 0 ⇒ stdout is documented JSON, or empty for an operation whose success carries no body; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The exit codes are a public surface — additive-only, never renumbered.
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI synthesizes shapes only where documented (e.g. `delta`).
 - **One client-side shape check family**: the span flags every span-addressed command requires (exit 2), plus flag XOR `-F` payload exclusivity, plus `--file` without a span refusing `--side`/`--start-side` (exit 2; otherwise the line-arm `--side` default would swallow a no-op flag). Everything else relays the server's locked validation (4xx → exit 5; 429 → exit 7).
 - **Single-file bundle:** workspace runtime deps are limited to `i18n` (the string catalog), `contract` (the wire vocabulary and its error-body reader) and `types` (the maps `contract` reads); tsup bundles all three in and the bundle stays one file. `dependencies` lists exactly what the bundle inlines (`commander`, `zod`, `i18n`, `contract`, `types`) so `pnpm audit --prod` still sees them; the release tool's `prune-manifest` strips the block after the build, so the shipped manifest carries no `dependencies` and no publisher ever rewrites the `workspace:` range. `bin` is `dist/mergebrief.js` with no `./`: npm 11 drops a `./` bin on publish (not on pack), and the package would ship without its command. `test/manifest.test.ts` holds both. Assets ship as constants, never file reads.

@@ -7,19 +7,21 @@ import styles from "./ReceiptAccordion.module.scss";
 
 export interface OutcomeCardProps {
   receipt: Receipt;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
 }
 
 export function OutcomeCard({ receipt, outcome }: OutcomeCardProps) {
   const { t } = useTranslation();
   return (
     <section className={styles["card"]}>
-      <div className={styles["outcomeRow"]}>
-        <span>{t("review.summary.outcomeLabel")}</span>
-        <span className={styles["outcomeValue"]}>
-          {reviewOutcomeLabel(t, outcome)}
-        </span>
-      </div>
+      {outcome === undefined ? null : (
+        <div className={styles["outcomeRow"]}>
+          <span>{t("review.summary.outcomeLabel")}</span>
+          <span className={styles["outcomeValue"]}>
+            {reviewOutcomeLabel(t, outcome)}
+          </span>
+        </div>
+      )}
       <div className={styles["signature"]}>
         {summarySignatureLine(t, {
           reviewedChunks: receipt.progress.reviewedChunks,

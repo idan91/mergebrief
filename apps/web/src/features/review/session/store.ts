@@ -42,7 +42,8 @@ export interface ReviewSessionState {
    * submit. The submit route posts them, so the submit guard measures them.
    */
   unplacedDrafts: SessionDraftComment[];
-  reviewOutcome: ReviewOutcome;
+  /** Absent when the stored outcome is one this bundle does not know. */
+  reviewOutcome: ReviewOutcome | undefined;
   /**
    * @description Review ids returned by this session's successful submits,
    * the own-comment join keys against fetched conversation threads.

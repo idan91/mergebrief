@@ -820,6 +820,7 @@
       "evidenceSelectedChunk": "selected chunk",
       "evidenceManualWithNote": "manually verified: {{note}}",
       "evidenceManual": "manually verified",
+      "evidenceUnknown": "evidence recorded",
       "none": "None."
     },
     "submit": {
@@ -857,7 +858,8 @@
       "tooLargeWithReviewComment": "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts.",
       "tooLargeComments": "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.",
       "pathTooLong": "A comment is anchored to a file whose path is too long to submit. Delete that draft to continue.",
-      "commentNeedsContent": "A comment-only review needs at least one comment — inline or the review comment. Add one, or pick a verdict."
+      "commentNeedsContent": "A comment-only review needs at least one comment — inline or the review comment. Add one, or pick a verdict.",
+      "outcomeNeeded": "Pick an outcome to submit this review."
     },
     "evidence": {
       "heading": "Address risk with evidence",

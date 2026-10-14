@@ -20,7 +20,7 @@ import {
 import { HttpStatuses, type ComparisonBaselineLabel } from "types";
 import { z } from "zod/v4";
 
-import { ApiError, ApiErrorCodes, apiFetchJson } from "../../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../../data/apiFetch";
 import { request, requestText } from "../../data/request";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
@@ -46,16 +46,11 @@ import { prSummarySchema, pullStackSchema } from "./schemas";
 import type { PrSummary } from "./types";
 import { resolveOutagePollMs } from "./utils/poll-backoff";
 
-function spanQuery(base: string, head: string): string {
-  return `base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`;
-}
-
-function prPath(repoId: string, prNumber: number): string {
-  return `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
-}
-
 /** A stored body is checked only for being an object; its reader parses the rest. */
 const storedObjectSchema = z.record(z.string(), z.unknown());
+
+/** Any JSON body; its reader judges the shape and can say why it refused. */
+const jsonBodySchema = z.unknown();
 
 /** A 2xx body its reader refused, named by the operation's path. */
 function buildMalformedError<Id extends ProductQueryId>(
@@ -172,6 +167,31 @@ export function buildDbBriefContextQueryOptions(
   });
 }
 
+async function readReviewSession(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): Promise<ReviewSessionPayload> {
+  const params = { repoId, prNumber };
+  const body = await request(
+    ProductQueryIds.READ_REVIEW_SESSION,
+    { params, query: { base, head } },
+    jsonBodySchema,
+  );
+  const parsed = parseReviewSessionPayload(body);
+  if (!parsed.ok) {
+    // This runs during route-loader SSR prefetch, where the rejection is
+    // absorbed into cache state and the UI quietly degrades to read-only.
+    // The server side is the only one with an operator to tell.
+    (await getSsrWarnSink())?.warn("malformed review-session payload", {
+      reason: parsed.error,
+    });
+    throw buildMalformedError(ProductQueryIds.READ_REVIEW_SESSION, params);
+  }
+  return parsed.value;
+}
+
 /**
  * The reviewer's Review Session on this Brief, read in the route loader so
  * the first paint already carries marks, drafts and dispositions. The read is
@@ -187,21 +207,7 @@ export function buildSessionQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["review-session", repoId, prNumber, base, head],
-    queryFn: async (): Promise<ReviewSessionPayload> => {
-      const path = `${prPath(repoId, prNumber)}/session?${spanQuery(base, head)}`;
-      const body = await apiFetchJson(path);
-      const parsed = parseReviewSessionPayload(body);
-      if (!parsed.ok) {
-        // This runs during route-loader SSR prefetch, where the rejection is
-        // absorbed into cache state and the UI quietly degrades to read-only.
-        // The server side is the only one with an operator to tell.
-        (await getSsrWarnSink())?.warn("malformed review-session payload", {
-          reason: parsed.error,
-        });
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readReviewSession(repoId, prNumber, base, head),
     // Refetch on window focus, so a CLI write made while the tab was in the
     // background appears when the reviewer comes back. No polling and no live
     // channel: the payload scales with reviewer actions, not PR size. The

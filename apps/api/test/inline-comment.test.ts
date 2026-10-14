@@ -18,17 +18,17 @@ import {
   type KeyProvider,
   PUBLISH_CLAIM_LEASE_MS,
 } from "persistence";
-import { PrStates } from "types/pull-requests";
-import { ReviewOutcomes } from "types/reviews";
 import {
+  type AnchorStatus,
   AnchorStatuses,
   CommentAnchorKinds,
-  DiffSides,
-  DraftCommentStatuses,
-  type AnchorStatus,
   type DiffSide,
+  DiffSides,
   type DraftCommentStatus,
-} from "types/comments";
+  DraftCommentStatuses,
+  PrStates,
+  ReviewOutcomes,
+} from "types";
 import {
   createPgliteHarness,
   stampDraftAnchorStatus,
@@ -1023,7 +1023,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
         status: DraftCommentStatuses.DRAFT,
         claim: null,
       });
-      expect((await editDraft(cookie, draftId)).status).toBe(200);
+      expect((await editDraft(cookie, draftId)).status).toBe(204);
     });
 
     it("releases the claim when the fresh re-resolve is refused", async () => {
@@ -1309,7 +1309,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const { briefId, draftId } = await seedDraft(harness.handle);
       await stubClaim(briefId, draftId, IN_DOUBT_AGE_MS);
 
-      expect((await deleteDraft(cookie, draftId)).status).toBe(200);
+      expect((await deleteDraft(cookie, draftId)).status).toBe(204);
 
       const rows = await harness.raw("select id from review_draft_comment");
       expect(rows).toEqual([]);

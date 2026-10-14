@@ -55,7 +55,9 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 ## The output contract (what scripts may rely on)
 
 - **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
-  `diff`). **exit ≠ 0 ⇒ stdout is empty** and stderr carries exactly one
+  `diff`), or empty for an operation whose success carries no body
+  (`draft update|reanchor|delete`, `reclassify`). **exit ≠ 0 ⇒ stdout is
+  empty** and stderr carries exactly one
   line — for server responses it relays the error text + HTTP status;
   client-side usage and network/proxy failures explain themselves without
   one.
@@ -178,12 +180,15 @@ mutually exclusive (exit 2):
   `--file` without `--start`/`--end` is a File comment. Mixing `--file`
   with only one of `--start`/`--end` is exit 2. `--file` without a span
   cannot take `--side` or `--start-side` (exit 2). Receipt: `{"draftId":"41"}`.
-- `update <n> <draftId> --body <text>` — edit a held draft's body.
+- `update <n> <draftId> --body <text>` — edit a held draft's body. Prints
+  nothing on success.
 - `reanchor <n> <draftId> --file --start --end [--side]` — move a held
   draft's anchor. `--file` without a span converts it to a File comment.
   `--file` without a span cannot take `--side` or `--start-side` (exit 2).
   Server-gated to signed-in reviewers (a token gets the relayed 403 → exit 5).
-- `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate.
+  Prints nothing on success.
+- `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate. Prints
+  nothing on success.
 
 ### `chunk-read <n> <chunkId>`
 
@@ -197,12 +202,13 @@ Disposition the brief's risk flags. `-F` is **required** — the payload's
 `regionStart`, `regionEnd`), copied through from `session --json`.
 `dismiss` adds `--reason <text>` as a convenience, mutually exclusive with
 a `reason` in the payload (exit 2). Span required. Server-gated to
-signed-in reviewers (a token gets the relayed 403 → exit 5).
+signed-in reviewers (a token gets the relayed 403 → exit 5). Receipt:
+`{"count":2}`, how many dispositions the call changed.
 
 ### `reclassify <n> <groupId> --category <category>`
 
 Override a change group's category in your session. Span required.
-Receipt: `{"changeGroupId":"grp-1","category":"bugfix"}`.
+Prints nothing on success.
 
 ### `outcome <n> <comment|approve|request-changes>`
 

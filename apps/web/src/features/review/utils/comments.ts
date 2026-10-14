@@ -2,6 +2,7 @@ import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import type { TFunction } from "i18next";
 
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
+import type { UnknownValue } from "@web/utils/open-enum/types";
 import {
   CommentAnchorKinds,
   type CommentAnchorKind,
@@ -57,7 +58,8 @@ export interface ReviewComment {
   id: string;
   anchor: CommentAnchor;
   body: string;
-  status: DraftCommentStatus;
+  /** `unknown` is a status this bundle predates: shown read-only, unlabelled. */
+  status: DraftCommentStatus | UnknownValue;
   collapsed: boolean;
 }
 

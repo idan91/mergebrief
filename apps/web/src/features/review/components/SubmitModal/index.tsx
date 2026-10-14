@@ -36,7 +36,7 @@ export interface SubmitModalProps {
   open: boolean;
   close: () => void;
   receipt: Receipt;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   setOutcome: (outcome: ReviewOutcome) => void;
   submit: () => void;
   /**

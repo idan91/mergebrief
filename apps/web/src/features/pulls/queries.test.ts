@@ -15,7 +15,6 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
   return {
     ...actual,
     apiFetch: vi.fn(),
-    apiFetchJson: vi.fn(),
   };
 });
 
@@ -23,7 +22,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 // own branch logic is covered in `data/ssrWarnSink*.test.ts`.
 vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
 
-import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
+import { apiFetch, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   buildDbBriefContextQueryOptions,
@@ -43,7 +42,6 @@ import {
 } from "../review/session";
 
 const apiFetchMock = vi.mocked(apiFetch);
-const apiFetchJsonMock = vi.mocked(apiFetchJson);
 
 /** A fresh response per call: a body is read once. */
 function answerText(status: number, text: string): void {
@@ -188,6 +186,41 @@ function runSession(): Promise<unknown> {
   return (queryFn as () => Promise<unknown>)();
 }
 
+describe("buildSessionQueryOptions queryFn", () => {
+  it("reads the session from the operation row naming its Brief", async () => {
+    resolveBodyText({ ...emptySessionPayload(), reviewOutcome: "approve" });
+
+    await expect(runSession()).resolves.toMatchObject({
+      reviewOutcome: "approve",
+    });
+    expect(apiFetchMock.mock.lastCall?.[0]).toBe(
+      "/api/repos/424242/pulls/7/session?base=base-1&head=head-1",
+    );
+  });
+
+  it("reads an outcome this bundle predates as unknown", async () => {
+    resolveBodyText({ ...emptySessionPayload(), reviewOutcome: "merge" });
+    await expect(runSession()).resolves.toMatchObject({
+      reviewOutcome: "unknown",
+    });
+  });
+
+  it("throws typed malformed on a body that is not JSON", async () => {
+    getSsrWarnSinkMock.mockResolvedValue(undefined);
+    answerText(200, "not json");
+    await expect(runSession()).rejects.toMatchObject({ code: "malformed" });
+  });
+
+  it("routes a null session body to the SSR sink before it throws", async () => {
+    const warn = vi.fn();
+    getSsrWarnSinkMock.mockResolvedValue({ warn });
+    answerText(200, "null");
+
+    await expect(runSession()).rejects.toMatchObject({ code: "malformed" });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
 function runDelta(): Promise<unknown> {
   const options = buildDbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
   const queryFn = options.queryFn;
@@ -303,7 +336,7 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
     // degrades to read-only; without this line nothing tells the operator.
     const warn = vi.fn();
     getSsrWarnSinkMock.mockResolvedValue({ warn });
-    apiFetchJsonMock.mockResolvedValue({ reviewOutcome: "nonsense" });
+    resolveBodyText({ reviewOutcome: "nonsense" });
 
     await expect(runSession()).rejects.toBeInstanceOf(ApiError);
     expect(warn).toHaveBeenCalledTimes(1);
@@ -315,7 +348,7 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
 
   it("throws typed with no sink in the browser", async () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
-    apiFetchJsonMock.mockResolvedValue({ reviewOutcome: "nonsense" });
+    resolveBodyText({ reviewOutcome: "nonsense" });
     await expect(runSession()).rejects.toBeInstanceOf(ApiError);
   });
 
@@ -445,11 +478,8 @@ describe("createSessionReads", () => {
   }
 
   it("tells the store when a session read starts and when it lands", async () => {
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue({
-      ...emptySessionPayload(),
-      reviewOutcome: "approve",
-    });
+    apiFetchMock.mockReset();
+    resolveBodyText({ ...emptySessionPayload(), reviewOutcome: "approve" });
     const client = new QueryClient();
     const reads = createSessionReads(client, ...span);
     const { events, listener } = makeListener();
@@ -463,8 +493,8 @@ describe("createSessionReads", () => {
   });
 
   it("ignores a read of another Brief's session", async () => {
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    apiFetchMock.mockReset();
+    resolveBodyText(emptySessionPayload());
     const client = new QueryClient();
     const reads = createSessionReads(client, ...span);
     const { events, listener } = makeListener();
@@ -480,8 +510,8 @@ describe("createSessionReads", () => {
 
   it("holds the focus refetch while the store has a write pending", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    apiFetchMock.mockReset();
+    resolveBodyText(emptySessionPayload());
     const client = new QueryClient();
     client.mount();
     const reads = createSessionReads(client, ...span);
@@ -506,13 +536,13 @@ describe("createSessionReads", () => {
     focusManager.setFocused(false);
     focusManager.setFocused(true);
     await vi.advanceTimersByTimeAsync(0);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
 
     pending = false;
     focusManager.setFocused(false);
     focusManager.setFocused(true);
     await vi.advanceTimersByTimeAsync(0);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 
   function observeSessions(client: QueryClient, ...heads: string[]): void {
@@ -532,34 +562,34 @@ describe("createSessionReads", () => {
 
   it("rereads only its own Brief's session query", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    apiFetchMock.mockReset();
+    resolveBodyText(emptySessionPayload());
     const client = new QueryClient();
     observeSessions(client, "head-1", "head-2");
     await vi.advanceTimersByTimeAsync(0);
-    apiFetchJsonMock.mockClear();
+    apiFetchMock.mockClear();
 
     createSessionReads(client, ...span).requestRead();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
-    expect(apiFetchJsonMock.mock.calls[0]?.[0]).toContain("head=head-1");
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock.mock.calls[0]?.[0]).toContain("head=head-1");
   });
 
   it("never rereads a session query no screen observes", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue(emptySessionPayload());
+    apiFetchMock.mockReset();
+    resolveBodyText(emptySessionPayload());
     const client = new QueryClient();
     await client.fetchQuery(buildSessionQueryOptions(...span));
     observeSessions(client, "head-2");
     await vi.advanceTimersByTimeAsync(0);
-    apiFetchJsonMock.mockClear();
+    apiFetchMock.mockClear();
 
     createSessionReads(client, ...span).requestRead();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(apiFetchJsonMock).not.toHaveBeenCalled();
+    expect(apiFetchMock).not.toHaveBeenCalled();
   });
 });
 

@@ -23,7 +23,12 @@ import {
 } from "./comments";
 import type { Disposition } from "../session/disposition";
 import { DispositionKinds } from "../session/types";
-import type { SessionAttentionItem } from "../session/attention";
+import type {
+  SessionAttentionItem,
+  SessionAttentionLocation,
+  SessionHeldAttentionLocation,
+} from "../session/attention";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import { UnresolvedItemKinds, type UnresolvedItemKind } from "./types";
 
 /**
@@ -48,6 +53,13 @@ export interface RiskEvidence {
   chunkId?: string;
   note?: string;
 }
+
+/** Evidence the server holds under a kind this bundle predates. Never sent. */
+export interface UnknownRiskEvidence {
+  kind: typeof UnknownValues.UNKNOWN;
+}
+
+export type HeldRiskEvidence = RiskEvidence | UnknownRiskEvidence;
 
 export interface UnresolvedInput {
   chunks: BriefChunk[];
@@ -97,10 +109,13 @@ export function getChunkRegion(chunk: BriefChunk): ChunkRegion {
 
 export function riskEvidenceLabel(
   t: TFunction,
-  evidence: RiskEvidence,
+  evidence: HeldRiskEvidence,
   comments: ReviewComment[],
   chunks: BriefChunk[],
 ): string {
+  if (evidence.kind === UnknownValues.UNKNOWN) {
+    return t("review.summary.evidenceUnknown");
+  }
   if (evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     const comment = comments.find((item) => item.id === evidence.commentId);
     if (!comment) {
@@ -308,7 +323,7 @@ function isDispositionPending(
 
 function buildCarriedDraftItem(
   input: CarriedInput,
-  item: SessionAttentionItem,
+  item: KnownAttentionItem,
 ): CarriedItem | undefined {
   const id = item.subject.id;
   if (id === undefined) {
@@ -357,7 +372,7 @@ function buildCarriedDraftItem(
 
 function hasDraftMovedFromAttention(
   live: ReviewComment,
-  item: SessionAttentionItem,
+  item: KnownAttentionItem,
 ): boolean {
   const { location } = item;
   if (location.kind === CommentAnchorKinds.FILE) {
@@ -366,24 +381,40 @@ function hasDraftMovedFromAttention(
   if (!isLineCommentAnchor(live.anchor)) {
     return true;
   }
-  return (
+  const rangeMoved =
     live.anchor.startLine !== location.startLine ||
-    live.anchor.endLine !== location.endLine
-  );
+    live.anchor.endLine !== location.endLine;
+  return rangeMoved;
 }
 
 function formatAttentionLocationLabel(
-  location: SessionAttentionItem["location"],
+  location: KnownAttentionItem["location"],
 ): string {
   if (location.kind === CommentAnchorKinds.FILE) {
     return location.filePath;
   }
-  return `${location.filePath}:${String(location.startLine)}`;
+  const lineLabel = `${location.filePath}:${String(location.startLine)}`;
+  return lineLabel;
+}
+
+/** Kind and location this bundle knows; any other item has nothing to render. */
+type KnownAttentionItem = SessionAttentionItem & {
+  kind: AttentionItemKind;
+  location: Exclude<SessionAttentionLocation, SessionHeldAttentionLocation>;
+};
+
+function isKnownAttentionItem(
+  item: SessionAttentionItem,
+): item is KnownAttentionItem {
+  const known =
+    item.kind !== UnknownValues.UNKNOWN &&
+    item.location.kind !== UnknownValues.UNKNOWN;
+  return known;
 }
 
 function buildCarriedDispositionItem(
   input: CarriedInput,
-  item: SessionAttentionItem,
+  item: KnownAttentionItem,
 ): CarriedItem | undefined {
   const pending = getFlagsAtAnchor(input, item).find((flag) =>
     isDispositionPending(
@@ -418,7 +449,7 @@ function buildCarriedDispositionItem(
  * puts its item straight back.
  */
 export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
-  return input.attention.flatMap((item) => {
+  return input.attention.filter(isKnownAttentionItem).flatMap((item) => {
     const derived =
       item.kind === AttentionItemKinds.ORPHANED_ANCHOR
         ? buildCarriedDraftItem(input, item)

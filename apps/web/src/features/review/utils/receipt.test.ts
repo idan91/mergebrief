@@ -204,6 +204,27 @@ describe("buildReceipt", () => {
       },
     ]);
   });
+
+  it("leaves a comment of an unknown status off the receipt", () => {
+    const anchor = { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" };
+    const receipt = buildReceipt(
+      t,
+      snapshot({
+        reviewComments: [
+          {
+            id: "c9",
+            anchor,
+            body: "held",
+            status: "unknown",
+            collapsed: false,
+          },
+        ],
+      }),
+      briefFixture,
+      model,
+    );
+    expect(receipt.comments).toEqual([]);
+  });
 });
 
 describe("receipt repo-config record", () => {

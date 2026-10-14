@@ -2,6 +2,7 @@
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action, not a page-load focus steal. */
+import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 import { DiffSides, DraftCommentStatuses } from "types";
@@ -22,6 +23,25 @@ import { useReviewActions } from "../../session";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview";
 import styles from "./CommentThread.module.scss";
+
+interface StatusLabelKeys {
+  readonly collapsed: TranslationKey;
+  readonly head: TranslationKey;
+}
+
+/** A status this bundle predates gets no label rather than a wrong one. */
+const STATUS_LABEL_KEYS: Partial<
+  Record<ReviewComment["status"], StatusLabelKeys>
+> = {
+  [DraftCommentStatuses.DRAFT]: {
+    collapsed: "review.comment.draft",
+    head: "review.comment.pending",
+  },
+  [DraftCommentStatuses.SUBMITTED]: {
+    collapsed: "review.comment.posted",
+    head: "review.comment.postedToGithub",
+  },
+};
 
 export interface CommentThreadProps {
   comment: ReviewComment;
@@ -72,14 +92,17 @@ export function CommentThread({
     setBody(next);
     setAttachError(undefined);
   };
+  // Only a draft is the reviewer's to change. Posted means GitHub holds the
+  // text (an edit here would silently diverge: re-submits ship drafts), and a
+  // status this bundle predates is the server's, so both read-only.
+  const readOnly = comment.status !== DraftCommentStatuses.DRAFT;
+  const editorOpen = editing && !readOnly;
+  const confirmDeleteOpen = confirmingDelete && !readOnly;
+  const postable = post !== undefined && !readOnly;
   // Never-saved text = an open editor whose body diverged from the draft;
   // Save/Cancel both clear it (navigation guard).
-  useUnsavedComposerText(
-    useId(),
-    editing &&
-      comment.status !== DraftCommentStatuses.SUBMITTED &&
-      body !== comment.body,
-  );
+  const unsavedEdit = editorOpen && body !== comment.body;
+  useUnsavedComposerText(useId(), unsavedEdit);
   // Save keeps the posting guard: an editor already open when a Post starts
   // must not save mid-flight (capture-at-initiation).
   const saveEdit = () => {
@@ -99,9 +122,10 @@ export function CommentThread({
     setAttachError(undefined);
     setEditing(false);
   };
-  // Posted to GitHub. GitHub holds the text now, so the local record is
-  // read-only (an edit here would silently diverge: re-submits ship drafts).
-  const submitted = comment.status === DraftCommentStatuses.SUBMITTED;
+  const statusLabels = STATUS_LABEL_KEYS[comment.status];
+  const collapsedLabel =
+    statusLabels === undefined ? "" : `${t(statusLabels.collapsed)} `;
+  const headLabel = statusLabels === undefined ? "" : t(statusLabels.head);
   // Why Post is blocked right now, or `undefined` when it may proceed:
   // - Submit review in flight (screen-owned, wins the display) → the review
   //   already captured this draft; posting would double-post it;
@@ -109,13 +133,12 @@ export function CommentThread({
   //   would silently discard the unsaved amendment. Save or cancel first;
   // - over-cap body/path → deterministic route 400; the UI would resubmit
   //   the same draft, so it must block here with recoverable copy.
-  const postBlocked =
-    post !== undefined && !submitted
-      ? (postBlockedExternally ??
-        (editing
-          ? t("review.comment.saveFirst")
-          : postCommentBlockedReason(t, comment)))
-      : undefined;
+  const postBlocked = postable
+    ? (postBlockedExternally ??
+      (editing
+        ? t("review.comment.saveFirst")
+        : postCommentBlockedReason(t, comment)))
+    : undefined;
   // A disabled control must say why: `aria-disabled` keeps it focusable, so
   // the reason rides `aria-describedby`. An in-flight post is the live reason
   // and is screen-reader-only (the label already reads "Posting…"); anything
@@ -141,7 +164,7 @@ export function CommentThread({
           className={styles["collapsedToggle"]}
           onClick={() => toggle(comment.id)}
         >
-          {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
+          {collapsedLabel}
           {collapsedWhere}
         </LinkButton>
       </div>
@@ -151,16 +174,12 @@ export function CommentThread({
   return (
     <div className={styles["thread"]}>
       <div className={styles["head"]}>
-        <span>
-          {submitted
-            ? t("review.comment.postedToGithub")
-            : t("review.comment.pending")}
-        </span>
+        <span>{headLabel}</span>
         <span>{locationLabel}</span>
       </div>
       {/* An open editor dies with the draft: if a submit lands while the
           textarea is up, the posted record renders read-only regardless. */}
-      {editing && !submitted ? (
+      {editorOpen ? (
         <>
           <MarkdownTextarea
             autoFocus
@@ -205,7 +224,7 @@ export function CommentThread({
       ) : null}
       <div className={styles["footer"]} data-thread-footer="">
         <div className={styles["threadActions"]}>
-          {submitted ? null : (
+          {readOnly ? null : (
             <LinkButton
               disabled={posting}
               onClick={() => {
@@ -228,7 +247,7 @@ export function CommentThread({
           >
             {t("review.comment.collapse")}
           </LinkButton>
-          {submitted ? null : (
+          {readOnly ? null : (
             <LinkButton
               disabled={posting}
               onClick={() => setConfirmingDelete(true)}
@@ -239,7 +258,7 @@ export function CommentThread({
         </div>
         {/* Inline two-step confirm: the page toast is a text-only live
             region, so an undo BUTTON has no surface. */}
-        {confirmingDelete && !submitted ? (
+        {confirmDeleteOpen ? (
           <div className={styles["deleteConfirm"]} role="alert">
             <span>{t("review.comment.deleteConfirm")}</span>
             <Button
@@ -259,7 +278,7 @@ export function CommentThread({
         {/* Post-now: own-draft state only. A submitted comment is already on
             GitHub, so it never shows Post. While in flight the button stays
             visible (pending label) but inert. */}
-        {post !== undefined && !submitted ? (
+        {postable ? (
           <div className={styles["postCta"]}>
             <Button
               aria-describedby={

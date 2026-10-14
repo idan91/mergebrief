@@ -412,7 +412,7 @@ describe("disposition commands over the real api app", () => {
     expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
   });
 
-  it("reclassify --category writes the override; receipt verbatim", async () => {
+  it("reclassify --category writes the override and prints nothing", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([
@@ -426,10 +426,12 @@ describe("disposition commands over the real api app", () => {
     ]);
     expect(result.err).toEqual([]);
     expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual({
-      changeGroupId: "grp-1",
-      category: "bugfix",
-    });
+    expect(result.out).toBe("");
+
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain(
+      '"reclassifications":[{"changeGroupId":"grp-1","category":"bugfix"}]',
+    );
   });
 
   it("reclassify with an unknown category relays the 400 as exit 5", async () => {

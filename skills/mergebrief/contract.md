@@ -6,7 +6,9 @@ none of them appear in `--help`.
 ## Invariants
 
 - exit 0 means stdout is documented JSON (or the raw unified diff, for
-  `diff`). Any other exit means stdout is empty and stderr carries one line.
+  `diff`), or empty for a write whose success carries no body (`draft
+  update|reanchor|delete`, `reclassify`). Any other exit means stdout is
+  empty and stderr carries one line.
   Branch on the exit code, never on stderr text.
 - Reads and write receipts are the server's response bytes, verbatim.
   Exactly three shapes are CLI-synthesized: the `delta` union, `auth status`,
@@ -20,7 +22,7 @@ none of them appear in `--help`.
 
 | Code | Meaning                                               | Next move                                                                      |
 | ---- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 0    | Success, including modeled unavailability             | Parse stdout, continue                                                         |
+| 0    | Success, including modeled unavailability             | Parse stdout if any, continue                                                  |
 | 1    | Network, 5xx, version skew                            | Retry later or surface; check `auth status`                                    |
 | 2    | Usage error, client-side                              | Fix the invocation; never resend as-is                                         |
 | 3    | Auth (401)                                            | Token is dead; the user re-mints at `<baseUrl>/settings`                       |

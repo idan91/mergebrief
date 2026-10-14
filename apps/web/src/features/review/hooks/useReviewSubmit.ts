@@ -38,7 +38,7 @@ export interface UseReviewSubmitInput {
   action: SubmitReviewAction | undefined;
   /** Keys the durable submitted-flip in sessionStorage on success. */
   briefId: string;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   comments: ReviewComment[];
   /** Held drafts this Brief has no chunk for; the route posts them too. */
   unplacedDrafts: readonly SessionDraftComment[];
@@ -160,7 +160,9 @@ export function useReviewSubmit(
   );
 
   const submit = useCallback(() => {
-    if (action === undefined || inFlight.current) {
+    const cannotStart =
+      action === undefined || outcome === undefined || inFlight.current;
+    if (cannotStart) {
       return;
     }
     // Guard against the CURRENT draft, read at click time, the modal's

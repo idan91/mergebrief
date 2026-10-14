@@ -10,7 +10,7 @@ import {
 } from "../../utils/comments";
 import type { RiskEvidence } from "../../utils/state";
 import type { SessionDisposition, SessionDraftComment } from "../serverState";
-import type { DraftAnchorWire, FlagAnchorWire } from "../writes";
+import type { DraftAnchorWire, FlagAnchorWire } from "contract";
 import {
   buildDraftAnchorWire,
   buildEvidenceWire,

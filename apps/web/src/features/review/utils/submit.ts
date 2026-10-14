@@ -136,7 +136,10 @@ interface FoldedDraft {
   body: string;
 }
 
-/** The unplaced drafts the route still posts: the ones not yet submitted. */
+/**
+ * The unplaced drafts the route still posts: status alone decides, as it does
+ * in the route, so a draft held under an anchor this bundle predates counts.
+ */
 export function listUnplacedDrafts(
   drafts: readonly SessionDraftComment[],
 ): UnplacedDrafts {
@@ -217,7 +220,7 @@ export function foldDraftsIntoBody(
 }
 
 export interface SubmitBlockInput {
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   comments: readonly ReviewComment[];
   /** Held drafts this Brief has no chunk for; the route posts them too. */
   unplacedDrafts: readonly SessionDraftComment[];
@@ -260,6 +263,9 @@ export function submitBlockedReason(
     return t("review.submit.pathTooLong");
   }
 
+  if (input.outcome === undefined) {
+    return t("review.submit.outcomeNeeded");
+  }
   if (input.outcome !== ReviewOutcomes.COMMENT) {
     return undefined;
   }

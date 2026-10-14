@@ -19,6 +19,7 @@ import {
   buildSignatureLine,
   buildSubmitPayload,
   foldDraftsIntoBody,
+  listUnplacedDrafts,
   submitBlockedReason,
   type SubmitBlockInput,
 } from "./submit";
@@ -59,7 +60,7 @@ function getBlockedReason(
 ): string | undefined {
   const reviewComment = input.reviewComment ?? "";
   return submitBlockedReason(t, {
-    outcome: input.outcome ?? "approve",
+    outcome: "outcome" in input ? input.outcome : "approve",
     comments: input.comments ?? [],
     unplacedDrafts: input.unplacedDrafts ?? [],
     reviewComment,
@@ -163,6 +164,12 @@ describe("submitBlockedReason", () => {
     ).toMatch(/at least one comment/i);
   });
 
+  it("blocks a submit until a reviewer picks an outcome", () => {
+    expect(
+      getBlockedReason({ outcome: undefined, comments: [comment("a")] }),
+    ).toBe(t("review.submit.outcomeNeeded"));
+  });
+
   it("allows approve and request-changes without comments", () => {
     expect(getBlockedReason({ outcome: "approve" })).toBeUndefined();
     expect(getBlockedReason({ outcome: "request-changes" })).toBeUndefined();
@@ -219,6 +226,46 @@ describe("submitBlockedReason", () => {
     expect(
       getBlockedReason({ comments: drafts, unplacedDrafts: [posted] }),
     ).toBeUndefined();
+  });
+
+  it("counts a draft of an unknown anchor toward the fold", () => {
+    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const held = makeUnplacedDraft({ id: "held", kind: "unknown" });
+    expect(
+      getBlockedReason({ comments: drafts, unplacedDrafts: [held] }),
+    ).toMatch(/too large|shorten/i);
+    expect(listUnplacedDrafts([held, makeUnplacedDraft()])).toEqual([
+      held,
+      makeUnplacedDraft(),
+    ]);
+  });
+
+  it("folds a draft of an unknown anchor as a path-only block", () => {
+    const held = makeUnplacedDraft({ kind: "unknown", body: "held body" });
+    expect(foldDraftsIntoBody("", [], [held])).toContain(
+      "**`src/gone.ts`**\n\nheld body",
+    );
+    expect(foldDraftsIntoBody("", [], [held])).toHaveLength(
+      foldDraftsIntoBody("", [], [makeUnplacedDraft({ body: "held body" })])
+        .length,
+    );
+  });
+
+  it("lets a draft of an unknown anchor alone give submit content", () => {
+    expect(
+      getBlockedReason({
+        outcome: "comment",
+        unplacedDrafts: [makeUnplacedDraft({ kind: "unknown" })],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("leaves a draft of an unknown anchor out once it is submitted", () => {
+    const held = makeUnplacedDraft({
+      kind: "unknown",
+      status: DraftCommentStatuses.SUBMITTED,
+    });
+    expect(listUnplacedDrafts([held])).toEqual([]);
   });
 
   it("lets an unplaced draft alone give a neutral submit content", () => {

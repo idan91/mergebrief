@@ -2,7 +2,7 @@ import type { ReviewComment } from "../../utils/comments";
 import type { ChunkRegion } from "../../utils/state";
 import type { Disposition } from "../disposition";
 import type { SessionDraftComment } from "../serverState";
-import type { FlagAnchorWire } from "../writes";
+import type { FlagAnchorWire } from "contract";
 
 /** Chunk id to the region a flag anchor on that chunk states. */
 export type ChunkRegions = ReadonlyMap<string, ChunkRegion>;

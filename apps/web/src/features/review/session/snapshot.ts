@@ -15,7 +15,7 @@ export interface SessionSnapshot {
   reclassifiedGroupIds: string[];
   reviewedChunkIds: string[];
   reviewComments: ReviewComment[];
-  reviewOutcome: ReviewOutcome;
+  reviewOutcome: ReviewOutcome | undefined;
   submittedReviewIds?: number[];
 }
 

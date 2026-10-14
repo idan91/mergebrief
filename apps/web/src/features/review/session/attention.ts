@@ -7,6 +7,8 @@
 import type { AttentionItemKind, AttentionSubjectType } from "contract";
 import type { CommentAnchorKinds } from "types";
 
+import type { UnknownValue } from "@web/utils/open-enum/types";
+
 export interface SessionLineAttentionLocation {
   kind: typeof CommentAnchorKinds.LINE;
   filePath: string;
@@ -19,14 +21,21 @@ export interface SessionFileAttentionLocation {
   filePath: string;
 }
 
+/** A location kind this bundle predates; its item renders nothing. */
+export interface SessionHeldAttentionLocation {
+  kind: UnknownValue;
+  filePath: string;
+}
+
 export type SessionAttentionLocation =
   | SessionLineAttentionLocation
-  | SessionFileAttentionLocation;
+  | SessionFileAttentionLocation
+  | SessionHeldAttentionLocation;
 
 export interface SessionAttentionItem {
-  kind: AttentionItemKind;
+  kind: AttentionItemKind | UnknownValue;
   subject: {
-    type: AttentionSubjectType;
+    type: AttentionSubjectType | UnknownValue;
     /** A draft comment always names its row; absent on a disposition. */
     id?: string;
     /** The flag's attribute, on a disposition only. */

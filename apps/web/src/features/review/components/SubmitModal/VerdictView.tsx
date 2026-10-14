@@ -43,7 +43,7 @@ interface SubmitStatus {
 export interface VerdictViewProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
   outcomeGroupName: string;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   setOutcome: (outcome: ReviewOutcome) => void;
   reviewComment: string;
   setReviewComment: (comment: string) => void;

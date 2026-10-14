@@ -1,12 +1,25 @@
 // What a session write may say on the wire: every payload and path parameter
 // the write routes accept, with the bounds that keep an unbounded string or
 // an out-of-range id from reaching the store.
-import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
+import type {
+  AddressRiskBody,
+  CreateDraftCommentBody,
+  DismissRiskBody,
+  ReanchorDraftCommentBody,
+  ReclassifyGroupBody,
+  ReopenRiskBody,
+  SetReviewOutcomeBody,
+  UpdateDraftCommentBody,
+} from "contract";
 import {
-  DispositionEvidenceKinds,
+  ChangeGroupCategories,
+  CommentAnchorKinds,
+  type DiffSide,
+  DiffSides,
   type DispositionEvidence,
-} from "types/dispositions";
-import { CommentAnchorKinds, DiffSides, type DiffSide } from "types/comments";
+  DispositionEvidenceKinds,
+  ReviewOutcomes,
+} from "types";
 import { z } from "zod/v4";
 import {
   MAX_BODY_LENGTH,
@@ -36,7 +49,7 @@ const anchorShape = {
   filePath: filePathSchema,
   side: sideSchema,
   /** GitHub `start_side`; absent defaults to `side`. */
-  startSide: sideSchema.optional(),
+  startSide: sideSchema.exactOptional(),
   startLine: coordinateSchema,
   endLine: coordinateSchema,
 };
@@ -77,18 +90,18 @@ const fileAnchorObject = z.object({
 });
 
 const lineAnchorObject = z.object({
-  kind: z.literal(CommentAnchorKinds.LINE).optional(),
+  kind: z.literal(CommentAnchorKinds.LINE).exactOptional(),
   ...anchorShape,
 });
 
 function withLineAnchorChecks<
-  Output extends {
+  Schema extends z.ZodType<{
     side: DiffSide;
     startSide?: DiffSide | undefined;
     startLine: number;
     endLine: number;
-  },
->(schema: z.ZodType<Output>) {
+  }>,
+>(schema: Schema) {
   return schema
     .refine(ORDERED_LINES.check, { message: ORDERED_LINES.message })
     .transform(normalizeStartSide);
@@ -97,24 +110,24 @@ function withLineAnchorChecks<
 export const anchorSchema = z.union([
   fileAnchorObject.strict(),
   withLineAnchorChecks(lineAnchorObject),
-]);
+]) satisfies z.ZodType<unknown, ReanchorDraftCommentBody>;
 
 export const draftBodySchema = z.object({
   body: z.string().min(1).max(MAX_BODY_LENGTH),
-});
+}) satisfies z.ZodType<UpdateDraftCommentBody>;
 
 export const createDraftSchema = z.union([
   fileAnchorObject.extend({ body: draftBodySchema.shape.body }).strict(),
   withLineAnchorChecks(
     lineAnchorObject.extend({ body: draftBodySchema.shape.body }),
   ),
-]);
+]) satisfies z.ZodType<unknown, CreateDraftCommentBody>;
 
 export const readSchema = z.object({ read: z.boolean() });
 
 export const categorySchema = z.object({
   category: z.enum(ChangeGroupCategories),
-});
+}) satisfies z.ZodType<ReclassifyGroupBody>;
 
 /**
  * A risk operation names its flags by ANCHOR (file, attribute, region), the
@@ -144,7 +157,7 @@ function buildFlagsSchema<T extends z.ZodType>(flag: T) {
 
 export const dismissSchema = buildFlagsSchema(flagSchema).extend({
   reason: z.string().min(1).max(MAX_BODY_LENGTH),
-});
+}) satisfies z.ZodType<DismissRiskBody>;
 
 const evidenceSchema = z
   .object({
@@ -153,35 +166,28 @@ const evidenceSchema = z
       z.literal(DispositionEvidenceKinds.CHUNK_REVIEWED),
       z.literal(DispositionEvidenceKinds.MANUAL_NOTE),
     ]),
-    ref: z.string().max(MAX_BODY_LENGTH).nullish(),
-  })
-  // Evidence with nothing behind it is a claim with no target: a pointer to
-  // nothing would store its own `missing-evidence` on the way in, and a note
-  // that is the reviewer's own words has to have words.
-  .refine((evidence) => (evidence.ref ?? "") !== "", {
-    message: "evidence needs a ref",
+    // Evidence with nothing behind it is a claim with no target: a pointer to
+    // nothing would store its own `missing-evidence` on the way in, and a
+    // note that is the reviewer's own words has to have words.
+    ref: z.string().min(1).max(MAX_BODY_LENGTH),
   })
   // A note is the reviewer's own words; every other kind's ref is an id.
   .refine(
     (evidence) =>
       evidence.kind === DispositionEvidenceKinds.MANUAL_NOTE ||
-      (evidence.ref ?? "").length <= MAX_ID_LENGTH,
+      evidence.ref.length <= MAX_ID_LENGTH,
     { message: "a pointer ref is an id" },
-  )
-  .transform(
-    (evidence): DispositionEvidence => ({
-      kind: evidence.kind,
-      ref: evidence.ref ?? null,
-    }),
-  );
+  ) satisfies z.ZodType<DispositionEvidence>;
 
 export const addressSchema = buildFlagsSchema(
   riskAnchorObject
     .extend({ evidence: evidenceSchema })
     .refine(ORDERED_REGION.check, { message: ORDERED_REGION.message }),
-);
+) satisfies z.ZodType<AddressRiskBody>;
 
-export const reopenSchema = buildFlagsSchema(flagSchema);
+export const reopenSchema = buildFlagsSchema(
+  flagSchema,
+) satisfies z.ZodType<ReopenRiskBody>;
 
 export const outcomeSchema = z.object({
   outcome: z.union([
@@ -189,4 +195,4 @@ export const outcomeSchema = z.object({
     z.literal(ReviewOutcomes.APPROVE),
     z.literal(ReviewOutcomes.REQUEST_CHANGES),
   ]),
-});
+}) satisfies z.ZodType<SetReviewOutcomeBody>;

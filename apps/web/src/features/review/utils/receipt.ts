@@ -12,14 +12,15 @@ import {
   DraftCommentStatuses,
   type DraftCommentStatus,
 } from "types";
-import { isFileCommentAnchor } from "./comments";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import { isFileCommentAnchor, type ReviewComment } from "./comments";
 import type { SessionSnapshot } from "../session";
 import { DispositionKinds, type DispositionKind } from "../session/types";
 import {
   riskDispositionCounts,
   riskEvidenceLabel,
+  type HeldRiskEvidence,
   type RiskDispositionCounts,
-  type RiskEvidence,
 } from "./state";
 
 /**
@@ -37,7 +38,7 @@ export interface ReceiptAddressedFlag {
    * @description Resolved per-flag evidence, when present.
    * `addressed-pending-evidence` omits it.
    */
-  evidence?: RiskEvidence;
+  evidence?: HeldRiskEvidence;
   /**
    * @description Shared human label for the evidence.
    * Consumers supply their own empty fallback.
@@ -130,6 +131,13 @@ export const RECEIPT_NOT_CHECKED_KEYS: readonly TranslationKey[] = [
   "review.summary.notCheckedIntegration",
 ];
 
+/** A status this bundle predates has no truthful line on the receipt. */
+function hasKnownStatus(
+  comment: ReviewComment,
+): comment is ReviewComment & { status: DraftCommentStatus } {
+  return comment.status !== UnknownValues.UNKNOWN;
+}
+
 export function buildReceipt(
   t: TFunction,
   snapshot: SessionSnapshot,
@@ -176,7 +184,8 @@ export function buildReceipt(
     }
   }
 
-  const comments: ReceiptComment[] = snapshot.reviewComments.map((comment) => {
+  const known = snapshot.reviewComments.filter(hasKnownStatus);
+  const comments: ReceiptComment[] = known.map((comment) => {
     if (isFileCommentAnchor(comment.anchor)) {
       return {
         id: comment.id,

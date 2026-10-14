@@ -97,13 +97,30 @@ export {
 } from "./operations/types";
 export type { PullMetaView } from "./pull-meta";
 export type {
+  AddressRiskBody,
   CarriedFromPayload,
+  CreateDraftCommentBody,
+  CreateDraftCommentResponse,
+  DismissRiskBody,
   DispositionPayload,
+  DraftAnchorWire,
   DraftCommentPayload,
+  EvidencedFlagAnchorWire,
+  EvidenceWire,
+  FileDraftAnchorWire,
   FileDraftCommentPayload,
+  FlagAnchorWire,
+  LineDraftAnchorWire,
   LineDraftCommentPayload,
+  ReanchorDraftCommentBody,
   ReclassificationPayload,
+  ReclassifyGroupBody,
+  ReopenRiskBody,
+  RiskWriteResponse,
   SessionPayload,
+  SetReviewOutcomeBody,
+  SetReviewOutcomeResponse,
+  UpdateDraftCommentBody,
 } from "./session";
 export type {
   ForkPrStackView,

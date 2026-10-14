@@ -4,12 +4,13 @@ import {
   type DiffSide,
   type DispositionCarryStatus,
   type DispositionDecision,
-  type DispositionEvidence,
+  type DispositionEvidenceKind,
+  type DraftCommentStatus,
   type ReviewOutcome,
   ReviewOutcomes,
 } from "types";
+import { UnknownValues, type UnknownValue } from "@web/utils/open-enum/types";
 import type { BriefViewModel } from "@web/features/brief/model";
-import type { ReviewComment } from "../utils/comments";
 import type { SessionAttentionItem } from "./attention";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 import {
@@ -22,7 +23,7 @@ export interface SessionDraftCommentBase {
   id: string;
   filePath: string;
   body: string;
-  status: ReviewComment["status"];
+  status: DraftCommentStatus | UnknownValue;
 }
 
 export interface SessionLineDraftComment extends SessionDraftCommentBase {
@@ -38,28 +39,39 @@ export interface SessionFileDraftComment extends SessionDraftCommentBase {
   kind: typeof CommentAnchorKinds.FILE;
 }
 
+/** An anchor this bundle predates: never placed or edited, still posted. */
+export interface SessionHeldDraftComment extends SessionDraftCommentBase {
+  kind: UnknownValue;
+}
+
 export type SessionDraftComment =
   | SessionLineDraftComment
-  | SessionFileDraftComment;
+  | SessionFileDraftComment
+  | SessionHeldDraftComment;
 
 /** Held drafts this Brief has no chunk for; the submit route posts them. */
 export type UnplacedDrafts = SessionDraftComment[];
+
+export interface SessionEvidence {
+  kind: DispositionEvidenceKind | UnknownValue;
+  ref: string | null;
+}
 
 export interface SessionDisposition {
   filePath: string;
   attribute: string;
   regionStart: number;
   regionEnd: number;
-  decision: DispositionDecision;
+  decision: DispositionDecision | UnknownValue;
   reason?: string;
-  evidence?: DispositionEvidence;
+  evidence?: SessionEvidence;
   /** The carry-over verdict on this row; absent on a fresh decision. */
   carryStatus?: DispositionCarryStatus;
 }
 
 export interface SessionReclassification {
   changeGroupId: string;
-  category: ChangeGroupCategory;
+  category: ChangeGroupCategory | UnknownValue;
 }
 
 /**
@@ -81,7 +93,7 @@ export interface ReviewSessionPayload {
   materialized: boolean;
   carriedFrom?: SessionCarriedFrom;
   attention: SessionAttentionItem[];
-  reviewOutcome: ReviewOutcome;
+  reviewOutcome: ReviewOutcome | UnknownValue;
   draftComments: SessionDraftComment[];
   readMarks: string[];
   reclassifications: SessionReclassification[];
@@ -101,6 +113,16 @@ export function emptySessionPayload(): ReviewSessionPayload {
     dispositions: [],
     submittedReviewIds: [],
   };
+}
+
+/** An outcome this bundle cannot submit starts unpicked, never defaulted. */
+function resolveReviewOutcome(
+  outcome: ReviewOutcome | UnknownValue,
+): ReviewOutcome | undefined {
+  if (outcome === UnknownValues.UNKNOWN) {
+    return undefined;
+  }
+  return outcome;
 }
 
 /**
@@ -124,6 +146,9 @@ export function sessionInitialState(
   const dominants = { ...base.dominants };
   const reclassifiedGroups = new Set<string>();
   for (const entry of payload.reclassifications) {
+    if (entry.category === UnknownValues.UNKNOWN) {
+      continue;
+    }
     if (!(entry.changeGroupId in dominants)) {
       continue;
     }
@@ -143,7 +168,7 @@ export function sessionInitialState(
     ),
     reviewComments,
     unplacedDrafts,
-    reviewOutcome: payload.reviewOutcome,
+    reviewOutcome: resolveReviewOutcome(payload.reviewOutcome),
     submittedReviewIds: payload.submittedReviewIds
       .map((id) => Number(id))
       .filter((id) => Number.isSafeInteger(id)),

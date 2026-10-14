@@ -430,7 +430,8 @@ describe("the Review Session writes", () => {
       "head-1",
       { filePath: "src/app.ts", side: "new", startLine: 40, endLine: 41 },
     );
-    expect([edited.status, reanchored.status]).toEqual([200, 200]);
+    expect([edited.status, reanchored.status]).toEqual([204, 204]);
+    expect([await edited.text(), await reanchored.text()]).toEqual(["", ""]);
 
     const snapshot = await createTenantRepository(
       harness.handle,
@@ -449,9 +450,10 @@ describe("the Review Session writes", () => {
       anchorStatus: null,
     });
 
-    expect(
-      (await write("DELETE", `/comments/${draftId}`, "head-1")).status,
-    ).toBe(200);
+    const deleted = await write("DELETE", `/comments/${draftId}`, "head-1");
+    expect(deleted.status).toBe(204);
+    expect(deleted.headers.get("cache-control")).toBe("no-store");
+    expect(await deleted.text()).toBe("");
     expect(await countRows("review_draft_comment")).toBe(0);
     // A second delete has nothing left to name.
     expect(
@@ -507,7 +509,7 @@ describe("the Review Session writes", () => {
       "head-1",
       { kind: CommentAnchorKinds.FILE, filePath: "src/app.ts" },
     );
-    expect(reanchored.status).toBe(200);
+    expect(reanchored.status).toBe(204);
 
     const snapshot = await createTenantRepository(
       harness.handle,
@@ -535,7 +537,8 @@ describe("the Review Session writes", () => {
       category: ChangeGroupCategories.NEW_FEATURE,
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
     expect(await countRows("review_group_reclassification")).toBe(1);
     const snapshot = await createTenantRepository(
       harness.handle,
@@ -564,7 +567,7 @@ describe("the Review Session writes", () => {
           body: "edited",
         })
       ).status,
-    ).toBe(200);
+    ).toBe(204);
     expect(
       (
         await harness.raw("select body from review_draft_comment order by id")
@@ -574,10 +577,9 @@ describe("the Review Session writes", () => {
     // Materialized now, and the same id still reaches the copy, the pointer
     // is a column on it, not a mapping that lived for one transaction.
     const deleted = await write("DELETE", `/comments/${draftId}`, "head-2");
-    expect(deleted.status).toBe(200);
+    expect(deleted.status).toBe(204);
     // The row that went is the copy; the id that named it is still the
     // previous session's row, which survives.
-    expect(await readDraftId(deleted)).not.toBe(draftId);
     expect(
       await harness.raw("select id::text as id from review_draft_comment"),
     ).toEqual([{ id: draftId }]);
@@ -605,7 +607,7 @@ describe("the Review Session writes", () => {
       endLine: 41,
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(await countRows("review_session")).toBe(2);
     const rows = await harness.raw(
       "select id::text as id, start_line, anchor_status from review_draft_comment order by id",
@@ -615,7 +617,6 @@ describe("the Review Session writes", () => {
       { id: draftId, start_line: 10, anchor_status: null },
       { id: expect.any(String), start_line: 40, anchor_status: null },
     ]);
-    expect(await readDraftId(res)).not.toBe(draftId);
   });
 
   it("clears every listed carried anchor and materializes on the first write", async () => {
@@ -639,7 +640,7 @@ describe("the Review Session writes", () => {
       }),
     ];
 
-    expect(cleared.map((res) => res.status)).toEqual([200, 200]);
+    expect(cleared.map((res) => res.status)).toEqual([204, 204]);
     expect(await countRows("review_session")).toBe(2);
     // The previous session keeps both its rows; of the two copies, one was
     // deleted and one re-placed.
@@ -916,7 +917,7 @@ describe("the Review Session writes", () => {
     });
 
     expect(dismissed.status).toBe(200);
-    expect(await dismissed.json()).toEqual({ flags: 2 });
+    expect(await dismissed.json()).toEqual({ count: 2 });
     expect(await countRows("disposition")).toBe(2);
 
     // A different payload recording a different judgment on the same anchor:
@@ -931,6 +932,7 @@ describe("the Review Session writes", () => {
       ],
     });
     expect(addressed.status).toBe(200);
+    expect(await addressed.json()).toEqual({ count: 2 });
     expect(await countRows("disposition")).toBe(2);
     expect(
       await harness.raw(
@@ -957,13 +959,14 @@ describe("the Review Session writes", () => {
       flags: [FLAG, second],
     });
     expect(reopened.status).toBe(200);
+    expect(await reopened.json()).toEqual({ count: 2 });
     expect(await countRows("disposition")).toBe(0);
     // Repeating the undo is the same undo, and says it changed nothing.
     const again = await write("POST", "/risks/reopen", "head-1", {
       flags: [FLAG],
     });
     expect(again.status).toBe(200);
-    expect(await again.json()).toEqual({ flags: 0 });
+    expect(await again.json()).toEqual({ count: 0 });
 
     const snapshot = await createTenantRepository(
       harness.handle,

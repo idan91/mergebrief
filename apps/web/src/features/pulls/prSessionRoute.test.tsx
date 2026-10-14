@@ -166,13 +166,12 @@ describe("the session read in the route loader", () => {
     );
     await renderRoute();
     const sessionCalls = fetchMock.mock.calls.filter(
-      ([path]) => typeof path === "string" && path.includes("/session"),
+      ([path]) => path === SESSION_PATH,
     );
     expect(sessionCalls.length).toBeGreaterThan(0);
-    expect(sessionCalls[0]?.[0]).toBe(SESSION_PATH);
-    // No method = GET. A session is created by a WRITE, never by this read.
+    // A session is created by a WRITE, never by this read.
     for (const [, init] of sessionCalls) {
-      expect(init?.method).toBeUndefined();
+      expect(init?.method).toBe("GET");
     }
   });
 

@@ -174,6 +174,14 @@ describe("CommentThread", () => {
     );
   });
 
+  it("is read-only and unlabelled under a status it predates", () => {
+    renderThread("unknown");
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.queryByText(/posted to GitHub/i)).toBeNull();
+    expect(screen.queryByText(/pending/i)).toBeNull();
+  });
+
   it("is read-only once submitted with a posted label", () => {
     renderThread(DraftCommentStatuses.SUBMITTED);
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();

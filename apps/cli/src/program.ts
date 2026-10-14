@@ -2,6 +2,7 @@
 // run it against the REAL api Hono app and assert the contract surface:
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
+import { ProductActionIds } from "contract";
 import type { Mutable } from "types/utils";
 import operationsMap from "../product-operations.map.json";
 import {
@@ -64,10 +65,12 @@ import {
   buildRiskPayload,
   buildUpdateDraftPayload,
   resolveReadFlag,
+  runSessionOperation,
   runSessionWrite,
   type AnchorFlags,
   type CreateDraftInput,
   type ReanchorInput,
+  type RiskOperationId,
   type UpdateDraftInput,
 } from "./commands/session-write";
 import {
@@ -850,13 +853,11 @@ export function buildProgram(deps: CliDeps): Command {
 
         const payload = buildCreateDraftPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "POST",
-            repoId,
-            prNumber,
-            subpath: "/comments",
+            id: ProductActionIds.CREATE_DRAFT_COMMENT,
+            params: { repoId, prNumber },
             span,
             payload,
           },
@@ -900,13 +901,11 @@ export function buildProgram(deps: CliDeps): Command {
 
         const payload = buildUpdateDraftPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "PATCH",
-            repoId,
-            prNumber,
-            subpath: `/comments/${encodeURIComponent(draftId)}`,
+            id: ProductActionIds.UPDATE_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
             span,
             payload,
           },
@@ -962,13 +961,11 @@ export function buildProgram(deps: CliDeps): Command {
 
         const payload = buildReanchorPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "PUT",
-            repoId,
-            prNumber,
-            subpath: `/comments/${encodeURIComponent(draftId)}/anchor`,
+            id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
             span,
             payload,
           },
@@ -993,13 +990,11 @@ export function buildProgram(deps: CliDeps): Command {
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "DELETE",
-            repoId,
-            prNumber,
-            subpath: `/comments/${encodeURIComponent(draftId)}`,
+            id: ProductActionIds.DELETE_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
             span,
           },
           readIo(deps, global),
@@ -1089,7 +1084,7 @@ export function buildProgram(deps: CliDeps): Command {
     .command("risk")
     .description("disposition the brief's risk flags in your session");
   const riskAction =
-    (subpath: string, takesReason: boolean) =>
+    (id: RiskOperationId, takesReason: boolean) =>
     async (
       raw: string,
       options: {
@@ -1109,9 +1104,9 @@ export function buildProgram(deps: CliDeps): Command {
         takesReason ? options.reason : undefined,
       );
       const { client, repoId } = await resolveTarget(deps, global);
-      await runSessionWrite(
+      await runSessionOperation(
         client,
-        { method: "POST", repoId, prNumber, subpath, span, payload },
+        { id, params: { repoId, prNumber }, span, payload },
         readIo(deps, global),
       );
     };
@@ -1129,7 +1124,7 @@ export function buildProgram(deps: CliDeps): Command {
     )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
-    .action(riskAction("/risks/dismiss", true));
+    .action(riskAction(ProductActionIds.DISMISS_RISK, true));
   risk
     .command("address")
     .description("mark risk flags addressed (each flag carries its evidence)")
@@ -1140,7 +1135,7 @@ export function buildProgram(deps: CliDeps): Command {
     )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
-    .action(riskAction("/risks/address", false));
+    .action(riskAction(ProductActionIds.ADDRESS_RISK, false));
   risk
     .command("reopen")
     .description("undo dispositions on risk flags")
@@ -1151,7 +1146,7 @@ export function buildProgram(deps: CliDeps): Command {
     )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
-    .action(riskAction("/risks/reopen", false));
+    .action(riskAction(ProductActionIds.REOPEN_RISK, false));
 
   program
     .command("reclassify")
@@ -1171,13 +1166,11 @@ export function buildProgram(deps: CliDeps): Command {
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "PUT",
-            repoId,
-            prNumber,
-            subpath: `/groups/${encodeURIComponent(groupId)}/classification`,
+            id: ProductActionIds.RECLASSIFY_GROUP,
+            params: { repoId, prNumber, groupId },
             span,
             payload: { category: options.category },
           },
@@ -1203,13 +1196,11 @@ export function buildProgram(deps: CliDeps): Command {
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
           {
-            method: "PUT",
-            repoId,
-            prNumber,
-            subpath: "/outcome",
+            id: ProductActionIds.SET_REVIEW_OUTCOME,
+            params: { repoId, prNumber },
             span,
             payload: { outcome },
           },

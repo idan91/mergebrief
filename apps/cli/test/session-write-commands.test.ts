@@ -650,7 +650,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err).toHaveLength(1);
   });
 
-  it("draft update --body edits a held draft; -F form matches", async () => {
+  it("draft update --body edits a held draft and prints nothing", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const created = await run([
@@ -675,14 +675,18 @@ describe("session write commands over the real api app", () => {
     ]);
     expect(flagged.err).toEqual([]);
     expect(flagged.code).toBe(ExitCodes.OK);
-    expect(draftIdOf(flagged.out)).toBe(draftId);
+    expect(flagged.out).toBe("");
 
     const filed = await run(
-      ["draft", "update", "7", draftId, "-F", "-", ...SPAN, "--json"],
+      ["draft", "update", "7", draftId, "-F", "-", ...SPAN],
       JSON.stringify({ body: "even sharper" }),
     );
+    expect(filed.err).toEqual([]);
     expect(filed.code).toBe(ExitCodes.OK);
-    expect(draftIdOf(filed.out)).toBe(draftId);
+    expect(filed.out).toBe("");
+
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain('"body":"even sharper"');
   });
 
   it("draft update rejects -F mixed with --body, exit 2", async () => {

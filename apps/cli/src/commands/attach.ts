@@ -1,11 +1,12 @@
 // `draft attach`: post an image through the API's upload route and answer
 // the branch URL a comment carries. With `--draft` the URL is also appended
 // to a held draft's body, so an agent can attach in one call.
+import { ProductActionIds, ProductOperations, ProductQueryIds } from "contract";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import type { BriefSpan } from "./write";
-import { spanQuery } from "./write";
 import type { ReadIo } from "./read";
+import { buildRequestPath } from "./request-path";
 
 /**
  * The server validates the bytes; the leading bytes only pick the declared
@@ -104,7 +105,11 @@ async function readDraftBody(
   draft: AttachDraftTarget,
 ): Promise<string> {
   const response = await client.request({
-    path: `/api/repos/${options.repoId}/pulls/${options.prNumber}/session${spanQuery(draft.span)}`,
+    path: buildRequestPath(
+      ProductQueryIds.READ_REVIEW_SESSION,
+      { repoId: options.repoId, prNumber: options.prNumber },
+      { base: draft.span.base, head: draft.span.head },
+    ),
   });
   let parsed: unknown;
   try {
@@ -141,9 +146,18 @@ async function appendToDraft(
 ): Promise<void> {
   try {
     const body = await readDraftBody(client, options, draft);
+    const update = ProductActionIds.UPDATE_DRAFT_COMMENT;
     await client.request({
-      method: "PATCH",
-      path: `/api/repos/${options.repoId}/pulls/${options.prNumber}/session/comments/${encodeURIComponent(draft.draftId)}${spanQuery(draft.span)}`,
+      method: ProductOperations[update].method,
+      path: buildRequestPath(
+        update,
+        {
+          repoId: options.repoId,
+          prNumber: options.prNumber,
+          draftId: draft.draftId,
+        },
+        { base: draft.span.base, head: draft.span.head },
+      ),
       body: { body: appendImageToBody(body, url) },
     });
   } catch (error) {

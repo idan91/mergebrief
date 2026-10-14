@@ -70,7 +70,11 @@ export async function runSession(
 ): Promise<void> {
   await passthroughGet(
     client,
-    `/api/repos/${repoId}/pulls/${prNumber}/session?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+    buildRequestPath(
+      ProductQueryIds.READ_REVIEW_SESSION,
+      { repoId, prNumber },
+      { base: span.base, head: span.head },
+    ),
     io,
   );
 }

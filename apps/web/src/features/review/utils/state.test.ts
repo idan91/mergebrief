@@ -104,6 +104,12 @@ describe("riskEvidenceLabel", () => {
       ),
     ).toBe("manually verified: Checked the fallback path.");
   });
+
+  it("gives evidence of a kind this bundle predates a neutral label", () => {
+    expect(
+      riskEvidenceLabel(appI18n.t, { kind: "unknown" }, [], [coreChunk]),
+    ).toBe("evidence recorded");
+  });
 });
 
 const remainderChunk = {
@@ -328,6 +334,25 @@ function buildCarriedInput(
 }
 
 describe("deriveCarriedItems", () => {
+  it("renders nothing for an attention kind this bundle predates", () => {
+    const item: SessionAttentionItem = {
+      ...buildOrphanItem(),
+      kind: "unknown",
+    };
+    expect(deriveCarriedItems(buildCarriedInput([item]))).toEqual([]);
+  });
+
+  it("renders nothing for an attention location this bundle predates", () => {
+    const item: SessionAttentionItem = {
+      ...buildOrphanItem(),
+      location: { kind: "unknown", filePath: "src/a.ts" },
+    };
+    const unplaceable = { comments: [], chunks: [supportingChunk] };
+    expect(deriveCarriedItems(buildCarriedInput([item], unplaceable))).toEqual(
+      [],
+    );
+  });
+
   it("carries the server's clearing operations through untouched", () => {
     const [item] = deriveCarriedItems(buildCarriedInput([buildOrphanItem()]));
     expect(item?.clearedBy).toEqual([

@@ -113,7 +113,7 @@ export interface UseReadingSessionValue {
   actions: ReviewSessionActions;
   reviewComments: ReviewComment[];
   submittedReviewIds: number[];
-  reviewOutcome: ReviewOutcome;
+  reviewOutcome: ReviewOutcome | undefined;
   // progress / receipt derivation,
   totals: ProgressTotals;
   progress: number;

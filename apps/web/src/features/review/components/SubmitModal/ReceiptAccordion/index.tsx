@@ -13,7 +13,7 @@ import styles from "./ReceiptAccordion.module.scss";
 
 export interface ReceiptAccordionProps {
   receipt: Receipt;
-  outcome: ReviewOutcome;
+  outcome: ReviewOutcome | undefined;
   /** The frozen artifact text, exactly as posted to GitHub. */
   raw: string;
 }

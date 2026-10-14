@@ -5,6 +5,7 @@ import {
   CommentAnchorKinds,
   DiffSides,
   DraftCommentStatuses,
+  type DraftCommentStatus,
   type Equals,
 } from "types";
 import { describe, expect, it } from "vitest";
@@ -14,33 +15,43 @@ import type {
   LineDraftCommentPayload,
 } from "contract";
 import { briefFixture } from "@web/features/brief/test-utils";
+import type { UnknownValue } from "@web/utils/open-enum/types";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import {
   createFileCommentAnchor,
   isLineCommentAnchor,
   type ReviewComment,
 } from "../utils/comments";
+import { deriveUnresolvedItems } from "../utils/state";
 import {
   emptySessionPayload,
   sessionInitialState,
   type ReviewSessionPayload,
   type SessionDraftComment,
+  type SessionHeldDraftComment,
 } from "./serverState";
 
-type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+/** The wire field, mutable, with `status` widened to the open enum's read. */
+type ReadDraftComment<Payload> = {
+  -readonly [Key in keyof Payload]: Key extends "status"
+    ? DraftCommentStatus | UnknownValue
+    : Payload[Key];
+};
 /** The contract's draft payload, minus `anchorStatus`, the one field this
  * store shape deliberately drops; the attention list renders it instead. */
-type SourceDraftComment = Mutable<
-  | Omit<LineDraftCommentPayload, "anchorStatus">
-  | Omit<FileDraftCommentPayload, "anchorStatus">
->;
+type SourceDraftComment =
+  | ReadDraftComment<Omit<LineDraftCommentPayload, "anchorStatus">>
+  | ReadDraftComment<Omit<FileDraftCommentPayload, "anchorStatus">>;
 /**
  * Lockstep pin: this store shape is hand-rolled, so a field added or retyped
  * on the wire would otherwise ship green while the bundle's guard rejects the
  * whole session read. `Equals` is exact and fails when the optional
  * `startSide` half drifts.
  */
-const draftCommentPin: Equals<SessionDraftComment, SourceDraftComment> = true;
+const draftCommentPin: Equals<
+  Exclude<SessionDraftComment, SessionHeldDraftComment>,
+  SourceDraftComment
+> = true;
 void draftCommentPin;
 
 const model = buildBriefViewModel(briefFixture);
@@ -201,6 +212,39 @@ describe("sessionInitialState", () => {
     );
     expect(state.reviewComments.map((comment) => comment.id)).toEqual(["73"]);
     expect(state.unplacedDrafts).toEqual([goneFile, goneLine]);
+  });
+
+  it("holds a draft of an unknown anchor unplaced, the rest editable", () => {
+    const chunk = firstChunk;
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
+    const held: SessionDraftComment = {
+      id: "81",
+      filePath: chunk.file,
+      kind: "unknown",
+      body: "newer anchor",
+      status: DraftCommentStatuses.DRAFT,
+    };
+    const state = sessionInitialState(
+      model,
+      payload({
+        draftComments: [
+          held,
+          {
+            id: "82",
+            filePath: chunk.file,
+            kind: CommentAnchorKinds.FILE,
+            body: "placed",
+            status: DraftCommentStatuses.DRAFT,
+          },
+        ],
+      }),
+    );
+    expect(state.reviewComments).toEqual([
+      expect.objectContaining({ id: "82", status: DraftCommentStatuses.DRAFT }),
+    ]);
+    expect(state.unplacedDrafts).toEqual([held]);
   });
 
   it("holds no unplaced drafts when there is no session", () => {
@@ -411,5 +455,115 @@ describe("sessionInitialState", () => {
     expect(anchor?.startSide).toBe("old");
     expect(anchor?.rowIds).toEqual([]);
     expect(anchor?.selectedText).toBe("");
+  });
+});
+
+describe("sessionInitialState with a newer vocabulary", () => {
+  function regionOf(chunkId: string | undefined) {
+    const chunk = model.groups
+      .flatMap((group) => group.chunks)
+      .find((one) => one.id === chunkId);
+    if (chunk === undefined) {
+      throw new Error("fixture has no flagged chunk");
+    }
+    const bounds = [...chunk.addedRanges, ...chunk.removedRanges];
+    return {
+      regionStart: Math.min(...bounds.map((range) => range.start)),
+      regionEnd: Math.max(...bounds.map((range) => range.end)),
+    };
+  }
+
+  it("starts an unknown review outcome with no outcome picked", () => {
+    const state = sessionInitialState(
+      model,
+      payload({ reviewOutcome: "unknown" }),
+    );
+    expect(state.reviewOutcome).toBeUndefined();
+  });
+
+  it("keeps the generated category under an unknown reclassification", () => {
+    const base = sessionInitialState(model, undefined);
+    const state = sessionInitialState(
+      model,
+      payload({
+        reclassifications: [{ changeGroupId: "g1", category: "unknown" }],
+      }),
+    );
+    expect(state.dominants["g1"]).toBe(base.dominants["g1"]);
+    expect(state.reclassifiedGroups.has("g1")).toBe(false);
+  });
+
+  it("leaves a flag open under a decision this bundle predates", () => {
+    if (firstFlag === undefined) {
+      throw new Error("fixture has no flag");
+    }
+    const state = sessionInitialState(
+      model,
+      payload({
+        dispositions: [
+          {
+            filePath: firstFlag.file,
+            attribute: firstFlag.attr,
+            ...regionOf(firstFlag.chunkId),
+            decision: "unknown",
+          },
+        ],
+      }),
+    );
+    expect(state.dispositions[firstFlag.id]).toEqual({ kind: "open" });
+  });
+
+  it("holds evidence of a kind it predates as present but opaque", () => {
+    if (firstFlag === undefined) {
+      throw new Error("fixture has no flag");
+    }
+    const state = sessionInitialState(
+      model,
+      payload({
+        dispositions: [
+          {
+            filePath: firstFlag.file,
+            attribute: firstFlag.attr,
+            ...regionOf(firstFlag.chunkId),
+            decision: "addressed",
+            evidence: { kind: "unknown", ref: "x" },
+          },
+        ],
+      }),
+    );
+    expect(state.dispositions[firstFlag.id]).toEqual({
+      kind: "addressed",
+      evidence: { kind: "unknown" },
+    });
+
+    const items = deriveUnresolvedItems({
+      chunks: [],
+      remainderChunks: [],
+      flags: [firstFlag],
+      dispositions: state.dispositions,
+      reviewedChunkIds: new Set(),
+      comments: [],
+    });
+    expect(items.map((item) => item.kind)).not.toContain("missing-evidence");
+  });
+
+  it("keeps a draft of an unknown status with that status", () => {
+    const state = sessionInitialState(
+      model,
+      payload({
+        draftComments: [
+          {
+            id: "7",
+            filePath: firstChunk?.file ?? "",
+            kind: CommentAnchorKinds.FILE,
+            body: "held",
+            status: "unknown",
+          },
+        ],
+      }),
+    );
+    expect(state.reviewComments).toEqual([
+      expect.objectContaining({ id: "7", status: "unknown" }),
+    ]);
   });
 });

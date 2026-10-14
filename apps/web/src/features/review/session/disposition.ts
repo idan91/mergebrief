@@ -1,4 +1,4 @@
-import type { RiskEvidence } from "../utils/state";
+import type { HeldRiskEvidence } from "../utils/state";
 import type { DispositionKinds } from "./types";
 
 /**
@@ -9,7 +9,7 @@ import type { DispositionKinds } from "./types";
  */
 export type Disposition =
   | { kind: typeof DispositionKinds.OPEN }
-  | { kind: typeof DispositionKinds.ADDRESSED; evidence?: RiskEvidence }
+  | { kind: typeof DispositionKinds.ADDRESSED; evidence?: HeldRiskEvidence }
   | { kind: typeof DispositionKinds.DISMISSED; reason: string };
 
 /** The bulk payload shared across open/dismissed dispositions (no evidence). */

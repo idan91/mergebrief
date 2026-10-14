@@ -1,23 +1,39 @@
 // Send one request per action; never queue or retry it implicitly.
 // Snapshot PUTs would clobber concurrent fields and erase per-operation audit/scope checks.
 // Bulk dismiss/address is one operation carrying ids, not a batch of separate writes.
-import type {
-  ChangeGroupCategory,
-  CommentAnchorKinds,
-  DiffSide,
-  Mutable,
-  ReviewOutcome,
-} from "types";
+import {
+  ProductActionIds,
+  type AddressRiskBody,
+  type CreateDraftCommentBody,
+  type CreateDraftCommentResponse,
+  type DismissRiskBody,
+  type DraftAnchorWire,
+  type EvidencedFlagAnchorWire,
+  type FlagAnchorWire,
+  type ReclassifyGroupBody,
+  type ReopenRiskBody,
+  type RiskWriteResponse,
+  type SetReviewOutcomeBody,
+  type UpdateDraftCommentBody,
+} from "contract";
+import type { ChangeGroupCategory, ReviewOutcome } from "types";
 import type { TranslationKey } from "i18n";
 
 import {
   ApiErrorCodes,
   apiFetch,
   errorFromResponse,
+  isSignInRequired,
   type ApiErrorCode,
   type ApiFetchInit,
 } from "../../../data/apiFetch";
-import type { RiskEvidence } from "../utils/state";
+import { readFailureKind, request } from "../../../data/request";
+import type { WriteKindTable } from "../../../data/request/types";
+import { createDraftResponseSchema, riskWriteResponseSchema } from "./schemas";
+import {
+  SessionWriteFailureKinds,
+  type SessionWriteFailureKind,
+} from "./types";
 
 /** The Brief a write names, the same span the session read took. */
 export interface SessionWriteTarget {
@@ -41,57 +57,39 @@ export type SessionWriteResult<T = void> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly failure: SessionWriteFailure };
 
-/** Wire copy per code the session routes can return; the rest is generic. */
-const FAILURE_COPY: Partial<Record<ApiErrorCode, TranslationKey>> = {
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "review.writeError.draftLimit",
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: "review.writeError.recordLimit",
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "review.writeError.alreadyPublished",
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: "review.writeError.publishPending",
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: "review.writeError.publishInDoubt",
-  [ApiErrorCodes.HUMAN_ONLY]: "review.writeError.humanOnly",
-  [ApiErrorCodes.UNAUTHORIZED]: "review.writeError.unauthorized",
-  [ApiErrorCodes.SIGNED_OUT]: "review.writeError.unauthorized",
+const SessionWriteKinds: WriteKindTable<SessionWriteFailureKind> = {
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: SessionWriteFailureKinds.FROZEN,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: SessionWriteFailureKinds.FROZEN,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: SessionWriteFailureKinds.DRAFT_LIMIT,
+  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]:
+    SessionWriteFailureKinds.RECORD_LIMIT,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]:
+    SessionWriteFailureKinds.ALREADY_PUBLISHED,
+  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]:
+    SessionWriteFailureKinds.PUBLISH_PENDING,
+  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]:
+    SessionWriteFailureKinds.PUBLISH_IN_DOUBT,
+  [ApiErrorCodes.HUMAN_ONLY]: SessionWriteFailureKinds.HUMAN_ONLY,
+  [ApiErrorCodes.MALFORMED]: SessionWriteFailureKinds.INDETERMINATE,
+  fallback: SessionWriteFailureKinds.FAILED,
 };
 
-const FROZEN: SessionWriteFailure = {
-  frozen: true,
-  copy: "review.writeError.frozen",
-};
-
-/** Deliberately INDETERMINATE: a throw can land after the write applied. */
-const UNKNOWN: SessionWriteFailure = {
-  frozen: false,
-  copy: "review.writeError.failed",
-};
-
-export interface LineDraftAnchorWire {
-  kind?: typeof CommentAnchorKinds.LINE;
-  filePath: string;
-  side: DiffSide;
-  /** Present only when the range genuinely crosses sides. */
-  startSide?: DiffSide;
-  startLine: number;
-  endLine: number;
-}
-
-export interface FileDraftAnchorWire {
-  kind: typeof CommentAnchorKinds.FILE;
-  filePath: string;
-}
-
-export type DraftAnchorWire = LineDraftAnchorWire | FileDraftAnchorWire;
-
-export interface FlagAnchorWire {
-  filePath: string;
-  attribute: string;
-  regionStart: number;
-  regionEnd: number;
-}
-
-export interface EvidenceWire {
-  kind: RiskEvidence["kind"];
-  ref: string;
-}
+/** `failed` and `indeterminate` share copy: a throw can land after the write applied. */
+const SESSION_WRITE_FAILURE_KEYS = {
+  [SessionWriteFailureKinds.FROZEN]: "review.writeError.frozen",
+  [SessionWriteFailureKinds.DRAFT_LIMIT]: "review.writeError.draftLimit",
+  [SessionWriteFailureKinds.RECORD_LIMIT]: "review.writeError.recordLimit",
+  [SessionWriteFailureKinds.ALREADY_PUBLISHED]:
+    "review.writeError.alreadyPublished",
+  [SessionWriteFailureKinds.PUBLISH_PENDING]:
+    "review.writeError.publishPending",
+  [SessionWriteFailureKinds.PUBLISH_IN_DOUBT]:
+    "review.writeError.publishInDoubt",
+  [SessionWriteFailureKinds.HUMAN_ONLY]: "review.writeError.humanOnly",
+  [SessionWriteFailureKinds.FAILED]: "review.writeError.failed",
+  [SessionWriteFailureKinds.UNAUTHORIZED]: "review.writeError.unauthorized",
+  [SessionWriteFailureKinds.INDETERMINATE]: "review.writeError.failed",
+} as const satisfies Record<SessionWriteFailureKind, TranslationKey>;
 
 /** Every session operation, one method each. */
 export interface SessionWrites {
@@ -101,7 +99,7 @@ export interface SessionWrites {
     category: ChangeGroupCategory,
   ): Promise<SessionWriteResult>;
   createDraft(
-    draft: DraftAnchorWire & { body: string },
+    draft: CreateDraftCommentBody,
   ): Promise<SessionWriteResult<string>>;
   updateDraft(draftId: string, body: string): Promise<SessionWriteResult>;
   reanchorDraft(
@@ -114,140 +112,182 @@ export interface SessionWrites {
     reason: string,
   ): Promise<SessionWriteResult>;
   addressRisks(
-    flags: readonly (FlagAnchorWire & { evidence: EvidenceWire })[],
+    flags: readonly EvidencedFlagAnchorWire[],
   ): Promise<SessionWriteResult>;
   reopenRisks(flags: readonly FlagAnchorWire[]): Promise<SessionWriteResult>;
   setOutcome(outcome: ReviewOutcome): Promise<SessionWriteResult>;
 }
 
-function failureFor(code: ApiErrorCode): SessionWriteFailure {
-  if (
-    code === ApiErrorCodes.PR_CHANGED_SINCE_READ ||
-    code === ApiErrorCodes.PR_REWRITTEN_SINCE_READ
-  ) {
-    return FROZEN;
-  }
-  return { frozen: false, copy: FAILURE_COPY[code] ?? UNKNOWN.copy };
+function resolveFailure(kind: SessionWriteFailureKind): SessionWriteFailure {
+  return {
+    frozen: kind === SessionWriteFailureKinds.FROZEN,
+    copy: SESSION_WRITE_FAILURE_KEYS[kind],
+  };
 }
 
-export function sessionWritePath(
-  target: SessionWriteTarget,
-  suffix: string,
-): string {
-  const span = `base=${encodeURIComponent(target.base)}&head=${encodeURIComponent(target.head)}`;
-  return `/api/repos/${encodeURIComponent(target.repoId)}/pulls/${String(target.prNumber)}/session${suffix}?${span}`;
-}
-
-type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
+const UNKNOWN = resolveFailure(SessionWriteFailureKinds.INDETERMINATE);
 
 /**
- * One operation. A non-2xx is an EXPECTED outcome the caller reverts on,
- * never a throw, and a thrown fetch is the same indeterminate failure: the
- * reviewer is told, and the action stays available.
+ * A non-2xx is an EXPECTED outcome the caller reverts on, never a throw. A
+ * 2xx whose body will not read is the same indeterminate failure as a thrown
+ * fetch: the reviewer is told, and the action stays available.
  */
-async function send<T>(
+async function settleSessionWrite<Value>(
+  send: () => Promise<Value>,
+): Promise<SessionWriteResult<Value>> {
+  try {
+    return { ok: true, value: await send() };
+  } catch (error) {
+    const kind = readFailureKind(error, SessionWriteKinds);
+    return { ok: false, failure: resolveFailure(kind) };
+  }
+}
+
+function readDraftId(
+  result: SessionWriteResult<CreateDraftCommentResponse>,
+): SessionWriteResult<string> {
+  if (!result.ok) {
+    return result;
+  }
+  return { ok: true, value: result.value.draftId };
+}
+
+/** The count is read so an off-shape 2xx is caught; no caller needs the number. */
+function dropCount(
+  result: SessionWriteResult<RiskWriteResponse>,
+): SessionWriteResult {
+  if (!result.ok) {
+    return result;
+  }
+  return { ok: true, value: undefined };
+}
+
+function buildChunkReadFailure(code: ApiErrorCode): SessionWriteFailure {
+  if (isSignInRequired(code)) {
+    return resolveFailure(SessionWriteFailureKinds.UNAUTHORIZED);
+  }
+  return resolveFailure(SessionWriteKinds[code] ?? SessionWriteKinds.fallback);
+}
+
+/** `set-chunk-read`'s own request, until it splits into a pair of operations. */
+async function sendChunkRead(
   target: SessionWriteTarget,
-  suffix: string,
-  method: WriteMethod,
-  body: unknown,
-  read: (payload: unknown) => T,
-): Promise<SessionWriteResult<T>> {
-  const path = sessionWritePath(target, suffix);
+  chunkId: string,
+  read: boolean,
+): Promise<SessionWriteResult> {
+  const span = `base=${encodeURIComponent(target.base)}&head=${encodeURIComponent(target.head)}`;
+  const path = `/api/repos/${encodeURIComponent(target.repoId)}/pulls/${String(target.prNumber)}/session/chunks/${encodeURIComponent(chunkId)}/read?${span}`;
   let response: Response;
   try {
-    const init: Mutable<ApiFetchInit> = {
-      method,
+    const init: ApiFetchInit = {
+      method: "PUT",
       headers: { "content-type": "application/json" },
+      body: JSON.stringify({ read }),
     };
-
-    if (body !== undefined) {
-      init.body = JSON.stringify(body);
-    }
-
     response = await apiFetch(path, init);
   } catch {
     return { ok: false, failure: UNKNOWN };
   }
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    return { ok: false, failure: failureFor(code) };
+    return { ok: false, failure: buildChunkReadFailure(code) };
   }
-  let payload: unknown;
   try {
-    payload = await response.json();
+    await response.json();
   } catch {
     return { ok: false, failure: UNKNOWN };
   }
-  return { ok: true, value: read(payload) };
-}
-
-const ignore = (): void => undefined;
-
-function draftId(payload: unknown): string {
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "draftId" in payload &&
-    typeof payload.draftId === "string"
-  ) {
-    return payload.draftId;
-  }
-  // A 2xx with no id is a contract violation, but the write DID land, the
-  // caller must not revert. The unusable id keeps post-now off this draft
-  // until the next read replaces it.
-  return "";
+  return { ok: true, value: undefined };
 }
 
 export function createSessionWrites(target: SessionWriteTarget): SessionWrites {
+  const params = { repoId: target.repoId, prNumber: target.prNumber };
+  const query = { base: target.base, head: target.head };
+
   return {
-    setRead: (chunkId, read) =>
-      send(
-        target,
-        `/chunks/${encodeURIComponent(chunkId)}/read`,
-        "PUT",
-        { read },
-        ignore,
-      ),
-    reclassify: (groupId, category) =>
-      send(
-        target,
-        `/groups/${encodeURIComponent(groupId)}/classification`,
-        "PUT",
-        { category },
-        ignore,
-      ),
-    createDraft: (draft) => send(target, "/comments", "POST", draft, draftId),
-    updateDraft: (id, body) =>
-      send(
-        target,
-        `/comments/${encodeURIComponent(id)}`,
-        "PATCH",
-        { body },
-        ignore,
-      ),
-    reanchorDraft: (id, anchor) =>
-      send(
-        target,
-        `/comments/${encodeURIComponent(id)}/anchor`,
-        "PUT",
-        anchor,
-        ignore,
-      ),
-    deleteDraft: (id) =>
-      send(
-        target,
-        `/comments/${encodeURIComponent(id)}`,
-        "DELETE",
-        undefined,
-        ignore,
-      ),
-    dismissRisks: (flags, reason) =>
-      send(target, "/risks/dismiss", "POST", { flags, reason }, ignore),
-    addressRisks: (flags) =>
-      send(target, "/risks/address", "POST", { flags }, ignore),
-    reopenRisks: (flags) =>
-      send(target, "/risks/reopen", "POST", { flags }, ignore),
-    setOutcome: (outcome) =>
-      send(target, "/outcome", "PUT", { outcome }, ignore),
+    setRead: (chunkId, read) => sendChunkRead(target, chunkId, read),
+    reclassify(groupId, category) {
+      const body: ReclassifyGroupBody = { category };
+      return settleSessionWrite(async () => {
+        await request(ProductActionIds.RECLASSIFY_GROUP, {
+          query,
+          params: { ...params, groupId },
+          body,
+        });
+      });
+    },
+    createDraft: (draft) =>
+      settleSessionWrite(() =>
+        request(
+          ProductActionIds.CREATE_DRAFT_COMMENT,
+          { query, params, body: draft },
+          createDraftResponseSchema,
+        ),
+      ).then(readDraftId),
+    updateDraft(draftId, text) {
+      const body: UpdateDraftCommentBody = { body: text };
+      return settleSessionWrite(async () => {
+        await request(ProductActionIds.UPDATE_DRAFT_COMMENT, {
+          query,
+          params: { ...params, draftId },
+          body,
+        });
+      });
+    },
+    reanchorDraft: (draftId, anchor) =>
+      settleSessionWrite(async () => {
+        await request(ProductActionIds.REANCHOR_DRAFT_COMMENT, {
+          query,
+          params: { ...params, draftId },
+          body: anchor,
+        });
+      }),
+    deleteDraft: (draftId) =>
+      settleSessionWrite(async () => {
+        await request(ProductActionIds.DELETE_DRAFT_COMMENT, {
+          query,
+          params: { ...params, draftId },
+        });
+      }),
+    dismissRisks(flags, reason) {
+      const body: DismissRiskBody = { flags, reason };
+      return settleSessionWrite(() =>
+        request(
+          ProductActionIds.DISMISS_RISK,
+          { query, params, body },
+          riskWriteResponseSchema,
+        ),
+      ).then(dropCount);
+    },
+    addressRisks(flags) {
+      const body: AddressRiskBody = { flags };
+      return settleSessionWrite(() =>
+        request(
+          ProductActionIds.ADDRESS_RISK,
+          { query, params, body },
+          riskWriteResponseSchema,
+        ),
+      ).then(dropCount);
+    },
+    reopenRisks(flags) {
+      const body: ReopenRiskBody = { flags };
+      return settleSessionWrite(() =>
+        request(
+          ProductActionIds.REOPEN_RISK,
+          { query, params, body },
+          riskWriteResponseSchema,
+        ),
+      ).then(dropCount);
+    },
+    setOutcome(outcome) {
+      const body: SetReviewOutcomeBody = { outcome };
+      return settleSessionWrite(async () => {
+        await request(ProductActionIds.SET_REVIEW_OUTCOME, {
+          query,
+          params,
+          body,
+        });
+      });
+    },
   };
 }

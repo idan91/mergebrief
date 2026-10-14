@@ -1,3 +1,4 @@
+import { DispositionEvidenceKinds } from "types";
 import type { Disposition } from "@web/features/review/session";
 import {
   isLineCommentAnchor,
@@ -24,11 +25,15 @@ export function selectGroupReviewComments(
   const linked = new Set<string>();
   for (const flag of groupFlags) {
     const disposition = state.dispositions[flag.id];
+    if (disposition?.kind !== "addressed") {
+      continue;
+    }
+    const evidence = disposition.evidence;
     if (
-      disposition?.kind === "addressed" &&
-      disposition.evidence?.commentId !== undefined
+      evidence?.kind === DispositionEvidenceKinds.LINKED_COMMENT &&
+      evidence.commentId !== undefined
     ) {
-      linked.add(disposition.evidence.commentId);
+      linked.add(evidence.commentId);
     }
   }
   return state.reviewComments.filter((comment) => {

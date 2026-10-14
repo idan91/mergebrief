@@ -41,6 +41,21 @@ deprecation note here, removal only at a major.
   `DELETE /api/inbox/:repoId/:prNumber` and
   `DELETE /api/repos/:repoId/attachments` to answer `204` with no body (was
   `200 { ok: true }`). Methods, paths and error answers are unchanged.
+- **Changed** the Review Session writes that echoed their request to answer
+  `204` with no body: `PATCH` and `DELETE`
+  `/api/repos/:repoId/pulls/:prNumber/session/comments/:draftId` and
+  `PUT .../session/comments/:draftId/anchor` (were `200 { draftId }`), and
+  `PUT .../session/groups/:groupId/classification` (was
+  `200 { changeGroupId, category }`). Removed before the first release.
+  `mergebrief draft update|reanchor|delete` and `reclassify` now print
+  nothing on success and exit 0.
+- **Changed** `POST .../session/risks/dismiss`, `.../risks/address` and
+  `.../risks/reopen` to answer `200 { count }` (was `200 { flags }`, the
+  same number under a new name). Removed before the first release;
+  `mergebrief risk dismiss|address|reopen` relays `{"count":n}`.
+- `POST .../session/comments` (`201 { draftId }`) and
+  `PUT .../session/outcome` (`200 { outcome }`, read back off the stored
+  session) are unchanged.
 
 ## dev (2026-10-11)
 

@@ -4,6 +4,7 @@ import {
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceKinds,
+  type Mutable,
 } from "types";
 import {
   createFileCommentAnchor,
@@ -16,8 +17,10 @@ import {
   getChunkRegion,
   isFlagUnderAnchor,
   type ChunkRegion,
+  type HeldRiskEvidence,
   type RiskEvidence,
 } from "../../utils/state";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import type { Disposition } from "../disposition";
 import { DispositionKinds } from "../types";
 import type { SessionDisposition, SessionDraftComment } from "../serverState";
@@ -26,7 +29,7 @@ import type {
   EvidenceWire,
   FlagAnchorWire,
   LineDraftAnchorWire,
-} from "../writes";
+} from "contract";
 import type {
   ChunkRegions,
   DispositionsByFlag,
@@ -82,7 +85,7 @@ export function buildDraftAnchorWire(anchor: CommentAnchor): DraftAnchorWire {
     return { kind: CommentAnchorKinds.FILE, filePath: anchor.file };
   }
 
-  const wire: LineDraftAnchorWire = {
+  const wire: Mutable<LineDraftAnchorWire> = {
     kind: CommentAnchorKinds.LINE,
     filePath: anchor.file,
     side: anchor.side,
@@ -102,9 +105,12 @@ export function buildEvidenceWire(evidence: RiskEvidence): EvidenceWire {
 /** The store's evidence shape from the row's two columns. */
 export function resolveEvidence(
   evidence: SessionDisposition["evidence"],
-): RiskEvidence | undefined {
+): HeldRiskEvidence | undefined {
   if (evidence === undefined) {
     return undefined;
+  }
+  if (evidence.kind === UnknownValues.UNKNOWN) {
+    return { kind: evidence.kind };
   }
 
   const ref = evidence.ref ?? "";
@@ -152,6 +158,10 @@ export function resolveDispositions(
   const resolved = { ...base };
 
   for (const row of rows) {
+    // A decision this bundle predates leaves the flag where the Brief put it.
+    if (row.decision === UnknownValues.UNKNOWN) {
+      continue;
+    }
     const anchor = {
       filePath: row.filePath,
       attribute: row.attribute,
@@ -178,8 +188,11 @@ function resolveDraftComment(
   draft: SessionDraftComment,
   chunks: readonly BriefChunk[],
 ): ReviewComment | undefined {
-  const fields = { id: draft.id, body: draft.body, status: draft.status };
+  if (draft.kind === UnknownValues.UNKNOWN) {
+    return undefined;
+  }
 
+  const fields = { id: draft.id, body: draft.body, status: draft.status };
   if (draft.kind === CommentAnchorKinds.FILE) {
     const inBrief = chunks.some((chunk) => chunk.file === draft.filePath);
     if (!inBrief) {
