@@ -18,6 +18,8 @@ const PurgeOutcomeCopy = {
   [RowWriteResultKinds.FORBIDDEN]: "home.inbox.actions.purgeForbidden",
   [RowWriteResultKinds.NOT_FOUND]: "home.inbox.actions.purgeFailed",
   [RowWriteResultKinds.FAILED]: "home.inbox.actions.purgeFailed",
+  [RowWriteResultKinds.UNAUTHORIZED]: "home.inbox.actions.purgeFailed",
+  [RowWriteResultKinds.INDETERMINATE]: "home.inbox.actions.purgeFailed",
 } as const satisfies Record<PurgeOutcome, string>;
 
 export interface InboxPurgeFacadeInput {

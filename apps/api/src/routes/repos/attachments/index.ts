@@ -29,7 +29,7 @@ function createPurgeAttachmentsHandler(
     c.get("logger").debug("attachments branch purged", {
       existed: purged.value.existed,
     });
-    return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 

@@ -154,8 +154,9 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
+    expect(res.headers.get("cache-control")).toBe("no-store");
     expect(fake.calls).toEqual([]);
     expect(lookups.count()).toBe(1);
     expect(await countRows(harness, "pull_request")).toBe(0);

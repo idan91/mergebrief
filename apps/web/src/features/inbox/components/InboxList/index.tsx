@@ -25,7 +25,8 @@ import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow";
 import { PurgeAttachmentsModal } from "./PurgeAttachmentsModal";
 import { SelectionHeader } from "./SelectionHeader";
-import { useInboxArchiveFacade } from "./useInboxArchiveFacade";
+import { ArchiveScopes } from "./types";
+import { useInboxArchive } from "./useInboxArchive";
 import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
 import { useInboxPurgeFacade } from "./useInboxPurgeFacade";
@@ -163,7 +164,8 @@ export function InboxList({
     announce: announcer.announce,
     onDeleted: handleGone,
   });
-  const archiving = useInboxArchiveFacade({
+  const archiving = useInboxArchive({
+    scope: ArchiveScopes.SELECTION,
     announce: announcer.announce,
     onRemoved: handleGone,
   });
@@ -176,7 +178,7 @@ export function InboxList({
   const deletable = selection.selectedItems.filter(
     (item) => item.viewerCanDelete,
   );
-  const busy = deletion.busy || archiving.busy || collecting;
+  const busy = deletion.busy || archiving.pending || collecting;
   const deleteOpen = deletion.pending.length > 0;
   const selectedCount = selection.selectedItems.length;
   const matchingTotal = Math.max(total, ordered.length);
@@ -227,7 +229,7 @@ export function InboxList({
   async function runArchive(): Promise<void> {
     const rows = await collectSelected();
     if (rows !== undefined) {
-      await archiving.archiveMany(rows, archived);
+      await archiving.archive(rows, archived);
     }
   }
   async function runBulkDelete(): Promise<void> {

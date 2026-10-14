@@ -349,7 +349,7 @@ describe("the audit row's world", () => {
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/archive`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
@@ -357,7 +357,7 @@ describe("the audit row's world", () => {
       },
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     const rows = await harness.raw(
       "select operation, installation_id, source from audit_log order by id",
     );

@@ -8,6 +8,7 @@ import {
   buildInboxQueryOptions,
   deleteOwnPull,
   deletePull,
+  purgeAttachments,
   unarchivePull,
 } from "./queries";
 import { wireInboxPageFixture as WIRE_PAGE } from "./test-utils";
@@ -22,6 +23,7 @@ afterEach(() => {
   fetchMock.mockReset();
   assign.mockReset();
   window.sessionStorage.clear();
+  window.localStorage.clear();
 });
 
 function answerWith(status: number, body: unknown): void {
@@ -31,6 +33,15 @@ function answerWith(status: number, body: unknown): void {
       headers: { "content-type": "application/json" },
     }),
   );
+}
+
+function answerEmpty(): void {
+  fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+}
+
+function readCall(): { url: unknown; method: string | undefined } {
+  const [url, init] = fetchMock.mock.calls[0] ?? [];
+  return { url, method: init?.method };
 }
 
 function readInbox(params = {}) {
@@ -127,27 +138,41 @@ describe("buildInboxQueryOptions", () => {
 });
 
 describe("deleteOwnPull", () => {
-  it("DELETEs the inbox path and maps a 404 to not-found", async () => {
-    answerWith(200, { ok: true });
-    expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "deleted" });
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toMatch(/\/api\/inbox\/424242\/7$/);
-    expect(init?.method).toBe("DELETE");
+  it("DELETEs the inbox path and reads a 204 as deleted", async () => {
+    answerEmpty();
 
+    expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "deleted" });
+    const { url, method } = readCall();
+    expect(url).toMatch(/\/api\/inbox\/424242\/7$/);
+    expect(method).toBe("DELETE");
+  });
+
+  it("maps a 404 to not-found and a refusal to forbidden", async () => {
     answerWith(404, { error: "x", code: "not-found" });
     expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "not-found" });
+    answerWith(403, { error: "x", code: "human-only" });
+    expect(await deleteOwnPull("424242", 7)).toEqual({ kind: "forbidden" });
+  });
+
+  it("a 401 stays on the page as the unauthorized kind", async () => {
+    answerWith(401, { error: "x", code: "unauthorized" });
+
+    expect(await deleteOwnPull("424242", 7)).toEqual({
+      kind: "unauthorized",
+    });
+    expect(assign).not.toHaveBeenCalled();
   });
 });
 
 describe("deletePull", () => {
-  it("calls the gated delete and reports the row gone", async () => {
-    answerWith(200, { ok: true });
+  it("calls the gated delete and reads a 204 as the row gone", async () => {
+    answerEmpty();
 
     const result = await deletePull("424242", 7);
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const { url, method } = readCall();
     expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7$/);
-    expect(init?.method).toBe("DELETE");
+    expect(method).toBe("DELETE");
     expect(result).toEqual({ kind: "deleted" });
   });
 
@@ -170,28 +195,71 @@ describe("deletePull", () => {
     answerWith(502, {});
     expect(await deletePull("424242", 7)).toEqual({ kind: "failed" });
   });
+
+  it("a thrown request is the indeterminate kind", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    expect(await deletePull("424242", 7)).toEqual({ kind: "indeterminate" });
+  });
+
+  it("a 401 sends the viewer to sign in", async () => {
+    answerWith(401, { error: "x", code: "unauthorized" });
+
+    expect(await deletePull("424242", 7)).toEqual({ kind: "unauthorized" });
+    expect(assign).toHaveBeenCalledWith("/api/auth/github");
+  });
+});
+
+describe("purgeAttachments", () => {
+  it("DELETEs the repository's attachments and reads a 204 as purged", async () => {
+    answerEmpty();
+
+    const result = await purgeAttachments("424242");
+
+    const { url, method } = readCall();
+    expect(url).toMatch(/\/api\/repos\/424242\/attachments$/);
+    expect(method).toBe("DELETE");
+    expect(result).toEqual({ kind: "purged" });
+  });
+
+  it.each([
+    ["attachments-disabled", 403, "disabled"],
+    ["github-permission", 403, "app-permission"],
+    ["repo-admin-only", 403, "forbidden"],
+    ["not-found", 404, "not-found"],
+    ["github-unavailable", 502, "failed"],
+  ])("maps %s to the %s kind", async (code, status, kind) => {
+    answerWith(status, { error: "x", code });
+    expect(await purgeAttachments("424242")).toEqual({ kind });
+  });
+
+  it("a 401 sends the viewer to sign in", async () => {
+    answerWith(401, { error: "x", code: "unauthorized" });
+
+    expect(await purgeAttachments("424242")).toEqual({ kind: "unauthorized" });
+    expect(assign).toHaveBeenCalledWith("/api/auth/github");
+  });
 });
 
 describe("archivePull and unarchivePull", () => {
-  it("archives through PUT on the row's archive path", async () => {
-    answerWith(200, { ok: true });
+  it("archives through POST on the row's archive path", async () => {
+    answerEmpty();
 
     const result = await archivePull("424242", 7);
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    const { url, method } = readCall();
     expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7\/archive$/);
-    expect(init?.method).toBe("PUT");
+    expect(method).toBe("POST");
     expect(result).toEqual({ kind: "archived" });
   });
 
-  it("unarchives through DELETE on the same path", async () => {
-    answerWith(200, { ok: true });
+  it("unarchives through POST on the row's unarchive path", async () => {
+    answerEmpty();
 
     const result = await unarchivePull("424242", 7);
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7\/archive$/);
-    expect(init?.method).toBe("DELETE");
+    const { url, method } = readCall();
+    expect(url).toMatch(/\/api\/repos\/424242\/pulls\/7\/unarchive$/);
+    expect(method).toBe("POST");
     expect(result).toEqual({ kind: "unarchived" });
   });
 
@@ -200,5 +268,17 @@ describe("archivePull and unarchivePull", () => {
     expect(await archivePull("424242", 7)).toEqual({ kind: "not-found" });
     answerWith(502, {});
     expect(await unarchivePull("424242", 7)).toEqual({ kind: "failed" });
+  });
+
+  it("a refusal folds into the failed kind", async () => {
+    answerWith(403, { error: "x", code: "scope-exceeded" });
+    expect(await archivePull("424242", 7)).toEqual({ kind: "failed" });
+  });
+
+  it("a 401 sends the viewer to sign in", async () => {
+    answerWith(401, { error: "x", code: "unauthorized" });
+
+    expect(await unarchivePull("424242", 7)).toEqual({ kind: "unauthorized" });
+    expect(assign).toHaveBeenCalledWith("/api/auth/github");
   });
 });

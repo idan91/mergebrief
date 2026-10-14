@@ -2,6 +2,7 @@
 // hunk filter), `delta`. Passthrough by default; `delta` is one of the
 // CLI-synthesized shapes. One command may make two API reads (`delta` =
 // pr-meta → delta; `diff --group` = brief + diff).
+import { ProductOperations, ProductQueryIds } from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
@@ -102,7 +103,9 @@ export interface ReadIo {
 
 /** `pr` with no number: the first Inbox page, verbatim. */
 export async function runPrList(client: ApiClient, io: ReadIo): Promise<void> {
-  const response = await client.request({ path: "/api/inbox" });
+  const response = await client.request({
+    path: ProductOperations[ProductQueryIds.LIST_INBOX].path,
+  });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim, not one byte more
     return;

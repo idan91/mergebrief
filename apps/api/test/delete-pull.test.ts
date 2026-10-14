@@ -217,7 +217,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     const pastGate = listCallsPastGate(fake).map((call) => call.operation);
     expect(pastGate).toEqual(["fetchRepositoryById"]);
     expect(await countRows(harness, "pull_request")).toBe(0);
@@ -275,7 +275,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     // The access step's row, then the shadowed url row in the owner scope.
     expect(lookups.count()).toBe(2);
     expect(await countRows(harness, "pull_request")).toBe(0);
@@ -325,7 +325,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
     const res = await del(cookie);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(await readOwners(harness)).toEqual([String(OTHER_REVIEWER_ID)]);
   });
 
@@ -429,7 +429,7 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
 
     const res = await del(cookie, `/api/inbox/${REPO_ID}/${PR_NUMBER}`);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(fake.calls).toEqual([]);
     expect(await countRows(harness, "pull_request")).toBe(0);
   });

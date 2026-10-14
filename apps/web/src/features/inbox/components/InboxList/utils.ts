@@ -8,6 +8,7 @@ import {
   type InboxQueryParams,
 } from "../../types";
 import { readRowKey } from "../../utils";
+import { ArchiveScopes, type ArchiveScope } from "./types";
 
 export interface MatchingRowsInput {
   readonly params: InboxQueryParams;
@@ -77,4 +78,47 @@ export function readSelectionText(
     return t("home.inbox.select.none");
   }
   return t("home.inbox.select.count", { count: input.selectedCount });
+}
+
+export interface ArchiveOutcome {
+  readonly scope: ArchiveScope;
+  /** An unarchive, from the archived view. */
+  readonly restoring: boolean;
+  /** Rows that went. */
+  readonly done: number;
+  /** Rows asked for. */
+  readonly total: number;
+}
+
+/** A row's menu answers in the row's own words; the selection bar answers with a count or a tally. */
+export function describeArchiveOutcome(
+  t: TFunction,
+  outcome: ArchiveOutcome,
+): string {
+  const { restoring, done, total } = outcome;
+  const failed = total - done;
+  if (outcome.scope === ArchiveScopes.ROW) {
+    if (failed === 0) {
+      const rowDone = restoring
+        ? t("home.inbox.actions.unarchived")
+        : t("home.inbox.actions.archived");
+      return rowDone;
+    }
+    const rowFailed = restoring
+      ? t("home.inbox.actions.unarchiveFailed")
+      : t("home.inbox.actions.archiveFailed");
+    return rowFailed;
+  }
+
+  if (failed === 0) {
+    const allDone = restoring
+      ? t("home.inbox.actions.unarchivedMany", { count: done })
+      : t("home.inbox.actions.archivedMany", { count: done });
+    return allDone;
+  }
+  const tally = { done, total, failed };
+  const someDone = restoring
+    ? t("home.inbox.actions.unarchivedSome", tally)
+    : t("home.inbox.actions.archivedSome", tally);
+  return someDone;
 }

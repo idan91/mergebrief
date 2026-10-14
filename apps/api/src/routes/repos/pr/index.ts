@@ -38,7 +38,7 @@ export function prRoutes(
   // Rooted, not prefixed: the reads leaf's paths share no common prefix.
   app.route("/", readsRoutes(deps));
   app.route("/", deletePullRoute(deps));
-  app.route("/archive", archivePullRoutes(deps));
+  app.route("/", archivePullRoutes(deps));
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));

@@ -57,6 +57,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 Every mutation against GitHub (or any external system) follows these:
 
+- **One write function, one hook.** A write is one named function over `request` plus one hook that owns pending, the re-entry guard, the announcement and the invalidation; a row action calls the same hook a bulk action does, with a one-row selection.
 - **Capture inputs at initiation.** Snapshot the ids/values the request ships at click time and, on success, mutate exactly that set — state added or edited mid-flight must never be marked as sent.
 - **The external write is the commit point.** Once it succeeds, local persistence is BEST-EFFORT: log failures and keep the success copy. A throw AROUND the write gets INDETERMINATE copy ("may or may not have posted — check GitHub") — never "nothing happened", which invites a double-posting retry.
 - **One in-flight request per draft — a disabled button, not a protocol.** The server holds the drafts, so a POSTED one settling after unmount still reconciles on the next read. An AMBIGUOUS failure's warning has no server trace and does not survive leaving mid-post; that window is accepted — never rebuild a per-tab queue.

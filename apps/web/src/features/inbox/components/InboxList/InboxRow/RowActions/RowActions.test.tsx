@@ -195,9 +195,7 @@ describe("RowActions", () => {
   });
 
   it("Archive on any row calls the archive transport and frees the row", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    );
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     const { onAnnounce, onRemoved, invalidate } =
       await renderActions(makeItem());
 
@@ -210,7 +208,7 @@ describe("RowActions", () => {
     expect(readRequestUrl(url)).toMatch(
       /\/api\/repos\/424242\/pulls\/7\/archive$/,
     );
-    expect(init?.method).toBe("PUT");
+    expect(init?.method).toBe("POST");
     expect(onAnnounce).toHaveBeenCalledWith(
       "Archived; it comes back when a new brief lands",
     );
@@ -219,9 +217,7 @@ describe("RowActions", () => {
   });
 
   it("in the archived view the row offers Unarchive instead", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    );
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     const { onAnnounce, onRemoved } = await renderActions(
       makeItem(),
       InboxArchivedFilters.ONLY,
@@ -233,8 +229,11 @@ describe("RowActions", () => {
       fireEvent.click(screen.getByRole("menuitem", { name: "Unarchive" }));
     });
 
-    const [, init] = fetchMock.mock.calls[0] ?? [];
-    expect(init?.method).toBe("DELETE");
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(
+      /\/api\/repos\/424242\/pulls\/7\/unarchive$/,
+    );
+    expect(init?.method).toBe("POST");
     expect(onAnnounce).toHaveBeenCalledWith("Back in your Inbox");
     expect(onRemoved).toHaveBeenCalledTimes(1);
   });

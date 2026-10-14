@@ -12,6 +12,7 @@ import type {
 } from "types";
 
 import type { ApiErrorCode } from "../../data/apiFetch";
+import { WriteFailureKinds } from "../../data/request/types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 
 /**
@@ -184,15 +185,19 @@ export const RowWriteResultKinds = {
   FORBIDDEN: "forbidden",
   NOT_FOUND: "not-found",
   FAILED: "failed",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
 } as const;
 export type RowWriteResultKind = ValueOf<typeof RowWriteResultKinds>;
 
-/** How a row write was refused: a refusal to act, a row that is gone, or anything else. */
+/** How a row write was refused: a refusal to act, a row that is gone, a refused session, no answer at all, or anything else. */
 export type RowWriteFailureKind = Extract<
   RowWriteResultKind,
   | typeof RowWriteResultKinds.FORBIDDEN
   | typeof RowWriteResultKinds.NOT_FOUND
   | typeof RowWriteResultKinds.FAILED
+  | typeof RowWriteResultKinds.UNAUTHORIZED
+  | typeof RowWriteResultKinds.INDETERMINATE
 >;
 
 export type DeletePullResult =

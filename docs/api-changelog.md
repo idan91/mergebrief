@@ -31,6 +31,16 @@ deprecation note here, removal only at a major.
   and the `params` field of the error body: every `/api/*` error body is now
   `{ error, code }`. Removed before the first release, so no shipped client
   reads them.
+- **Changed** archive to `POST /api/repos/:repoId/pulls/:prNumber/archive`
+  (was `PUT` on the same path) and unarchive to
+  `POST /api/repos/:repoId/pulls/:prNumber/unarchive` (was `DELETE` on
+  `.../archive`). Both answer `204` with no body (was `200 { ok: true }`).
+  The old `PUT` and `DELETE` on `.../archive` are removed before the first
+  release and now answer `404`.
+- **Changed** `DELETE /api/repos/:repoId/pulls/:prNumber`,
+  `DELETE /api/inbox/:repoId/:prNumber` and
+  `DELETE /api/repos/:repoId/attachments` to answer `204` with no body (was
+  `200 { ok: true }`). Methods, paths and error answers are unchanged.
 
 ## dev (2026-10-11)
 

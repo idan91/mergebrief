@@ -151,8 +151,8 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
     const res = await purge();
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
     expect(res.headers.get("cache-control")).toBe("no-store");
     const pastGate = listCallsPastGate(fake).map((call) => call.operation);
     expect(pastGate).toEqual(["fetchRepositoryById", "deleteAttachmentBranch"]);

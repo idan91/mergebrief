@@ -65,7 +65,7 @@ describe("apiFetch in the browser", () => {
     answerWith(401);
 
     await apiFetch("/api/repos/1/pulls/2/archive", {
-      method: "PUT",
+      method: "POST",
       unauthorizedLeavesForSignIn: true,
     });
 

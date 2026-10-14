@@ -1,7 +1,7 @@
-// PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive: the viewer's
-// own archive of one inbox row, behind the per-PR gate, per reviewer. Full
-// wire over PGlite. The archive makes no GitHub call, so the fake sees
-// nothing past the gate's own reads.
+// POST /api/repos/:repoId/pulls/:prNumber/archive and .../unarchive: the
+// viewer's own archive of one inbox row, behind the per-PR gate, per
+// reviewer. Full wire over PGlite. The archive makes no GitHub call, so the
+// fake sees nothing past the gate's own reads.
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createInboxStore,
@@ -58,7 +58,9 @@ const OTHER_OWNER: ScopeContext = {
   ownerUserId: brandReviewerId(BigInt(OTHER_REVIEWER_ID)),
 };
 
-const ARCHIVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/archive`;
+const PULL_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`;
+const ARCHIVE_PATH = `${PULL_PATH}/archive`;
+const UNARCHIVE_PATH = `${PULL_PATH}/unarchive`;
 
 /** The gate's repo, in the installation or in none. */
 function arrangeGate(fake: FakeGitHub, inInstallation: boolean): void {
@@ -88,7 +90,7 @@ async function readAuditOperations(harness: PgliteHarness): Promise<string[]> {
   return rows.map((row) => String(row["operation"]));
 }
 
-describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
+describe("POST /api/repos/:repoId/pulls/:prNumber/archive and /unarchive", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let fake: FakeGitHub;
@@ -119,9 +121,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     };
   }
 
-  async function archive(cookie: string, method: "PUT" | "DELETE") {
-    return app.request(ARCHIVE_PATH, {
-      method,
+  async function archive(cookie: string, path = ARCHIVE_PATH) {
+    return app.request(path, {
+      method: "POST",
       headers: cookieHeaders(cookie),
     });
   }
@@ -143,17 +145,19 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     await seedPr(harness.handle, TENANT);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const put = await archive(cookie, "PUT");
-    expect(put.status).toBe(200);
-    expect(await put.json()).toEqual({ ok: true });
+    const put = await archive(cookie);
+    expect(put.status).toBe(204);
+    expect(await put.text()).toBe("");
+    expect(put.headers.get("cache-control")).toBe("no-store");
     expect(listCallsPastGate(fake)).toEqual([]);
     expect(await readArchivedReviewers(harness)).toEqual([String(REVIEWER_ID)]);
     expect(await listNumbers(cookie)).toEqual([]);
     expect(await listNumbers(cookie, "?archived=only")).toEqual([PR_NUMBER]);
 
     const callsBeforeDelete = fake.calls.length;
-    const del = await archive(cookie, "DELETE");
-    expect(del.status).toBe(200);
+    const del = await archive(cookie, UNARCHIVE_PATH);
+    expect(del.status).toBe(204);
+    expect(await del.text()).toBe("");
     expect(fake.calls).toHaveLength(callsBeforeDelete);
     expect(await readArchivedReviewers(harness)).toEqual([]);
     expect(await listNumbers(cookie)).toEqual([PR_NUMBER]);
@@ -170,9 +174,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     const { cookie } = await seedSignIn(harness.handle, kp);
     const lookups = spyPullRequestLookups(harness);
 
-    const put = await archive(cookie, "PUT");
+    const put = await archive(cookie);
 
-    expect(put.status).toBe(200);
+    expect(put.status).toBe(204);
     expect(lookups.count()).toBe(1);
   });
 
@@ -180,7 +184,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     arrangeGate(fake, true);
     await seedPr(harness.handle, TENANT);
     const { cookie } = await seedSignIn(harness.handle, kp);
-    await archive(cookie, "PUT");
+    await archive(cookie);
 
     const res = await app.request("/api/inbox", {
       headers: cookieHeaders(cookie),
@@ -194,9 +198,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     await seedPr(harness.handle, OWNER);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const put = await archive(cookie, "PUT");
+    const put = await archive(cookie);
 
-    expect(put.status).toBe(200);
+    expect(put.status).toBe(204);
     const rows = await harness.raw("select installation_id from inbox_archive");
     expect(rows).toEqual([{ installation_id: null }]);
   });
@@ -206,9 +210,9 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     await seedPr(harness.handle, OTHER_OWNER);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const put = await archive(cookie, "PUT");
+    const put = await archive(cookie);
 
-    expect(put.status).toBe(200);
+    expect(put.status).toBe(204);
     expect(await readArchivedReviewers(harness)).toEqual([String(REVIEWER_ID)]);
     const rows = await harness.raw("select installation_id from inbox_archive");
     expect(rows).toEqual([{ installation_id: null }]);
@@ -237,10 +241,27 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     arrangeGate(fake, true);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    expect((await archive(cookie, "PUT")).status).toBe(404);
-    expect((await archive(cookie, "DELETE")).status).toBe(404);
+    expect((await archive(cookie)).status).toBe(404);
+    expect((await archive(cookie, UNARCHIVE_PATH)).status).toBe(404);
     expect(await readArchivedReviewers(harness)).toEqual([]);
   });
+
+  it.each(["PUT", "DELETE"])(
+    "the retired %s on archive is a 404",
+    async (method) => {
+      arrangeGate(fake, true);
+      await seedPr(harness.handle, TENANT);
+      const { cookie } = await seedSignIn(harness.handle, kp);
+
+      const res = await app.request(ARCHIVE_PATH, {
+        method,
+        headers: cookieHeaders(cookie),
+      });
+
+      expect(res.status).toBe(404);
+      expect(await readArchivedReviewers(harness)).toEqual([]);
+    },
+  );
 
   it("a private-write Bearer principal may archive", async () => {
     arrangeGate(fake, true);
@@ -252,11 +273,11 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     );
 
     const res = await app.request(ARCHIVE_PATH, {
-      method: "PUT",
+      method: "POST",
       headers: { Authorization: `Bearer ${bearer}` },
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(await readArchivedReviewers(harness)).toHaveLength(1);
   });
 
@@ -266,7 +287,7 @@ describe("PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive", () => {
     const bearer = await seedApiToken(harness.handle, kp, AccessLevels.READ);
 
     const res = await app.request(ARCHIVE_PATH, {
-      method: "PUT",
+      method: "POST",
       headers: { Authorization: `Bearer ${bearer}` },
     });
 

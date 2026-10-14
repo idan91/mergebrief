@@ -996,7 +996,9 @@ describe("InboxList", () => {
   });
 
   it("the ticks on the rows that went come off before the re-read lands", async () => {
-    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+    fetchMock.mockImplementation(
+      async () => new Response(null, { status: 204 }),
+    );
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });

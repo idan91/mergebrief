@@ -90,7 +90,7 @@ function createDeleteOwnPullHandler(deps: AuthRouteDeps): Handler<AuthzEnv> {
     }
 
     stampAuditTarget(c, "pull_request", deleted.value);
-    return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 

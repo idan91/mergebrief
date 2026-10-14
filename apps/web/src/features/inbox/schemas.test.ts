@@ -1,3 +1,13 @@
+import type {
+  InboxCountsView,
+  InboxGenerationView,
+  InboxItem as WireInboxItem,
+  InboxRepositoryView,
+  InboxResponse,
+  InboxStackView,
+  ReachableInstallationView,
+  ViewerView,
+} from "contract";
 import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
@@ -188,8 +198,55 @@ const SCHEMA_PINS = {
   >,
 } as const;
 
+/** Every field the parser reads is one the contract sends. */
+type ReadsWireFields<Parsed, Wire> = Equals<
+  Exclude<keyof Parsed, keyof Wire>,
+  never
+>;
+
+const CONTRACT_PINS = {
+  InboxGeneration: true satisfies ReadsWireFields<
+    z.output<typeof inboxGenerationSchema>,
+    InboxGenerationView
+  >,
+  InboxStackPosition: true satisfies ReadsWireFields<
+    z.output<typeof inboxStackPositionSchema>,
+    InboxStackView
+  >,
+  InboxItem: true satisfies ReadsWireFields<
+    z.output<typeof inboxItemSchema>,
+    WireInboxItem
+  >,
+  InboxCounts: true satisfies ReadsWireFields<
+    z.output<typeof inboxCountsSchema>,
+    InboxCountsView
+  >,
+  InboxViewer: true satisfies ReadsWireFields<
+    z.output<typeof inboxViewerSchema>,
+    ViewerView
+  >,
+  ReachableInstallation: true satisfies ReadsWireFields<
+    z.output<typeof reachableInstallationSchema>,
+    ReachableInstallationView
+  >,
+  InboxRepository: true satisfies ReadsWireFields<
+    z.output<typeof inboxRepositorySchema>,
+    InboxRepositoryView
+  >,
+  InboxPage: true satisfies ReadsWireFields<
+    z.output<typeof inboxResponseSchema>,
+    InboxResponse
+  >,
+} as const;
+
 describe("inbox schemas match their interfaces", () => {
   it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
+  });
+});
+
+describe("inbox schemas read only what the contract sends", () => {
+  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
     expect(pinned).toBe(true);
   });
 });

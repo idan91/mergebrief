@@ -199,14 +199,14 @@ export const ProductOperations = {
   [ProductActionIds.ARCHIVE_PULL]: {
     kind: OperationKinds.ACTION,
     classification: AccessLevels.PRIVATE_WRITE,
-    method: HttpMethods.PUT,
+    method: HttpMethods.POST,
     path: "/api/repos/:repoId/pulls/:prNumber/archive",
   },
   [ProductActionIds.UNARCHIVE_PULL]: {
     kind: OperationKinds.ACTION,
     classification: AccessLevels.PRIVATE_WRITE,
-    method: HttpMethods.DELETE,
-    path: "/api/repos/:repoId/pulls/:prNumber/archive",
+    method: HttpMethods.POST,
+    path: "/api/repos/:repoId/pulls/:prNumber/unarchive",
   },
   [ProductActionIds.MINT_TOKEN]: {
     kind: OperationKinds.ACTION,

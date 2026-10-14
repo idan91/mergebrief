@@ -1,5 +1,5 @@
-// PUT and DELETE /api/repos/:repoId/pulls/:prNumber/archive: the viewer's own
-// archive of one Inbox row. Private writes, so a Bearer principal at that
+// POST /api/repos/:repoId/pulls/:prNumber/archive and /unarchive: the viewer's
+// own archive of one Inbox row. Private writes, so a Bearer principal at that
 // class may call them.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
@@ -29,7 +29,7 @@ function createArchiveHandler(
     }
 
     stampAuditTarget(c, "pull_request", written.value);
-    return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -45,7 +45,7 @@ export function archivePullRoutes(
       requiresInstallation: false,
       requiresStoredPullRequest: true,
     },
-    "/",
+    "/archive",
     createArchiveHandler(deps, archivePull),
   );
   app.action(
@@ -56,7 +56,7 @@ export function archivePullRoutes(
       requiresInstallation: false,
       requiresStoredPullRequest: true,
     },
-    "/",
+    "/unarchive",
     createArchiveHandler(deps, unarchivePull),
   );
   return app;

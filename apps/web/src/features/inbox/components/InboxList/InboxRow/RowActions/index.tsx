@@ -53,7 +53,13 @@ export function RowActions({
     to: "/repos/$repoId/pulls/$prNumber",
     params: { repoId: item.repoId, prNumber: String(item.prNumber) },
   }).href;
-  const facade = useRowActionsFacade(item, href, onAnnounce, onRemoved);
+  const facade = useRowActionsFacade(
+    item,
+    archived,
+    href,
+    onAnnounce,
+    onRemoved,
+  );
   const inArchive = archived === InboxArchivedFilters.ONLY;
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
   const canRegenerate = item.behind && githubUrl !== undefined;
@@ -106,7 +112,7 @@ export function RowActions({
           <Menu.Item
             disabled={facade.archiving}
             glyph={<Icon name={IconNames.ARCHIVE} size={IconSizes.MD} />}
-            onSelect={inArchive ? facade.unarchiveRow : facade.archiveRow}
+            onSelect={facade.toggleArchive}
           >
             {inArchive
               ? t("home.inbox.actions.unarchive")

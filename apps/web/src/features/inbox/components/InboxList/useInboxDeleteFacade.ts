@@ -18,6 +18,8 @@ const DeleteFailureCopy = {
   [RowWriteResultKinds.FORBIDDEN]: "home.inbox.actions.deleteForbidden",
   [RowWriteResultKinds.NOT_FOUND]: "home.inbox.actions.deleteFailed",
   [RowWriteResultKinds.FAILED]: "home.inbox.actions.deleteFailed",
+  [RowWriteResultKinds.UNAUTHORIZED]: "home.inbox.actions.deleteFailed",
+  [RowWriteResultKinds.INDETERMINATE]: "home.inbox.actions.deleteFailed",
 } as const satisfies Record<RowWriteFailureKind, string>;
 
 export interface InboxDeleteFacadeInput {

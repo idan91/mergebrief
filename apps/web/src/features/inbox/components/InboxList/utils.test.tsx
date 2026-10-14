@@ -3,7 +3,12 @@ import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../i18n/I18nProvider";
-import { listMatchingRows, readSelectionText } from "./utils";
+import { ArchiveScopes } from "./types";
+import {
+  describeArchiveOutcome,
+  listMatchingRows,
+  readSelectionText,
+} from "./utils";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -153,5 +158,45 @@ describe("readSelectionText", () => {
     expect(
       readSelectionText(t, { ...base, allMatching: true, total: 201 }),
     ).toBe("The first 200 of 201 matching selected");
+  });
+});
+
+describe("describeArchiveOutcome", () => {
+  const t = appI18n.t;
+  const row = { scope: ArchiveScopes.ROW, total: 1 };
+  const selection = { scope: ArchiveScopes.SELECTION, total: 3 };
+
+  it("a row reads its own line for either direction and outcome", () => {
+    const archived = { ...row, restoring: false };
+    const restored = { ...row, restoring: true };
+    expect(describeArchiveOutcome(t, { ...archived, done: 1 })).toBe(
+      "Archived; it comes back when a new brief lands",
+    );
+    expect(describeArchiveOutcome(t, { ...archived, done: 0 })).toBe(
+      "Archive failed; the row is still here",
+    );
+    expect(describeArchiveOutcome(t, { ...restored, done: 1 })).toBe(
+      "Back in your Inbox",
+    );
+    expect(describeArchiveOutcome(t, { ...restored, done: 0 })).toBe(
+      "Unarchive failed; the row is still archived",
+    );
+  });
+
+  it("a selection reads the count, or the tally when any failed", () => {
+    const archived = { ...selection, restoring: false };
+    const restored = { ...selection, restoring: true };
+    expect(describeArchiveOutcome(t, { ...archived, done: 3 })).toBe(
+      "Archived 3",
+    );
+    expect(describeArchiveOutcome(t, { ...archived, done: 1 })).toBe(
+      "Archived 1 of 3; 2 failed",
+    );
+    expect(describeArchiveOutcome(t, { ...restored, done: 3 })).toBe(
+      "Unarchived 3",
+    );
+    expect(describeArchiveOutcome(t, { ...restored, done: 0 })).toBe(
+      "Unarchived 0 of 3; 3 failed",
+    );
   });
 });

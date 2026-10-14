@@ -1,17 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { InboxArchivedFilter } from "types/inbox";
 
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../brief/model";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
-import { archivePull, unarchivePull } from "../../../../queries";
-import { RowWriteResultKinds, type InboxItem } from "../../../../types";
+import type { InboxItem } from "../../../../types";
+import { ArchiveScopes } from "../../types";
+import { useInboxArchive } from "../../useInboxArchive";
 
 /** The row actions with a side effect: the clipboard write, the archive either way, and the regenerate. */
 export function useRowActionsFacade(
   item: InboxItem,
+  view: InboxArchivedFilter,
   href: string,
   onAnnounce: (message: string) => void,
   onRemoved: () => void,
@@ -19,43 +22,11 @@ export function useRowActionsFacade(
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [regenerating, setRegenerating] = useState(false);
-  const [archiving, setArchiving] = useState(false);
-
-  async function archiveRow(): Promise<void> {
-    setArchiving(true);
-    try {
-      const outcome = await archivePull(item.repoId, item.prNumber);
-      if (outcome.kind !== RowWriteResultKinds.ARCHIVED) {
-        onAnnounce(t("home.inbox.actions.archiveFailed"));
-        return;
-      }
-      onRemoved();
-      onAnnounce(t("home.inbox.actions.archived"));
-      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
-    } catch {
-      onAnnounce(t("home.inbox.actions.archiveFailed"));
-    } finally {
-      setArchiving(false);
-    }
-  }
-
-  async function unarchiveRow(): Promise<void> {
-    setArchiving(true);
-    try {
-      const outcome = await unarchivePull(item.repoId, item.prNumber);
-      if (outcome.kind !== RowWriteResultKinds.UNARCHIVED) {
-        onAnnounce(t("home.inbox.actions.unarchiveFailed"));
-        return;
-      }
-      onRemoved();
-      onAnnounce(t("home.inbox.actions.unarchived"));
-      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
-    } catch {
-      onAnnounce(t("home.inbox.actions.unarchiveFailed"));
-    } finally {
-      setArchiving(false);
-    }
-  }
+  const archiving = useInboxArchive({
+    scope: ArchiveScopes.ROW,
+    announce: onAnnounce,
+    onRemoved,
+  });
 
   async function copyLink(): Promise<void> {
     try {
@@ -84,16 +55,13 @@ export function useRowActionsFacade(
   }
 
   return {
-    archiving,
+    archiving: archiving.pending,
     regenerating,
     copyLink: () => {
       void copyLink();
     },
-    archiveRow: () => {
-      void archiveRow();
-    },
-    unarchiveRow: () => {
-      void unarchiveRow();
+    toggleArchive: () => {
+      void archiving.archive([item], view);
     },
     regenerate: () => {
       void regenerate();

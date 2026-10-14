@@ -5,17 +5,18 @@
 // keeps its header and URL box. The list never polls; a window focus
 // re-reads it, at once after a failure.
 import { queryOptions } from "@tanstack/react-query";
+import { ProductActionIds, ProductOperations, ProductQueryIds } from "contract";
 
 import {
   ApiError,
   ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
-  errorFromResponse,
   readWireCode,
   SIGNED_OUT_READ,
-  type ApiErrorCode,
 } from "../../data/apiFetch";
+import { readFailureKind, request } from "../../data/request";
+import type { WriteKindTable } from "../../data/request/types";
 import { INBOX_QUERY_ROOT } from "./consts";
 import { parseInboxResponse } from "./schemas";
 import {
@@ -30,7 +31,7 @@ import {
 } from "./types";
 import { buildInboxSearch } from "./utils";
 
-const INBOX_PATH = "/api/inbox";
+const INBOX_PATH = ProductOperations[ProductQueryIds.LIST_INBOX].path;
 const INBOX_STALE_MS = 15_000;
 
 export function buildInboxQueryOptions(params: InboxQueryParams) {
@@ -64,12 +65,16 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
   });
 }
 
-// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
-// here instead of silently becoming "failed".
-const KindForCode = {
-  [ApiErrorCodes.UNAUTHORIZED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.SIGNED_OUT]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.INVALID_SIGNATURE]: RowWriteResultKinds.FAILED,
+type ArchiveFailureKind = Exclude<
+  ArchivePullResult["kind"],
+  typeof RowWriteResultKinds.ARCHIVED | typeof RowWriteResultKinds.UNARCHIVED
+>;
+type PurgeFailureKind = Exclude<
+  PurgeAttachmentsResult["kind"],
+  typeof RowWriteResultKinds.PURGED
+>;
+
+const DeleteKinds: WriteKindTable<RowWriteFailureKind> = {
   [ApiErrorCodes.FORBIDDEN]: RowWriteResultKinds.FORBIDDEN,
   [ApiErrorCodes.GITHUB_PERMISSION]: RowWriteResultKinds.FORBIDDEN,
   [ApiErrorCodes.SCOPE_EXCEEDED]: RowWriteResultKinds.FORBIDDEN,
@@ -79,76 +84,50 @@ const KindForCode = {
   [ApiErrorCodes.ATTACHMENTS_DISABLED]: RowWriteResultKinds.FORBIDDEN,
   [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: RowWriteResultKinds.FORBIDDEN,
   [ApiErrorCodes.NOT_FOUND]: RowWriteResultKinds.NOT_FOUND,
-  [ApiErrorCodes.INVALID_REQUEST]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.NOT_A_PR_URL]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.SIGN_IN_FAILED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.REQUEST_TOO_LARGE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DIFF_TOO_LARGE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.FILE_NOT_FOUND]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.FILE_TOO_LARGE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.FILE_NOT_TEXT]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.SESSION_RECORD_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DRAFT_PUBLISH_PENDING]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.ATTACHMENT_LIMIT_REACHED]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.PENDING_REVIEW_HELD]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.GITHUB_UNAVAILABLE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.ARTIFACT_UNREADABLE]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.INTERNAL_ERROR]: RowWriteResultKinds.FAILED,
-  [ApiErrorCodes.MALFORMED]: RowWriteResultKinds.FAILED,
-} as const satisfies Record<ApiErrorCode, RowWriteFailureKind>;
+  fallback: RowWriteResultKinds.FAILED,
+};
 
-function buildPullPath(repoId: string, prNumber: number): string {
-  return `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
-}
+const PurgeKinds: WriteKindTable<PurgeFailureKind> = {
+  ...DeleteKinds,
+  [ApiErrorCodes.ATTACHMENTS_DISABLED]: RowWriteResultKinds.DISABLED,
+  [ApiErrorCodes.GITHUB_PERMISSION]: RowWriteResultKinds.APP_PERMISSION,
+};
 
-async function readRowWriteFailure(
-  response: Response,
-  path: string,
-): Promise<RowWriteFailureKind> {
-  const { code } = await errorFromResponse(response, path);
-  return KindForCode[code];
-}
+// An archive only ever touches the viewer's own Inbox, so a refusal reads as
+// a plain failure.
+const ArchiveKinds: WriteKindTable<ArchiveFailureKind> = {
+  [ApiErrorCodes.NOT_FOUND]: RowWriteResultKinds.NOT_FOUND,
+  fallback: RowWriteResultKinds.FAILED,
+};
 
 /** The owner-only purge of one pasted row: no GitHub call, so an unreadable repository still lets it go. */
 export async function deleteOwnPull(
   repoId: string,
   prNumber: number,
 ): Promise<DeletePullResult> {
-  const path = `/api/inbox/${encodeURIComponent(repoId)}/${String(prNumber)}`;
-  const response = await apiFetch(path, { method: "DELETE" });
-  if (!response.ok) {
-    return { kind: await readRowWriteFailure(response, path) };
+  try {
+    await request(ProductActionIds.DELETE_OWN_PULL, {
+      params: { repoId, prNumber },
+    });
+    return { kind: RowWriteResultKinds.DELETED };
+  } catch (error) {
+    return { kind: readFailureKind(error, DeleteKinds) };
   }
-  return { kind: RowWriteResultKinds.DELETED };
 }
 
 /** The gated delete of a repository's whole attachments branch. */
 export async function purgeAttachments(
   repoId: string,
 ): Promise<PurgeAttachmentsResult> {
-  const path = `/api/repos/${encodeURIComponent(repoId)}/attachments`;
-  const response = await apiFetch(path, {
-    method: "DELETE",
-    unauthorizedLeavesForSignIn: true,
-  });
-  if (response.ok) {
+  try {
+    await request(ProductActionIds.PURGE_ATTACHMENTS, {
+      params: { repoId },
+      unauthorizedLeavesForSignIn: true,
+    });
     return { kind: RowWriteResultKinds.PURGED };
+  } catch (error) {
+    return { kind: readFailureKind(error, PurgeKinds) };
   }
-  const { code } = await errorFromResponse(response, path);
-  if (code === ApiErrorCodes.ATTACHMENTS_DISABLED) {
-    return { kind: RowWriteResultKinds.DISABLED };
-  }
-  if (code === ApiErrorCodes.GITHUB_PERMISSION) {
-    return { kind: RowWriteResultKinds.APP_PERMISSION };
-  }
-  return { kind: KindForCode[code] };
 }
 
 /** The gated delete of one pull request's briefs. */
@@ -156,59 +135,45 @@ export async function deletePull(
   repoId: string,
   prNumber: number,
 ): Promise<DeletePullResult> {
-  const path = buildPullPath(repoId, prNumber);
-  const response = await apiFetch(path, {
-    method: "DELETE",
-    unauthorizedLeavesForSignIn: true,
-  });
-  if (!response.ok) {
-    return { kind: await readRowWriteFailure(response, path) };
+  try {
+    await request(ProductActionIds.DELETE_PULL, {
+      params: { repoId, prNumber },
+      unauthorizedLeavesForSignIn: true,
+    });
+    return { kind: RowWriteResultKinds.DELETED };
+  } catch (error) {
+    return { kind: readFailureKind(error, DeleteKinds) };
   }
-  return { kind: RowWriteResultKinds.DELETED };
-}
-
-async function writeArchive(
-  repoId: string,
-  prNumber: number,
-  method: "PUT" | "DELETE",
-  done:
-    | typeof RowWriteResultKinds.ARCHIVED
-    | typeof RowWriteResultKinds.UNARCHIVED,
-): Promise<ArchivePullResult> {
-  const path = `${buildPullPath(repoId, prNumber)}/archive`;
-  const response = await apiFetch(path, {
-    method,
-    unauthorizedLeavesForSignIn: true,
-  });
-  if (!response.ok) {
-    const kind = await readRowWriteFailure(response, path);
-    return {
-      kind:
-        kind === RowWriteResultKinds.FORBIDDEN
-          ? RowWriteResultKinds.FAILED
-          : kind,
-    };
-  }
-  return { kind: done };
 }
 
 /** Put the row out of the viewer's Inbox until a new brief lands. */
-export function archivePull(
+export async function archivePull(
   repoId: string,
   prNumber: number,
 ): Promise<ArchivePullResult> {
-  return writeArchive(repoId, prNumber, "PUT", RowWriteResultKinds.ARCHIVED);
+  try {
+    await request(ProductActionIds.ARCHIVE_PULL, {
+      params: { repoId, prNumber },
+      unauthorizedLeavesForSignIn: true,
+    });
+    return { kind: RowWriteResultKinds.ARCHIVED };
+  } catch (error) {
+    return { kind: readFailureKind(error, ArchiveKinds) };
+  }
 }
 
 /** Bring an archived row back to the viewer's Inbox. */
-export function unarchivePull(
+export async function unarchivePull(
   repoId: string,
   prNumber: number,
 ): Promise<ArchivePullResult> {
-  return writeArchive(
-    repoId,
-    prNumber,
-    "DELETE",
-    RowWriteResultKinds.UNARCHIVED,
-  );
+  try {
+    await request(ProductActionIds.UNARCHIVE_PULL, {
+      params: { repoId, prNumber },
+      unauthorizedLeavesForSignIn: true,
+    });
+    return { kind: RowWriteResultKinds.UNARCHIVED };
+  } catch (error) {
+    return { kind: readFailureKind(error, ArchiveKinds) };
+  }
 }
