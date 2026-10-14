@@ -1,21 +1,17 @@
-// The lint-gate bin over `checkOperationsMap`: reads the committed api
-// manifest and the CLI map, judges by exit code.
+// The lint-gate bin over `checkOperationsMap`: takes the operation ids from
+// the contract's table and reads the CLI map, judges by exit code.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ProductOperations } from "contract";
 import { cliCommandPaths } from "./command-paths";
 import {
   checkOperationsMap,
   renderCatalogFingerprintModule,
+  renderOperationCatalog,
 } from "./operations-map-lib";
 
 const PKG_ROOT = fileURLToPath(new URL("..", import.meta.url));
-const MANIFEST = join(
-  PKG_ROOT,
-  "..",
-  "api",
-  "product-operations.manifest.json",
-);
 const MAP = join(PKG_ROOT, "product-operations.map.json");
 const FINGERPRINT_MODULE = join(
   PKG_ROOT,
@@ -23,10 +19,8 @@ const FINGERPRINT_MODULE = join(
   "generated-catalog-fingerprint.ts",
 );
 
-const manifestRaw = readFileSync(MANIFEST, "utf8");
-
 const result = checkOperationsMap({
-  manifestRaw,
+  operationIds: Object.keys(ProductOperations),
   mapRaw: readFileSync(MAP, "utf8"),
   today: new Date().toISOString().slice(0, 10),
   commandPaths: cliCommandPaths(),
@@ -41,7 +35,7 @@ if (!result.ok) {
   );
   process.exit(1);
 }
-const rendered = renderCatalogFingerprintModule(manifestRaw);
+const rendered = renderCatalogFingerprintModule(renderOperationCatalog());
 if (process.argv.includes("--write")) {
   writeFileSync(FINGERPRINT_MODULE, rendered);
 } else {

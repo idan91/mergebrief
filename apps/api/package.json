@@ -11,9 +11,7 @@
     "start": "tsx src/main.ts",
     "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage",
-    "manifest": "tsx scripts/generate-manifest.ts",
-    "manifest:check": "tsx scripts/generate-manifest.ts --check"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

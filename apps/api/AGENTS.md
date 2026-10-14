@@ -94,13 +94,11 @@ Tests: full-URL wire suites stay in `test/` (the byte-identity proof); unit test
 
 ## Product Operation catalog
 
-Every domain route declares its operation through the product router — declaration and mounting are one statement, so an endpoint cannot exist without a catalog descriptor. A declaration names its id, its policy and its router-relative path; its classification and method come from the operation table in `packages/contract` (`ProductOperations`), never from the route. Composing the app IS registering: the root commit stamps each declaration's full `METHOD /api/...` endpoint, asserts it equals the table row's method and path (a mismatch throws at composition), and registers it; `product-operations.manifest.json` is that registry rendered.
+Every domain route declares its operation through the product router — declaration and mounting are one statement, so an endpoint cannot exist without a catalog descriptor. A declaration names its id, its policy and its router-relative path; its classification and method come from the operation table in `packages/contract` (`ProductOperations`), never from the route. Composing the app IS registering: the root commit stamps each declaration's full `METHOD /api/...` endpoint, asserts it equals the table row's method and path (a mismatch throws at composition), and registers it.
 
-Adding or renaming an operation means regenerating the manifest (`pnpm -C apps/api manifest`) and committing it — `manifest:check` fails on drift. The root `dev` and `app:host` scripts run the write path before starting, so a local run leaves the change in the working tree ready to commit. `build` only verifies — a build must never mutate a tracked source.
+Adding or renaming an operation means editing its table row: the table is the only list. Drift fails at composition (`commit()`) and in `test/product-operation-catalog.test.ts`.
 
-`--check` always composes and judges by bytes, whatever the timestamps say; the write path itself skips by mtime, so a normal dev start pays nothing.
-
-The manifest is also one half of a both-directions gate: EVERY operation needs exactly one entry in `apps/cli/product-operations.map.json` — a `mergebrief` command, a documented expiring gap, or a reasoned `webOnly` note. Every entry there must in turn name an operation the manifest carries.
+The operation table is also one half of a both-directions gate: EVERY operation in it needs exactly one entry in `apps/cli/product-operations.map.json` — a `mergebrief` command, a documented expiring gap, or a reasoned `webOnly` note. Every entry there must in turn name an operation the table carries.
 
 ## Tests
 
@@ -108,4 +106,4 @@ The manifest is also one half of a both-directions gate: EVERY operation needs e
 
 ## Verification
 
-`pnpm -C apps/api manifest:check` proves the operation manifest matches the composed app.
+`test/product-operation-catalog.test.ts` proves the composed app matches the table and pins each operation's policy.

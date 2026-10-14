@@ -308,7 +308,7 @@ _Avoid_: risk ranking, hotspot list
 
 **Operation table**:
 The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the access level it needs (the same ladder a token's scope is chosen from), and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond the scope (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
-_Avoid_: catalog or manifest (for the table itself: the manifest is a rendering of it), registry (the API's runtime store), route table
+_Avoid_: catalog or manifest (for the table itself), registry (the API's runtime store), route table
 
 **Wire error code**:
 The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.

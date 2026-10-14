@@ -111,6 +111,9 @@ each states: `browserSessionOnly`, `requiresPushAccess`,
   by script ~~from the registry (compose without serving)~~ **(amended
   2026-10-12, BRIEF-333)** from the operation table, byte-compared in CI. An unregistered domain route or an edited descriptor shows up as
   manifest drift and fails CI.
+  **Amended (2026-10-14, BRIEF-333):** the committed manifest is dropped;
+  the table is the only list, and `commit()` and the catalog test guard
+  drift.
 - `packages/cli/product-operations.map.json` — operation id → `mergebrief`
   command. A check script enforces exhaustiveness in both directions:
   ~~every `agentAvailable` operation maps to a command~~ **(amended

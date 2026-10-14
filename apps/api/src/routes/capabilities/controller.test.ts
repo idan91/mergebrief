@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCatalogFingerprint } from "../../product-operations/manifest";
+import { computeCatalogFingerprint } from "../../product-operations/catalog";
 import { AccessLevels } from "types/access-levels";
 import { OperationKinds } from "contract";
 import type { ProductOperationDescriptor } from "../../product-operations/types";

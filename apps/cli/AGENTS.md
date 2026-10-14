@@ -18,7 +18,7 @@ What the layout can't show:
 - `test/` holds runCli-level contract tests (stdout/stderr + exit code). `test/harness/` starts the API from its own executable against a migrated PGlite served over a socket, with GitHub answered by a stub in the test process; a suite writes its GitHub responses as plain functions over a URL, as before. One world per TEST, not per file, because the API's own caches would otherwise carry a previous test's gate verdict into the next one.
 - `scripts/` holds the README-appendix regenerator and the product-operation mapping gate.
 
-`product-operations.map.json` (committed, package root) is the CLI half of that gate: EVERY operation in api's manifest carries exactly one entry — absence is an error. The entry is one of three shapes:
+`product-operations.map.json` (committed, package root) is the CLI half of that gate: EVERY operation in the contract's operation table (`ProductOperations`) carries exactly one entry — absence is an error. The entry is one of three shapes:
 
 - a `command`, resolved against the REAL commander tree (a renamed command fails the gate);
 - a `gap`, carrying reason, owner, ticket, and an expiry date that eventually fails on its own;

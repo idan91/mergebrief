@@ -115,6 +115,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
+      contract:
+        specifier: workspace:*
+        version: link:../../packages/contract
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence

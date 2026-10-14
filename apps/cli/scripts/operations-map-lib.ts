@@ -1,27 +1,18 @@
-// The mapping gate's logic, pure so the suite can drive it: parse the api
-// manifest and the CLI map, then enforce exhaustiveness in both directions:
+// The mapping gate's logic, pure so the suite can drive it: take the operation
+// ids and parse the CLI map, then enforce exhaustiveness in both directions:
 // every operation carries exactly one entry (a command that EXISTS in the
 // CLI's command tree, an unexpired fully-documented gap, or a reasoned
-// web-only note); every map key exists in the manifest. Expected failures
-// return Result; the bin boundary owns exit codes.
+// web-only note); every map key names an operation. Expected failures return
+// Result; the bin boundary owns exit codes.
 import { createHash } from "node:crypto";
+import {
+  ProductActionIds,
+  ProductOperations,
+  ProductQueryIds,
+  formatProductEndpoint,
+} from "contract";
 import type { Result } from "types/utils";
 import { z } from "zod/v4";
-
-const manifestSchema = z.object({
-  // An empty list is a broken generator run, not an empty product surface:
-  // accepting it would leave this gate with nothing to enforce.
-  operations: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        kind: z.enum(["query", "action"]),
-        classification: z.enum(["read", "private-write", "external-write"]),
-        endpoint: z.string().regex(/^(GET|POST|DELETE|PATCH|PUT) \/api\//),
-      }),
-    )
-    .min(1, { message: "manifest lists no product operations" }),
-});
 
 /** A shape-valid `YYYY-MM-DD` can still name month 13 or day 32; reject those. */
 function isRealCalendarDate(value: string): boolean {
@@ -69,7 +60,8 @@ export interface OperationsMapSummary {
 }
 
 export interface CheckOperationsMapInput {
-  readonly manifestRaw: string;
+  /** Every operation id the api serves, from the contract's table. */
+  readonly operationIds: readonly string[];
   readonly mapRaw: string;
   /** ISO `YYYY-MM-DD`; a gap whose `expiry` is before it has expired. */
   readonly today: string;
@@ -184,26 +176,16 @@ function parseCommandPath(command: string): string | undefined {
 }
 
 export function checkOperationsMap({
-  manifestRaw,
+  operationIds,
   mapRaw,
   today,
   commandPaths,
 }: CheckOperationsMapInput): Result<OperationsMapSummary, readonly string[]> {
-  const manifestJson = parseJson(manifestRaw, "manifest");
   const mapJson = parseJson(mapRaw, "operations map");
-  if (!manifestJson.ok || !mapJson.ok) {
-    return {
-      ok: false,
-      error: [manifestJson, mapJson]
-        .filter((result) => !result.ok)
-        .map((result) => (result.ok ? "" : result.error)),
-    };
+  if (!mapJson.ok) {
+    return { ok: false, error: [mapJson.error] };
   }
 
-  const manifest = manifestSchema.safeParse(manifestJson.value);
-  if (!manifest.success) {
-    return { ok: false, error: zodLines("manifest", manifest.error) };
-  }
   const map = mapSchema.safeParse(mapJson.value);
   if (!map.success) {
     return { ok: false, error: zodLines("operations map", map.error) };
@@ -218,16 +200,16 @@ export function checkOperationsMap({
   // A plain record lookup would reach Object.prototype for ids like
   // "constructor", which the registry's kebab-case rule allows.
   const entries = new Map(Object.entries(map.data));
-  const operationIds = new Set(manifest.data.operations.map((op) => op.id));
+  const knownIds = new Set(operationIds);
   let commands = 0;
   let gaps = 0;
   let webOnly = 0;
 
-  for (const operation of manifest.data.operations) {
-    const entry = entries.get(operation.id);
+  for (const id of operationIds) {
+    const entry = entries.get(id);
     if (entry === undefined) {
       errors.push(
-        `"${operation.id}" has no CLI command, documented gap, or web-only entry`,
+        `"${id}" has no CLI command, documented gap, or web-only entry`,
       );
       continue;
     }
@@ -240,13 +222,13 @@ export function checkOperationsMap({
       const path = parseCommandPath(entry.command);
       if (path === undefined) {
         errors.push(
-          `"${operation.id}" command "${entry.command}" must start with "${BIN_NAME}"`,
+          `"${id}" command "${entry.command}" must start with "${BIN_NAME}"`,
         );
         continue;
       }
       if (!commandPaths.has(path)) {
         errors.push(
-          `"${operation.id}" command "${entry.command}" is not a registered CLI command`,
+          `"${id}" command "${entry.command}" is not a registered CLI command`,
         );
       }
       continue;
@@ -254,14 +236,14 @@ export function checkOperationsMap({
     gaps += 1;
     if (entry.gap.expiry < today) {
       errors.push(
-        `"${operation.id}" gap expired ${entry.gap.expiry} (${entry.gap.ticket})`,
+        `"${id}" gap expired ${entry.gap.expiry} (${entry.gap.ticket})`,
       );
     }
   }
 
   for (const id of entries.keys()) {
-    if (!operationIds.has(id)) {
-      errors.push(`map key "${id}" does not exist in the manifest`);
+    if (!knownIds.has(id)) {
+      errors.push(`map key "${id}" names no operation in the table`);
     }
   }
 
@@ -271,15 +253,32 @@ export function checkOperationsMap({
   return { ok: true, value: { commands, gaps, webOnly } };
 }
 
+/** Byte-equal to the catalog `GET /api/capabilities` fingerprints: pretty
+ * JSON, trailing newline, operations sorted by id. */
+export function renderOperationCatalog(): string {
+  const ids = [
+    ...Object.values(ProductQueryIds),
+    ...Object.values(ProductActionIds),
+  ].toSorted((left, right) => left.localeCompare(right));
+  const operations = ids.map((id) => ({
+    id,
+    kind: ProductOperations[id].kind,
+    classification: ProductOperations[id].classification,
+    endpoint: formatProductEndpoint(id),
+  }));
+  const rendered = `${JSON.stringify({ operations }, null, 2)}\n`;
+  return rendered;
+}
+
 /** The committed `src/generated-catalog-fingerprint.ts`, rendered here so
  * write and verify cannot disagree on a byte. */
-export function renderCatalogFingerprintModule(manifestRaw: string): string {
-  const fingerprint = createHash("sha256").update(manifestRaw).digest("hex");
-  return (
-    "// Generated by `pnpm map:check --write`: the sha256 of the api\n" +
-    "// manifest this package's operations map was checked against.\n" +
+export function renderCatalogFingerprintModule(catalogRaw: string): string {
+  const fingerprint = createHash("sha256").update(catalogRaw).digest("hex");
+  const source =
+    "// Generated by `pnpm map:check --write`: the sha256 of the operation\n" +
+    "// table's catalog render this package's operations map was checked against.\n" +
     "// Do not edit by hand.\n" +
     "export const CLI_CATALOG_FINGERPRINT =\n" +
-    `  "${fingerprint}";\n`
-  );
+    `  "${fingerprint}";\n`;
+  return source;
 }

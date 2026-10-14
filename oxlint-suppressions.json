@@ -42,11 +42,6 @@
       "count": 1
     }
   },
-  "apps/api/test/manifest-freshness.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/api/test/pr-view.test.ts": {
     "house/no-em-dash": {
       "count": 1

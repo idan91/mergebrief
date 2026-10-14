@@ -56,8 +56,7 @@ jobs:
 
       # Unfiltered on purpose: `pnpm lint` is a whole-repo gate (oxlint with
       # the house plugin, knip, `prettier --check .`, stylelint, and the
-      # product operation catalog gate: manifest drift + CLI-map
-      # exhaustiveness).
+      # product operation catalog gate: CLI-map exhaustiveness).
       # Prettier and knip read files no package owns — docs, root config —
       # so there is no change set that provably cannot break it.
       - name: Run lint
@@ -93,8 +92,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Its own job, not a link in `pnpm lint`: this is a correctness gate
-      # (manifest drift, CLI-map exhaustiveness, and the only evaluation of a
-      # gap's expiry against the real date), and a style finding in an
+      # (CLI-map exhaustiveness and the only evaluation of a gap's expiry
+      # against the real date), and a style finding in an
       # untouched file must not be what stops it from running. Unfiltered and
       # deterministic — no network, a couple of seconds.
       - name: Run the product operation catalog gate

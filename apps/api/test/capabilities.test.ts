@@ -1,11 +1,14 @@
 // `GET /api/capabilities`: the composed registry served as data, gated like
 // every /api/* surface, the catalog fields in registry order, and a
-// fingerprint that must byte-match the committed manifest (the drift
-// tripwire in test form).
+// fingerprint that must match the operation table's catalog render, the
+// bytes the CLI bakes its own fingerprint from.
 import { createHash, randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  ProductActionIds,
+  ProductOperations,
+  ProductQueryIds,
+  formatProductEndpoint,
+} from "contract";
 import {
   encryptToken,
   createEnvKeyProvider,
@@ -17,17 +20,27 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
-import { shapeCatalogOperations } from "../src/product-operations/manifest";
+import { shapeCatalogOperations } from "../src/product-operations/catalog";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
 import { KEY_REF, brandReviewerId, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { AccessLevels } from "types/access-levels";
 
-const MANIFEST_PATH = join(
-  fileURLToPath(new URL("..", import.meta.url)),
-  "product-operations.manifest.json",
-);
+function renderTableCatalog(): string {
+  const ids = [
+    ...Object.values(ProductQueryIds),
+    ...Object.values(ProductActionIds),
+  ].toSorted((left, right) => left.localeCompare(right));
+  const operations = ids.map((id) => ({
+    id,
+    kind: ProductOperations[id].kind,
+    classification: ProductOperations[id].classification,
+    endpoint: formatProductEndpoint(id),
+  }));
+  const rendered = `${JSON.stringify({ operations }, null, 2)}\n`;
+  return rendered;
+}
 
 const bodySchema = z.object({
   operations: z.array(
@@ -101,9 +114,7 @@ describe("GET /api/capabilities", () => {
       shapeCatalogOperations(productOperationRegistry.list()),
     );
     expect(body.catalogFingerprint).toBe(
-      createHash("sha256")
-        .update(readFileSync(MANIFEST_PATH, "utf8"))
-        .digest("hex"),
+      createHash("sha256").update(renderTableCatalog()).digest("hex"),
     );
   });
 

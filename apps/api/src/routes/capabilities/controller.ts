@@ -4,7 +4,7 @@
 import {
   computeCatalogFingerprint,
   shapeCatalogOperations,
-} from "../../product-operations/manifest";
+} from "../../product-operations/catalog";
 import type { ProductOperationDescriptor } from "../../product-operations/types";
 
 export const capabilitiesController = {

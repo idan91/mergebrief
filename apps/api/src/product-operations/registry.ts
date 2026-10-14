@@ -1,6 +1,6 @@
 // The catalog store. Registration happens at route composition (the router's
 // root commit), so every failure here is a programmer error: throw, never
-// Result. Enumeration feeds the committed manifest.
+// Result. Enumeration feeds `GET /api/capabilities`.
 import type { OperationPolicy, ProductOperationDescriptor } from "./types";
 
 const KEBAB_CASE_ID = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -29,7 +29,7 @@ function isSameDescriptor(
 
 export interface ProductOperationRegistry {
   register(descriptor: ProductOperationDescriptor): void;
-  /** Snapshot sorted by id: stable output for the manifest generator. */
+  /** Snapshot sorted by id: stable output for the capabilities catalog. */
   list(): readonly ProductOperationDescriptor[];
 }
 
@@ -63,5 +63,5 @@ export function createProductOperationRegistry(): ProductOperationRegistry {
   };
 }
 
-/** The instance the app's root commit feeds; the manifest enumerates from here. */
+/** The instance the app's root commit feeds; the capabilities route enumerates it. */
 export const productOperationRegistry = createProductOperationRegistry();

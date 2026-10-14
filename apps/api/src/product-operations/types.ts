@@ -4,7 +4,7 @@ import type {
   ProductEndpoint,
   ProductOperationId,
 } from "contract";
-import { AccessLevels, type AccessLevel } from "types/access-levels";
+import { AccessLevels, type AccessLevel } from "types";
 
 // Ranks, not map order, are what the check compares; adding a rung means placing it here.
 const ScopeRanks = {
