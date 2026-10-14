@@ -39,6 +39,7 @@ export {
   type AttachmentSource,
   type AttachmentSourceKind,
   type BranchAttachmentSource,
+  type UploadAttachmentResponse,
 } from "./types";
 
 type ParseResult<T> = Result<T, AttachmentParseErrorCode>;

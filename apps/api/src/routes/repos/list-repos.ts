@@ -1,3 +1,4 @@
+import type { ListReposResponse } from "contract";
 import type { Logger } from "logging";
 import type { RepoId } from "persistence";
 import type { Result } from "types/utils";
@@ -8,17 +9,10 @@ import type {
   ResolverFailure,
 } from "../installation-resolver";
 
-export interface RepoListEntry {
-  readonly repoId: string;
-  readonly fullName: string;
-}
-
-export interface RepoList {
-  readonly repos: readonly RepoListEntry[];
-}
-
 /** Deterministic order for humans and diffs: fullName ascending. */
-function shapeRepoList(allowed: ReadonlyMap<RepoId, AllowedRepo>): RepoList {
+function shapeRepoList(
+  allowed: ReadonlyMap<RepoId, AllowedRepo>,
+): ListReposResponse {
   const repos = [...allowed.entries()]
     .map(([repoId, repo]) => ({
       repoId: String(repoId),
@@ -33,7 +27,7 @@ export async function listRepos(
   installations: InstallationResolver,
   request: RequestGitHub,
   log: Logger,
-): Promise<Result<RepoList, ResolverFailure>> {
+): Promise<Result<ListReposResponse, ResolverFailure>> {
   const resolved = await installations.listAllowedRepos(request, log);
   if (!resolved.ok) {
     return resolved;

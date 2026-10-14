@@ -18,6 +18,7 @@ import {
   ProductQueryIds,
   type AttachmentFile,
   type AttachmentMediaType,
+  type UploadAttachmentResponse,
 } from "contract";
 import type { Context, Handler } from "hono";
 import { HttpStatuses } from "types/http";
@@ -196,7 +197,8 @@ function createUploadAttachmentHandler(
     }
 
     c.get("logger").debug("attachment uploaded", { assetId: file.assetId });
-    return c.json(uploaded.value, HttpStatuses.CREATED, NO_STORE);
+    const body: UploadAttachmentResponse = uploaded.value;
+    return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };
 }
 

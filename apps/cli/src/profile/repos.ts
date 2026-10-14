@@ -8,14 +8,18 @@
 // error naming the profile, never a guess, never a prompt.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  buildOperationPath,
+  ProductQueryIds,
+  type ListReposResponse,
+} from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 
 const reposBodySchema = z.object({
   repos: z.array(z.object({ repoId: z.string(), fullName: z.string() })),
-});
-export type ReposBody = z.infer<typeof reposBodySchema>;
+}) satisfies z.ZodType<ListReposResponse>;
 
 export interface RepoCacheDeps {
   readonly client: ApiClient;
@@ -31,7 +35,7 @@ function cachePath(deps: RepoCacheDeps): string {
  * verbatim-passthrough promise holds on the cached path too. */
 function readCache(
   deps: RepoCacheDeps,
-): { body: ReposBody; bodyText: string } | undefined {
+): { body: ListReposResponse; bodyText: string } | undefined {
   let raw: string;
   try {
     raw = readFileSync(cachePath(deps), "utf8");
@@ -40,7 +44,10 @@ function readCache(
   }
   try {
     const parsed = reposBodySchema.safeParse(JSON.parse(raw));
-    return parsed.success ? { body: parsed.data, bodyText: raw } : undefined;
+    if (!parsed.success) {
+      return undefined;
+    }
+    return { body: parsed.data, bodyText: raw };
   } catch {
     // A corrupt cache is a miss; it self-heals on the next fetch.
     return undefined;
@@ -54,8 +61,10 @@ function readCache(
  */
 export async function refreshRepos(
   deps: RepoCacheDeps,
-): Promise<{ body: ReposBody; bodyText: string }> {
-  const response = await deps.client.request({ path: "/api/repos" });
+): Promise<{ body: ListReposResponse; bodyText: string }> {
+  const response = await deps.client.request({
+    path: buildOperationPath(ProductQueryIds.LIST_REPOS, {}),
+  });
   const parsed = reposBodySchema.safeParse(JSON.parse(response.bodyText));
   if (!parsed.success) {
     throw new CliError(
@@ -72,7 +81,7 @@ export async function refreshRepos(
 export async function loadRepos(
   deps: RepoCacheDeps,
   options: { readonly refresh: boolean },
-): Promise<{ body: ReposBody; bodyText: string }> {
+): Promise<{ body: ListReposResponse; bodyText: string }> {
   if (!options.refresh) {
     const cached = readCache(deps);
     if (cached !== undefined) {

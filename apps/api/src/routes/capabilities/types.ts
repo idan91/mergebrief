@@ -1,6 +1,0 @@
-import type { CatalogOperation } from "../../product-operations/catalog";
-
-/** The response body: the catalog's fields per operation. */
-export interface CapabilitiesBody {
-  readonly operations: readonly CatalogOperation[];
-}

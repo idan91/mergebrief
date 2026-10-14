@@ -1,6 +1,7 @@
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import {
+  buildOperationPath,
   LocalBriefKinds,
   ProductActionIds,
   ProductQueryIds,
@@ -14,16 +15,12 @@ import {
 import { HttpStatuses } from "types/http";
 import { z } from "zod/v4";
 
-import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   ApiError,
   ApiErrorCodes,
-  apiFetch,
-  apiJsonFromResponse,
-  errorFromResponse,
   type ApiErrorCode,
 } from "../../data/apiFetch";
-import { request } from "../../data/request";
+import { request, requestText } from "../../data/request";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import { FileRangeResultKinds } from "./model/expansion/types";
 import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
@@ -31,8 +28,8 @@ import {
   generateBriefResponseSchema,
   parseAddressedReviewComments,
   parseComparisonMarks,
+  localBriefSummariesSchema,
   parseFileDiffPatches,
-  parseLocalBriefSummaries,
 } from "./model/schemas";
 import {
   parseBrief,
@@ -58,12 +55,15 @@ export function generateBriefViaApi(
   );
 }
 
-const LOCAL_BRIEFS_PATH = "/api/local-briefs";
+type LocalSidecarOperationId =
+  | typeof ProductQueryIds.READ_LOCAL_BRIEF_DIFFS
+  | typeof ProductQueryIds.READ_LOCAL_COMPARISON_MARKS
+  | typeof ProductQueryIds.READ_LOCAL_REVISION_NARRATIVE;
 
-function buildLocalBriefPath(id: string, sidecar?: string): string {
-  const base = `${LOCAL_BRIEFS_PATH}/${encodeURIComponent(id)}`;
-  const path = sidecar === undefined ? base : `${base}/${sidecar}`;
-  return path;
+function isNotFoundError(error: unknown): boolean {
+  const notFound =
+    error instanceof ApiError && error.status === HttpStatuses.NOT_FOUND;
+  return notFound;
 }
 
 /** A local artifact the API served but this build cannot read. */
@@ -89,33 +89,85 @@ const localBriefViewSchema = z.object({
 
 /** The stored body and its comments sidecar, read by the artifact kind's own reader. */
 async function parseLocalBriefView(
-  view: unknown,
+  view: LocalBriefView,
   path: string,
-  status: number,
 ): Promise<Brief> {
-  const parsedView = parseWithSchema(localBriefViewSchema, view);
-  if (!parsedView.ok) {
-    throw new ApiError(ApiErrorCodes.MALFORMED, status, path);
-  }
-  const localView: LocalBriefView = parsedView.value;
-
-  const text = JSON.stringify(localView.body);
+  const text = JSON.stringify(view.body);
   const parsed =
-    localView.artifactKind === LocalBriefKinds.DELTA
+    view.artifactKind === LocalBriefKinds.DELTA
       ? parseDeltaBrief(text)
       : parseBrief(text, await getSsrWarnSink());
   if (!parsed.ok) {
-    throw buildUnreadableError(path, status);
+    throw buildUnreadableError(path, HttpStatuses.OK);
   }
-  if (localView.reviewComments === undefined) {
+  if (view.reviewComments === undefined) {
     return parsed.value;
   }
 
-  const comments = parseAddressedReviewComments(localView.reviewComments);
+  const comments = parseAddressedReviewComments(view.reviewComments);
   if (!comments.ok) {
-    throw buildUnreadableError(path, status);
+    throw buildUnreadableError(path, HttpStatuses.OK);
   }
   return { ...parsed.value, reviewComments: comments.value };
+}
+
+/** With no out dir every path is unmounted: the 404 is zero local Briefs. */
+async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
+  try {
+    return await request(
+      ProductQueryIds.LIST_LOCAL_BRIEFS,
+      { params: {} },
+      localBriefSummariesSchema,
+    );
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+async function readLocalBrief(briefId: string): Promise<Brief> {
+  const params = { briefId };
+  const view = await request(
+    ProductQueryIds.READ_LOCAL_BRIEF,
+    { params },
+    localBriefViewSchema,
+  );
+  const path = buildOperationPath(ProductQueryIds.READ_LOCAL_BRIEF, params);
+  return parseLocalBriefView(view, path);
+}
+
+/** A sidecar's text; its 404 is `undefined`, any other refusal throws. */
+async function requestSidecarText(
+  operation: LocalSidecarOperationId,
+  briefId: string,
+): Promise<string | undefined> {
+  try {
+    return await requestText(operation, { params: { briefId } });
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/** The diffs sidecar is written with its artifact: a missing one is a broken set. */
+async function readLocalBriefDiffs(briefId: string): Promise<FileDiffPatch[]> {
+  const operation = ProductQueryIds.READ_LOCAL_BRIEF_DIFFS;
+  const path = buildOperationPath(operation, { briefId });
+  const text = await requestSidecarText(operation, briefId);
+  if (text === undefined) {
+    throw buildUnreadableError(path, HttpStatuses.NOT_FOUND);
+  }
+
+  const json = parseJsonText(text);
+  const patches = json.ok ? parseFileDiffPatches(json.value) : json;
+  if (!patches.ok) {
+    throw buildUnreadableError(path, HttpStatuses.OK);
+  }
+  return patches.value;
 }
 
 /**
@@ -125,18 +177,16 @@ async function parseLocalBriefView(
  * Any other refusal rejects.
  */
 async function readOptionalSidecar<Sidecar>(
-  path: string,
+  operation: LocalSidecarOperationId,
+  briefId: string,
   parse: (text: string) => Result<Sidecar>,
 ): Promise<Sidecar | undefined> {
-  const response = await apiFetch(path);
-  if (response.status === HttpStatuses.NOT_FOUND) {
+  const text = await requestSidecarText(operation, briefId);
+  if (text === undefined) {
     return undefined;
   }
-  if (!response.ok) {
-    throw await errorFromResponse(response, path);
-  }
 
-  const parsed = parse(await response.text());
+  const parsed = parse(text);
   if (!parsed.ok) {
     (await getSsrWarnSink())?.warn("local brief sidecar ignored: invalid", {
       reason: parsed.error,
@@ -152,41 +202,48 @@ function parseComparisonMarksText(text: string): Result<ComparisonMarks> {
   return marks;
 }
 
+async function readLocalComparisonMarks(
+  marksId: string,
+): Promise<ComparisonMarks> {
+  const marks = await readOptionalSidecar(
+    ProductQueryIds.READ_LOCAL_COMPARISON_MARKS,
+    marksId,
+    parseComparisonMarksText,
+  );
+  if (marks === undefined) {
+    throw new Error("comparison marks sidecar missing");
+  }
+  return marks;
+}
+
+async function readLocalRevisionNarrative(
+  narrativeId: string,
+): Promise<StoredRevisionNarrative> {
+  const sink = await getSsrWarnSink();
+  const narrative = await readOptionalSidecar(
+    ProductQueryIds.READ_LOCAL_REVISION_NARRATIVE,
+    narrativeId,
+    (text) => parseRevisionNarrativeArtifact(text, sink),
+  );
+  if (narrative === undefined) {
+    throw new Error("revision narrative sidecar missing");
+  }
+  return narrative;
+}
+
 export function buildLocalBriefQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["brief", "local", briefId],
-    queryFn: async (): Promise<Brief> => {
-      const path = buildLocalBriefPath(briefId);
-      const response = await apiFetch(path);
-      const view = await apiJsonFromResponse(response, path);
-      return parseLocalBriefView(view, path, response.status);
-    },
+    queryFn: () => readLocalBrief(briefId),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });
 }
 
-/** The diffs sidecar is written with its artifact: a missing one is a broken set. */
 export function buildLocalBriefDiffsQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["briefDiffs", "local", briefId],
-    queryFn: async (): Promise<FileDiffPatch[]> => {
-      const path = buildLocalBriefPath(briefId, "diffs");
-      const response = await apiFetch(path);
-      if (response.status === HttpStatuses.NOT_FOUND) {
-        throw buildUnreadableError(path, response.status);
-      }
-      if (!response.ok) {
-        throw await errorFromResponse(response, path);
-      }
-
-      const json = parseJsonText(await response.text());
-      const patches = json.ok ? parseFileDiffPatches(json.value) : json;
-      if (!patches.ok) {
-        throw buildUnreadableError(path, response.status);
-      }
-      return patches.value;
-    },
+    queryFn: () => readLocalBriefDiffs(briefId),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });
@@ -200,14 +257,7 @@ export function buildLocalComparisonMarksQueryOptions(marksId: string) {
   const queryKey: QueryKey = ["comparisonMarks", "local", marksId];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<ComparisonMarks> => {
-      const path = buildLocalBriefPath(marksId, "comparison-marks");
-      const marks = await readOptionalSidecar(path, parseComparisonMarksText);
-      if (marks === undefined) {
-        throw new Error("comparison marks sidecar missing");
-      }
-      return marks;
-    },
+    queryFn: () => readLocalComparisonMarks(marksId),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retryOnMount: false,
@@ -223,17 +273,7 @@ export function buildLocalRevisionNarrativeQueryOptions(narrativeId: string) {
   const queryKey: QueryKey = ["revisionNarrative", "local", narrativeId];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<StoredRevisionNarrative> => {
-      const path = buildLocalBriefPath(narrativeId, "revision-narrative");
-      const sink = await getSsrWarnSink();
-      const narrative = await readOptionalSidecar(path, (text) =>
-        parseRevisionNarrativeArtifact(text, sink),
-      );
-      if (narrative === undefined) {
-        throw new Error("revision narrative sidecar missing");
-      }
-      return narrative;
-    },
+    queryFn: () => readLocalRevisionNarrative(narrativeId),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retryOnMount: false,
@@ -241,27 +281,10 @@ export function buildLocalRevisionNarrativeQueryOptions(narrativeId: string) {
   });
 }
 
-/** With no out dir every path is unmounted: the 404 is zero local Briefs. */
 export function buildLocalBriefsQueryOptions() {
   return queryOptions({
     queryKey: ["briefs", "local"],
-    queryFn: async (): Promise<LocalBriefSummary[]> => {
-      const response = await apiFetch(LOCAL_BRIEFS_PATH);
-      if (response.status === HttpStatuses.NOT_FOUND) {
-        return [];
-      }
-
-      const body = await apiJsonFromResponse(response, LOCAL_BRIEFS_PATH);
-      const summaries = parseLocalBriefSummaries(body);
-      if (!summaries.ok) {
-        throw new ApiError(
-          ApiErrorCodes.MALFORMED,
-          response.status,
-          LOCAL_BRIEFS_PATH,
-        );
-      }
-      return summaries.value;
-    },
+    queryFn: listLocalBriefs,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });

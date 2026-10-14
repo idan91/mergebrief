@@ -2,17 +2,32 @@
 // registered operations joined with what only this binary knows (its command
 // map and version). `--require` is a fail-closed compatibility check
 // (exit 6), never negotiation.
+import { ProductQueryIds, type CatalogOperation } from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import { labelArm, parseOperationsMap, type CliArm } from "./capabilities-map";
 import type { ReadIo } from "./read";
+import { buildRequestPath } from "./request-path";
+
+/**
+ * The one field of each `read-capabilities` operation the join reads. The key
+ * comes from the contract; the value is any string, so a newer server's
+ * operation id still parses.
+ */
+type CapabilitySlice = Readonly<
+  Record<keyof Pick<CatalogOperation, "id">, string>
+>;
+
+interface CapabilitiesSlice {
+  readonly operations: readonly CapabilitySlice[];
+}
 
 // Tolerant-read slice: only the join key is required; every other server
 // field passes through untouched (additive-only tolerance).
 const responseSliceSchema = z.object({
   operations: z.array(z.object({ id: z.string() }).loose()),
-});
+}) satisfies z.ZodType<CapabilitiesSlice>;
 
 export interface CapabilitiesRunDeps {
   readonly client: ApiClient;
@@ -28,7 +43,9 @@ export async function runCapabilities(
 ): Promise<void> {
   const entries = parseOperationsMap(deps.operationsMapRaw);
 
-  const response = await deps.client.request({ path: "/api/capabilities" });
+  const response = await deps.client.request({
+    path: buildRequestPath(ProductQueryIds.READ_CAPABILITIES, {}),
+  });
   const raw: unknown = JSON.parse(response.bodyText);
   const parsed = responseSliceSchema.safeParse(raw);
   if (!parsed.success) {

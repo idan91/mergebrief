@@ -6,6 +6,7 @@ import type { Equals } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
 
+import type { ReadsWireFields } from "@web/test/wire-fields";
 import type { generateBriefResponseSchema } from "./model/schemas";
 
 const apiFetch = vi.hoisted(() => vi.fn());
@@ -21,13 +22,9 @@ const generateResponsePin = true satisfies Equals<
   GenerateBriefResponse
 >;
 
-/** Every field the parser reads is one the contract sends. */
-const readsWireFieldsPin = true satisfies Equals<
-  Exclude<
-    keyof z.input<typeof generateBriefResponseSchema>,
-    keyof GenerateBriefResponse
-  >,
-  never
+const readsWireFieldsPin = true satisfies ReadsWireFields<
+  z.input<typeof generateBriefResponseSchema>,
+  GenerateBriefResponse
 >;
 
 function jsonResponse(body: unknown, status: number): Response {

@@ -16,6 +16,7 @@ const {
   buildLocalRevisionNarrativeQueryOptions,
 } = await import("./queries");
 
+const GET_INIT = { method: "GET" };
 const BRIEF_ID = "repo-7_2_bbbbbbbb";
 const BRIEF_PATH = `/api/local-briefs/${BRIEF_ID}`;
 const PR = {
@@ -120,7 +121,7 @@ describe("buildLocalBriefsQueryOptions", () => {
     await expect(runQuery(buildLocalBriefsQueryOptions())).resolves.toEqual([
       row,
     ]);
-    expect(apiFetch).toHaveBeenCalledWith("/api/local-briefs");
+    expect(apiFetch).toHaveBeenCalledWith("/api/local-briefs", GET_INIT);
   });
 
   it("answers no rows when the surface is unmounted", async () => {
@@ -155,7 +156,7 @@ describe("buildLocalBriefQueryOptions", () => {
       summary: "s",
     });
     expect(brief).toHaveProperty("reviewComments", [PARSED_REVIEW_COMMENT]);
-    expect(apiFetch).toHaveBeenCalledWith(BRIEF_PATH);
+    expect(apiFetch).toHaveBeenCalledWith(BRIEF_PATH, GET_INIT);
   });
 
   it("reads a delta through the delta reader", async () => {
@@ -218,7 +219,7 @@ describe("buildLocalBriefQueryOptions", () => {
     await expect(
       runQuery(buildLocalBriefQueryOptions("a/b")),
     ).rejects.toMatchObject({ code: "invalid-request" });
-    expect(apiFetch).toHaveBeenCalledWith("/api/local-briefs/a%2Fb");
+    expect(apiFetch).toHaveBeenCalledWith("/api/local-briefs/a%2Fb", GET_INIT);
   });
 });
 
@@ -230,7 +231,7 @@ describe("buildLocalBriefDiffsQueryOptions", () => {
     await expect(
       runQuery(buildLocalBriefDiffsQueryOptions(BRIEF_ID)),
     ).resolves.toEqual(patches);
-    expect(apiFetch).toHaveBeenCalledWith(`${BRIEF_PATH}/diffs`);
+    expect(apiFetch).toHaveBeenCalledWith(`${BRIEF_PATH}/diffs`, GET_INIT);
   });
 
   it.each([
@@ -264,6 +265,7 @@ describe("buildLocalComparisonMarksQueryOptions", () => {
     ).resolves.toStrictEqual(parsed);
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/local-briefs/m1/comparison-marks",
+      GET_INIT,
     );
   });
 
@@ -285,6 +287,7 @@ describe("buildLocalRevisionNarrativeQueryOptions", () => {
     ).rejects.toThrow("sidecar missing");
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/local-briefs/n1/revision-narrative",
+      GET_INIT,
     );
   });
 });

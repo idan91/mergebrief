@@ -31,6 +31,7 @@ import {
 } from "./harness/api";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import { runCli, type CliDeps } from "../src/program";
+import type { FetchLike } from "../src/client";
 
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
@@ -122,6 +123,21 @@ function readReceiptField(out: string, field: string): string {
     throw new Error(`no ${field} in receipt: ${out}`);
   }
   return value;
+}
+
+/** The real app answers every call; the upload's receipt body is swapped. */
+function stubUploadReceipt(fetch: FetchLike, receipt: string): FetchLike {
+  return async (input, init) => {
+    const response = await fetch(input, init);
+    const isUpload = init?.method === "POST" && input.endsWith("/attachments");
+    if (!isUpload) {
+      return response;
+    }
+    return new Response(receipt, {
+      status: response.status,
+      headers: response.headers,
+    });
+  };
 }
 
 describe("draft attach over the real api app", () => {
@@ -378,6 +394,76 @@ describe("draft attach over the real api app", () => {
     expect(
       world.github.requested.filter((path) => path.includes("/git/refs")),
     ).toHaveLength(1);
+  });
+
+  async function createHeldDraft(): Promise<string> {
+    const created = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--start",
+      "10",
+      "--end",
+      "12",
+      "--body",
+      "tighten this",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(created.code).toBe(ExitCodes.OK);
+    return readReceiptField(created.out, "draftId");
+  }
+
+  it.each([
+    ["no url", "{}"],
+    ["a non-string url", JSON.stringify({ url: 5 })],
+  ])("refuses an upload receipt with %s, exit 1", async (_label, receipt) => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const draftId = await createHeldDraft();
+    appFetch = stubUploadReceipt(world.fetch, receipt);
+
+    const attached = await run([
+      "draft",
+      "attach",
+      "7",
+      imagePath,
+      "--draft",
+      draftId,
+      ...SPAN,
+      "--json",
+    ]);
+
+    expect(attached.code).toBe(ExitCodes.GENERIC);
+    expect(attached.out).toBe("");
+    expect(attached.err).toEqual(["upload receipt carried no url"]);
+  });
+
+  it("reads the url from a receipt that carries extra fields", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const draftId = await createHeldDraft();
+    const url = "https://github.com/octo/hello/blob/x/a.png?raw=true";
+    const receipt = JSON.stringify({ url, size: 9 });
+    appFetch = stubUploadReceipt(world.fetch, receipt);
+
+    const attached = await run([
+      "draft",
+      "attach",
+      "7",
+      imagePath,
+      "--draft",
+      draftId,
+      ...SPAN,
+      "--json",
+    ]);
+
+    expect(attached.code).toBe(ExitCodes.OK);
+    expect(attached.out).toBe(receipt);
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain(`tighten this\\n\\n![Image](${url})`);
   });
 
   it("a draft that is not held is refused before any push, exit 4", async () => {

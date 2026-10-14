@@ -1,6 +1,8 @@
 import {
   AttachmentSourceKinds,
+  buildOperationPath,
   parseAttachmentSource,
+  ProductQueryIds,
   type AttachmentSource,
 } from "contract";
 import type { Element } from "hast";
@@ -56,7 +58,11 @@ export function buildAttachmentProxyPath(
   scope: AttachmentScope,
   target: string,
 ): string {
-  return `/api/repos/${scope.repoId}/pulls/${scope.prNumber}/attachments/${target}`;
+  return buildOperationPath(ProductQueryIds.READ_ATTACHMENT, {
+    repoId: scope.repoId,
+    prNumber: scope.prNumber,
+    assetId: target,
+  });
 }
 
 function readProxyTarget(source: AttachmentSource): string {

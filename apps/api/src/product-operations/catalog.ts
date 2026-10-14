@@ -1,12 +1,5 @@
+import type { CatalogOperation } from "contract";
 import type { ProductOperationDescriptor } from "./types";
-
-/** The wire catalog's fields; the descriptor's policy stays api-side. */
-export interface CatalogOperation {
-  readonly id: ProductOperationDescriptor["id"];
-  readonly kind: ProductOperationDescriptor["kind"];
-  readonly classification: ProductOperationDescriptor["classification"];
-  readonly endpoint: ProductOperationDescriptor["endpoint"];
-}
 
 /** Field order pinned here, not by descriptor construction order. */
 export function shapeCatalogOperations(

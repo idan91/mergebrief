@@ -24,6 +24,7 @@ export {
   type AttachmentSource,
   type AttachmentSourceKind,
   type BranchAttachmentSource,
+  type UploadAttachmentResponse,
 } from "./attachments";
 export {
   AttentionItemKinds,
@@ -38,6 +39,10 @@ export {
   type LineAttentionLocation,
 } from "./attention";
 export { RequestBounds } from "./bounds";
+export type {
+  CatalogOperation,
+  ReadCapabilitiesResponse,
+} from "./capabilities";
 export type {
   CollaboratorsResponse,
   CollaboratorView,
@@ -113,6 +118,7 @@ export {
   type ProductQueryRow,
 } from "./operations/types";
 export type { PullMetaView } from "./pull-meta";
+export type { ListReposResponse, RepoView } from "./repos";
 export type { SubmitReviewBody, SubmitReviewResponse } from "./review";
 export type {
   AddressRiskBody,

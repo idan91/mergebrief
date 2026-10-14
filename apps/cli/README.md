@@ -6,9 +6,9 @@ the interactive surface.
 
 Published to npm by the release workflow as `mergebrief@X.Y.Z`; this
 monorepo dogfoods the dev build via `pnpm --dir apps/cli link-dev`. Humans: `npm i -g mergebrief`.
-Agents/CI: `npx mergebrief` — always-latest is safe, the output contract is
-additive-only (see below). Pinning is supported but never required for
-compatibility.
+Agents/CI: `npx mergebrief`. Once released, always-latest is safe: the
+output contract is additive within a major (see below). Pinning is supported
+but never required for compatibility.
 
 ## Quickstart
 
@@ -65,10 +65,11 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
   verbatim — one canonical shape across web, API, and CLI. Exactly three
   shapes are CLI-synthesized: the `delta` union, `auth status`, and
   `capabilities`.
-- **Additive-only, even pre-1.0:** fields are never removed, renamed, or
-  retyped within a major; new fields may appear any release — read
-  tolerantly. Breaking changes ship expand/contract with a deprecation
-  window in the changelog.
+- **Additive within a major, once released:** fields are never removed,
+  renamed, or retyped within a major; new fields may appear any release;
+  read tolerantly. Breaking changes ship expand/contract with a deprecation
+  window in the changelog. Before the first release, fields may still be
+  removed; each removal is listed in `docs/api-changelog.md`.
 - `--json` is an explicit flag. TTY rendering is non-contractual.
 
 ### Exit codes (additive-only, never renumbered)

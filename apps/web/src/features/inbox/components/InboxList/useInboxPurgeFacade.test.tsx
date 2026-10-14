@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InboxItem } from "../../types";
 import { useInboxPurgeFacade } from "./useInboxPurgeFacade";
 
+const INDETERMINATE_COPY =
+  "We could not confirm the attachment branch was deleted. Check the repository on GitHub.";
+
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
 
@@ -133,8 +136,34 @@ describe("useInboxPurgeFacade", () => {
     );
   });
 
-  it("a dropped connection announces the failure and frees the modal", async () => {
+  it("a dropped connection says the delete is unconfirmed", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { result, announce } = renderFacade();
+    act(() => result.current.requestPurge(makeItem()));
+
+    await act(async () => {
+      await result.current.confirm();
+    });
+
+    expect(announce).toHaveBeenCalledWith(INDETERMINATE_COPY);
+    expect(result.current.pending).toBeUndefined();
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("a gateway timeout says the delete is unconfirmed", async () => {
+    answerWith(504, { error: "x", code: "internal-error" });
+    const { result, announce } = renderFacade();
+    act(() => result.current.requestPurge(makeItem()));
+
+    await act(async () => {
+      await result.current.confirm();
+    });
+
+    expect(announce).toHaveBeenCalledWith(INDETERMINATE_COPY);
+  });
+
+  it("a bad gateway keeps the failed copy", async () => {
+    answerWith(502, { error: "x", code: "github-unavailable" });
     const { result, announce } = renderFacade();
     act(() => result.current.requestPurge(makeItem()));
 
@@ -145,8 +174,6 @@ describe("useInboxPurgeFacade", () => {
     expect(announce).toHaveBeenCalledWith(
       "Delete failed; the attachment branch is still there",
     );
-    expect(result.current.pending).toBeUndefined();
-    expect(result.current.busy).toBe(false);
   });
 
   it("confirming with nothing pending makes no request", async () => {

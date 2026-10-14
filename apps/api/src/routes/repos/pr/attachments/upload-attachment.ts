@@ -1,4 +1,8 @@
-import { ATTACHMENT_BRANCH, buildAttachmentBranchUrl } from "contract";
+import {
+  ATTACHMENT_BRANCH,
+  buildAttachmentBranchUrl,
+  type UploadAttachmentResponse,
+} from "contract";
 import type { Result } from "types/utils";
 import { bindRepoInstallationGitHub } from "../../../../access/installation-binding";
 import type {
@@ -7,11 +11,7 @@ import type {
 } from "../../../../access/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { fetchFreshRepository } from "../../logic/fresh-repository";
-import type {
-  UploadAttachmentFailure,
-  UploadAttachmentInput,
-  UploadedAttachment,
-} from "./types";
+import type { UploadAttachmentFailure, UploadAttachmentInput } from "./types";
 
 /**
  * The repo is re-resolved fresh on the viewer's binding right before the
@@ -22,7 +22,7 @@ export async function uploadAttachment(
   deps: InstallationBindingDeps,
   access: RepoAccess,
   input: UploadAttachmentInput,
-): Promise<Result<UploadedAttachment, UploadAttachmentFailure>> {
+): Promise<Result<UploadAttachmentResponse, UploadAttachmentFailure>> {
   const fresh = await fetchFreshRepository(access.github, access.repoId);
   if (!fresh.ok) {
     return fresh;

@@ -58,6 +58,13 @@ what is promised, and how the contract evolves without breaking consumers
    release; consumers tolerant-read. Holds explicitly even pre-1.0. The
    accepted consequence: API response shapes become a public contract — a
    discipline that is de facto required once any external client exists.
+   **Amended (2026-10-12, BRIEF-333):** the promise starts at the first
+   public release, not before it. While nothing has shipped there is no
+   external client to protect, so pre-release removals and renames are
+   allowed; each one is listed in `docs/api-changelog.md`. BRIEF-333 used
+   this window to drop `{ok:true}` bodies, echo bodies and the catalog
+   fingerprint before rc.1. A 204 success prints nothing (exit 0 stays the
+   signal).
 4. **Breaking changes = expand/contract, never "migrations".** Ship new
    alongside old (additive) → deprecate in the changelog → remove only at a
    major bump. The deprecation window keeps old CLI versions working

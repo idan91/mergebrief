@@ -129,10 +129,5 @@ export interface UploadAttachmentInput {
   readonly bytes: Uint8Array;
 }
 
-export interface UploadedAttachment {
-  /** The branch URL a comment carries; GitHub renders it inline. */
-  readonly url: string;
-}
-
 /** The fresh re-resolve's refusal, then the push's, wrapped whole. */
 export type UploadAttachmentFailure = GitHubDeniedFailure<GitHubCallFailure>;

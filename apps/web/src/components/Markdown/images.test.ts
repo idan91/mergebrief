@@ -63,6 +63,16 @@ describe("rehypeProxyAttachmentSources", () => {
     );
   });
 
+  it("encodes the repository id into the proxy path", () => {
+    const tree = makeTree(makeImage(ASSET_URL));
+
+    rehypeProxyAttachmentSources({ ...SCOPE, repoId: "a/b" })(tree);
+
+    expect(readSource(tree, 0)).toBe(
+      `/api/repos/a%2Fb/pulls/7/attachments/${ASSET_ID}`,
+    );
+  });
+
   it("leaves any other source untouched", () => {
     const tree = makeTree(makeImage("https://example.com/a.png"));
 

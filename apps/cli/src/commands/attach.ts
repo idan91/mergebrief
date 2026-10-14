@@ -1,7 +1,14 @@
 // `draft attach`: post an image through the API's upload route and answer
 // the branch URL a comment carries. With `--draft` the URL is also appended
 // to a held draft's body, so an agent can attach in one call.
-import { ProductActionIds, ProductOperations, ProductQueryIds } from "contract";
+import {
+  AttachmentMediaTypes,
+  ProductActionIds,
+  ProductOperations,
+  ProductQueryIds,
+  type UploadAttachmentResponse,
+} from "contract";
+import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import type { BriefSpan } from "./write";
@@ -20,6 +27,10 @@ const GIF_SIGNATURE = [0x47, 0x49, 0x46, 0x38];
 const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46];
 const WEBP_TAG = [0x57, 0x45, 0x42, 0x50];
 const WEBP_TAG_OFFSET = 8;
+
+const uploadReceiptSchema = z.object({
+  url: z.string(),
+}) satisfies z.ZodType<UploadAttachmentResponse>;
 
 export interface AttachmentFile {
   readonly bytes: Uint8Array;
@@ -53,19 +64,19 @@ function startsWith(
 /** The image type the leading bytes declare; anything else goes up untyped. */
 export function resolveAttachmentMediaType(bytes: Uint8Array): string {
   if (startsWith(bytes, PNG_SIGNATURE)) {
-    return "image/png";
+    return AttachmentMediaTypes.PNG;
   }
   if (startsWith(bytes, JPEG_SIGNATURE)) {
-    return "image/jpeg";
+    return AttachmentMediaTypes.JPEG;
   }
   if (startsWith(bytes, GIF_SIGNATURE)) {
-    return "image/gif";
+    return AttachmentMediaTypes.GIF;
   }
   if (
     startsWith(bytes, RIFF_SIGNATURE) &&
     startsWith(bytes, WEBP_TAG, WEBP_TAG_OFFSET)
   ) {
-    return "image/webp";
+    return AttachmentMediaTypes.WEBP;
   }
   return OCTET_STREAM;
 }
@@ -91,11 +102,11 @@ function readUploadedUrl(bodyText: string): string {
   } catch {
     throw new CliError(ExitCodes.GENERIC, "upload receipt was not json");
   }
-  const url = isRecord(parsed) ? parsed["url"] : undefined;
-  if (typeof url !== "string") {
+  const receipt = uploadReceiptSchema.safeParse(parsed);
+  if (!receipt.success) {
     throw new CliError(ExitCodes.GENERIC, "upload receipt carried no url");
   }
-  return url;
+  return receipt.data.url;
 }
 
 /** The held draft's current body, read from the session the span names. */
@@ -183,9 +194,13 @@ export async function runAttach(
     await readDraftBody(client, options, options.draft);
   }
 
+  const upload = ProductActionIds.UPLOAD_ATTACHMENT;
   const uploaded = await client.request({
-    method: "POST",
-    path: `/api/repos/${options.repoId}/pulls/${options.prNumber}/attachments`,
+    method: ProductOperations[upload].method,
+    path: buildRequestPath(upload, {
+      repoId: options.repoId,
+      prNumber: options.prNumber,
+    }),
     bytes: { body: options.file.bytes, contentType: options.file.mediaType },
   });
 

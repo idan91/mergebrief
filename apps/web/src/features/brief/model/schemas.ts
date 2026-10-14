@@ -147,10 +147,12 @@ export function parseFileDiffPatches(
 }
 
 /** `GET /api/local-briefs`: the dev file surface's listing rows. */
+export const localBriefSummariesSchema = z.array(localBriefSummarySchema);
+
 export function parseLocalBriefSummaries(
   value: unknown,
 ): Result<LocalBriefSummary[], string> {
-  return parseWithSchema(z.array(localBriefSummarySchema), value);
+  return parseWithSchema(localBriefSummariesSchema, value);
 }
 
 export const generateBriefResponseSchema = z

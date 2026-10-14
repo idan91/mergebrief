@@ -13,8 +13,10 @@ none of them appear in `--help`.
 - Reads and write receipts are the server's response bytes, verbatim.
   Exactly three shapes are CLI-synthesized: the `delta` union, `auth status`,
   and `capabilities`.
-- Additive-only within a major: fields are never removed, renamed, or
-  retyped. Ignore fields you do not recognize.
+- Once released, output is additive within a major: fields are never
+  removed, renamed, or retyped. Before the first release a field may still
+  be removed, and each removal is listed in the API changelog. Ignore fields
+  you do not recognize.
 - `diff` rejects `--json` (exit 2); its raw unified diff is the machine
   format.
 

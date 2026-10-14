@@ -6,7 +6,11 @@
 // GitHub failure is a 401 or 502 rather than a DB-only fallback. Beneath it
 // sit the per-repo attachments purge and collaborators leaves and the per-PR
 // subtree, all behind the ONE repo gate mounted over `/:repoId/*`.
-import { ApiErrorCodes, ProductQueryIds } from "contract";
+import {
+  ApiErrorCodes,
+  ProductQueryIds,
+  type ListReposResponse,
+} from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";
 import { createAuthzMiddleware } from "../../access";
@@ -48,7 +52,8 @@ function createListReposHandler(
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
 
-    return c.json(listed.value, HttpStatuses.OK, NO_STORE);
+    const body: ListReposResponse = listed.value;
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }
 

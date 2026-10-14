@@ -499,6 +499,7 @@ function makeRetryAtDate(offsetSeconds: number): string {
 
 interface AttachHarnessProps {
   readonly initial?: string;
+  readonly repoId?: string;
   readonly installed?: boolean;
   readonly scoped?: boolean;
   readonly readOnly?: boolean;
@@ -510,6 +511,7 @@ interface AttachHarnessProps {
 
 function AttachHarness({
   initial = "",
+  repoId = "555",
   installed = true,
   scoped = true,
   readOnly = false,
@@ -535,7 +537,7 @@ function AttachHarness({
     return editor;
   }
   return (
-    <AttachmentScopeProvider installed={installed} prNumber={7} repoId="555">
+    <AttachmentScopeProvider installed={installed} prNumber={7} repoId={repoId}>
       {editor}
     </AttachmentScopeProvider>
   );
@@ -648,6 +650,38 @@ describe("MarkdownTextarea image attachments", () => {
     await flush();
 
     expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
+  });
+
+  it("encodes the repository id into the upload path", async () => {
+    apiFetchMock.mockResolvedValueOnce(uploadedResponse());
+    render(<AttachHarness repoId="a/b" />);
+
+    fireEvent.paste(textarea(), {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    const [path] = apiFetchMock.mock.calls[0] ?? [];
+    expect(path).toBe("/api/repos/a%2Fb/pulls/7/attachments");
+  });
+
+  it("removes the placeholder when the receipt carries no url", async () => {
+    const onAttachError = vi.fn();
+    apiFetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ url: 7 }), { status: 201 }),
+    );
+    render(<AttachHarness onAttachError={onAttachError} />);
+    const input = textarea();
+
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    expect(input.value).toBe("");
+    expect(onAttachError).toHaveBeenCalledWith(
+      "The image could not be uploaded. It was not attached; try again.",
+    );
   });
 
   it("removes the placeholder and reports a refused push", async () => {

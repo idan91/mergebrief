@@ -1,8 +1,8 @@
 import type { AuthSessionResponse, ViewerView } from "contract";
 import { describe, expect, it } from "vitest";
-import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
+import type { ReadsWireFields } from "@web/test/wire-fields";
 import {
   parseViewer,
   type sessionBodySchema,
@@ -47,12 +47,6 @@ describe("parseViewer", () => {
     expect(parseViewer({ viewer: { login: "octocat" } })).toEqual(unknown);
   });
 });
-
-/** Every field the parser reads is one the contract sends. */
-type ReadsWireFields<Parsed, Wire> = Equals<
-  Exclude<keyof Parsed, keyof Wire>,
-  never
->;
 
 const CONTRACT_PINS = {
   AuthSessionResponse: true satisfies ReadsWireFields<

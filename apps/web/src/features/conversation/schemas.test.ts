@@ -19,6 +19,7 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import { UNSAFE_LINKS } from "@web/test/links";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
+import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import {
   collaboratorsResponseSchema,
@@ -400,12 +401,6 @@ describe("conversation schemas match their interfaces", () => {
     expect(pinned).toBe(true);
   });
 });
-
-/** Every field the parser reads is one the contract sends. */
-type ReadsWireFields<Parsed, Wire> = Equals<
-  Exclude<keyof Parsed, keyof Wire>,
-  never
->;
 
 const CONTRACT_PINS = {
   ConversationAuthor: true satisfies ReadsWireFields<

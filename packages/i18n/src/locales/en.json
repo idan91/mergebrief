@@ -1280,6 +1280,7 @@
         "purgeDisabled": "This repository does not let the App delete the branch; delete mergebrief/attachments on GitHub",
         "purgeAppPermission": "The MergeBrief App may not write to this repository, so the branch stays; delete mergebrief/attachments on GitHub",
         "purgeFailed": "Delete failed; the attachment branch is still there",
+        "purgeIndeterminate": "We could not confirm the attachment branch was deleted. Check the repository on GitHub.",
         "deleted": "Deleted",
         "regenerate": "Regenerate",
         "regenerateQueued": "Regenerate queued",

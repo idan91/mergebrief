@@ -10,6 +10,7 @@ import type { Equals, Result } from "types/utils";
 import type { z } from "zod/v4";
 
 import { parseWithSchema } from "@web/utils/parse-with-schema";
+import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import {
   type apiTokenSchema,
@@ -134,12 +135,6 @@ const SCHEMA_PINS = {
     MintedToken
   >,
 } as const;
-
-/** Every field the parser reads is one the contract sends. */
-type ReadsWireFields<Parsed, Wire> = Equals<
-  Exclude<keyof Parsed, keyof Wire>,
-  never
->;
 
 const CONTRACT_PINS = {
   ApiTokenView: true satisfies ReadsWireFields<

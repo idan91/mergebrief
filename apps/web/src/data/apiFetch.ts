@@ -233,8 +233,3 @@ export async function apiJsonFromResponse(
     throw new ApiError(WebApiErrorCodes.MALFORMED, response.status, path);
   }
 }
-
-/** `apiFetch` + JSON mapping in one step (the queryFn workhorse). */
-export async function apiFetchJson(path: string): Promise<unknown> {
-  return apiJsonFromResponse(await apiFetch(path), path);
-}

@@ -51,3 +51,9 @@ export interface AttachmentBranchLocation {
   readonly repo: string;
   readonly fileName: string;
 }
+
+/** What `upload-attachment` answers, with 201. */
+export interface UploadAttachmentResponse {
+  /** The branch URL a comment carries; GitHub renders it inline. */
+  readonly url: string;
+}

@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
   ATTACHMENT_MAX_BYTES,
   AttachmentMediaTypes,
+  buildOperationPath,
+  ProductActionIds,
   type AttachmentMediaType,
 } from "contract";
 
@@ -16,13 +18,13 @@ import {
 } from "@web/data/apiFetch";
 import type { Result } from "types/utils";
 import { useAttachmentScope } from "../Markdown/context";
+import { parseUploadAttachmentResponse } from "./schemas";
 import { AttachDisabledReasons, type AttachDisabledReason } from "./types";
 import {
   buildImageMarkdown,
   buildUploadPlaceholders,
   insertPlaceholder,
   parseRetryAfterSeconds,
-  readUploadedUrl,
   replacePlaceholder,
   type TextEdit,
 } from "./utils";
@@ -152,7 +154,10 @@ function isAttachmentMediaType(value: string): value is AttachmentMediaType {
 }
 
 function buildUploadPath(repoId: string, prNumber: number): string {
-  return `/api/repos/${repoId}/pulls/${prNumber}/attachments`;
+  return buildOperationPath(ProductActionIds.UPLOAD_ATTACHMENT, {
+    repoId,
+    prNumber,
+  });
 }
 
 function failureCopy(t: TFunction, error: unknown): string {
@@ -241,12 +246,12 @@ async function uploadImage(
       const cause = await errorFromResponse(response, path);
       return { ok: false, error: { cause, retryAfterMs } };
     }
-    const url = readUploadedUrl(await response.json());
-    if (url === undefined) {
+    const receipt = parseUploadAttachmentResponse(await response.json());
+    if (!receipt.ok) {
       const cause = new Error("upload receipt carried no url");
       return { ok: false, error: { cause } };
     }
-    return { ok: true, value: url };
+    return { ok: true, value: receipt.value.url };
   } catch (error) {
     return { ok: false, error: { cause: error } };
   }

@@ -26,6 +26,7 @@ import {
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
 
+import type { ReadsWireFields } from "@web/test/wire-fields";
 import type { SessionAttentionItem } from "./attention";
 import {
   parseReviewSessionPayload,
@@ -383,12 +384,6 @@ describe("session schemas match their interfaces", () => {
     expect(pinned).toBe(true);
   });
 });
-
-/** Every field the parser reads is one the contract sends. */
-type ReadsWireFields<Parsed, Wire> = Equals<
-  Exclude<keyof Parsed, keyof Wire>,
-  never
->;
 
 const CONTRACT_PINS = {
   SessionPayload: true satisfies ReadsWireFields<

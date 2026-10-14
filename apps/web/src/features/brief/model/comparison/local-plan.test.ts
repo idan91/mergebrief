@@ -129,7 +129,7 @@ describe("buildLocalComparisonPlan", () => {
     const marks = await makeQueryClient().fetchQuery(plan.previousBrief!.marks);
 
     expect(marks).toEqual(MARKS);
-    expect(apiFetch).toHaveBeenCalledWith(MARKS_PREV_PATH);
+    expect(apiFetch).toHaveBeenCalledWith(MARKS_PREV_PATH, { method: "GET" });
     expect(plan.lastReview).toBeUndefined();
   });
 
@@ -193,7 +193,7 @@ describe("buildLocalComparisonPlan", () => {
     );
 
     expect(narrative).toEqual(SKIPPED_NARRATIVE);
-    expect(apiFetch).toHaveBeenCalledWith(NARRATIVE_PATH);
+    expect(apiFetch).toHaveBeenCalledWith(NARRATIVE_PATH, { method: "GET" });
   });
 
   it("offers a marks-only last review when no delta was written", async () => {
@@ -234,8 +234,8 @@ describe("buildLocalComparisonPlan delta", () => {
 
     const delta = await makeQueryClient().fetchQuery(plan.lastReview!.delta!);
 
-    expect(apiFetch).toHaveBeenCalledWith(DELTA_PATH);
-    expect(apiFetch).toHaveBeenCalledWith(DELTA_DIFFS_PATH);
+    expect(apiFetch).toHaveBeenCalledWith(DELTA_PATH, { method: "GET" });
+    expect(apiFetch).toHaveBeenCalledWith(DELTA_DIFFS_PATH, { method: "GET" });
     const rows = delta.chunks[0]?.diff ?? [];
     expect(rows.map((row) => row.kind)).toEqual(["hunk", "add"]);
   });

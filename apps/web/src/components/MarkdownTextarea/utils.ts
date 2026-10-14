@@ -391,14 +391,6 @@ export function readImageFiles(transfer: DataTransfer | null): File[] {
   return [...transfer.files].filter((file) => file.type.startsWith("image/"));
 }
 
-/** The branch url an upload receipt carries, or undefined for any other body. */
-export function readUploadedUrl(body: unknown): string | undefined {
-  if (typeof body !== "object" || body === null || !("url" in body)) {
-    return undefined;
-  }
-  return typeof body.url === "string" ? body.url : undefined;
-}
-
 const WHOLE_SECONDS = /^\d+$/;
 const IMF_FIXDATE =
   /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;

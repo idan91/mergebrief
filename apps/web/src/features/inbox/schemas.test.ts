@@ -14,6 +14,7 @@ import type { z } from "zod/v4";
 
 import { UNSAFE_LINKS } from "@web/test/links";
 import { UnknownValues } from "@web/utils/open-enum/types";
+import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import {
   parseInboxResponse,
@@ -197,12 +198,6 @@ const SCHEMA_PINS = {
     InboxPage
   >,
 } as const;
-
-/** Every field the parser reads is one the contract sends. */
-type ReadsWireFields<Parsed, Wire> = Equals<
-  Exclude<keyof Parsed, keyof Wire>,
-  never
->;
 
 const CONTRACT_PINS = {
   InboxGeneration: true satisfies ReadsWireFields<
