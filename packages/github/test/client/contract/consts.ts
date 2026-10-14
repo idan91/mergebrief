@@ -6,6 +6,8 @@ export const HEAD_SHA = "b".repeat(40);
 export const BASE_SHA = "a".repeat(40);
 export const DIFF = "diff --git a/src/a.ts b/src/a.ts\n";
 export const ATTACHMENT_COMMIT_SHA = `${"0".repeat(39)}1`;
+export const UNKNOWN_SHA = "c".repeat(40);
+export const REPO_FILE_MAX_BYTES = 1024;
 
 export const REVIEWER_TOKEN = "ghu_reviewer";
 export const RENEWED_TOKEN = "ghu_reviewer_renewed";

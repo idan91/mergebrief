@@ -6,6 +6,7 @@ import type {
   RepositoryRef,
 } from "../operations/pull-request/types";
 import {
+  foldNotFoundToAbsent,
   RepoFileKinds,
   type GetRepoFileInput,
   type RepoFileResult,
@@ -24,8 +25,6 @@ import {
   type FakeWorld,
   type PullRequestState,
 } from "./world";
-
-const ABSENT_FILE: RepoFileResult = { kind: RepoFileKinds.ABSENT };
 
 export function readPullRequest<Value>(
   world: FakeWorld,
@@ -158,15 +157,15 @@ export function buildRepoReader(
         answer: () => readCompare(world, input, (compare) => compare.files),
       });
     },
-    fetchRepoFile(file) {
+    async fetchRepoFile(file) {
       const input = { ...file, ...bound };
-      return run({
+      const result = await run({
         operation: "fetchRepoFile",
         input,
         reach: { commits: [file.ref] },
         answer: () => readRepoFile(world, input),
-        onNotFound: () => ABSENT_FILE,
       });
+      return foldNotFoundToAbsent(result);
     },
     fetchPullRequestConversation(prNumber) {
       const input = { ...bound, prNumber };

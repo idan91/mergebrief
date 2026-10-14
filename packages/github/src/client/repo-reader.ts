@@ -8,7 +8,7 @@ import {
   fetchPullRequestFiles,
 } from "../operations/pull-request";
 import type { RepositoryRef } from "../operations/pull-request/types";
-import { getRepoFile } from "../operations/repo-file";
+import { foldNotFoundToAbsent, getRepoFile } from "../operations/repo-file";
 import type { RepoReader, RepoReadRunner } from "./types";
 
 export function buildRepoReader(
@@ -51,12 +51,13 @@ export function buildRepoReader(
         { commits: [span.base, span.head] },
       );
     },
-    fetchRepoFile(input) {
-      return run(
+    async fetchRepoFile(input) {
+      const result = await run(
         (octokit) => getRepoFile(octokit, { ...input, ...repo }),
         "fetch repo file",
         { commits: [input.ref] },
       );
+      return foldNotFoundToAbsent(result);
     },
     fetchPullRequestConversation(prNumber) {
       return run(

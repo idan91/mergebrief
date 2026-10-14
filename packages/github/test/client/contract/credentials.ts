@@ -16,10 +16,11 @@ import {
   REVIEWER_REPO_CASES,
 } from "./cases";
 import {
-  DENIAL_CODES,
   OPERATOR_READS,
   RENEWED_TOKEN,
+  REPO_FILE_MAX_BYTES,
   REVIEWER_TOKEN,
+  UNKNOWN_SHA,
   type DenialOutcome,
 } from "./consts";
 import {
@@ -27,6 +28,7 @@ import {
   type ContractAdapterFactory,
   type ContractCase,
 } from "./types";
+import { shapeDenialAnswer } from "./utils";
 
 const REPO_CASES: readonly ContractCase<ReviewerRepoClient>[] = [
   ...REPO_READER_CASES,
@@ -52,22 +54,14 @@ function stubUnreadableCredential(): ReviewerCredential {
   };
 }
 
-/** A fold wins first, then the operator's answer inside its reach. */
 function shapeFallbackAnswer(
   testCase: ContractCase<ReviewerRepoClient>,
   denial: DenialOutcome,
 ): unknown {
-  const folds = denial === ContractOutcomes.NOT_FOUND && "notFound" in testCase;
-  if (folds) {
-    return { ok: true, value: testCase.notFound };
-  }
   if (testCase.operatorReach === true) {
     return { ok: true, value: testCase.expected };
   }
-  return {
-    ok: false,
-    error: expect.objectContaining({ code: DENIAL_CODES[denial] }),
-  };
+  return shapeDenialAnswer(testCase, denial);
 }
 
 function bindOperatorBacked(
@@ -119,10 +113,29 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
 
       const result = await testCase.call(github.forRepo(REPO));
 
-      expect(result).toEqual({
-        ok: false,
-        error: expect.objectContaining({ code: "not-found" }),
+      expect(result).toEqual(
+        shapeDenialAnswer(testCase, ContractOutcomes.NOT_FOUND),
+      );
+    },
+  );
+
+  it.each(REACH_CASES)(
+    "$operation answers a 404 both tokens get",
+    async (testCase) => {
+      const adapter = createAdapter({
+        operation: testCase.operation,
+        outcome: ContractOutcomes.NOT_FOUND,
+        reviewerOutcome: ContractOutcomes.NOT_FOUND,
       });
+      const credential = stubCredential(REVIEWER_TOKEN, undefined);
+      const github = adapter.bindReviewer(credential, OPERATOR_READS);
+
+      const result = await testCase.call(github.forRepo(REPO));
+
+      expect(result).toEqual(
+        shapeDenialAnswer(testCase, ContractOutcomes.NOT_FOUND),
+      );
+      expect(adapter.countRequests()).toBe(2);
     },
   );
 
@@ -159,7 +172,7 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
   );
 
   it.each(REACH_CASES)(
-    "$operation stays denied in another repository",
+    "$operation keeps a 404 in another repository",
     async (testCase) => {
       const adapter = createAdapter({
         operation: testCase.operation,
@@ -173,7 +186,47 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
         github.forRepo({ owner: "acme", repo: "secrets" }),
       );
 
-      expect(result).toMatchObject({ ok: false });
+      expect(result).toEqual(
+        shapeDenialAnswer(testCase, ContractOutcomes.NOT_FOUND),
+      );
+      expect(adapter.countRequests()).toBe(1);
+    },
+  );
+
+  const fileReadsOutsideKnownCommits = [
+    {
+      name: "fetchRepoFile at an unknown commit",
+      call: (client: ReviewerRepoClient) =>
+        client.fetchRepoFile({
+          path: ".mergebrief.yml",
+          ref: UNKNOWN_SHA,
+          maxBytes: REPO_FILE_MAX_BYTES,
+        }),
+    },
+    {
+      name: "fetchRepoFile on the default branch",
+      call: (client: ReviewerRepoClient) =>
+        client.fetchRepoFile({
+          path: ".mergebrief.yml",
+          maxBytes: REPO_FILE_MAX_BYTES,
+        }),
+    },
+  ] as const;
+
+  it.each(fileReadsOutsideKnownCommits)(
+    "$name folds a 404 off the operator token",
+    async ({ call }) => {
+      const adapter = createAdapter({
+        operation: "fetchRepoFile",
+        outcome: ContractOutcomes.OK,
+        reviewerOutcome: ContractOutcomes.NOT_FOUND,
+      });
+      const credential = stubCredential(REVIEWER_TOKEN, undefined);
+      const github = adapter.bindReviewer(credential, OPERATOR_READS);
+
+      const result = await call(github.forRepo(REPO));
+
+      expect(result).toEqual({ ok: true, value: { kind: "absent" } });
       expect(adapter.countRequests()).toBe(1);
     },
   );

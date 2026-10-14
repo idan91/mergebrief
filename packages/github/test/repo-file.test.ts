@@ -1,7 +1,3 @@
-// getRepoFile against the injected octokit stub (same idiom as api.test.ts):
-// success decodes base64 content; 404 maps to the ABSENT outcome (not an
-// error); the size guard rejects before decode; non-file responses (dir,
-// symlink, submodule) are sanitized errors; API failures leak no token.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
@@ -110,7 +106,7 @@ describe("getRepoFile", () => {
     );
   });
 
-  it("maps a 404 to the ABSENT outcome, not an error", async () => {
+  it("answers a 404 as not-found, leaving the fold to the reader", async () => {
     const request = vi.fn().mockRejectedValue(requestError(404));
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -118,11 +114,11 @@ describe("getRepoFile", () => {
       path: ".mergebrief/policy.yaml",
       maxBytes: 1024,
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
+    expect(result.ok).toBe(false);
+    if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.value).toEqual({ kind: RepoFileKinds.ABSENT });
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("rejects an oversize file before decode, keeping size and sha", async () => {

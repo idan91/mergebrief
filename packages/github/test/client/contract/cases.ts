@@ -9,7 +9,13 @@ import { ReviewCommentSides } from "types/conversation";
 import { ReviewSubjectTypes } from "../../../src/operations/review-thread";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { requireInstallationId, requireRepoId } from "../helpers";
-import { ATTACHMENT_COMMIT_SHA, BASE_SHA, DIFF, HEAD_SHA } from "./consts";
+import {
+  ATTACHMENT_COMMIT_SHA,
+  BASE_SHA,
+  DIFF,
+  HEAD_SHA,
+  REPO_FILE_MAX_BYTES,
+} from "./consts";
 import type { ContractCase, TypedContractCase } from "./types";
 
 export function defineCase<Client, Value>(
@@ -77,8 +83,13 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   }),
   defineCase({
     operation: "fetchRepoFile",
+    operatorReach: true,
     call: (client: RepoReader) =>
-      client.fetchRepoFile({ path: ".mergebrief.yml", maxBytes: 1024 }),
+      client.fetchRepoFile({
+        path: ".mergebrief.yml",
+        ref: HEAD_SHA,
+        maxBytes: REPO_FILE_MAX_BYTES,
+      }),
     expected: {
       kind: "file",
       content: "hello",

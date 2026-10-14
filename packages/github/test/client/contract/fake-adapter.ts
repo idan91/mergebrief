@@ -187,7 +187,7 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
   );
   github.addRepoFile(
     REPO,
-    { path: ".mergebrief.yml" },
+    { path: ".mergebrief.yml", ref: HEAD_SHA },
     { kind: "file", content: "hello", blobSha: "f".repeat(40), size: 5 },
   );
   github.addCollaborators(REPO, {

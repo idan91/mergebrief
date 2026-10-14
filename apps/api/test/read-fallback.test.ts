@@ -9,6 +9,7 @@ import {
   FakeFactsHidings,
   FakeFailures,
   makeFakeGitHub,
+  type FakeFailure,
   type FakeGitHub,
 } from "github/testing";
 import {
@@ -436,17 +437,16 @@ describe("the per-repo gate's operator-PAT rung", () => {
       );
     }
 
-    function arrangeViewerRefusedFile(ref: string): void {
+    function arrangeViewerRefusedFile(
+      ref: string,
+      failure: FakeFailure = FakeFailures.FORBIDDEN,
+    ): void {
       fake.addRepoFile(
         REPO,
         { path: FILE_PATH, ref },
         { kind: RepoFileKinds.FILE, content: "a\nb\n", blobSha: "b", size: 4 },
       );
-      fake.failOn(
-        "fetchRepoFile",
-        FakeFailures.FORBIDDEN,
-        CredentialKinds.REVIEWER,
-      );
+      fake.failOn("fetchRepoFile", failure, CredentialKinds.REVIEWER);
     }
 
     it("fetches the span diff on the same rung that opened the gate", async () => {
@@ -523,24 +523,32 @@ describe("the per-repo gate's operator-PAT rung", () => {
       expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
     });
 
-    it("reads a file at a known commit on the operator token", async () => {
-      arrangeOperatorGate(fake);
-      await seedOwnerBrief(harness.handle);
-      arrangeViewerRefusedFile(HEAD_SHA);
+    const viewerFileRefusals = [
+      ["a 403", FakeFailures.FORBIDDEN],
+      ["a 404", FakeFailures.NOT_FOUND],
+    ] as const;
 
-      const res = await getLive(
-        buildApp(FALLBACK_PAT),
-        `${FILE_RANGE_PATH}?ref=${HEAD_SHA}&path=${FILE_PATH}&from=1&to=2`,
-      );
+    it.each(viewerFileRefusals)(
+      "reads a file the viewer got %s for on the operator token",
+      async (_label, failure) => {
+        arrangeOperatorGate(fake);
+        await seedOwnerBrief(harness.handle);
+        arrangeViewerRefusedFile(HEAD_SHA, failure);
 
-      expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
-      expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
-      expect(listTokensPastOperatorGate(fake)).toEqual([
-        ACCESS_TOKEN,
-        FALLBACK_PAT,
-      ]);
-    });
+        const res = await getLive(
+          buildApp(FALLBACK_PAT),
+          `${FILE_RANGE_PATH}?ref=${HEAD_SHA}&path=${FILE_PATH}&from=1&to=2`,
+        );
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ lines: ["a", "b"] });
+        expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+        expect(listTokensPastOperatorGate(fake)).toEqual([
+          ACCESS_TOKEN,
+          FALLBACK_PAT,
+        ]);
+      },
+    );
 
     it("reads no file at an unknown commit on the operator token", async () => {
       arrangeOperatorGate(fake);

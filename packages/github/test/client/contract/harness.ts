@@ -7,7 +7,7 @@ import {
   REVIEWER_ACCOUNT_CASES,
   REVIEWER_REPO_CASES,
 } from "./cases";
-import { DENIAL_CODES, type DenialOutcome } from "./consts";
+import type { DenialOutcome } from "./consts";
 import { describeReviewerCredential } from "./credentials";
 import {
   ContractOutcomes,
@@ -16,6 +16,7 @@ import {
   type ContractCase,
   type ContractOutcome,
 } from "./types";
+import { shapeDenialAnswer } from "./utils";
 
 const TOKEN_DENIALS: readonly DenialOutcome[] = [
   ContractOutcomes.NOT_FOUND,
@@ -70,22 +71,6 @@ function runCase<Client>(
 ): Promise<unknown> {
   const adapter = createAdapter({ operation: testCase.operation, outcome });
   return testCase.call(binding.select(adapter));
-}
-
-/** A 404 the operation folds answers its value; any other denial its code. */
-function shapeDenialAnswer<Client>(
-  testCase: ContractCase<Client>,
-  outcome: DenialOutcome,
-): unknown {
-  const folds =
-    outcome === ContractOutcomes.NOT_FOUND && "notFound" in testCase;
-  if (folds) {
-    return { ok: true, value: testCase.notFound };
-  }
-  return {
-    ok: false,
-    error: expect.objectContaining({ code: DENIAL_CODES[outcome] }),
-  };
 }
 
 function describeFamily<Client>(

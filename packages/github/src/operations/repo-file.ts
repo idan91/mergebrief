@@ -1,9 +1,9 @@
 // Omit ref so GitHub selects the default branch without a stale repos.get round trip.
 // Reject oversized blobs before decoding; repo-config owns semantic byte budgets.
 import type { Octokit } from "octokit";
-import { RequestError } from "octokit";
 import { z } from "zod/v4";
 import {
+  GitHubApiErrorCodes,
   mapRequestError,
   notABlobError,
   notTextError,
@@ -11,7 +11,6 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result, ValueOf } from "types/utils";
-import { HttpStatuses } from "types/http";
 
 export const RepoFileKinds = {
   FILE: "file",
@@ -109,8 +108,9 @@ type RepoContentsParams = {
 };
 
 /**
- * Fetch one repo file's decoded content via the contents API. A 404 is the
- * `absent` outcome (expected, most repos carry no `.mergebrief/`); a blob
+ * Fetch one repo file's decoded content via the contents API. A 404 stays
+ * `not-found` so a denied read can still reach the operator fallback; the
+ * reader folds it with `foldNotFoundToAbsent`. A blob
  * over `maxBytes` is `too-large` (rejected before decode); a non-file path
  * (directory/symlink/submodule) is the PERMANENT `not-a-blob` error, and a
  * blob that does not decode as UTF-8 text is the PERMANENT `not-text` error.
@@ -137,12 +137,6 @@ export async function getRepoFile(
     );
     body = response.data;
   } catch (error) {
-    if (
-      error instanceof RequestError &&
-      error.status === HttpStatuses.NOT_FOUND
-    ) {
-      return { ok: true, value: { kind: RepoFileKinds.ABSENT } };
-    }
     return { ok: false, error: mapRequestError(error, "fetch repo file") };
   }
 
@@ -200,4 +194,17 @@ export async function getRepoFile(
       size: decoded.bytes,
     },
   };
+}
+
+/**
+ * A 404 is the `absent` outcome, an expected one since most repos carry no
+ * `.mergebrief/`. Applied after every credential has read, never before.
+ */
+export function foldNotFoundToAbsent<Failure extends { readonly code: string }>(
+  result: Result<RepoFileResult, Failure>,
+): Result<RepoFileResult, Failure> {
+  if (result.ok || result.error.code !== GitHubApiErrorCodes.NOT_FOUND) {
+    return result;
+  }
+  return { ok: true, value: { kind: RepoFileKinds.ABSENT } };
 }
