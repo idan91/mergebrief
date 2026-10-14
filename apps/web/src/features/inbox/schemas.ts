@@ -1,21 +1,22 @@
 import { z } from "zod/v4";
-import { InboxReviewStates } from "types/inbox";
-import type { Result } from "types/utils";
-
 import {
   GenerationStatuses,
+  InboxReviewStates,
   PrStates,
   PullRequestSources,
-} from "@web/features/pulls/types";
+  type Result,
+} from "types";
+
 import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
+import { buildOpenEnumSchema } from "@web/utils/open-enum";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import type { InboxPage } from "./types";
 
-const prStateSchema = z.enum(PrStates);
-const sourceSchema = z.enum(PullRequestSources);
-const generationStatusSchema = z.enum(GenerationStatuses);
+const prStateSchema = buildOpenEnumSchema(PrStates);
+const sourceSchema = buildOpenEnumSchema(PullRequestSources);
+const generationStatusSchema = buildOpenEnumSchema(GenerationStatuses);
 
 export const inboxGenerationSchema = z.object({
   status: generationStatusSchema,
@@ -27,6 +28,7 @@ export const inboxStackPositionSchema = z.object({
   size: z.number().int().min(1),
 });
 
+/** A vocabulary value this bundle predates reads `unknown`; a null review state means the viewer's own row. */
 export const inboxItemSchema = dropNullKeys(
   z.object({
     repoId: z.string().min(1),
@@ -40,7 +42,7 @@ export const inboxItemSchema = dropNullKeys(
     authorLogin: z.string().exactOptional(),
     viewerIsAuthor: z.boolean(),
     viewerCanDelete: z.boolean(),
-    reviewState: z.enum(InboxReviewStates).exactOptional(),
+    reviewState: buildOpenEnumSchema(InboxReviewStates).exactOptional(),
     behind: z.boolean(),
     unreachable: z.boolean(),
     generation: inboxGenerationSchema.exactOptional(),
@@ -53,11 +55,11 @@ export const inboxItemSchema = dropNullKeys(
     "title",
     "installationId",
     "authorLogin",
-    "reviewState",
     "generation",
     "latestBriefAt",
     "githubUpdatedAt",
     "stack",
+    "reviewState",
   ],
 );
 

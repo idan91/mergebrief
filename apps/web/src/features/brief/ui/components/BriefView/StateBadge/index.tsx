@@ -8,7 +8,8 @@ import {
   type IconName,
 } from "@web/components/Icon/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import type { ValueOf } from "types/utils";
+import { PrStates, type ValueOf } from "types";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import type { LivePrState } from "../../../../model/types";
 import styles from "./StateBadge.module.scss";
 
@@ -50,20 +51,25 @@ const BADGE_LABEL_KEYS: Record<BadgeVariant, TranslationKey> = {
 /**
  * GitHub conventions: merged wins over closed (a merged PR's wire state IS
  * closed), draft supersedes open. The live DB vocabulary folds merged INTO
- * the state; the artifact stamp carries it as a separate boolean.
+ * the state; the artifact stamp carries it as a separate boolean. A live
+ * state this bundle predates renders no badge rather than a wrong word.
  */
 function badgeVariant(
   pr: PrRef,
   live: LivePrState | undefined,
 ): BadgeVariant | null {
   if (live) {
-    if (live.state === "merged") {
+    if (live.state === UnknownValues.UNKNOWN) {
+      return null;
+    }
+    if (live.state === PrStates.MERGED) {
       return BadgeVariants.MERGED;
     }
-    if (live.state === "closed") {
+    if (live.state === PrStates.CLOSED) {
       return BadgeVariants.CLOSED;
     }
-    return live.draft ? BadgeVariants.DRAFT : BadgeVariants.OPEN;
+    const openVariant = live.draft ? BadgeVariants.DRAFT : BadgeVariants.OPEN;
+    return openVariant;
   }
   if (pr.state === undefined) {
     return null;

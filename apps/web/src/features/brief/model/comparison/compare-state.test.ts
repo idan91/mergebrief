@@ -223,6 +223,12 @@ describe("lastReviewUnavailableReasonTitle", () => {
       "History rewritten since your last review",
     );
   });
+
+  it("gives a reason this bundle predates the neutral line", () => {
+    expect(lastReviewUnavailableReasonTitle(t, "unknown")).toBe(
+      "Comparison with your last review is unavailable",
+    );
+  });
 });
 
 describe("stripDefaultSearch", () => {

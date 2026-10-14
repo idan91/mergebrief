@@ -1,3 +1,4 @@
+import { LocalBriefKinds } from "contract";
 import { Trans } from "react-i18next";
 
 import type { Brief } from "../../../../../model/types";
@@ -11,7 +12,8 @@ export interface CoverageLineProps {
 /** The commit span a brief covers; a delta reads its span in its own context line. */
 export function CoverageLine({ brief }: CoverageLineProps) {
   const range = brief.commitRange;
-  const coversSpan = brief.artifactKind === "brief" && range !== undefined;
+  const coversSpan =
+    brief.artifactKind === LocalBriefKinds.BRIEF && range !== undefined;
   if (!coversSpan) {
     return null;
   }

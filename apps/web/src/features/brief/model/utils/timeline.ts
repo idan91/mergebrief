@@ -1,4 +1,8 @@
-import type { LocalBriefSummary, LocalComparisonAvailability } from "contract";
+import {
+  LocalBriefKinds,
+  type LocalBriefSummary,
+  type LocalComparisonAvailability,
+} from "contract";
 
 /**
  * @description One timeline point's Compare availability. Always present as an
@@ -34,7 +38,7 @@ export function buildBriefTimeline(
       artifact.repo === selected.repo && artifact.number === selected.number,
   );
   const points = prArtifacts
-    .filter((artifact) => artifact.artifactKind === "brief")
+    .filter((artifact) => artifact.artifactKind === LocalBriefKinds.BRIEF)
     .map(
       (artifact) =>
         ({
@@ -46,7 +50,9 @@ export function buildBriefTimeline(
     )
     .toSorted((a, b) => a.index - b.index);
   const selectedHead =
-    selected.artifactKind === "delta" ? selected.headSha : selected.sha;
+    selected.artifactKind === LocalBriefKinds.DELTA
+      ? selected.headSha
+      : selected.sha;
   return {
     points,
     selectedPoint: points.find((point) => point.headSha === selectedHead),

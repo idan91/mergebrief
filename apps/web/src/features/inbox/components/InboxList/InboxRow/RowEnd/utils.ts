@@ -1,4 +1,4 @@
-import { GenerationStatuses, PrStates } from "@web/features/pulls/types";
+import { GenerationStatuses, PrStates } from "types";
 import type { InboxGeneration, InboxItem } from "../../../../types";
 import { RowSignalKinds, type RowSignalKind } from "./types";
 

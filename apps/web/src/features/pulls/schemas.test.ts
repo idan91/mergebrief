@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
+import { UnknownValues } from "@web/utils/open-enum/types";
 import {
   parsePrSummary,
   parsePullStack,
@@ -328,12 +329,16 @@ describe("parsePrSummary", () => {
     expect(parsed.ok).toBe(true);
   });
 
-  it("rejects an unknown generation status", () => {
+  it("reads a generation status this bundle predates as unknown", () => {
     const parsed = parsePrSummary({
       ...ROW,
       generation: { ...ROW.generation, status: "exploded" },
     });
-    expect(parsed.ok).toBe(false);
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.generation?.status).toBe(UnknownValues.UNKNOWN);
   });
 
   it("rejects a missing required field", () => {
@@ -341,8 +346,15 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary(rest).ok).toBe(false);
   });
 
-  it("rejects an unknown state", () => {
-    expect(parsePrSummary({ ...ROW, state: "reopened" }).ok).toBe(false);
+  it("reads a state this bundle predates as unknown and still requires one", () => {
+    const parsed = parsePrSummary({ ...ROW, state: "reopened" });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.state).toBe(UnknownValues.UNKNOWN);
+    const { state: _absent, ...stateless } = ROW;
+    expect(parsePrSummary(stateless).ok).toBe(false);
   });
 
   it("rejects a non-numeric repoId, which is interpolated into route URLs", () => {
@@ -482,7 +494,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
     });
   });
 
-  it("parses lastReview unavailable reasons and rejects unknown ones", () => {
+  it("parses lastReview unavailable reasons, an unrecognised one as unknown", () => {
     for (const reason of ["pending", "baseline-unavailable"]) {
       const parsed = parsePrSummary({
         ...ROW,
@@ -497,12 +509,17 @@ describe("parsePrSummary comparisons on PR-meta", () => {
         reason,
       });
     }
-    expect(
-      parsePrSummary({
-        ...ROW,
-        comparisons: { lastReview: { unavailable: "exploded" } },
-      }).ok,
-    ).toBe(false);
+    const unrecognised = parsePrSummary({
+      ...ROW,
+      comparisons: { lastReview: { unavailable: "exploded" } },
+    });
+    if (!unrecognised.ok) {
+      throw new Error(unrecognised.error);
+    }
+    expect(unrecognised.value.comparisons?.lastReview).toEqual({
+      kind: "unavailable",
+      reason: UnknownValues.UNKNOWN,
+    });
   });
 
   it("rejects a malformed lastReview matching neither arm of the union", () => {
@@ -517,16 +534,21 @@ describe("parsePrSummary comparisons on PR-meta", () => {
     );
   });
 
-  it("rejects an unknown unavailable reason even beside available fields", () => {
+  it("the unavailable key decides the arm even with an unrecognised reason", () => {
     const lastReview = {
       unavailable: "not-a-reason",
       deltaAvailable: true,
       baselineSha: "cp-1",
     };
 
-    expect(parsePrSummary({ ...ROW, comparisons: { lastReview } }).ok).toBe(
-      false,
-    );
+    const parsed = parsePrSummary({ ...ROW, comparisons: { lastReview } });
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.comparisons?.lastReview).toEqual({
+      kind: "unavailable",
+      reason: UnknownValues.UNKNOWN,
+    });
   });
 });
 

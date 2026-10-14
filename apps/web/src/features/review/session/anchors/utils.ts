@@ -5,7 +5,7 @@ import { resolveChunkForLine } from "../../utils/chunk-for-line";
 import type { RiskEvidence } from "../../utils/state";
 import type { SessionLineDraftComment } from "../serverState";
 import type { CoveredRow, DraftRows } from "./types";
-import type { DiffSide } from "types/comments";
+import { DiffSides, DispositionEvidenceKinds, type DiffSide } from "types";
 
 export function collectChunks(model: BriefViewModel): BriefChunk[] {
   return model.groups.flatMap((group) => group.chunks);
@@ -13,17 +13,18 @@ export function collectChunks(model: BriefViewModel): BriefChunk[] {
 
 /** The ref a stored evidence row carries: the kind decides which field. */
 export function getEvidenceRef(evidence: RiskEvidence): string {
-  if (evidence.kind === "linked-comment") {
+  if (evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     return evidence.commentId ?? "";
   }
-  if (evidence.kind === "chunk-reviewed") {
+  if (evidence.kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     return evidence.chunkId ?? "";
   }
   return evidence.note ?? "";
 }
 
 function getLineOnSide(row: DiffLine, side: DiffSide): number | undefined {
-  return side === "old" ? row.oldLine : row.newLine;
+  const line = side === DiffSides.OLD ? row.oldLine : row.newLine;
+  return line;
 }
 
 export function resolveDraftChunk(

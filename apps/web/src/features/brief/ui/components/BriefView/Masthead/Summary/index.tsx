@@ -1,3 +1,4 @@
+import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 
 import { Markdown } from "@web/components/Markdown";
@@ -13,7 +14,7 @@ export interface SummaryProps {
 /** The brief's summary in full, with the author's description attached beneath. */
 export function Summary({ brief }: SummaryProps) {
   const { t } = useTranslation();
-  const delta = brief.artifactKind === "delta";
+  const delta = brief.artifactKind === LocalBriefKinds.DELTA;
   const eyebrow = delta
     ? t("brief.summarySection.eyebrowDelta")
     : t("brief.summarySection.eyebrowBrief");

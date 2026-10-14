@@ -8,9 +8,12 @@ import {
 } from "@web/features/brief/model";
 import {
   CommentAnchorKinds,
+  DiffSides,
   type DispositionEvidenceKind,
+  DispositionEvidenceKinds,
   DraftCommentStatuses,
   type ReviewOutcome,
+  ReviewOutcomes,
 } from "types";
 import {
   resolveJumpChunkId,
@@ -19,6 +22,7 @@ import {
   type ReviewComment,
 } from "./comments";
 import type { Disposition } from "../session/disposition";
+import { DispositionKinds } from "../session/types";
 import type { SessionAttentionItem } from "../session/attention";
 import { UnresolvedItemKinds, type UnresolvedItemKind } from "./types";
 
@@ -97,7 +101,7 @@ export function riskEvidenceLabel(
   comments: ReviewComment[],
   chunks: BriefChunk[],
 ): string {
-  if (evidence.kind === "linked-comment") {
+  if (evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     const comment = comments.find((item) => item.id === evidence.commentId);
     if (!comment) {
       return t("review.summary.evidenceLinkedCommentMissing");
@@ -106,16 +110,17 @@ export function riskEvidenceLabel(
       location: commentLocation(comment),
     });
   }
-  if (evidence.kind === "chunk-reviewed") {
+  if (evidence.kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     const chunk = chunks.find((item) => item.id === evidence.chunkId);
     return t("review.summary.evidenceChunkReviewed", {
       file: chunk?.file ?? t("review.summary.evidenceSelectedChunk"),
     });
   }
   const note = evidence.note?.trim();
-  return note
-    ? t("review.summary.evidenceManualWithNote", { note })
-    : t("review.summary.evidenceManual");
+  if (note) {
+    return t("review.summary.evidenceManualWithNote", { note });
+  }
+  return t("review.summary.evidenceManual");
 }
 
 export function deriveUnresolvedItems(
@@ -126,9 +131,11 @@ export function deriveUnresolvedItems(
   const remainderIds = new Set(remainderChunks.map((chunk) => chunk.id));
 
   for (const flag of input.flags) {
-    const disposition = input.dispositions[flag.id] ?? { kind: "open" };
+    const disposition = input.dispositions[flag.id] ?? {
+      kind: DispositionKinds.OPEN,
+    };
     const label = `${flag.attr} @ ${flag.file}`;
-    if (disposition.kind === "open") {
+    if (disposition.kind === DispositionKinds.OPEN) {
       items.push({
         id: `risk:${flag.id}`,
         kind: UnresolvedItemKinds.OPEN_RISK,
@@ -137,7 +144,10 @@ export function deriveUnresolvedItems(
       });
       continue;
     }
-    if (disposition.kind === "addressed" && !disposition.evidence) {
+    if (
+      disposition.kind === DispositionKinds.ADDRESSED &&
+      !disposition.evidence
+    ) {
       items.push({
         id: `evidence:${flag.id}`,
         kind: UnresolvedItemKinds.MISSING_EVIDENCE,
@@ -146,7 +156,10 @@ export function deriveUnresolvedItems(
       });
       continue;
     }
-    if (disposition.kind === "dismissed" && isThinReason(disposition.reason)) {
+    if (
+      disposition.kind === DispositionKinds.DISMISSED &&
+      isThinReason(disposition.reason)
+    ) {
       items.push({
         id: `dismissal:${flag.id}`,
         kind: UnresolvedItemKinds.THIN_DISMISSAL,
@@ -285,9 +298,12 @@ function isDispositionPending(
   disposition: Disposition,
 ): boolean {
   if (kind === AttentionItemKinds.REOPENED_DISPOSITION) {
-    return disposition.kind === "open";
+    return disposition.kind === DispositionKinds.OPEN;
   }
-  return disposition.kind === "addressed" && disposition.evidence === undefined;
+  const missingEvidence =
+    disposition.kind === DispositionKinds.ADDRESSED &&
+    disposition.evidence === undefined;
+  return missingEvidence;
 }
 
 function buildCarriedDraftItem(
@@ -372,7 +388,7 @@ function buildCarriedDispositionItem(
   const pending = getFlagsAtAnchor(input, item).find((flag) =>
     isDispositionPending(
       item.kind,
-      input.dispositions[flag.id] ?? { kind: "open" },
+      input.dispositions[flag.id] ?? { kind: DispositionKinds.OPEN },
     ),
   );
   if (pending === undefined) {
@@ -416,10 +432,10 @@ export function reviewOutcomeLabel(
   t: TFunction,
   outcome: ReviewOutcome,
 ): string {
-  if (outcome === "request-changes") {
+  if (outcome === ReviewOutcomes.REQUEST_CHANGES) {
     return t("review.outcome.requestChanges");
   }
-  if (outcome === "approve") {
+  if (outcome === ReviewOutcomes.APPROVE) {
     return t("review.outcome.approve");
   }
   return t("review.outcome.comment");
@@ -447,10 +463,10 @@ export function riskDispositionCounts(
 ): RiskDispositionCounts {
   const counts: RiskDispositionCounts = { addressed: 0, dismissed: 0, open: 0 };
   for (const flagId of flagIds) {
-    const kind = dispositions[flagId]?.kind ?? "open";
-    if (kind === "addressed") {
+    const kind = dispositions[flagId]?.kind ?? DispositionKinds.OPEN;
+    if (kind === DispositionKinds.ADDRESSED) {
       counts.addressed += 1;
-    } else if (kind === "dismissed") {
+    } else if (kind === DispositionKinds.DISMISSED) {
       counts.dismissed += 1;
     } else {
       counts.open += 1;
@@ -469,14 +485,16 @@ export function commentLocation(comment: ReviewComment): string {
   if (isFileCommentAnchor(anchor)) {
     return anchor.file;
   }
-  const sign = anchor.side === "new" ? "+" : "-";
+  const sign = anchor.side === DiffSides.NEW ? "+" : "-";
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
-    const startSign = anchor.startSide === "new" ? "+" : "-";
-    return `${anchor.file}:${startSign}${anchor.startLine}→${sign}${anchor.endLine}`;
+    const startSign = anchor.startSide === DiffSides.NEW ? "+" : "-";
+    const crossSideLabel = `${anchor.file}:${startSign}${anchor.startLine}→${sign}${anchor.endLine}`;
+    return crossSideLabel;
   }
   const range =
     anchor.startLine === anchor.endLine
       ? `${sign}${anchor.startLine}`
       : `${sign}${anchor.startLine}-${anchor.endLine}`;
-  return `${anchor.file}:${range}`;
+  const label = `${anchor.file}:${range}`;
+  return label;
 }

@@ -2,6 +2,7 @@ import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { DraftCommentStatuses } from "types";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import {
@@ -164,7 +165,10 @@ export function useMarkReadyFlow(
   }, [batchFailureRescue]);
 
   const unpostedDraftComments = useMemo(
-    () => reviewComments.filter((comment) => comment.status === "draft"),
+    () =>
+      reviewComments.filter(
+        (comment) => comment.status === DraftCommentStatuses.DRAFT,
+      ),
     [reviewComments],
   );
   const markReadyAvailable = action !== undefined;

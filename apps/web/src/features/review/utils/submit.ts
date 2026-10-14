@@ -9,6 +9,7 @@ import {
   DiffSides,
   DraftCommentStatuses,
   type ReviewOutcome,
+  ReviewOutcomes,
 } from "types";
 import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 
@@ -247,9 +248,10 @@ export function submitBlockedReason(
     unplacedDrafts,
   ).length;
   if (foldLength > MAX_BODY_LENGTH) {
-    return hasReviewComment
+    const tooLarge = hasReviewComment
       ? t("review.submit.tooLargeWithReviewComment")
       : t("review.submit.tooLargeComments");
+    return tooLarge;
   }
   const overlongPath = drafts.find(
     (draft) => draft.anchor.file.length > MAX_PATH_LENGTH,
@@ -258,7 +260,7 @@ export function submitBlockedReason(
     return t("review.submit.pathTooLong");
   }
 
-  if (input.outcome !== "comment") {
+  if (input.outcome !== ReviewOutcomes.COMMENT) {
     return undefined;
   }
   const contentFree = heldDraftCount === 0 && !hasReviewComment;

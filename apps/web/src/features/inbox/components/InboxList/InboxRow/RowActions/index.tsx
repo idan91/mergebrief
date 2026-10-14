@@ -1,7 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { InboxArchivedFilters, type InboxArchivedFilter } from "types/inbox";
-import { PullRequestSources } from "@web/features/pulls/types";
+import {
+  type InboxArchivedFilter,
+  InboxArchivedFilters,
+  PullRequestSources,
+} from "types";
 
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { IconButton } from "@web/components/IconButton";

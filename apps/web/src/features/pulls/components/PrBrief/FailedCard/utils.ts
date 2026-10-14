@@ -1,11 +1,11 @@
 import type { TFunction } from "i18next";
 
-import type { GenerationFailureCode } from "../../../types";
+import { GenerationFailureCodes, type GenerationFailureCode } from "types";
 
 /** The two codes whose template interpolates a `{{detail}}`. */
 const DETAIL_CODES: ReadonlySet<string> = new Set([
-  "generation-config",
-  "unknown",
+  GenerationFailureCodes.GENERATION_CONFIG,
+  GenerationFailureCodes.UNKNOWN,
 ]);
 
 /**

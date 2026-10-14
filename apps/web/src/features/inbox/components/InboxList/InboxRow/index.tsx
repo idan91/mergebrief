@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useRef, type CSSProperties, type Ref } from "react";
 import { useTranslation } from "react-i18next";
-import type { InboxArchivedFilter, InboxSort } from "types/inbox";
+import {
+  type InboxArchivedFilter,
+  type InboxSort,
+  PullRequestSources,
+} from "types";
 
 import { AuthorChip } from "@web/components/AuthorChip";
 import { Checkbox } from "@web/components/Checkbox";
@@ -11,7 +15,6 @@ import {
   ChipTones,
   ChipVariants,
 } from "@web/components/Chip";
-import { PullRequestSources } from "@web/features/pulls/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { TitleSegmentKinds, type InboxItem } from "../../../types";
 import { needsReviewer, pickAgeAt, splitTitleCode } from "../../../utils";

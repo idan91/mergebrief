@@ -8,11 +8,12 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { ReviewMarkLabelKeys } from "@web/components/ReviewMark/consts";
 import { ReviewMark } from "@web/components/ReviewMark";
+import { UnknownValues, type UnknownValue } from "@web/utils/open-enum/types";
 import styles from "./RowMark.module.scss";
 
 export interface RowMarkProps {
   /** Absent for the viewer's own pull request. */
-  reviewState: InboxReviewState | undefined;
+  reviewState: InboxReviewState | UnknownValue | undefined;
 }
 
 /**
@@ -25,6 +26,17 @@ export function RowMark({ reviewState }: RowMarkProps) {
   const { t } = useTranslation();
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
   const hover = useCalloutHover();
+  if (reviewState === UnknownValues.UNKNOWN) {
+    return (
+      <span
+        aria-hidden="true"
+        className={styles["mark"]}
+        data-review={UnknownValues.UNKNOWN}
+        data-testid="inbox-row-mark"
+      />
+    );
+  }
+
   const label =
     reviewState === undefined
       ? t("shell.marks.yoursTip")

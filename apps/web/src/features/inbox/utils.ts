@@ -1,14 +1,14 @@
 import { InboxQueryKeys } from "contract";
 import {
-  InboxFoldStates,
-  InboxSorts,
-  type InboxSort,
-  InboxArchivedFilters,
   type InboxArchivedFilter,
-} from "types/inbox";
+  InboxArchivedFilters,
+  InboxFoldStates,
+  type InboxSort,
+  InboxSorts,
+  PrStates,
+} from "types";
 
 import { ApiErrorCodes, type ApiErrorCode } from "../../data/apiFetch";
-import { PrStates } from "../pulls/types";
 import {
   AgeUnits,
   FailureSides,

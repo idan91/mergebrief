@@ -11,6 +11,16 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **One owner per vocabulary.** A consumer imports the map, it never re-declares one. Where a consumer's shape legitimately differs, such as `apps/web`'s parsed `LastReviewComparison` with its `kind` discriminant, the difference is pinned with `Equals` against the shape here rather than mirrored by hand.
 - **`apps/web` extends, it does not fork.** Its `ApiErrorCodes` spreads this package's map and adds the ONE web-local member, `malformed`, which never appears on the wire.
 
+## Reader tolerance
+
+An unknown value in a closed vocabulary never fails more than the smallest unit holding it. A browser tab opened before a server upgrade keeps working when the server starts sending a member the tab's code predates:
+
+- an optional field with an unknown value is dropped and reads as absent;
+- a required field with an unknown value reads as the web-only sentinel `unknown`, and the UI renders it neutrally: no badge, a generic line, never a crash and never a wrong specific label;
+- one list item never fails its list because of a vocabulary value.
+
+The CLI relays raw values and is outside this rule. A field added in release N stays optional to readers for one release.
+
 ## Operation table
 
 - `src/operations/index.ts` holds the operation table (its vocabularies in `types.ts` beside it): one row per Product Operation keyed by its id, carrying kind, classification (its rung on `AccessLevels`), method and full path. It is the one place a full path is written; clients build requests from the row.

@@ -1,3 +1,4 @@
+import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -222,13 +223,14 @@ function ArtifactSection({
       <dl className={styles["facts"]}>
         <dt>{t("brief.details.kind")}</dt>
         <dd>{brief.artifactKind}</dd>
-        {brief.artifactKind === "brief" && brief.index !== undefined ? (
+        {brief.artifactKind === LocalBriefKinds.BRIEF &&
+        brief.index !== undefined ? (
           <>
             <dt>{t("brief.details.briefIndex")}</dt>
             <dd>_{brief.index}</dd>
           </>
         ) : null}
-        {brief.artifactKind === "brief" && brief.commitRange ? (
+        {brief.artifactKind === LocalBriefKinds.BRIEF && brief.commitRange ? (
           <>
             <dt>{t("brief.details.commitRange")}</dt>
             <dd>
@@ -249,7 +251,7 @@ function ArtifactSection({
             </dd>
           </>
         ) : null}
-        {brief.artifactKind === "delta" &&
+        {brief.artifactKind === LocalBriefKinds.DELTA &&
         brief.baselineSha &&
         brief.headSha ? (
           <>

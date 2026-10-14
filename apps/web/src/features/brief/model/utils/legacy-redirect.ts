@@ -1,4 +1,4 @@
-import type { LocalBriefSummary } from "contract";
+import { LocalBriefKinds, type LocalBriefSummary } from "contract";
 import type { BriefSearch } from "../comparison/compare-state";
 import { CompareParams } from "../comparison/types";
 
@@ -22,7 +22,9 @@ export function resolveLegacyDeltaRedirect(
   briefId: string,
 ): LegacyDeltaRedirect | null {
   const delta = artifacts.find(
-    (artifact) => artifact.id === briefId && artifact.artifactKind === "delta",
+    (artifact) =>
+      artifact.id === briefId &&
+      artifact.artifactKind === LocalBriefKinds.DELTA,
   );
   if (!delta) {
     return null;
@@ -30,7 +32,7 @@ export function resolveLegacyDeltaRedirect(
 
   const headBrief = artifacts.find(
     (artifact) =>
-      artifact.artifactKind === "brief" &&
+      artifact.artifactKind === LocalBriefKinds.BRIEF &&
       artifact.repo === delta.repo &&
       artifact.number === delta.number &&
       artifact.sha === delta.headSha,

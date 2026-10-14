@@ -8,11 +8,13 @@ import type {
 import {
   CommentAnchorKinds,
   type DiffSide,
+  DiffSides,
   DraftCommentStatuses,
   type DraftCommentStatus,
-} from "types/comments";
+} from "types";
 import { isFileCommentAnchor } from "./comments";
 import type { SessionSnapshot } from "../session";
+import { DispositionKinds, type DispositionKind } from "../session/types";
 import {
   riskDispositionCounts,
   riskEvidenceLabel,
@@ -142,8 +144,10 @@ export function buildReceipt(
   const dismissed: ReceiptDismissedFlag[] = [];
   const open: ReceiptOpenFlag[] = [];
   for (const flag of model.flags) {
-    const disposition = snapshot.dispositions[flag.id] ?? { kind: "open" };
-    if (disposition.kind === "addressed") {
+    const disposition = snapshot.dispositions[flag.id] ?? {
+      kind: DispositionKinds.OPEN,
+    };
+    if (disposition.kind === DispositionKinds.ADDRESSED) {
       addressed.push(
         disposition.evidence
           ? {
@@ -160,7 +164,7 @@ export function buildReceipt(
             }
           : { id: flag.id, attr: flag.attr, file: flag.file },
       );
-    } else if (disposition.kind === "dismissed") {
+    } else if (disposition.kind === DispositionKinds.DISMISSED) {
       dismissed.push({
         id: flag.id,
         attr: flag.attr,
@@ -239,16 +243,18 @@ export function receiptCommentLabel(comment: ReceiptComment): string {
   if (comment.kind === CommentAnchorKinds.FILE) {
     return comment.file;
   }
-  const sign = comment.side === "new" ? "+" : "-";
+  const sign = comment.side === DiffSides.NEW ? "+" : "-";
   if (comment.startSide !== undefined && comment.startSide !== comment.side) {
-    const startSign = comment.startSide === "new" ? "+" : "-";
-    return `${comment.file}:${startSign}${comment.startLine}→${sign}${comment.endLine}`;
+    const startSign = comment.startSide === DiffSides.NEW ? "+" : "-";
+    const crossSideLabel = `${comment.file}:${startSign}${comment.startLine}→${sign}${comment.endLine}`;
+    return crossSideLabel;
   }
   const range =
     comment.startLine === comment.endLine
       ? `${sign}${comment.startLine}`
       : `${sign}${comment.startLine}-${comment.endLine}`;
-  return `${comment.file}:${range}`;
+  const label = `${comment.file}:${range}`;
+  return label;
 }
 
 export interface ReceiptRiskRow {
@@ -261,7 +267,7 @@ export interface ReceiptRiskRow {
 }
 
 export interface ReceiptRiskGroup {
-  key: "addressed" | "dismissed" | "open";
+  key: DispositionKind;
   title: string;
   items: ReceiptRiskRow[];
 }
@@ -274,7 +280,7 @@ export function receiptRiskGroups(
 ): ReceiptRiskGroup[] {
   return [
     {
-      key: "addressed",
+      key: DispositionKinds.ADDRESSED,
       title: t("review.summary.addressedRisks"),
       items: receipt.addressed.map((flag) => ({
         id: flag.id,
@@ -284,7 +290,7 @@ export function receiptRiskGroups(
       })),
     },
     {
-      key: "dismissed",
+      key: DispositionKinds.DISMISSED,
       title: t("review.summary.dismissedRisks"),
       items: receipt.dismissed.map((flag) => ({
         id: flag.id,
@@ -294,7 +300,7 @@ export function receiptRiskGroups(
       })),
     },
     {
-      key: "open",
+      key: DispositionKinds.OPEN,
       title: t("review.summary.openRisks"),
       items: receipt.open.map((flag) => ({
         id: flag.id,

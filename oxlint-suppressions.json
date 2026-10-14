@@ -99,11 +99,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/review/session/disposition.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/hooks/useLatestRef.ts": {
     "house/no-em-dash": {
       "count": 1

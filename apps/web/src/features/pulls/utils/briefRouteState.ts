@@ -3,11 +3,13 @@
 // and NEVER `status === "succeeded"` (the run finishes only after delta
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
-import type { WaitReason } from "contract";
+import { LastReviewUnavailableReasons, type WaitReason } from "contract";
+import { GenerationStatuses, type GenerationFailureCode } from "types";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
 import { isOwnDraft } from "./ownDraft";
-import type { GenerationFailureCode, PrSummary } from "../types";
+import type { GenerationSummary, PrSummary } from "../types";
 
 export interface Span {
   readonly base: string;
@@ -46,6 +48,13 @@ export type BriefRouteState =
    * midnight.
    */
   | { readonly kind: "capped"; readonly cappedAt: string };
+
+function isInFlight(status: GenerationSummary["status"] | undefined): boolean {
+  return (
+    status === GenerationStatuses.PENDING ||
+    status === GenerationStatuses.RUNNING
+  );
+}
 
 function metaSpan(meta: PrSummary): Span | undefined {
   if (meta.baseSha === undefined || meta.headSha === undefined) {
@@ -99,8 +108,8 @@ export function deriveBriefRouteState(
     return { kind: "empty" };
   }
   switch (generation.status) {
-    case "pending":
-    case "running":
+    case GenerationStatuses.PENDING:
+    case GenerationStatuses.RUNNING:
       return {
         kind: "waiting",
         status: generation.status,
@@ -108,21 +117,22 @@ export function deriveBriefRouteState(
         span,
         waitReason: generation.waitReason,
       };
-    case "failed":
+    case GenerationStatuses.FAILED:
       return {
         kind: "failed",
         errorCode: generation.errorCode,
         errorDetail: generation.errorDetail,
         attempts: generation.attempts,
       };
-    case "superseded":
+    case GenerationStatuses.SUPERSEDED:
       return { kind: "superseded" };
-    case "capped":
+    case GenerationStatuses.CAPPED:
       return { kind: "capped", cappedAt: generation.updatedAt };
-    case "succeeded":
-      // Succeeded but the artifact for its head is not readable, a rare
-      // inconsistency (e.g. artifact purged). Not a failure and nothing is
-      // coming; fall back to the empty/activation state.
+    case GenerationStatuses.SUCCEEDED:
+    case UnknownValues.UNKNOWN:
+      // Succeeded without a readable artifact, or a status this bundle
+      // predates: not a failure and nothing known to be coming, so the
+      // empty/activation state.
       return { kind: "empty" };
   }
 }
@@ -196,19 +206,19 @@ export function shouldPollMeta(meta: PrSummary): boolean {
     return true;
   }
   const status = meta.generation?.status;
-  if (status === "pending" || status === "running") {
+  if (isInFlight(status)) {
     return true;
   }
-  if (status === "superseded" && !meta.briefAvailable) {
+  if (status === GenerationStatuses.SUPERSEDED && !meta.briefAvailable) {
     return true;
   }
   // A pending lastReview comparison is also in-flight work (its delta may
   // finish after the brief generation is terminal): keep polling so the
   // disabled Compare control flips without a manual refresh.
-  return (
+  const lastReviewPending =
     meta.comparisons?.lastReview?.kind === "unavailable" &&
-    meta.comparisons.lastReview.reason === "pending"
-  );
+    meta.comparisons.lastReview.reason === LastReviewUnavailableReasons.PENDING;
+  return lastReviewPending;
 }
 
 /** In-flight work re-reads fast; a settled page still picks up the row's state, draft and new commits. */
@@ -222,6 +232,6 @@ export function resolveMetaPollMs(meta: PrSummary): number {
  * comparison warmup after the artifact landed); show the warming chip.
  */
 export function comparisonsWarming(meta: PrSummary): boolean {
-  const status = meta.generation?.status;
-  return meta.briefAvailable && (status === "pending" || status === "running");
+  const warming = meta.briefAvailable && isInFlight(meta.generation?.status);
+  return warming;
 }

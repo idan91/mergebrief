@@ -1,62 +1,10 @@
-// Read-API PR shapes, mirroring the api package's `pr-view` response contract.
 import type { LastReviewUnavailableReason, WaitReason } from "contract";
-import type { ValueOf } from "types/utils";
-
-export const PrStates = {
-  OPEN: "open",
-  CLOSED: "closed",
-  MERGED: "merged",
-} as const;
-export type PrState = ValueOf<typeof PrStates>;
-
-/** Where a pull request row came from: an App installation, or a pasted URL. */
-export const PullRequestSources = {
-  INSTALLATION: "installation",
-  URL: "url",
-} as const;
-/** @public */
-export type PullRequestSource = ValueOf<typeof PullRequestSources>;
-
-/**
- * `capped` = the repo hit the instance's daily generation cap and this run was
- * SKIPPED. Terminal and deliberately NOT `failed`: nothing went wrong, and
- * the view says when generation resumes.
- */
-export const GenerationStatuses = {
-  PENDING: "pending",
-  RUNNING: "running",
-  SUCCEEDED: "succeeded",
-  FAILED: "failed",
-  SUPERSEDED: "superseded",
-  CAPPED: "capped",
-} as const;
-export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
-
-/**
- * Hand-rolled mirror of persistence's `GenerationFailureCode`, modeled data
- * inside a 200, so it never rides the wire-error vocabulary. An unknown code
- * degrades to the generic failed line rather than failing the parse: the
- * server may ship a code this bundle predates.
- */
-export const GenerationFailureCodes = {
-  PROVIDER_AUTH: "provider-auth",
-  PROVIDER_RATE_LIMIT: "provider-rate-limit",
-  PROVIDER_TIMEOUT: "provider-timeout",
-  PROVIDER_UNAVAILABLE: "provider-unavailable",
-  PROVIDER_REFUSAL: "provider-refusal",
-  OUTPUT_INVALID: "output-invalid",
-  GENERATION_CONFIG: "generation-config",
-  GITHUB_ACCESS: "github-access",
-  DIFF_TOO_LARGE: "diff-too-large",
-  GITHUB_UNAVAILABLE: "github-unavailable",
-  ATTEMPTS_EXHAUSTED: "attempts-exhausted",
-  UNKNOWN: "unknown",
-} as const;
-export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
+import type { GenerationFailureCode, GenerationStatus, PrState } from "types";
+import type { UnknownValue } from "@web/utils/open-enum/types";
 
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
-  readonly status: GenerationStatus;
+  readonly status: GenerationStatus | UnknownValue;
   readonly phase?: string;
   readonly attempts: number;
   /** Absent when the row never failed, or when the code is one we don't know. */
@@ -67,7 +15,6 @@ export interface GenerationSummary {
   readonly waitReason?: WaitReason;
 }
 
-/** Previous-brief comparison availability on PR meta. */
 export interface PreviousBriefComparison {
   readonly baselineSha: string;
   readonly baselineIndex: number;
@@ -89,14 +36,13 @@ export interface AvailableLastReviewComparison {
 
 export interface UnavailableLastReviewComparison {
   readonly kind: "unavailable";
-  readonly reason: LastReviewUnavailableReason;
+  readonly reason: LastReviewUnavailableReason | UnknownValue;
 }
 
 export type LastReviewComparison =
   | AvailableLastReviewComparison
   | UnavailableLastReviewComparison;
 
-/** Comparison availability envelope, additive. */
 export interface PrComparisons {
   readonly previousBrief?: PreviousBriefComparison;
   readonly lastReview?: LastReviewComparison;
@@ -121,31 +67,22 @@ export interface RevisionSummary {
   readonly comparisons: PrComparisons;
 }
 
-/** The instance draft-PR policy slice the meta response echoes. */
 export interface DraftPolicySummary {
-  /** Whether briefs generate for draft PRs at all on this instance. */
   readonly generate: boolean;
-  /** Draft regeneration damping window (seconds); absent = normal window. */
   readonly debounceSeconds?: number;
 }
 
-/** One PR as the list and PR-meta endpoints return it. */
 export interface PrSummary {
   readonly repoId: string;
   readonly repoSlug?: string;
   readonly prNumber: number;
   readonly title?: string;
-  readonly state: PrState;
-  /** Current span's brief base; absent while the span has no brief yet. */
+  readonly state: PrState | UnknownValue;
   readonly baseSha?: string;
-  /** The current push's head; absent only when nothing was ever projected. */
   readonly headSha?: string;
   readonly briefAvailable: boolean;
-  /** GitHub draft state; with `viewerIsAuthor` it derives own-draft affordances. */
   readonly draft: boolean;
-  /** The PR author's GitHub login; absent when GitHub sent no user. */
   readonly authorLogin?: string;
-  /** Whether the requesting viewer authored this PR, derived server-side per request. */
   readonly viewerIsAuthor: boolean;
   /**
    * Read this affordance from PR meta only: list rows omit the push-permission check.
@@ -162,7 +99,6 @@ export interface PrSummary {
   readonly updatedAt: string;
   /** GitHub reports a head the latest brief does not cover; a server predating the field reads false. */
   readonly behind: boolean;
-  /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
   /**
    * Instance draft-PR policy, PR-meta only. Drives the own-draft copy states;

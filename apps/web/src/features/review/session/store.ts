@@ -2,6 +2,7 @@ import {
   type ChangeGroupCategory,
   DraftCommentStatuses,
   type ReviewOutcome,
+  ReviewOutcomes,
 } from "types";
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
@@ -18,6 +19,7 @@ import type { SessionAttentionItem } from "./attention";
 import type { BulkDisposition, Disposition } from "./disposition";
 import { createSessionLedger } from "./ledger";
 import type { SessionCarriedFrom, SessionDraftComment } from "./serverState";
+import { DispositionKinds } from "./types";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
 
@@ -190,7 +192,7 @@ function buildLineCommentIdBase(anchor: LineCommentAnchor): string {
 export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
   const dispositions: Record<string, Disposition> = {};
   for (const flag of model.flags) {
-    dispositions[flag.id] = { kind: "open" };
+    dispositions[flag.id] = { kind: DispositionKinds.OPEN };
   }
   const dominants: Record<string, ChangeGroupCategory> = {};
   for (const group of model.groups) {
@@ -206,7 +208,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
     reviewedChunks: new Set(),
     reviewComments: [],
     unplacedDrafts: [],
-    reviewOutcome: "comment",
+    reviewOutcome: ReviewOutcomes.COMMENT,
     submittedReviewIds: [],
     carriedFrom: undefined,
     attention: [],
@@ -319,9 +321,12 @@ export function createReviewSessionStore(
           const applied: Record<string, Disposition> = {};
           for (const id of flagIds) {
             applied[id] =
-              disposition.kind === "open"
-                ? { kind: "open" }
-                : { kind: "dismissed", reason: disposition.reason };
+              disposition.kind === DispositionKinds.OPEN
+                ? { kind: DispositionKinds.OPEN }
+                : {
+                    kind: DispositionKinds.DISMISSED,
+                    reason: disposition.reason,
+                  };
           }
           set((state) => ({
             dispositions: { ...state.dispositions, ...applied },
@@ -342,7 +347,7 @@ export function createReviewSessionStore(
           const before = capture(get().dispositions, ids);
           const applied: Record<string, Disposition> = {};
           for (const [id, evidence] of evidenceByFlagId) {
-            applied[id] = { kind: "addressed", evidence };
+            applied[id] = { kind: DispositionKinds.ADDRESSED, evidence };
           }
           set((state) => ({
             dispositions: { ...state.dispositions, ...applied },

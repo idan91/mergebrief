@@ -207,6 +207,21 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
+  it("a status this bundle predates reads empty and ends the fast poll", () => {
+    const unknown = meta({
+      generation: generation({ status: "unknown" }),
+      briefAvailable: false,
+    });
+
+    expect(deriveBriefRouteState(unknown, undefined)).toEqual({
+      kind: "empty",
+    });
+    expect(shouldPollMeta(unknown)).toBe(false);
+    expect(comparisonsWarming({ ...unknown, briefAvailable: true })).toBe(
+      false,
+    );
+  });
+
   it("succeeded but artifact missing → empty, never an infinite wait", () => {
     const state = deriveBriefRouteState(
       meta({

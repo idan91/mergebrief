@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 
+import { PrStates } from "types";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type {
   LinearPrStack,
@@ -80,7 +81,7 @@ function resolveClosedFallback(
   snapshot: PrStack | undefined,
   state: LivePrState["state"] | undefined,
 ): StackView | undefined {
-  const closed = state === "closed" || state === "merged";
+  const closed = state === PrStates.CLOSED || state === PrStates.MERGED;
   if (!closed || snapshot === undefined) {
     return undefined;
   }

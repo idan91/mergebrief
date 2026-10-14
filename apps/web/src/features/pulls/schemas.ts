@@ -1,6 +1,11 @@
 import { LastReviewUnavailableReasons, WaitReasons } from "contract";
 import { z } from "zod/v4";
-import type { Result } from "types/utils";
+import {
+  GenerationFailureCodes,
+  GenerationStatuses,
+  PrStates,
+  type Result,
+} from "types";
 
 import type { ForkPrStack, PullStack } from "@web/features/brief/model";
 import {
@@ -8,16 +13,14 @@ import {
   dropNullKeys,
   isPlainRecord,
 } from "@web/utils/drop-keys";
+import { buildOpenEnumSchema } from "@web/utils/open-enum";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 import { isRecord } from "@web/utils/typeGuards";
 
-import {
-  GenerationFailureCodes,
-  GenerationStatuses,
-  PrStates,
-  type AvailableLastReviewComparison,
-  type PrSummary,
-  type UnavailableLastReviewComparison,
+import type {
+  AvailableLastReviewComparison,
+  PrSummary,
+  UnavailableLastReviewComparison,
 } from "./types";
 
 /**
@@ -40,13 +43,13 @@ function liftErrorDetail(value: unknown): unknown {
   return { ...generation, errorDetail: detail };
 }
 
-/** An unknown failure code or wait reason degrades to the generic line: the server may ship one this bundle predates. */
+/** A failure code or wait reason this bundle predates drops; a status it predates reads `unknown`. */
 export const generationSummarySchema = z
   .preprocess(
     liftErrorDetail,
     dropInvalidKeys(
       z.object({
-        status: z.enum(GenerationStatuses),
+        status: buildOpenEnumSchema(GenerationStatuses),
         phase: z.string().exactOptional(),
         attempts: z.number(),
         errorCode: z.enum(GenerationFailureCodes).exactOptional(),
@@ -68,7 +71,7 @@ export const previousBriefComparisonSchema = z
   .readonly();
 
 export const unavailableLastReviewSchema = z
-  .object({ unavailable: z.enum(LastReviewUnavailableReasons) })
+  .object({ unavailable: buildOpenEnumSchema(LastReviewUnavailableReasons) })
   .transform(
     ({ unavailable }) =>
       ({
@@ -135,7 +138,7 @@ export const prSummarySchema = dropNullKeys(
     repoSlug: z.string().exactOptional(),
     prNumber: z.number(),
     title: z.string().exactOptional(),
-    state: z.enum(PrStates),
+    state: buildOpenEnumSchema(PrStates),
     baseSha: z.string().exactOptional(),
     headSha: z.string().exactOptional(),
     briefAvailable: z.boolean(),

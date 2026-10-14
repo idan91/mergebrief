@@ -1,4 +1,4 @@
-import type { DispositionEvidenceKind } from "types/dispositions";
+import { DispositionEvidenceKinds, type DispositionEvidenceKind } from "types";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
@@ -67,7 +67,9 @@ function EvidenceForm({
 }: EvidenceFormProps) {
   const { t } = useTranslation();
   const [kind, setKind] = useState<DispositionEvidenceKind>(
-    comments.length > 0 ? "linked-comment" : "chunk-reviewed",
+    comments.length > 0
+      ? DispositionEvidenceKinds.LINKED_COMMENT
+      : DispositionEvidenceKinds.CHUNK_REVIEWED,
   );
   const [commentId, setCommentId] = useState(comments[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -76,8 +78,8 @@ function EvidenceForm({
   // a note that is no words are both refused at the route, so neither can be
   // confirmed here.
   const evidenceIncomplete =
-    (kind === "linked-comment" && !commentId) ||
-    (kind === "manual-note" && note.trim() === "");
+    (kind === DispositionEvidenceKinds.LINKED_COMMENT && !commentId) ||
+    (kind === DispositionEvidenceKinds.MANUAL_NOTE && note.trim() === "");
   return (
     <>
       <h2 id="evidence-modal-heading">{t("review.evidence.heading")}</h2>
@@ -85,34 +87,34 @@ function EvidenceForm({
       <div className={styles["evidenceOptions"]}>
         <label>
           <input
-            checked={kind === "linked-comment"}
+            checked={kind === DispositionEvidenceKinds.LINKED_COMMENT}
             disabled={comments.length === 0}
             name="risk-evidence"
             type="radio"
-            onChange={() => setKind("linked-comment")}
+            onChange={() => setKind(DispositionEvidenceKinds.LINKED_COMMENT)}
           />{" "}
           {t("review.evidence.linkedComment")}
         </label>
         <label>
           <input
-            checked={kind === "chunk-reviewed"}
+            checked={kind === DispositionEvidenceKinds.CHUNK_REVIEWED}
             name="risk-evidence"
             type="radio"
-            onChange={() => setKind("chunk-reviewed")}
+            onChange={() => setKind(DispositionEvidenceKinds.CHUNK_REVIEWED)}
           />{" "}
           {t("review.evidence.chunkReviewed")}
         </label>
         <label>
           <input
-            checked={kind === "manual-note"}
+            checked={kind === DispositionEvidenceKinds.MANUAL_NOTE}
             name="risk-evidence"
             type="radio"
-            onChange={() => setKind("manual-note")}
+            onChange={() => setKind(DispositionEvidenceKinds.MANUAL_NOTE)}
           />{" "}
           {t("review.evidence.manualNote")}
         </label>
       </div>
-      {kind === "linked-comment" ? (
+      {kind === DispositionEvidenceKinds.LINKED_COMMENT ? (
         <select
           aria-label={t("review.evidence.ariaLabelLinkedComment")}
           className={styles["select"]}
@@ -126,10 +128,10 @@ function EvidenceForm({
           ))}
         </select>
       ) : null}
-      {kind === "chunk-reviewed" ? (
+      {kind === DispositionEvidenceKinds.CHUNK_REVIEWED ? (
         <p className={styles["copy"]}>{t("review.evidence.chunkNote")}</p>
       ) : null}
-      {kind === "manual-note" ? (
+      {kind === DispositionEvidenceKinds.MANUAL_NOTE ? (
         <textarea
           aria-label={t("review.evidence.verifyLabel")}
           placeholder={t("review.evidence.verifyLabel")}

@@ -4,6 +4,7 @@ import {
   type DiffSide,
   DiffSides,
   type DispositionEvidenceKind,
+  DispositionEvidenceKinds,
   type Result,
   type ValueOf,
 } from "types";
@@ -300,15 +301,19 @@ export function resolveRiskEvidence(
   note: string | undefined,
   chunkId: string,
 ): RiskEvidence {
-  if (kind === "linked-comment") {
-    return commentId
-      ? { kind, commentId }
-      : { kind: "chunk-reviewed", chunkId };
+  if (kind === DispositionEvidenceKinds.LINKED_COMMENT) {
+    if (commentId) {
+      return { kind, commentId };
+    }
+    return { kind: DispositionEvidenceKinds.CHUNK_REVIEWED, chunkId };
   }
-  if (kind === "chunk-reviewed") {
+  if (kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     return { kind, chunkId };
   }
-  return note ? { kind, note } : { kind };
+  if (note) {
+    return { kind, note };
+  }
+  return { kind };
 }
 
 /** The whole pinned stack as one registered length; the header writes it. */

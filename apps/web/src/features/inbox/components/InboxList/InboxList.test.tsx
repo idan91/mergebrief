@@ -271,6 +271,33 @@ describe("InboxList", () => {
     expect(within(rows[3]!).getByText("Closed")).toBeTruthy();
   });
 
+  it("renders a row whose vocabulary values it predates with no status", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({
+            state: "unknown",
+            source: "unknown",
+            generation: {
+              status: "unknown",
+              updatedAt: "2026-09-20T10:00:00Z",
+            },
+            title: "Retry deliveries",
+          }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const row = readRows()[0]!;
+    expect(
+      within(row).getByRole("link", { name: /^New\. Retry deliveries/ }),
+    ).toBeTruthy();
+    expect(row.querySelector("[data-status]")).toBeNull();
+    expect(row.querySelector("[data-generation]")).toBeNull();
+  });
+
   it("names the mark, the source and the chips for assistive technology", async () => {
     await renderInRouter(
       <InboxList

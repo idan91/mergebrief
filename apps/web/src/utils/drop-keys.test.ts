@@ -82,6 +82,35 @@ describe("dropInvalidKeys", () => {
   });
 });
 
+describe("drop-keys nesting", () => {
+  const Nested = dropInvalidKeys(
+    dropNullKeys(
+      z.object({
+        login: z.string(),
+        name: z.string().exactOptional(),
+        role: z.enum(["admin", "member"]).exactOptional(),
+      }),
+      ["name"],
+    ),
+    ["role"],
+  );
+
+  it("drops a null on the null-listed key and a bad value on the other", () => {
+    const parsed = Nested.parse({
+      login: "octocat",
+      name: null,
+      role: "owner",
+    });
+
+    expect(parsed).toStrictEqual({ login: "octocat" });
+  });
+
+  it("keeps the strict read on every other key", () => {
+    expect(Nested.safeParse({ login: "octocat", name: 7 }).success).toBe(false);
+    expect(Nested.safeParse({ login: null }).success).toBe(false);
+  });
+});
+
 describe("drop-keys object gate", () => {
   const OptionalOnly = dropNullKeys(
     z.object({ name: z.string().exactOptional() }),

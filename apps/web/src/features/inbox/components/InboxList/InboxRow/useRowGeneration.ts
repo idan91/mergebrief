@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { buildPrMetaQueryOptions } from "@web/features/pulls/queries";
-import { GenerationStatuses } from "@web/features/pulls/types";
+import { GenerationStatuses } from "types";
 import type { InboxGeneration, InboxItem } from "../../../types";
 import { INBOX_QUERY_ROOT, ROW_POLL_MS } from "../../../consts";
 

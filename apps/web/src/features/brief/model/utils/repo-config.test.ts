@@ -4,23 +4,13 @@
 import { describe, expect, it } from "vitest";
 import { matchesGlob } from "brief-core/path-matching";
 import {
-  ATTRIBUTE_NAME_MAX_CHARS,
-  ATTRIBUTE_NAME_PATTERN,
-  CRITERIA_MAX_CHARS as SOURCE_CRITERIA_MAX_CHARS,
   FLOOR_ATTRIBUTES as SOURCE_FLOOR_ATTRIBUTES,
-  IMPLICATION_MAX_CHARS as SOURCE_IMPLICATION_MAX_CHARS,
-  RepoConfigOutcomes,
   RepoConfigPaths,
 } from "repo-config";
 import {
   attributeDisplayMeta,
-  CRITERIA_MAX_CHARS,
   FLOOR_ATTRIBUTES,
   floorFirst,
-  IMPLICATION_MAX_CHARS,
-  NAME_MAX_CHARS,
-  NAME_PATTERN,
-  OUTCOMES,
   SLOT_PATHS,
   type RepoConfigContext,
 } from "./repo-config";
@@ -122,16 +112,11 @@ describe("lockstep pins on the values this screen copies", () => {
     // A legitimate cap or vocabulary bump upstream must turn a test red HERE:
     // the best-effort context query would otherwise silently drop every
     // source marker for new briefs.
-    expect([...OUTCOMES]).toEqual(Object.values(RepoConfigOutcomes));
     expect([...SLOT_PATHS]).toEqual([
       RepoConfigPaths.INSTRUCTIONS,
       RepoConfigPaths.SETTINGS,
       RepoConfigPaths.POLICY,
     ]);
-    expect(NAME_PATTERN.source).toBe(ATTRIBUTE_NAME_PATTERN.source);
-    expect(NAME_MAX_CHARS).toBe(ATTRIBUTE_NAME_MAX_CHARS);
-    expect(CRITERIA_MAX_CHARS).toBe(SOURCE_CRITERIA_MAX_CHARS);
-    expect(IMPLICATION_MAX_CHARS).toBe(SOURCE_IMPLICATION_MAX_CHARS);
   });
 
   // The matcher now has one owner, so a lockstep comparison would compare a

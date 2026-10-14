@@ -607,7 +607,8 @@
       "previousBriefUnavailable": "No previous brief for this revision",
       "lastReviewUnavailable": "No submitted review checkpoint yet",
       "lastReviewPending": "Delta still generating",
-      "lastReviewBaselineUnavailable": "History rewritten since your last review"
+      "lastReviewBaselineUnavailable": "History rewritten since your last review",
+      "lastReviewUnavailableReason": "Comparison with your last review is unavailable"
     },
     "riskBadge": {
       "repoPolicyLead": "Defined by repo policy",

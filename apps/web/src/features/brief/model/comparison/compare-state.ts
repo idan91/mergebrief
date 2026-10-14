@@ -1,4 +1,9 @@
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import {
+  LastReviewUnavailableReasons,
+  type LastReviewUnavailableReason,
+} from "contract";
+import { UnknownValues, type UnknownValue } from "@web/utils/open-enum/types";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { CompareParams, type CompareParam } from "./types";
@@ -50,21 +55,30 @@ export const LAST_REVIEW_PENDING_TITLE_KEY: TranslationKey =
   "brief.compareTitles.lastReviewPending";
 export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY: TranslationKey =
   "brief.compareTitles.lastReviewBaselineUnavailable";
+export const LAST_REVIEW_REASON_UNKNOWN_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.lastReviewUnavailableReason";
+
+const LAST_REVIEW_REASON_TITLE_KEYS: Record<
+  LastReviewUnavailableReason | UnknownValue,
+  TranslationKey
+> = {
+  [LastReviewUnavailableReasons.PENDING]: LAST_REVIEW_PENDING_TITLE_KEY,
+  [LastReviewUnavailableReasons.BASELINE_UNAVAILABLE]:
+    LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY,
+  [UnknownValues.UNKNOWN]: LAST_REVIEW_REASON_UNKNOWN_TITLE_KEY,
+};
 
 /**
  * Honest reason copy for a checkpoint that EXISTS but cannot be compared.
  * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE_KEY`, which covers "never
- * submitted" (the field-absent case).
+ * submitted" (the field-absent case). A reason this bundle predates gets
+ * the neutral line.
  */
 export function lastReviewUnavailableReasonTitle(
   t: TFunction,
-  reason: "pending" | "baseline-unavailable",
+  reason: LastReviewUnavailableReason | UnknownValue,
 ): string {
-  return t(
-    reason === "pending"
-      ? LAST_REVIEW_PENDING_TITLE_KEY
-      : LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY,
-  );
+  return t(LAST_REVIEW_REASON_TITLE_KEYS[reason]);
 }
 
 export function parseViewParam(value: unknown): ViewParam | undefined {

@@ -1,5 +1,12 @@
 import { LineRangeSchema } from "brief-core/types";
 import { LocalBriefKinds, type LocalBriefSummary } from "contract";
+import {
+  ATTRIBUTE_NAME_MAX_CHARS,
+  ATTRIBUTE_NAME_PATTERN,
+  CRITERIA_MAX_CHARS,
+  IMPLICATION_MAX_CHARS,
+  RepoConfigOutcomes,
+} from "repo-config";
 import { ComparisonBaselineLabels, type Result } from "types";
 import { z } from "zod/v4";
 
@@ -12,12 +19,7 @@ import type {
   FileDiffPatch,
 } from "./types";
 import {
-  CRITERIA_MAX_CHARS,
-  IMPLICATION_MAX_CHARS,
   isFloorAttribute,
-  NAME_MAX_CHARS,
-  NAME_PATTERN,
-  OUTCOMES,
   SLOT_PATHS,
   type RepoConfigContext,
 } from "./utils/repo-config";
@@ -154,7 +156,7 @@ export function parseLocalBriefSummaries(
 export const repoConfigFileOutcomeSchema = z.object({
   path: z.string(),
   blobSha: z.string().nullable(),
-  outcome: z.enum(OUTCOMES),
+  outcome: z.enum(RepoConfigOutcomes),
   detail: z.string().exactOptional(),
   bytesUsed: z.number().exactOptional(),
   bytesBudget: z.number().exactOptional(),
@@ -163,7 +165,7 @@ export const repoConfigFileOutcomeSchema = z.object({
 
 /** Custom names later extend a model json_schema enum: charset and caps mirror the writer's. */
 export const firedCustomAttributeSchema = z.object({
-  name: z.string().max(NAME_MAX_CHARS).regex(NAME_PATTERN),
+  name: z.string().max(ATTRIBUTE_NAME_MAX_CHARS).regex(ATTRIBUTE_NAME_PATTERN),
   criteria: z.string().min(1).max(CRITERIA_MAX_CHARS),
   implication: z.string().min(1).max(IMPLICATION_MAX_CHARS).exactOptional(),
   paths: z.array(z.string().min(1)).exactOptional(),

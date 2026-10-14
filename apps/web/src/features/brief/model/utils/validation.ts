@@ -1,3 +1,4 @@
+import { LocalBriefKinds } from "contract";
 import {
   ArtifactIssueCodes,
   readStoredBrief,
@@ -111,7 +112,7 @@ function isCanonicalRemainder(
 
 function shapeBriefView(stored: StoredBrief, warnings?: ParseWarnings): Brief {
   const { anchoring: _anchoring, intentCheck, unattributed, ...kept } = stored;
-  const brief: Brief = { ...kept, artifactKind: "brief" };
+  const brief: Brief = { ...kept, artifactKind: LocalBriefKinds.BRIEF };
 
   if (intentCheck !== undefined) {
     brief.intentCheck = alignIntentCheck(intentCheck);
@@ -172,7 +173,7 @@ export function parseDeltaBrief(json: string): Result<Brief> {
   const { changedGroups, chunks, ...kept } = read.value;
   const delta: Brief = {
     ...kept,
-    artifactKind: "delta",
+    artifactKind: LocalBriefKinds.DELTA,
     changeGroups: changedGroups,
     chunks,
     concernView: buildConcernView(chunks),

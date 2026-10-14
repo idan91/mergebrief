@@ -1,5 +1,10 @@
 import type { BriefChunk, BriefViewModel } from "@web/features/brief/model";
-import { CommentAnchorKinds } from "types";
+import {
+  CommentAnchorKinds,
+  DispositionCarryStatuses,
+  DispositionDecisions,
+  DispositionEvidenceKinds,
+} from "types";
 import {
   createFileCommentAnchor,
   isFileCommentAnchor,
@@ -14,6 +19,7 @@ import {
   type RiskEvidence,
 } from "../../utils/state";
 import type { Disposition } from "../disposition";
+import { DispositionKinds } from "../types";
 import type { SessionDisposition, SessionDraftComment } from "../serverState";
 import type {
   DraftAnchorWire,
@@ -102,10 +108,10 @@ export function resolveEvidence(
   }
 
   const ref = evidence.ref ?? "";
-  if (evidence.kind === "linked-comment") {
+  if (evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     return { kind: evidence.kind, commentId: ref };
   }
-  if (evidence.kind === "chunk-reviewed") {
+  if (evidence.kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     return { kind: evidence.kind, chunkId: ref };
   }
   return { kind: evidence.kind, note: ref };
@@ -117,15 +123,15 @@ export function resolveEvidence(
  * decided would hide the one thing the attention list is asking for.
  */
 function resolveDisposition(row: SessionDisposition): Disposition {
-  if (row.carryStatus === "reopened") {
-    return { kind: "open" };
+  if (row.carryStatus === DispositionCarryStatuses.REOPENED) {
+    return { kind: DispositionKinds.OPEN };
   }
-  if (row.decision === "dismissed") {
-    return { kind: "dismissed", reason: row.reason ?? "" };
+  if (row.decision === DispositionDecisions.DISMISSED) {
+    return { kind: DispositionKinds.DISMISSED, reason: row.reason ?? "" };
   }
 
   const evidence = resolveEvidence(row.evidence);
-  const addressed: Disposition = { kind: "addressed" };
+  const addressed: Disposition = { kind: DispositionKinds.ADDRESSED };
   if (evidence) {
     addressed.evidence = evidence;
   }

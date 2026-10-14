@@ -3,21 +3,7 @@
 // path matcher comes from its owner, which is browser-safe on its own subpath.
 // A lockstep test still pins the mirrored floor list.
 import { matchesGlob } from "brief-core/path-matching";
-
-export type RepoConfigOutcome =
-  | "applied"
-  | "absent"
-  | "invalid"
-  | "over-budget"
-  | "fetch-failed";
-
-export const OUTCOMES = [
-  "applied",
-  "absent",
-  "invalid",
-  "over-budget",
-  "fetch-failed",
-] as const satisfies readonly RepoConfigOutcome[];
+import type { RepoConfigOutcome } from "repo-config";
 
 export interface RepoConfigFileOutcome {
   path: string;
@@ -79,11 +65,6 @@ export const SLOT_PATHS = [
   ".mergebrief/settings.yaml",
   ".mergebrief/policy.yaml",
 ] as const;
-
-export const NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-export const NAME_MAX_CHARS = 50;
-export const CRITERIA_MAX_CHARS = 4000;
-export const IMPLICATION_MAX_CHARS = 500;
 
 function ruleAppliesTo(rule: DeEmphasisRule, file: string): boolean {
   if (rule.paths === undefined || rule.paths.length === 0) {

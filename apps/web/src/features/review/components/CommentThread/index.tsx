@@ -4,6 +4,7 @@
    action, not a page-load focus steal. */
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
+import { DiffSides, DraftCommentStatuses } from "types";
 
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
@@ -75,7 +76,9 @@ export function CommentThread({
   // Save/Cancel both clear it (navigation guard).
   useUnsavedComposerText(
     useId(),
-    editing && comment.status !== "submitted" && body !== comment.body,
+    editing &&
+      comment.status !== DraftCommentStatuses.SUBMITTED &&
+      body !== comment.body,
   );
   // Save keeps the posting guard: an editor already open when a Post starts
   // must not save mid-flight (capture-at-initiation).
@@ -98,7 +101,7 @@ export function CommentThread({
   };
   // Posted to GitHub. GitHub holds the text now, so the local record is
   // read-only (an edit here would silently diverge: re-submits ship drafts).
-  const submitted = comment.status === "submitted";
+  const submitted = comment.status === DraftCommentStatuses.SUBMITTED;
   // Why Post is blocked right now, or `undefined` when it may proceed:
   // - Submit review in flight (screen-owned, wins the display) → the review
   //   already captured this draft; posting would double-post it;
@@ -128,7 +131,7 @@ export function CommentThread({
     : comment.anchor.selectedText;
   const collapsedWhere = isFileCommentAnchor(comment.anchor)
     ? t("review.comment.commentOnFile")
-    : `${t("review.comment.commentOn")}${(comment.anchor.startSide ?? comment.anchor.side) === "new" ? "+" : "-"}${comment.anchor.startLine}`;
+    : `${t("review.comment.commentOn")}${(comment.anchor.startSide ?? comment.anchor.side) === DiffSides.NEW ? "+" : "-"}${comment.anchor.startLine}`;
 
   if (comment.collapsed) {
     return (

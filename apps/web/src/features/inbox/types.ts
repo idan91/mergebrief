@@ -1,19 +1,18 @@
-import {
-  type InboxArchivedFilter,
-  type InboxAuthorFilter,
-  type InboxReviewState,
-  type InboxSort,
-  type InboxStatus,
-  type InboxLayout,
-} from "types/inbox";
-import type { ValueOf } from "types/utils";
-
-import type { ApiErrorCode } from "../../data/apiFetch";
 import type {
   GenerationStatus,
+  InboxArchivedFilter,
+  InboxAuthorFilter,
+  InboxLayout,
+  InboxReviewState,
+  InboxSort,
+  InboxStatus,
   PrState,
   PullRequestSource,
-} from "@web/features/pulls/types";
+  ValueOf,
+} from "types";
+
+import type { ApiErrorCode } from "../../data/apiFetch";
+import type { UnknownValue } from "@web/utils/open-enum/types";
 
 /**
  * What the Inbox query answers: a 401 is the signed-out Home and any other
@@ -33,7 +32,7 @@ export const FailureSides = {
 export type FailureSide = ValueOf<typeof FailureSides>;
 
 export interface InboxGeneration {
-  status: GenerationStatus;
+  status: GenerationStatus | UnknownValue;
   updatedAt: string;
 }
 
@@ -48,15 +47,15 @@ export interface InboxItem {
   repoSlug?: string;
   prNumber: number;
   title?: string;
-  state: PrState;
+  state: PrState | UnknownValue;
   draft: boolean;
-  source: PullRequestSource;
+  source: PullRequestSource | UnknownValue;
   installationId?: string;
   /** Absent when GitHub sent no user. */
   authorLogin?: string;
   viewerIsAuthor: boolean;
   viewerCanDelete: boolean;
-  reviewState?: InboxReviewState;
+  reviewState?: InboxReviewState | UnknownValue;
   behind: boolean;
   unreachable: boolean;
   generation?: InboxGeneration;

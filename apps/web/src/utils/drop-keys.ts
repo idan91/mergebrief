@@ -31,13 +31,21 @@ function omitKeys(
   return kept;
 }
 
+/** A plain object schema, or one the other helper already wraps, so the two nest. */
+type ObjectLikeSchema = z.ZodObject | z.ZodPreprocess<z.ZodObject>;
+
+function readObjectSchema(schema: ObjectLikeSchema): z.ZodObject {
+  const objectSchema = schema instanceof z.ZodObject ? schema : schema.out;
+  return objectSchema;
+}
+
 /**
  * The object schema with each listed key's wire `null` read as absent, so the
  * field stays `.exactOptional()`. A `null` on any other key still fails.
  */
-export function dropNullKeys<Schema extends z.ZodObject>(
+export function dropNullKeys<Schema extends ObjectLikeSchema>(
   schema: Schema,
-  keys: readonly (keyof Schema["shape"] & string)[],
+  keys: readonly (keyof z.output<Schema> & string)[],
 ): z.ZodPreprocess<Schema> {
   return z.preprocess(
     (value) => omitKeys(value, keys, (_key, entry) => entry === null),
@@ -50,11 +58,12 @@ export function dropNullKeys<Schema extends z.ZodObject>(
  * rejects the value, so a bad optional field never fails its object. Any
  * other key still fails as usual.
  */
-export function dropInvalidKeys<Schema extends z.ZodObject>(
+export function dropInvalidKeys<Schema extends ObjectLikeSchema>(
   schema: Schema,
-  keys: readonly (keyof Schema["shape"] & string)[],
+  keys: readonly (keyof z.output<Schema> & string)[],
 ): z.ZodPreprocess<Schema> {
-  const shape: Readonly<Record<string, z.core.$ZodType>> = schema.shape;
+  const shape: Readonly<Record<string, z.core.$ZodType>> =
+    readObjectSchema(schema).shape;
   function isRejected(key: string, entry: unknown): boolean {
     const field = shape[key];
     if (field === undefined) {

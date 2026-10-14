@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import type { TFunction } from "i18next";
-import { PullRequestSources } from "@web/features/pulls/types";
+import { PullRequestSources } from "types";
 import { useTranslation } from "react-i18next";
 
 import { BULK_CONCURRENCY, INBOX_QUERY_ROOT } from "../../consts";

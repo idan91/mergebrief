@@ -1,9 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import {
-  GenerationFailureCodes,
-  type GenerationFailureCode,
-} from "../../../types";
+import { GenerationFailureCodes, type GenerationFailureCode } from "types";
 import { failureLine } from "./utils";
 
 export interface FailedCardProps {

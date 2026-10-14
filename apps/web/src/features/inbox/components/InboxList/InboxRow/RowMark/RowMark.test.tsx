@@ -10,6 +10,8 @@ import { InboxReviewStates } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CALLOUT_HOVER_DELAY_MS } from "@web/components/Callout/consts";
+import { UnknownValues } from "@web/utils/open-enum/types";
+
 import { RowMark } from ".";
 
 afterEach(() => {
@@ -69,5 +71,13 @@ describe("RowMark", () => {
 
     expect(screen.queryByRole("tooltip")).toBeNull();
     expect(mark.getAttribute("data-review")).toBe("yours");
+  });
+
+  it("draws no mark and no callout for an unknown review state", () => {
+    render(<RowMark reviewState={UnknownValues.UNKNOWN} />);
+    const mark = screen.getByTestId("inbox-row-mark");
+
+    expect(mark.getAttribute("data-review")).toBe(UnknownValues.UNKNOWN);
+    expect(mark.childElementCount).toBe(0);
   });
 });

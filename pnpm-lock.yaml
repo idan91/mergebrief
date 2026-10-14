@@ -202,6 +202,9 @@ importers:
       remark-gfm:
         specifier: 4.0.1
         version: 4.0.1
+      repo-config:
+        specifier: workspace:*
+        version: link:../../packages/repo-config
       sass:
         specifier: ^1.89.0
         version: 1.101.0
@@ -263,9 +266,6 @@ importers:
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
-      repo-config:
-        specifier: workspace:*
-        version: link:../../packages/repo-config
       stylelint:
         specifier: ^17.0.0
         version: 17.14.0(typescript@5.9.3)

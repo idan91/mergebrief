@@ -12,7 +12,7 @@ import {
   type ReviewComment,
 } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
-import type { ReviewOutcome } from "types/reviews";
+import { ReviewOutcomes, type ReviewOutcome } from "types";
 import type { SessionDraftComment } from "../session/serverState";
 import type { ReviewSessionActions } from "../session/store";
 import type { ReviewFlowStore } from "../session/flow/store";
@@ -201,7 +201,7 @@ export function useReviewSubmit(
     };
     const settleSubmitted = (result: SubmittedReview) => {
       // A delivered verdict is spent: never a repeat approval.
-      const verdictDelivered = outcome !== "comment";
+      const verdictDelivered = outcome !== ReviewOutcomes.COMMENT;
       if (briefCurrent()) {
         // Consume first, or the next submit prefills already-posted text.
         consumeReviewComment(reviewCommentAtClick);
@@ -274,7 +274,7 @@ export function useReviewSubmit(
           }
           case SubmitReviewResultKinds.UPSTREAM: {
             fail(
-              outcome === "comment"
+              outcome === ReviewOutcomes.COMMENT
                 ? COPY.UPSTREAM_NEUTRAL
                 : COPY.UPSTREAM_VERDICT,
             );

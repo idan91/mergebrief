@@ -3,6 +3,7 @@ import type { BriefViewModel } from "@web/features/brief/model";
 import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
+import { DispositionKinds } from "./types";
 import {
   buildDraftAnchorWire,
   buildEvidenceWire,
@@ -69,9 +70,10 @@ export function createSessionWriteGateway(
       if (flags.length !== flagIds.length) {
         return Promise.resolve(UNRESOLVED);
       }
-      return disposition.kind === "open"
-        ? writes.reopenRisks(flags)
-        : writes.dismissRisks(flags, disposition.reason);
+      if (disposition.kind === DispositionKinds.OPEN) {
+        return writes.reopenRisks(flags);
+      }
+      return writes.dismissRisks(flags, disposition.reason);
     },
     address(evidenceByFlagId) {
       // An evidence claim with no ref is refused at the route ("evidence needs

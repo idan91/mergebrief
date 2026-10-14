@@ -4,7 +4,9 @@ import type {
   LineRange,
   UnattributedFile as StoredUnattributedFile,
 } from "brief-core/types";
-import type { ComparisonBaselineLabel, ValueOf } from "types";
+import type { LocalBriefKind } from "contract";
+import type { ComparisonBaselineLabel, PrState, ValueOf } from "types";
+import type { UnknownValue } from "@web/utils/open-enum/types";
 import type { PostedComment } from "../../../data/postedComment";
 import { WriteFailureKinds } from "../../../data/request/types";
 import type { DiffLine } from "../../../utils/diffTokens/types";
@@ -14,7 +16,7 @@ export type RiskKey = string;
 
 /** Live DB-route PR state. When present it supersedes the artifact stamp. */
 export interface LivePrState {
-  state: "open" | "closed" | "merged";
+  state: PrState | UnknownValue;
   draft: boolean;
   /** The stack read: absent is not read yet or failed, see `PullStack`. */
   stack?: PullStack;
@@ -141,7 +143,7 @@ export interface Brief extends Omit<
   StoredBrief,
   "chunks" | "unattributed" | "anchoring"
 > {
-  artifactKind: "brief" | "delta";
+  artifactKind: LocalBriefKind;
   chunks: BriefChunk[];
   unattributed?: UnattributedFile[];
   baselineSha?: string;

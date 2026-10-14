@@ -3,6 +3,7 @@ import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
 import { UNSAFE_LINKS } from "@web/test/links";
+import { UnknownValues } from "@web/utils/open-enum/types";
 
 import {
   parseInboxResponse,
@@ -99,11 +100,59 @@ describe("parseInboxResponse", () => {
   });
 
   it.each([
-    ["an unknown PR state", { items: [{ ...ITEM, state: "draft" }] }],
     ["a negative count", { counts: { ...WIRE_PAGE.counts, new: -1 } }],
     ["a zero page", { page: 0 }],
+    ["a missing PR state", { items: [{ ...ITEM, state: undefined }] }],
   ])("rejects %s", (_label, overrides) => {
     expect(parseInboxResponse({ ...WIRE_PAGE, ...overrides }).ok).toBe(false);
+  });
+
+  it("reads a required vocabulary value this bundle predates as unknown", () => {
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [
+        {
+          ...ITEM,
+          state: "reopened",
+          source: "cli",
+          generation: { status: "exploded", updatedAt: "2026-09-20T10:00:00Z" },
+        },
+      ],
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items[0]).toMatchObject({
+      state: UnknownValues.UNKNOWN,
+      source: UnknownValues.UNKNOWN,
+      generation: { status: UnknownValues.UNKNOWN },
+    });
+  });
+
+  it("reads a review state this bundle predates as unknown", () => {
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [{ ...ITEM, reviewState: "snoozed" }],
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items[0]?.reviewState).toBe(UnknownValues.UNKNOWN);
+  });
+
+  it("keeps every row when one carries a vocabulary value it predates", () => {
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [ITEM, { ...ITEM, prNumber: 8, state: "reopened" }],
+      total: 2,
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items.map((item) => item.prNumber)).toEqual([7, 8]);
   });
 });
 

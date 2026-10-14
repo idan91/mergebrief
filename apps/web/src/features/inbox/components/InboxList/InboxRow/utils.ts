@@ -1,7 +1,8 @@
 import type { TFunction } from "i18next";
 
 import { ReviewMarkLabelKeys } from "@web/components/ReviewMark/consts";
-import { PullRequestSources } from "@web/features/pulls/types";
+import { PullRequestSources } from "types";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import { AgeUnits, type InboxGeneration, type InboxItem } from "../../../types";
 import { formatAge } from "../../../utils";
 import { readGenerationSignal, readStatusSignal } from "./RowEnd/utils";
@@ -36,6 +37,19 @@ export function formatAgeLabel(t: TFunction, at: string, now: Date): string {
   }
 }
 
+function readReviewMarkWords(
+  t: TFunction,
+  reviewState: InboxItem["reviewState"],
+): string[] {
+  if (reviewState === undefined) {
+    return [t("shell.marks.yours")];
+  }
+  if (reviewState === UnknownValues.UNKNOWN) {
+    return [];
+  }
+  return [t(ReviewMarkLabelKeys[reviewState])];
+}
+
 /**
  * The row link's name before its title: review state, status, generation
  * state when a brief is on its way or failed, the source when it is a URL
@@ -47,12 +61,12 @@ export function describeRow(
   generation: InboxGeneration | undefined,
 ): string {
   const status = readStatusSignal(item.state, item.draft);
-  const parts = [
-    item.reviewState === undefined
-      ? t("shell.marks.yours")
-      : t(ReviewMarkLabelKeys[item.reviewState]),
-    t(status?.label ?? "home.inbox.status.open"),
-  ];
+  const parts = readReviewMarkWords(t, item.reviewState);
+  if (status !== null) {
+    parts.push(t(status.label));
+  } else if (item.state !== UnknownValues.UNKNOWN) {
+    parts.push(t("home.inbox.status.open"));
+  }
   const generationSignal = readGenerationSignal(generation);
   if (generationSignal !== null) {
     parts.push(t(generationSignal.label));
@@ -64,7 +78,8 @@ export function describeRow(
   if (otherAuthor !== undefined) {
     parts.push(t("home.inbox.byAuthor", { login: otherAuthor }));
   }
-  return `${parts.join(". ")}.`;
+  const description = `${parts.join(". ")}.`;
+  return description;
 }
 
 /** The author a row names: absent on the viewer's own pull requests. */

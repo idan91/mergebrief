@@ -1,11 +1,12 @@
-import type {
-  ChangeGroupCategory,
-  CommentAnchorKinds,
-  DiffSide,
-  DispositionCarryStatus,
-  DispositionDecision,
-  DispositionEvidence,
-  ReviewOutcome,
+import {
+  type ChangeGroupCategory,
+  type CommentAnchorKinds,
+  type DiffSide,
+  type DispositionCarryStatus,
+  type DispositionDecision,
+  type DispositionEvidence,
+  type ReviewOutcome,
+  ReviewOutcomes,
 } from "types";
 import type { BriefViewModel } from "@web/features/brief/model";
 import type { ReviewComment } from "../utils/comments";
@@ -93,7 +94,7 @@ export function emptySessionPayload(): ReviewSessionPayload {
   return {
     materialized: false,
     attention: [],
-    reviewOutcome: "comment",
+    reviewOutcome: ReviewOutcomes.COMMENT,
     draftComments: [],
     readMarks: [],
     reclassifications: [],
