@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
+import { buildRequestPath } from "./request-path";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields
@@ -61,7 +62,7 @@ async function fetchPrMeta(
   prNumber: number,
 ): Promise<PrMetaSlice> {
   const response = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}`,
+    path: buildRequestPath(ProductQueryIds.READ_PULL, { repoId, prNumber }),
   });
   let parsedJson: unknown;
   try {
@@ -124,7 +125,7 @@ export async function runPrMeta(
     // TRUE passthrough: the json arm must never parse, a shape the CLI does
     // not recognize still belongs to the consumer.
     const response = await client.request({
-      path: `/api/repos/${repoId}/pulls/${prNumber}`,
+      path: buildRequestPath(ProductQueryIds.READ_PULL, { repoId, prNumber }),
     });
     io.stdout(response.bodyText); // verbatim
     return;
@@ -147,7 +148,11 @@ export async function runGroups(
   const meta = await fetchPrMeta(client, repoId, prNumber);
   const span = briefSpan(meta, prNumber);
   const brief = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/brief?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+    path: buildRequestPath(
+      ProductQueryIds.READ_BRIEF,
+      { repoId, prNumber },
+      { base: span.base, head: span.head },
+    ),
   });
   if (io.json) {
     io.stdout(brief.bodyText); // verbatim
@@ -210,7 +215,11 @@ export async function runDiff(
     const meta = await fetchPrMeta(client, repoId, prNumber);
     span = briefSpan(meta, prNumber);
     const brief = await client.request({
-      path: `/api/repos/${repoId}/pulls/${prNumber}/brief?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+      path: buildRequestPath(
+        ProductQueryIds.READ_BRIEF,
+        { repoId, prNumber },
+        { base: span.base, head: span.head },
+      ),
     });
     let parsedJson: unknown;
     try {
@@ -244,7 +253,11 @@ export async function runDiff(
   }
 
   const diff = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/diff?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+    path: buildRequestPath(
+      ProductQueryIds.READ_DIFF,
+      { repoId, prNumber },
+      { base: span.base, head: span.head },
+    ),
   });
 
   let text = diff.bodyText;
@@ -327,7 +340,11 @@ export async function runDelta(
   // Unmodeled 404 (the artifact vanished between reads / explicit bad span)
   // stays exit 4, only MODELED unavailability is data.
   const artifact = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/delta?baseline=${encodeURIComponent(baseline)}&head=${encodeURIComponent(head)}`,
+    path: buildRequestPath(
+      ProductQueryIds.READ_DELTA,
+      { repoId, prNumber },
+      { baseline, head },
+    ),
   });
   // Splice the artifact bytes VERBATIM into the envelope, never re-parsed.
   emit(

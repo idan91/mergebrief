@@ -50,7 +50,6 @@ export {
   InboxQueryBounds,
   InboxQueryKeys,
   type InboxCountsView,
-  type InboxGenerationView,
   type InboxItem,
   type InboxQueryKey,
   type InboxRepositoryView,
@@ -59,7 +58,11 @@ export {
   type Page,
   type ReachableInstallationView,
 } from "./inbox";
-export { WaitReasons, type WaitReason } from "./generation";
+export {
+  WaitReasons,
+  type GenerationSummaryView,
+  type WaitReason,
+} from "./generation";
 export {
   LocalBriefKinds,
   type LocalBriefKind,
@@ -69,6 +72,7 @@ export {
   type LocalLastReviewAvailability,
   type LocalPreviousBriefAvailability,
 } from "./local-briefs";
+export { buildOperationPath, type OperationParams } from "./operation-path";
 export {
   ProductOperations,
   formatEndpoint,
@@ -91,6 +95,7 @@ export {
   type ProductQueryId,
   type ProductQueryRow,
 } from "./operations/types";
+export type { PullMetaView } from "./pull-meta";
 export type {
   CarriedFromPayload,
   DispositionPayload,

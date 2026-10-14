@@ -1,15 +1,26 @@
 // Boundary-guard tests for the read-API PR shapes. The API is trusted
 // infrastructure but still an external boundary to this bundle, so responses
 // are parsed, never cast.
-import { WaitReasons } from "contract";
+import {
+  WaitReasons,
+  type ForkPrStackView,
+  type GenerationSummaryView,
+  type LastReviewComparisonView,
+  type LinearPrStackView,
+  type PreviousBriefComparisonView,
+  type PrStackMemberView,
+  type PullMetaView,
+  type PullStackView,
+  type RevisionComparisons,
+  type RevisionView,
+} from "contract";
 import { describe, expect, it } from "vitest";
-import type { Equals } from "types/utils";
+import type { DraftPolicy, Equals } from "types";
 import type { z } from "zod/v4";
 
 import { UnknownValues } from "@web/utils/open-enum/types";
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
-  parsePrSummary,
-  parsePullStack,
   type availableLastReviewSchema,
   type draftPolicySummarySchema,
   type forkPrStackSchema,
@@ -19,8 +30,8 @@ import {
   type prComparisonsSchema,
   type previousBriefComparisonSchema,
   type prStackMemberSchema,
-  type prSummarySchema,
-  type pullStackSchema,
+  prSummarySchema,
+  pullStackSchema,
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
 } from "./schemas";
@@ -73,11 +84,11 @@ const PENDING_GENERATION = {
   updatedAt: "2026-07-06T12:00:00.000Z",
 };
 
-describe("parsePrSummary behind", () => {
+describe("prSummarySchema behind", () => {
   it("reads behind when present and treats an older server as caught up", () => {
-    const behind = parsePrSummary({ ...ROW, behind: true });
-    const absent = parsePrSummary(ROW);
-    const wrong = parsePrSummary({ ...ROW, behind: "yes" });
+    const behind = parseWithSchema(prSummarySchema, { ...ROW, behind: true });
+    const absent = parseWithSchema(prSummarySchema, ROW);
+    const wrong = parseWithSchema(prSummarySchema, { ...ROW, behind: "yes" });
 
     expect(behind.ok && behind.value.behind).toBe(true);
     expect(absent.ok && absent.value.behind).toBe(false);
@@ -85,16 +96,19 @@ describe("parsePrSummary behind", () => {
   });
 });
 
-describe("parsePrSummary", () => {
+describe("prSummarySchema", () => {
   it("reads the wire's null PR and generation fields as absent", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       repoSlug: null,
       title: null,
       baseSha: null,
       headSha: null,
     });
-    const noGeneration = parsePrSummary({ ...ROW, generation: null });
+    const noGeneration = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: null,
+    });
 
     if (!parsed.ok || !noGeneration.ok) {
       throw new Error("unreachable");
@@ -111,7 +125,7 @@ describe("parsePrSummary", () => {
   });
 
   it("parses the failure code and sanitized detail off the wire", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: {
         status: "failed",
@@ -131,7 +145,7 @@ describe("parsePrSummary", () => {
   });
 
   it("degrades a code this bundle does not know, keeping the detail", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: {
         status: "failed",
@@ -151,7 +165,7 @@ describe("parsePrSummary", () => {
 
   it("ignores a top-level errorDetail the wire never sends", () => {
     for (const errorDetail of ["forged", 5]) {
-      const parsed = parsePrSummary({
+      const parsed = parseWithSchema(prSummarySchema, {
         ...ROW,
         generation: { ...PENDING_GENERATION, errorDetail },
       });
@@ -171,7 +185,7 @@ describe("parsePrSummary", () => {
       errorCode: "unknown",
       updatedAt: "2026-07-06T12:00:00.000Z",
     };
-    const notObject = parsePrSummary({
+    const notObject = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...base, errorParams: "nope" },
     });
@@ -179,7 +193,7 @@ describe("parsePrSummary", () => {
       throw new Error("unreachable");
     }
     expect(notObject.value.generation).not.toHaveProperty("errorDetail");
-    const loose = parsePrSummary({
+    const loose = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...base, errorParams: { detail: 5 } },
     });
@@ -190,7 +204,7 @@ describe("parsePrSummary", () => {
   });
 
   it("parses a known wait reason off a pending generation", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...PENDING_GENERATION, waitReason: "waiting-for-slot" },
     });
@@ -204,7 +218,10 @@ describe("parsePrSummary", () => {
   });
 
   it("leaves the wait reason absent when the wire carries none", () => {
-    const parsed = parsePrSummary({ ...ROW, generation: PENDING_GENERATION });
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: PENDING_GENERATION,
+    });
 
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -213,7 +230,7 @@ describe("parsePrSummary", () => {
   });
 
   it("degrades a wait reason this bundle does not know to absent", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...PENDING_GENERATION, waitReason: "rate-limited" },
     });
@@ -225,7 +242,7 @@ describe("parsePrSummary", () => {
   });
 
   it("accepts a full row", () => {
-    const parsed = parsePrSummary(ROW);
+    const parsed = parseWithSchema(prSummarySchema, ROW);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -235,7 +252,7 @@ describe("parsePrSummary", () => {
   });
 
   it("parses draft + viewerIsAuthor and requires both", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       draft: true,
       viewerIsAuthor: true,
@@ -248,38 +265,51 @@ describe("parsePrSummary", () => {
     expect(parsed.value.viewerIsAuthor).toBe(true);
 
     const { draft: _noDraft, ...withoutDraft } = ROW;
-    expect(parsePrSummary(withoutDraft).ok).toBe(false);
+    expect(parseWithSchema(prSummarySchema, withoutDraft).ok).toBe(false);
     const { viewerIsAuthor: _noViewer, ...withoutViewer } = ROW;
-    expect(parsePrSummary(withoutViewer).ok).toBe(false);
+    expect(parseWithSchema(prSummarySchema, withoutViewer).ok).toBe(false);
     // A non-boolean must be rejected, not coerced, this gates affordances.
-    expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, viewerIsAuthor: "true" }).ok,
+    ).toBe(false);
   });
 
   it("parses appInstalled and reads false when a server omits it", () => {
-    const installed = parsePrSummary({ ...ROW, appInstalled: true });
+    const installed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      appInstalled: true,
+    });
     if (!installed.ok) {
       throw new Error(installed.error);
     }
     expect(installed.value.appInstalled).toBe(true);
 
-    const legacy = parsePrSummary(ROW);
+    const legacy = parseWithSchema(prSummarySchema, ROW);
     if (!legacy.ok) {
       throw new Error(legacy.error);
     }
     expect(legacy.value.appInstalled).toBe(false);
 
-    expect(parsePrSummary({ ...ROW, appInstalled: "yes" }).ok).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, appInstalled: "yes" }).ok,
+    ).toBe(false);
   });
 
   it("parses viewerCanResolve and FAILS CLOSED when it is absent", () => {
-    const capable = parsePrSummary({ ...ROW, viewerCanResolve: true });
+    const capable = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      viewerCanResolve: true,
+    });
     expect(capable.ok).toBe(true);
     if (!capable.ok) {
       throw new Error("unreachable");
     }
     expect(capable.value.viewerCanResolve).toBe(true);
 
-    const denied = parsePrSummary({ ...ROW, viewerCanResolve: false });
+    const denied = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      viewerCanResolve: false,
+    });
     if (!denied.ok) {
       throw new Error("unreachable");
     }
@@ -288,7 +318,7 @@ describe("parsePrSummary", () => {
     // Absent = a server predating the field: no capability, so no affordance.
     // Unlike draft/viewerIsAuthor this is NOT a contract violation, the row
     // parses, it just carries no permission.
-    const older = parsePrSummary(ROW);
+    const older = parseWithSchema(prSummarySchema, ROW);
     if (!older.ok) {
       throw new Error("unreachable");
     }
@@ -296,29 +326,41 @@ describe("parsePrSummary", () => {
 
     // Present but not a boolean IS malformed, coercing a truthy string into a
     // capability would hand out affordances the server never granted.
-    expect(parsePrSummary({ ...ROW, viewerCanResolve: "true" }).ok).toBe(false);
-    expect(parsePrSummary({ ...ROW, viewerCanResolve: null }).ok).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, viewerCanResolve: "true" }).ok,
+    ).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, viewerCanResolve: null }).ok,
+    ).toBe(false);
   });
 
   it("parses authorLogin and reads a null or absent one as absent", () => {
-    const authored = parsePrSummary({ ...ROW, authorLogin: "mira-k" });
+    const authored = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      authorLogin: "mira-k",
+    });
     if (!authored.ok) {
       throw new Error("unreachable");
     }
     expect(authored.value.authorLogin).toBe("mira-k");
 
-    const unknown = parsePrSummary({ ...ROW, authorLogin: null });
+    const unknown = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      authorLogin: null,
+    });
     if (!unknown.ok) {
       throw new Error("unreachable");
     }
     expect(unknown.value).not.toHaveProperty("authorLogin");
-    expect(parsePrSummary(ROW).ok).toBe(true);
+    expect(parseWithSchema(prSummarySchema, ROW).ok).toBe(true);
 
-    expect(parsePrSummary({ ...ROW, authorLogin: 7 }).ok).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, authorLogin: 7 }).ok,
+    ).toBe(false);
   });
 
   it("accepts nullable fields on a waiting row with no brief and no title", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       title: null,
       baseSha: null,
@@ -330,7 +372,7 @@ describe("parsePrSummary", () => {
   });
 
   it("reads a generation status this bundle predates as unknown", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...ROW.generation, status: "exploded" },
     });
@@ -343,30 +385,39 @@ describe("parsePrSummary", () => {
 
   it("rejects a missing required field", () => {
     const { prNumber: _dropped, ...rest } = ROW;
-    expect(parsePrSummary(rest).ok).toBe(false);
+    expect(parseWithSchema(prSummarySchema, rest).ok).toBe(false);
   });
 
   it("reads a state this bundle predates as unknown and still requires one", () => {
-    const parsed = parsePrSummary({ ...ROW, state: "reopened" });
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      state: "reopened",
+    });
 
     if (!parsed.ok) {
       throw new Error(parsed.error);
     }
     expect(parsed.value.state).toBe(UnknownValues.UNKNOWN);
     const { state: _absent, ...stateless } = ROW;
-    expect(parsePrSummary(stateless).ok).toBe(false);
+    expect(parseWithSchema(prSummarySchema, stateless).ok).toBe(false);
   });
 
   it("rejects a non-numeric repoId, which is interpolated into route URLs", () => {
-    expect(parsePrSummary({ ...ROW, repoId: "123/extra" }).ok).toBe(false);
-    expect(parsePrSummary({ ...ROW, repoId: "?x=1" }).ok).toBe(false);
-    expect(parsePrSummary({ ...ROW, repoId: "" }).ok).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, repoId: "123/extra" }).ok,
+    ).toBe(false);
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, repoId: "?x=1" }).ok,
+    ).toBe(false);
+    expect(parseWithSchema(prSummarySchema, { ...ROW, repoId: "" }).ok).toBe(
+      false,
+    );
   });
 });
 
-describe("parsePrSummary draftPolicy on PR-meta", () => {
+describe("prSummarySchema draftPolicy on PR-meta", () => {
   it("accepts an absent draftPolicy on list rows", () => {
-    const parsed = parsePrSummary(ROW);
+    const parsed = parseWithSchema(prSummarySchema, ROW);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -375,7 +426,7 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
   });
 
   it("parses a present draftPolicy", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
@@ -390,7 +441,7 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
   });
 
   it("reads the zero-config policy's null debounceSeconds as absent", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       draftPolicy: { generate: true, debounceSeconds: null },
     });
@@ -407,16 +458,19 @@ describe("parsePrSummary draftPolicy on PR-meta", () => {
       { generate: true, debounceSeconds: "900" },
       "off",
     ]) {
-      const parsed = parsePrSummary({ ...ROW, draftPolicy: bad });
+      const parsed = parseWithSchema(prSummarySchema, {
+        ...ROW,
+        draftPolicy: bad,
+      });
       expect(parsed.ok).toBe(false);
     }
   });
 });
 
-describe("parsePrSummary comparisons on PR-meta", () => {
+describe("prSummarySchema comparisons on PR-meta", () => {
   it("accepts an absent comparisons key and an empty envelope", () => {
-    expect(parsePrSummary(ROW).ok).toBe(true);
-    const empty = parsePrSummary({ ...ROW, comparisons: {} });
+    expect(parseWithSchema(prSummarySchema, ROW).ok).toBe(true);
+    const empty = parseWithSchema(prSummarySchema, { ...ROW, comparisons: {} });
     expect(empty.ok).toBe(true);
     if (!empty.ok) {
       throw new Error("unreachable");
@@ -425,7 +479,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
   });
 
   it("parses previousBrief availability", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       comparisons: {
         previousBrief: {
@@ -448,7 +502,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
 
   it("rejects a malformed previousBrief", () => {
     expect(
-      parsePrSummary({
+      parseWithSchema(prSummarySchema, {
         ...ROW,
         comparisons: { previousBrief: { baselineSha: 5 } },
       }).ok,
@@ -456,7 +510,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
   });
 
   it("parses lastReview available payload, with and without baselineIndex", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       comparisons: {
         lastReview: {
@@ -477,7 +531,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
       baselineIndex: 2,
     });
 
-    const noIndex = parsePrSummary({
+    const noIndex = parseWithSchema(prSummarySchema, {
       ...ROW,
       comparisons: {
         lastReview: { deltaAvailable: false, baselineSha: "cp-1" },
@@ -496,7 +550,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
 
   it("parses lastReview unavailable reasons, an unrecognised one as unknown", () => {
     for (const reason of ["pending", "baseline-unavailable"]) {
-      const parsed = parsePrSummary({
+      const parsed = parseWithSchema(prSummarySchema, {
         ...ROW,
         comparisons: { lastReview: { unavailable: reason } },
       });
@@ -509,7 +563,7 @@ describe("parsePrSummary comparisons on PR-meta", () => {
         reason,
       });
     }
-    const unrecognised = parsePrSummary({
+    const unrecognised = parseWithSchema(prSummarySchema, {
       ...ROW,
       comparisons: { lastReview: { unavailable: "exploded" } },
     });
@@ -524,14 +578,17 @@ describe("parsePrSummary comparisons on PR-meta", () => {
 
   it("rejects a malformed lastReview matching neither arm of the union", () => {
     expect(
-      parsePrSummary({
+      parseWithSchema(prSummarySchema, {
         ...ROW,
         comparisons: { lastReview: { baselineSha: "cp-1" } },
       }).ok,
     ).toBe(false);
-    expect(parsePrSummary({ ...ROW, comparisons: { lastReview: 5 } }).ok).toBe(
-      false,
-    );
+    expect(
+      parseWithSchema(prSummarySchema, {
+        ...ROW,
+        comparisons: { lastReview: 5 },
+      }).ok,
+    ).toBe(false);
   });
 
   it("the unavailable key decides the arm even with an unrecognised reason", () => {
@@ -541,7 +598,10 @@ describe("parsePrSummary comparisons on PR-meta", () => {
       baselineSha: "cp-1",
     };
 
-    const parsed = parsePrSummary({ ...ROW, comparisons: { lastReview } });
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      comparisons: { lastReview },
+    });
     if (!parsed.ok) {
       throw new Error(parsed.error);
     }
@@ -552,9 +612,9 @@ describe("parsePrSummary comparisons on PR-meta", () => {
   });
 });
 
-describe("parsePrSummary degrade paths", () => {
+describe("prSummarySchema degrade paths", () => {
   it("reads a mistyped failure code and a null wait reason as absent", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: { ...PENDING_GENERATION, errorCode: 7, waitReason: null },
     });
@@ -576,13 +636,16 @@ describe("parsePrSummary degrade paths", () => {
     };
 
     expect(
-      parsePrSummary({ ...ROW, briefAvailable: true, revisions: [revision] })
-        .ok,
+      parseWithSchema(prSummarySchema, {
+        ...ROW,
+        briefAvailable: true,
+        revisions: [revision],
+      }).ok,
     ).toBe(false);
   });
 });
 
-describe("parsePrSummary revisions on PR-meta", () => {
+describe("prSummarySchema revisions on PR-meta", () => {
   const REVISION = {
     headSha: "head-1",
     baseSha: "base-1",
@@ -593,7 +656,7 @@ describe("parsePrSummary revisions on PR-meta", () => {
 
   it("reads a revision without comparisons as an empty envelope", () => {
     const { comparisons: _omitted, ...bare } = REVISION;
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       briefAvailable: true,
       revisions: [bare],
@@ -606,7 +669,7 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 
   it("accepts an absent revisions key on a row with no brief", () => {
-    const parsed = parsePrSummary(ROW);
+    const parsed = parseWithSchema(prSummarySchema, ROW);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -615,7 +678,7 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 
   it("parses an ordered timeline preserving each entry's own baseSha", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       revisions: [
         { ...REVISION, headSha: "head-0", baseSha: "base-0", headIndex: 1 },
@@ -647,7 +710,7 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 
   it("parses per-revision comparison availability, same envelope as above", () => {
-    const parsed = parsePrSummary({
+    const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       revisions: [
         {
@@ -676,7 +739,7 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 
   it("carries generatedAt through, tolerates absence, rejects non-string", () => {
-    const withCutoff = parsePrSummary({
+    const withCutoff = parseWithSchema(prSummarySchema, {
       ...ROW,
       revisions: [{ ...REVISION, generatedAt: "2026-07-06T11:58:00.000Z" }],
     });
@@ -688,7 +751,10 @@ describe("parsePrSummary revisions on PR-meta", () => {
       "2026-07-06T11:58:00.000Z",
     );
 
-    const absent = parsePrSummary({ ...ROW, revisions: [REVISION] });
+    const absent = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      revisions: [REVISION],
+    });
     expect(absent.ok).toBe(true);
     if (!absent.ok) {
       throw new Error("unreachable");
@@ -696,21 +762,25 @@ describe("parsePrSummary revisions on PR-meta", () => {
     expect(absent.value.revisions?.[0]?.generatedAt).toBeUndefined();
 
     expect(
-      parsePrSummary({ ...ROW, revisions: [{ ...REVISION, generatedAt: 5 }] })
-        .ok,
+      parseWithSchema(prSummarySchema, {
+        ...ROW,
+        revisions: [{ ...REVISION, generatedAt: 5 }],
+      }).ok,
     ).toBe(false);
   });
 
   it("rejects a non-array revisions and a malformed entry", () => {
-    expect(parsePrSummary({ ...ROW, revisions: {} }).ok).toBe(false);
+    expect(parseWithSchema(prSummarySchema, { ...ROW, revisions: {} }).ok).toBe(
+      false,
+    );
     expect(
-      parsePrSummary({
+      parseWithSchema(prSummarySchema, {
         ...ROW,
         revisions: [{ ...REVISION, headIndex: "2" }],
       }).ok,
     ).toBe(false);
     expect(
-      parsePrSummary({
+      parseWithSchema(prSummarySchema, {
         ...ROW,
         revisions: [{ ...REVISION, comparisons: { lastReview: 5 } }],
       }).ok,
@@ -718,9 +788,9 @@ describe("parsePrSummary revisions on PR-meta", () => {
   });
 });
 
-describe("parsePullStack", () => {
+describe("pullStackSchema", () => {
   it("parses a null stack as none, a chain and a fork", () => {
-    expect(parsePullStack({ stack: null })).toStrictEqual({
+    expect(parseWithSchema(pullStackSchema, { stack: null })).toStrictEqual({
       ok: true,
       value: {},
     });
@@ -731,7 +801,7 @@ describe("parsePullStack", () => {
       ],
       index: 2,
     };
-    expect(parsePullStack({ stack: chain })).toEqual({
+    expect(parseWithSchema(pullStackSchema, { stack: chain })).toEqual({
       ok: true,
       value: { stack: chain },
     });
@@ -742,11 +812,13 @@ describe("parsePullStack", () => {
         { number: 9, title: "Right" },
       ],
     };
-    expect(parsePullStack({ stack: fork })).toEqual({
+    expect(parseWithSchema(pullStackSchema, { stack: fork })).toEqual({
       ok: true,
       value: { stack: fork },
     });
-    expect(parsePullStack({ stack: { children: fork.children } })).toEqual({
+    expect(
+      parseWithSchema(pullStackSchema, { stack: { children: fork.children } }),
+    ).toEqual({
       ok: true,
       value: { stack: { children: fork.children } },
     });
@@ -755,25 +827,31 @@ describe("parsePullStack", () => {
   it("keeps the recorded read time and refuses an unreadable one", () => {
     const chain = { members: [{ number: 6, title: "x" }], index: 1 };
     const asOf = "2026-09-19T12:00:00.000Z";
-    expect(parsePullStack({ stack: chain, asOf })).toEqual({
+    expect(parseWithSchema(pullStackSchema, { stack: chain, asOf })).toEqual({
       ok: true,
       value: { stack: chain, asOf },
     });
-    expect(parsePullStack({ stack: chain, asOf: 5 }).ok).toBe(false);
-    expect(parsePullStack({ stack: chain, asOf: "garbage" }).ok).toBe(false);
+    expect(parseWithSchema(pullStackSchema, { stack: chain, asOf: 5 }).ok).toBe(
+      false,
+    );
+    expect(
+      parseWithSchema(pullStackSchema, { stack: chain, asOf: "garbage" }).ok,
+    ).toBe(false);
   });
 
   it("refuses a malformed member or a missing index", () => {
     expect(
-      parsePullStack({
+      parseWithSchema(pullStackSchema, {
         stack: { members: [{ number: "6", title: "x" }], index: 1 },
       }).ok,
     ).toBe(false);
     expect(
-      parsePullStack({ stack: { members: [{ number: 6, title: "x" }] } }).ok,
+      parseWithSchema(pullStackSchema, {
+        stack: { members: [{ number: 6, title: "x" }] },
+      }).ok,
     ).toBe(false);
-    expect(parsePullStack({ stack: "nope" }).ok).toBe(false);
-    expect(parsePullStack([]).ok).toBe(false);
+    expect(parseWithSchema(pullStackSchema, { stack: "nope" }).ok).toBe(false);
+    expect(parseWithSchema(pullStackSchema, []).ok).toBe(false);
   });
 
   it("refuses an invalid chain even when it also carries children", () => {
@@ -783,7 +861,7 @@ describe("parsePullStack", () => {
       children: [{ number: 8, title: "Left" }],
     };
 
-    expect(parsePullStack({ stack }).ok).toBe(false);
+    expect(parseWithSchema(pullStackSchema, { stack }).ok).toBe(false);
   });
 });
 
@@ -838,6 +916,71 @@ const SCHEMA_PINS = {
 
 describe("pulls schemas match their interfaces", () => {
   it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
+  });
+});
+
+/** Every field the parser reads is one the contract sends. */
+type ReadsWireFields<Parsed, Wire> = Equals<
+  Exclude<keyof Parsed, keyof Wire>,
+  never
+>;
+
+type UnavailableLastReviewView = Extract<
+  LastReviewComparisonView,
+  { readonly unavailable: unknown }
+>;
+
+const CONTRACT_PINS = {
+  // `errorDetail` is lifted out of the wire's `errorParams.detail`.
+  GenerationSummary: true satisfies ReadsWireFields<
+    Omit<z.output<typeof generationSummarySchema>, "errorDetail">,
+    GenerationSummaryView
+  >,
+  PreviousBriefComparison: true satisfies ReadsWireFields<
+    z.output<typeof previousBriefComparisonSchema>,
+    PreviousBriefComparisonView
+  >,
+  UnavailableLastReviewComparison: true satisfies ReadsWireFields<
+    z.input<typeof unavailableLastReviewSchema>,
+    UnavailableLastReviewView
+  >,
+  PrComparisons: true satisfies ReadsWireFields<
+    z.output<typeof prComparisonsSchema>,
+    RevisionComparisons
+  >,
+  RevisionSummary: true satisfies ReadsWireFields<
+    z.output<typeof revisionSummarySchema>,
+    RevisionView
+  >,
+  DraftPolicySummary: true satisfies ReadsWireFields<
+    z.output<typeof draftPolicySummarySchema>,
+    DraftPolicy
+  >,
+  PrSummary: true satisfies ReadsWireFields<
+    z.output<typeof prSummarySchema>,
+    PullMetaView
+  >,
+  PrStackMember: true satisfies ReadsWireFields<
+    z.output<typeof prStackMemberSchema>,
+    PrStackMemberView
+  >,
+  LinearPrStack: true satisfies ReadsWireFields<
+    z.output<typeof linearPrStackSchema>,
+    LinearPrStackView
+  >,
+  ForkPrStack: true satisfies ReadsWireFields<
+    z.output<typeof forkPrStackSchema>,
+    ForkPrStackView
+  >,
+  PullStack: true satisfies ReadsWireFields<
+    z.output<typeof pullStackSchema>,
+    PullStackView
+  >,
+} as const;
+
+describe("pulls schemas read only what the contract sends", () => {
+  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
     expect(pinned).toBe(true);
   });
 });

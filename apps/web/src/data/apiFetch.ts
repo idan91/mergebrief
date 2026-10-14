@@ -238,12 +238,3 @@ export async function apiJsonFromResponse(
 export async function apiFetchJson(path: string): Promise<unknown> {
   return apiJsonFromResponse(await apiFetch(path), path);
 }
-
-/** Fetch a text body (the live diff proxy); non-2xx throws a typed `ApiError`. */
-export async function apiFetchText(path: string): Promise<string> {
-  const response = await apiFetch(path);
-  if (!response.ok) {
-    throw await errorFromResponse(response, path);
-  }
-  return response.text();
-}

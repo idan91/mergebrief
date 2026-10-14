@@ -1,4 +1,4 @@
-import type { ProductOperationId, ProductOperations } from "contract";
+import type { OperationParams, ProductOperationId } from "contract";
 import type { ValueOf } from "types/utils";
 
 import type { ApiErrorCode } from "../apiFetch";
@@ -21,21 +21,6 @@ type FreeKey<Key extends string> = Key extends ApiErrorCode ? never : Key;
 export type WriteKindTable<Kind extends string> = Partial<
   Record<ApiErrorCode, Kind>
 > & { readonly [Key in FreeKey<"fallback">]: Kind };
-
-type PathParamNames<Path extends string> =
-  Path extends `${string}:${infer Name}/${infer Rest}`
-    ? Name | PathParamNames<`/${Rest}`>
-    : Path extends `${string}:${infer Name}`
-      ? Name
-      : never;
-
-type OperationPath<Id extends ProductOperationId> =
-  (typeof ProductOperations)[Id]["path"];
-
-/** The `:name` segments of the operation's path, each filled by the caller. */
-type OperationParams<Id extends ProductOperationId> = {
-  readonly [Name in PathParamNames<OperationPath<Id>>]: string | number;
-};
 
 export interface ApiRequest<Id extends ProductOperationId> {
   readonly params: OperationParams<Id>;

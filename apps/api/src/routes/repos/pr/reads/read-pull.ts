@@ -1,4 +1,9 @@
-import type { RevisionComparisons, RevisionView, WaitReason } from "contract";
+import type {
+  PullMetaView,
+  RevisionComparisons,
+  RevisionView,
+  WaitReason,
+} from "contract";
 import {
   createArtifactStore,
   createGenerationProjection,
@@ -22,7 +27,7 @@ import {
 } from "./logic/revision-comparisons";
 import { buildRevisionView } from "./logic/revision-views";
 import { deriveWaitReason } from "./logic/wait-reason";
-import type { PullMeta, ReadPullDeps } from "./types";
+import type { ReadPullDeps } from "./types";
 
 interface MetaStores {
   readonly tenant: TenantRepository;
@@ -124,7 +129,7 @@ async function readRevisions(
 export async function readPull(
   deps: ReadPullDeps,
   access: PullRequestAccess,
-): Promise<PullMeta> {
+): Promise<PullMetaView> {
   const pr = await readLiveRow(deps, access);
   const stores: MetaStores = {
     tenant: createTenantRepository(deps.handle, access.rowScope),

@@ -12,17 +12,22 @@ import {
 } from "@tanstack/react-query";
 
 import {
-  ApiError,
-  ApiErrorCodes,
-  apiFetchJson,
-  apiFetchText,
-} from "../../data/apiFetch";
+  buildOperationPath,
+  ProductQueryIds,
+  type OperationParams,
+  type ProductQueryId,
+} from "contract";
+import { HttpStatuses, type ComparisonBaselineLabel } from "types";
+import { z } from "zod/v4";
+
+import { ApiError, ApiErrorCodes, apiFetchJson } from "../../data/apiFetch";
+import { request, requestText } from "../../data/request";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
+  briefContextSchema,
   type Brief,
   type ComparisonMarks,
   parseBrief,
-  parseBriefContext,
   parseComparisonMarks,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
@@ -36,9 +41,8 @@ import {
   type SessionReadSource,
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
-import type { ComparisonBaselineLabel } from "types/comparisons";
 import { LIVE_POLL_MS } from "./consts";
-import { parsePrSummary, parsePullStack } from "./schemas";
+import { prSummarySchema, pullStackSchema } from "./schemas";
 import type { PrSummary } from "./types";
 import { resolveOutagePollMs } from "./utils/poll-backoff";
 
@@ -50,19 +54,31 @@ function prPath(repoId: string, prNumber: number): string {
   return `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
 }
 
+/** A stored body is checked only for being an object; its reader parses the rest. */
+const storedObjectSchema = z.record(z.string(), z.unknown());
+
+/** A 2xx body its reader refused, named by the operation's path. */
+function buildMalformedError<Id extends ProductQueryId>(
+  id: Id,
+  params: OperationParams<Id>,
+): ApiError {
+  const path = buildOperationPath(id, params);
+  return new ApiError(ApiErrorCodes.MALFORMED, HttpStatuses.OK, path);
+}
+
+function readPrSummary(repoId: string, prNumber: number): Promise<PrSummary> {
+  return request(
+    ProductQueryIds.READ_PULL,
+    { params: { repoId, prNumber } },
+    prSummarySchema,
+  );
+}
+
 /** PR meta, the single generation-status poll target. */
 export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-meta", repoId, prNumber],
-    queryFn: async (): Promise<PrSummary> => {
-      const path = prPath(repoId, prNumber);
-      const body = await apiFetchJson(path);
-      const parsed = parsePrSummary(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readPrSummary(repoId, prNumber),
     staleTime: 2_000,
   });
 }
@@ -70,22 +86,43 @@ export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
 /** Below the poll so a refocus after a hidden stretch refetches at once. */
 const STACK_STALE_MS = 15_000;
 
+function readPrStack(repoId: string, prNumber: number): Promise<PullStack> {
+  return request(
+    ProductQueryIds.READ_STACK,
+    { params: { repoId, prNumber } },
+    pullStackSchema,
+  );
+}
+
 /** The PR's stack on GitHub now, or the record for a closed PR, polled while the tab is visible. */
 export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-stack", repoId, prNumber],
-    queryFn: async (): Promise<PullStack> => {
-      const path = `${prPath(repoId, prNumber)}/stack`;
-      const body = await apiFetchJson(path);
-      const parsed = parsePullStack(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readPrStack(repoId, prNumber),
     staleTime: STACK_STALE_MS,
     refetchInterval: (query) => resolveOutagePollMs(query.state, LIVE_POLL_MS),
   });
+}
+
+async function readDbBrief(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): Promise<Brief> {
+  const params = { repoId, prNumber };
+  const body = await requestText(ProductQueryIds.READ_BRIEF, {
+    params,
+    query: { base, head },
+  });
+  // Route loaders SSR-prefetch this read, so the sink is what keeps a
+  // repair on a STORED Brief from shipping with zero signal. The browser
+  // refetch resolves no sink and stays silent by design.
+  const parsed = parseBrief(body, await getSsrWarnSink());
+  if (!parsed.ok) {
+    throw buildMalformedError(ProductQueryIds.READ_BRIEF, params);
+  }
+  return parsed.value;
 }
 
 /** A DB-stored Brief artifact for an exact span, immutable once written. */
@@ -97,21 +134,23 @@ export function buildDbBriefQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["brief", "db", repoId, prNumber, base, head],
-    queryFn: async (): Promise<Brief> => {
-      const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
-      const body = await apiFetchText(path);
-      // Route loaders SSR-prefetch this queryFn, so the sink is what keeps a
-      // repair on a STORED Brief from shipping with zero signal. The browser
-      // refetch resolves no sink and stays silent by design.
-      const parsed = parseBrief(body, await getSsrWarnSink());
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readDbBrief(repoId, prNumber, base, head),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
   });
+}
+
+function readDbBriefContext(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): Promise<RepoConfigContext | null> {
+  return request(
+    ProductQueryIds.READ_BRIEF_CONTEXT,
+    { params: { repoId, prNumber }, query: { base, head } },
+    briefContextSchema,
+  );
 }
 
 /**
@@ -127,15 +166,7 @@ export function buildDbBriefContextQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["brief-context", "db", repoId, prNumber, base, head],
-    queryFn: async (): Promise<RepoConfigContext | null> => {
-      const path = `${prPath(repoId, prNumber)}/brief-context?${spanQuery(base, head)}`;
-      const body = await apiFetchJson(path);
-      const parsed = parseBriefContext(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readDbBriefContext(repoId, prNumber, base, head),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
   });
@@ -249,6 +280,31 @@ export function createSessionReads(
   };
 }
 
+async function readDbComparisonMarks(
+  repoId: string,
+  prNumber: number,
+  baselineSha: string,
+  headSha: string,
+  baselineLabel: ComparisonBaselineLabel,
+  baselineIndex: number | null,
+): Promise<ComparisonMarks> {
+  const params = { repoId, prNumber };
+  const body = await request(
+    ProductQueryIds.READ_MARKS,
+    { params, query: { baseline: baselineSha, head: headSha } },
+    storedObjectSchema,
+  );
+  const parsed = parseComparisonMarks({
+    ...body,
+    baselineLabel,
+    baselineIndex,
+  });
+  if (!parsed.ok) {
+    throw buildMalformedError(ProductQueryIds.READ_MARKS, params);
+  }
+  return parsed.value;
+}
+
 /**
  * Comparison marks for a (baseline, head) span, immutable once written.
  * The key is widened to `QueryKey` because these descriptors cross the
@@ -279,25 +335,36 @@ export function buildDbComparisonMarksQueryOptions(
   ];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<ComparisonMarks> => {
-      const path = `${prPath(repoId, prNumber)}/marks?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
-      const body = await apiFetchJson(path);
-      if (typeof body !== "object" || body === null) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      const parsed = parseComparisonMarks({
-        ...body,
+    queryFn: () =>
+      readDbComparisonMarks(
+        repoId,
+        prNumber,
+        baselineSha,
+        headSha,
         baselineLabel,
         baselineIndex,
-      });
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+      ),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
   });
+}
+
+async function readDbDelta(
+  repoId: string,
+  prNumber: number,
+  baselineSha: string,
+  headSha: string,
+): Promise<Brief> {
+  const params = { repoId, prNumber };
+  const body = await requestText(ProductQueryIds.READ_DELTA, {
+    params,
+    query: { baseline: baselineSha, head: headSha },
+  });
+  const parsed = parseDeltaBrief(body);
+  if (!parsed.ok) {
+    throw buildMalformedError(ProductQueryIds.READ_DELTA, params);
+  }
+  return parsed.value;
 }
 
 /**
@@ -323,18 +390,28 @@ export function buildDbDeltaQueryOptions(
   ];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<Brief> => {
-      const path = `${prPath(repoId, prNumber)}/delta?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
-      const body = await apiFetchText(path);
-      const parsed = parseDeltaBrief(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () => readDbDelta(repoId, prNumber, baselineSha, headSha),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
   });
+}
+
+async function readDbRevisionNarrative(
+  repoId: string,
+  prNumber: number,
+  prevHeadSha: string,
+  headSha: string,
+): Promise<StoredRevisionNarrative> {
+  const params = { repoId, prNumber };
+  const body = await requestText(ProductQueryIds.READ_NARRATIVE, {
+    params,
+    query: { prevHead: prevHeadSha, head: headSha },
+  });
+  const parsed = parseRevisionNarrativeArtifact(body, await getSsrWarnSink());
+  if (!parsed.ok) {
+    throw buildMalformedError(ProductQueryIds.READ_NARRATIVE, params);
+  }
+  return parsed.value;
 }
 
 /** Revision narrative for (prevHead, head), real narrative or a skip stub. */
@@ -354,20 +431,22 @@ export function buildDbRevisionNarrativeQueryOptions(
   ];
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<StoredRevisionNarrative> => {
-      const path = `${prPath(repoId, prNumber)}/narrative?prevHead=${encodeURIComponent(prevHeadSha)}&head=${encodeURIComponent(headSha)}`;
-      const body = await apiFetchText(path);
-      const parsed = parseRevisionNarrativeArtifact(
-        body,
-        await getSsrWarnSink(),
-      );
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
-      }
-      return parsed.value;
-    },
+    queryFn: () =>
+      readDbRevisionNarrative(repoId, prNumber, prevHeadSha, headSha),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+function readPrDiff(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): Promise<string> {
+  return requestText(ProductQueryIds.READ_DIFF, {
+    params: { repoId, prNumber },
+    query: { base, head },
   });
 }
 
@@ -385,8 +464,7 @@ export function buildPrDiffQueryOptions(
   const queryKey: QueryKey = ["pr-diff", repoId, prNumber, base, head];
   return queryOptions({
     queryKey,
-    queryFn: (): Promise<string> =>
-      apiFetchText(`${prPath(repoId, prNumber)}/diff?${spanQuery(base, head)}`),
+    queryFn: () => readPrDiff(repoId, prNumber, base, head),
     staleTime: 60_000,
     gcTime: 5 * 60 * 1000,
   });

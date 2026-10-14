@@ -8,9 +8,10 @@ import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   parseAddressedReviewComment,
-  parseBriefContext,
+  briefContextSchema,
   parseAddressedReviewComments,
   parseComparisonMarks,
   parseFileDiffPatches,
@@ -383,9 +384,11 @@ describe("parseLocalBriefSummaries", () => {
   });
 });
 
-describe("parseBriefContext", () => {
+describe("briefContextSchema", () => {
   it("parses a full envelope round-trip", () => {
-    const parsed = parseBriefContext({ repoConfig: SNAPSHOT });
+    const parsed = parseWithSchema(briefContextSchema, {
+      repoConfig: SNAPSHOT,
+    });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -394,7 +397,7 @@ describe("parseBriefContext", () => {
   });
 
   it("null snapshot parses to null", () => {
-    const parsed = parseBriefContext({ repoConfig: null });
+    const parsed = parseWithSchema(briefContextSchema, { repoConfig: null });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
@@ -436,11 +439,11 @@ describe("parseBriefContext", () => {
       },
     ],
   ])("rejects %s", (_label, value) => {
-    expect(parseBriefContext(value).ok).toBe(false);
+    expect(parseWithSchema(briefContextSchema, value).ok).toBe(false);
   });
 });
 
-describe("parseBriefContext canonical-shape tightening", () => {
+describe("briefContextSchema canonical-shape tightening", () => {
   const slots = SNAPSHOT.files;
   it.each([
     ["missing a slot", { ...SNAPSHOT, files: slots.slice(0, 2) }],
@@ -485,7 +488,9 @@ describe("parseBriefContext canonical-shape tightening", () => {
       },
     ],
   ])("rejects a snapshot with %s", (_label, snapshot) => {
-    expect(parseBriefContext({ repoConfig: snapshot }).ok).toBe(false);
+    expect(
+      parseWithSchema(briefContextSchema, { repoConfig: snapshot }).ok,
+    ).toBe(false);
   });
 });
 
@@ -497,7 +502,7 @@ function readSlot(index: number): RepoConfigFileOutcome {
   return slot;
 }
 
-describe("parseBriefContext tolerances", () => {
+describe("briefContextSchema tolerances", () => {
   const instructions = readSlot(0);
   const settings = readSlot(1);
   const policyFile = readSlot(2);
@@ -516,7 +521,9 @@ describe("parseBriefContext tolerances", () => {
       },
     };
 
-    expect(parseBriefContext({ repoConfig: snapshot })).toEqual({
+    expect(
+      parseWithSchema(briefContextSchema, { repoConfig: snapshot }),
+    ).toEqual({
       ok: true,
       value: snapshot,
     });
@@ -531,9 +538,11 @@ describe("parseBriefContext tolerances", () => {
       deEmphasize: [],
     };
 
-    expect(parseBriefContext({ repoConfig: { ...SNAPSHOT, policy } }).ok).toBe(
-      false,
-    );
+    expect(
+      parseWithSchema(briefContextSchema, {
+        repoConfig: { ...SNAPSHOT, policy },
+      }).ok,
+    ).toBe(false);
   });
 
   it("rejects a slot with a non-number byte count or no blobSha", () => {
@@ -546,10 +555,14 @@ describe("parseBriefContext tolerances", () => {
     const noSha = [withoutSha, settings, policyFile];
 
     expect(
-      parseBriefContext({ repoConfig: { ...SNAPSHOT, files: badBytes } }).ok,
+      parseWithSchema(briefContextSchema, {
+        repoConfig: { ...SNAPSHOT, files: badBytes },
+      }).ok,
     ).toBe(false);
     expect(
-      parseBriefContext({ repoConfig: { ...SNAPSHOT, files: noSha } }).ok,
+      parseWithSchema(briefContextSchema, {
+        repoConfig: { ...SNAPSHOT, files: noSha },
+      }).ok,
     ).toBe(false);
   });
 });

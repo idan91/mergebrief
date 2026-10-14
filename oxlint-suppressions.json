@@ -58,11 +58,6 @@
       "count": 2
     }
   },
-  "apps/cli/src/commands/session-read.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/cli/test/diff-filter.test.ts": {
     "house/no-em-dash": {
       "count": 4

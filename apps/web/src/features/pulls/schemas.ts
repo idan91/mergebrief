@@ -1,25 +1,18 @@
 import { LastReviewUnavailableReasons, WaitReasons } from "contract";
 import { z } from "zod/v4";
-import {
-  GenerationFailureCodes,
-  GenerationStatuses,
-  PrStates,
-  type Result,
-} from "types";
+import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 
-import type { ForkPrStack, PullStack } from "@web/features/brief/model";
+import type { ForkPrStack } from "@web/features/brief/model";
 import {
   dropInvalidKeys,
   dropNullKeys,
   isPlainRecord,
 } from "@web/utils/drop-keys";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
-import { parseWithSchema } from "@web/utils/parse-with-schema";
 import { isRecord } from "@web/utils/typeGuards";
 
 import type {
   AvailableLastReviewComparison,
-  PrSummary,
   UnavailableLastReviewComparison,
 } from "./types";
 
@@ -157,10 +150,6 @@ export const prSummarySchema = dropNullKeys(
   ["repoSlug", "title", "baseSha", "headSha", "authorLogin", "generation"],
 ).readonly();
 
-export function parsePrSummary(value: unknown): Result<PrSummary, string> {
-  return parseWithSchema(prSummarySchema, value);
-}
-
 export const prStackMemberSchema = z.object({
   number: z.number(),
   title: z.string(),
@@ -193,7 +182,3 @@ export const pullStackSchema = dropNullKeys(
   }),
   ["stack"],
 );
-
-export function parsePullStack(value: unknown): Result<PullStack, string> {
-  return parseWithSchema(pullStackSchema, value);
-}

@@ -1,6 +1,6 @@
 import type {
+  GenerationSummaryView,
   InboxCountsView,
-  InboxGenerationView,
   InboxItem as WireInboxItem,
   InboxRepositoryView,
   InboxResponse,
@@ -207,7 +207,7 @@ type ReadsWireFields<Parsed, Wire> = Equals<
 const CONTRACT_PINS = {
   InboxGeneration: true satisfies ReadsWireFields<
     z.output<typeof inboxGenerationSchema>,
-    InboxGenerationView
+    GenerationSummaryView
   >,
   InboxStackPosition: true satisfies ReadsWireFields<
     z.output<typeof inboxStackPositionSchema>,

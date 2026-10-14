@@ -2,15 +2,12 @@
 // across every installation they reach plus their own url rows, with the
 // review-state counts, the viewer and the reachable installations beside it.
 import type {
-  GenerationFailureCode,
-  GenerationFailureParams,
-  GenerationStatus,
   InboxReviewState,
   PrState,
   PullRequestSource,
   ValueOf,
 } from "types";
-import type { GenerationPhase } from "types/generations";
+import type { GenerationSummaryView } from "./generation";
 import type { ViewerView } from "./viewer";
 
 /** The query keys a client sends; the values are the maps in `types/inbox`. */
@@ -46,16 +43,6 @@ export interface Page<Item> {
   readonly total: number;
 }
 
-/** The generation projection's poll-relevant slice, as the PR meta reports it. */
-export interface InboxGenerationView {
-  readonly status: GenerationStatus;
-  readonly phase: GenerationPhase | null;
-  readonly attempts: number;
-  readonly errorCode: GenerationFailureCode | null;
-  readonly errorParams: GenerationFailureParams | null;
-  readonly updatedAt: string;
-}
-
 /** Where the pull request sat in its stack when the latest brief was generated. */
 export interface InboxStackView {
   /** One-based position in the chain. */
@@ -88,7 +75,7 @@ export interface InboxItem {
   readonly behind: boolean;
   /** GitHub stopped showing the row to its owner; url rows only. */
   readonly unreachable: boolean;
-  readonly generation: InboxGenerationView | null;
+  readonly generation: GenerationSummaryView | null;
   readonly latestBriefAt: string | null;
   readonly githubUpdatedAt: string | null;
   /** From the latest brief's stored snapshot; null when it sat in no chain. */

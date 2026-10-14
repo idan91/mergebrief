@@ -1,12 +1,14 @@
 // The four Review Session reads: `session`, `marks`, `narrative`, `context`.
-// Pure passthrough GETs — the span flags are the only client-side checks
+// Pure passthrough GETs: the span flags are the only client-side checks
 // (exit 2); the server owns everything else. `session`/`context` take the
 // brief span (`--base`/`--head`, via `requireSpan`); `marks` names a
 // comparison (`--baseline`/`--head`); `narrative` names a revision hop
 // (`--prev-head`/`--head`).
+import { ProductQueryIds } from "contract";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import type { ReadIo } from "./read";
+import { buildRequestPath } from "./request-path";
 import type { BriefSpan } from "./write";
 
 export interface ComparisonSpan {
@@ -52,7 +54,7 @@ async function passthroughGet(
 ): Promise<void> {
   const response = await client.request({ path });
   if (io.json) {
-    io.stdout(response.bodyText); // verbatim — not one byte more
+    io.stdout(response.bodyText); // verbatim, not one byte more
     return;
   }
   io.stdout(`${response.bodyText}\n`);
@@ -83,7 +85,11 @@ export async function runMarks(
 ): Promise<void> {
   await passthroughGet(
     client,
-    `/api/repos/${repoId}/pulls/${prNumber}/marks?baseline=${encodeURIComponent(span.baseline)}&head=${encodeURIComponent(span.head)}`,
+    buildRequestPath(
+      ProductQueryIds.READ_MARKS,
+      { repoId, prNumber },
+      { baseline: span.baseline, head: span.head },
+    ),
     io,
   );
 }
@@ -98,7 +104,11 @@ export async function runNarrative(
 ): Promise<void> {
   await passthroughGet(
     client,
-    `/api/repos/${repoId}/pulls/${prNumber}/narrative?prevHead=${encodeURIComponent(span.prevHead)}&head=${encodeURIComponent(span.head)}`,
+    buildRequestPath(
+      ProductQueryIds.READ_NARRATIVE,
+      { repoId, prNumber },
+      { prevHead: span.prevHead, head: span.head },
+    ),
     io,
   );
 }
@@ -113,7 +123,11 @@ export async function runContext(
 ): Promise<void> {
   await passthroughGet(
     client,
-    `/api/repos/${repoId}/pulls/${prNumber}/brief-context?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+    buildRequestPath(
+      ProductQueryIds.READ_BRIEF_CONTEXT,
+      { repoId, prNumber },
+      { base: span.base, head: span.head },
+    ),
     io,
   );
 }

@@ -1,12 +1,10 @@
 import type { OpenPullRequest } from "brief-core/pr-stack";
-import type { RevisionComparisons, RevisionView } from "contract";
 import type { GitHubCallFailure } from "github";
 import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy, Result } from "types";
 import type { FailureKinds } from "../../../../shared-errors/failures";
 import type { LiveFactsReader } from "../../../live-read/types";
-import type { PrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
 
 /** The span names no artifact stored on the access step's row. */
@@ -23,16 +21,6 @@ export interface ReadPullDeps {
   /** Present only behind an operator pass, for what the viewer could not see. */
   readonly operator?: LiveFactsReader | undefined;
   readonly log: Logger;
-}
-
-/** The PR view with its comparisons, revisions and instance facts. */
-export interface PullMeta extends PrView {
-  readonly comparisons: RevisionComparisons;
-  /** The PR sits in an installation's world; the App can act on its repo. */
-  readonly appInstalled: boolean;
-  /** The configured window the FE shows, never a hardcoded duration. */
-  readonly draftPolicy: DraftPolicy;
-  readonly revisions?: RevisionView[];
 }
 
 export interface ReadDiffDeps {

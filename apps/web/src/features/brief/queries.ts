@@ -20,6 +20,7 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../data/apiFetch";
+import { request } from "../../data/request";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import { FileRangeResultKinds } from "./model/expansion/types";
 import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
@@ -339,6 +340,29 @@ export function buildFileRangeQueryKey(params: FileRangeParams) {
   ] as const;
 }
 
+async function readFileRange(
+  params: FileRangeParams,
+): Promise<FileRangeResult> {
+  try {
+    const range = await request(
+      ProductQueryIds.READ_FILE_RANGE,
+      {
+        params: { repoId: params.repoId, prNumber: params.prNumber },
+        query: {
+          ref: params.ref,
+          path: params.path,
+          from: String(params.from),
+          to: String(params.to),
+        },
+      },
+      fileRangeSchema,
+    );
+    return { kind: FileRangeResultKinds.READY, range };
+  } catch (error) {
+    return resolveFileRangeFailure(error);
+  }
+}
+
 /**
  * One range of one file at the head commit, for hunk-edge expansion. The
  * read is immutable at a sha, so a range once fetched never goes stale.
@@ -349,20 +373,7 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
   const queryKey: QueryKey = buildFileRangeQueryKey(params);
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<FileRangeResult> => {
-      const path = buildFileRangePath(params);
-      const response = await apiFetch(path);
-      if (!response.ok) {
-        return await readFileRangeFailure(response, path);
-      }
-
-      const body = await apiJsonFromResponse(response, path);
-      const parsed = fileRangeSchema.safeParse(body);
-      if (!parsed.success) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
-      }
-      return { kind: FileRangeResultKinds.READY, range: parsed.data };
-    },
+    queryFn: () => readFileRange(params),
     // Never collected: a range refetched after eviction would render its
     // rows blank while the read is in flight.
     staleTime: Number.POSITIVE_INFINITY,
@@ -380,19 +391,6 @@ export function isFileRangeReadable(params: FileRangeParams): boolean {
   }
 
   return params.to - params.from + 1 <= MAX_FILE_RANGE_LINES;
-}
-
-function buildFileRangePath(params: FileRangeParams): string {
-  const repo = encodeURIComponent(params.repoId);
-  const pull = String(params.prNumber);
-  const query = new URLSearchParams({
-    ref: params.ref,
-    path: params.path,
-    from: String(params.from),
-    to: String(params.to),
-  });
-
-  return `/api/repos/${repo}/pulls/${pull}/file-range?${query.toString()}`;
 }
 
 /** Every refusal this read answers with a reader-facing state of its own. */
@@ -414,13 +412,14 @@ const FILE_RANGE_FAILURES: Partial<Record<ApiErrorCode, FileRangeFailure>> = {
 /**
  * The CODE names the refusal, not the status: the route answers 400 for a
  * non-text blob and for a malformed query alike, and only the first has a
- * reader-facing answer.
+ * reader-facing answer. A malformed 2xx and a network failure still throw.
  */
-async function readFileRangeFailure(
-  response: Response,
-  path: string,
-): Promise<FileRangeResult> {
-  const error = await errorFromResponse(response, path);
+function resolveFileRangeFailure(error: unknown): FileRangeFailure {
+  const refused =
+    error instanceof ApiError && error.code !== ApiErrorCodes.MALFORMED;
+  if (!refused) {
+    throw error;
+  }
 
   return FILE_RANGE_FAILURES[error.code] ?? UNAVAILABLE;
 }

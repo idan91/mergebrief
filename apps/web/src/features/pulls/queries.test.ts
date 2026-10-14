@@ -16,7 +16,6 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
     ...actual,
     apiFetch: vi.fn(),
     apiFetchJson: vi.fn(),
-    apiFetchText: vi.fn(),
   };
 });
 
@@ -24,12 +23,15 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 // own branch logic is covered in `data/ssrWarnSink*.test.ts`.
 vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
 
-import { apiFetchJson, apiFetchText, ApiError } from "../../data/apiFetch";
+import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
+  buildDbBriefContextQueryOptions,
   buildDbBriefQueryOptions,
   buildDbComparisonMarksQueryOptions,
   buildDbDeltaQueryOptions,
+  buildDbRevisionNarrativeQueryOptions,
+  buildPrDiffQueryOptions,
   buildPrMetaQueryOptions,
   buildPrStackQueryOptions,
   buildSessionQueryOptions,
@@ -40,11 +42,18 @@ import {
   type SessionReadListener,
 } from "../review/session";
 
+const apiFetchMock = vi.mocked(apiFetch);
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
-const apiFetchTextMock = vi.mocked(apiFetchText);
+
+/** A fresh response per call: a body is read once. */
+function answerText(status: number, text: string): void {
+  apiFetchMock.mockImplementation(() =>
+    Promise.resolve(new Response(text, { status })),
+  );
+}
 
 function resolveBodyText(body: object): void {
-  apiFetchTextMock.mockResolvedValue(JSON.stringify(body));
+  answerText(200, JSON.stringify(body));
 }
 const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
 
@@ -69,7 +78,7 @@ describe("buildDbComparisonMarksQueryOptions queryFn", () => {
     // The DB body carries NO baselineLabel/baselineIndex; persistence
     // rejects them at write time. The queryFn must still yield a
     // renderer-ready ComparisonMarks.
-    apiFetchJsonMock.mockResolvedValue({
+    resolveBodyText({
       baselineSha: "head-0",
       headSha: "head-1",
       files: [
@@ -88,7 +97,7 @@ describe("buildDbComparisonMarksQueryOptions queryFn", () => {
   });
 
   it("throws typed malformed on a bad body", async () => {
-    apiFetchJsonMock.mockResolvedValue({ nope: true });
+    resolveBodyText({ nope: true });
     await expect(runMarks()).rejects.toMatchObject({ code: "malformed" });
   });
 });
@@ -133,7 +142,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
   };
 
   it("carries the capability off a realistic pr-view body", async () => {
-    apiFetchJsonMock.mockResolvedValue(META_BODY);
+    resolveBodyText(META_BODY);
     await expect(runPrMeta()).resolves.toMatchObject({
       viewerCanResolve: true,
       appInstalled: true,
@@ -143,7 +152,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
 
   it("fails closed on a body from a server predating the field", async () => {
     const { viewerCanResolve: _absent, ...older } = META_BODY;
-    apiFetchJsonMock.mockResolvedValue(older);
+    resolveBodyText(older);
     await expect(runPrMeta()).resolves.toMatchObject({
       viewerCanResolve: false,
       appInstalled: true,
@@ -152,7 +161,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
   });
 
   it("throws typed malformed when the capability is not a boolean", async () => {
-    apiFetchJsonMock.mockResolvedValue({
+    resolveBodyText({
       ...META_BODY,
       viewerCanResolve: "yes",
       appInstalled: true,
@@ -359,55 +368,58 @@ describe("buildPrStackQueryOptions polling", () => {
 
   it("refetches the stack every thirty seconds while the tab is visible", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    apiFetchMock.mockReset();
+    resolveBodyText({ stack: null });
     observeStack();
 
     await vi.advanceTimersByTimeAsync(pollMs - 1_000);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("backs off while GitHub is unavailable and resumes on success", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    apiFetchMock.mockReset();
+    resolveBodyText({ stack: null });
     observeStack();
     await vi.advanceTimersByTimeAsync(0);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
 
-    apiFetchJsonMock.mockRejectedValueOnce(
-      new ApiError("github-unavailable", 502, "/api/x"),
+    apiFetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: "refused", code: "github-unavailable" }),
+        { status: 502 },
+      ),
     );
     await vi.advanceTimersByTimeAsync(pollMs);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
 
     await vi.advanceTimersByTimeAsync(pollMs);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
 
     await vi.advanceTimersByTimeAsync(pollMs);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(3);
+    expect(apiFetchMock).toHaveBeenCalledTimes(3);
 
     await vi.advanceTimersByTimeAsync(pollMs);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(4);
+    expect(apiFetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("pauses while the tab is hidden and catches up on focus", async () => {
     vi.useFakeTimers();
-    apiFetchJsonMock.mockReset();
-    apiFetchJsonMock.mockResolvedValue({ stack: null });
+    apiFetchMock.mockReset();
+    resolveBodyText({ stack: null });
     observeStack();
     await vi.advanceTimersByTimeAsync(0);
 
     focusManager.setFocused(false);
     await vi.advanceTimersByTimeAsync(pollMs * 2);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
 
     focusManager.setFocused(true);
     await vi.advanceTimersByTimeAsync(0);
-    expect(apiFetchJsonMock).toHaveBeenCalledTimes(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -548,5 +560,107 @@ describe("createSessionReads", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(apiFetchJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+function runQuery(options: { readonly queryFn?: unknown }): Promise<unknown> {
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") {
+    throw new Error("expected a queryFn");
+  }
+  return (queryFn as () => Promise<unknown>)();
+}
+
+describe("the pull reads take their path from the operation row", () => {
+  const pull = "/api/repos/424242/pulls/7";
+
+  it.each([
+    ["pr meta", buildPrMetaQueryOptions("424242", 7), pull],
+    ["stack", buildPrStackQueryOptions("424242", 7), `${pull}/stack`],
+    [
+      "brief",
+      buildDbBriefQueryOptions("424242", 7, "base-1", "head-1"),
+      `${pull}/brief?base=base-1&head=head-1`,
+    ],
+    [
+      "brief context",
+      buildDbBriefContextQueryOptions("424242", 7, "base-1", "head-1"),
+      `${pull}/brief-context?base=base-1&head=head-1`,
+    ],
+    [
+      "marks",
+      buildDbComparisonMarksQueryOptions(
+        "424242",
+        7,
+        "head-0",
+        "head-1",
+        "previous-brief",
+        3,
+      ),
+      `${pull}/marks?baseline=head-0&head=head-1`,
+    ],
+    [
+      "delta",
+      buildDbDeltaQueryOptions("424242", 7, "cp-1", "head-1"),
+      `${pull}/delta?baseline=cp-1&head=head-1`,
+    ],
+    [
+      "narrative",
+      buildDbRevisionNarrativeQueryOptions("424242", 7, "head-0", "head-1"),
+      `${pull}/narrative?prevHead=head-0&head=head-1`,
+    ],
+    [
+      "diff",
+      buildPrDiffQueryOptions("424242", 7, "base-1", "head-1"),
+      `${pull}/diff?base=base-1&head=head-1`,
+    ],
+  ])("reads the %s at its row's path", async (_read, options, path) => {
+    apiFetchMock.mockReset();
+    resolveBodyText({});
+
+    await runQuery(options).catch(() => undefined);
+
+    expect(apiFetchMock).toHaveBeenCalledWith(path, { method: "GET" });
+  });
+});
+
+describe("buildDbBriefContextQueryOptions queryFn", () => {
+  const options = buildDbBriefContextQueryOptions(
+    "424242",
+    7,
+    "base-1",
+    "head-1",
+  );
+
+  it("reads a recorded-nothing context as null", async () => {
+    resolveBodyText({ repoConfig: null });
+    await expect(runQuery(options)).resolves.toBeNull();
+  });
+
+  it("throws typed malformed on a body without the envelope", async () => {
+    resolveBodyText({ nope: true });
+    await expect(runQuery(options)).rejects.toMatchObject({
+      code: "malformed",
+    });
+  });
+});
+
+describe("buildPrDiffQueryOptions queryFn", () => {
+  const options = buildPrDiffQueryOptions("424242", 7, "base-1", "head-1");
+
+  it("resolves the diff text verbatim", async () => {
+    answerText(200, "diff --git a/x b/x\n");
+    await expect(runQuery(options)).resolves.toBe("diff --git a/x b/x\n");
+  });
+
+  it("throws the typed error the api answered", async () => {
+    answerText(
+      502,
+      JSON.stringify({ error: "refused", code: "github-unavailable" }),
+    );
+    await expect(runQuery(options)).rejects.toMatchObject({
+      code: "github-unavailable",
+      status: 502,
+    });
   });
 });

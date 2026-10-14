@@ -2,7 +2,7 @@
 // stored artifacts (brief / brief-context / marks / delta / narrative), and
 // the LIVE reads (span diff, file range, stack) on the viewer's binding,
 // cached per session and NEVER persisted.
-import { ProductQueryIds } from "contract";
+import { ProductQueryIds, type PullMetaView } from "contract";
 import type { Handler } from "hono";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
@@ -118,7 +118,7 @@ function createReadPullHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
       operator: selectLiveReadOperator(deps, access),
       log: c.get("logger"),
     };
-    const meta = await readPull(readDeps, access);
+    const meta: PullMetaView = await readPull(readDeps, access);
 
     return c.json(meta, HttpStatuses.OK, NO_STORE);
   };

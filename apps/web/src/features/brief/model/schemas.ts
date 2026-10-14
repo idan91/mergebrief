@@ -18,11 +18,7 @@ import type {
   ComparisonMarks,
   FileDiffPatch,
 } from "./types";
-import {
-  isFloorAttribute,
-  SLOT_PATHS,
-  type RepoConfigContext,
-} from "./utils/repo-config";
+import { isFloorAttribute, SLOT_PATHS } from "./utils/repo-config";
 
 const nullableIntegerSchema = z.int().nullable();
 
@@ -201,20 +197,11 @@ export const repoConfigContextSchema = z.object({
     .nullable(),
 });
 
-const briefContextBodySchema = z.object({
-  repoConfig: repoConfigContextSchema.nullable(),
-});
-
 /**
- * The /brief-context envelope `{ repoConfig: <snapshot|null> }`. `null`
- * (generation recorded nothing) renders as if no repo config exists.
+ * The /brief-context envelope `{ repoConfig: <snapshot|null> }`, read as its
+ * snapshot. `null` (generation recorded nothing) renders as if no repo
+ * config exists.
  */
-export function parseBriefContext(
-  value: unknown,
-): Result<RepoConfigContext | null, string> {
-  const parsed = parseWithSchema(briefContextBodySchema, value);
-  if (!parsed.ok) {
-    return parsed;
-  }
-  return { ok: true, value: parsed.value.repoConfig };
-}
+export const briefContextSchema = z
+  .object({ repoConfig: repoConfigContextSchema.nullable() })
+  .transform(({ repoConfig }) => repoConfig);

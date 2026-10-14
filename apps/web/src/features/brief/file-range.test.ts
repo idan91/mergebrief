@@ -82,6 +82,7 @@ describe("buildFileRangeQueryOptions", () => {
     await expect(runQuery()).resolves.toMatchObject({ kind: "ready" });
     expect(apiFetch).toHaveBeenCalledWith(
       `/api/repos/repo-1/pulls/7/file-range?ref=${HEAD}&path=src%2Fa.ts&from=2&to=21`,
+      { method: "GET" },
     );
   });
 
@@ -147,5 +148,12 @@ describe("buildFileRangeQueryOptions", () => {
     apiFetch.mockResolvedValueOnce(stubResponse({ lines: "nope" }, 200));
 
     await expect(runQuery()).rejects.toThrow("malformed");
+  });
+
+  it("rethrows a network failure instead of reading it as a result", async () => {
+    const failure = new TypeError("network down");
+    apiFetch.mockRejectedValueOnce(failure);
+
+    await expect(runQuery()).rejects.toBe(failure);
   });
 });
