@@ -915,6 +915,8 @@
       "addReviewComment": "Add review comment",
       "tooLongToPost": "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.",
       "pathTooLongToPost": "This comment is anchored to a file whose path is too long to post. Delete the draft to continue.",
+      "tooLongToSave": "This comment is longer than the {{max, number}}-character limit. Shorten it to save.",
+      "pathTooLongToSave": "This file's path is too long to hold a comment. Cancel this comment to continue.",
       "saving": "Saving…"
     },
     "announce": {
@@ -925,6 +927,7 @@
       "reanchorArmed": "Pick the lines this draft belongs on.",
       "commentReanchored": "Draft comment re-anchored.",
       "reanchorCancelled": "Re-anchoring cancelled.",
+      "reanchorPathTooLong": "That file's path is too long to hold a comment. Pick lines in another file, or cancel re-anchoring.",
       "lineSelected": "Line {{line}} selected.",
       "linesSelected": "Lines {{start}} to {{end}} selected.",
       "lineSelectionCleared": "Line selection cleared.",
@@ -960,7 +963,9 @@
       "publishInDoubt": "We could not confirm this comment reached GitHub. Check the pull request on GitHub; if it is there, delete the draft.",
       "humanOnly": "Only a signed-in reviewer can clear this — an access token cannot.",
       "unauthorized": "Your session expired — sign in again, then repeat that action.",
-      "unresolvedRisk": "That decision couldn't be saved — the risk it names is no longer in this brief, or the evidence has nothing behind it. Re-open it and decide again."
+      "unresolvedRisk": "That decision couldn't be saved — the risk it names is no longer in this brief, or the evidence has nothing behind it. Re-open it and decide again.",
+      "tooManyFlags": "That selection holds more risks than one decision can carry. Select fewer and try again.",
+      "textTooLong": "That text is longer than a decision can carry. Shorten it and try again."
     }
   },
   "conversation": {

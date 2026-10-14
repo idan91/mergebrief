@@ -1,5 +1,6 @@
 // The gateway's job is the id→anchor resolution. What it must never do is
 // report a decision as saved when it had nothing sendable to send.
+import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -60,6 +61,57 @@ describe("createSessionWriteGateway", () => {
       new Map([[flagId, { kind: "manual-note" as const }]]),
     );
     expect(result.ok).toBe(false);
+    expect(writes.addressRisks).not.toHaveBeenCalled();
+  });
+
+  it("refuses a decision over the flags-per-call bound with its own copy", async () => {
+    const writes = writesMock();
+    const gateway = createSessionWriteGateway(model, writes);
+    const ids = Array.from(
+      { length: RequestBounds.FLAGS_PER_CALL + 1 },
+      (_, index) => `flag-${String(index)}`,
+    );
+    const tooMany = {
+      ok: false,
+      failure: { frozen: false, copy: "review.writeError.tooManyFlags" },
+    };
+
+    await expect(
+      gateway.dispose(ids, { kind: "dismissed", reason: "not here" }),
+    ).resolves.toEqual(tooMany);
+    await expect(gateway.dispose(ids, { kind: "open" })).resolves.toEqual(
+      tooMany,
+    );
+    await expect(
+      gateway.address(
+        new Map(
+          ids.map((id) => [id, { kind: "manual-note" as const, note: "ok" }]),
+        ),
+      ),
+    ).resolves.toEqual(tooMany);
+    expect(writes.dismissRisks).not.toHaveBeenCalled();
+    expect(writes.reopenRisks).not.toHaveBeenCalled();
+    expect(writes.addressRisks).not.toHaveBeenCalled();
+  });
+
+  it("refuses a dismiss reason or evidence note over the body bound", async () => {
+    const writes = writesMock();
+    const gateway = createSessionWriteGateway(model, writes);
+    const long = "x".repeat(RequestBounds.BODY_LENGTH + 1);
+    const tooLong = {
+      ok: false,
+      failure: { frozen: false, copy: "review.writeError.textTooLong" },
+    };
+
+    await expect(
+      gateway.dispose([flagId], { kind: "dismissed", reason: long }),
+    ).resolves.toEqual(tooLong);
+    await expect(
+      gateway.address(
+        new Map([[flagId, { kind: "manual-note" as const, note: long }]]),
+      ),
+    ).resolves.toEqual(tooLong);
+    expect(writes.dismissRisks).not.toHaveBeenCalled();
     expect(writes.addressRisks).not.toHaveBeenCalled();
   });
 

@@ -1,3 +1,4 @@
+import { RequestBounds } from "contract";
 import { DraftCommentStatuses } from "types/comments";
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
@@ -233,6 +234,10 @@ export function createReviewFlowStore(
           // picks rows already ends in this one action.
           const reanchoring = get().reanchorDraftId;
           if (reanchoring !== null) {
+            if (anchor.file.length > RequestBounds.PATH_LENGTH) {
+              announce(translate("review.announce.reanchorPathTooLong"));
+              return;
+            }
             set({ reanchorDraftId: null });
             // A draft deleted while placement was armed leaves nothing to
             // move: the gesture falls through to a fresh composer rather than

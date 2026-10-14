@@ -189,13 +189,11 @@ describe("the per-repo gate's repo world", () => {
     const res = await buildApp().request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
-          "content-type": "application/json",
         },
-        body: JSON.stringify({ read: true }),
       },
     );
 
@@ -206,7 +204,7 @@ describe("the per-repo gate's repo world", () => {
     );
     expect(rows).toEqual([
       {
-        operation: "set-chunk-read",
+        operation: "mark-chunk-read",
         installation_id: null,
         source: "url",
       },
@@ -381,17 +379,15 @@ describe("the per-repo gate across two installations", () => {
     const res = await buildApp().request(
       `/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
-          "content-type": "application/json",
         },
-        body: JSON.stringify({ read: true }),
       },
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     const sessions = await harness.raw(
       "select installation_id from review_session",
     );
@@ -401,7 +397,7 @@ describe("the per-repo gate across two installations", () => {
     );
     expect(audit).toEqual([
       {
-        operation: "set-chunk-read",
+        operation: "mark-chunk-read",
         installation_id: OTHER_INSTALLATION_ID,
         source: "installation",
       },

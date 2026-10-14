@@ -1,11 +1,14 @@
 // Submit's session side: the drafts read before anything is written, the
 // deterministic refusals they face, and the record a landed review leaves.
+import { RequestBounds } from "contract";
 import type { Logger } from "logging";
 import type { DraftClaim } from "persistence";
-import { AnchorStatuses, DraftCommentStatuses } from "types/comments";
-import { ReviewOutcomes } from "types/reviews";
-import type { Result } from "types/utils";
-import { MAX_BODY_LENGTH } from "../../../../wire-bounds";
+import {
+  AnchorStatuses,
+  DraftCommentStatuses,
+  type Result,
+  ReviewOutcomes,
+} from "types";
 import { foldEveryDraftIntoBody } from "../../publish";
 import type { ResolvedSessionWrite } from "../../session/logic/session-writes";
 import type { HeldDraft } from "../../session/types";
@@ -50,7 +53,9 @@ export function isSubmitAcceptable(
     return false;
   }
   const worstFold = foldEveryDraftIntoBody(request.body, drafts);
-  return worstFold === undefined || worstFold.length <= MAX_BODY_LENGTH;
+  const fitsBodyBound =
+    worstFold === undefined || worstFold.length <= RequestBounds.BODY_LENGTH;
+  return fitsBodyBound;
 }
 
 /**

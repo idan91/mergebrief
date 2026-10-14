@@ -66,7 +66,6 @@ import {
   buildUpdateDraftPayload,
   resolveReadFlag,
   runSessionOperation,
-  runSessionWrite,
   type AnchorFlags,
   type CreateDraftInput,
   type ReanchorInput,
@@ -1064,17 +1063,13 @@ export function buildProgram(deps: CliDeps): Command {
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
         const read = resolveReadFlag(options.read, options.unread);
+        const id = read
+          ? ProductActionIds.MARK_CHUNK_READ
+          : ProductActionIds.MARK_CHUNK_UNREAD;
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSessionWrite(
+        await runSessionOperation(
           client,
-          {
-            method: "PUT",
-            repoId,
-            prNumber,
-            subpath: `/chunks/${encodeURIComponent(chunkId)}/read`,
-            span,
-            payload: { read },
-          },
+          { id, params: { repoId, prNumber, chunkId }, span },
           readIo(deps, global),
         );
       },

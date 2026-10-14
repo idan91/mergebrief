@@ -1,7 +1,6 @@
 import type { Logger } from "logging";
 import type {
   AppDatabase,
-  ChunkReadInput,
   DispositionAnchor,
   DraftAnchor,
   GroupReclassificationInput,
@@ -9,9 +8,7 @@ import type {
   ReviewDraftCommentRow,
   ReviewSessionError,
 } from "persistence";
-import type { DispositionEvidence } from "types/dispositions";
-import type { ReviewOutcome } from "types/reviews";
-import type { Result } from "types/utils";
+import type { DispositionEvidence, Result, ReviewOutcome } from "types";
 import type { SessionRejectedFailure } from "../../../../shared-errors/failures";
 import type { BriefSpan } from "./schemas";
 
@@ -65,8 +62,8 @@ export interface ReanchorDraftRequest extends DraftRequest {
   readonly anchor: DraftAnchor;
 }
 
-export interface SetChunkReadRequest extends SessionRequest {
-  readonly chunkRead: ChunkReadInput;
+export interface MarkChunkRequest extends SessionRequest {
+  readonly chunkId: string;
 }
 
 export interface ReclassifyGroupRequest extends SessionRequest {

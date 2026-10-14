@@ -1,3 +1,4 @@
+import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -8,7 +9,6 @@ import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
 import { useReviewActions } from "@web/features/review/session";
-import { MAX_REPLY_LENGTH } from "../../../../reply";
 import {
   ReplyResultKinds,
   type ReplyResult,
@@ -127,7 +127,7 @@ export function ReplyComposer({
   // its chunk AND in the section), a thread-derived id would duplicate and
   // break label/error association.
   const inputId = `${useId()}-reply`;
-  const overCap = local.length > MAX_REPLY_LENGTH;
+  const overCap = local.length > RequestBounds.BODY_LENGTH;
   // An image still going up: the body would ship its placeholder.
   const uploading = hasUploadPlaceholder(local);
   const blocked =
@@ -301,7 +301,7 @@ export function ReplyComposer({
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
           {overCap
-            ? t("conversation.replyTooLong", { max: MAX_REPLY_LENGTH })
+            ? t("conversation.replyTooLong", { max: RequestBounds.BODY_LENGTH })
             : error}
         </p>
       ) : null}

@@ -4,7 +4,6 @@ import { ProductOperations, type ProductActionId } from "contract";
 import type { ApiClient } from "../../client";
 import type { ReadIo } from "../read";
 import { buildRequestPath } from "../request-path";
-import { spanQuery, type BriefSpan } from "../write";
 import type { SessionOperation } from "./types";
 
 export {
@@ -50,29 +49,6 @@ export async function runSessionOperation<Id extends ProductActionId>(
     operation.payload === undefined
       ? { method, path }
       : { method, path, body: operation.payload },
-  );
-  relayReceipt(response.bodyText, io);
-}
-
-/** `chunk-read`'s own request, until it splits into a pair of operations. */
-export async function runSessionWrite(
-  client: ApiClient,
-  options: {
-    readonly method: "POST" | "PATCH" | "PUT" | "DELETE";
-    readonly repoId: string;
-    readonly prNumber: number;
-    /** Path under `…/session`. */
-    readonly subpath: string;
-    readonly span: BriefSpan;
-    readonly payload?: unknown;
-  },
-  io: ReadIo,
-): Promise<void> {
-  const path = `/api/repos/${options.repoId}/pulls/${options.prNumber}/session${options.subpath}${spanQuery(options.span)}`;
-  const response = await client.request(
-    options.payload === undefined
-      ? { method: options.method, path }
-      : { method: options.method, path, body: options.payload },
   );
   relayReceipt(response.bodyText, io);
 }

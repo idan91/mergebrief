@@ -223,6 +223,7 @@ export type Catalog = typeof en & {
       lines_one: "{{count}} line";
       lines_other: "{{count}} lines";
       tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.";
+      tooLongToSave: "This comment is longer than the {{max, number}}-character limit. Shorten it to save.";
     };
     announce: (typeof en)["review"]["announce"] & {
       lineSelected: "Line {{line}} selected.";

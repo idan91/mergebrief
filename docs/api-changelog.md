@@ -53,6 +53,15 @@ deprecation note here, removal only at a major.
   `.../risks/reopen` to answer `200 { count }` (was `200 { flags }`, the
   same number under a new name). Removed before the first release;
   `mergebrief risk dismiss|address|reopen` relays `{"count":n}`.
+- **Removed** the `set-chunk-read` operation,
+  `PUT /api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId/read` with
+  body `{ read }` answering `200 { chunkId, read }`. Removed before the first
+  release; the old `PUT` now answers `404`.
+- **Added** `mark-chunk-read`, `POST .../session/chunks/:chunkId/read`, and
+  `mark-chunk-unread`, `POST .../session/chunks/:chunkId/unread`. Neither
+  takes a body; both answer `204` with no body and keep the old operation's
+  `private-write` classification and policy. `mergebrief chunk-read` sends
+  the first, `--unread` the second, and prints nothing on success.
 - `POST .../session/comments` (`201 { draftId }`) and
   `PUT .../session/outcome` (`200 { outcome }`, read back off the stored
   session) are unchanged.

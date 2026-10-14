@@ -1,5 +1,6 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
+import { RequestBounds } from "contract";
 import { createI18n } from "i18n";
 import {
   CommentAnchorKinds,
@@ -14,7 +15,6 @@ import {
   createCommentAnchor,
   createFileCommentAnchor,
   createSideAnchor,
-  MAX_POSTED_COMMENT_LENGTH,
   postCommentBlockedReason,
   reviewCommentSubmitLabel,
   countDraftComments,
@@ -228,7 +228,7 @@ describe("postCommentBlockedReason", () => {
         rowIds: [],
         selectedText: "",
       },
-      body: "x".repeat(MAX_POSTED_COMMENT_LENGTH + 1),
+      body: "x".repeat(RequestBounds.BODY_LENGTH + 1),
     };
 
     expect(postCommentBlockedReason(t, comment)).toMatch(

@@ -1,15 +1,16 @@
 // What a session write may say on the wire: every payload and path parameter
 // the write routes accept, with the bounds that keep an unbounded string or
 // an out-of-range id from reaching the store.
-import type {
-  AddressRiskBody,
-  CreateDraftCommentBody,
-  DismissRiskBody,
-  ReanchorDraftCommentBody,
-  ReclassifyGroupBody,
-  ReopenRiskBody,
-  SetReviewOutcomeBody,
-  UpdateDraftCommentBody,
+import {
+  RequestBounds,
+  type AddressRiskBody,
+  type CreateDraftCommentBody,
+  type DismissRiskBody,
+  type ReanchorDraftCommentBody,
+  type ReclassifyGroupBody,
+  type ReopenRiskBody,
+  type SetReviewOutcomeBody,
+  type UpdateDraftCommentBody,
 } from "contract";
 import {
   ChangeGroupCategories,
@@ -21,12 +22,7 @@ import {
   ReviewOutcomes,
 } from "types";
 import { z } from "zod/v4";
-import {
-  MAX_BODY_LENGTH,
-  MAX_ID_LENGTH,
-  MAX_INT4,
-  MAX_PATH_LENGTH,
-} from "../../../wire-bounds";
+import { MAX_ID_LENGTH, MAX_INT4 } from "../../../wire-bounds";
 
 const shaSchema = z.string().min(1);
 /** The span every session request names: the same pair the read takes. */
@@ -34,7 +30,7 @@ export const spanQuerySchema = z.object({ base: shaSchema, head: shaSchema });
 export type BriefSpan = z.infer<typeof spanQuerySchema>;
 
 const coordinateSchema = z.number().int().positive().max(MAX_INT4);
-const filePathSchema = z.string().min(1).max(MAX_PATH_LENGTH);
+const filePathSchema = z.string().min(1).max(RequestBounds.PATH_LENGTH);
 
 /** A chunk or change-group id as the Brief spells it. */
 export const briefLocalIdSchema = z.string().min(1).max(MAX_ID_LENGTH);
@@ -113,7 +109,7 @@ export const anchorSchema = z.union([
 ]) satisfies z.ZodType<unknown, ReanchorDraftCommentBody>;
 
 export const draftBodySchema = z.object({
-  body: z.string().min(1).max(MAX_BODY_LENGTH),
+  body: z.string().min(1).max(RequestBounds.BODY_LENGTH),
 }) satisfies z.ZodType<UpdateDraftCommentBody>;
 
 export const createDraftSchema = z.union([
@@ -122,8 +118,6 @@ export const createDraftSchema = z.union([
     lineAnchorObject.extend({ body: draftBodySchema.shape.body }),
   ),
 ]) satisfies z.ZodType<unknown, CreateDraftCommentBody>;
-
-export const readSchema = z.object({ read: z.boolean() });
 
 export const categorySchema = z.object({
   category: z.enum(ChangeGroupCategories),
@@ -150,13 +144,14 @@ const flagSchema = riskAnchorObject.refine(ORDERED_REGION.check, {
 });
 
 /** Bulk is ONE call carrying an array: the operation's shape, not batching. */
-const MAX_FLAGS_PER_CALL = 200;
 function buildFlagsSchema<T extends z.ZodType>(flag: T) {
-  return z.object({ flags: z.array(flag).min(1).max(MAX_FLAGS_PER_CALL) });
+  return z.object({
+    flags: z.array(flag).min(1).max(RequestBounds.FLAGS_PER_CALL),
+  });
 }
 
 export const dismissSchema = buildFlagsSchema(flagSchema).extend({
-  reason: z.string().min(1).max(MAX_BODY_LENGTH),
+  reason: z.string().min(1).max(RequestBounds.BODY_LENGTH),
 }) satisfies z.ZodType<DismissRiskBody>;
 
 const evidenceSchema = z
@@ -169,7 +164,7 @@ const evidenceSchema = z
     // Evidence with nothing behind it is a claim with no target: a pointer to
     // nothing would store its own `missing-evidence` on the way in, and a
     // note that is the reviewer's own words has to have words.
-    ref: z.string().min(1).max(MAX_BODY_LENGTH),
+    ref: z.string().min(1).max(RequestBounds.BODY_LENGTH),
   })
   // A note is the reviewer's own words; every other kind's ref is an id.
   .refine(

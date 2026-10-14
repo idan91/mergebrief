@@ -65,6 +65,12 @@
       "owner": "idan"
     }
   },
+  "mark-chunk-read": {
+    "command": "mergebrief chunk-read <number>"
+  },
+  "mark-chunk-unread": {
+    "command": "mergebrief chunk-read <number>"
+  },
   "mark-ready": {
     "command": "mergebrief ready <number>"
   },
@@ -178,9 +184,6 @@
       "reason": "Revocation is cookie-only for the same reason as minting: a stolen token must not be able to revoke the owner's tokens",
       "owner": "idan"
     }
-  },
-  "set-chunk-read": {
-    "command": "mergebrief chunk-read <number>"
   },
   "set-review-outcome": {
     "command": "mergebrief outcome <number>"

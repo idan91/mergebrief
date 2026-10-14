@@ -20,7 +20,7 @@ const EXPECTED_OP_IDS = [
   "read-diff",
   "create-draft-comment",
   "update-draft-comment",
-  "set-chunk-read",
+  "mark-chunk-read",
   "reclassify-group",
   "set-review-outcome",
   "read-conversation",

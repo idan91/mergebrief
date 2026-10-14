@@ -53,7 +53,7 @@ describe("createSessionWrites", () => {
   it("sends exactly one request per action, each naming its Brief", async () => {
     apiFetchMock.mockReset();
     apiFetchMock
-      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ outcome: "approve" }), { status: 200 }),
@@ -66,6 +66,27 @@ describe("createSessionWrites", () => {
       `/api/repos/424242/pulls/7/session/chunks/chunk-a/read?${SPAN}`,
       `/api/repos/424242/pulls/7/session/groups/g1/classification?${SPAN}`,
       `/api/repos/424242/pulls/7/session/outcome?${SPAN}`,
+    ]);
+  });
+
+  it("marks a chunk read and unread through the POST verb pair", async () => {
+    const base = "/api/repos/424242/pulls/7/session";
+    respondEmpty();
+    await expect(writes.setRead("chunk/a", true)).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    });
+    await expect(writes.setRead("chunk/a", false)).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(listRequests()).toEqual([
+      [`${base}/chunks/chunk%2Fa/read?${SPAN}`, "POST"],
+      [`${base}/chunks/chunk%2Fa/unread?${SPAN}`, "POST"],
+    ]);
+    expect(apiFetchMock.mock.calls.map((call) => call[1]?.body)).toEqual([
+      undefined,
+      undefined,
     ]);
   });
 

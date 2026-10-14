@@ -2,8 +2,8 @@ import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import {
   LocalBriefKinds,
-  MAX_FILE_RANGE_LINES,
   ProductQueryIds,
+  RequestBounds,
   type FileRangeView,
   type LocalBriefSummary,
   type LocalBriefView,
@@ -390,7 +390,8 @@ export function isFileRangeReadable(params: FileRangeParams): boolean {
     return false;
   }
 
-  return params.to - params.from + 1 <= MAX_FILE_RANGE_LINES;
+  const lineCount = params.to - params.from + 1;
+  return lineCount <= RequestBounds.FILE_RANGE_LINES;
 }
 
 /** Every refusal this read answers with a reader-facing state of its own. */

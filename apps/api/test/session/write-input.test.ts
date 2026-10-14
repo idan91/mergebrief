@@ -2,15 +2,13 @@
 // rejected payload is a 400; this pins the edges that decide it, the int8
 // ceiling a row id must stay under, the line ordering an anchor must hold,
 // and the closed category vocabulary.
-import { ChangeGroupCategories } from "types/reviews";
-import { DiffSides } from "types/comments";
+import { ChangeGroupCategories, DiffSides } from "types";
 import { describe, expect, it } from "vitest";
 import {
   anchorSchema,
   briefLocalIdSchema,
   categorySchema,
   createDraftSchema,
-  readSchema,
 } from "../../src/routes/repos/pr/session/schemas";
 import { rowIdSchema } from "../../src/routes/wire-bounds";
 
@@ -182,15 +180,5 @@ describe("categorySchema", () => {
     ["a non-string", 3],
   ])("rejects %s", (_case, category) => {
     expect(categorySchema.safeParse({ category }).success).toBe(false);
-  });
-});
-
-describe("readSchema", () => {
-  it("takes the boolean both directions", () => {
-    expect(readSchema.parse({ read: false })).toEqual({ read: false });
-  });
-
-  it("rejects a truthy non-boolean", () => {
-    expect(readSchema.safeParse({ read: "true" }).success).toBe(false);
   });
 });

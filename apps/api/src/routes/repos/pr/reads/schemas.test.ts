@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fileRangeQuerySchema } from "./schemas";
-import { MAX_FILE_RANGE_LINES } from "contract";
+import { RequestBounds } from "contract";
 
 const HEAD_SHA = `${"0".repeat(39)}a`;
 
@@ -41,7 +41,7 @@ describe("fileRangeQuerySchema", () => {
     ["a non-numeric line", { from: "one", to: "5" }],
     [
       "a span over the cap",
-      { from: "1", to: String(MAX_FILE_RANGE_LINES + 1) },
+      { from: "1", to: String(RequestBounds.FILE_RANGE_LINES + 1) },
     ],
   ];
 
@@ -67,7 +67,7 @@ describe("fileRangeQuerySchema", () => {
 
   it("accepts a span exactly at the cap", () => {
     const parsed = fileRangeQuerySchema.safeParse(
-      makeQuery({ from: "1", to: String(MAX_FILE_RANGE_LINES) }),
+      makeQuery({ from: "1", to: String(RequestBounds.FILE_RANGE_LINES) }),
     );
     expect(parsed.success).toBe(true);
   });

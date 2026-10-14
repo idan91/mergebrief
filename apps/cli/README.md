@@ -193,7 +193,7 @@ mutually exclusive (exit 2):
 ### `chunk-read <n> <chunkId>`
 
 Mark a brief chunk read (`--unread` clears; the flags are mutually
-exclusive). Span required. Receipt: `{"chunkId":"chunk-1","read":true}`.
+exclusive). Span required. Prints nothing on success.
 
 ### `risk dismiss|address|reopen <n> -F <file>`
 

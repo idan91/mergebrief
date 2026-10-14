@@ -41,7 +41,7 @@ instruction covers it, hold the write and report what you would have done.
    The user re-mints in the browser; you never handle credentials.
 2. `mergebrief capabilities --json --require read-pull read-brief
 read-brief-context read-review-session read-diff create-draft-comment
-update-draft-comment set-chunk-read reclassify-group set-review-outcome
+update-draft-comment mark-chunk-read reclassify-group set-review-outcome
 read-conversation reply-to-comment resolve-thread unresolve-thread
 submit-review`. Every operation the
    loop below may drive, checked before the first read; `generate-brief`

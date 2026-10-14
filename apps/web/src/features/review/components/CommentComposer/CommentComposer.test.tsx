@@ -10,6 +10,7 @@ import {
   renderHook,
   screen,
 } from "@testing-library/react";
+import { RequestBounds } from "contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -210,6 +211,61 @@ describe("CommentComposer while an image uploads", () => {
     act(() => result.current.submit());
 
     expect(save).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CommentComposer request bounds", () => {
+  it("holds a body over the bound and keeps it for shortening", () => {
+    const save = vi.fn();
+    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+    const overBound = "x".repeat(RequestBounds.BODY_LENGTH + 1);
+
+    act(() => result.current.onBodyChange(overBound));
+    act(() => result.current.submit());
+
+    expect(save).not.toHaveBeenCalled();
+    expect(result.current.body).toBe(overBound);
+    expect(result.current.error).toBe(
+      "This comment is longer than the 65,536-character limit. Shorten it to save.",
+    );
+
+    act(() => result.current.onBodyChange(overBound.slice(1)));
+    act(() => result.current.submit());
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("measures the body the save sends, without its outer whitespace", () => {
+    const save = vi.fn();
+    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+
+    act(() =>
+      result.current.onBodyChange(
+        `  ${"x".repeat(RequestBounds.BODY_LENGTH)}\n`,
+      ),
+    );
+    act(() => result.current.submit());
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds a comment on a file whose path is over the bound", () => {
+    const save = vi.fn();
+    const longPath = {
+      ...anchor,
+      file: "x".repeat(RequestBounds.PATH_LENGTH + 1),
+    };
+    const { result } = renderHook(() =>
+      useCommentComposerFacade(longPath, save),
+    );
+
+    act(() => result.current.onBodyChange("looks off"));
+    act(() => result.current.submit());
+
+    expect(save).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(
+      "This file's path is too long to hold a comment. Cancel this comment to continue.",
+    );
   });
 });
 

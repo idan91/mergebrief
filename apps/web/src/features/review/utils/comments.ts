@@ -1,4 +1,5 @@
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { RequestBounds } from "contract";
 import type { TFunction } from "i18next";
 
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
@@ -284,14 +285,6 @@ export function buildSuggestionDiffRows(
 }
 
 /**
- * Mirrors of the post-now route's Zod caps. Keep in lockstep. An over-cap
- * payload is a deterministic 400 there and the UI would resubmit the same
- * draft, so it must block HERE with recoverable copy instead.
- */
-export const MAX_POSTED_COMMENT_LENGTH = 65_536;
-export const MAX_POSTED_COMMENT_PATH_LENGTH = 1_024;
-
-/**
  * Why post-now is blocked for this draft, or `undefined` when it may proceed.
  * Checked both at the Post affordance (disabled with the reason) and in the
  * post handler (belt and braces for programmatic/keyboard paths).
@@ -300,12 +293,12 @@ export function postCommentBlockedReason(
   t: TFunction,
   comment: Pick<ReviewComment, "anchor" | "body">,
 ): string | undefined {
-  if (comment.body.length > MAX_POSTED_COMMENT_LENGTH) {
+  if (comment.body.length > RequestBounds.BODY_LENGTH) {
     return t("review.comment.tooLongToPost", {
-      max: MAX_POSTED_COMMENT_LENGTH,
+      max: RequestBounds.BODY_LENGTH,
     });
   }
-  if (comment.anchor.file.length > MAX_POSTED_COMMENT_PATH_LENGTH) {
+  if (comment.anchor.file.length > RequestBounds.PATH_LENGTH) {
     // Mirrors submitBlockedReason's overlong-path copy: no edit can fix the
     // anchor's path, so the only recovery is deleting the draft.
     return t("review.comment.pathTooLongToPost");

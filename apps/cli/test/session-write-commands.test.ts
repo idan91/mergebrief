@@ -776,7 +776,9 @@ describe("session write commands over the real api app", () => {
     const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
     expect(marked.err).toEqual([]);
     expect(marked.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(marked.out)).toEqual({ chunkId: "chunk-1", read: true });
+    expect(marked.out).toBe("");
+    const afterMark = await run(["session", "7", ...SPAN, "--json"]);
+    expect(JSON.parse(afterMark.out).readMarks).toEqual(["chunk-1"]);
 
     const cleared = await run([
       "chunk-read",
@@ -786,11 +788,11 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
+    expect(cleared.err).toEqual([]);
     expect(cleared.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(cleared.out)).toEqual({
-      chunkId: "chunk-1",
-      read: false,
-    });
+    expect(cleared.out).toBe("");
+    const afterClear = await run(["session", "7", ...SPAN, "--json"]);
+    expect(JSON.parse(afterClear.out).readMarks).toEqual([]);
   });
 
   it("chunk-read rejects --read with --unread, exit 2", async () => {

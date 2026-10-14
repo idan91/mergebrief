@@ -29,6 +29,8 @@ import { dismissRisk } from "./dismiss-risk";
 import { shapeDraftAnchor, shapeNewDraft } from "./logic/draft-write";
 import { throwSessionFailure } from "./logic/wire-failures";
 import { parseSpanQuery } from "./logic/write-seam";
+import { markChunkRead } from "./mark-chunk-read";
+import { markChunkUnread } from "./mark-chunk-unread";
 import { readReviewSession } from "./read-review-session";
 import { reanchorDraftComment } from "./reanchor-draft-comment";
 import { reclassifyGroup } from "./reclassify-group";
@@ -42,10 +44,8 @@ import {
   dismissSchema,
   draftBodySchema,
   outcomeSchema,
-  readSchema,
   reopenSchema,
 } from "./schemas";
-import { setChunkRead } from "./set-chunk-read";
 import { setReviewOutcome } from "./set-review-outcome";
 import type { SessionStoreDeps } from "./types";
 import { updateDraftComment } from "./update-draft-comment";
@@ -184,27 +184,30 @@ function createDeleteDraftHandler(
   };
 }
 
-function createSetChunkReadHandler(
+type MarkChunk = typeof markChunkRead | typeof markChunkUnread;
+
+function createMarkChunkHandler(
   deps: AuthRouteDeps,
+  markChunk: MarkChunk,
 ): Handler<PullRequestEnv> {
   return async (c) => {
     const chunkId = briefLocalIdSchema.safeParse(c.req.param("chunkId"));
-    const parsed = readSchema.safeParse(await readJsonBody(c));
     const span = parseSpanQuery(c);
-    if (!chunkId.success || !parsed.success || span === undefined) {
+    const malformedRequest = !chunkId.success || span === undefined;
+    if (malformedRequest) {
       throw new BadRequest();
     }
 
     const access = c.get("pullRequestAccess");
-    const written = await setChunkRead(buildStoreDeps(deps, c), access, {
+    const written = await markChunk(buildStoreDeps(deps, c), access, {
       span,
-      chunkRead: { chunkId: chunkId.data, read: parsed.data.read },
+      chunkId: chunkId.data,
     });
     if (!written.ok) {
       throwSessionFailure(written.error);
     }
 
-    return c.json(written.value, HttpStatuses.OK, NO_STORE);
+    return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
   };
 }
 
@@ -395,14 +398,25 @@ export function sessionRoutes(
   );
   app.action(
     {
-      id: ProductActionIds.SET_CHUNK_READ,
+      id: ProductActionIds.MARK_CHUNK_READ,
       browserSessionOnly: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
     },
     "/chunks/:chunkId/read",
-    createSetChunkReadHandler(deps),
+    createMarkChunkHandler(deps, markChunkRead),
+  );
+  app.action(
+    {
+      id: ProductActionIds.MARK_CHUNK_UNREAD,
+      browserSessionOnly: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
+    },
+    "/chunks/:chunkId/unread",
+    createMarkChunkHandler(deps, markChunkUnread),
   );
   app.action(
     {

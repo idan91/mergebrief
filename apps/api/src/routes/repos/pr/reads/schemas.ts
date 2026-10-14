@@ -1,11 +1,7 @@
 // Boundary schemas for the read surface. A SHA is a non-empty token.
 import { z } from "zod/v4";
-import { MAX_FILE_RANGE_LINES } from "contract";
-import {
-  commitShaSchema,
-  MAX_INT4,
-  MAX_PATH_LENGTH,
-} from "../../../wire-bounds";
+import { RequestBounds } from "contract";
+import { commitShaSchema, MAX_INT4 } from "../../../wire-bounds";
 
 export const shaSchema = z.string().min(1);
 
@@ -55,7 +51,7 @@ const CONTROL_CHARACTER = /\p{Cc}/u;
 export const filePathSchema = z
   .string()
   .min(1)
-  .max(MAX_PATH_LENGTH)
+  .max(RequestBounds.PATH_LENGTH)
   .refine((value) => !value.startsWith("/"), {
     message: "path must be repo-relative",
   })
@@ -90,7 +86,10 @@ export const fileRangeQuerySchema = z
   .refine((value) => value.from <= value.to, {
     message: "from must not be past to",
   })
-  .refine((value) => value.to - value.from + 1 <= MAX_FILE_RANGE_LINES, {
-    message: "range spans more lines than one read may serve",
-  });
+  .refine(
+    (value) => value.to - value.from + 1 <= RequestBounds.FILE_RANGE_LINES,
+    {
+      message: "range spans more lines than one read may serve",
+    },
+  );
 export type FileRangeQuery = z.infer<typeof fileRangeQuerySchema>;

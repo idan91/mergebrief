@@ -37,6 +37,7 @@ export {
   type FileAttentionLocation,
   type LineAttentionLocation,
 } from "./attention";
+export { RequestBounds } from "./bounds";
 export {
   ApiErrorCodes,
   ApiErrorEnglishByCode,
@@ -45,7 +46,7 @@ export {
   type ApiErrorBody,
   type ApiErrorCode,
 } from "./errors";
-export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
+export type { FileRangeView } from "./file-range";
 export {
   InboxQueryBounds,
   InboxQueryKeys,

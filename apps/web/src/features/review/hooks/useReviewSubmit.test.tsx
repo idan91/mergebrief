@@ -3,6 +3,7 @@
 // result-kind copy (posted / degraded / fail-closed reload / re-login), and
 // the draft flip on success only.
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
 import { type CommentAnchor, type ReviewComment } from "../utils/comments";
@@ -13,11 +14,7 @@ import {
   type ReviewFlowSessionActions,
   type ReviewFlowStore,
 } from "../session/flow/store";
-import {
-  MAX_BODY_LENGTH,
-  buildSignatureLine,
-  foldDraftsIntoBody,
-} from "../utils/submit";
+import { buildSignatureLine, foldDraftsIntoBody } from "../utils/submit";
 import type { SubmitReviewResult } from "../utils/types";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
 import {
@@ -489,7 +486,7 @@ describe("useReviewSubmit", () => {
       [makeDraftWithBody("")],
       [],
     ).length;
-    const unsignedFill = MAX_BODY_LENGTH - emptyFold;
+    const unsignedFill = RequestBounds.BODY_LENGTH - emptyFold;
     const signedFill = unsignedFill - signature.length - "\n\n".length;
 
     const unsigned = setup({
@@ -514,7 +511,9 @@ describe("useReviewSubmit", () => {
       [makeDraftWithBody("")],
       [],
     ).length;
-    const filling = makeDraftWithBody("x".repeat(MAX_BODY_LENGTH - emptyFold));
+    const filling = makeDraftWithBody(
+      "x".repeat(RequestBounds.BODY_LENGTH - emptyFold),
+    );
     const unplaced: SessionDraftComment = {
       id: "gone",
       filePath: "src/gone.ts",

@@ -9,6 +9,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { useState, type ReactElement, type ReactNode } from "react";
+import { RequestBounds } from "contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -174,6 +175,32 @@ describe("CommentThread", () => {
     );
   });
 
+  it("Save holds a body over the bound and keeps the editor open", () => {
+    const update = vi.fn();
+    const held = comment(DraftCommentStatuses.DRAFT);
+    render(
+      <CommentThread
+        comment={held}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={update}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const editor = screen.getByLabelText("Edit comment");
+    fireEvent.change(editor, {
+      target: { value: "x".repeat(RequestBounds.BODY_LENGTH + 1) },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "This comment is longer than the 65,536-character limit. Shorten it to save.",
+    );
+    expect(screen.getByLabelText("Edit comment")).toBeDefined();
+  });
+
   it("is read-only and unlabelled under a status it predates", () => {
     renderThread("unknown");
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
@@ -337,7 +364,7 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post when the path exceeds the route cap", () => {
-    // Route MAX_PATH_LENGTH mirror: an over-long path is a deterministic 400
+    // Route path-bound mirror: an over-long path is a deterministic 400
     // no edit can fix. The only recovery is deleting the draft.
     const post = vi.fn();
     const base = comment(DraftCommentStatuses.DRAFT);

@@ -1,6 +1,6 @@
 // The file-range read at the head sha: expected rejections are RESULT KINDS
 // the expander renders; only a malformed 200 throws.
-import { MAX_FILE_RANGE_LINES } from "contract";
+import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
 const apiFetch = vi.hoisted(() => vi.fn());
@@ -51,10 +51,10 @@ describe("isFileRangeReadable", () => {
   });
 
   it("refuses a span past the contract's read cap", () => {
-    const past = { from: 1, to: MAX_FILE_RANGE_LINES + 1 };
+    const past = { from: 1, to: RequestBounds.FILE_RANGE_LINES + 1 };
 
     expect(isFileRangeReadable(stubParams(past))).toBe(false);
-    const capped = { from: 1, to: MAX_FILE_RANGE_LINES };
+    const capped = { from: 1, to: RequestBounds.FILE_RANGE_LINES };
     expect(isFileRangeReadable(stubParams(capped))).toBe(true);
   });
 

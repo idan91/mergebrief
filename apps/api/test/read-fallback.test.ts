@@ -367,13 +367,11 @@ describe("the per-repo gate's operator-PAT rung", () => {
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
-          "content-type": "application/json",
         },
-        body: JSON.stringify({ read: true }),
       },
     );
 
@@ -384,7 +382,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     );
     expect(rows).toEqual([
       {
-        operation: "set-chunk-read",
+        operation: "mark-chunk-read",
         installation_id: null,
         source: "url",
       },

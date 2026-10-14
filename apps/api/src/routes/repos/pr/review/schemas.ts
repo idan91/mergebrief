@@ -1,13 +1,13 @@
 // The outcome and the review body. The comments come off the session, and
 // the commit off the named Brief's head; the request carries neither.
 import { z } from "zod/v4";
-import { MAX_BODY_LENGTH } from "../../../wire-bounds";
+import { RequestBounds } from "contract";
 import { ReviewOutcomes } from "types/reviews";
 
 export const submitBodySchema = z
   .object({
     outcome: z.enum(ReviewOutcomes),
-    body: z.string().max(MAX_BODY_LENGTH).optional(),
+    body: z.string().max(RequestBounds.BODY_LENGTH).optional(),
   })
   .refine(
     // GitHub documents `body` as REQUIRED for the REQUEST_CHANGES event;

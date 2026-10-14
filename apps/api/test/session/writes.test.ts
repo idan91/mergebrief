@@ -123,7 +123,8 @@ function listSessionWrites(draftId: string): readonly SessionWrite[] {
       `/comments/${draftId}/anchor`,
       { filePath: "src/app.ts", side: "new", startLine: 1, endLine: 2 },
     ],
-    ["PUT", "/chunks/c1/read", { read: true }],
+    ["POST", "/chunks/c1/read", undefined],
+    ["POST", "/chunks/c1/unread", undefined],
     [
       "PUT",
       "/groups/g1/classification",
@@ -266,9 +267,9 @@ describe("the Review Session writes", () => {
     // A read mark owns none of the carried subjects and still creates the
     // session and copies the carried work: materialization belongs to no
     // single operation.
-    const res = await write("PUT", "/chunks/c1/read", "head-2", { read: true });
+    const res = await write("POST", "/chunks/c1/read", "head-2");
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await countRows("review_session")).toBe(2);
     const snapshot = await createTenantRepository(
@@ -292,7 +293,7 @@ describe("the Review Session writes", () => {
     await seedPreviousWork(harness.handle, previous);
     expect(await countRows("review_session")).toBe(1);
 
-    const res = await write("PUT", "/chunks/c1/read", "head-2", { read: true });
+    const res = await write("POST", "/chunks/c1/read", "head-2");
 
     expect(res.status).toBe(500);
     expect(await res.json()).toMatchObject({ code: "internal-error" });
@@ -323,17 +324,17 @@ describe("the Review Session writes", () => {
     const third = { ...FLAG, attribute: "no-docs" };
 
     const marks = [
-      await write("PUT", "/chunks/c1/read", "head-1", { read: true }),
-      await write("PUT", "/chunks/c2/read", "head-1", { read: true }),
-      await write("PUT", "/chunks/c3/read", "head-1", { read: true }),
-      await write("PUT", "/chunks/c1/read", "head-1", { read: true }),
+      await write("POST", "/chunks/c1/read", "head-1"),
+      await write("POST", "/chunks/c2/read", "head-1"),
+      await write("POST", "/chunks/c3/read", "head-1"),
+      await write("POST", "/chunks/c1/read", "head-1"),
     ];
     const decided = await write("POST", "/risks/dismiss", "head-1", {
       flags: [FLAG, { ...FLAG, attribute: "no-error-path" }, third],
       reason: "covered elsewhere",
     });
 
-    expect(marks.map((res) => res.status)).toEqual([200, 200, 409, 200]);
+    expect(marks.map((res) => res.status)).toEqual([204, 204, 409, 204]);
     expect(await readWireCode(marks[2]!)).toBe("session-record-limit-reached");
     expect(decided.status).toBe(409);
     expect(await readWireCode(decided)).toBe("session-record-limit-reached");
@@ -369,7 +370,8 @@ describe("the Review Session writes", () => {
         endLine: 41,
       }),
       write("DELETE", `/comments/${draftId}`, "head-1"),
-      write("PUT", "/chunks/c1/read", "head-1", { read: true }),
+      write("POST", "/chunks/c1/read", "head-1"),
+      write("POST", "/chunks/c1/unread", "head-1"),
       write("PUT", "/groups/g1/classification", "head-1", {
         category: ChangeGroupCategories.BUGFIX,
       }),
@@ -385,7 +387,7 @@ describe("the Review Session writes", () => {
     ]);
 
     expect(refusals.map((res) => res.status)).toEqual([
-      409, 409, 409, 409, 409, 409, 409, 409, 409, 409,
+      409, 409, 409, 409, 409, 409, 409, 409, 409, 409, 409,
     ]);
     expect(await refusals[0]!.json()).toEqual({
       error: expect.any(String),
@@ -393,25 +395,31 @@ describe("the Review Session writes", () => {
     });
   });
 
-  it("keeps set-chunk-read idempotent under a repeat of the same boolean", async () => {
+  it("keeps the read and unread marks idempotent on a repeat", async () => {
     await seedBrief(harness.handle, 1);
 
-    expect(
-      (await write("PUT", "/chunks/c1/read", "head-1", { read: true })).status,
-    ).toBe(200);
-    expect(
-      (await write("PUT", "/chunks/c1/read", "head-1", { read: true })).status,
-    ).toBe(200);
+    const marked = await write("POST", "/chunks/c1/read", "head-1");
+    expect(marked.status).toBe(204);
+    expect(await marked.text()).toBe("");
+    expect(marked.headers.get("cache-control")).toBe("no-store");
+    expect((await write("POST", "/chunks/c1/read", "head-1")).status).toBe(204);
     expect(await countRows("review_read_mark")).toBe(1);
 
-    // The unread half is the same operation carrying `false`, and repeating it
-    // is just as safe.
-    expect(
-      (await write("PUT", "/chunks/c1/read", "head-1", { read: false })).status,
-    ).toBe(200);
-    expect(
-      (await write("PUT", "/chunks/c1/read", "head-1", { read: false })).status,
-    ).toBe(200);
+    const cleared = await write("POST", "/chunks/c1/unread", "head-1");
+    expect(cleared.status).toBe(204);
+    expect(await cleared.text()).toBe("");
+    expect((await write("POST", "/chunks/c1/unread", "head-1")).status).toBe(
+      204,
+    );
+    expect(await countRows("review_read_mark")).toBe(0);
+  });
+
+  it("answers the old PUT chunk read with 404", async () => {
+    await seedBrief(harness.handle, 1);
+
+    const res = await write("PUT", "/chunks/c1/read", "head-1", { read: true });
+
+    expect(res.status).toBe(404);
     expect(await countRows("review_read_mark")).toBe(0);
   });
 
@@ -847,7 +855,7 @@ describe("the Review Session writes", () => {
     ).toBe(400);
 
     expect(
-      (await write("PUT", "/chunks/c1/read", "head-1", { read: "yes" })).status,
+      (await write("POST", `/chunks/${"c".repeat(257)}/read`, "head-1")).status,
     ).toBe(400);
     expect(
       (await write("POST", "/comments", "head-1", { ...DRAFT, endLine: 1 }))
@@ -861,13 +869,11 @@ describe("the Review Session writes", () => {
     const noHead = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=base`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
-          "content-type": "application/json",
         },
-        body: JSON.stringify({ read: true }),
       },
     );
     expect(noHead.status).toBe(400);
@@ -885,12 +891,8 @@ describe("the Review Session writes", () => {
 
     async function asToken(bearer: string): Promise<Response> {
       return app.request(pathFor("/chunks/c1/read", "head-1"), {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${bearer}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ read: true }),
+        method: "POST",
+        headers: { Authorization: `Bearer ${bearer}` },
       });
     }
 
@@ -903,7 +905,7 @@ describe("the Review Session writes", () => {
     // Refused before the handler ran: nothing was created.
     expect(await countRows("review_session")).toBe(0);
 
-    expect((await asToken(writer)).status).toBe(200);
+    expect((await asToken(writer)).status).toBe(204);
     expect(await countRows("review_read_mark")).toBe(1);
   });
 
@@ -1155,10 +1157,8 @@ describe("the Review Session writes", () => {
       await seedBrief(harness.handle, head);
       await seedHop(harness.handle, head - 1, head);
       // Any write writes; the carry rides with it.
-      const carried = await write("PUT", "/chunks/c1/read", `head-${head}`, {
-        read: true,
-      });
-      expect(carried.status).toBe(200);
+      const carried = await write("POST", "/chunks/c1/read", `head-${head}`);
+      expect(carried.status).toBe(204);
     }
 
     // Still proof, and the pointer resolves WITHIN the newest session, the
@@ -1195,13 +1195,13 @@ describe("the Review Session writes", () => {
     for (const head of [2, 3]) {
       await seedBrief(harness.handle, head);
       await seedHopInsideFlaggedRegion(harness.handle, head - 1, head);
-      await write("PUT", "/chunks/c1/read", `head-${head}`, { read: true });
+      await write("POST", "/chunks/c1/read", `head-${head}`);
     }
     // A push that leaves the region alone: the decision settles again, and
     // the proof it named has to still be its proof.
     await seedBrief(harness.handle, 4);
     await seedHop(harness.handle, 3, 4);
-    await write("PUT", "/chunks/c1/read", "head-4", { read: true });
+    await write("POST", "/chunks/c1/read", "head-4");
 
     expect(
       await harness.raw(
@@ -1220,9 +1220,8 @@ describe("the Review Session writes", () => {
   it("401s without a credential", async () => {
     await seedBrief(harness.handle, 1);
     const res = await app.request(pathFor("/chunks/c1/read", "head-1"), {
-      method: "PUT",
-      headers: { ...SAME_ORIGIN_HEADERS, "content-type": "application/json" },
-      body: JSON.stringify({ read: true }),
+      method: "POST",
+      headers: SAME_ORIGIN_HEADERS,
     });
     expect(res.status).toBe(401);
     expect(await countRows("review_session")).toBe(0);

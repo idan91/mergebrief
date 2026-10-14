@@ -2,6 +2,7 @@
 // client-side refusal that mirrors the route's deterministic 400s. The fold
 // below rebuilds the exact string the route measures, so it must track
 // `foldCommentsIntoBody` in apps/api's publish module character for character.
+import { RequestBounds } from "contract";
 import type { TFunction } from "i18next";
 import {
   CommentAnchorKinds,
@@ -45,10 +46,6 @@ const SIDE_TO_WIRE: Record<DiffSide, ThreadSide> = {
   [DiffSides.OLD]: ThreadSides.LEFT,
   [DiffSides.NEW]: ThreadSides.RIGHT,
 };
-
-/** The route's cap on the folded review body, in UTF-16 code units. */
-export const MAX_BODY_LENGTH = 65_536;
-const MAX_PATH_LENGTH = 1_024;
 
 /**
  * The submit route's body. The drafts are NOT in it: the session holds them
@@ -186,12 +183,12 @@ function shapeFoldedBlock(draft: FoldedDraft): string {
   return [`**\`${location}\`**`, "", draft.body].join("\n");
 }
 
-/** The folded review body, measured against `MAX_BODY_LENGTH`. */
+/** The folded review body, measured against `RequestBounds.BODY_LENGTH`. */
 export type FoldedReviewBody = string;
 
 /**
  * The review body the route builds when GitHub rejects every anchor, the
- * worst case it measures against `MAX_BODY_LENGTH` before posting anything.
+ * worst case it measures against `RequestBounds.BODY_LENGTH` before posting anything.
  * The route folds every held draft, placed or not; the length does not
  * depend on their order. The preamble is the route's GitHub-facing text,
  * measured here, never shown.
@@ -250,14 +247,14 @@ export function submitBlockedReason(
     drafts,
     unplacedDrafts,
   ).length;
-  if (foldLength > MAX_BODY_LENGTH) {
+  if (foldLength > RequestBounds.BODY_LENGTH) {
     const tooLarge = hasReviewComment
       ? t("review.submit.tooLargeWithReviewComment")
       : t("review.submit.tooLargeComments");
     return tooLarge;
   }
   const overlongPath = drafts.find(
-    (draft) => draft.anchor.file.length > MAX_PATH_LENGTH,
+    (draft) => draft.anchor.file.length > RequestBounds.PATH_LENGTH,
   );
   if (overlongPath !== undefined) {
     return t("review.submit.pathTooLong");

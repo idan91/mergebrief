@@ -108,15 +108,7 @@ async function readMark(
 ): Promise<Response> {
   return await app.request(
     `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=base&head=head-1`,
-    {
-      method: "PUT",
-      headers: {
-        "content-type": "application/json",
-        ...SAME_ORIGIN_HEADERS,
-        ...headers,
-      },
-      body: JSON.stringify({ read: true }),
-    },
+    { method: "POST", headers: { ...SAME_ORIGIN_HEADERS, ...headers } },
   );
 }
 
@@ -164,11 +156,11 @@ describe("the audit choke point", () => {
       "user-agent": CLI_AGENT,
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     const rows = await auditRows(harness);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      operation: "set-chunk-read",
+      operation: "mark-chunk-read",
       outcome: "ok",
       // The acting credential's tenant keys the row.
       installation_id: String(INSTALLATION_ID),
@@ -206,7 +198,7 @@ describe("the audit choke point", () => {
     const rows = await auditRows(harness);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      operation: "set-chunk-read",
+      operation: "mark-chunk-read",
       outcome: "denied",
       installation_id: String(INSTALLATION_ID),
       channel: "bearer",
@@ -226,7 +218,7 @@ describe("the audit choke point", () => {
     const rows = await auditRows(harness);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      operation: "set-chunk-read",
+      operation: "mark-chunk-read",
       outcome: "denied",
       reason: "no-repo-access",
       target_type: "repo",
@@ -249,7 +241,7 @@ describe("the audit choke point", () => {
     const rows = await auditRows(harness);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      operation: "set-chunk-read",
+      operation: "mark-chunk-read",
       outcome: "denied",
       reason: "cross-origin",
     });
@@ -260,7 +252,7 @@ describe("the audit choke point", () => {
     const ok = await readMark(app, {
       Cookie: `__Host-mergebrief_session=${cookie}`,
     });
-    expect(ok.status).toBe(200);
+    expect(ok.status).toBe(204);
     expect(await auditRows(harness)).toHaveLength(0);
 
     const readOnly = await seedApiToken(harness.handle, kp, AccessLevels.READ);
@@ -280,7 +272,7 @@ describe("the audit choke point", () => {
       "user-agent": "Idan Ram <idan@example.test> on octo-laptop",
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect((await auditRows(harness))[0]?.client).toBeNull();
   });
 
@@ -291,10 +283,10 @@ describe("the audit choke point", () => {
       "X-Request-Id": `${"a".repeat(80)}=`,
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     const rows = await auditRows(harness);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.operation).toBe("set-chunk-read");
+    expect(rows[0]?.operation).toBe("mark-chunk-read");
     expect(rows[0]?.request_id).toBeNull();
   });
 });
@@ -332,7 +324,7 @@ describe("the ledger's tenant", () => {
       await next();
     });
     gated.action(
-      { id: ProductActionIds.SET_CHUNK_READ, ...OPEN_POLICY },
+      { id: ProductActionIds.MARK_CHUNK_READ, ...OPEN_POLICY },
       "/session/chunks/:chunkId/read",
       (c) => c.json({ ok: true }),
     );
@@ -341,7 +333,7 @@ describe("the ledger's tenant", () => {
 
     const res = await root.app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read`,
-      { method: "PUT" },
+      { method: "POST" },
     );
 
     expect(res.status).toBe(200);

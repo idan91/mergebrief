@@ -262,11 +262,17 @@ export const ProductOperations = {
     method: HttpMethods.DELETE,
     path: "/api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
-  [ProductActionIds.SET_CHUNK_READ]: {
+  [ProductActionIds.MARK_CHUNK_READ]: {
     kind: OperationKinds.ACTION,
     classification: AccessLevels.PRIVATE_WRITE,
-    method: HttpMethods.PUT,
+    method: HttpMethods.POST,
     path: "/api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId/read",
+  },
+  [ProductActionIds.MARK_CHUNK_UNREAD]: {
+    kind: OperationKinds.ACTION,
+    classification: AccessLevels.PRIVATE_WRITE,
+    method: HttpMethods.POST,
+    path: "/api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId/unread",
   },
   [ProductActionIds.RECLASSIFY_GROUP]: {
     kind: OperationKinds.ACTION,

@@ -72,6 +72,8 @@ const EXPECTED_POLICY = {
   [ProductQueryIds.LIST_LOCAL_BRIEFS]: [],
   [ProductQueryIds.LIST_REPOS]: [],
   [ProductQueryIds.LIST_TOKENS]: [],
+  [ProductActionIds.MARK_CHUNK_READ]: ["requiresStoredPullRequest"],
+  [ProductActionIds.MARK_CHUNK_UNREAD]: ["requiresStoredPullRequest"],
   [ProductActionIds.MARK_READY]: ["requiresStoredPullRequest"],
   [ProductActionIds.MINT_TOKEN]: [],
   [ProductActionIds.PURGE_ATTACHMENTS]: [
@@ -108,7 +110,6 @@ const EXPECTED_POLICY = {
   [ProductActionIds.RESOLVE_THREAD]: ["requiresStoredPullRequest"],
   [ProductActionIds.REVOKE_SESSIONS]: [],
   [ProductActionIds.REVOKE_TOKEN]: [],
-  [ProductActionIds.SET_CHUNK_READ]: ["requiresStoredPullRequest"],
   [ProductActionIds.SET_REVIEW_OUTCOME]: ["requiresStoredPullRequest"],
   [ProductActionIds.SUBMIT_REVIEW]: ["requiresStoredPullRequest"],
   [ProductActionIds.UNARCHIVE_PULL]: ["requiresStoredPullRequest"],

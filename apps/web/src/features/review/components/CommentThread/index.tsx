@@ -2,6 +2,7 @@
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action, not a page-load focus steal. */
+import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
@@ -86,11 +87,11 @@ export function CommentThread({
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // The editor's image uploads: a failure lands here, a save waits for zero.
-  const [attachError, setAttachError] = useState<string | undefined>(undefined);
+  // An upload failure or a refused save; a save waits for zero uploads.
+  const [editError, setEditError] = useState<string | undefined>(undefined);
   const editBody = (next: string) => {
     setBody(next);
-    setAttachError(undefined);
+    setEditError(undefined);
   };
   // Only a draft is the reviewer's to change. Posted means GitHub holds the
   // text (an edit here would silently diverge: re-submits ship drafts), and a
@@ -111,7 +112,13 @@ export function CommentThread({
     }
     // The body would carry the placeholder, not the image.
     if (hasUploadPlaceholder(body)) {
-      setAttachError(t("shell.attach.waitForUpload"));
+      setEditError(t("shell.attach.waitForUpload"));
+      return;
+    }
+    if (body.trim().length > RequestBounds.BODY_LENGTH) {
+      setEditError(
+        t("review.comment.tooLongToSave", { max: RequestBounds.BODY_LENGTH }),
+      );
       return;
     }
     update(comment.id, body);
@@ -119,7 +126,7 @@ export function CommentThread({
   };
   const cancelEdit = () => {
     setBody(comment.body);
-    setAttachError(undefined);
+    setEditError(undefined);
     setEditing(false);
   };
   const statusLabels = STATUS_LABEL_KEYS[comment.status];
@@ -192,14 +199,14 @@ export function CommentThread({
             value={body}
             announce={announce}
             announceQuietly={announceQuietly}
-            onAttachError={setAttachError}
+            onAttachError={setEditError}
             onChange={editBody}
             onEscape={cancelEdit}
             onSubmit={saveEdit}
           />
-          {attachError !== undefined ? (
+          {editError !== undefined ? (
             <p className={styles["postBlocked"]} role="alert">
-              {attachError}
+              {editError}
             </p>
           ) : null}
           <div className={styles["actions"]}>

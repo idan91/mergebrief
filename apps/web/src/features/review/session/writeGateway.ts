@@ -9,7 +9,7 @@ import {
   buildEvidenceWire,
   buildFlagAnchorWires,
 } from "./anchors";
-import type { FlagAnchorWire } from "contract";
+import { RequestBounds, type FlagAnchorWire } from "contract";
 import type { SessionWriteResult, SessionWrites } from "./writes";
 
 /** The write side of the store, one method per user action. */
@@ -49,6 +49,20 @@ const UNRESOLVED: SessionWriteResult = {
   failure: { frozen: false, copy: "review.writeError.unresolvedRisk" },
 };
 
+const TOO_MANY_FLAGS: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: false, copy: "review.writeError.tooManyFlags" },
+};
+
+const TEXT_TOO_LONG: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: false, copy: "review.writeError.textTooLong" },
+};
+
+function isOverBodyBound(text: string): boolean {
+  return text.length > RequestBounds.BODY_LENGTH;
+}
+
 export function createSessionWriteGateway(
   model: BriefViewModel,
   writes: SessionWrites,
@@ -63,6 +77,15 @@ export function createSessionWriteGateway(
   return {
     setRead: (chunkId, read) => writes.setRead(chunkId, read),
     dispose(flagIds, disposition) {
+      if (flagIds.length > RequestBounds.FLAGS_PER_CALL) {
+        return Promise.resolve(TOO_MANY_FLAGS);
+      }
+      const longReason =
+        disposition.kind === DispositionKinds.DISMISSED &&
+        isOverBodyBound(disposition.reason);
+      if (longReason) {
+        return Promise.resolve(TEXT_TOO_LONG);
+      }
       const flags = buildFlagAnchors(flagIds);
       if (flags.length !== flagIds.length) {
         return Promise.resolve(UNRESOLVED);
@@ -73,6 +96,9 @@ export function createSessionWriteGateway(
       return writes.dismissRisks(flags, disposition.reason);
     },
     address(evidenceByFlagId) {
+      if (evidenceByFlagId.size > RequestBounds.FLAGS_PER_CALL) {
+        return Promise.resolve(TOO_MANY_FLAGS);
+      }
       // An evidence claim with no ref is refused at the route ("evidence needs
       // a ref"). A partial send is worse than none: the reviewer would see
       // every flag addressed and only some of them stored.
@@ -85,6 +111,9 @@ export function createSessionWriteGateway(
       });
       if (flags.length !== evidenceByFlagId.size) {
         return Promise.resolve(UNRESOLVED);
+      }
+      if (flags.some((flag) => isOverBodyBound(flag.evidence.ref))) {
+        return Promise.resolve(TEXT_TOO_LONG);
       }
       return writes.addressRisks(flags);
     },

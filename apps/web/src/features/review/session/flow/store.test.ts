@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { appI18n } from "../../../../i18n/I18nProvider";
+import { RequestBounds } from "contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type CommentAnchor } from "../../utils/comments";
@@ -184,6 +185,22 @@ describe("ReviewFlow store", () => {
       store.getState().actions.startReanchor("draft-1", undefined);
       store.getState().actions.startReanchor("draft-1", undefined);
       expect(store.getState().reanchorDraftId).toBeNull();
+    });
+
+    it("refuses a placement whose path is over the bound and stays armed", () => {
+      const longPath = {
+        ...anchor,
+        file: "x".repeat(RequestBounds.PATH_LENGTH + 1),
+      };
+      store.getState().actions.startReanchor("draft-1", undefined);
+      store.getState().actions.openComposer(longPath, undefined);
+      flushAnnounce();
+      expect(session.reanchorComment).not.toHaveBeenCalled();
+      expect(store.getState().reanchorDraftId).toBe("draft-1");
+      expect(store.getState().composerAnchor).toBeNull();
+      expect(store.getState().toast).toBe(
+        "That file's path is too long to hold a comment. Pick lines in another file, or cancel re-anchoring.",
+      );
     });
 
     it("leaves the live region alone when nothing is armed", () => {

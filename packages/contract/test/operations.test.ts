@@ -41,6 +41,18 @@ describe("operation table", () => {
     }
   });
 
+  it("marks a chunk read and unread through a POST verb pair", () => {
+    const chunk = "/api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId";
+    const pair = [
+      ProductOperations[ProductActionIds.MARK_CHUNK_READ],
+      ProductOperations[ProductActionIds.MARK_CHUNK_UNREAD],
+    ];
+    expect(pair.map((row) => [row.method, row.path])).toEqual([
+      [HttpMethods.POST, `${chunk}/read`],
+      [HttpMethods.POST, `${chunk}/unread`],
+    ]);
+  });
+
   it("refuses a query id mapped to an action row at compile time", () => {
     const table = {
       ...ProductOperations,

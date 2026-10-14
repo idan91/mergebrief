@@ -22,9 +22,6 @@ export interface ReplyBriefSpan {
   readonly head: string;
 }
 
-/** Mirror of the route's Zod cap: a deterministic 400 must block client-side. */
-export const MAX_REPLY_LENGTH = 65_536;
-
 type ReplyFailureKind = Exclude<
   ReplyResultKind,
   typeof ReplyResultKinds.POSTED

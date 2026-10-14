@@ -1,3 +1,4 @@
+import { RequestBounds } from "contract";
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
 import {
@@ -14,7 +15,6 @@ import {
 import type { Receipt } from "./receipt";
 import type { SessionDraftComment } from "../session/serverState";
 import {
-  MAX_BODY_LENGTH,
   buildReviewBody,
   buildSignatureLine,
   buildSubmitPayload,
@@ -193,22 +193,24 @@ describe("submitBlockedReason", () => {
   });
 
   it("allows a fold of exactly the route's body cap", () => {
-    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const drafts = [makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH)];
     expect(foldDraftsIntoBody(SIGNATURE, drafts, [])).toHaveLength(
-      MAX_BODY_LENGTH,
+      RequestBounds.BODY_LENGTH,
     );
     expect(getBlockedReason({ comments: drafts })).toBeUndefined();
   });
 
   it("blocks a fold one character past the body cap", () => {
-    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH + 1)];
+    const drafts = [
+      makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH + 1),
+    ];
     expect(getBlockedReason({ comments: drafts })).toMatch(
       /too large|shorten/i,
     );
   });
 
   it("counts an unplaced draft toward the fold", () => {
-    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const drafts = [makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH)];
     expect(getBlockedReason({ comments: drafts })).toBeUndefined();
     expect(
       getBlockedReason({
@@ -219,7 +221,7 @@ describe("submitBlockedReason", () => {
   });
 
   it("leaves an unplaced draft out once it is submitted", () => {
-    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const drafts = [makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH)];
     const posted = makeUnplacedDraft({
       status: DraftCommentStatuses.SUBMITTED,
     });
@@ -229,7 +231,7 @@ describe("submitBlockedReason", () => {
   });
 
   it("counts a draft of an unknown anchor toward the fold", () => {
-    const drafts = [makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH)];
+    const drafts = [makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH)];
     const held = makeUnplacedDraft({ id: "held", kind: "unknown" });
     expect(
       getBlockedReason({ comments: drafts, unplacedDrafts: [held] }),
@@ -278,7 +280,7 @@ describe("submitBlockedReason", () => {
   });
 
   it("ignores the quoted selection when sizing the fold", () => {
-    const filling = makeDraftFillingFold(SIGNATURE, MAX_BODY_LENGTH);
+    const filling = makeDraftFillingFold(SIGNATURE, RequestBounds.BODY_LENGTH);
     const quoting: ReviewComment = {
       ...filling,
       anchor: anchor({ selectedText: "q".repeat(10_000) }),

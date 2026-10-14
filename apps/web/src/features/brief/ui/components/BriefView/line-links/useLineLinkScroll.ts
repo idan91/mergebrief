@@ -1,6 +1,6 @@
 import type { LineRange } from "brief-core/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { MAX_FILE_RANGE_LINES } from "contract";
+import { RequestBounds } from "contract";
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -88,18 +88,18 @@ function splitReadRange(read: LineLinkRead): LineRange[] {
   const steps: LineRange[] = [];
   const { start, end } = read.range;
   if (read.direction === ExpansionDirections.UP) {
-    for (let to = end; to >= start; to -= MAX_FILE_RANGE_LINES) {
+    for (let to = end; to >= start; to -= RequestBounds.FILE_RANGE_LINES) {
       steps.push({
-        start: Math.max(start, to - MAX_FILE_RANGE_LINES + 1),
+        start: Math.max(start, to - RequestBounds.FILE_RANGE_LINES + 1),
         end: to,
       });
     }
     return steps;
   }
-  for (let from = start; from <= end; from += MAX_FILE_RANGE_LINES) {
+  for (let from = start; from <= end; from += RequestBounds.FILE_RANGE_LINES) {
     steps.push({
       start: from,
-      end: Math.min(end, from + MAX_FILE_RANGE_LINES - 1),
+      end: Math.min(end, from + RequestBounds.FILE_RANGE_LINES - 1),
     });
   }
   return steps;

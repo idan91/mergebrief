@@ -220,8 +220,8 @@ describe("per-action writes through the route", () => {
     expect(writes[0]?.[0]).toBe(
       `/api/repos/${REPO_ID}/pulls/${String(PR_NUMBER)}/session/chunks/chunk-a/read?base=${SPAN.base}&head=${SPAN.head}`,
     );
-    expect(writes[0]?.[1]?.method).toBe("PUT");
-    expect(writes[0]?.[1]?.body).toBe(JSON.stringify({ read: true }));
+    expect(writes[0]?.[1]?.method).toBe("POST");
+    expect(writes[0]?.[1]?.body).toBeUndefined();
   });
 
   it("a frozen 409 closes the SCREEN, not just the one action", async () => {

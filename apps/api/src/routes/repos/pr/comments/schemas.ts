@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
-import { MAX_BODY_LENGTH, rowIdSchema } from "../../../wire-bounds";
+import { RequestBounds } from "contract";
+import { rowIdSchema } from "../../../wire-bounds";
 
 export const publishDraftSchema = z.object({ draftId: rowIdSchema });
 
@@ -11,5 +12,5 @@ export const commentIdSchema = z.coerce
   .refine((value) => Number.isSafeInteger(value));
 
 export const replyBodySchema = z.object({
-  body: z.string().min(1).max(MAX_BODY_LENGTH),
+  body: z.string().min(1).max(RequestBounds.BODY_LENGTH),
 });

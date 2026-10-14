@@ -1,3 +1,4 @@
+import { RequestBounds } from "contract";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
@@ -35,8 +36,19 @@ export function useCommentComposerFacade(
     },
     failAttach: setError,
     submit: () => {
-      if (!body.trim()) {
+      const trimmed = body.trim();
+      if (!trimmed) {
         setError(t("review.announce.commentEmpty"));
+        return;
+      }
+      if (trimmed.length > RequestBounds.BODY_LENGTH) {
+        setError(
+          t("review.comment.tooLongToSave", { max: RequestBounds.BODY_LENGTH }),
+        );
+        return;
+      }
+      if (anchor.file.length > RequestBounds.PATH_LENGTH) {
+        setError(t("review.comment.pathTooLongToSave"));
         return;
       }
       // The body would carry the placeholder, not the image.

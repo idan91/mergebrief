@@ -19,14 +19,7 @@ import {
 import type { ChangeGroupCategory, ReviewOutcome } from "types";
 import type { TranslationKey } from "i18n";
 
-import {
-  ApiErrorCodes,
-  apiFetch,
-  errorFromResponse,
-  isSignInRequired,
-  type ApiErrorCode,
-  type ApiFetchInit,
-} from "../../../data/apiFetch";
+import { ApiErrorCodes } from "../../../data/apiFetch";
 import { readFailureKind, request } from "../../../data/request";
 import type { WriteKindTable } from "../../../data/request/types";
 import { createDraftResponseSchema, riskWriteResponseSchema } from "./schemas";
@@ -125,8 +118,6 @@ function resolveFailure(kind: SessionWriteFailureKind): SessionWriteFailure {
   };
 }
 
-const UNKNOWN = resolveFailure(SessionWriteFailureKinds.INDETERMINATE);
-
 /**
  * A non-2xx is an EXPECTED outcome the caller reverts on, never a throw. A
  * 2xx whose body will not read is the same indeterminate failure as a thrown
@@ -162,50 +153,19 @@ function dropCount(
   return { ok: true, value: undefined };
 }
 
-function buildChunkReadFailure(code: ApiErrorCode): SessionWriteFailure {
-  if (isSignInRequired(code)) {
-    return resolveFailure(SessionWriteFailureKinds.UNAUTHORIZED);
-  }
-  return resolveFailure(SessionWriteKinds[code] ?? SessionWriteKinds.fallback);
-}
-
-/** `set-chunk-read`'s own request, until it splits into a pair of operations. */
-async function sendChunkRead(
-  target: SessionWriteTarget,
-  chunkId: string,
-  read: boolean,
-): Promise<SessionWriteResult> {
-  const span = `base=${encodeURIComponent(target.base)}&head=${encodeURIComponent(target.head)}`;
-  const path = `/api/repos/${encodeURIComponent(target.repoId)}/pulls/${String(target.prNumber)}/session/chunks/${encodeURIComponent(chunkId)}/read?${span}`;
-  let response: Response;
-  try {
-    const init: ApiFetchInit = {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ read }),
-    };
-    response = await apiFetch(path, init);
-  } catch {
-    return { ok: false, failure: UNKNOWN };
-  }
-  if (!response.ok) {
-    const { code } = await errorFromResponse(response, path);
-    return { ok: false, failure: buildChunkReadFailure(code) };
-  }
-  try {
-    await response.json();
-  } catch {
-    return { ok: false, failure: UNKNOWN };
-  }
-  return { ok: true, value: undefined };
-}
-
 export function createSessionWrites(target: SessionWriteTarget): SessionWrites {
   const params = { repoId: target.repoId, prNumber: target.prNumber };
   const query = { base: target.base, head: target.head };
 
   return {
-    setRead: (chunkId, read) => sendChunkRead(target, chunkId, read),
+    setRead(chunkId, read) {
+      const operation = read
+        ? ProductActionIds.MARK_CHUNK_READ
+        : ProductActionIds.MARK_CHUNK_UNREAD;
+      return settleSessionWrite(async () => {
+        await request(operation, { query, params: { ...params, chunkId } });
+      });
+    },
     reclassify(groupId, category) {
       const body: ReclassifyGroupBody = { category };
       return settleSessionWrite(async () => {
