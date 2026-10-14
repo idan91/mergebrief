@@ -16,6 +16,7 @@ export interface VersionResponse {
   readonly dismissedVersion?: string;
 }
 
-export interface DismissVersionRequest {
+/** `dismiss-version-notice`: the release the notice is dismissed for. */
+export interface DismissVersionNoticeBody {
   readonly version: string;
 }

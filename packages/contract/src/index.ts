@@ -155,5 +155,13 @@ export {
   type RevisionComparisons,
   type RevisionView,
 } from "./revisions";
-export type { DismissVersionRequest, VersionResponse } from "./version";
-export type { ViewerView } from "./viewer";
+export type {
+  ApiTokenView,
+  ListTokensResponse,
+  MintTokenBody,
+  MintTokenResponse,
+  RevokeSessionsResponse,
+  RevokeTokenResponse,
+} from "./tokens";
+export type { DismissVersionNoticeBody, VersionResponse } from "./version";
+export type { AuthSessionResponse, ViewerView } from "./viewer";

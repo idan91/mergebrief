@@ -4,6 +4,7 @@
 // on the answer instead of validating a cookie themselves. Cookie-only by
 // construction: `sessionLayer` ignores Bearer under `/api/auth/*`. Auth
 // bootstrap like logout, so it is not a Product Operation.
+import type { AuthSessionResponse } from "contract";
 import { Hono } from "hono";
 import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
 import type { AuthzEnv } from "../../../access/types";
@@ -18,8 +19,10 @@ export function sessionRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.get("/", (c) => {
     const session = c.get("session");
-    const viewer = shapeViewer(session.reviewerId, session.reviewerLogin);
-    return c.json({ ok: true, viewer }, HttpStatuses.OK, NO_STORE);
+    const body: AuthSessionResponse = {
+      viewer: shapeViewer(session.reviewerId, session.reviewerLogin),
+    };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   });
   return app;
 }

@@ -1,3 +1,4 @@
+import type { RevokeSessionsResponse } from "contract";
 import type { Context } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { stampAuditTarget } from "../../../product-operations/audit";
@@ -23,11 +24,8 @@ export function createSessionsHandlers(deps: AuthRouteDeps): SessionsHandlers {
 
     stampAuditTarget(c, AUDIT_TARGET_REVIEWER, session.reviewerId);
     deleteCookie(c, SESSION_COOKIE, HOST_COOKIE_CLEAR);
-    return c.json(
-      { ok: true, revoked: result.revoked },
-      HttpStatuses.OK,
-      NO_STORE,
-    );
+    const body: RevokeSessionsResponse = { revoked: result.revoked };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 
   return { revokeAll };

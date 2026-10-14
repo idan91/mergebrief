@@ -1,17 +1,30 @@
 // Parser tests against REALISTIC wire bodies: route tests that seed the query
 // cache bypass the parser, so a shape drift would otherwise ship green.
+import type {
+  ApiTokenView as WireApiTokenView,
+  ListTokensResponse,
+  MintTokenResponse,
+} from "contract";
 import { describe, expect, it } from "vitest";
-import type { Equals } from "types/utils";
+import type { Equals, Result } from "types/utils";
 import type { z } from "zod/v4";
 
+import { parseWithSchema } from "@web/utils/parse-with-schema";
+
 import {
-  parseMintedToken,
-  parseTokensView,
   type apiTokenSchema,
-  type mintedTokenSchema,
-  type tokensViewSchema,
+  mintedTokenSchema,
+  tokensViewSchema,
 } from "./schemas";
 import type { ApiTokenView, MintedToken, TokensView } from "./types";
+
+function parseTokensView(value: unknown): Result<TokensView, string> {
+  return parseWithSchema(tokensViewSchema, value);
+}
+
+function parseMintedToken(value: unknown): Result<MintedToken, string> {
+  return parseWithSchema(mintedTokenSchema, value);
+}
 
 const WIRE_TOKEN = {
   id: "3",
@@ -25,11 +38,19 @@ const WIRE_TOKEN = {
 };
 
 describe("parseTokensView", () => {
-  it("rejects a token whose scope is not one of the three rungs", () => {
+  it("reads a scope this bundle predates as unknown, keeping the row", () => {
     const parsed = parseTokensView({
       tokens: [{ ...WIRE_TOKEN, scope: "admin" }],
     });
-    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.tokens[0]?.scope).toBe("unknown");
+  });
+
+  it("refuses a token with no scope", () => {
+    const { scope: _scope, ...unscoped } = WIRE_TOKEN;
+    expect(parseTokensView({ tokens: [unscoped] }).ok).toBe(false);
   });
 
   it("parses the list body and reads its null timestamps as absent", () => {
@@ -114,8 +135,35 @@ const SCHEMA_PINS = {
   >,
 } as const;
 
+/** Every field the parser reads is one the contract sends. */
+type ReadsWireFields<Parsed, Wire> = Equals<
+  Exclude<keyof Parsed, keyof Wire>,
+  never
+>;
+
+const CONTRACT_PINS = {
+  ApiTokenView: true satisfies ReadsWireFields<
+    z.output<typeof apiTokenSchema>,
+    WireApiTokenView
+  >,
+  TokensView: true satisfies ReadsWireFields<
+    z.output<typeof tokensViewSchema>,
+    ListTokensResponse
+  >,
+  MintedToken: true satisfies ReadsWireFields<
+    z.output<typeof mintedTokenSchema>,
+    MintTokenResponse
+  >,
+} as const;
+
 describe("token schemas match their interfaces", () => {
   it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
+  });
+});
+
+describe("token schemas read only what the contract sends", () => {
+  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
     expect(pinned).toBe(true);
   });
 });

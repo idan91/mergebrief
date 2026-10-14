@@ -98,6 +98,15 @@ describe("TokenSettings", () => {
     expect(row?.textContent).toMatch(/read, review, and post to github/i);
   });
 
+  it("shows no scope label for a scope this bundle predates", () => {
+    renderSettings({ tokens: [{ ...LIVE_TOKEN, scope: "unknown" }] });
+    const row = screen.getByText("ci-token").parentElement;
+    expect(row?.textContent).not.toMatch(/read only|in mergebrief|to github/i);
+    expect(
+      screen.getByRole("button", { name: /^revoke ci-token$/i }),
+    ).toBeTruthy();
+  });
+
   it("mints with the picked expiry and shows the token once", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();

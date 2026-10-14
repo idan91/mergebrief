@@ -11,6 +11,8 @@ export const RequestBounds = {
   FLAGS_PER_CALL: 200,
   /** A pasted pull request URL. */
   GENERATE_URL_LENGTH: 500,
+  /** An API token's name, counted after trimming. */
+  TOKEN_NAME_LENGTH: 100,
   /**
    * The lines one file-range read may span. The expander steps 20 lines per
    * click and caps its own "expand all", so this refuses draining a 100k-line

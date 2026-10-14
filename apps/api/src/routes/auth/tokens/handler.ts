@@ -1,3 +1,8 @@
+import type {
+  ListTokensResponse,
+  MintTokenResponse,
+  RevokeTokenResponse,
+} from "contract";
 import type { Context } from "hono";
 import { BadRequest, NotFound } from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
@@ -28,11 +33,11 @@ export function createTokensHandlers(deps: AuthRouteDeps) {
         tokenPrefix: API_TOKEN_PREFIX,
       },
     );
-    return c.json(
-      { token: minted.token, apiToken: buildTokenView(minted.row) },
-      HttpStatuses.CREATED,
-      NO_STORE,
-    );
+    const body: MintTokenResponse = {
+      token: minted.token,
+      apiToken: buildTokenView(minted.row),
+    };
+    return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };
 
   const listTokens = async (c: Context<AuthzEnv>) => {
@@ -41,11 +46,8 @@ export function createTokensHandlers(deps: AuthRouteDeps) {
       session: c.get("session"),
       log: c.get("logger"),
     });
-    return c.json(
-      { tokens: rows.map(buildTokenView) },
-      HttpStatuses.OK,
-      NO_STORE,
-    );
+    const body: ListTokensResponse = { tokens: rows.map(buildTokenView) };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 
   const revokeToken = async (c: Context<AuthzEnv>) => {
@@ -62,11 +64,10 @@ export function createTokensHandlers(deps: AuthRouteDeps) {
       throw new NotFound();
     }
     stampAuditTarget(c, "api_token", tokenId);
-    return c.json(
-      { ok: true, apiToken: buildTokenView(result.value) },
-      HttpStatuses.OK,
-      NO_STORE,
-    );
+    const body: RevokeTokenResponse = {
+      apiToken: buildTokenView(result.value),
+    };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 
   return { mintToken, listTokens, revokeToken };

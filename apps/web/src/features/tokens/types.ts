@@ -1,23 +1,14 @@
 // Shapes for the /api/auth/tokens endpoints.
-import type { ValueOf } from "types/utils";
+import type { AccessLevel } from "types/access-levels";
 
-/**
- * The reach a token carries, one rung of the api's access ladder. Three
- * rungs, widening: read only, this instance's own state, and writes that leave
- * the instance for GitHub. Immutable for the token's life.
- */
-export const TokenScopes = {
-  READ: "read",
-  PRIVATE_WRITE: "private-write",
-  EXTERNAL_WRITE: "external-write",
-} as const;
-export type TokenScope = ValueOf<typeof TokenScopes>;
+import type { UnknownValue } from "@web/utils/open-enum/types";
 
 /** One token as the settings list shows it; metadata only, never material. */
 export interface ApiTokenView {
   readonly id: string;
   readonly name: string;
-  readonly scope: TokenScope;
+  /** `unknown` for a scope this bundle predates. */
+  readonly scope: AccessLevel | UnknownValue;
   readonly userLogin?: string;
   /** ISO timestamp; absent on a no-expiry token. */
   readonly expiresAt?: string;

@@ -1,15 +1,16 @@
 // API-token settings section. All flow state lives in `useTokenSettings` -
 // this component only wires it to the DOM.
 import { Trans, useTranslation } from "react-i18next";
+import { RequestBounds } from "contract";
+import { AccessLevels } from "types/access-levels";
 import {
   useTokenSettings,
   ExpiryChoices,
   SCOPE_UNCHOSEN,
-  TOKEN_NAME_MAX,
   type ScopeChoice,
 } from "../../hooks/useTokenSettings";
-import { TokenScopes } from "../../types";
 import { Button } from "@web/components/Button";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import { formatDate, renderedLocale } from "../../../../i18n/locale";
 import styles from "./TokenSettings.module.scss";
 
@@ -40,16 +41,16 @@ const CHMOD_COMMAND = "chmod 600";
 
 /** Catalog key per rung, the same label in the picker and in the list. */
 const SCOPE_LABEL_KEY = {
-  [TokenScopes.READ]: "tokens.scopeRead",
-  [TokenScopes.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
-  [TokenScopes.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
+  [AccessLevels.READ]: "tokens.scopeRead",
+  [AccessLevels.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
+  [AccessLevels.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
 } as const;
 
 /** Narrowest first: the list reads as a ladder, not an unordered set. */
 const SCOPE_ORDER = [
-  TokenScopes.READ,
-  TokenScopes.PRIVATE_WRITE,
-  TokenScopes.EXTERNAL_WRITE,
+  AccessLevels.READ,
+  AccessLevels.PRIVATE_WRITE,
+  AccessLevels.EXTERNAL_WRITE,
 ] as const;
 
 function toScopeChoice(value: string): ScopeChoice | undefined {
@@ -91,7 +92,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
         <label className={styles["field"]}>
           <span>{t("tokens.nameLabel")}</span>
           <input
-            maxLength={TOKEN_NAME_MAX}
+            maxLength={RequestBounds.TOKEN_NAME_LENGTH}
             onChange={(event) => state.setName(event.target.value)}
             placeholder={t("tokens.namePlaceholder")}
             type="text"
@@ -203,7 +204,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           >
             <span className={styles["rowName"]}>{token.name}</span>
             <span className={styles["rowScope"]}>
-              {t(SCOPE_LABEL_KEY[token.scope])}
+              {token.scope === UnknownValues.UNKNOWN
+                ? null
+                : t(SCOPE_LABEL_KEY[token.scope])}
             </span>
             <span className={styles["rowMeta"]}>
               {token.revokedAt !== undefined

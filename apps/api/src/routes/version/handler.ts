@@ -1,3 +1,4 @@
+import type { VersionResponse } from "contract";
 import type { Context } from "hono";
 import { HttpStatuses } from "types/http";
 import { BadRequest } from "../../shared-errors/api-error";
@@ -20,7 +21,7 @@ export function createVersionHandlers(
 ): VersionHandlers {
   return {
     readVersion: async (c) => {
-      const body = await versionController.readVersion(deps, {
+      const body: VersionResponse = await versionController.readVersion(deps, {
         reviewerId: c.get("session").reviewerId,
       });
       return c.json(body, HttpStatuses.OK, NO_STORE);
@@ -41,7 +42,7 @@ export function createVersionHandlers(
       if (!dismissed.ok) {
         throw new BadRequest();
       }
-      return c.json({ ok: true }, HttpStatuses.OK, NO_STORE);
+      return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);
     },
   };
 }

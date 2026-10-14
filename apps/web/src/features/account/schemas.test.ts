@@ -1,6 +1,13 @@
+import type { AuthSessionResponse, ViewerView } from "contract";
 import { describe, expect, it } from "vitest";
+import type { Equals } from "types/utils";
+import type { z } from "zod/v4";
 
-import { parseViewer } from "./schemas";
+import {
+  parseViewer,
+  type sessionBodySchema,
+  type viewerSchema,
+} from "./schemas";
 import { ViewerStates } from "./types";
 
 const VIEWER = { login: "octocat", avatarUrl: "https://cdn.example/a.png" };
@@ -38,5 +45,28 @@ describe("parseViewer", () => {
     expect(parseViewer({})).toEqual(unknown);
     expect(parseViewer({ viewer: [] })).toEqual(unknown);
     expect(parseViewer({ viewer: { login: "octocat" } })).toEqual(unknown);
+  });
+});
+
+/** Every field the parser reads is one the contract sends. */
+type ReadsWireFields<Parsed, Wire> = Equals<
+  Exclude<keyof Parsed, keyof Wire>,
+  never
+>;
+
+const CONTRACT_PINS = {
+  AuthSessionResponse: true satisfies ReadsWireFields<
+    z.output<typeof sessionBodySchema>,
+    AuthSessionResponse
+  >,
+  ViewerView: true satisfies ReadsWireFields<
+    z.output<typeof viewerSchema>,
+    ViewerView
+  >,
+} as const;
+
+describe("viewer schemas read only what the contract sends", () => {
+  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
   });
 });

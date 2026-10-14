@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { ProductActionIds } from "contract";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiFetch } from "../../../../data/apiFetch";
+import { request } from "../../../../data/request";
 import { changeLocale } from "../../../../i18n/I18nProvider";
 import {
   findActiveLocaleIndex,
@@ -19,7 +21,6 @@ import {
 } from "../../types";
 
 const LOGOUT_PATH = "/api/auth/logout";
-const SESSIONS_PATH = "/api/auth/sessions";
 const HOME_PATH = "/";
 const SETTINGS_PATH = "/settings";
 
@@ -41,13 +42,13 @@ async function postLogout(): Promise<boolean> {
 }
 
 /** Whether the server ended every session of the viewer, this one included. */
-async function deleteSessions(): Promise<boolean> {
+async function revokeSessions(): Promise<boolean> {
   try {
-    const response = await apiFetch(SESSIONS_PATH, {
-      method: "DELETE",
+    await request(ProductActionIds.REVOKE_SESSIONS, {
+      params: {},
       unauthorizedIsSignedOut: true,
     });
-    return response.ok;
+    return true;
   } catch {
     return false;
   }
@@ -55,7 +56,7 @@ async function deleteSessions(): Promise<boolean> {
 
 const SIGN_OUT_REQUESTS: Record<SignOutScope, () => Promise<boolean>> = {
   [SignOutScopes.THIS_DEVICE]: postLogout,
-  [SignOutScopes.EVERYWHERE]: deleteSessions,
+  [SignOutScopes.EVERYWHERE]: revokeSessions,
 };
 
 const SIGN_OUT_CLOSED: SignOutFlow = {

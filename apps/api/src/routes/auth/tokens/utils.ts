@@ -1,13 +1,13 @@
+import type { ApiTokenView } from "contract";
 import {
   isApiTokenRowId,
   type ApiTokenMetadataRow,
   type ApiTokenRowId,
 } from "persistence";
+import { rowIdSchema } from "../../wire-bounds";
 
 /** One list/mint entry, metadata only; bigints stringified, dates ISO. */
-export function buildTokenView(
-  row: ApiTokenMetadataRow,
-): Record<string, string | null> {
+export function buildTokenView(row: ApiTokenMetadataRow): ApiTokenView {
   return {
     id: String(row.id),
     name: row.name,
@@ -20,13 +20,16 @@ export function buildTokenView(
   };
 }
 
-/** Brand a `:id` path segment; `undefined` when it isn't a positive int. */
+/** Brand a `:id` path segment; `undefined` when it isn't a positive int8. */
 export function parseTokenId(
   raw: string | undefined,
 ): ApiTokenRowId | undefined {
-  if (raw === undefined || !/^\d+$/.test(raw)) {
+  const parsed = rowIdSchema.safeParse(raw);
+  if (!parsed.success) {
     return undefined;
   }
-  const value = BigInt(raw);
-  return isApiTokenRowId(value) ? value : undefined;
+  if (!isApiTokenRowId(parsed.data)) {
+    return undefined;
+  }
+  return parsed.data;
 }

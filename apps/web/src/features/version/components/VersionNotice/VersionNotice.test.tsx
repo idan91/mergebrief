@@ -119,7 +119,7 @@ describe("VersionNotice", () => {
   });
 
   it("dismiss posts the release, hides the band and focuses the content", async () => {
-    fetchMock.mockResolvedValue(Response.json({ ok: true }));
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     const main = document.createElement("main");
     main.id = "main-content";
     main.tabIndex = -1;

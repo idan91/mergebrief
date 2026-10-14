@@ -1,3 +1,4 @@
+import type { DismissVersionNoticeBody } from "contract";
 import { parseSemver } from "persistence";
 import { z } from "zod/v4";
 
@@ -11,4 +12,4 @@ export const dismissVersionBodySchema = z
       .max(MAX_VERSION_LENGTH)
       .refine((value) => parseSemver(value).ok),
   })
-  .strict();
+  .strict() satisfies z.ZodType<DismissVersionNoticeBody>;

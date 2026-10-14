@@ -35,7 +35,6 @@ function readViewer() {
 describe("buildViewerQueryOptions", () => {
   it("reads the viewer off the session route", async () => {
     answerWith(200, {
-      ok: true,
       viewer: { login: "octocat", avatarUrl: "https://a/1" },
     });
 
@@ -48,7 +47,7 @@ describe("buildViewerQueryOptions", () => {
   });
 
   it("a body without a viewer is unknown, never a throw", async () => {
-    answerWith(200, { ok: true });
+    answerWith(200, {});
 
     await expect(readViewer()).resolves.toEqual({
       kind: ViewerStates.UNKNOWN,

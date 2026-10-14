@@ -1,16 +1,14 @@
 import { z } from "zod/v4";
-import type { Result } from "types/utils";
+import { AccessLevels } from "types/access-levels";
 
 import { dropNullKeys } from "@web/utils/drop-keys";
-import { parseWithSchema } from "@web/utils/parse-with-schema";
-
-import { TokenScopes, type MintedToken, type TokensView } from "./types";
+import { buildOpenEnumSchema } from "@web/utils/open-enum";
 
 export const apiTokenSchema = dropNullKeys(
   z.object({
     id: z.string(),
     name: z.string(),
-    scope: z.enum(TokenScopes),
+    scope: buildOpenEnumSchema(AccessLevels),
     userLogin: z.string().exactOptional(),
     expiresAt: z.string().exactOptional(),
     lastUsedAt: z.string().exactOptional(),
@@ -27,11 +25,3 @@ export const tokensViewSchema = z
 export const mintedTokenSchema = z
   .object({ token: z.string(), apiToken: apiTokenSchema })
   .readonly();
-
-export function parseTokensView(value: unknown): Result<TokensView, string> {
-  return parseWithSchema(tokensViewSchema, value);
-}
-
-export function parseMintedToken(value: unknown): Result<MintedToken, string> {
-  return parseWithSchema(mintedTokenSchema, value);
-}

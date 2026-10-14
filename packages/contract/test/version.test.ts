@@ -2,7 +2,7 @@
 // dismiss write sends. Pinned key for key so a field added on one side
 // cannot drift unnoticed.
 import { describe, expectTypeOf, it } from "vitest";
-import type { DismissVersionRequest, VersionResponse } from "../src/index";
+import type { DismissVersionNoticeBody, VersionResponse } from "../src/index";
 
 describe("version wire shape", () => {
   it("answers version plus the optional release fields", () => {
@@ -22,7 +22,7 @@ describe("version wire shape", () => {
   });
 
   it("dismisses one version", () => {
-    expectTypeOf<DismissVersionRequest>().toEqualTypeOf<{
+    expectTypeOf<DismissVersionNoticeBody>().toEqualTypeOf<{
       readonly version: string;
     }>();
   });

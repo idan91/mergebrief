@@ -246,8 +246,8 @@ describe("AccountMenu", () => {
   });
 
   it("Everywhere deletes every session and leaves for Home", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, revoked: 2 }), { status: 200 }),
+    fetchMock.mockImplementation(async () =>
+      Response.json({ revoked: 2 }, { status: 200 }),
     );
     const assign = vi.fn();
     vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
@@ -286,6 +286,23 @@ describe("AccountMenu", () => {
         .getByRole("button", { name: "This device" })
         .getAttribute("aria-disabled"),
     ).toBeNull();
+  });
+
+  it("a refused sign out everywhere keeps the confirm open", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+    renderWithViewer(SIGNED_IN);
+
+    await openSignOutModal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Everywhere" }));
+    });
+
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Sign out did not go through. Try again.",
+    );
   });
 
   it("while a sign out runs the chosen button reads busy and Escape holds", async () => {

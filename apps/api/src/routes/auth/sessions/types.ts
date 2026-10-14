@@ -9,11 +9,6 @@ export interface SessionsControllerDeps {
   readonly log: Logger;
 }
 
-/** How many of the reviewer's sessions went, the caller's own included. */
-export interface RevokedSessions {
-  readonly revoked: number;
-}
-
 export interface SessionsHandlers {
   readonly revokeAll: (c: Context<AuthzEnv>) => Promise<Response>;
 }

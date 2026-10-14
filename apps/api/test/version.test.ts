@@ -156,9 +156,9 @@ describe("GET /api/version", () => {
     expect(await before.json()).not.toHaveProperty("dismissedVersion");
 
     const res = await dismiss(cookie, { version: "1.6.0" });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.text()).toBe("");
 
     const after = await app.request("/api/version", {
       headers: { Cookie: `${COOKIE_NAME}=${cookie}` },
@@ -175,7 +175,7 @@ describe("GET /api/version", () => {
     await updateCheck.refresh();
 
     const res = await dismiss(cookie, { version: "v1.6.0+build.7" });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
 
     const after = await app.request("/api/version", {
       headers: { Cookie: `${COOKIE_NAME}=${cookie}` },

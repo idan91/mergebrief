@@ -758,6 +758,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       {},
       { name: "ok" },
       { name: "", scope: "read" },
+      { name: "   ", scope: "read" },
       { name: "x".repeat(101), scope: "read" },
       {
         name: "ok",
@@ -773,6 +774,34 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     ]) {
       const res = await mint(bad, cookie);
       expect(res.status).toBe(400);
+    }
+  });
+
+  it("stores the name trimmed and bounds it after trimming", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const padded = `  ${"x".repeat(100)}  `;
+    const res = await mint({ name: padded, scope: "read" }, cookie);
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { apiToken: { name: string } };
+    expect(body.apiToken.name).toBe("x".repeat(100));
+  });
+
+  it("answers 404 for a token id past int8, as for an unknown one", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    for (const id of ["9223372036854775808", "99999999999999999999", "abc"]) {
+      const res = await app.request(`/api/auth/tokens/${id}`, {
+        method: "DELETE",
+        headers: {
+          ...SAME_ORIGIN_HEADERS,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
+        },
+      });
+      expect(res.status).toBe(404);
     }
   });
 
@@ -812,6 +841,11 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       },
     });
     expect(revoke.status).toBe(200);
+    const revoked = (await revoke.json()) as Record<string, unknown>;
+    expect(Object.keys(revoked)).toEqual(["apiToken"]);
+    expect(revoked).toMatchObject({
+      apiToken: { id: minted.apiToken.id, revokedAt: expect.any(String) },
+    });
 
     // Bearer is dead immediately (liveness is checked per request, uncached).
     expect(

@@ -127,7 +127,7 @@ describe("DELETE /api/auth/sessions", () => {
     const res = await revokeAll(laptop.cookie);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, revoked: 2 });
+    expect(await res.json()).toEqual({ revoked: 2 });
     expect(res.headers.get("cache-control")).toBe("no-store");
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie.startsWith("__Host-mergebrief_session=")).toBe(true);

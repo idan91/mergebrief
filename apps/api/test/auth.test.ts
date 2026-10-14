@@ -285,7 +285,9 @@ describe("reviewer auth routes", () => {
         Cookie: `__Host-mergebrief_session=${token}`,
       },
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.text()).toBe("");
     expect(await countRows(harness, "auth_session")).toBe(0);
     // Last-referent lifecycle: the grant died with its only referent.
     expect(await countRows(harness, "github_grant")).toBe(0);
@@ -359,7 +361,7 @@ describe("reviewer auth routes", () => {
       },
     });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
@@ -368,15 +370,14 @@ describe("reviewer auth routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /api/auth/session with a live session answers ok", async () => {
+  it("GET /api/auth/session with a live session answers the viewer", async () => {
     const { cookie: token } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/session", {
       headers: { cookie: `__Host-mergebrief_session=${token}` },
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({
-      ok: true,
+    expect(await res.json()).toStrictEqual({
       viewer: {
         login: "octocat",
         avatarUrl: expect.stringMatching(

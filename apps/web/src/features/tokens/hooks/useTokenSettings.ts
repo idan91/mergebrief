@@ -4,12 +4,11 @@
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { RequestBounds } from "contract";
+import type { AccessLevel } from "types/access-levels";
 
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../queries";
-import type { ApiTokenView, MintedToken, TokenScope } from "../types";
-
-/** The server's name cap (mirrored, see the mint route's Zod schema). */
-export const TOKEN_NAME_MAX = 100;
+import type { ApiTokenView, MintedToken } from "../types";
 
 /** The expiry choices the form offers; `none` = no expiry. */
 export const ExpiryChoices = {
@@ -22,7 +21,7 @@ export type ExpiryChoice = (typeof ExpiryChoices)[keyof typeof ExpiryChoices];
 
 /** No pre-selection: the scope a token carries is always a stated choice. */
 export const SCOPE_UNCHOSEN = "";
-export type ScopeChoice = TokenScope | typeof SCOPE_UNCHOSEN;
+export type ScopeChoice = AccessLevel | typeof SCOPE_UNCHOSEN;
 
 export interface TokenSettingsState {
   /** The viewer's tokens, newest first (server order). */
@@ -88,8 +87,8 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     if (trimmedName.length === 0) {
       return t("tokens.nameRequired");
     }
-    if (trimmedName.length > TOKEN_NAME_MAX) {
-      return t("tokens.nameTooLong", { max: TOKEN_NAME_MAX });
+    if (trimmedName.length > RequestBounds.TOKEN_NAME_LENGTH) {
+      return t("tokens.nameTooLong", { max: RequestBounds.TOKEN_NAME_LENGTH });
     }
     if (scope === SCOPE_UNCHOSEN) {
       return t("tokens.scopeRequired");

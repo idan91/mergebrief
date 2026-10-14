@@ -75,6 +75,21 @@ deprecation note here, removal only at a major.
   than 500 characters is still a deterministic `400 invalid-request`.
 - `POST /api/repos/:repoId/pulls/:prNumber/review` (`201 { reviewId,
   commentsDegraded, commentsFolded, commentsTotal }`) is unchanged.
+- **Changed** `DELETE /api/auth/tokens/:id` to answer `200 { apiToken }`
+  (was `200 { ok: true, apiToken }`) and `DELETE /api/auth/sessions` to
+  answer `200 { revoked }` (was `200 { ok: true, revoked }`). Removed before
+  the first release.
+- **Changed** `POST /api/version/dismiss` and `POST /api/auth/logout` to
+  answer `204` with no body (were `200 { ok: true }`). Logout now also sends
+  `cache-control: no-store`. Removed before the first release.
+- **Changed** `GET /api/auth/session` to answer `200 { viewer }` (was
+  `200 { ok: true, viewer }`). Removed before the first release.
+- **Changed** `POST /api/auth/tokens` to refuse a whitespace-only `name` with
+  `400 invalid-request`, and to store the name trimmed; the 100-character
+  cap counts the trimmed name. `DELETE /api/auth/tokens/:id` with an id past
+  the `int8` range answers `404` (was `500`).
+- `POST /api/auth/tokens` (`201 { token, apiToken }`) and
+  `GET /api/auth/tokens` (`200 { tokens }`) are unchanged.
 
 ## dev (2026-10-11)
 

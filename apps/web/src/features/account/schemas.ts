@@ -5,12 +5,12 @@ import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import { ViewerStates, type ViewerState } from "./types";
 
-const sessionBodySchema = z.object({
-  viewer: dropInvalidKeys(
-    z.object({ login: z.string().exactOptional(), avatarUrl: z.string() }),
-    ["login"],
-  ),
-});
+export const viewerSchema = dropInvalidKeys(
+  z.object({ login: z.string().exactOptional(), avatarUrl: z.string() }),
+  ["login"],
+);
+
+export const sessionBodySchema = z.object({ viewer: viewerSchema });
 
 /** The `viewer` of the session response; anything else is unknown, never a throw. */
 export function parseViewer(body: unknown): ViewerState {
