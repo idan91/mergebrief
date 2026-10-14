@@ -72,13 +72,15 @@ Each registered descriptor carries its endpoint (`METHOD /full/path`),
 assembled mechanically: `.route(prefix, child)` absorbs the child router's
 declarations under the mount prefix, and the composition root's `commit`
 stamps the accumulated full paths — including the top-level `/api` mount —
-into the registry. No full path is ever written by hand, and a derived
+into the registry. ~~No full path is ever written by hand,~~ **(amended
+below)** and a derived
 backstop test pins the composed app's route table (minus the ADR-listed
 exempt endpoints) exactly against the registry's endpoint set.
 
 Registration therefore runs at route composition (`createApp`), not module
-load: composing the app is what fills the registry, and the manifest
-generator composes against stub dependencies without serving. Because tests
+load: composing the app is what fills the registry~~, and the manifest
+generator composes against stub dependencies without serving~~ **(amended
+below: the manifest renders the table)**. Because tests
 compose many apps per process, re-registering an identical descriptor
 (endpoint included) is a no-op; the same id with a different descriptor
 still throws.
@@ -88,11 +90,23 @@ kind/classification mismatch, declaring on an already-mounted router — throw
 at composition: they are programmer errors a test run surfaces immediately,
 not expected failures, so `Result` does not apply.
 
+**Amended (2026-10-12, BRIEF-333, architecture review decision 16):** each
+operation's full path IS written by hand, once, in the **operation table**:
+one row per operation in `packages/contract/src/operations.ts` holding its
+kind, classification, method and full path. Clients build requests from the
+row instead of retyping URLs. Composition still assembles the path
+mechanically, and `commit` now asserts the assembled `METHOD /full/path`
+equals the row, throwing at composition like the other registration-seam
+failures. The manifest becomes a pure rendering of the table, so the
+generator needs no database and no composed app. Policy beyond the
+classification (human-only, push, installation, row) stays on the api
+descriptor, keyed by the operation's id.
+
 ### Manifests and CI gates
 
 - `packages/api/product-operations.manifest.json` — committed, regenerated
-  by script from the registry (compose without serving), byte-compared in
-  CI. An unregistered domain route or an edited descriptor shows up as
+  by script ~~from the registry (compose without serving)~~ **(amended
+  2026-10-12, BRIEF-333)** from the operation table, byte-compared in CI. An unregistered domain route or an edited descriptor shows up as
   manifest drift and fails CI.
 - `packages/cli/product-operations.map.json` — operation id → `mergebrief`
   command. A check script enforces exhaustiveness in both directions:
@@ -124,6 +138,10 @@ not expected failures, so `Result` does not apply.
 - The manifest becomes the machine-readable capability surface for
   downstream consumers (capability fingerprints, packaged skills) without
   coupling them to `packages/api` internals.
+  **Amended (2026-10-12, BRIEF-333, architecture review decision 15):** the
+  catalog fingerprint is dropped. Its one consumer, `mergebrief
+  capabilities`, only warned on a mismatch it called harmless; the version
+  number is the skew signal, and `--require` checks the ids an agent needs.
 - Route authors carry one new obligation: pick an id and a classification.
   Everything else (enumeration, mapping checks) is mechanical.
 - The registry is process-global and fills at route composition; a second

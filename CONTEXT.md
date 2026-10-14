@@ -306,6 +306,10 @@ _Avoid_: severity tier, critical attributes (the floor is a display guarantee, n
 The attribute-keyed navigation row beside the group TOC: fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
 _Avoid_: risk ranking, hotspot list
 
+**Operation table**:
+The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the credential scope it needs, and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond the scope (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
+_Avoid_: catalog or manifest (for the table itself: the manifest is a rendering of it), registry (the API's runtime store), route table
+
 **Wire error code**:
 The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
 _Avoid_: error kind, error message (for the identifier), status-derived kind
