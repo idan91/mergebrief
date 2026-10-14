@@ -10,6 +10,8 @@ import { z } from "zod/v4";
 /** Same cap GitHub enforces on comment and review bodies. */
 export const MAX_BODY_LENGTH = 65_536;
 export const MAX_PATH_LENGTH = 1_024;
+/** Any request body but an attachment upload, which reads under its own cap. */
+export const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 /** Brief-local ids (chunk, change group) are short opaque tokens. */
 export const MAX_ID_LENGTH = 256;
 /** A line or region coordinate on the wire: inside `int4`, past which Postgres

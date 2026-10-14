@@ -9,7 +9,6 @@ import type { Mutable } from "types/utils";
 // a tenant is not written at all; an unauthenticated or unresolvable
 // credential leaves only its `api.access` line.
 import type { Context, MiddlewareHandler } from "hono";
-import { matchedRoutes } from "hono/route";
 import {
   writeAudit,
   AuditActorTypes,
@@ -31,11 +30,8 @@ import {
 } from "types/pull-requests";
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
-import {
-  OperationKinds,
-  type ProductActionDescriptor,
-  type ProductOperationDescriptor,
-} from "./types";
+import { createOperationResolver } from "./resolve-operation";
+import { OperationKinds, type ProductActionDescriptor } from "./types";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -268,33 +264,6 @@ function deriveAuditScope(
   };
 }
 
-/** `METHOD /full/path` → descriptor, built once off the committed registry. */
-function buildEndpointIndex(
-  registry: ProductOperationRegistry,
-): ReadonlyMap<string, ProductOperationDescriptor> {
-  return new Map(
-    registry.list().map((descriptor) => [descriptor.endpoint, descriptor]),
-  );
-}
-
-/**
- * The operation this request routed to. Read off the MATCHED routes rather
- * than a handler-set variable: matching happens before any handler runs, so a
- * request the gate refused still names its operation.
- */
-function resolveOperation(
-  c: Context,
-  index: ReadonlyMap<string, ProductOperationDescriptor>,
-): ProductOperationDescriptor | undefined {
-  for (const route of matchedRoutes(c)) {
-    const descriptor = index.get(`${route.method} ${route.path}`);
-    if (descriptor !== undefined) {
-      return descriptor;
-    }
-  }
-  return undefined;
-}
-
 /**
  * Mount ONCE at the composition root, ahead of the routes. Stamps `operation`
  * for the `api.access` line (queries included); writes the row for actions.
@@ -303,13 +272,11 @@ export function createAuditMiddleware(
   deps: AuditEmitDeps,
 ): MiddlewareHandler<RequestLogEnv> {
   const config = deps.audit ?? DEFAULT_CONFIG;
-  // The registry is committed after this factory runs, so index on first use.
-  let index: ReadonlyMap<string, ProductOperationDescriptor> | undefined;
+  const resolveOperation = createOperationResolver(deps.registry);
 
   return async (c, next) => {
     await next();
-    index ??= buildEndpointIndex(deps.registry);
-    const descriptor = resolveOperation(c, index);
+    const descriptor = resolveOperation(c);
     if (descriptor === undefined) {
       return;
     }

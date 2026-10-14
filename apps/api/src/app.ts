@@ -6,6 +6,7 @@ import { requestId } from "hono/request-id";
 import { createAuditMiddleware } from "./product-operations/audit";
 import { productRouter } from "./product-operations/product-router";
 import { productOperationRegistry } from "./product-operations/registry";
+import { createRequestBodyLimit } from "./request-body-limit";
 import { requestLogging, type RequestLogEnv } from "./request-logging";
 import { apiRoutes, type AppDeps } from "./routes";
 import { createErrorHandler } from "./shared-errors/on-error";
@@ -36,6 +37,7 @@ export function createApp(deps: AppDeps): ApiApp {
     auditDeps.audit = deps.audit;
   }
   root.use(createAuditMiddleware(auditDeps));
+  root.use(createRequestBodyLimit(productOperationRegistry));
   root.route("/api", apiRoutes(deps));
 
   // Composing IS registering: the root commit stamps every declared

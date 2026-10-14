@@ -13,6 +13,15 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-12)
+
+- **Changed** every `/api/*` request body is capped at 1 MiB: a larger one,
+  declared or streamed, answers `413 request-too-large` before the session
+  layer runs, so no credential is checked. Before, an oversized
+  unauthenticated POST answered 401 and an oversized signed-in write was
+  parsed or answered 400. `POST /api/repos/:repoId/pulls/:prNumber/attachments`
+  is exempt and keeps its own larger upload cap.
+
 ## dev (2026-10-11)
 
 - **Added** `authorLogin` (string | null) on `GET /api/repos/:repoId/pulls/:prNumber`
