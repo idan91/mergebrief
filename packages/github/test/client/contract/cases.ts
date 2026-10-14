@@ -5,10 +5,8 @@ import type {
   ReviewerGitHub,
   ReviewerRepoClient,
 } from "../../../src/client/types";
-import {
-  ReviewCommentSides,
-  ReviewSubjectTypes,
-} from "../../../src/operations/review-thread";
+import { ReviewCommentSides } from "types/conversation";
+import { ReviewSubjectTypes } from "../../../src/operations/review-thread";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import { ATTACHMENT_COMMIT_SHA, BASE_SHA, DIFF, HEAD_SHA } from "./consts";

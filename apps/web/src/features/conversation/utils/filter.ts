@@ -2,15 +2,11 @@
 // Combine within a family with OR, across families with AND; empty means inactive.
 // Facet counts exclude their own selection and follow recency reduction.
 // Latest-per-reviewer is the default; active verdict filters hide chipless DISMISSED reviews.
+import type { ConversationAuthorView } from "contract";
+import { ReviewVerdictStates, type Mutable, type ValueOf } from "types";
 import { toggleSet } from "@web/utils/collections";
 import { buildInlineThreads, type DigestRow } from "./digest";
-import type { Mutable, ValueOf } from "types/utils";
-import {
-  ReviewVerdictStates,
-  type ConversationAuthor,
-  type ConversationReview,
-  type PrConversation,
-} from "../types";
+import { type ConversationReview, type PrConversation } from "../types";
 import type { BriefChunk } from "../../brief/model";
 
 /**
@@ -175,10 +171,12 @@ export function latestReviewPerAuthor(
 }
 
 function matchesReviewer(
-  author: ConversationAuthor,
+  author: ConversationAuthorView,
   filter: ConversationFilter,
 ): boolean {
-  return filter.reviewers.size === 0 || filter.reviewers.has(author.login);
+  const matches =
+    filter.reviewers.size === 0 || filter.reviewers.has(author.login);
+  return matches;
 }
 
 function matchesVerdict(
@@ -196,7 +194,7 @@ function matchesVerdict(
 
 function threadAuthor(
   thread: PrConversation["threads"][number],
-): ConversationAuthor | undefined {
+): ConversationAuthorView | undefined {
   return thread.comments[0]?.author;
 }
 
@@ -286,7 +284,7 @@ export function reviewerFacets(
   conversation: PrConversation,
 ): readonly ReviewerFacet[] {
   const byLogin = new Map<string, ReviewerFacet>();
-  const add = (author: ConversationAuthor): void => {
+  const add = (author: ConversationAuthorView): void => {
     if (!byLogin.has(author.login)) {
       byLogin.set(author.login, { login: author.login, isBot: author.isBot });
     }

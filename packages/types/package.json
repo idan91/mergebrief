@@ -9,6 +9,7 @@
     "./access-levels": "./src/access-levels.ts",
     "./comments": "./src/comments.ts",
     "./comparisons": "./src/comparisons.ts",
+    "./conversation": "./src/conversation.ts",
     "./dispositions": "./src/dispositions.ts",
     "./drafts": "./src/drafts.ts",
     "./generations": "./src/generations.ts",

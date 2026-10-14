@@ -1,11 +1,11 @@
+import type { PrLevelCommentView } from "contract";
+import type { ReviewVerdictState } from "types/conversation";
 import { describe, expect, it } from "vitest";
 import { headSummary } from "./utils";
 import type {
   ConversationReview,
   ConversationThread,
   PrConversation,
-  PrLevelComment,
-  ReviewVerdictState,
 } from "../../types";
 import { createI18n } from "i18n";
 
@@ -47,7 +47,7 @@ function thread(rootCommentId: number, isResolved = false): ConversationThread {
   };
 }
 
-function prComment(commentId: number): PrLevelComment {
+function prComment(commentId: number): PrLevelCommentView {
   return {
     commentId,
     author: { login: "octocat", isBot: false },

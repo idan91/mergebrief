@@ -2,11 +2,11 @@
 // A reply posted from either composer must read as the reviewer's own once
 // the conversation refetches, which only holds while the screen hands both
 // composers the plan that records the reply's review id.
+import type { ConversationCommentView } from "contract";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ConversationPlan } from "@web/features/conversation";
-import type { ConversationComment } from "@web/features/conversation/types";
 import { mountBriefView } from "@web/features/brief/test-utils";
 
 const THREAD_ID = 9001;
@@ -30,7 +30,7 @@ function makeComment(
   commentId: number,
   body: string,
   createdAt: string,
-): ConversationComment {
+): ConversationCommentView {
   return {
     commentId,
     author: { login: "alice", isBot: false },
@@ -42,7 +42,7 @@ function makeComment(
 
 /** A plan whose conversation gains the reply, newer than the brief, on post. */
 function stubPlan(): ConversationPlan {
-  const comments: ConversationComment[] = [
+  const comments: ConversationCommentView[] = [
     makeComment(
       THREAD_ID,
       "This check looks inverted.",

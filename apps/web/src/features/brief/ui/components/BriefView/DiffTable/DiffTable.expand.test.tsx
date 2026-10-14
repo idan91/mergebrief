@@ -49,6 +49,7 @@ import type {
   ComparisonRun,
 } from "../../../../model/comparison/runs";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import type { Brief, BriefChunk } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
@@ -1135,6 +1136,21 @@ describe("DiffTable sibling spans", () => {
       "14",
       "",
     ]);
+  });
+
+  it("renders a thread with an unknown side on no span row", async () => {
+    const known = stubFileThread(11, "RIGHT");
+    const unknown: DigestThreadRow = {
+      ...known,
+      thread: { ...known.thread, side: UnknownValues.UNKNOWN },
+    };
+    const { view } = await expandIntoSiblings("unified", {
+      fileThreads: [unknown],
+    });
+
+    expect(
+      view.container.querySelector('tr[data-conversation-thread="9011"]'),
+    ).toBeNull();
   });
 
   it("keeps revision marks off the span rows", async () => {

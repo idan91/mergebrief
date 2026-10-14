@@ -57,6 +57,7 @@ describe("buildConversationQueryOptions queryFn", () => {
     });
     expect(apiFetchMock).toHaveBeenCalledWith(
       "/api/repos/42/pulls/7/conversation",
+      { method: "GET" },
     );
   });
 
@@ -132,7 +133,9 @@ describe("buildCollaboratorsQueryOptions queryFn", () => {
         { login: "zed", avatarUrl: "https://avatars.example/zed.png" },
       ],
     });
-    expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators");
+    expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators", {
+      method: "GET",
+    });
   });
 
   it("drops a non-https avatarUrl but keeps the entry", async () => {

@@ -1,3 +1,5 @@
+import type { PrLevelCommentView } from "contract";
+import type { Mutable, ReviewVerdictState } from "types";
 import { describe, expect, it } from "vitest";
 import {
   applyConversationFilter,
@@ -23,10 +25,7 @@ import type {
   ConversationReview,
   ConversationThread,
   PrConversation,
-  PrLevelComment,
-  ReviewVerdictState,
 } from "../types";
-import type { Mutable } from "types/utils";
 
 function review(
   reviewId: number,
@@ -100,7 +99,7 @@ function thread(
   return conversationThread;
 }
 
-function prComment(commentId: number, login: string): PrLevelComment {
+function prComment(commentId: number, login: string): PrLevelCommentView {
   return {
     commentId,
     author: { login, isBot: false },

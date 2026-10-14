@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+import {
+  ReviewCommentSides,
+  ThreadSubjectTypes,
+  type ReviewCommentSide,
+} from "types/conversation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,11 +17,6 @@ import {
   type ReviewSessionPayload,
 } from "@web/features/review/session";
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
-import {
-  type ThreadSide,
-  ThreadSides,
-  ThreadSubjectTypes,
-} from "@web/features/conversation/types";
 import {
   type DigestThreadRow,
   DigestRowKinds,
@@ -205,7 +205,7 @@ function stubOldSideDraft(): ReviewSessionPayload {
 }
 
 function stubThread(
-  side: ThreadSide,
+  side: ReviewCommentSide,
   line: number,
   body: string,
 ): DigestThreadRow {
@@ -483,8 +483,8 @@ describe("DiffTable guest rows", () => {
   it("shows a right-side thread on its row and drops a left-side one", () => {
     const { view } = renderGuestTable({
       fileThreads: [
-        stubThread(ThreadSides.RIGHT, 40, "right thread"),
-        stubThread(ThreadSides.LEFT, 10, "left thread"),
+        stubThread(ReviewCommentSides.RIGHT, 40, "right thread"),
+        stubThread(ReviewCommentSides.LEFT, 10, "left thread"),
       ],
     });
     const row = findRowByNewLine(view.container, "40");

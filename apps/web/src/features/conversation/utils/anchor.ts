@@ -6,15 +6,18 @@
 // fresh threads land inline at their chunk row; outdated threads are
 // digest-only, their coordinates describe the ANCHOR-TIME diff, so no row
 // match is ever attempted. Unanchored threads render only in the digest.
-import type { BriefChunk } from "../../brief/model";
-import { rowId } from "@web/features/review/utils";
-import type { ValueOf } from "types/utils";
 import {
-  ThreadSides,
+  ReviewCommentSides,
   ThreadSubjectTypes,
-  type ConversationThread,
-  type ThreadSide,
-} from "../types";
+  type ReviewCommentSide,
+  type ThreadSubjectType,
+  type ValueOf,
+} from "types";
+
+import { rowId } from "@web/features/review/utils";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import type { BriefChunk } from "../../brief/model";
+import type { ConversationThread } from "../types";
 
 export const ThreadPlacementKinds = {
   CHUNK: "chunk",
@@ -26,6 +29,8 @@ export const UnanchoredReasons = {
   OUTDATED: "outdated",
   FILE_NOT_IN_BRIEF: "file-not-in-brief",
   LINE_OUTSIDE_CHUNKS: "line-outside-chunks",
+  /** A side or subject type this bundle predates: no row can be trusted. */
+  UNKNOWN_ANCHOR: "unknown-anchor",
 } as const;
 export type UnanchoredReason = ValueOf<typeof UnanchoredReasons>;
 
@@ -56,9 +61,23 @@ export type FileOrChunkPlacement = Extract<
 /** LEFT reads old-side numbering and RIGHT new-side: the submit map inverted. */
 function lineOfRow(
   row: { oldLine?: number; newLine?: number },
-  side: ThreadSide,
+  side: ReviewCommentSide,
 ): number | undefined {
-  return side === ThreadSides.LEFT ? row.oldLine : row.newLine;
+  const line = side === ReviewCommentSides.LEFT ? row.oldLine : row.newLine;
+  return line;
+}
+
+type KnownAnchorThread = ConversationThread & {
+  readonly side?: ReviewCommentSide;
+  readonly startSide?: ReviewCommentSide;
+  readonly subjectType: ThreadSubjectType;
+};
+
+export function isKnownAnchor(
+  thread: ConversationThread,
+): thread is KnownAnchorThread {
+  const fields = [thread.side, thread.startSide, thread.subjectType];
+  return !fields.includes(UnknownValues.UNKNOWN);
 }
 
 /**
@@ -75,6 +94,12 @@ export function placeThread(
     return {
       kind: ThreadPlacementKinds.UNANCHORED,
       reason: UnanchoredReasons.OUTDATED,
+    };
+  }
+  if (!isKnownAnchor(thread)) {
+    return {
+      kind: ThreadPlacementKinds.UNANCHORED,
+      reason: UnanchoredReasons.UNKNOWN_ANCHOR,
     };
   }
   const fileChunks = chunks.filter((chunk) => chunk.file === thread.path);
@@ -101,7 +126,7 @@ export function placeThread(
     };
   }
   // GitHub omits `side` on some historical comments; new-side is its default.
-  const side: ThreadSide = thread.side ?? ThreadSides.RIGHT;
+  const side: ReviewCommentSide = thread.side ?? ReviewCommentSides.RIGHT;
   for (const chunk of fileChunks) {
     const rows = chunk.diff ?? [];
     for (const [index, row] of rows.entries()) {

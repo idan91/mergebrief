@@ -2,17 +2,18 @@
 // client-side refusal that mirrors the route's deterministic 400s. The fold
 // below rebuilds the exact string the route measures, so it must track
 // `foldCommentsIntoBody` in apps/api's publish module character for character.
-import { RequestBounds } from "contract";
-import type { TFunction } from "i18next";
 import {
   CommentAnchorKinds,
-  type DiffSide,
   DiffSides,
   DraftCommentStatuses,
-  type ReviewOutcome,
+  ReviewCommentSides,
   ReviewOutcomes,
+  type DiffSide,
+  type ReviewCommentSide,
+  type ReviewOutcome,
 } from "types";
-import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
+import { RequestBounds } from "contract";
+import type { TFunction } from "i18next";
 
 import type {
   SessionDraftComment,
@@ -42,9 +43,9 @@ export interface BuildSubmitPayloadInput {
   body?: string;
 }
 
-const SIDE_TO_WIRE: Record<DiffSide, ThreadSide> = {
-  [DiffSides.OLD]: ThreadSides.LEFT,
-  [DiffSides.NEW]: ThreadSides.RIGHT,
+const SIDE_TO_WIRE: Record<DiffSide, ReviewCommentSide> = {
+  [DiffSides.OLD]: ReviewCommentSides.LEFT,
+  [DiffSides.NEW]: ReviewCommentSides.RIGHT,
 };
 
 /**

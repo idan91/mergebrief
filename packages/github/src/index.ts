@@ -174,7 +174,6 @@ export type {
 } from "./operations/review";
 export {
   addPullRequestReviewThread,
-  ReviewCommentSides,
   ReviewSubjectTypes,
 } from "./operations/review-thread";
 export type {
@@ -182,7 +181,6 @@ export type {
   LineReviewThreadInput,
   FileReviewThreadInput,
   ReviewThread,
-  ReviewCommentSide,
   ReviewSubjectType,
 } from "./operations/review-thread";
 export {
@@ -281,8 +279,6 @@ export type {
 export {
   fetchPullRequestConversation,
   createReviewCommentReply,
-  ThreadSubjectTypes,
-  ReviewVerdictStates,
 } from "./operations/conversation";
 export type {
   FetchPullRequestConversationInput,
@@ -294,6 +290,4 @@ export type {
   ConversationReview,
   ConversationAuthor,
   PrComment,
-  ThreadSubjectType,
-  ReviewVerdictState,
 } from "./operations/conversation";

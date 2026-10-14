@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
 import { GitHubApiErrorCodes } from "../../src/errors";
-import { ReviewCommentSides } from "../../src/operations/review-thread";
+import { ReviewCommentSides } from "types/conversation";
 import {
   NOT_FOUND,
   OLD_TOKEN,

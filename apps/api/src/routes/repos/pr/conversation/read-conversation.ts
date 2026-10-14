@@ -1,3 +1,4 @@
+import type { ConversationResponse } from "contract";
 import type { GitHubReader, PrConversation, RepositoryRef } from "github";
 import { isOwnerContext } from "persistence";
 import type { Result } from "types/utils";
@@ -92,7 +93,10 @@ export async function readConversation(
   }
 
   const entryCommentId = access.row.entryCommentId;
-  const conversation = stripEntryComment(fetched.value, entryCommentId);
+  const conversation: ConversationResponse = stripEntryComment(
+    fetched.value,
+    entryCommentId,
+  );
   const body = JSON.stringify(conversation);
   deps.cache.set(key, body, now + CONVERSATION_CACHE_TTL_MS, now);
   return { ok: true, value: body };

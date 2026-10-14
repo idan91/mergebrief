@@ -29,4 +29,4 @@ export {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
 } from "./ownComments";
-export { ThreadPlacementKinds } from "./anchor";
+export { isKnownAnchor, ThreadPlacementKinds } from "./anchor";

@@ -214,7 +214,7 @@ export interface RevisionTimelinePlan {
 
 export const PostCommentResultKinds = {
   POSTED: "posted",
-  UNAUTHORIZED: "unauthorized",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
   NOT_FOUND: "not-found",
   STALE: "stale",
   ORPHANED_ANCHOR: "orphaned-anchor",
@@ -225,6 +225,7 @@ export const PostCommentResultKinds = {
   NO_WRITE_ACCESS: "no-write-access",
   GITHUB_PERMISSION: "github-permission",
   UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
 } as const;
 export type PostCommentResultKind = ValueOf<typeof PostCommentResultKinds>;
 
@@ -254,7 +255,9 @@ export type PostCommentResult =
   /** 403, GitHub refused the viewer's comment; nothing posted. */
   | { readonly kind: typeof PostCommentResultKinds.GITHUB_PERMISSION }
   /** 502/anything else, GitHub rejected or is unreachable. */
-  | { readonly kind: typeof PostCommentResultKinds.UPSTREAM };
+  | { readonly kind: typeof PostCommentResultKinds.UPSTREAM }
+  /** A network throw, the proxy's 504 or an unreadable 2xx: it may have posted. */
+  | { readonly kind: typeof PostCommentResultKinds.INDETERMINATE };
 
 export const MarkReadyResultKinds = {
   READY: "ready",

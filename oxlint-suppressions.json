@@ -89,11 +89,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/conversation/resolve.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/hooks/useLatestRef.ts": {
     "house/no-em-dash": {
       "count": 1

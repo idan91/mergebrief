@@ -3,14 +3,14 @@
 // already have posted.
 import type { Octokit } from "octokit";
 import { z } from "zod/v4";
-import type { Mutable, Result } from "types/utils";
-import { mapRequestError, type GitHubApiError } from "../errors";
 import {
   ReviewCommentSides,
-  ReviewSubjectTypes,
+  type Mutable,
+  type Result,
   type ReviewCommentSide,
-  type ReviewSubjectType,
-} from "./review-thread";
+} from "types";
+import { mapRequestError, type GitHubApiError } from "../errors";
+import { ReviewSubjectTypes, type ReviewSubjectType } from "./review-thread";
 import type { PullRequestReviewRef } from "./review-pending";
 
 export interface ListReviewCommentsSinceInput extends PullRequestReviewRef {

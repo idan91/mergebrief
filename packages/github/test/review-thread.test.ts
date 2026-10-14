@@ -5,9 +5,9 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
+import { ReviewCommentSides } from "types/conversation";
 import {
   addPullRequestReviewThread,
-  ReviewCommentSides,
   ReviewSubjectTypes,
 } from "../src/operations/review-thread";
 import {

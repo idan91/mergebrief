@@ -38,6 +38,20 @@ export {
   type LineAttentionLocation,
 } from "./attention";
 export { RequestBounds } from "./bounds";
+export type {
+  CollaboratorsResponse,
+  CollaboratorView,
+  ConversationAuthorView,
+  ConversationCommentView,
+  ConversationResponse,
+  ConversationReviewView,
+  ConversationThreadView,
+  CreateInlineCommentBody,
+  PostedCommentResponse,
+  PrLevelCommentView,
+  ReplyToCommentBody,
+  ThreadResolutionResponse,
+} from "./conversation";
 export {
   ApiErrorCodes,
   ApiErrorEnglishByCode,

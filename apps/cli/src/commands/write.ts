@@ -1,8 +1,14 @@
 // Submit publishes server-held comments pinned to the reviewed base/head span.
 // Only span shape is checked here; server validation failures map to exit 5.
 // Pass receipts through verbatim so callers need not parse stderr to recover.
+import {
+  ProductActionIds,
+  ProductOperations,
+  type ReplyToCommentBody,
+} from "contract";
 import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
+import { buildRequestPath } from "./request-path";
 
 export interface WriteIo {
   readonly stdout: (text: string) => void;
@@ -51,10 +57,15 @@ export async function runReply(
   options: ReplyOptions,
   io: WriteIo,
 ): Promise<void> {
+  const body: ReplyToCommentBody = { body: options.body };
   const response = await client.request({
-    method: "POST",
-    path: `/api/repos/${repoId}/pulls/${options.pr}/comments/${encodeURIComponent(commentId)}/replies`,
-    body: { body: options.body },
+    method: ProductOperations[ProductActionIds.REPLY_TO_COMMENT].method,
+    path: buildRequestPath(ProductActionIds.REPLY_TO_COMMENT, {
+      repoId,
+      prNumber: options.pr,
+      commentId,
+    }),
+    body,
   });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim receipt: {commentId}
@@ -76,9 +87,12 @@ export async function runThreadResolution(
   resolved: boolean,
   io: WriteIo,
 ): Promise<void> {
+  const operation = resolved
+    ? ProductActionIds.RESOLVE_THREAD
+    : ProductActionIds.UNRESOLVE_THREAD;
   const response = await client.request({
-    method: "POST",
-    path: `/api/repos/${repoId}/pulls/${prNumber}/comments/${encodeURIComponent(commentId)}/${resolved ? "resolve" : "unresolve"}`,
+    method: ProductOperations[operation].method,
+    path: buildRequestPath(operation, { repoId, prNumber, commentId }),
   });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim receipt

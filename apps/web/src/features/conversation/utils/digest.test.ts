@@ -1,4 +1,5 @@
 // Digest sorting follows brief reading order, never bot self-assigned severity.
+import { ReviewCommentSides, ThreadSubjectTypes, type Mutable } from "types";
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../../brief/model";
 import {
@@ -6,17 +7,13 @@ import {
   buildInlineThreads,
   buildLineThreadsByFile,
   splitInlineRows,
+  DigestGroupKinds,
   DigestRowKinds,
 } from "./digest";
-import {
-  ThreadSubjectTypes,
-  ThreadSides,
-  type ConversationThread,
-  type PrConversation,
-} from "../types";
-import type { Mutable } from "types/utils";
+import { type ConversationThread, type PrConversation } from "../types";
 import { createI18n } from "i18n";
 import { ThreadPlacementKinds } from "./anchor";
+import { UnknownValues } from "@web/utils/open-enum/types";
 
 const t = createI18n().t;
 
@@ -57,7 +54,7 @@ function thread(overrides: {
   const conversationThread: Mutable<ConversationThread> = {
     rootCommentId: nextId,
     path: overrides.path ?? "src/a.ts",
-    side: ThreadSides.RIGHT,
+    side: ReviewCommentSides.RIGHT,
     subjectType,
     isResolved: overrides.isResolved ?? false,
     isOutdated: overrides.isOutdated ?? false,
@@ -172,7 +169,7 @@ describe("buildConversationDigest", () => {
     // newLine 10 (row 1), even though 11 > 10 numerically.
     const leftThread: ConversationThread = {
       ...thread({ line: 11 }),
-      side: ThreadSides.LEFT,
+      side: ReviewCommentSides.LEFT,
     };
     const rightThread = thread({ line: 10 });
     const groups = buildConversationDigest(t, {
@@ -440,7 +437,7 @@ describe("buildLineThreadsByFile", () => {
 
   it("keeps a left-side thread, a deletion row can show it", () => {
     const left: Mutable<ConversationThread> = thread({ line: 14 });
-    left.side = ThreadSides.LEFT;
+    left.side = ReviewCommentSides.LEFT;
     const rows = buildLineThreadsByFile({
       conversation: conversation([left]),
       chunks: CHUNKS,
@@ -449,4 +446,24 @@ describe("buildLineThreadsByFile", () => {
 
     expect(rows.get("src/a.ts")).toHaveLength(1);
   });
+
+  it.each([{ field: "side" }, { field: "startSide" }] as const)(
+    "leaves an unknown $field thread to the General group",
+    ({ field }) => {
+      const unknown: Mutable<ConversationThread> = thread({ line: 10 });
+      unknown[field] = UnknownValues.UNKNOWN;
+      const input = {
+        conversation: conversation([unknown]),
+        chunks: CHUNKS,
+        ownThreadIds: new Set<number>(),
+      };
+
+      const general = buildConversationDigest(t, input).find(
+        (group) => group.kind === DigestGroupKinds.GENERAL,
+      );
+
+      expect(buildLineThreadsByFile(input).get("src/a.ts")).toBeUndefined();
+      expect(general?.rows).toHaveLength(1);
+    },
+  );
 });

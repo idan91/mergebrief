@@ -22,7 +22,8 @@ export function readVocabularyMember(
  * An open enum over a closed vocabulary: a member reads as itself and any other
  * string reads as `unknown`. A non-string or absent value still fails, so a
  * wrong type stays a malformed read and a required field stays required. For an
- * optional field use `dropInvalidKeys`.
+ * optional field use `dropInvalidKeys`, unless its absence carries a default
+ * meaning: dropping would let that default stand in for the unknown value.
  */
 export function buildOpenEnumSchema<const Members extends Vocabulary>(
   vocabulary: Members,

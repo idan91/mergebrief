@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+import {
+  CommentAnchorKinds,
+  DraftCommentStatuses,
+  ThreadSubjectTypes,
+} from "types";
 import { appI18n } from "../../../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -39,8 +44,6 @@ import {
   ReadingPositionProvider,
 } from "../../../reading/reading-position";
 import { ChunkCard, type ChunkCardProps } from "..";
-import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
-import { ThreadSubjectTypes } from "@web/features/conversation/types";
 import { ReviewPostureProvider } from "../../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../../utils/review-posture";
 

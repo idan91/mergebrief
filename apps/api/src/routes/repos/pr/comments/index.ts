@@ -6,7 +6,11 @@
 // gated on viewerIsAuthor or draft: GitHub separately authorizes each
 // write. Every one IS a conversation write, success calls the injected
 // `evictConversation` hook.
-import { ProductActionIds } from "contract";
+import {
+  ProductActionIds,
+  type PostedCommentResponse,
+  type ThreadResolutionResponse,
+} from "contract";
 import type { Context, Handler } from "hono";
 import { HttpStatuses, type Mutable } from "types";
 import type { PullRequestEnv } from "../../../../access/types";
@@ -79,11 +83,12 @@ function createPostNowHandler(
     evictFor(c, evictConversation);
     const { commentId, reviewId } = posted.value;
     stampAuditTarget(c, "review_comment", commentId);
-    if (reviewId === undefined) {
-      const body = { commentId: Number(commentId) };
-      return c.json(body, HttpStatuses.CREATED, NO_STORE);
+    const body: Mutable<PostedCommentResponse> = {
+      commentId: Number(commentId),
+    };
+    if (reviewId !== undefined) {
+      body.reviewId = Number(reviewId);
     }
-    const body = { commentId: Number(commentId), reviewId: Number(reviewId) };
     return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };
 }
@@ -119,10 +124,11 @@ function createReplyHandler(
     evictFor(c, evictConversation);
     const { commentId, reviewId } = created.value;
     stampAuditTarget(c, "review_comment", BigInt(commentId));
-    if (reviewId === undefined) {
-      return c.json({ commentId }, HttpStatuses.CREATED, NO_STORE);
+    const body: Mutable<PostedCommentResponse> = { commentId };
+    if (reviewId !== undefined) {
+      body.reviewId = reviewId;
     }
-    return c.json({ commentId, reviewId }, HttpStatuses.CREATED, NO_STORE);
+    return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };
 }
 
@@ -150,12 +156,11 @@ function createResolutionHandler(
     // either way, so the FE's refetch shows the transition at once.
     evictFor(c, evictConversation);
     stampAuditTarget(c, "review_comment", BigInt(rootCommentId));
-    const { alreadyInTargetState } = outcome.value;
-    return c.json(
-      { resolved, alreadyInTargetState },
-      HttpStatuses.OK,
-      NO_STORE,
-    );
+    const body: ThreadResolutionResponse = {
+      resolved,
+      alreadyInTargetState: outcome.value.alreadyInTargetState,
+    };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
   };
 }
 

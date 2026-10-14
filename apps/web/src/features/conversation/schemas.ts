@@ -1,22 +1,19 @@
+import {
+  ReviewCommentSides,
+  ReviewVerdictStates,
+  ThreadSubjectTypes,
+} from "types/conversation";
 import { z } from "zod/v4";
-import type { Result } from "types/utils";
 
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { dropInvalidKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
-import { parseWithSchema } from "@web/utils/parse-with-schema";
+import { buildOpenEnumSchema } from "@web/utils/open-enum";
 
-import {
-  ReviewVerdictStates,
-  ThreadSides,
-  ThreadSubjectTypes,
-  type ConversationThread,
-  type PrConversation,
-} from "./types";
+import type { ConversationThread } from "./types";
 
 const githubIdSchema = z.int().positive();
 const lineSchema = z.int().positive();
-const threadSideSchema = z.enum(ThreadSides);
+const threadSideSchema = buildOpenEnumSchema(ReviewCommentSides);
 
 export const conversationAuthorSchema = dropInvalidKeys(
   z.object({
@@ -43,12 +40,19 @@ type ThreadAnchor = Pick<
   "subjectType" | "line" | "isOutdated"
 >;
 
-/** `line` is absent ONLY for outdated or file-level threads; a FILE thread never carries one. */
+/**
+ * `line` is absent ONLY for outdated or file-level threads; a FILE thread
+ * never carries one. An unknown subject type states no rule to check.
+ */
 function isAnchorConsistent(thread: ThreadAnchor): boolean {
   if (thread.subjectType === ThreadSubjectTypes.FILE) {
     return thread.line === undefined;
   }
-  return thread.isOutdated || thread.line !== undefined;
+  if (thread.subjectType === ThreadSubjectTypes.LINE) {
+    const placeable = thread.isOutdated || thread.line !== undefined;
+    return placeable;
+  }
+  return true;
 }
 
 /** The root id is the reply target, so it must be the first comment shown. */
@@ -66,7 +70,7 @@ export const conversationThreadSchema = z
     startLine: lineSchema.exactOptional(),
     side: threadSideSchema.exactOptional(),
     startSide: threadSideSchema.exactOptional(),
-    subjectType: z.enum(ThreadSubjectTypes),
+    subjectType: buildOpenEnumSchema(ThreadSubjectTypes),
     isResolved: z.boolean(),
     isOutdated: z.boolean(),
     anchorSha: z.string().exactOptional(),
@@ -81,7 +85,7 @@ export const conversationReviewSchema = z
   .object({
     reviewId: githubIdSchema,
     author: conversationAuthorSchema,
-    state: z.enum(ReviewVerdictStates),
+    state: buildOpenEnumSchema(ReviewVerdictStates),
     body: z.string(),
     submittedAt: z.string().exactOptional(),
     url: httpsUrlSchema,
@@ -119,25 +123,7 @@ export const mentionCandidateSchema = dropInvalidKeys(
 ).readonly();
 
 /** `hasMore` is required but not surfaced: a truncated pool is still a pool. */
-const collaboratorsBodySchema = z.object({
+export const collaboratorsResponseSchema = z.object({
   collaborators: z.array(mentionCandidateSchema).readonly(),
   hasMore: z.boolean(),
 });
-
-/** Parse the conversation GET's body; `ok: false` = contract violation. */
-export function parseConversation(
-  value: unknown,
-): Result<PrConversation, string> {
-  return parseWithSchema(prConversationSchema, value);
-}
-
-/** Parse the collaborators GET's body into mention candidates; `ok: false` = contract violation. */
-export function parseCollaborators(
-  value: unknown,
-): Result<readonly MentionCandidate[], string> {
-  const parsed = parseWithSchema(collaboratorsBodySchema, value);
-  if (!parsed.ok) {
-    return parsed;
-  }
-  return { ok: true, value: parsed.value.collaborators };
-}

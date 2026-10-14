@@ -6,7 +6,7 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { createInlineReviewComment } from "../src/operations/inline-comment";
 import { GitHubApiErrorCodes } from "../src/errors";
-import { ReviewCommentSides } from "../src/operations/review-thread";
+import { ReviewCommentSides } from "types/conversation";
 
 function mockOctokit(createReviewComment: ReturnType<typeof vi.fn>): Octokit {
   const stub = { rest: { pulls: { createReviewComment } } };

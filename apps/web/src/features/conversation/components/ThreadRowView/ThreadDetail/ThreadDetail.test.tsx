@@ -348,19 +348,22 @@ describe("ThreadDetail, standalone resolve/unresolve", () => {
     expect(h.refetchCapability).not.toHaveBeenCalled();
   });
 
-  it("uses indeterminate copy and refreshes after a thrown resolution", async () => {
-    const h = renderDetail({
-      canResolve: true,
-      resolve: () => Promise.reject(new Error("boom")),
-    });
-    fireEvent.click(screen.getByRole("button", RESOLVE_BUTTON));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain(
-        "may or may not have changed",
-      ),
-    );
-    expect(h.refetchConversation).toHaveBeenCalled();
-  });
+  it.each([
+    ["a thrown", () => Promise.reject(new Error("boom"))],
+    ["an indeterminate", { kind: "indeterminate" as const }],
+  ])(
+    "uses indeterminate copy and refreshes after %s flip",
+    async (_label, resolve) => {
+      const h = renderDetail({ canResolve: true, resolve });
+      fireEvent.click(screen.getByRole("button", RESOLVE_BUTTON));
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain(
+          "may or may not have changed",
+        ),
+      );
+      expect(h.refetchConversation).toHaveBeenCalled();
+    },
+  );
 });
 
 describe("ThreadDetail, Reply & resolve combo", () => {
@@ -552,32 +555,35 @@ describe("ThreadDetail, Reply & resolve combo", () => {
     expect(screen.queryByRole("button", COMBO_BUTTON)).toBeNull();
   });
 
-  it("uses indeterminate partial copy for a thrown resolve leg", async () => {
-    // A dropped connection after the server received the mutation leaves the
-    // thread possibly resolved, asserting "resolving failed" would be a lie
-    // that invites a blind re-resolve.
-    const h = renderDetail({
-      canResolve: true,
-      resolve: () => Promise.reject(new Error("socket hang up")),
-    });
-    type("fixed");
-    fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
-    const indeterminate =
-      "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.";
-    await waitFor(() =>
-      expect(
-        screen.getAllByRole("alert").map((element) => element.textContent),
-      ).toContain(indeterminate),
-    );
-    expect(h.announce).toHaveBeenCalledWith(indeterminate);
-    // The determinate copy must NOT appear for a throw.
-    expect(h.announce).not.toHaveBeenCalledWith(
-      expect.stringContaining("resolving the thread failed"),
-    );
-    // Indeterminate still refetches, that is how the reviewer sees the truth.
-    expect(h.refetchConversation).toHaveBeenCalled();
-    expect(h.post).toHaveBeenCalledTimes(1);
-  });
+  it.each([
+    ["a thrown", () => Promise.reject(new Error("socket hang up"))],
+    ["an indeterminate", { kind: "indeterminate" as const }],
+  ])(
+    "uses indeterminate partial copy for %s resolve leg",
+    async (_label, resolve) => {
+      // A dropped connection after the server received the mutation leaves the
+      // thread possibly resolved, asserting "resolving failed" would be a lie
+      // that invites a blind re-resolve.
+      const h = renderDetail({ canResolve: true, resolve });
+      type("fixed");
+      fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
+      const indeterminate =
+        "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.";
+      await waitFor(() =>
+        expect(
+          screen.getAllByRole("alert").map((element) => element.textContent),
+        ).toContain(indeterminate),
+      );
+      expect(h.announce).toHaveBeenCalledWith(indeterminate);
+      // The determinate copy must NOT appear for a throw.
+      expect(h.announce).not.toHaveBeenCalledWith(
+        expect.stringContaining("resolving the thread failed"),
+      );
+      // Indeterminate still refetches, that is how the reviewer sees the truth.
+      expect(h.refetchConversation).toHaveBeenCalled();
+      expect(h.post).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("the submit shortcut takes the plain reply path, never the compound one", async () => {
     // Cmd/Ctrl+Enter is the PRIMARY action only: a compound outward write is
@@ -599,22 +605,25 @@ describe("ThreadDetail, Reply & resolve combo", () => {
     );
   });
 
-  it("an indeterminate reply throw never reaches the resolve leg", async () => {
-    const h = renderDetail({
-      canResolve: true,
-      reply: () => Promise.reject(new Error("boom")),
-    });
-    type("fixed");
-    fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
-    await waitFor(() =>
-      expect(
-        screen.getAllByRole("alert").map((element) => element.textContent),
-      ).toContain(
-        "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying. The thread was left unresolved.",
-      ),
-    );
-    expect(h.setResolved).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["throw", () => Promise.reject(new Error("boom"))],
+    ["result", { kind: "indeterminate" as const }],
+  ])(
+    "an indeterminate reply %s never reaches the resolve leg",
+    async (_label, reply) => {
+      const h = renderDetail({ canResolve: true, reply });
+      type("fixed");
+      fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
+      await waitFor(() =>
+        expect(
+          screen.getAllByRole("alert").map((element) => element.textContent),
+        ).toContain(
+          "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying. The thread was left unresolved.",
+        ),
+      );
+      expect(h.setResolved).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("ThreadDetail, mention pool hand-off", () => {

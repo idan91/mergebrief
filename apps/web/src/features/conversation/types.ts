@@ -1,20 +1,22 @@
-// Mirrors the JSON conversation contract: optional keys are absent, never null.
-// GitHub state names differ from Review Session dispositions; linked-comment bridges them.
-import type { ValueOf } from "types/utils";
+// The parsed conversation: the contract's shapes, with the vocabulary fields a
+// newer server may extend read open. GitHub state names differ from Review
+// Session dispositions; linked-comment bridges them.
+import type {
+  ConversationResponse,
+  ConversationReviewView,
+  ConversationThreadView,
+} from "contract";
+import type {
+  ReviewCommentSide,
+  ReviewVerdictState,
+  ThreadSubjectType,
+  ValueOf,
+} from "types";
+
+import type { UnknownValue } from "@web/utils/open-enum/types";
+
 import type { PostedComment } from "../../data/postedComment";
-
-/** GitHub's diff-side wire values (same literals as the submit mapper). */
-export const ThreadSides = {
-  LEFT: "LEFT",
-  RIGHT: "RIGHT",
-} as const;
-export type ThreadSide = ValueOf<typeof ThreadSides>;
-
-export const ThreadSubjectTypes = {
-  LINE: "LINE",
-  FILE: "FILE",
-} as const;
-export type ThreadSubjectType = ValueOf<typeof ThreadSubjectTypes>;
+import { WriteFailureKinds } from "../../data/request/types";
 
 /** The element a thread row renders as: a list item, or a block where the host is no list. */
 export const ThreadRowElements = {
@@ -23,87 +25,40 @@ export const ThreadRowElements = {
 } as const;
 export type ThreadRowElement = ValueOf<typeof ThreadRowElements>;
 
-/** Submitted-review states; PENDING never crosses the API (drafts skipped). */
-export const ReviewVerdictStates = {
-  COMMENTED: "COMMENTED",
-  APPROVED: "APPROVED",
-  CHANGES_REQUESTED: "CHANGES_REQUESTED",
-  DISMISSED: "DISMISSED",
-} as const;
-export type ReviewVerdictState = ValueOf<typeof ReviewVerdictStates>;
-
-export interface ConversationAuthor {
-  readonly login: string;
-  readonly isBot: boolean;
-  /**
-   * GitHub-CDN avatar; absent for ghost authors and https-gated at the
-   * parse boundary (it lands in an `<img src>`): any value that is not an
-   * https string drops the field, never the author.
-   */
-  readonly avatarUrl?: string;
+/** An unknown side or subject type cannot be placed: the thread renders unanchored. */
+export interface ConversationThread extends Omit<
+  ConversationThreadView,
+  "side" | "startSide" | "subjectType"
+> {
+  readonly side?: ReviewCommentSide | UnknownValue;
+  readonly startSide?: ReviewCommentSide | UnknownValue;
+  readonly subjectType: ThreadSubjectType | UnknownValue;
 }
 
-export interface ConversationComment {
-  readonly commentId: number;
-  readonly author: ConversationAuthor;
-  readonly body: string;
-  readonly createdAt: string;
-  readonly url: string;
-  /** The formal review this comment belongs to, the own-comment join key. */
-  readonly reviewId?: number;
+/** An unknown state renders without a verdict chip. */
+export interface ConversationReview extends Omit<
+  ConversationReviewView,
+  "state"
+> {
+  readonly state: ReviewVerdictState | UnknownValue;
 }
 
-export interface ConversationThread {
-  /** Thread identity AND the reply POST's target comment id. */
-  readonly rootCommentId: number;
-  readonly path: string;
-  /** END line on the current diff; absent for outdated/file-level threads. */
-  readonly line?: number;
-  readonly startLine?: number;
-  readonly side?: ThreadSide;
-  readonly startSide?: ThreadSide;
-  readonly subjectType: ThreadSubjectType;
-  readonly isResolved: boolean;
-  readonly isOutdated: boolean;
-  /** Anchor-time commit, the revision label for outdated threads. */
-  readonly anchorSha?: string;
-  readonly comments: readonly ConversationComment[];
-  readonly hasMoreComments: boolean;
-}
-
-export interface ConversationReview {
-  readonly reviewId: number;
-  readonly author: ConversationAuthor;
-  readonly state: ReviewVerdictState;
-  readonly body: string;
-  readonly submittedAt?: string;
-  readonly url: string;
-}
-
-export interface PrLevelComment {
-  readonly commentId: number;
-  readonly author: ConversationAuthor;
-  readonly body: string;
-  readonly createdAt: string;
-  readonly url: string;
-}
-
-export interface PrConversation {
+export interface PrConversation extends Omit<
+  ConversationResponse,
+  "threads" | "reviews"
+> {
   readonly threads: readonly ConversationThread[];
   readonly reviews: readonly ConversationReview[];
-  readonly prComments: readonly PrLevelComment[];
-  readonly hasMoreThreads: boolean;
-  readonly hasMoreReviews: boolean;
-  readonly hasMorePrComments: boolean;
 }
 
 export const ReplyResultKinds = {
   POSTED: "posted",
-  UNAUTHORIZED: "unauthorized",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
   NOT_FOUND: "not-found",
   INVALID: "invalid",
   NO_WRITE_ACCESS: "no-write-access",
   UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
 } as const;
 export type ReplyResultKind = ValueOf<typeof ReplyResultKinds>;
 
@@ -122,16 +77,19 @@ export type ReplyResult =
    */
   | { readonly kind: typeof ReplyResultKinds.NO_WRITE_ACCESS }
   /** 502/anything else: GitHub rejected or is unreachable. */
-  | { readonly kind: typeof ReplyResultKinds.UPSTREAM };
+  | { readonly kind: typeof ReplyResultKinds.UPSTREAM }
+  /** A network throw, the proxy's 504 or an unreadable 2xx: it may have posted. */
+  | { readonly kind: typeof ReplyResultKinds.INDETERMINATE };
 
 export const ResolveThreadResultKinds = {
   DONE: "done",
-  UNAUTHORIZED: "unauthorized",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
   GITHUB_PERMISSION: "github-permission",
   NOT_FOUND: "not-found",
   INVALID: "invalid",
   NO_WRITE_ACCESS: "no-write-access",
   UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
 } as const;
 export type ResolveThreadResultKind = ValueOf<typeof ResolveThreadResultKinds>;
 
@@ -160,4 +118,6 @@ export type ResolveThreadResult =
    */
   | { readonly kind: typeof ResolveThreadResultKinds.NO_WRITE_ACCESS }
   /** 502/anything else: GitHub rejected or is unreachable. */
-  | { readonly kind: typeof ResolveThreadResultKinds.UPSTREAM };
+  | { readonly kind: typeof ResolveThreadResultKinds.UPSTREAM }
+  /** A network throw, the proxy's 504, or a body that is unreadable or echoes the other direction. */
+  | { readonly kind: typeof ResolveThreadResultKinds.INDETERMINATE };

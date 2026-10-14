@@ -1,5 +1,5 @@
-// Thread-resolution transport: expected failure statuses are result kinds the
-// affordances render — never throws for those. The 403 is its OWN kind
+// Thread-resolution transport: every failure is a result kind the affordances
+// render. The 403 is its OWN kind
 // (GitHub refused a viewer who looked capable), not a 404-style miss.
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn() };
 });
 
-import { apiFetch, ApiError } from "../../data/apiFetch";
+import { apiFetch } from "../../data/apiFetch";
 import { setThreadResolution } from "./resolve";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -110,7 +110,7 @@ describe("setThreadResolution", () => {
     }
   });
 
-  it("throws typed on a malformed 200", async () => {
+  it("reads a malformed 200 as indeterminate", async () => {
     for (const shape of [
       { nope: true },
       { resolved: true },
@@ -120,25 +120,32 @@ describe("setThreadResolution", () => {
       apiFetchMock.mockResolvedValue(
         new Response(JSON.stringify(shape), { status: 200 }),
       );
-      await expect(
-        setThreadResolution("42", 7, 9001, true),
-      ).rejects.toBeInstanceOf(ApiError);
+      await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+        kind: "indeterminate",
+      });
     }
   });
 
-  it("throws typed on a non-JSON 200", async () => {
+  it("reads a non-JSON 200 as indeterminate", async () => {
     apiFetchMock.mockResolvedValue(new Response("not json", { status: 200 }));
-    await expect(
-      setThreadResolution("42", 7, 9001, true),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+      kind: "indeterminate",
+    });
   });
 
-  it("throws typed when the echoed direction contradicts the request", async () => {
+  it("reads an echo of the other direction as indeterminate", async () => {
     // The route echoes the direction it applied; a mismatch means the FE would
-    // render a state the server never set — a contract violation, not data.
+    // render a state the server never set.
     apiFetchMock.mockResolvedValue(body(false));
-    await expect(
-      setThreadResolution("42", 7, 9001, true),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+      kind: "indeterminate",
+    });
+  });
+
+  it("reads a network throw as indeterminate", async () => {
+    apiFetchMock.mockRejectedValue(new TypeError("network down"));
+    await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+      kind: "indeterminate",
+    });
   });
 });

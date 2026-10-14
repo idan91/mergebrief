@@ -2,10 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
 import { CredentialFailureCodes } from "../../src/client/types";
 import { GitHubApiErrorCodes } from "../../src/errors";
-import {
-  ReviewCommentSides,
-  ReviewSubjectTypes,
-} from "../../src/operations/review-thread";
+import { ReviewCommentSides } from "types/conversation";
+import { ReviewSubjectTypes } from "../../src/operations/review-thread";
 import {
   OLD_TOKEN,
   PULL,

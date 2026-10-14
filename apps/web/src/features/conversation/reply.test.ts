@@ -1,5 +1,5 @@
-// Reply transport: expected failure statuses are result kinds the composer
-// renders, never throws for those; a malformed 2xx throws typed.
+// Reply transport: every failure is a result kind the composer renders; a
+// malformed 2xx or a network throw is indeterminate, the reply may have posted.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../data/apiFetch";
@@ -9,7 +9,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn() };
 });
 
-import { apiFetch, ApiError } from "../../data/apiFetch";
+import { apiFetch } from "../../data/apiFetch";
 import { postConversationReply } from "./reply";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -47,15 +47,15 @@ describe("postConversationReply", () => {
     );
   });
 
-  it("throws typed on an unsafe review id", async () => {
+  it("reads an unsafe review id as indeterminate", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ commentId: 9, reviewId: "555" }), {
         status: 201,
       }),
     );
-    await expect(
-      postConversationReply("42", 7, SPAN, 1, "x"),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(postConversationReply("42", 7, SPAN, 1, "x")).resolves.toEqual(
+      { kind: "indeterminate" },
+    );
   });
 
   it("maps expected failures to result kinds", async () => {
@@ -99,12 +99,19 @@ describe("postConversationReply", () => {
     }
   });
 
-  it("throws typed on a malformed 2xx", async () => {
+  it("reads a malformed 2xx as indeterminate", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),
     );
-    await expect(
-      postConversationReply("42", 7, SPAN, 1, "x"),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(postConversationReply("42", 7, SPAN, 1, "x")).resolves.toEqual(
+      { kind: "indeterminate" },
+    );
+  });
+
+  it("reads a network throw as indeterminate", async () => {
+    apiFetchMock.mockRejectedValue(new TypeError("network down"));
+    await expect(postConversationReply("42", 7, SPAN, 1, "x")).resolves.toEqual(
+      { kind: "indeterminate" },
+    );
   });
 });

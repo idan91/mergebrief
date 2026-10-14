@@ -1,8 +1,6 @@
+import { DiffSides, ReviewCommentSides, type DiffSide } from "types";
 import { rangeBetween } from "@web/utils/collections";
-import {
-  type ConversationThread,
-  ThreadSides,
-} from "@web/features/conversation/types";
+import { type ConversationThread } from "@web/features/conversation/types";
 import {
   type CommentAnchor,
   isLineCommentAnchor,
@@ -51,13 +49,13 @@ import type { ComparisonRun } from "../../../../model/comparison/runs";
 import {
   type DigestThreadRow,
   demotedSubmittedCommentIds,
+  isKnownAnchor,
 } from "@web/features/conversation/utils";
 import type { SiblingSpan } from "../../../../model/utils/sibling-spans";
 import type {
   GuestRowOrigin,
   GuestRowResolution,
 } from "../../../utils/guest-rows";
-import { type DiffSide, DiffSides } from "types/comments";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -220,7 +218,11 @@ export function placementForThread(
   if (thread.startSide !== undefined && thread.startSide !== thread.side) {
     return undefined;
   }
-  return thread.side === ThreadSides.LEFT ? SplitSides.LEFT : SplitSides.RIGHT;
+  const splitSide =
+    thread.side === ReviewCommentSides.LEFT
+      ? SplitSides.LEFT
+      : SplitSides.RIGHT;
+  return splitSide;
 }
 
 /** Context rows take one Tab stop, on the right; the arrow hop reaches the left. */
@@ -655,15 +657,18 @@ export function showsThreadOnRow(
   row: DigestThreadRow,
   line: DiffLine,
 ): boolean {
+  if (!isKnownAnchor(row.thread)) {
+    return false;
+  }
   const threadLine = row.thread.line;
   if (threadLine === undefined) {
     return false;
   }
-  const side = row.thread.side ?? ThreadSides.RIGHT;
+  const side = row.thread.side ?? ReviewCommentSides.RIGHT;
+  const sideLine =
+    side === ReviewCommentSides.LEFT ? line.oldLine : line.newLine;
 
-  return (
-    threadLine === (side === ThreadSides.LEFT ? line.oldLine : line.newLine)
-  );
+  return threadLine === sideLine;
 }
 
 /** A guest row shows right-side threads only: its old line is a baseline's. */
@@ -671,9 +676,11 @@ export function showsThreadOnGuestRow(
   row: DigestThreadRow,
   line: DiffLine,
 ): boolean {
-  const side = row.thread.side ?? ThreadSides.RIGHT;
+  const side = row.thread.side ?? ReviewCommentSides.RIGHT;
 
-  return side === ThreadSides.RIGHT && showsThreadOnRow(row, line);
+  const shows =
+    side === ReviewCommentSides.RIGHT && showsThreadOnRow(row, line);
+  return shows;
 }
 
 /** Where one span's header, gutter edge and end rule render. */

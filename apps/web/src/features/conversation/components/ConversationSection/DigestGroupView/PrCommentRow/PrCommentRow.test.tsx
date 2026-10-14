@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
+import type { PrLevelCommentView } from "contract";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { PrLevelComment } from "../../../../types";
 import { PrCommentRow } from ".";
 
 afterEach(cleanup);
@@ -10,7 +10,7 @@ afterEach(cleanup);
 const ASSET_URL =
   "https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
 
-function makeComment(body: string): PrLevelComment {
+function makeComment(body: string): PrLevelCommentView {
   return {
     commentId: 77,
     author: { login: "octocat", isBot: false },

@@ -12,10 +12,14 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Mutable, Result, ValueOf } from "types/utils";
-import { ReviewVerdictStates } from "./conversation";
+import {
+  HttpStatuses,
+  ReviewVerdictStates,
+  type Mutable,
+  type Result,
+  type ValueOf,
+} from "types";
 import type { PendingReview } from "./review";
-import { HttpStatuses } from "types/http";
 
 export interface PullRequestReviewRef {
   readonly owner: string;

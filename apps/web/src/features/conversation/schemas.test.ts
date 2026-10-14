@@ -1,33 +1,48 @@
 // Boundary guard for the conversation GET's wire body, parsed against a
 // REALISTIC wire body; route tests that seed the query cache bypass the
 // parser, so this is the contract test.
+import type {
+  CollaboratorsResponse,
+  CollaboratorView,
+  ConversationAuthorView,
+  ConversationCommentView,
+  ConversationResponse,
+  ConversationReviewView,
+  ConversationThreadView,
+  PrLevelCommentView,
+} from "contract";
 import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
-
 import { UNSAFE_LINKS } from "@web/test/links";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import { parseWithSchema } from "@web/utils/parse-with-schema";
 
 import {
-  parseCollaborators,
-  parseConversation,
+  collaboratorsResponseSchema,
+  prConversationSchema,
   type conversationAuthorSchema,
   type conversationCommentSchema,
   type conversationReviewSchema,
   type conversationThreadSchema,
   type mentionCandidateSchema,
-  type prConversationSchema,
   type prLevelCommentSchema,
 } from "./schemas";
 import type {
-  ConversationAuthor,
-  ConversationComment,
   ConversationReview,
   ConversationThread,
   PrConversation,
-  PrLevelComment,
 } from "./types";
+
+function parseConversation(value: unknown) {
+  return parseWithSchema(prConversationSchema, value);
+}
+
+function parseCollaborators(value: unknown) {
+  return parseWithSchema(collaboratorsResponseSchema, value);
+}
 
 function wireConversation(): unknown {
   return {
@@ -174,7 +189,7 @@ describe("parseConversation", () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it("rejects an unknown review state", () => {
+  it("reads an unknown review state as unknown and keeps the review", () => {
     const body = wireConversation();
     const reviews = (body as { reviews: Array<Record<string, unknown>> })
       .reviews;
@@ -182,7 +197,42 @@ describe("parseConversation", () => {
       reviews[0]["state"] = "PENDING";
     }
     const parsed = parseConversation(body);
-    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.reviews[0]?.state).toBe(UnknownValues.UNKNOWN);
+  });
+
+  it("reads an unknown subject type as unknown and keeps the thread", () => {
+    const body = wireConversation();
+    const threads = (body as { threads: Array<Record<string, unknown>> })
+      .threads;
+    if (threads[0]) {
+      threads[0]["subjectType"] = "PULL_REQUEST";
+      delete threads[0]["line"];
+    }
+    const parsed = parseConversation(body);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.threads).toHaveLength(2);
+    expect(parsed.value.threads[0]?.subjectType).toBe(UnknownValues.UNKNOWN);
+  });
+
+  it("reads an unknown side or start side as unknown, never absent", () => {
+    const body = wireConversation();
+    const threads = (body as { threads: Array<Record<string, unknown>> })
+      .threads;
+    if (threads[0]) {
+      threads[0]["side"] = "BOTH";
+      threads[0]["startSide"] = "MIDDLE";
+    }
+    const parsed = parseConversation(body);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.threads[0]?.side).toBe(UnknownValues.UNKNOWN);
+    expect(parsed.value.threads[0]?.startSide).toBe(UnknownValues.UNKNOWN);
   });
 
   it("rejects a fresh LINE thread without a line", () => {
@@ -273,15 +323,18 @@ describe("parseCollaborators", () => {
 
     expect(parsed).toEqual({
       ok: true,
-      value: [
-        {
-          login: "alice",
-          name: "Alice",
-          avatarUrl: "https://avatars.example/alice.png",
-        },
-        { login: "mallory" },
-        { login: "bob" },
-      ],
+      value: {
+        collaborators: [
+          {
+            login: "alice",
+            name: "Alice",
+            avatarUrl: "https://avatars.example/alice.png",
+          },
+          { login: "mallory" },
+          { login: "bob" },
+        ],
+        hasMore: true,
+      },
     });
   });
 
@@ -304,18 +357,21 @@ describe("parseCollaborators", () => {
       hasMore: false,
     });
 
-    expect(parsed).toEqual({ ok: true, value: [{ login: "alice" }] });
+    expect(parsed).toEqual({
+      ok: true,
+      value: { collaborators: [{ login: "alice" }], hasMore: false },
+    });
   });
 });
 
 const SCHEMA_PINS = {
   ConversationAuthor: true satisfies Equals<
     z.output<typeof conversationAuthorSchema>,
-    ConversationAuthor
+    ConversationAuthorView
   >,
   ConversationComment: true satisfies Equals<
     z.output<typeof conversationCommentSchema>,
-    ConversationComment
+    ConversationCommentView
   >,
   ConversationThread: true satisfies Equals<
     z.output<typeof conversationThreadSchema>,
@@ -327,7 +383,7 @@ const SCHEMA_PINS = {
   >,
   PrLevelComment: true satisfies Equals<
     z.output<typeof prLevelCommentSchema>,
-    PrLevelComment
+    PrLevelCommentView
   >,
   PrConversation: true satisfies Equals<
     z.output<typeof prConversationSchema>,
@@ -341,6 +397,53 @@ const SCHEMA_PINS = {
 
 describe("conversation schemas match their interfaces", () => {
   it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
+    expect(pinned).toBe(true);
+  });
+});
+
+/** Every field the parser reads is one the contract sends. */
+type ReadsWireFields<Parsed, Wire> = Equals<
+  Exclude<keyof Parsed, keyof Wire>,
+  never
+>;
+
+const CONTRACT_PINS = {
+  ConversationAuthor: true satisfies ReadsWireFields<
+    z.output<typeof conversationAuthorSchema>,
+    ConversationAuthorView
+  >,
+  ConversationComment: true satisfies ReadsWireFields<
+    z.output<typeof conversationCommentSchema>,
+    ConversationCommentView
+  >,
+  ConversationThread: true satisfies ReadsWireFields<
+    z.output<typeof conversationThreadSchema>,
+    ConversationThreadView
+  >,
+  ConversationReview: true satisfies ReadsWireFields<
+    z.output<typeof conversationReviewSchema>,
+    ConversationReviewView
+  >,
+  PrLevelComment: true satisfies ReadsWireFields<
+    z.output<typeof prLevelCommentSchema>,
+    PrLevelCommentView
+  >,
+  Conversation: true satisfies ReadsWireFields<
+    z.output<typeof prConversationSchema>,
+    ConversationResponse
+  >,
+  Collaborator: true satisfies ReadsWireFields<
+    z.output<typeof mentionCandidateSchema>,
+    CollaboratorView
+  >,
+  Collaborators: true satisfies ReadsWireFields<
+    z.output<typeof collaboratorsResponseSchema>,
+    CollaboratorsResponse
+  >,
+} as const;
+
+describe("conversation schemas read only what the contract sends", () => {
+  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
     expect(pinned).toBe(true);
   });
 });

@@ -1,13 +1,13 @@
 // Thread-state chip derivations, shared by the section digest and the
 // promoted ThreadRowView. Chips carry TEXT (WCAG 1.4.1) and stay factual:
 // `resolved` never dresses as success.
-import type { TranslationKey } from "i18n";
-import type { DigestRow } from "./digest";
 import {
   ReviewVerdictStates,
-  type ConversationThread,
   type ReviewVerdictState,
-} from "../types";
+} from "types/conversation";
+import type { TranslationKey } from "i18n";
+import type { DigestRow } from "./digest";
+import { type ConversationThread } from "../types";
 
 /** Review verdict chip text, the digest's own verdict vocabulary. */
 export const VERDICT_LABEL_KEYS: Readonly<

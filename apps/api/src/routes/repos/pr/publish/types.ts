@@ -6,7 +6,6 @@ import type {
   InlineReviewCommentResult,
   ListedReviewComment,
   PendingReview,
-  ReviewCommentSide,
   ReviewerRepoClient,
   ReviewSubjectTypes,
   ReviewThread,
@@ -17,8 +16,7 @@ import type {
   ReviewDraftCommentRow,
   SettleClaimInput,
 } from "persistence";
-import type { ReviewOutcome } from "types/reviews";
-import type { Result } from "types/utils";
+import type { Result, ReviewCommentSide, ReviewOutcome } from "types";
 import type { GitHubDeniedFailure } from "../../../../shared-errors/failures";
 import type { SessionWriteFailure } from "../session/types";
 

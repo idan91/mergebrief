@@ -30,15 +30,14 @@ import {
 } from "@web/features/review/session";
 import type { ConversationResult } from "../../queries";
 import {
-  ThreadSubjectTypes,
-  ThreadSides,
-  type PrConversation,
-} from "../../types";
-import {
   CommentAnchorKinds,
   DiffSides,
   DraftCommentStatuses,
-} from "types/comments";
+  ReviewCommentSides,
+  ThreadSubjectTypes,
+} from "types";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import type { PrConversation } from "../../types";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
@@ -87,7 +86,7 @@ function conversation(): PrConversation {
         rootCommentId: 9001,
         path: "src/a.ts",
         line: 10,
-        side: ThreadSides.RIGHT,
+        side: ReviewCommentSides.RIGHT,
         subjectType: ThreadSubjectTypes.LINE,
         isResolved: false,
         isOutdated: false,
@@ -106,7 +105,7 @@ function conversation(): PrConversation {
         rootCommentId: 9002,
         path: "src/a.ts",
         line: 10,
-        side: ThreadSides.RIGHT,
+        side: ReviewCommentSides.RIGHT,
         subjectType: ThreadSubjectTypes.LINE,
         isResolved: true,
         isOutdated: false,
@@ -279,6 +278,34 @@ describe("ConversationSection", () => {
     expect(screen.getAllByText("@alice").length).toBeGreaterThan(0);
     // Chips are text, not color-only.
     expect(screen.getByText("open")).toBeDefined();
+  });
+
+  it("renders a review of an unknown state without a verdict chip", async () => {
+    const data = conversation();
+    const review = {
+      reviewId: 501,
+      author: { login: "dana", isBot: false },
+      state: UnknownValues.UNKNOWN,
+      body: "a verdict this tab predates",
+      url: "https://example.test/r/501",
+    };
+    renderSection({
+      plan: plan([
+        { kind: "ready", conversation: { ...data, reviews: [review] } },
+      ]),
+    });
+    expect(
+      await screen.findByText("a verdict this tab predates"),
+    ).toBeDefined();
+    expect(screen.getAllByText("@dana").length).toBeGreaterThan(0);
+    for (const label of [
+      "approved",
+      "changes requested",
+      "commented",
+      "dismissed",
+    ]) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
   });
 
   it("counts comments past the generation cutoff in the header line", async () => {
@@ -932,7 +959,7 @@ describe("ConversationSection outdated-thread revision jump", () => {
         rootCommentId: id,
         path: "src/a.ts",
         line: 10,
-        side: ThreadSides.RIGHT,
+        side: ReviewCommentSides.RIGHT,
         subjectType: ThreadSubjectTypes.LINE,
         isResolved: false,
         isOutdated: false,
@@ -952,7 +979,7 @@ describe("ConversationSection outdated-thread revision jump", () => {
       rootCommentId: 30_001,
       path: "src/a.ts",
       line: 10,
-      side: ThreadSides.RIGHT,
+      side: ReviewCommentSides.RIGHT,
       subjectType: ThreadSubjectTypes.LINE,
       isResolved: true,
       isOutdated: false,

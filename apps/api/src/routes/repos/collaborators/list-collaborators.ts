@@ -1,3 +1,4 @@
+import type { CollaboratorsResponse } from "contract";
 import type { InstallationId, RepoId } from "persistence";
 import type { Result } from "types/utils";
 import { bindRepoInstallationGitHub } from "../../../access/installation-binding";
@@ -45,7 +46,8 @@ export async function listCollaborators(
     return { ok: false, error: { kind: FailureKinds.GITHUB_DENIED, error } };
   }
 
-  const body = JSON.stringify(listed.value);
+  const roster: CollaboratorsResponse = listed.value;
+  const body = JSON.stringify(roster);
   deps.cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);
   return { ok: true, value: body };
 }

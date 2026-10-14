@@ -1,11 +1,12 @@
+import { ReviewEvents, type ReviewEvent } from "github";
 import {
+  DiffSides,
   ReviewCommentSides,
-  ReviewEvents,
+  ReviewOutcomes,
+  type DiffSide,
   type ReviewCommentSide,
-  type ReviewEvent,
-} from "github";
-import { DiffSides, type DiffSide } from "types/comments";
-import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
+  type ReviewOutcome,
+} from "types";
 
 /** The stored side vocabulary as GitHub names it. */
 export const SideOnGithub: Readonly<Record<DiffSide, ReviewCommentSide>> = {

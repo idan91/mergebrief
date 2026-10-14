@@ -1,6 +1,8 @@
 // Bot groups collapse but remain accessible; sorting never uses their stated severity.
 // Outdated threads need revision labels because anchor-time coordinates are untrusted.
 // Unanchored fresh threads and PR-level comments belong in the general group.
+import type { PrLevelCommentView } from "contract";
+import { ReviewCommentSides, type Mutable, type ValueOf } from "types";
 import type { BriefChunk } from "../../brief/model";
 import {
   placeThread,
@@ -10,13 +12,7 @@ import {
   type ThreadPlacement,
 } from "./anchor";
 import { deriveDigestLine } from "./digestLine";
-import {
-  ThreadSides,
-  type ConversationThread,
-  type PrConversation,
-  type PrLevelComment,
-} from "../types";
-import type { Mutable, ValueOf } from "types/utils";
+import { type ConversationThread, type PrConversation } from "../types";
 import type { TFunction } from "i18next";
 
 export const DigestRowKinds = {
@@ -68,7 +64,7 @@ export interface DigestGroup {
   readonly chunkId?: string;
   readonly rows: readonly DigestRow[];
   /** PR-level (issue) comments, general group only. */
-  readonly prComments?: readonly PrLevelComment[];
+  readonly prComments?: readonly PrLevelCommentView[];
 }
 
 export interface BuildConversationDigestInput {
@@ -324,7 +320,9 @@ export function buildThreadsOutsideChunks(
     if (thread.line === undefined) {
       continue;
     }
-    if ((thread.side ?? ThreadSides.RIGHT) !== ThreadSides.RIGHT) {
+    if (
+      (thread.side ?? ReviewCommentSides.RIGHT) !== ReviewCommentSides.RIGHT
+    ) {
       continue;
     }
     const placement = placeThread(thread, input.chunks);
@@ -362,12 +360,22 @@ export function buildLineThreadsByFile(
       continue;
     }
     const placement = placeThread(thread, input.chunks);
+    if (isUnknownAnchor(placement)) {
+      continue;
+    }
     const rows = byFile.get(thread.path) ?? [];
     rows.push(threadRow(thread, placement, input));
     byFile.set(thread.path, rows);
   }
 
   return byFile;
+}
+
+function isUnknownAnchor(placement: ThreadPlacement): boolean {
+  const unknownAnchor =
+    placement.kind === ThreadPlacementKinds.UNANCHORED &&
+    placement.reason === UnanchoredReasons.UNKNOWN_ANCHOR;
+  return unknownAnchor;
 }
 
 export function buildInlineThreads(

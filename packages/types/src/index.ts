@@ -17,6 +17,14 @@ export {
   type DraftCommentStatus,
 } from "./comments";
 export {
+  ReviewCommentSides,
+  ReviewVerdictStates,
+  ThreadSubjectTypes,
+  type ReviewCommentSide,
+  type ReviewVerdictState,
+  type ThreadSubjectType,
+} from "./conversation";
+export {
   HttpMethods,
   HttpStatuses,
   type HttpMethod,

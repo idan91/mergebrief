@@ -36,7 +36,11 @@ export const RESOLVE_KEYS = {
 } as const satisfies Record<string, TranslationKey>;
 
 const FAILURE_KEYS: Record<
-  Exclude<ResolveThreadResultKind, typeof ResolveThreadResultKinds.DONE>,
+  Exclude<
+    ResolveThreadResultKind,
+    | typeof ResolveThreadResultKinds.DONE
+    | typeof ResolveThreadResultKinds.INDETERMINATE
+  >,
   TranslationKey
 > = {
   [ResolveThreadResultKinds.UNAUTHORIZED]: RESOLVE_KEYS.UNAUTHORIZED,
@@ -114,17 +118,23 @@ export function useThreadResolution(
         setError(copy);
         announce(copy);
       };
+      // The write may have landed: refetch so the row shows where it
+      // actually ended up, and say so in the (indeterminate) copy.
+      const settleIndeterminate = (): ResolveAttempt => {
+        resolution.refetchConversation();
+        fail(t(RESOLVE_KEYS.FAILED));
+        return "indeterminate";
+      };
       try {
         let result: ResolveThreadResult;
         try {
           result = await resolution.setResolved(threadId, target);
         } catch (thrown) {
           console.error("thread resolution failed", thrown);
-          // The write may have landed: refetch so the row shows where it
-          // actually ended up, and say so in the (indeterminate) copy.
-          resolution.refetchConversation();
-          fail(t(RESOLVE_KEYS.FAILED));
-          return "indeterminate";
+          return settleIndeterminate();
+        }
+        if (result.kind === ResolveThreadResultKinds.INDETERMINATE) {
+          return settleIndeterminate();
         }
         if (result.kind === ResolveThreadResultKinds.DONE) {
           // Convergence is success and takes the SAME path: the local view was

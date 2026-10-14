@@ -1,13 +1,13 @@
+import type { PrLevelCommentView } from "contract";
 import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown";
 import { RowButton } from "@web/components/RowButton";
 import { deriveDigestLine } from "../../../../utils/digestLine";
 import { NO_OWN_REVIEWS, postdatesBrief } from "../../../../utils/postdate";
 import rowStyles from "../../../../rows.module.scss";
-import type { PrLevelComment } from "../../../../types";
 
 export interface PrCommentRowProps {
-  comment: PrLevelComment;
+  comment: PrLevelCommentView;
   expanded: boolean;
   toggle: (commentId: number) => void;
   /** The viewed revision's generation cutoff; absent marks nothing. */

@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+import {
+  ReviewCommentSides,
+  ThreadSubjectTypes,
+  type ReviewCommentSide,
+} from "types/conversation";
 import { Concerns, Roles } from "brief-core/types";
 import { appI18n } from "../../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,11 +25,6 @@ import {
   type ReviewSessionPayload,
   useReviewSessionActions,
 } from "@web/features/review/session";
-import {
-  type ThreadSide,
-  ThreadSides,
-  ThreadSubjectTypes,
-} from "@web/features/conversation/types";
 import {
   type DigestThreadRow,
   DigestRowKinds,
@@ -134,7 +134,7 @@ const NO_DIFF_CACHE: FileRowsCache = {
 };
 
 function stubThread(
-  side: ThreadSide,
+  side: ReviewCommentSide,
   line: number,
   body: string,
 ): DigestThreadRow {
@@ -408,8 +408,8 @@ describe("RawSpanDiff toggle", () => {
   it("shows a right-side thread on its span row and drops a left-side one", async () => {
     const { container } = renderRaw(diffQuery("chk", "head"), {
       fileThreads: [
-        stubThread(ThreadSides.RIGHT, 2, "right thread"),
-        stubThread(ThreadSides.LEFT, 2, "left thread"),
+        stubThread(ReviewCommentSides.RIGHT, 2, "right thread"),
+        stubThread(ReviewCommentSides.LEFT, 2, "left thread"),
       ],
     });
     fireEvent.click(toggleButton());

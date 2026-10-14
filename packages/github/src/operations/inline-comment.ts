@@ -9,8 +9,13 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import { ReviewSubjectTypes, type ReviewCommentSide } from "./review-thread";
-import { HttpStatuses, type Mutable, type Result } from "types";
+import {
+  HttpStatuses,
+  type Mutable,
+  type Result,
+  type ReviewCommentSide,
+} from "types";
+import { ReviewSubjectTypes } from "./review-thread";
 
 export interface CreateInlineReviewCommentBase {
   readonly owner: string;

@@ -1,6 +1,5 @@
-// Inline post-now transport: expected failure statuses are result kinds the
-// own-draft flow renders, never throws for those; a malformed 2xx throws typed
-// as a contract violation.
+// Inline post-now transport: every failure is a result kind the own-draft flow
+// renders; a malformed 2xx or a network throw is indeterminate.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -10,13 +9,15 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn() };
 });
 
-import { apiFetch, ApiError } from "../../../data/apiFetch";
-import { postInlineComment, type PostCommentPayload } from "./postComment";
+import type { CreateInlineCommentBody } from "contract";
+
+import { apiFetch } from "../../../data/apiFetch";
+import { postInlineComment } from "./postComment";
 
 const apiFetchMock = vi.mocked(apiFetch);
 
 const SPAN = { base: "b".repeat(40), head: "a".repeat(40) };
-const PAYLOAD: PostCommentPayload = { draftId: "9001" };
+const PAYLOAD: CreateInlineCommentBody = { draftId: "9001" };
 const PATH = `/api/repos/42/pulls/7/comments?base=${SPAN.base}&head=${SPAN.head}`;
 
 describe("postInlineComment", () => {
@@ -143,12 +144,19 @@ describe("postInlineComment", () => {
     }
   });
 
-  it("throws typed on a malformed 2xx", async () => {
+  it("reads a malformed 2xx as indeterminate", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),
     );
-    await expect(
-      postInlineComment("42", 7, SPAN, PAYLOAD),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+      kind: "indeterminate",
+    });
+  });
+
+  it("reads a network throw as indeterminate", async () => {
+    apiFetchMock.mockRejectedValue(new TypeError("network down"));
+    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+      kind: "indeterminate",
+    });
   });
 });

@@ -1,16 +1,30 @@
+import type { PostedCommentResponse } from "contract";
 import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
-import {
-  parsePostedComment,
-  type PostedComment,
-  type postedCommentSchema,
-} from "./postedComment";
+import { parseWithSchema } from "@web/utils/parse-with-schema";
+
+import { postedCommentSchema, type PostedComment } from "./postedComment";
+
+function parsePostedComment(value: unknown): PostedComment | undefined {
+  const parsed = parseWithSchema(postedCommentSchema, value);
+  const comment = parsed.ok ? parsed.value : undefined;
+  return comment;
+}
 
 const postedCommentPin = true satisfies Equals<
   z.output<typeof postedCommentSchema>,
   PostedComment
+>;
+
+/** Every field the parser reads is one the contract sends. */
+const readsWireFieldsPin = true satisfies Equals<
+  Exclude<
+    keyof z.input<typeof postedCommentSchema>,
+    keyof PostedCommentResponse
+  >,
+  never
 >;
 
 describe("parsePostedComment", () => {
@@ -40,5 +54,9 @@ describe("parsePostedComment", () => {
 
   it("pins the schema to the PostedComment interface", () => {
     expect(postedCommentPin).toBe(true);
+  });
+
+  it("reads only the fields the contract sends", () => {
+    expect(readsWireFieldsPin).toBe(true);
   });
 });

@@ -1,22 +1,20 @@
 // Server-backed threads win on exact review-id joins while local records retain links.
 // Matching drafts must become submitted so a missed local flip cannot resurrect a post.
+import type { ConversationCommentView } from "contract";
 import {
   CommentAnchorKinds,
-  type DiffSide,
   DiffSides,
-  type DraftCommentStatus,
   DraftCommentStatuses,
+  ReviewCommentSides,
+  ThreadSubjectTypes,
+  type DiffSide,
+  type DraftCommentStatus,
   type Mutable,
+  type ReviewCommentSide,
 } from "types";
 import { describe, expect, it } from "vitest";
 import { type ReviewComment } from "@web/features/review/utils";
-import {
-  ThreadSubjectTypes,
-  ThreadSides,
-  type ConversationComment,
-  type ConversationThread,
-  type ThreadSide,
-} from "../types";
+import { type ConversationThread } from "../types";
 import {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
@@ -53,11 +51,11 @@ function serverThread(overrides: {
   rootCommentId: number;
   path?: string;
   line?: number;
-  side?: ThreadSide;
+  side?: ReviewCommentSide;
   reviewId?: number;
   body?: string;
 }): ConversationThread {
-  const rootComment: Mutable<ConversationComment> = {
+  const rootComment: Mutable<ConversationCommentView> = {
     commentId: overrides.rootCommentId,
     author: { login: "me", isBot: false },
     body: overrides.body ?? "my note",
@@ -73,7 +71,7 @@ function serverThread(overrides: {
     rootCommentId: overrides.rootCommentId,
     path: overrides.path ?? "src/a.ts",
     line: overrides.line ?? 11,
-    side: overrides.side ?? ThreadSides.RIGHT,
+    side: overrides.side ?? ReviewCommentSides.RIGHT,
     subjectType: ThreadSubjectTypes.LINE,
     isResolved: false,
     isOutdated: false,
@@ -113,13 +111,13 @@ describe("reconcileOwnComments", () => {
       [
         serverThread({
           rootCommentId: 9001,
-          side: ThreadSides.LEFT,
+          side: ReviewCommentSides.LEFT,
           line: 20,
           reviewId: MY_REVIEW,
         }),
         serverThread({
           rootCommentId: 9002,
-          side: ThreadSides.RIGHT,
+          side: ReviewCommentSides.RIGHT,
           line: 11,
           reviewId: MY_REVIEW,
         }),
@@ -312,7 +310,7 @@ describe("demotedSubmittedCommentIds display half", () => {
       status: DraftCommentStatuses.SUBMITTED,
       collapsed: false,
     };
-    const rootComment: Mutable<ConversationComment> = {
+    const rootComment: Mutable<ConversationCommentView> = {
       commentId: 9001,
       author: { login: "me", isBot: false },
       body: "on the file",

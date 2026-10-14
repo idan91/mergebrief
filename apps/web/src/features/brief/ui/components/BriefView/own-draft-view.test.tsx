@@ -1130,6 +1130,33 @@ describe("own-draft Brief view", () => {
     expect(postComment).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["a thrown", () => Promise.reject(new Error("boom"))],
+    [
+      "an indeterminate",
+      () => Promise.resolve<PostCommentResult>({ kind: "indeterminate" }),
+    ],
+  ])(
+    "%s post says it may have posted and keeps the draft",
+    async (_label, send) => {
+      seedDrafts([comment("c1", "chunk-a", "draft")]);
+      const postComment = vi.fn((_draftId: string) => send());
+      await renderBriefView({ markReady: vi.fn(), postComment });
+      const post = (
+        await screen.findAllByRole("button", { name: /^post$/i })
+      )[0]!;
+
+      fireEvent.click(post);
+
+      expect(
+        await screen.findByText(appI18n.t(POST_COMMENT_COPY_KEYS.FAILED)),
+      ).toBeTruthy();
+      await waitFor(() =>
+        expect(post.getAttribute("aria-disabled")).not.toBe("true"),
+      );
+    },
+  );
+
   it("a permission refusal says so, never the may-have-posted copy", async () => {
     seedDrafts([comment("c1", "chunk-a", "draft")]);
     const postComment = vi.fn((_draftId: string) =>

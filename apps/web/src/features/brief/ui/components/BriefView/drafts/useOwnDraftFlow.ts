@@ -96,6 +96,11 @@ const POST_FAILURES = {
     copy: POST_COMMENT_COPY_KEYS.UPSTREAM,
     outcome: PostDraftOutcomes.INDETERMINATE,
   },
+  // The request failed around the write, the same as a throw.
+  [PostCommentResultKinds.INDETERMINATE]: {
+    copy: POST_COMMENT_COPY_KEYS.FAILED,
+    outcome: PostDraftOutcomes.INDETERMINATE,
+  },
 } as const satisfies Record<
   Exclude<PostCommentResultKind, typeof PostCommentResultKinds.POSTED>,
   { copy: TranslationKey; outcome: PostDraftOutcome }

@@ -1,11 +1,17 @@
 // Chips need text as well as color; digest rows use button disclosures.
 // Keep expansion keyed by thread id across refetches. Refresh on focus/navigation
 // and manual request, without background polling.
+import {
+  ReviewVerdictStates,
+  type Mutable,
+  type ReviewVerdictState,
+} from "types";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { prefersReducedMotion } from "@web/utils/motion";
+import { UnknownValues } from "@web/utils/open-enum/types";
 import { toggleSet } from "@web/utils/collections";
 import type { BriefChunk } from "@web/features/brief/model";
 import type { ReviewComment } from "@web/features/review/utils";
@@ -28,11 +34,7 @@ import { Button } from "@web/components/Button";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import rowStyles from "../../rows.module.scss";
-import {
-  ReviewVerdictStates,
-  type ConversationReview,
-  type ReplyResult,
-} from "../../types";
+import type { ReplyResult } from "../../types";
 import type {
   ConversationResolutionPlan,
   ThreadComposerWiring,
@@ -42,7 +44,6 @@ import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
 import { headSummary } from "./utils";
 import styles from "./ConversationSection.module.scss";
-import type { Mutable } from "types/utils";
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
@@ -102,7 +103,7 @@ export interface ConversationSectionProps {
   filter?: ConversationFilter | undefined;
 }
 
-const VERDICT_STATE_ATTRIBUTES: Record<ConversationReview["state"], string> = {
+const VERDICT_STATE_ATTRIBUTES: Record<ReviewVerdictState, string> = {
   [ReviewVerdictStates.APPROVED]: "approved",
   [ReviewVerdictStates.CHANGES_REQUESTED]: "changes-requested",
   [ReviewVerdictStates.COMMENTED]: "commented",
@@ -424,12 +425,14 @@ export function ConversationSection({
                           </span>
                         ) : null}
                       </span>
-                      <span
-                        className={rowStyles["chip"]}
-                        data-state={VERDICT_STATE_ATTRIBUTES[review.state]}
-                      >
-                        {t(VERDICT_LABEL_KEYS[review.state])}
-                      </span>
+                      {review.state === UnknownValues.UNKNOWN ? null : (
+                        <span
+                          className={rowStyles["chip"]}
+                          data-state={VERDICT_STATE_ATTRIBUTES[review.state]}
+                        >
+                          {t(VERDICT_LABEL_KEYS[review.state])}
+                        </span>
+                      )}
                       {review.body.trim() !== "" ? (
                         <span className={rowStyles["rowLine"]}>
                           {review.body}

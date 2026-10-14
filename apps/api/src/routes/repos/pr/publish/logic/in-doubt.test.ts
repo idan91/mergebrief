@@ -1,10 +1,10 @@
 import {
   PullRequestReviewStates,
-  ReviewCommentSides,
   ReviewSubjectTypes,
   type AuthoredReview,
   type ListedReviewComment,
 } from "github";
+import { ReviewCommentSides } from "types/conversation";
 import { describe, expect, it } from "vitest";
 import { makeDraftCommentRow } from "../../../../../../test/fixtures";
 import { shapePublishComment } from "./anchor";

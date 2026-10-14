@@ -11,14 +11,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result, ValueOf } from "types/utils";
-
-/** GitHub wire values for a review comment's diff side. */
-export const ReviewCommentSides = {
-  LEFT: "LEFT",
-  RIGHT: "RIGHT",
-} as const;
-export type ReviewCommentSide = ValueOf<typeof ReviewCommentSides>;
+import type { Result, ReviewCommentSide, ValueOf } from "types";
 
 /** What a review comment anchors to; file comments omit line and side. */
 export const ReviewSubjectTypes = {

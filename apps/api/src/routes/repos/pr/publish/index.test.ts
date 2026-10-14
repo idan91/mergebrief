@@ -1,14 +1,17 @@
 import {
   GitHubApiErrorCodes,
-  ReviewCommentSides,
   ReviewSubjectTypes,
   type ReviewerRepoClient,
 } from "github";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import type { ReviewDraftCommentRow } from "persistence";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
-import { ReviewOutcomes } from "types/reviews";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  ReviewCommentSides,
+  ReviewOutcomes,
+} from "types";
 import { describe, expect, it, vi } from "vitest";
 import {
   PR_NUMBER,

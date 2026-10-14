@@ -4,15 +4,13 @@
 // poll. Expected failure statuses are RESULT KINDS the section renders as its
 // error state; only a malformed 200 throws (contract violation).
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
+import { ProductQueryIds } from "contract";
+import { HttpStatuses } from "types/http";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
-import {
-  ApiError,
-  ApiErrorCodes,
-  apiFetch,
-  apiJsonFromResponse,
-} from "../../data/apiFetch";
-import { parseCollaborators, parseConversation } from "./schemas";
+import { ApiError } from "../../data/apiFetch";
+import { request } from "../../data/request";
+import { collaboratorsResponseSchema, prConversationSchema } from "./schemas";
 import type { PrConversation } from "./types";
 
 export type ConversationResult =
@@ -23,6 +21,48 @@ export type ConversationResult =
   | { readonly kind: "not-found" }
   /** 502/503: GitHub or the backend is unreachable; the section's error state. */
   | { readonly kind: "unavailable" };
+
+type ConversationFailure = Exclude<ConversationResult, { kind: "ready" }>;
+
+const ConversationFailureByStatus: Readonly<
+  Partial<Record<number, ConversationFailure>>
+> = {
+  [HttpStatuses.UNAUTHORIZED]: { kind: "unauthorized" },
+  [HttpStatuses.NOT_FOUND]: { kind: "not-found" },
+  [HttpStatuses.BAD_GATEWAY]: { kind: "unavailable" },
+  [HttpStatuses.SERVICE_UNAVAILABLE]: { kind: "unavailable" },
+};
+
+/** The status's expected failure, or `undefined` for one the query should throw. */
+function readExpectedFailure<Failure>(
+  error: unknown,
+  failures: Readonly<Partial<Record<number, Failure>>>,
+): Failure | undefined {
+  if (!(error instanceof ApiError)) {
+    return undefined;
+  }
+  return failures[error.status];
+}
+
+async function readConversation(
+  repoId: string,
+  prNumber: number,
+): Promise<ConversationResult> {
+  try {
+    const conversation = await request(
+      ProductQueryIds.READ_CONVERSATION,
+      { params: { repoId, prNumber } },
+      prConversationSchema,
+    );
+    return { kind: "ready", conversation };
+  } catch (error) {
+    const failure = readExpectedFailure(error, ConversationFailureByStatus);
+    if (failure === undefined) {
+      throw error;
+    }
+    return failure;
+  }
+}
 
 export function buildConversationQueryKey(repoId: string, prNumber: number) {
   return ["conversation", repoId, prNumber] as const;
@@ -43,25 +83,7 @@ export function buildConversationQueryOptions(
   const queryKey: QueryKey = buildConversationQueryKey(repoId, prNumber);
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<ConversationResult> => {
-      const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/conversation`;
-      const response = await apiFetch(path);
-      if (response.status === 401) {
-        return { kind: "unauthorized" };
-      }
-      if (response.status === 404) {
-        return { kind: "not-found" };
-      }
-      if (response.status === 502 || response.status === 503) {
-        return { kind: "unavailable" };
-      }
-      const body = await apiJsonFromResponse(response, path);
-      const parsed = parseConversation(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
-      }
-      return { kind: "ready", conversation: parsed.value };
-    },
+    queryFn: () => readConversation(repoId, prNumber),
     // Always-refetch on navigation and window focus: the server's 60s per-PR
     // cache absorbs the cost, so a return never shows a stale section.
     staleTime: 30_000,
@@ -81,6 +103,37 @@ export type CollaboratorsResult =
    */
   | { readonly kind: "unavailable" };
 
+const UNAVAILABLE_POOL = { kind: "unavailable" } as const;
+
+const CollaboratorsFailureByStatus: Readonly<
+  Partial<Record<number, typeof UNAVAILABLE_POOL>>
+> = {
+  [HttpStatuses.UNAUTHORIZED]: UNAVAILABLE_POOL,
+  [HttpStatuses.NOT_FOUND]: UNAVAILABLE_POOL,
+  [HttpStatuses.BAD_GATEWAY]: UNAVAILABLE_POOL,
+  [HttpStatuses.SERVICE_UNAVAILABLE]: UNAVAILABLE_POOL,
+};
+
+async function listCollaborators(repoId: string): Promise<CollaboratorsResult> {
+  try {
+    const roster = await request(
+      ProductQueryIds.LIST_COLLABORATORS,
+      { params: { repoId } },
+      collaboratorsResponseSchema,
+    );
+    const candidates = roster.collaborators.toSorted((left, right) =>
+      left.login.localeCompare(right.login),
+    );
+    return { kind: "ready", candidates };
+  } catch (error) {
+    const failure = readExpectedFailure(error, CollaboratorsFailureByStatus);
+    if (failure === undefined) {
+      throw error;
+    }
+    return failure;
+  }
+}
+
 export function buildCollaboratorsQueryKey(repoId: string) {
   return ["collaborators", repoId] as const;
 }
@@ -96,27 +149,7 @@ export function buildCollaboratorsQueryOptions(repoId: string) {
   const queryKey: QueryKey = buildCollaboratorsQueryKey(repoId);
   return queryOptions({
     queryKey,
-    queryFn: async (): Promise<CollaboratorsResult> => {
-      const path = `/api/repos/${encodeURIComponent(repoId)}/collaborators`;
-      const response = await apiFetch(path);
-      if (
-        response.status === 401 ||
-        response.status === 404 ||
-        response.status === 502 ||
-        response.status === 503
-      ) {
-        return { kind: "unavailable" };
-      }
-      const body = await apiJsonFromResponse(response, path);
-      const parsed = parseCollaborators(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
-      }
-      const candidates = parsed.value.toSorted((a, b) =>
-        a.login.localeCompare(b.login),
-      );
-      return { kind: "ready", candidates };
-    },
+    queryFn: () => listCollaborators(repoId),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,

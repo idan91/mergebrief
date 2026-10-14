@@ -15,7 +15,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 An unknown value in a closed vocabulary never fails more than the smallest unit holding it. A browser tab opened before a server upgrade keeps working when the server starts sending a member the tab's code predates:
 
-- an optional field with an unknown value is dropped and reads as absent;
+- an optional field with an unknown value is dropped and reads as absent, unless its absence carries a default meaning: then it reads as `unknown`, as a required field does;
 - a required field with an unknown value reads as the web-only sentinel `unknown`, and the UI renders it neutrally: no badge, a generic line, never a crash and never a wrong specific label;
 - one list item never fails its list because of a vocabulary value.
 

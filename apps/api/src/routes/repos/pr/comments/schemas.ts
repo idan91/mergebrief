@@ -1,8 +1,14 @@
 import { z } from "zod/v4";
-import { RequestBounds } from "contract";
+import {
+  RequestBounds,
+  type CreateInlineCommentBody,
+  type ReplyToCommentBody,
+} from "contract";
 import { rowIdSchema } from "../../../wire-bounds";
 
-export const publishDraftSchema = z.object({ draftId: rowIdSchema });
+export const publishDraftSchema = z.object({
+  draftId: rowIdSchema,
+}) satisfies z.ZodType<unknown, CreateInlineCommentBody>;
 
 /** A reply/thread target id is a REST comment id, bounded by JS integer precision. */
 export const commentIdSchema = z.coerce
@@ -13,4 +19,4 @@ export const commentIdSchema = z.coerce
 
 export const replyBodySchema = z.object({
   body: z.string().min(1).max(RequestBounds.BODY_LENGTH),
-});
+}) satisfies z.ZodType<ReplyToCommentBody>;

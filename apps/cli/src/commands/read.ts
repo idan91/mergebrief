@@ -169,7 +169,10 @@ export async function runConversation(
   io: ReadIo,
 ): Promise<void> {
   const response = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/conversation`,
+    path: buildRequestPath(ProductQueryIds.READ_CONVERSATION, {
+      repoId,
+      prNumber,
+    }),
   });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim
@@ -359,7 +362,7 @@ export async function runCollaborators(
   io: ReadIo,
 ): Promise<void> {
   const response = await client.request({
-    path: `/api/repos/${repoId}/collaborators`,
+    path: buildRequestPath(ProductQueryIds.LIST_COLLABORATORS, { repoId }),
   });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim

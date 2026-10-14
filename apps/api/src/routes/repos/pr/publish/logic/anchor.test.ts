@@ -1,5 +1,5 @@
-import { ReviewCommentSides, ReviewSubjectTypes } from "github";
-import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { ReviewSubjectTypes } from "github";
+import { CommentAnchorKinds, DiffSides, ReviewCommentSides } from "types";
 import { describe, expect, it } from "vitest";
 import { makeDraftCommentRow } from "../../../../../../test/fixtures";
 import {

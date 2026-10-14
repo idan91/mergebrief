@@ -10,27 +10,16 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import { ReviewCommentSides, type ReviewCommentSide } from "./review-thread";
-import type { Mutable, Result, ValueOf } from "types/utils";
-
-/** GitHub wire values for a review thread's subject (line-anchored or file-level). */
-export const ThreadSubjectTypes = {
-  LINE: "LINE",
-  FILE: "FILE",
-} as const;
-export type ThreadSubjectType = ValueOf<typeof ThreadSubjectTypes>;
-
-/**
- * GitHub wire values for a submitted review's state. `PENDING` is deliberately
- * absent: a pending review is a draft, and those nodes are skipped in mapping.
- */
-export const ReviewVerdictStates = {
-  COMMENTED: "COMMENTED",
-  APPROVED: "APPROVED",
-  CHANGES_REQUESTED: "CHANGES_REQUESTED",
-  DISMISSED: "DISMISSED",
-} as const;
-export type ReviewVerdictState = ValueOf<typeof ReviewVerdictStates>;
+import {
+  ReviewCommentSides,
+  ReviewVerdictStates,
+  ThreadSubjectTypes,
+  type Mutable,
+  type Result,
+  type ReviewCommentSide,
+  type ReviewVerdictState,
+  type ThreadSubjectType,
+} from "types";
 
 export interface ConversationAuthor {
   /** GitHub login; `"ghost"` when the account was deleted. */

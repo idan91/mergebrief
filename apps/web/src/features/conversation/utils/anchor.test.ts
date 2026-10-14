@@ -3,11 +3,9 @@
 // reads.
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../../brief/model";
-import {
-  ThreadSubjectTypes,
-  ThreadSides,
-  type ConversationThread,
-} from "../types";
+import { ReviewCommentSides, ThreadSubjectTypes } from "types/conversation";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import type { ConversationThread } from "../types";
 import { placeThread, ThreadPlacementKinds, UnanchoredReasons } from "./anchor";
 
 function chunk(overrides: Partial<BriefChunk> & { id: string }): BriefChunk {
@@ -42,7 +40,7 @@ function thread(overrides: ThreadOverrides): ConversationThread {
     rootCommentId: 1001,
     path: "src/a.ts",
     line: 11,
-    side: ThreadSides.RIGHT,
+    side: ReviewCommentSides.RIGHT,
     subjectType: ThreadSubjectTypes.LINE,
     isResolved: false,
     isOutdated: false,
@@ -71,7 +69,7 @@ describe("placeThread", () => {
 
   it("places a RIGHT-side thread on the row whose newLine matches", () => {
     const placement = placeThread(
-      thread({ line: 11, side: ThreadSides.RIGHT }),
+      thread({ line: 11, side: ReviewCommentSides.RIGHT }),
       chunks,
     );
     expect(placement).toEqual({
@@ -83,7 +81,7 @@ describe("placeThread", () => {
 
   it("places a LEFT-side thread on the row whose oldLine matches", () => {
     const placement = placeThread(
-      thread({ line: 11, side: ThreadSides.LEFT }),
+      thread({ line: 11, side: ReviewCommentSides.LEFT }),
       chunks,
     );
     expect(placement).toEqual({
@@ -95,7 +93,7 @@ describe("placeThread", () => {
 
   it("places a context-line thread on either side's numbering", () => {
     const placement = placeThread(
-      thread({ line: 10, side: ThreadSides.RIGHT }),
+      thread({ line: 10, side: ReviewCommentSides.RIGHT }),
       chunks,
     );
     expect(placement).toEqual({
@@ -110,7 +108,7 @@ describe("placeThread", () => {
       thread({
         startLine: 11,
         line: 12,
-        side: ThreadSides.RIGHT,
+        side: ReviewCommentSides.RIGHT,
         startSide: "RIGHT",
       }),
       chunks,
@@ -126,7 +124,7 @@ describe("placeThread", () => {
     // Line 11 WOULD match a row; outdated coordinates describe the
     // anchor-time diff, so they must not be trusted.
     const placement = placeThread(
-      thread({ isOutdated: true, line: 11, side: ThreadSides.RIGHT }),
+      thread({ isOutdated: true, line: 11, side: ReviewCommentSides.RIGHT }),
       chunks,
     );
     expect(placement).toEqual({
@@ -166,6 +164,17 @@ describe("placeThread", () => {
     });
   });
 
+  it.each([
+    { side: UnknownValues.UNKNOWN },
+    { startSide: UnknownValues.UNKNOWN },
+    { subjectType: UnknownValues.UNKNOWN },
+  ])("leaves a thread unplaced on an unknown anchor %o", (overrides) => {
+    expect(placeThread(thread(overrides), chunks)).toEqual({
+      kind: ThreadPlacementKinds.UNANCHORED,
+      reason: UnanchoredReasons.UNKNOWN_ANCHOR,
+    });
+  });
+
   it("defaults a missing side to RIGHT using new-side numbering", () => {
     const placement = placeThread(
       thread({ line: 12, side: undefined }),
@@ -188,7 +197,7 @@ describe("placeThread", () => {
       chunk({ id: "c3" }),
     ];
     const placement = placeThread(
-      thread({ line: 11, side: ThreadSides.RIGHT }),
+      thread({ line: 11, side: ReviewCommentSides.RIGHT }),
       twoChunks,
     );
     expect(placement).toEqual({
@@ -207,7 +216,7 @@ describe("placeThread", () => {
       ],
     });
     const placement = placeThread(
-      thread({ line: 11, side: ThreadSides.RIGHT }),
+      thread({ line: 11, side: ReviewCommentSides.RIGHT }),
       [noteChunk],
     );
     expect(placement).toEqual({
