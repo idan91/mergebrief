@@ -21,6 +21,11 @@ deprecation note here, removal only at a major.
   unauthenticated POST answered 401 and an oversized signed-in write was
   parsed or answered 400. `POST /api/repos/:repoId/pulls/:prNumber/attachments`
   is exempt and keeps its own larger upload cap.
+- **Removed** `catalogFingerprint` from `GET /api/capabilities`, and
+  `serverCatalogFingerprint`, `cliCatalogFingerprint` and `fingerprintMatch`
+  from `mergebrief capabilities --json`. Removed before the first release,
+  so no shipped client reads them. The version number is the skew signal;
+  `--require` still checks the operations an agent needs.
 
 ## dev (2026-10-11)
 

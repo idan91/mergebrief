@@ -45,12 +45,14 @@ what is promised, and how the contract evolves without breaking consumers
    resolution the CLI itself performed. (b) `auth status` — CLI-owned by
    necessity (no single server response backs it); MUST include the server
    version. (c) `capabilities` — a join no single party can produce: the
-   server's `GET /api/capabilities` response (its registered operations plus
-   `catalogFingerprint`) merged with what only the binary knows —
-   `cliVersion`, its committed command map, its baked fingerprint. Server
+   server's `GET /api/capabilities` response (its registered operations~~ plus
+   `catalogFingerprint`~~) merged with what only the binary knows —
+   `cliVersion`, its committed command map~~, its baked fingerprint~~. Server
    fields pass through verbatim inside it; the join is additive-only like
-   every synthesized shape. Any other command inventing its own shape is a
-   boundary violation.
+   every synthesized shape. **(amended 2026-10-12, BRIEF-333)** The catalog
+   fingerprint is gone on both sides: `capabilities` joins the server's
+   operations with `cliVersion` and the binary's command map. Any other
+   command inventing its own shape is a boundary violation.
 3. **Stability promise: additive-only from day one** — fields are never
    removed, renamed, or retyped within a major; new fields may appear any
    release; consumers tolerant-read. Holds explicitly even pre-1.0. The
@@ -88,9 +90,10 @@ what is promised, and how the contract evolves without breaking consumers
    version-negotiation protocol in v1. Discovery keeps that posture:
    `GET /api/capabilities` plus `mergebrief capabilities --require` is a
    **fail-closed compatibility check** — required operations either all pass
-   or the command exits 6 before anything runs — never a negotiation, and a
+   or the command exits 6 before anything runs — never a negotiation~~, and a
    catalog-fingerprint mismatch alone is one stderr warning line, never a
-   gate.
+   gate~~. **(amended 2026-10-12, BRIEF-333)** The catalog fingerprint and its
+   mismatch warning are gone; the server version is the skew signal.
 
 ## Considered Options
 

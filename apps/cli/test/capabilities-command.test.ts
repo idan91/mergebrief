@@ -1,6 +1,6 @@
 // The capabilities command: the third CLI-synthesized shape. Join arms per
-// map entry, the --require fail-closed matrix, the fingerprint warning, and
-// tolerant-read on unknown server fields, over a stub client. One runCli pass
+// map entry, the --require fail-closed matrix, and tolerant-read on unknown
+// server fields, over a stub client. One runCli pass
 // wires the real command against the real map.
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -10,6 +10,7 @@ import {
   createTokenAuth,
 } from "persistence";
 import { describe, expect, it } from "vitest";
+import { z } from "zod/v4";
 import type { ApiClient } from "../src/client";
 import { CLI_VERSION } from "../src/client";
 import {
@@ -18,15 +19,12 @@ import {
 } from "../src/commands/capabilities";
 import { CliError, ExitCodes } from "../src/exit";
 import type { ReadIo } from "../src/commands/read";
-import { CLI_CATALOG_FINGERPRINT } from "../src/generated-catalog-fingerprint";
 import { runCli, type CliDeps } from "../src/program";
 import { startCliApiHarness } from "./harness/api";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AccessLevels } from "types/access-levels";
-
-const SERVER_FINGERPRINT = "f".repeat(64);
 
 const GAP = {
   reason: "not yet",
@@ -99,12 +97,8 @@ function capture(json: boolean): Capture {
 
 function deps(overrides: Partial<CapabilitiesRunDeps>): CapabilitiesRunDeps {
   return {
-    client: stubClient({
-      operations: OPERATIONS,
-      catalogFingerprint: SERVER_FINGERPRINT,
-    }),
+    client: stubClient({ operations: OPERATIONS }),
     cliVersion: "9.9.9-test",
-    cliCatalogFingerprint: SERVER_FINGERPRINT,
     operationsMapRaw: MAP,
     requireIds: [],
     io: capture(true).io,
@@ -120,9 +114,6 @@ describe("runCapabilities, the synthesized join", () => {
     const body: unknown = JSON.parse(c.out.join(""));
     expect(body).toEqual({
       cliVersion: "9.9.9-test",
-      serverCatalogFingerprint: SERVER_FINGERPRINT,
-      cliCatalogFingerprint: SERVER_FINGERPRINT,
-      fingerprintMatch: true,
       operations: [
         { ...OPERATIONS[0], cli: { command: "mergebrief pr" } },
         { ...OPERATIONS[1], cli: { gap: GAP } },
@@ -130,17 +121,6 @@ describe("runCapabilities, the synthesized join", () => {
         { ...OPERATIONS[3], cli: { unknownToCli: true } },
       ],
     });
-  });
-
-  it("warns once on stderr when fingerprints differ; stdout stays pure JSON", async () => {
-    const c = capture(true);
-    await runCapabilities(
-      deps({ io: c.io, cliCatalogFingerprint: "0".repeat(64) }),
-    );
-    expect(c.err).toHaveLength(1);
-    expect(c.err[0]).toContain("fingerprint");
-    const body: unknown = JSON.parse(c.out.join(""));
-    expect(body).toMatchObject({ fingerprintMatch: false });
   });
 
   it("renders a human table without --json, which is non-contractual", async () => {
@@ -187,18 +167,6 @@ describe("runCapabilities --require is fail-closed", () => {
     expect(error.message).toContain("brand-new-op");
     expect(error.message).not.toContain("read-pull");
     expect(c.out).toEqual([]);
-  });
-
-  it("suppresses the fingerprint warning when the require check fails", async () => {
-    const c = capture(true);
-    await runCapabilities(
-      deps({
-        io: c.io,
-        cliCatalogFingerprint: "0".repeat(64),
-        requireIds: ["brand-new-op"],
-      }),
-    ).catch(() => undefined);
-    expect(c.err).toEqual([]);
   });
 });
 
@@ -253,7 +221,6 @@ describe("mergebrief capabilities through runCli", () => {
         endpoint: "GET /api/inbox",
       },
     ],
-    catalogFingerprint: CLI_CATALOG_FINGERPRINT,
   };
 
   it("exit 0: emits the synthesized shape with the real map and version", async () => {
@@ -267,7 +234,6 @@ describe("mergebrief capabilities through runCli", () => {
     const body: unknown = JSON.parse(out.join(""));
     expect(body).toMatchObject({
       cliVersion: CLI_VERSION,
-      fingerprintMatch: true,
       operations: [{ id: "list-inbox", cli: { command: "mergebrief pr" } }],
     });
   });
@@ -285,8 +251,15 @@ describe("mergebrief capabilities through runCli", () => {
   });
 });
 
+const joinedBodySchema = z.object({
+  cliVersion: z.string(),
+  operations: z.array(
+    z.object({ id: z.string(), cli: z.record(z.string(), z.unknown()) }),
+  ),
+});
+
 describe("mergebrief capabilities against the real api", () => {
-  it("exit 0 with fingerprintMatch true, the wire-shape drift tripwire", async () => {
+  it("exit 0 with every server operation known to this CLI", async () => {
     const world = await startCliApiHarness();
     const harness = world.harness;
     const kp = world.keyProvider;
@@ -327,12 +300,12 @@ describe("mergebrief capabilities against the real api", () => {
       );
       expect(code).toBe(ExitCodes.OK);
       expect(err).toEqual([]);
-      const body: unknown = JSON.parse(out.join(""));
-      expect(body).toMatchObject({
-        cliVersion: CLI_VERSION,
-        serverCatalogFingerprint: CLI_CATALOG_FINGERPRINT,
-        fingerprintMatch: true,
-      });
+      const body = joinedBodySchema.parse(JSON.parse(out.join("")));
+      expect(body.cliVersion).toBe(CLI_VERSION);
+      expect(body.operations.length).toBeGreaterThan(0);
+      expect(
+        body.operations.filter((operation) => "unknownToCli" in operation.cli),
+      ).toEqual([]);
     } finally {
       await world.close();
     }

@@ -267,8 +267,7 @@ The server's operation catalog joined with this binary's committed command
 map — the third CLI-synthesized shape. Each server operation gains a `cli`
 arm: `{command}` (runnable here), `{gap}` (no command yet), `{webOnly}`
 (browser-only by design), or `{unknownToCli: true}` (the server is newer).
-The shape also carries `cliVersion`, both catalog fingerprints, and
-`fingerprintMatch`; a mismatch alone is one stderr warning, never a gate.
+The shape also carries `cliVersion`.
 
 `--require <ids...>` turns the report into a fail-closed preflight: every
 named operation must be registered on the server AND mapped to a command in

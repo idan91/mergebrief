@@ -40,7 +40,6 @@ import {
 } from "./commands/read";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
 import { runCapabilities } from "./commands/capabilities";
-import { CLI_CATALOG_FINGERPRINT } from "./generated-catalog-fingerprint";
 import {
   buildSubmitPayload,
   requireSpan,
@@ -1296,7 +1295,6 @@ export function buildProgram(deps: CliDeps): Command {
       await runCapabilities({
         client: clientFor(deps, resolved),
         cliVersion: resolveCliVersion(deps),
-        cliCatalogFingerprint: CLI_CATALOG_FINGERPRINT,
         operationsMapRaw: operationsMap,
         requireIds: options.require ?? [],
         io: readIo(deps, global),

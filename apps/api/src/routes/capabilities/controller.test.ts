@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { computeCatalogFingerprint } from "../../product-operations/catalog";
 import { AccessLevels } from "types/access-levels";
 import { OperationKinds } from "contract";
 import type { ProductOperationDescriptor } from "../../product-operations/types";
@@ -19,7 +18,7 @@ const OPERATIONS: readonly ProductOperationDescriptor[] = [
 ];
 
 describe("capabilitiesController.buildCapabilities", () => {
-  it("returns the catalog fields, never the policy, with the fingerprint", () => {
+  it("returns the catalog fields, never the policy", () => {
     const body = capabilitiesController.buildCapabilities(OPERATIONS);
     expect(body.operations).toEqual([
       {
@@ -29,6 +28,6 @@ describe("capabilitiesController.buildCapabilities", () => {
         endpoint: "GET /api/capabilities",
       },
     ]);
-    expect(body.catalogFingerprint).toBe(computeCatalogFingerprint(OPERATIONS));
+    expect(body).not.toHaveProperty("catalogFingerprint");
   });
 });

@@ -1,14 +1,6 @@
 // `GET /api/capabilities`: the composed registry served as data, gated like
-// every /api/* surface, the catalog fields in registry order, and a
-// fingerprint that must match the operation table's catalog render, the
-// bytes the CLI bakes its own fingerprint from.
+// every /api/* surface, the catalog fields in registry order.
 import { createHash, randomBytes } from "node:crypto";
-import {
-  ProductActionIds,
-  ProductOperations,
-  ProductQueryIds,
-  formatProductEndpoint,
-} from "contract";
 import {
   encryptToken,
   createEnvKeyProvider,
@@ -27,21 +19,6 @@ import { KEY_REF, brandReviewerId, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { AccessLevels } from "types/access-levels";
 
-function renderTableCatalog(): string {
-  const ids = [
-    ...Object.values(ProductQueryIds),
-    ...Object.values(ProductActionIds),
-  ].toSorted((left, right) => left.localeCompare(right));
-  const operations = ids.map((id) => ({
-    id,
-    kind: ProductOperations[id].kind,
-    classification: ProductOperations[id].classification,
-    endpoint: formatProductEndpoint(id),
-  }));
-  const rendered = `${JSON.stringify({ operations }, null, 2)}\n`;
-  return rendered;
-}
-
 const bodySchema = z.object({
   operations: z.array(
     z.object({
@@ -51,7 +28,6 @@ const bodySchema = z.object({
       endpoint: z.string(),
     }),
   ),
-  catalogFingerprint: z.string(),
 });
 
 describe("GET /api/capabilities", () => {
@@ -102,7 +78,7 @@ describe("GET /api/capabilities", () => {
     return plaintext;
   }
 
-  it("serves the registry's catalog fields with its fingerprint, no-store", async () => {
+  it("serves the registry's catalog fields, no-store", async () => {
     const token = await bearer();
     const res = await app.request("/api/capabilities", {
       headers: { Authorization: `Bearer ${token}` },
@@ -112,9 +88,6 @@ describe("GET /api/capabilities", () => {
     const body = bodySchema.parse(await res.json());
     expect(body.operations).toEqual(
       shapeCatalogOperations(productOperationRegistry.list()),
-    );
-    expect(body.catalogFingerprint).toBe(
-      createHash("sha256").update(renderTableCatalog()).digest("hex"),
     );
   });
 
