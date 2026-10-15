@@ -66,10 +66,6 @@ function makeCheck(overrides: Partial<UpdateCheckDeps> = {}): Fixture {
   return { check, fetch, logging };
 }
 
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 10));
-}
-
 function filterLinesFor(logging: TestLogging, evt: string) {
   return logging.lines().filter((line) => line["evt"] === evt);
 }
@@ -209,12 +205,11 @@ describe("update check", () => {
 
     vi.setSystemTime(new Date(BOOT.getTime() + PAST_WINDOW_MS));
     check.snapshot();
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    // Joins the attempt the snapshot started rather than fetching again.
+    await check.refresh();
     check.snapshot();
-    await settle();
     check.snapshot();
-    await settle();
 
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(check.snapshot()).toMatchObject({ latest: "1.6.0" });
@@ -331,12 +326,13 @@ describe("update check", () => {
   });
 
   it("stop before the boot delay cancels the boot fetch", async () => {
-    const { check, fetch } = makeCheck({ bootDelayMs: 50 });
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    const bootDelayMs = 50;
+    const { check, fetch } = makeCheck({ bootDelayMs });
 
     check.start();
     check.stop();
-    await settle();
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await vi.advanceTimersByTimeAsync(bootDelayMs + 1);
 
     expect(fetch).not.toHaveBeenCalled();
   });

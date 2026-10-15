@@ -28,6 +28,8 @@ const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
+/** A `run_at` no delivery computes, so one that moved it cannot match. */
+const PINNED_RUN_AT = new Date("2026-01-01T00:00:00Z");
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -452,12 +454,10 @@ describe("POST /api/webhooks/github", () => {
   it("redelivery increments attempts and keeps the single job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
-    const firstJobs = await harness.raw(
-      "select run_at from graphile_worker.jobs",
-    );
-    const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
+    await harness.raw("update graphile_worker.jobs set run_at = $1", [
+      PINNED_RUN_AT.toISOString(),
+    ]);
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
 
     expect(await countRows(harness, "pull_request")).toBe(1);
@@ -467,7 +467,7 @@ describe("POST /api/webhooks/github", () => {
 
     const jobs = await harness.raw("select run_at from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
-    expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
+    expect(epochMs(jobs[0]?.["run_at"])).toBe(PINNED_RUN_AT.getTime());
   });
 
   it("200s submitted reviews on known PRs and queues generation", async () => {

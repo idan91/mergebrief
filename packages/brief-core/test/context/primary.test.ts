@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
 import type {
@@ -12,6 +12,8 @@ import {
   type PrimarySnippet,
 } from "../../src/context/types";
 import { TicketUnreadReasons } from "../../src/types";
+
+const READ_MS = 30;
 
 const reference: TicketReference = {
   tracker: "github",
@@ -188,6 +190,10 @@ describe("fetchContextSnippets: the primary ticket", () => {
 });
 
 describe("fetchContextSnippets: a primary that is not a ticket", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const prNumber: TicketReference = {
     ...reference,
     number: 465,
@@ -221,18 +227,21 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
   it("shares one budget across candidates", async () => {
     // The PR hit spends most of the budget; the real read then gets only
     // the remainder, which a per-candidate budget would not have cut.
+    vi.useFakeTimers();
     const read = stubRead(async (ref) => {
-      await new Promise((r) => setTimeout(r, 30));
+      await new Promise((resolve) => setTimeout(resolve, READ_MS));
       return ref.number === 465
         ? resolvedToPullRequest
         : { ok: true, value: snippet };
     });
-    const { primaryTicket } = await fetchContextSnippets(
+    const fetching = fetchContextSnippets(
       { ...query, primary: prNumber, references: [prNumber, reference] },
       [],
       () => {},
       { timeoutMs: 40, graceMs: 5, reads: stubReads(read) },
     );
+    await vi.advanceTimersByTimeAsync(2 * READ_MS);
+    const { primaryTicket } = await fetching;
     expect(primaryTicket).toMatchObject({
       status: "unread",
       reason: "timeout",

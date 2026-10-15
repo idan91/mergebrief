@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createArtifactStore, createGenerationProjection } from "persistence";
 import { GenerationPhases, GenerationStatuses } from "types/generations";
 import type { z } from "zod/v4";
@@ -24,7 +24,7 @@ import {
 setUpHarness();
 
 const OTHER_RUN_ID = "00000000-0000-4000-8000-000000000000";
-const SLOW_CALL_MS = 50;
+const LEASE_WAIT_MS = 4_000;
 const POLL_MS = 5;
 const HELD_LEASE_SECONDS = 120;
 const DELAY_BOUND_SECONDS = 30;
@@ -60,8 +60,15 @@ async function holdRowForOtherRun(): Promise<void> {
   );
 }
 
-function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function waitForLeasePast(lease: number): Promise<number> {
+  return vi.waitFor(
+    async () => {
+      const renewed = await readLeaseEpoch();
+      expect(renewed).toBeGreaterThan(lease);
+      return renewed;
+    },
+    { timeout: LEASE_WAIT_MS, interval: POLL_MS },
+  );
 }
 
 describe("generate task, run claim", () => {
@@ -201,9 +208,8 @@ describe("generate task, run claim", () => {
       async generate<S extends z.ZodType>(
         req: GenerateRequest<S>,
       ): Promise<z.infer<S>> {
-        leases.push(await readLeaseEpoch());
-        await waitMs(SLOW_CALL_MS);
-        leases.push(await readLeaseEpoch());
+        const leaseBefore = await readLeaseEpoch();
+        leases.push(leaseBefore, await waitForLeasePast(leaseBefore));
         return inner.generate(req);
       },
       origin: (effort: Effort) => inner.origin(effort),
@@ -218,10 +224,12 @@ describe("generate task, run claim", () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     let stallReads = false;
+    const readStalled = Promise.withResolvers<void>();
     interceptInstallationRepo(github, (client) => ({
       ...client,
       async fetchPullRequest(prNumber) {
         if (stallReads) {
+          readStalled.resolve();
           return new Promise(() => {});
         }
         return client.fetchPullRequest(prNumber);
@@ -234,10 +242,9 @@ describe("generate task, run claim", () => {
         req: GenerateRequest<S>,
       ): Promise<z.infer<S>> {
         stallReads = true;
-        await waitMs(SLOW_CALL_MS);
-        leases.push(await readLeaseEpoch());
-        await waitMs(SLOW_CALL_MS);
-        leases.push(await readLeaseEpoch());
+        await readStalled.promise;
+        const leaseBefore = await readLeaseEpoch();
+        leases.push(leaseBefore, await waitForLeasePast(leaseBefore));
         stallReads = false;
         return inner.generate(req);
       },

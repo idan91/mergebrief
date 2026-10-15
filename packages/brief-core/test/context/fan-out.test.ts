@@ -28,18 +28,22 @@ const query = {
 };
 
 describe("fetchContextSnippets", () => {
-  it("concatenates provider results in provider order and numbers them ctx-1..N", async () => {
+  it("numbers results ctx-1..N in provider order, not finish order", async () => {
+    const fastAnswered = Promise.withResolvers<void>();
     const slow = stubProvider(async () => {
-      await new Promise((r) => setTimeout(r, 20));
+      await fastAnswered.promise;
       return { ok: true, value: [makeSnippet("https://slow.example")] };
     });
-    const fast = stubProvider(async () => ({
-      ok: true,
-      value: [
-        makeSnippet("https://fast.example"),
-        makeSnippet("https://fast.example/2"),
-      ],
-    }));
+    const fast = stubProvider(async () => {
+      fastAnswered.resolve();
+      return {
+        ok: true,
+        value: [
+          makeSnippet("https://fast.example"),
+          makeSnippet("https://fast.example/2"),
+        ],
+      };
+    });
 
     const { links: snippets } = await fetchContextSnippets(query, [slow, fast]);
 
@@ -95,7 +99,7 @@ describe("fetchContextSnippets", () => {
     );
   });
 
-  it("drops a provider that outlives its timeout, aborts its signal, and keeps the rest", async () => {
+  it("drops a provider past its timeout, aborts it, keeps the rest", async () => {
     const logs: string[] = [];
     let aborted = false;
     const hung = stubProvider(

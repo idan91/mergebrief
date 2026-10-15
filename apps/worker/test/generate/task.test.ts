@@ -1340,8 +1340,12 @@ describe("generate task", () => {
     runAfterEachPost(github, async () => {
       posts += 1;
       if (posts === 2) {
-        await new Promise((resolve) => setTimeout(resolve, 5));
         await trigger(HEAD_2);
+        // Postdates the run's pickup whatever the clock's resolution.
+        await harness.raw(
+          "update generation set updated_at = updated_at + interval '1 minute' where head_sha = $1",
+          [HEAD_2],
+        );
       }
     });
     const task = makeTask({ github });

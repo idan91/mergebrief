@@ -36,21 +36,32 @@ describe("runInBatches", () => {
 
 describe("runInPool", () => {
   it("keeps at most width in flight and refills a slot as soon as one frees", async () => {
+    const width = 2;
+    const entries = [0, 1, 2, 3, 4];
+    const slowEntryId = 0;
+    const fastEntryCount = entries.length - 1;
     let inFlight = 0;
     let peak = 0;
     const finished: number[] = [];
-    const delays = [40, 5, 5, 5, 5];
-    await runInPool([0, 1, 2, 3, 4], 2, async (entry) => {
+    const slowEntry = Promise.withResolvers<void>();
+    await runInPool(entries, width, async (entry) => {
       inFlight += 1;
       peak = Math.max(peak, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, delays[entry]));
+      if (entry === slowEntryId) {
+        await slowEntry.promise;
+      } else {
+        await Promise.resolve();
+      }
       inFlight -= 1;
       finished.push(entry);
+      if (finished.length === fastEntryCount) {
+        slowEntry.resolve();
+      }
     });
 
-    expect(peak).toBe(2);
-    expect(finished.at(-1)).toBe(0);
-    expect(finished).toHaveLength(5);
+    expect(peak).toBe(width);
+    expect(finished.at(-1)).toBe(slowEntryId);
+    expect(finished).toHaveLength(entries.length);
   });
 
   it("runs every entry even at a width below one", async () => {

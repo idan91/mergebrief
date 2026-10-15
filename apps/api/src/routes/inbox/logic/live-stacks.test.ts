@@ -11,7 +11,7 @@ import {
   type InboxRow,
   type RepoId,
 } from "persistence";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTtlCache } from "../../ttl-cache";
 import { INBOX_OPEN_PULLS_CACHE_TTL_MS } from "../consts";
 import {
@@ -130,15 +130,13 @@ function makeInput(
   return { sessionTokenHash: "hash", rows, repoNames, ...overrides };
 }
 
-function waitFor(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 describe("readLiveStacks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("places every listed row from one list per repository", async () => {
@@ -162,32 +160,40 @@ describe("readLiveStacks", () => {
   });
 
   it("serves what answered by the budget, the rest keep their snapshots", async () => {
+    const budgetMs = 30;
     const listOpenPulls = stubListOpenPulls({
       open: [makeOpen(7, "one", "main")],
       delayMs: 200,
     });
     const rows = [makeRow(1n, 100n, 7)];
+    vi.useFakeTimers();
 
-    const started = Date.now();
-    const stacks = await readLiveStacks(
+    const reading = readLiveStacks(
       makeDeps(listOpenPulls),
-      makeInput(rows, { budgetMs: 30 }),
+      makeInput(rows, { budgetMs }),
     );
+    await vi.advanceTimersByTimeAsync(budgetMs);
+    const stacks = await reading;
 
-    expect(Date.now() - started).toBeLessThan(150);
+    expect(listOpenPulls).toHaveBeenCalledTimes(1);
     expect(stacks.size).toBe(0);
   });
 
   it("a list late for one load still places the next from the cache", async () => {
+    const listDelayMs = 60;
+    const budgetMs = 10;
     const listOpenPulls = stubListOpenPulls({
       open: [makeOpen(7, "one", "main"), makeOpen(8, "two", "one")],
-      delayMs: 60,
+      delayMs: listDelayMs,
     });
     const deps = makeDeps(listOpenPulls);
     const rows = [makeRow(1n, 100n, 8)];
+    vi.useFakeTimers();
 
-    const first = await readLiveStacks(deps, makeInput(rows, { budgetMs: 10 }));
-    await waitFor(120);
+    const firstRead = readLiveStacks(deps, makeInput(rows, { budgetMs }));
+    await vi.advanceTimersByTimeAsync(budgetMs);
+    const first = await firstRead;
+    await vi.advanceTimersByTimeAsync(listDelayMs - budgetMs);
     const second = await readLiveStacks(deps, makeInput(rows));
 
     expect(first.size).toBe(0);
