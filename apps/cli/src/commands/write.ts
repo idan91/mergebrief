@@ -10,13 +10,8 @@ import {
 import { ReviewOutcomes } from "types/reviews";
 import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
+import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
-
-export interface WriteIo {
-  readonly stdout: (text: string) => void;
-  readonly stderr: (line: string) => void;
-  readonly json: boolean;
-}
 
 // ---------------------------------------------------------------------------
 // reply
@@ -53,7 +48,7 @@ export async function runReply(
   repoId: string,
   commentId: string,
   options: ReplyOptions,
-  io: WriteIo,
+  io: CommandIo,
 ): Promise<void> {
   const body: ReplyToCommentBody = { body: options.body };
   const response = await client.request({
@@ -83,7 +78,7 @@ export async function runThreadResolution(
   prNumber: number,
   commentId: string,
   resolved: boolean,
-  io: WriteIo,
+  io: CommandIo,
 ): Promise<void> {
   const operation = resolved
     ? ProductActionIds.RESOLVE_THREAD
@@ -119,7 +114,7 @@ export async function runReady(
 export async function runGenerate(
   client: ApiClient,
   url: string,
-  io: WriteIo,
+  io: CommandIo,
 ): Promise<void> {
   const body: GenerateBriefBody = { url };
   const response = await client.request({
@@ -197,7 +192,7 @@ export async function runSubmit(
   prNumber: number,
   span: BriefSpan,
   payload: unknown,
-  io: WriteIo,
+  io: CommandIo,
 ): Promise<void> {
   const response = await client.request({
     method: ProductOperations[ProductActionIds.SUBMIT_REVIEW].method,

@@ -32,7 +32,8 @@ import {
   type CliApiHarness,
 } from "./harness/api";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
-import { runCli, type CliDeps } from "../src/program";
+import { runCli } from "../src/program";
+import type { CliDeps } from "../src/types";
 
 const INSTALLATION_ID = STUB_INSTALLATION_ID;
 const REVIEWER_ID = 555;

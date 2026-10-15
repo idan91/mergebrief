@@ -12,7 +12,7 @@ import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import type { BriefSpan } from "./write";
-import type { ReadIo } from "./read";
+import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
 
 /**
@@ -188,7 +188,7 @@ async function appendToDraft(
 export async function runAttach(
   client: ApiClient,
   options: AttachOptions,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   if (options.draft !== undefined) {
     await readDraftBody(client, options, options.draft);

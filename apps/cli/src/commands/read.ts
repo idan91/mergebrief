@@ -5,6 +5,7 @@
 import { ProductOperations, ProductQueryIds } from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../client";
+import type { CommandIo } from "../types";
 import { CliError, ExitCodes } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 import { buildRequestPath } from "./request-path";
@@ -96,14 +97,11 @@ function briefSpan(
 // Commands. Each takes the resolved client + repoId and the io sinks.
 // ---------------------------------------------------------------------------
 
-export interface ReadIo {
-  readonly stdout: (text: string) => void;
-  readonly stderr: (line: string) => void;
-  readonly json: boolean;
-}
-
 /** `pr` with no number: the first Inbox page, verbatim. */
-export async function runPrList(client: ApiClient, io: ReadIo): Promise<void> {
+export async function runPrList(
+  client: ApiClient,
+  io: CommandIo,
+): Promise<void> {
   const response = await client.request({
     path: ProductOperations[ProductQueryIds.LIST_INBOX].path,
   });
@@ -119,7 +117,7 @@ export async function runPrMeta(
   client: ApiClient,
   repoId: string,
   prNumber: number,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   if (io.json) {
     // TRUE passthrough: the json arm must never parse, a shape the CLI does
@@ -143,7 +141,7 @@ export async function runGroups(
   client: ApiClient,
   repoId: string,
   prNumber: number,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   const meta = await fetchPrMeta(client, repoId, prNumber);
   const span = briefSpan(meta, prNumber);
@@ -166,7 +164,7 @@ export async function runConversation(
   client: ApiClient,
   repoId: string,
   prNumber: number,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   const response = await client.request({
     path: buildRequestPath(ProductQueryIds.READ_CONVERSATION, {
@@ -189,6 +187,25 @@ export interface DiffOptions {
   readonly pager?: ((text: string) => Promise<void>) | undefined;
 }
 
+/** The usage checks `diff` runs on its flags alone, before any network work. */
+export function requireDiffFlags(options: DiffOptions): void {
+  const customSpan = options.base !== undefined || options.head !== undefined;
+  if (options.group !== undefined && customSpan) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "--group filters the brief's own span — it cannot be combined with --base/--head",
+    );
+  }
+  const loneSpanFlag =
+    (options.base === undefined) !== (options.head === undefined);
+  if (loneSpanFlag) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "--base and --head must be given together",
+    );
+  }
+}
+
 /**
  * `diff <n>`: the raw unified diff IS the machine format, `--json` is
  * rejected by the caller (exit 2) before this runs. `--group` filters to a
@@ -200,17 +217,9 @@ export async function runDiff(
   repoId: string,
   prNumber: number,
   options: DiffOptions,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
-  if (
-    options.group !== undefined &&
-    (options.base !== undefined || options.head !== undefined)
-  ) {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "--group filters the brief's own span — it cannot be combined with --base/--head",
-    );
-  }
+  requireDiffFlags(options);
 
   let span: { base: string; head: string };
   let groupChunks: ChunkSpan[] | undefined;
@@ -245,14 +254,9 @@ export async function runDiff(
     }
   } else if (options.base !== undefined && options.head !== undefined) {
     span = { base: options.base, head: options.head };
-  } else if (options.base === undefined && options.head === undefined) {
+  } else {
     const meta = await fetchPrMeta(client, repoId, prNumber);
     span = briefSpan(meta, prNumber);
-  } else {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "--base and --head must be given together",
-    );
   }
 
   const diff = await client.request({
@@ -289,13 +293,25 @@ export interface DeltaOptions {
   readonly head?: string | undefined;
 }
 
+/** The usage check `delta` runs on its flags alone, before any network work. */
+export function requireDeltaFlags(options: DeltaOptions): void {
+  const loneSpanFlag =
+    (options.baseline === undefined) !== (options.head === undefined);
+  if (loneSpanFlag) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "--baseline and --head must be given together",
+    );
+  }
+}
+
 /** The `delta` union, one of the CLI-synthesized shapes. */
 export async function runDelta(
   client: ApiClient,
   repoId: string,
   prNumber: number,
   options: DeltaOptions,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   const emit = (payload: string): void => {
     io.stdout(`${payload}\n`);
@@ -305,16 +321,13 @@ export async function runDelta(
     emit(JSON.stringify({ available: false, reason }));
   };
 
+  requireDeltaFlags(options);
+
   let baseline: string;
   let head: string;
   if (options.baseline !== undefined && options.head !== undefined) {
     baseline = options.baseline;
     head = options.head;
-  } else if (options.baseline !== undefined || options.head !== undefined) {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "--baseline and --head must be given together",
-    );
   } else {
     // Checkpoint resolution via PR-meta, the CLI's own join, recorded in
     // the envelope's baselineSha.
@@ -359,7 +372,7 @@ export async function runDelta(
 export async function runCollaborators(
   client: ApiClient,
   repoId: string,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   const response = await client.request({
     path: buildRequestPath(ProductQueryIds.LIST_COLLABORATORS, { repoId }),
@@ -385,7 +398,7 @@ function asDisplay(value: unknown): string {
     : "?";
 }
 
-function renderPrList(bodyText: string, io: ReadIo): void {
+function renderPrList(bodyText: string, io: CommandIo): void {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed) && Array.isArray(parsed["items"])) {
@@ -406,7 +419,7 @@ function renderPrList(bodyText: string, io: ReadIo): void {
   io.stdout(`${bodyText}\n`);
 }
 
-function renderGroups(bodyText: string, io: ReadIo): void {
+function renderGroups(bodyText: string, io: CommandIo): void {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed) && Array.isArray(parsed["changeGroups"])) {

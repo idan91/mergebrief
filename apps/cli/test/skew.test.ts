@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import { runCli, type CliDeps } from "../src/program";
+import { runCli } from "../src/program";
+import type { CliDeps } from "../src/types";
 
 interface Answer {
   readonly status?: number;

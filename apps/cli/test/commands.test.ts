@@ -25,7 +25,8 @@ import {
   type CliApiHarness,
 } from "./harness/api";
 import { CLI_VERSION } from "../src/client";
-import { runCli, type CliDeps } from "../src/program";
+import { runCli } from "../src/program";
+import type { CliDeps } from "../src/types";
 import { AccessLevels } from "types/access-levels";
 
 const REVIEWER_ID = 555;

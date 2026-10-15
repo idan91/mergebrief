@@ -18,8 +18,8 @@ import {
   type CapabilitiesRunDeps,
 } from "../src/commands/capabilities";
 import { CliError, ExitCodes } from "../src/exit";
-import type { ReadIo } from "../src/commands/read";
-import { runCli, type CliDeps } from "../src/program";
+import { runCli } from "../src/program";
+import type { CliDeps, CommandIo } from "../src/types";
 import { startCliApiHarness } from "./harness/api";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -78,7 +78,7 @@ function stubClient(body: unknown): ApiClient {
 interface Capture {
   readonly out: string[];
   readonly err: string[];
-  readonly io: ReadIo;
+  readonly io: CommandIo;
 }
 
 function capture(json: boolean): Capture {

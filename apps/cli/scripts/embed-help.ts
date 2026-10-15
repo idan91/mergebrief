@@ -5,7 +5,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { runCli, type CliDeps } from "../src/program";
+import { runCli } from "../src/program";
+import type { CliDeps } from "../src/types";
 
 const README = join(fileURLToPath(new URL("..", import.meta.url)), "README.md");
 const BEGIN = "<!-- BEGIN GENERATED FLAG APPENDIX (pnpm docs:appendix) -->";

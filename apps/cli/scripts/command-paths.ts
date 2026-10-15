@@ -3,7 +3,8 @@
 // Deps are throwing stubs: building the program must never touch the network,
 // disk, or stdin.
 import type { Command } from "commander";
-import { buildProgram, type CliDeps } from "../src/program";
+import { buildProgram } from "../src/program";
+import type { CliDeps } from "../src/types";
 
 const INERT_DEPS: CliDeps = {
   fetch: async () => {

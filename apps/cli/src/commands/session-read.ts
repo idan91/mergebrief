@@ -7,7 +7,7 @@
 import { ProductQueryIds } from "contract";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
-import type { ReadIo } from "./read";
+import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
 import type { BriefSpan } from "./write";
 
@@ -50,7 +50,7 @@ export function requireNarrativeSpan(
 async function passthroughGet(
   client: ApiClient,
   path: string,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   const response = await client.request({ path });
   if (io.json) {
@@ -66,7 +66,7 @@ export async function runSession(
   repoId: string,
   prNumber: number,
   span: BriefSpan,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   await passthroughGet(
     client,
@@ -85,7 +85,7 @@ export async function runMarks(
   repoId: string,
   prNumber: number,
   span: ComparisonSpan,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   await passthroughGet(
     client,
@@ -104,7 +104,7 @@ export async function runNarrative(
   repoId: string,
   prNumber: number,
   span: NarrativeSpan,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   await passthroughGet(
     client,
@@ -123,7 +123,7 @@ export async function runContext(
   repoId: string,
   prNumber: number,
   span: BriefSpan,
-  io: ReadIo,
+  io: CommandIo,
 ): Promise<void> {
   await passthroughGet(
     client,

@@ -1,6 +1,9 @@
 // Pure-unit coverage for the contract surfaces: the exit-code mapping table
 // (additive-only, never renumbered), profile resolution order (locked),
 // origin-URL parsing, and the client's proxy/IdP detection.
+import { mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import pkg from "../package.json" with { type: "json" };
 import { CLI_VERSION, createApiClient } from "../src/client";
@@ -9,6 +12,7 @@ import {
   fullNameFromOriginUrl,
   ownerFromOriginUrl,
   resolveProfile,
+  saveConfig,
   type CliConfig,
 } from "../src/profile/config";
 import { CliError, ExitCodes, exitCodeForStatus } from "../src/exit";
@@ -326,12 +330,9 @@ describe("client rate limiting", () => {
 });
 
 describe("saveConfig permissions", () => {
-  it("re-tightens an existing config file to 0600 on rewrite", async () => {
-    const { mkdtempSync, statSync, writeFileSync } = await import("node:fs");
-    const { tmpdir } = await import("node:os");
-    const { join } = await import("node:path");
-    const { saveConfig } = await import("../src/profile/config");
-    const dir = mkdtempSync(join(tmpdir(), "mb-cfg-"));
+  it("re-tightens an existing config file to 0600 on rewrite", () => {
+    const tempRoot = tmpdir();
+    const dir = mkdtempSync(join(tempRoot, "mb-cfg-"));
     // Pre-existing world-readable file (created before the CLI owned it).
     writeFileSync(join(dir, "config.json"), "{}", { mode: 0o644 });
     saveConfig(dir, { profiles: {} });
@@ -364,5 +365,63 @@ describe("mergebrief --version", () => {
 
   it("the repo holds the 0.0.0 dev sentinel", () => {
     expect(pkg.version).toBe("0.0.0");
+  });
+});
+
+describe("usage validation before network work", () => {
+  function runOffline(argv: readonly string[]): Promise<{
+    code: number;
+    out: string[];
+    requests: string[];
+  }> {
+    const tempRoot = tmpdir();
+    const configDir = mkdtempSync(join(tempRoot, "mb-order-config-"));
+    const cacheDir = mkdtempSync(join(tempRoot, "mb-order-cache-"));
+    saveConfig(configDir, {
+      defaultProfile: "default",
+      profiles: {
+        default: { baseUrl: "https://mergebrief.example.com", token: "t" },
+      },
+    });
+    const out: string[] = [];
+    const requests: string[] = [];
+
+    return runCli(argv, {
+      fetch: async (url) => {
+        requests.push(url);
+        throw new Error("no request expected");
+      },
+      env: {},
+      configDir,
+      cacheDir,
+      stdout: (text) => out.push(text),
+      stderr: () => {},
+      readStdin: async () => "",
+      gitOriginUrl: () => "git@github.com:acme/widgets.git",
+    }).then((code) => ({ code, out, requests }));
+  }
+
+  it.each([
+    [["pr", "x"]],
+    [["groups", "x"]],
+    [["conversation", "x"]],
+    [["diff", "x"]],
+    [["delta", "x"]],
+    [["diff", "7", "--base", "a"]],
+    [["diff", "7", "--group", "g", "--base", "a", "--head", "b"]],
+    [["delta", "7", "--baseline", "a"]],
+    [["reply", "c1", "--pr", "x", "--body", "hi"]],
+    [["thread", "resolve", "x", "c1"]],
+    [["ready", "x"]],
+    [["session", "7"]],
+    [["submit", "7", "--outcome", "comment", "--body", "b"]],
+    [["draft", "delete", "7", "d1"]],
+    [["risk", "address", "7"]],
+  ])("%j exits 2 without a request", async (argv) => {
+    const { code, out, requests } = await runOffline(argv);
+
+    expect(code).toBe(ExitCodes.USAGE);
+    expect(out).toEqual([]);
+    expect(requests).toEqual([]);
   });
 });

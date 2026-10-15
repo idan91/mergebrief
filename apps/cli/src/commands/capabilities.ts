@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import { labelArm, parseOperationsMap, type CliArm } from "./capabilities-map";
-import type { ReadIo } from "./read";
+import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
 
 /**
@@ -35,7 +35,7 @@ export interface CapabilitiesRunDeps {
   /** The imported committed map, validated here, at the runtime boundary. */
   readonly operationsMapRaw: unknown;
   readonly requireIds: readonly string[];
-  readonly io: ReadIo;
+  readonly io: CommandIo;
 }
 
 export async function runCapabilities(
