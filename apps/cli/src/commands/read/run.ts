@@ -4,12 +4,12 @@
 // pr-meta → delta; `diff --group` = brief + diff).
 import { ProductOperations, ProductQueryIds } from "contract";
 import { z } from "zod/v4";
-import type { ApiClient } from "../client";
-import type { CommandIo } from "../types";
-import { CliError, ExitCodes } from "../exit";
+import type { ApiClient } from "../../client";
+import type { CommandIo } from "../../types";
+import { CliError, ExitCodes } from "../../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
-import { buildRequestPath } from "./request-path";
-import { isRecord } from "../utils";
+import { buildRequestPath } from "../request-path";
+import { isRecord } from "../../utils";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields

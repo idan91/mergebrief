@@ -8,11 +8,11 @@ import {
   type ReplyToCommentBody,
 } from "contract";
 import { ReviewOutcomes } from "types/reviews";
-import { CliError, ExitCodes } from "../exit";
-import type { ApiClient } from "../client";
-import type { CommandIo } from "../types";
-import { buildRequestPath } from "./request-path";
-import { isRecord } from "../utils";
+import { CliError, ExitCodes } from "../../exit";
+import type { ApiClient } from "../../client";
+import type { BriefSpan, CommandIo } from "../../types";
+import { buildRequestPath } from "../request-path";
+import { isRecord } from "../../utils";
 
 // ---------------------------------------------------------------------------
 // reply
@@ -21,26 +21,6 @@ import { isRecord } from "../utils";
 export interface ReplyOptions {
   readonly pr: number;
   readonly body: string;
-}
-
-/** The brief a write names, the same span every session call takes. */
-export interface BriefSpan {
-  readonly base: string;
-  readonly head: string;
-}
-
-/** The ONE client-side shape check; the server owns every other rule. */
-export function requireSpan(
-  base: string | undefined,
-  head: string | undefined,
-): BriefSpan {
-  if (!base || !head) {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",
-    );
-  }
-  return { base, head };
 }
 
 /** POST one reply under a review comment; the receipt is passthrough. */

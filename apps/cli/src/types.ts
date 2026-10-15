@@ -30,6 +30,12 @@ export interface GlobalOptions {
   readonly repo?: string;
 }
 
+/** The base..head span of the brief a session command addresses. */
+export interface BriefSpan {
+  readonly base: string;
+  readonly head: string;
+}
+
 /** The output sinks a command writes to, and which contract it writes. */
 export interface CommandIo {
   readonly stdout: (text: string) => void;

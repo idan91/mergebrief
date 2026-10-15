@@ -11,8 +11,7 @@ import {
 import { z } from "zod/v4";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
-import type { BriefSpan } from "./write";
-import type { CommandIo } from "../types";
+import type { BriefSpan, CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
 import { isRecord } from "../utils";
 

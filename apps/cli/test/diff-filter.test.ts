@@ -1,13 +1,13 @@
 // Table-driven hunk-filter units: the `--group` filter keeps WHOLE hunks only
-// (a trimmed hunk would not `git apply`), joins brief chunk ranges —
-// `addedRanges` against the hunk's NEW side, `removedRanges` against its OLD
-// side — and reports chunk files missing from the diff so the command can
+// (a trimmed hunk would not `git apply`), joins brief chunk ranges with
+// `addedRanges` against the hunk's NEW side and `removedRanges` against its
+// OLD side, and reports chunk files missing from the diff so the command can
 // fail loud.
 import { describe, expect, it } from "vitest";
 import {
   filterDiffByChunks,
   type ChunkSpan,
-} from "../src/commands/diff-filter";
+} from "../src/commands/read/diff-filter";
 
 function buildDiff(...sections: string[]): string {
   return sections.join("");
@@ -63,7 +63,7 @@ describe("filterDiffByChunks", () => {
     expect(diff).toContain("+++ b/src/a.ts");
   });
 
-  it("matches removedRanges against the OLD side (pure deletions)", () => {
+  it("matches removedRanges against the OLD side for pure deletions", () => {
     const chunk: ChunkSpan = {
       file: "src/b.ts",
       addedRanges: [],
@@ -79,7 +79,7 @@ describe("filterDiffByChunks", () => {
     expect(diff).not.toContain("@@ -30,2 +28,2 @@");
   });
 
-  it("drops whole files with no intersecting hunk and never trims a kept hunk", () => {
+  it("drops files with no intersecting hunk and never trims a kept hunk", () => {
     const input = buildDiff(
       fileSection("src/a.ts", [
         hunk(9, 4, 9, 4, [" ctx", "-old", "+new", " ctx"]),
@@ -90,11 +90,11 @@ describe("filterDiffByChunks", () => {
     );
     const { diff } = filterDiffByChunks(input, [CHUNK_A]);
     expect(diff).not.toContain("unrelated");
-    // The kept hunk arrives byte-identical (whole — every line, both sides).
+    // The kept hunk arrives byte-identical: every line, both sides.
     expect(diff).toContain(" ctx\n-old\n+new\n ctx\n");
   });
 
-  it("handles multiple chunks and files (multi-hunk joins)", () => {
+  it("joins multiple chunks across files and hunks", () => {
     const chunks: ChunkSpan[] = [
       CHUNK_A,
       {
@@ -114,7 +114,7 @@ describe("filterDiffByChunks", () => {
   });
 
   it("boundary lines count: touching exactly the range edge keeps the hunk", () => {
-    // Hunk new side 12..14; chunk addedRange ends at 12 — single-line overlap.
+    // Hunk new side 12..14; chunk addedRange ends at 12, a single-line overlap.
     const input = fileSection("src/a.ts", [
       hunk(12, 3, 12, 3, [" ctx", " ctx", " ctx"]),
     ]);
@@ -136,7 +136,7 @@ describe("filterDiffByChunks", () => {
     expect(missingFiles).toEqual(["src/gone.ts"]);
   });
 
-  it("handles renames (new-side path is the chunk's file)", () => {
+  it("matches a renamed file by its new-side path", () => {
     const input =
       "diff --git a/src/old-name.ts b/src/a.ts\n" +
       "similarity index 90%\n" +
@@ -150,7 +150,7 @@ describe("filterDiffByChunks", () => {
     expect(diff).toContain("rename to src/a.ts");
   });
 
-  it("single-line hunks with omitted counts (@@ -5 +7 @@) parse correctly", () => {
+  it("parses single-line hunks whose counts are omitted", () => {
     const chunk: ChunkSpan = {
       file: "src/d.ts",
       addedRanges: [{ start: 7, end: 7 }],

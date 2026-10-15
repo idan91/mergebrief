@@ -1,4 +1,9 @@
 import type { Command } from "commander";
+import { ReviewOutcomes } from "types";
+import { CliError, ExitCodes } from "../exit";
+import type { BriefSpan } from "../types";
+
+export const REVIEW_OUTCOME_CHOICES = Object.values(ReviewOutcomes).join(" | ");
 
 export const FULL_PAYLOAD_DESCRIPTION =
   'full JSON payload from a file, or "-" for stdin';
@@ -30,4 +35,18 @@ export function addAnchorOptions(command: Command): Command {
     )
     .option("--start <line>", "anchor start line (flag form)")
     .option("--end <line>", "anchor end line (flag form)");
+}
+
+/** The ONE client-side shape check; the server owns every other rule. */
+export function requireSpan(
+  base: string | undefined,
+  head: string | undefined,
+): BriefSpan {
+  if (!base || !head) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",
+    );
+  }
+  return { base, head };
 }

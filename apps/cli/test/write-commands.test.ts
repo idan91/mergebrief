@@ -23,7 +23,8 @@ import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCodes } from "../src/exit";
-import { buildSubmitPayload, requireSpan } from "../src/commands/write";
+import { requireSpan } from "../src/commands/options";
+import { buildSubmitPayload } from "../src/commands/write/run";
 import {
   BASE_URL,
   KEY_REF,

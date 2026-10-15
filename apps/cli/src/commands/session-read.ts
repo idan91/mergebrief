@@ -7,9 +7,8 @@
 import { ProductQueryIds } from "contract";
 import type { ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
-import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
-import type { BriefSpan } from "./write";
+import type { BriefSpan, CommandIo } from "../types";
 
 export interface ComparisonSpan {
   readonly baseline: string;

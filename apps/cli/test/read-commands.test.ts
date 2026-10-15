@@ -25,7 +25,7 @@ import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
-import { runDelta } from "../src/commands/read";
+import { runDelta } from "../src/commands/read/run";
 import {
   BASE_URL,
   KEY_REF,

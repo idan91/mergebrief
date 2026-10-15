@@ -3,7 +3,7 @@
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
 import { ProductActionIds } from "contract";
-import { type Mutable, ReviewOutcomes } from "types";
+import type { Mutable } from "types";
 import { CliError, ExitCodes } from "./exit";
 import {
   buildFailureSuffix,
@@ -12,28 +12,22 @@ import {
   detectLaunchForm,
   NO_VERSION_WARNING_ENV,
 } from "./version";
-import {
-  requireDeltaFlags,
-  requireDiffFlags,
-  runCollaborators,
-  runConversation,
-  runDelta,
-  runDiff,
-  runGroups,
-  runPrList,
-  runPrMeta,
-} from "./commands/read";
 import { registerAuthCommands, registerReposCommand } from "./commands/auth";
 import { registerCapabilitiesCommand } from "./commands/capabilities";
 import {
-  buildSubmitPayload,
-  requireSpan,
-  runGenerate,
-  runReady,
-  runReply,
-  runSubmit,
-  runThreadResolution,
-  type SubmitInput,
+  registerCollaboratorsCommand,
+  registerConversationCommand,
+  registerDeltaCommand,
+  registerDiffCommand,
+  registerGroupsCommand,
+  registerPrCommand,
+} from "./commands/read";
+import {
+  registerGenerateCommand,
+  registerReadyCommand,
+  registerReplyCommand,
+  registerSubmitCommand,
+  registerThreadCommands,
 } from "./commands/write";
 import {
   requireComparisonSpan,
@@ -61,25 +55,20 @@ import {
   parsePrNumber,
   readObservedServerVersion,
   resolveCliVersion,
-  resolveProfileTarget,
   resolveRepoTarget,
 } from "./commands/target";
-import {
-  readAttachmentFile,
-  readBodySource,
-  readPayload,
-} from "./commands/inputs";
+import { readAttachmentFile, readPayload } from "./commands/inputs";
 import {
   addAnchorOptions,
   addPayloadOption,
   addSpanOptions,
   FULL_PAYLOAD_DESCRIPTION,
   REQUIRED_PAYLOAD_DESCRIPTION,
+  REVIEW_OUTCOME_CHOICES,
+  requireSpan,
 } from "./commands/options";
 import type { CliDeps, CommandContext, GlobalOptions } from "./types";
 import { isRecord } from "./utils";
-
-const REVIEW_OUTCOME_CHOICES = Object.values(ReviewOutcomes).join(" | ");
 
 /** Build the commander program over injected deps. */
 export function buildProgram(deps: CliDeps): Command {
@@ -156,168 +145,6 @@ function readGlobalOptions(program: Command): GlobalOptions {
   }
 
   return globalOptions;
-}
-
-function registerPrCommand(program: Command, context: CommandContext): void {
-  program
-    .command("pr")
-    .description("your PRs (no argument), or one PR's metadata")
-    .argument("[number]", "PR number in the target repository")
-    .action(async (raw: string | undefined) => {
-      if (raw === undefined) {
-        const { client, io } = resolveProfileTarget(context);
-        await runPrList(client, io);
-        return;
-      }
-
-      const prNumber = parsePrNumber(raw);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runPrMeta(client, repoId, prNumber, io);
-    });
-}
-
-function registerGroupsCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("groups")
-    .description("the PR's brief — change groups over the current span")
-    .argument("<number>", "PR number")
-    .action(async (raw: string) => {
-      const prNumber = parsePrNumber(raw);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runGroups(client, repoId, prNumber, io);
-    });
-}
-
-function registerConversationCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("conversation")
-    .description("the PR's review conversation")
-    .argument("<number>", "PR number")
-    .action(async (raw: string) => {
-      const prNumber = parsePrNumber(raw);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runConversation(client, repoId, prNumber, io);
-    });
-}
-
-function registerDiffCommand(program: Command, context: CommandContext): void {
-  program
-    .command("diff")
-    .description("the PR's unified diff (its raw text IS the machine format)")
-    .argument("<number>", "PR number")
-    .option("--base <sha>", "span base (with --head)")
-    .option("--head <sha>", "span head (with --base)")
-    .option(
-      "--group <id>",
-      "filter to one change group's whole hunks (brief span only)",
-    )
-    .action(
-      async (
-        raw: string,
-        options: { base?: string; head?: string; group?: string },
-      ) => {
-        if (context.readGlobals().json) {
-          throw new CliError(
-            ExitCodes.USAGE,
-            "diff has no JSON arm — its raw output is the machine format",
-          );
-        }
-        const prNumber = parsePrNumber(raw);
-        requireDiffFlags(options);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runDiff(
-          client,
-          repoId,
-          prNumber,
-          { ...options, pager: context.deps.pager },
-          io,
-        );
-      },
-    );
-}
-
-function registerReplyCommand(program: Command, context: CommandContext): void {
-  program
-    .command("reply")
-    .description("reply to a review comment (the viewer's own voice)")
-    .argument("<commentId>", "the review comment id (see `conversation <n>`)")
-    .requiredOption("--pr <number>", "the PR the comment belongs to")
-    .option("--body <text>", "reply text")
-    .option("--body-file <path>", 'reply text from a file, or "-" for stdin')
-    .action(
-      async (
-        commentId: string,
-        options: { pr: string; body?: string; bodyFile?: string },
-      ) => {
-        const body = await readBodySource(
-          context.deps,
-          options.body,
-          options.bodyFile,
-        );
-        const prNumber = parsePrNumber(options.pr);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runReply(client, repoId, commentId, { pr: prNumber, body }, io);
-      },
-    );
-}
-
-function registerSubmitCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("submit")
-    .description(
-      "submit a review of the brief span you name (its saved drafts go with it)",
-    )
-    .argument("<number>", "PR number")
-    .option(
-      "-F, --file <path>",
-      'full JSON payload from a file, or "-" for stdin',
-    )
-    .option("--outcome <outcome>", `${REVIEW_OUTCOME_CHOICES} (flag form)`)
-    .option("--body <text>", "review body (flag form)")
-    .option("--base <sha>", "span base of the brief you reviewed")
-    .option("--head <sha>", "span head of the brief you reviewed")
-    .action(
-      async (
-        raw: string,
-        options: {
-          file?: string;
-          outcome?: string;
-          body?: string;
-          base?: string;
-          head?: string;
-        },
-      ) => {
-        const input: Mutable<SubmitInput> = {
-          outcome: options.outcome,
-          body: options.body,
-        };
-
-        if (options.file !== undefined) {
-          input.payload = await readPayload(context.deps, options.file);
-        }
-
-        // Usage validation BEFORE any network work: a malformed PR number or
-        // a missing span must exit 2 even when target resolution would fail
-        // with exit 4.
-        const prNumber = parsePrNumber(raw);
-        const span = requireSpan(options.base, options.head);
-        const payload = buildSubmitPayload(input);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runSubmit(client, repoId, prNumber, span, payload, io);
-      },
-    );
 }
 
 function registerSessionCommand(
@@ -808,107 +635,6 @@ function registerOutcomeCommand(
       );
     },
   );
-}
-
-function createThreadAction(
-  context: CommandContext,
-  resolved: boolean,
-): (raw: string, commentId: string) => Promise<void> {
-  return async (raw, commentId) => {
-    const prNumber = parsePrNumber(raw);
-    const { client, repoId, io } = await resolveRepoTarget(context);
-    await runThreadResolution(
-      client,
-      repoId,
-      prNumber,
-      commentId,
-      resolved,
-      io,
-    );
-  };
-}
-
-function registerThreadCommands(
-  program: Command,
-  context: CommandContext,
-): void {
-  const thread = program
-    .command("thread")
-    .description("review-thread state on GitHub (the viewer's own act)");
-  thread
-    .command("resolve")
-    .description("resolve the thread rooted at a review comment")
-    .argument("<number>", "PR number")
-    .argument("<commentId>", "the thread's root review comment id")
-    .action(createThreadAction(context, true));
-  thread
-    .command("unresolve")
-    .description("reopen the thread rooted at a review comment")
-    .argument("<number>", "PR number")
-    .argument("<commentId>", "the thread's root review comment id")
-    .action(createThreadAction(context, false));
-}
-
-function registerReadyCommand(program: Command, context: CommandContext): void {
-  program
-    .command("ready")
-    .description(
-      "mark a draft PR ready for review (GitHub-enforced authorship)",
-    )
-    .argument("<number>", "PR number")
-    .action(async (raw: string) => {
-      const prNumber = parsePrNumber(raw);
-      const { client, repoId } = await resolveRepoTarget(context);
-      await runReady(client, repoId, prNumber);
-    });
-}
-
-function registerGenerateCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("generate")
-    .description("generate a brief for a PR URL (no confirm; your own key)")
-    .argument("<url>", "the PR's GitHub URL")
-    .action(async (url: string) => {
-      const { client, io } = resolveProfileTarget(context);
-      await runGenerate(client, url, io);
-    });
-}
-
-function registerCollaboratorsCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("collaborators")
-    .description("the target repo's collaborator roster (push access required)")
-    .action(async () => {
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runCollaborators(client, repoId, io);
-    });
-}
-
-function registerDeltaCommand(program: Command, context: CommandContext): void {
-  program
-    .command("delta")
-    .description("what changed since your last review (union: available | not)")
-    .argument("<number>", "PR number")
-    .option(
-      "--baseline <sha>",
-      "override the checkpoint baseline (with --head)",
-    )
-    .option("--head <sha>", "override the head (with --baseline)")
-    .action(
-      async (raw: string, options: { baseline?: string; head?: string }) => {
-        const prNumber = parsePrNumber(raw);
-        requireDeltaFlags(options);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runDelta(client, repoId, prNumber, options, io);
-      },
-    );
 }
 
 const AGENTS_MOVED = `The packaged agent guide moved: it now ships as the \`mergebrief\`

@@ -5,7 +5,7 @@ import type {
   ProductActionIds,
 } from "contract";
 import type { CommentAnchorKinds } from "types/comments";
-import type { BriefSpan } from "../write";
+import type { BriefSpan } from "../../types";
 
 /**
  * The anchor flags `draft create`/`draft reanchor` share. The explicit

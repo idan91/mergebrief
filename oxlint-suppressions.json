@@ -58,14 +58,6 @@
       "count": 2
     }
   },
-  "apps/cli/test/diff-filter.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 5
-    }
-  },
   "apps/web/src/components/Markdown/utils.test.ts": {
     "house/test-title": {
       "count": 1
