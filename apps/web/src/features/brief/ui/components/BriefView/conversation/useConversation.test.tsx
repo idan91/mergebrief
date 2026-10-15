@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Inline composers must retain the section composer's resolution affordance and refetch target.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -25,8 +25,6 @@ import type { Mutable } from "types/utils";
 const FAKE_FRAME_MS = 16;
 /** Outlasts every frame the scroll watch polls before it lets go. */
 const SCROLL_WATCH_MS = (WATCH_FRAMES + 1) * FAKE_FRAME_MS;
-
-afterEach(cleanup);
 
 const brief: Brief = {
   artifactKind: "brief",

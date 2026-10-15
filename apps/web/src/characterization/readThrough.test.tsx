@@ -1,13 +1,7 @@
 // @vitest-environment jsdom
 import type { LocalBriefSummary } from "contract";
-import {
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { Concerns, Roles } from "brief-core/types";
@@ -157,8 +151,6 @@ function viewedCheckboxFor(chunkId: string): HTMLInputElement {
 }
 
 describe("Read-through progress + auto-advance", () => {
-  afterEach(cleanup);
-
   it("renders one progress segment per group and marks the current one", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);

@@ -7,12 +7,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ApiErrorCodes } from "../../../../data/apiFetch";
 import { FailedInbox } from ".";
-
-afterEach(cleanup);
 
 describe("FailedInbox", () => {
   it("names GitHub for its wire code and the server for any other", () => {

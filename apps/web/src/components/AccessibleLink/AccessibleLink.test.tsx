@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { AccessibleLink } from ".";
-
-afterEach(cleanup);
 
 describe("AccessibleLink", () => {
   it("renders a plain anchor with full passthrough and no rel default", () => {

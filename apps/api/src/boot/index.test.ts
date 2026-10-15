@@ -1,6 +1,6 @@
 // The exit code a config error takes is the entry's choice: a service stays
 // down on 0 under restart: on-failure, the one-shot migrate run answers 1.
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { testLogging } from "../../test/logging";
 import { createBootLogger, loadBootConfig, loadMigrateConfig } from "./index";
 import { ExitCodes } from "./types";
@@ -30,10 +30,6 @@ async function exitCodeOf(run: () => unknown): Promise<unknown> {
 }
 
 describe("boot createBootLogger on a bad LOG_LEVEL", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("exits 0 by default and with the code the entry asks for", async () => {
     stubExit();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -48,10 +44,6 @@ describe("boot createBootLogger on a bad LOG_LEVEL", () => {
 });
 
 describe("boot loadBootConfig on an empty env", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("exits 0 by default, the service's stay-down code", async () => {
     stubExit();
     const { logger } = testLogging();
@@ -71,10 +63,6 @@ describe("boot loadBootConfig on an empty env", () => {
 });
 
 describe("boot loadMigrateConfig", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("needs only the database url and reads the version as dev", async () => {
     stubExit();
     const { logger } = testLogging();

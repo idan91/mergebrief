@@ -2,11 +2,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { InboxArchivedFilters } from "types/inbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SelectionHeader, type SelectionHeaderProps } from ".";
-
-afterEach(cleanup);
 
 function renderHeader(overrides: Partial<SelectionHeaderProps> = {}) {
   const handlers = {

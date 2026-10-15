@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { act } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   createReadingPositionStore,
@@ -10,8 +10,6 @@ import {
   useCreateReadingPositionStore,
   useReadingPosition,
 } from "./reading-position";
-
-afterEach(cleanup);
 
 describe("createReadingPositionStore", () => {
   it("starts with no active position", () => {

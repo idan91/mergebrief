@@ -16,7 +16,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
@@ -150,8 +150,6 @@ async function renderRouteWithMarks(metaValue: PrSummary, path: string) {
 }
 
 describe("DB brief route", () => {
-  afterEach(() => cleanup());
-
   it("renders the brief through BriefView with empty local artifacts", async () => {
     await renderRoute(
       meta({}),
@@ -710,11 +708,6 @@ async function renderRouteWithFetch(
 }
 
 describe("DB brief route, explicit-span deep link while generating", () => {
-  afterEach(() => {
-    cleanup();
-    vi.unstubAllGlobals();
-  });
-
   const generatingMeta = meta({
     briefAvailable: false,
     generation: {
@@ -860,8 +853,6 @@ describe("DB brief route, explicit-span deep link while generating", () => {
 });
 
 describe("DB brief route, rev param", () => {
-  afterEach(() => cleanup());
-
   const OLDER = { base: "base-0", head: "head-0" };
   const revisions = [
     {

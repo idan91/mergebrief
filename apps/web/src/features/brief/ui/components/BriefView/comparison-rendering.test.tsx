@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import type { RevisionNarrative } from "brief-core/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import {
@@ -154,8 +154,6 @@ const delta: Brief = {
   ],
   concernView: [],
 };
-
-afterEach(() => cleanup());
 
 describe("Full Brief comparison overlay", () => {
   it("Previous Brief uses previous-brief marks, Revision narrative callouts", () => {

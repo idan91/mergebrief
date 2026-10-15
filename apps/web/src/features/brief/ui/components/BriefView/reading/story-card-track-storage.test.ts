@@ -11,7 +11,6 @@ import {
 afterEach(() => {
   vi.unstubAllGlobals();
   window.localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 describe("readStoryCardTrack", () => {

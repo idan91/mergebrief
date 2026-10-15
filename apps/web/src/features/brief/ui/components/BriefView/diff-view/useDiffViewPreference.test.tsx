@@ -10,7 +10,6 @@ import { useDiffViewPreference } from "./useDiffViewPreference";
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 interface HarnessProps {

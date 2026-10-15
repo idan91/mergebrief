@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { appI18n } from "@web/i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -25,8 +25,6 @@ import { StoryView } from ".";
 import { STORY_CHUNKS_ATTR } from "./StorySplitter/consts";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 const model = buildBriefViewModel(briefFixture);
 const lineOwnersByFile = buildLineOwnersByFile(model, appI18n.t);

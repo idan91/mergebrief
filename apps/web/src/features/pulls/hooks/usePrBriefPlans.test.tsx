@@ -7,8 +7,8 @@ import {
   QueryClientProvider,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type * as PostCommentModule from "../transport/postComment";
@@ -31,8 +31,6 @@ vi.mock("../transport/postComment", async (importOriginal) => ({
   ...(await importOriginal<typeof PostCommentModule>()),
   postInlineComment: vi.fn(),
 }));
-
-afterEach(cleanup);
 
 function wrapper({ children }: { children: ReactNode }) {
   return (

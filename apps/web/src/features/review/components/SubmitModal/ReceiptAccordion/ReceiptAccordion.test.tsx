@@ -5,8 +5,8 @@
 // The bare-rendered subtree below resolves it without a provider.
 // oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
 import "../../../../../i18n/I18nProvider";
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import type { Receipt } from "../../../utils/receipt";
 import { ReceiptAccordion } from ".";
@@ -83,8 +83,6 @@ function findFold(summaryText: RegExp): HTMLDetailsElement | null {
 }
 
 describe("ReceiptAccordion", () => {
-  afterEach(cleanup);
-
   it("pins the outcome card with the signature line", () => {
     renderAccordion();
     expect(screen.getByText("Review outcome")).toBeTruthy();

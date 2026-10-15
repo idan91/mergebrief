@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PENDING_CEILING_MS } from "@web/utils/diffTokens/consts";
 import {
@@ -64,8 +64,6 @@ beforeEach(() => {
   requestSnippetTokens.mockReset();
   cancel.mockReset();
 });
-
-afterEach(cleanup);
 
 describe("useSnippetTokens pending ceiling", () => {
   function renderSnippet() {

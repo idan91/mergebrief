@@ -5,8 +5,8 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { omitFields } from "@web/test/fields";
@@ -79,8 +79,6 @@ async function loadPrRoute(metaValue: PrSummary, path: string) {
 
   return router;
 }
-
-afterEach(cleanup);
 
 describe("PR brief tab title", () => {
   it("leads with the PR title, then number and repo", async () => {

@@ -2,7 +2,7 @@
 // interface. Asserts that octokit's authentication result maps to the sanitized
 // `OAuthTokens`, that a missing refresh token is a clear EXPIRATION_NOT_ENABLED,
 // and that a thrown exchange or refresh error never leaks what it carried.
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
   listUserInstallations,
@@ -171,10 +171,6 @@ function getRequestUrl(input: string | URL | Request): string {
 }
 
 describe("listUserInstallations", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it("maps GET /user/installations to branded ids + account logins", async () => {
     vi.stubGlobal(
       "fetch",

@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ApiError, ApiErrorCodes } from "../../../../../data/apiFetch";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { PrBriefError } from ".";
 
 const t = appI18n.t;
 const PR_BRIEF_GENERIC_DETAIL = t("pulls.briefError.generic");
-
-afterEach(cleanup);
 
 describe("PrBriefError", () => {
   it("never renders a raw error message into the page", () => {

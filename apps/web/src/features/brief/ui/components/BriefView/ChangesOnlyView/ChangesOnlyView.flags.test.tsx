@@ -1,14 +1,8 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import {
@@ -26,8 +20,6 @@ import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { ChangesOnlyView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 const PR = {
   repo: "acme/widgets",

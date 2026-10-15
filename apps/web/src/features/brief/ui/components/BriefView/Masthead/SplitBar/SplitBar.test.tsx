@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { computeConcernShares } from "../utils";
 import { SplitBar } from ".";
-
-afterEach(cleanup);
 
 describe("SplitBar", () => {
   it("draws one meter segment and one legend entry per share", () => {

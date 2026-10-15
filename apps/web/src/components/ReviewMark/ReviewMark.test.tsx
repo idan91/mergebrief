@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { ReviewMark } from ".";
-
-afterEach(cleanup);
 
 const DRAWINGS = [
   [InboxReviewStates.NEW, "circle"],

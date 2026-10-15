@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { openReleaseNotes } from "./utils";
 
 describe("openReleaseNotes", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("opens the URL in a new tab without a referrer", () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
 

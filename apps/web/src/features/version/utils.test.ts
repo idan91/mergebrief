@@ -27,7 +27,6 @@ function makeKnown(snapshot: VersionResponse): VersionState {
 
 afterEach(() => {
   window.localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 describe("deriveDismissedNotice", () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useChunkTokens, type ChunkTokensInput } from "./useChunkTokens";
 import {
@@ -64,8 +64,6 @@ beforeEach(() => {
   requestChunkTokens.mockReset();
   cancel.mockReset();
 });
-
-afterEach(cleanup);
 
 describe("useChunkTokens", () => {
   it("reads plain on the first render for a file with no grammar", () => {

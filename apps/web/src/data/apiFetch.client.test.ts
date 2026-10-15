@@ -36,7 +36,6 @@ afterEach(() => {
   fetchMock.mockReset();
   unsubscribeSignedOut();
   signedOutListener.mockReset();
-  vi.unstubAllGlobals();
 });
 
 describe("apiFetch in the browser", () => {

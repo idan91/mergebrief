@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { BriefAddressSearch } from "../../../../model/comparison/compare-state";
 import type { NavigateSearch, SearchNavigation } from "./types";
@@ -33,8 +33,6 @@ function readSoleNavigation(
 }
 
 describe("useBriefAddress", () => {
-  afterEach(cleanup);
-
   it("hands the link param through as the URL carries it", () => {
     const { result } = renderHook(() =>
       useBriefAddress({ l: "c1.R4" }, stubNavigate()),

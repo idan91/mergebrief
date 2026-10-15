@@ -1,14 +1,7 @@
 // @vitest-environment jsdom
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -31,8 +24,6 @@ import {
 } from "../reading/reading-position";
 import { useFocusPanel } from "./useFocusPanel";
 import { FocusPanel } from ".";
-
-afterEach(cleanup);
 
 const brief = {
   ...briefFixture,

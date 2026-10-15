@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { Button } from "../components/Button";
 import { useAnnouncer } from "./useAnnouncer";
-
-afterEach(cleanup);
 
 function Harness() {
   const { text, announce } = useAnnouncer();

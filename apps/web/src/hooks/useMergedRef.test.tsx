@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, renderHook } from "@testing-library/react";
+import { render, renderHook } from "@testing-library/react";
 import { createRef } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { useMergedRef } from "./useMergedRef";
-
-afterEach(cleanup);
 
 describe("useMergedRef", () => {
   it("feeds a callback ref and an object ref the same node", () => {

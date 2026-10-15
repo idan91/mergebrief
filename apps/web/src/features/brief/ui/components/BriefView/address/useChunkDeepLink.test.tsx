@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { AddressEventKinds } from "./types";
 import { useChunkDeepLink } from "./useChunkDeepLink";
-
-afterEach(cleanup);
 
 const UNPARSED = { kind: AddressEventKinds.LINK_UNPARSED };
 

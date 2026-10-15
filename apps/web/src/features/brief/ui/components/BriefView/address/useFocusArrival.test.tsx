@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { useFocusArrival } from "./useFocusArrival";
-
-afterEach(cleanup);
 
 const CHUNK_IDS = ["c1", "c2"];
 

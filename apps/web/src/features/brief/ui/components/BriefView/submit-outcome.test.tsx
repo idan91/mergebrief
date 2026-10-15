@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../../i18n/I18nProvider";
 
@@ -17,8 +11,6 @@ import {
   type SubmitReviewResult,
 } from "../../../../review/utils";
 import { mountBriefView } from "@web/features/brief/test-utils";
-
-afterEach(cleanup);
 
 const OUTCOME_LEGEND = appI18n.t("review.submit.outcomeLegend");
 const CONTINUE_TO_VERDICT = appI18n.t("review.submit.continueAction");

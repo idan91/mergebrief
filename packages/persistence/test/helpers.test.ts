@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { makeFixture, readTestPostgresUrl } from "./helpers";
 
 const UNREACHABLE_URL = "postgres://test:test@127.0.0.1:1/never";
@@ -55,10 +55,6 @@ describe("readTestPostgresUrl", () => {
 describe("makeFixture", () => {
   const SMALLEST_FIXTURE_ID = 1_000_000_000_000n;
   const LARGEST_SAFE_ID = BigInt(Number.MAX_SAFE_INTEGER);
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
 
   it("gives two fixtures made in the same millisecond different ids", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);

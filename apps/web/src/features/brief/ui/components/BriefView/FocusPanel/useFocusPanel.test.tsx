@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import {
   ViewportBands,
@@ -8,8 +8,6 @@ import {
 } from "@web/hooks/useViewportBoundary";
 import { createReadingPositionStore } from "../reading/reading-position";
 import { useFocusPanel } from "./useFocusPanel";
-
-afterEach(cleanup);
 
 interface PanelProps {
   focusMode: boolean;

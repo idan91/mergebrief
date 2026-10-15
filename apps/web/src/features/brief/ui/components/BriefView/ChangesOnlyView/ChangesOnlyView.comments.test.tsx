@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
@@ -371,8 +371,6 @@ beforeEach(() => {
     cancel: () => undefined,
   });
 });
-
-afterEach(cleanup);
 
 describe("Previous Brief narrative cards take comments", () => {
   it("anchors a comment on a card row to the owner with its exact row id", () => {

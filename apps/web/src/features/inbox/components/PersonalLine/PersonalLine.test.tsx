@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { PersonalLine } from ".";
-
-afterEach(cleanup);
 
 function renderCounts(updated: number, fresh: number, inProgress = 0) {
   render(

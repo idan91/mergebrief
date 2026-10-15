@@ -19,7 +19,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import {
@@ -153,8 +153,6 @@ async function choosePosition(position: number): Promise<void> {
 }
 
 describe("DB brief route revision timeline", () => {
-  afterEach(() => cleanup());
-
   beforeEach(() => {
     setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
     window.localStorage.clear();

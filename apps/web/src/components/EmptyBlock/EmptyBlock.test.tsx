@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { Button } from "../Button";
 import { EmptyBlock } from ".";
-
-afterEach(cleanup);
 
 describe("EmptyBlock", () => {
   it("renders the heading it is handed, the detail and the action", () => {

@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { useRef, useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { Button } from "../Button";
 import { Modal } from ".";
-
-afterEach(cleanup);
 
 interface HarnessProps {
   namesField?: boolean;

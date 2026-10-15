@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { briefFixture } from "../../../../test-utils/fixtures";
 import { renderInRouter } from "../../../../../../test/router";
 import { LargeTitle } from ".";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   ...briefFixture,

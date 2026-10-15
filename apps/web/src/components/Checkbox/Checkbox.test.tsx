@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 // These cases pin the parts a hand-rolled div would lose: the box is drawn,
 // but the control underneath is still a real `<input type="checkbox">`.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Checkbox } from ".";
-
-afterEach(cleanup);
 
 describe("Checkbox", () => {
   it("is a real checkbox with the label as its accessible name", () => {

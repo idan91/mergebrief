@@ -1,18 +1,15 @@
 // @vitest-environment jsdom
 import {
   act,
-  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FilterView } from "../types";
 import { Filter } from ".";
-
-afterEach(cleanup);
 
 beforeEach(() => {
   vi.stubGlobal(

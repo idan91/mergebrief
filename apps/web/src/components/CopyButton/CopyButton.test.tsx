@@ -1,18 +1,15 @@
 // @vitest-environment jsdom
 import {
   act,
-  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CopyButton } from ".";
 import { COPY_FEEDBACK_RESET_MS } from "./consts";
-
-afterEach(cleanup);
 
 function mockClipboard(writeText: (text: string) => Promise<void>) {
   Object.defineProperty(navigator, "clipboard", {

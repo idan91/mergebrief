@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { Icon } from ".";
 import { IconNames, IconRotations, IconSizes } from "./types";
-
-afterEach(cleanup);
 
 function findIcon(): SVGSVGElement {
   const icon = document.querySelector("svg");

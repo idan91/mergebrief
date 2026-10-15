@@ -2,8 +2,8 @@
 // Pins the dismiss-input choreography: reopening always starts blank, and a
 // short reason warns once then commits (warn-then-accept).
 import { appI18n } from "../../../../../../i18n/I18nProvider";
-import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
 import {
@@ -15,8 +15,6 @@ import {
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
-
-afterEach(cleanup);
 
 const model = buildBriefViewModel(briefFixture);
 

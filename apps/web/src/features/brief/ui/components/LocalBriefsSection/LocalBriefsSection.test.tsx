@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import type { LocalBriefSummary } from "contract";
 import { QueryClient } from "@tanstack/react-query";
-import { cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { renderInRouter } from "../../../../../test/router";
@@ -40,8 +40,6 @@ const BRIEFS: LocalBriefSummary[] = [
 ];
 
 describe("LocalBriefsSection", () => {
-  afterEach(cleanup);
-
   it("renders nothing and never queries without a session", async () => {
     const queryClient = new QueryClient();
     await renderSection(false, queryClient);

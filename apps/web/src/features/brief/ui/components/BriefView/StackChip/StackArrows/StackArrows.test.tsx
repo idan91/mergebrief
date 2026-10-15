@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "@web/test/router";
 import type { ForkPrStack, LinearPrStack } from "../../../../../model/types";
 import { StackArrows } from ".";
-
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
 
 const REPO_SLUG = "acme/widgets";
 const PULL_ROUTE = "/repos/$repoId/pulls/$prNumber";

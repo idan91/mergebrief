@@ -11,7 +11,6 @@ import {
 
 afterEach(() => {
   window.localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 describe("readDiffView", () => {

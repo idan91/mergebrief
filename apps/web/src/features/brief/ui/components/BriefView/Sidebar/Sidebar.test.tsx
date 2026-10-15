@@ -34,7 +34,6 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   document.body.style.overflow = "";
-  vi.restoreAllMocks();
 });
 
 interface HarnessProps {

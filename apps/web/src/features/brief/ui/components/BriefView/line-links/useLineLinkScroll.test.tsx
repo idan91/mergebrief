@@ -2,14 +2,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
-  cleanup,
   fireEvent,
   renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
 import type { TFunction } from "i18next";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type ReactNode, useState } from "react";
 import { Button } from "@web/components/Button";
 import type { LineLinkTarget } from "@web/features/review/utils";
@@ -33,8 +32,6 @@ import { AddressEventKinds } from "../address/types";
 import { ScrollHistories } from "../scroll-to-target/types";
 import type { ScopeExitOptions } from "../types";
 import { useLineLinkScroll } from "./useLineLinkScroll";
-
-afterEach(cleanup);
 
 const lastReviewMarks: ComparisonMarks = {
   baselineSha: "chk1234",

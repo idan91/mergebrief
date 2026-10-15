@@ -3,7 +3,6 @@ import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
-  cleanup,
   fireEvent,
   render,
   screen,
@@ -39,8 +38,6 @@ import {
   type ReviewPosture,
 } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 function chunk(): BriefChunk {
   return {

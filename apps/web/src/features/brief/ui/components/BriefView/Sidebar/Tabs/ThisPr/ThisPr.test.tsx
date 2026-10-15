@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -14,8 +14,6 @@ if (!first || first.kind !== GroupViewKinds.ATTRIBUTED) {
   throw new Error("fixture has no attributed group");
 }
 const firstName = first.group.title || first.group.summary;
-
-afterEach(cleanup);
 
 describe("ThisPr", () => {
   it("lists every group as a numbered row", () => {

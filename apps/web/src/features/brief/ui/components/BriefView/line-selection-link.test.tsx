@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCallback, useState } from "react";
 import { Button } from "@web/components/Button";
 
@@ -12,8 +12,6 @@ import {
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 });
-
-afterEach(cleanup);
 
 /**
  * The router's part: the link the page writes comes back as the `link`

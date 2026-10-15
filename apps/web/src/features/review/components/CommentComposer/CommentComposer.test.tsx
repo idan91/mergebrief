@@ -11,7 +11,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { RequestBounds } from "contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
@@ -30,8 +30,6 @@ import {
   DiffSides,
   DraftCommentStatuses,
 } from "types/comments";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   artifactKind: "brief",

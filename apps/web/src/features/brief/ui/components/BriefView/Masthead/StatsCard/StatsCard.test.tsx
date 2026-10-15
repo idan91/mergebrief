@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ConcernRollup } from "brief-core/types";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../../../model/types";
 import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import { briefFixture } from "../../../../../test-utils/fixtures";
 import { computeConcernShares } from "../utils";
 import { StatsCard } from ".";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   ...briefFixture,

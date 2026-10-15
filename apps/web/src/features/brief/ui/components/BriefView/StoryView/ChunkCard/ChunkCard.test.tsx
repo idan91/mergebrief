@@ -32,7 +32,6 @@ import { ChunkCard, type ChunkCardProps } from ".";
 import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../utils/review-posture";
 
-afterEach(cleanup);
 afterEach(() => {
   window.getSelection()?.removeAllRanges();
 });

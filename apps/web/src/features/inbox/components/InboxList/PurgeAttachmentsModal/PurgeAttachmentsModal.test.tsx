@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { InboxItem } from "../../../types";
 import { PurgeAttachmentsModal } from ".";
-
-afterEach(cleanup);
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {

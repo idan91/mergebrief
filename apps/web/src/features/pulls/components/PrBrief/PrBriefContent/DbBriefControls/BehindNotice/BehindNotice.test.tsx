@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { BehindNotice } from ".";
-
-afterEach(cleanup);
 
 describe("BehindNotice", () => {
   it("names the new commits and regenerates on the one button", () => {

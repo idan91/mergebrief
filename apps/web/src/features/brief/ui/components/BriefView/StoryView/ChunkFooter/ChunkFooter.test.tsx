@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Button } from "@web/components/Button";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -17,8 +17,6 @@ import {
   ReadingPositionProvider,
 } from "../../reading/reading-position";
 import { ChunkFooter } from ".";
-
-afterEach(cleanup);
 
 const model = buildBriefViewModel(briefFixture);
 const twoGroups = buildTwoGroups(model.groups);

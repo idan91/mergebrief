@@ -5,8 +5,8 @@ import {
   type ReviewCommentSide,
 } from "types/conversation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles } from "brief-core/types";
 import {
@@ -34,8 +34,6 @@ import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 function stubChunk(overrides: Partial<BriefChunk>): BriefChunk {
   return {

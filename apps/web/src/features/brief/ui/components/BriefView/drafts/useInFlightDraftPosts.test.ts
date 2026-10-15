@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 // The post-now gate: one request per draft, refused synchronously, released on
 // every settle, and never reset out from under a live request.
-import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
-
-afterEach(cleanup);
 
 describe("useInFlightDraftPosts", () => {
   it("refuses a duplicate synchronously and releases on settle", () => {

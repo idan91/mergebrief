@@ -122,11 +122,6 @@
       "count": 4
     }
   },
-  "apps/web/src/i18n/trans.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/server/health.test.ts": {
     "house/no-em-dash": {
       "count": 1

@@ -5,13 +5,12 @@
 import { appI18n } from "@web/i18n/I18nProvider";
 import {
   act,
-  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -31,8 +30,6 @@ import {
 import { GroupCard } from ".";
 import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../utils/review-posture";
-
-afterEach(cleanup);
 
 const model = buildBriefViewModel(briefFixture);
 

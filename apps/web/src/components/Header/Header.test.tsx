@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { renderInRouter } from "../../test/router";
 import { Header } from ".";
-
-afterEach(cleanup);
 
 describe("Header", () => {
   it("renders the wordmark as a link to Home inside a banner", async () => {

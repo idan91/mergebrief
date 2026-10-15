@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { reportSignedOut } from "../../../data/signed-out";
 import { buildViewerQueryOptions } from "../queries";
@@ -16,8 +16,6 @@ const SIGNED_IN_VIEWER: ViewerState = {
 };
 const VIEWER_KEY = buildViewerQueryOptions().queryKey;
 const BRIEF_KEY = ["brief", "42"];
-
-afterEach(cleanup);
 
 function buildWrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {

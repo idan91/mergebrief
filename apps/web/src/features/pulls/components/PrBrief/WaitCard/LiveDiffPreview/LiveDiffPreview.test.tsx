@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
 import { LiveDiffPreview } from ".";
@@ -71,8 +71,6 @@ beforeEach(() => {
     cancel: () => undefined,
   });
 });
-
-afterEach(cleanup);
 
 describe("LiveDiffPreview", () => {
   const MANY_FILES = [

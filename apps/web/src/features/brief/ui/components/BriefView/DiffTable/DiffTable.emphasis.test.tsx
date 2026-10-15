@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
@@ -16,8 +16,6 @@ import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 function stubChunk(): BriefChunk {
   return {

@@ -68,8 +68,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   notifyResize = undefined;
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
 });
 
 describe("useHeldCardHeight", () => {

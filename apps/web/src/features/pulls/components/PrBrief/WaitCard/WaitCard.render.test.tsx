@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import type { Span } from "../../../utils/briefRouteState";
@@ -29,8 +29,6 @@ const DIFF_TEXT = [
   " const a = 1;",
   "+const b = 2;",
 ].join("\n");
-
-afterEach(cleanup);
 
 function renderWaitCard(span: Span | undefined): void {
   const client = new QueryClient({

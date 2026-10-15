@@ -1,14 +1,7 @@
 // @vitest-environment jsdom
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { Profiler } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -19,8 +12,6 @@ import {
   type ReadingPositionStore,
 } from "../reading/reading-position";
 import { ChunkStrip } from ".";
-
-afterEach(cleanup);
 
 const GROUP_ID = "g1";
 

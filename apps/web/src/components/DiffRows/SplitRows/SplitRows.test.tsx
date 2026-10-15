@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { SplitRows } from ".";
-
-afterEach(cleanup);
 
 function stubRows(): DiffLine[] {
   return [

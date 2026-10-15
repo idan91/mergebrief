@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { GroupViewKinds } from "../../../../../model/utils/remainder";
@@ -16,8 +16,6 @@ if (!first || first.kind !== GroupViewKinds.ATTRIBUTED) {
 // Two groups make the stepper's neighbour reachable; the fixture ships one.
 const second = { ...first, id: "g-second", index: 1 };
 const groups = [first, second];
-
-afterEach(cleanup);
 
 function noop(): void {}
 

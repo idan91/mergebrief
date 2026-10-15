@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
@@ -17,8 +11,6 @@ import {
 import { intersectionObservers } from "../../../../../../test/setup";
 import { CONTENT_START_ATTR } from "../utils";
 import { Header, type HeaderProps } from ".";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   artifactKind: "brief",

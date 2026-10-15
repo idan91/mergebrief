@@ -12,7 +12,6 @@ afterEach(() => {
   // window is gone, which surfaces as an unhandled `window is not defined`.
   cleanup();
   window.localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 function stored(): unknown {

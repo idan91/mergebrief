@@ -60,7 +60,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   notifyIntersection = undefined;
-  vi.unstubAllGlobals();
 });
 
 describe("useLargeTitleOut", () => {

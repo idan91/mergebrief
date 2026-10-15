@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { OriginalDescription } from ".";
-
-afterEach(cleanup);
 
 describe("OriginalDescription", () => {
   it("counts the words in the closed row and opens to the text", () => {

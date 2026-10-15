@@ -3,8 +3,8 @@
 // action. Success stays QUIET about state: the affordances vanish only when
 // the refreshed PrView lands; the hook never clears anything optimistically.
 // Failures re-enable the CTA and announce toast copy.
-import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { MarkReadyResult } from "../../../../model/types";
 import { appI18n, I18nProvider } from "../../../../../../i18n/I18nProvider";
@@ -19,8 +19,6 @@ const MARK_READY_COPY = {
   UPSTREAM: t("pulls.markReady.upstream"),
   FAILED: t("pulls.markReady.failed"),
 } as const;
-
-afterEach(cleanup);
 
 interface Deferred {
   resolve: (result: MarkReadyResult) => void;

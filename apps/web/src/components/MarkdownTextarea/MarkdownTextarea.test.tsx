@@ -17,8 +17,6 @@ import { MarkdownTextareaFrames } from "./types";
 import { resetAttachmentUploadState } from "./useAttachmentUpload";
 import type { MentionCandidate } from "./useMentionAutocomplete";
 
-afterEach(cleanup);
-
 function Harness({
   initial = "",
   label = "Comment",

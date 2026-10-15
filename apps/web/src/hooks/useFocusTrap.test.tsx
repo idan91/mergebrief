@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { Button } from "../components/Button";
 import { useFocusTrap } from "./useFocusTrap";
-
-afterEach(cleanup);
 
 function Trap({
   empty = false,

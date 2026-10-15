@@ -132,8 +132,6 @@ beforeEach(() => {
 
 afterEach(() => {
   resetDiffTokenWorker();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
 });
 
 describe("getDiffTokenWorker", () => {

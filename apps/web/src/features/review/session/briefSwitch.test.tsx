@@ -5,7 +5,7 @@
 // across briefs by construction (positional c1..cN), so a missed reset
 // silently reads as the wrong brief's session; every pin here uses colliding
 // ids on purpose.
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,8 +13,6 @@ import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
 import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import { ReviewSessionProvider, useReviewSession, useUnplacedDrafts } from ".";
 import type { ReviewSessionPayload, SessionDraftComment } from "./serverState";
-
-afterEach(cleanup);
 
 /** An otherwise-empty session carrying one read mark. */
 function sessionWithReadMark(chunkId: string): ReviewSessionPayload {

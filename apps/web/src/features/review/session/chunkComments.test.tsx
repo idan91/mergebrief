@@ -2,9 +2,9 @@
 // The per-chunk comment selector must keep a stable array identity while the
 // chunk's own slice is unchanged. That identity is what lets React.memo on
 // ChunkCard actually skip re-renders.
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
 import { type CommentAnchor } from "../utils/comments";
@@ -20,8 +20,6 @@ import {
   useReviewCommentsForChunks,
   useReviewSession,
 } from ".";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   artifactKind: "brief",

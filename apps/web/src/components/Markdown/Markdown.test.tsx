@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import {
   ATTACHMENT_ASSET_ID,
@@ -10,8 +10,6 @@ import {
 } from "@web/test/attachments";
 import { Markdown } from ".";
 import { AttachmentScopeProvider } from "./context";
-
-afterEach(cleanup);
 
 describe("Markdown suggestion fences", () => {
   const body = "Try this:\n```suggestion\nreturn next;\n```";

@@ -1,17 +1,13 @@
 // Vitest runs as a dev build, so the pseudo row is present alongside the
 // registry's locales.
 import { LOCALES, PSEUDO_LOCALE } from "i18n";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   findActiveLocaleIndex,
   isLanguageSelectionEnabled,
   listLocaleOptions,
 } from "./locale-options";
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
 
 describe("isLanguageSelectionEnabled", () => {
   it("is off unless the flag is switched on", () => {

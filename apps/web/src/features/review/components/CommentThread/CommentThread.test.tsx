@@ -3,14 +3,13 @@
 // a re-submit ships drafts only, so Edit/Delete must not be offered once a
 // comment has been posted.
 import {
-  cleanup,
   fireEvent,
   render as renderBare,
   screen,
 } from "@testing-library/react";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { type ReviewComment } from "../../utils/comments";
@@ -77,10 +76,6 @@ function renderThread(status: ReviewComment["status"]) {
 }
 
 describe("CommentThread", () => {
-  // No vitest globals in this repo → testing-library does not auto-cleanup;
-  // without this, test 1's draft DOM leaks into test 2's screen queries.
-  afterEach(cleanup);
-
   it("offers Edit and Delete on a draft", () => {
     renderThread(DraftCommentStatuses.DRAFT);
     expect(screen.getByRole("button", { name: "Edit" })).toBeDefined();

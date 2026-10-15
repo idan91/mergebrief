@@ -2,9 +2,9 @@
 // The wait heading feeds the one polite live region. A screen reader speaks on
 // a DOM change, so the contract is: one text change per reason or phase
 // change, and none for a poll that returns the same state.
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { WaitReasons } from "contract";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { BriefAddressPort } from "@web/features/brief";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
@@ -15,8 +15,6 @@ const SLOT_LINE =
   "Other briefs are generating. This one starts when a slot frees up.";
 const DEBOUNCING_LINE =
   "Holding briefly in case more commits land. The brief starts generating shortly.";
-
-afterEach(cleanup);
 
 function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
   return {

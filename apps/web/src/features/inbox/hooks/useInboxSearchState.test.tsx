@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseInboxSearch } from "../search";
 import type { InboxSearch } from "../types";
@@ -11,7 +11,6 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigateMock,
 }));
 
-afterEach(cleanup);
 beforeEach(() => navigateMock.mockReset());
 
 /** What the nth navigate would write, given the URL it finds at that moment. */

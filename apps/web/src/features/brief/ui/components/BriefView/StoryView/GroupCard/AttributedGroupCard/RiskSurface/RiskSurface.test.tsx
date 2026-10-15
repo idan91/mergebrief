@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { appI18n } from "@web/i18n/I18nProvider";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Disposition } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -18,8 +18,6 @@ import {
   ReadingPositionProvider,
 } from "../../../../reading/reading-position";
 import { RiskSurface } from ".";
-
-afterEach(cleanup);
 
 const DISMISSED: Disposition = {
   kind: "dismissed",

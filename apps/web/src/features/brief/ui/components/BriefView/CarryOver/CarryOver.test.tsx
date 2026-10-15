@@ -2,21 +2,13 @@
 // The carry-over row's four states, the span it always states, and the
 // attention list's clearing affordances, driven through the real screen,
 // because the list is what replaces the row and both are one region.
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  within,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import type { ReviewSessionPayload } from "@web/features/review/session";
 import { makeSessionReadDriver } from "@web/features/review/utils";
 import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
 import { omitFields } from "@web/test/fields";
-
-afterEach(cleanup);
 
 const FLAG_ATTRIBUTE = "no-tests";
 const FLAG_FILE = "src/leak.ts";

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "@web/features/brief/model";
@@ -18,8 +18,6 @@ import { makeSessionReadDriver } from "../utils/session-read-driver";
 import { CommentAnchorKinds, DraftCommentStatuses } from "types/comments";
 import type { SessionDraftComment } from "./serverState";
 import type { SessionWriteResult } from "./writes";
-
-afterEach(cleanup);
 
 const model = buildBriefViewModel(briefFixture);
 const OK: SessionWriteResult = { ok: true, value: undefined };

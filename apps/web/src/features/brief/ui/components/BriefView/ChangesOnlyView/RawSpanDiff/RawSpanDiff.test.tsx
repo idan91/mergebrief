@@ -7,14 +7,8 @@ import {
 import { Concerns, Roles } from "brief-core/types";
 import { appI18n } from "../../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -43,8 +37,6 @@ import type { ChangesReviewWiring } from "../types";
 import { RawSpanDiff } from ".";
 import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../utils/review-posture";
-
-afterEach(cleanup);
 
 /** The span diff: its left side is the baseline, which had a log line head lacks. */
 const DIFF = [

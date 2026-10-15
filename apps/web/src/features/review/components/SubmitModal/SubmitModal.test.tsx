@@ -3,8 +3,8 @@
 // preview, live blocked-reason against the store draft, and the stale-head
 // submit ack (modal-local, resets on reopen).
 import { appI18n } from "../../../../i18n/I18nProvider";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -86,9 +86,6 @@ const ackCheckbox = () =>
   });
 
 describe("SubmitModal views", () => {
-  // No vitest globals in this repo → testing-library does not auto-cleanup.
-  afterEach(cleanup);
-
   it("defaults to the verdict view: picker, comment field, submit", () => {
     renderModal();
     expect(screen.getByRole("radio", { name: "Comment" })).toBeTruthy();
@@ -235,8 +232,6 @@ describe("SubmitModal views", () => {
 });
 
 describe("SubmitModal advisory view", () => {
-  afterEach(cleanup);
-
   const items = [
     {
       id: "flag:1",
@@ -335,8 +330,6 @@ describe("SubmitModal advisory view", () => {
 });
 
 describe("SubmitModal stale-head ack", () => {
-  afterEach(cleanup);
-
   it("renders no ack UI and submits directly when the view is current", () => {
     const { submit } = renderModal();
     expect(screen.queryByRole("checkbox")).toBeNull();

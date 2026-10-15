@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { makeReviewPosture } from "../utils/review-posture";
 import { ReviewPostureProvider, useReviewPosture } from "./useReviewPosture";
@@ -15,8 +15,6 @@ function PostureReader({ seen }: PostureReaderProps) {
 }
 
 describe("useReviewPosture", () => {
-  afterEach(cleanup);
-
   it("shows a posture change to its readers in the same render", () => {
     const seen: (string | undefined)[] = [];
     const { rerender } = render(

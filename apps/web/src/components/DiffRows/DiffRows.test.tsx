@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { DiffRows } from ".";
 import { isFullWidthDiffRow } from "./utils";
-
-afterEach(cleanup);
 
 function stubRows(): DiffLine[] {
   return [

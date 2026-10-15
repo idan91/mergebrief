@@ -40,7 +40,6 @@ afterEach(() => {
   observeCallback = undefined;
   observed.length = 0;
   resetMediaQueries();
-  vi.unstubAllGlobals();
 });
 
 interface HarnessProps {

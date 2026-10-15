@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { AuthorChip } from ".";
-
-afterEach(cleanup);
 
 describe("AuthorChip", () => {
   it("links the login to the profile with a decorative avatar", () => {

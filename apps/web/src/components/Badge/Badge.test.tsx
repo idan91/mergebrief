@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { Badge, BadgeColors } from ".";
-
-afterEach(cleanup);
 
 describe("Badge", () => {
   it("renders its label in a neutral tint by default", () => {

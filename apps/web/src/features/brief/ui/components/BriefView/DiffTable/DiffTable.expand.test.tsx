@@ -1,14 +1,8 @@
 // @vitest-environment jsdom
 import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -55,8 +49,6 @@ import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 const HEAD = "a".repeat(40);
 const SOURCE: ExpansionSource = { repoId: "repo-1", prNumber: 7, ref: HEAD };

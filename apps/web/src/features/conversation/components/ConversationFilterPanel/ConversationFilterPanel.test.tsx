@@ -4,7 +4,7 @@
 // reviewer family only. The trigger, the hidden-thread receipt and the live
 // region belong to the disclosure wrapper, not here.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_CONVERSATION_FILTER,
@@ -12,8 +12,6 @@ import {
   type ConversationFilter,
 } from "../../utils/filter";
 import { ConversationFilterPanel, type ConversationFilterPanelProps } from ".";
-
-afterEach(cleanup);
 
 const VERDICTS = [
   { state: "APPROVED", humanCount: 2, botCount: 1 },

@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { briefFixture } from "../../../../test-utils/fixtures";
 import { Provenance, type ProvenanceProps } from ".";
-
-afterEach(cleanup);
 
 const brief: Brief = {
   ...briefFixture,

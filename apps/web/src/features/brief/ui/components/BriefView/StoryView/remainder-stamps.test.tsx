@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { appI18n } from "@web/i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -26,8 +26,6 @@ import { deriveGroupSectionId } from "../utils";
 import { StoryView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
-
-afterEach(cleanup);
 
 const brief = {
   ...briefFixture,

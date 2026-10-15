@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import type { PrRef } from "brief-core/types";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
 import { StateBadge } from ".";
-
-afterEach(cleanup);
 
 const STAMPED_OPEN: PrRef = {
   repo: "octo/hello",
