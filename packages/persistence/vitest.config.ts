@@ -1,9 +1,14 @@
 import { defineConfig } from "vitest/config";
 
-import { coverageExclude, coverageReporter } from "../../vitest.shared";
+import {
+  coverageExclude,
+  coverageReporter,
+  testIsolation,
+} from "../../vitest.shared";
 
 export default defineConfig({
   test: {
+    ...testIsolation,
     // Warms the migrated-PGlite snapshot before the workers fork; see the file.
     globalSetup: ["./test/global-setup.ts"],
     coverage: {

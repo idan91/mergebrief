@@ -11,7 +11,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocalBriefsQueryOptions } from "@web/features/brief/queries";
 import { buildViewerQueryOptions } from "../account/queries";
@@ -23,7 +23,10 @@ import { buildVersionQueryOptions } from "./queries";
 import { VersionStates, type VersionState } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   cleanup();

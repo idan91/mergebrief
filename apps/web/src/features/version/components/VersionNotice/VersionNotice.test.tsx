@@ -8,7 +8,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { VersionResponse } from "contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
 import { buildVersionQueryOptions } from "../../queries";
@@ -16,7 +16,10 @@ import { NoticeSurfaces, VersionStates, type VersionState } from "../../types";
 import { VersionNotice } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   cleanup();

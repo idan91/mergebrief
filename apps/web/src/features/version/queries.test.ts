@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../data/apiFetch";
 import { buildVersionQueryOptions } from "./queries";
@@ -8,9 +8,12 @@ import { VersionStates } from "./types";
 import { resolvePollInterval } from "./utils";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
 const assign = vi.fn();
-vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+});
 
 afterEach(() => {
   fetchMock.mockReset();

@@ -1,9 +1,14 @@
 import { defineConfig } from "vitest/config";
 
-import { coverageExclude, coverageReporter } from "../../vitest.shared";
+import {
+  coverageExclude,
+  coverageReporter,
+  testIsolation,
+} from "../../vitest.shared";
 
 export default defineConfig({
   test: {
+    ...testIsolation,
     coverage: {
       // Whole-tree measurement: an untested module must count against the
       // floor. `main.ts` is argv, env and exit-code wiring, exercised through

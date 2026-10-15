@@ -22,7 +22,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildVersionQueryOptions } from "@web/features/version/queries";
@@ -40,7 +40,10 @@ import type { PrSummary } from "./types";
 // The client leg of `apiFetch` is `fetch`, stubbing it is what puts this
 // suite on the real wire path, parser included.
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 const REPO_ID = "424242";
 const PR_NUMBER = 7;

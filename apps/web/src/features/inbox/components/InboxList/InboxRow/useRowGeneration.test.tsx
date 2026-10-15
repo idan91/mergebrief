@@ -2,14 +2,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { INBOX_QUERY_ROOT, ROW_POLL_MS } from "../../../consts";
 import type { InboxItem } from "../../../types";
 import { useRowGeneration } from "./useRowGeneration";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   cleanup();

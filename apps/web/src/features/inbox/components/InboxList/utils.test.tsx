@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { ArchiveScopes } from "./types";
@@ -11,7 +11,10 @@ import {
 } from "./utils";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   fetchMock.mockReset();

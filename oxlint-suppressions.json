@@ -531,13 +531,5 @@
     "house/no-em-dash": {
       "count": 1
     }
-  },
-  "vitest.shared.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/comment-density": {
-      "count": 1
-    }
   }
 }

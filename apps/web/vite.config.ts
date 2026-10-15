@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import svgr from "vite-plugin-svgr";
 
-import { coverageExclude, coverageReporter } from "../../vitest.shared";
+import {
+  coverageExclude,
+  coverageReporter,
+  testIsolation,
+} from "../../vitest.shared";
 
 /** The deployment's own public hostname, from PUBLIC_BASE_URL; undefined
  * (→ vite's rebinding-guard defaults) when unset or unparseable. */
@@ -26,6 +30,7 @@ function previewAllowedHosts(): string[] | undefined {
 
 export default defineConfig({
   test: {
+    ...testIsolation,
     setupFiles: ["./src/test/setup.ts"],
     // The route suites render a real router under jsdom and legitimately take
     // seconds. `pnpm -r test` runs every package's workers at once, and under

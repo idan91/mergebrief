@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { RequestBounds } from "contract";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
 import { UrlBox } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   cleanup();

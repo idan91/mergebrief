@@ -1,9 +1,14 @@
 import { defineConfig } from "vitest/config";
 
-import { coverageExclude, coverageReporter } from "../../vitest.shared";
+import {
+  coverageExclude,
+  coverageReporter,
+  testIsolation,
+} from "../../vitest.shared";
 
 export default defineConfig({
   test: {
+    ...testIsolation,
     coverage: {
       // Whole-tree measurement: without an explicit `include`, vitest 4 only
       // reports files a test happened to import, so untested modules would

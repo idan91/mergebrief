@@ -17,7 +17,6 @@ import type { InboxItem } from "../../types";
 import { InboxList } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
 
 afterEach(() => {
   cleanup();
@@ -25,6 +24,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: true, addEventListener: vi.fn() })),

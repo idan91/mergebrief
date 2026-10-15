@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { InboxItem } from "../../types";
 import { useInboxPurgeFacade } from "./useInboxPurgeFacade";
@@ -10,7 +10,10 @@ const INDETERMINATE_COPY =
   "We could not confirm the attachment branch was deleted. Check the repository on GitHub.";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
   fetchMock.mockReset();

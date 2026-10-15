@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient } from "@tanstack/react-query";
 import { InboxSorts } from "types/inbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   archivePull,
@@ -15,9 +15,12 @@ import { wireInboxPageFixture as WIRE_PAGE } from "./test-utils";
 import { InboxStates } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
 const assign = vi.fn();
-vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+});
 
 afterEach(() => {
   fetchMock.mockReset();

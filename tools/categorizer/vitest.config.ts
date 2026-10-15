@@ -1,9 +1,14 @@
 import { defineConfig } from "vitest/config";
 
-import { coverageExclude, coverageReporter } from "../../vitest.shared";
+import {
+  coverageExclude,
+  coverageReporter,
+  testIsolation,
+} from "../../vitest.shared";
 
 export default defineConfig({
   test: {
+    ...testIsolation,
     coverage: {
       // `eval/cases/` and `eval/pair-cases/` are fixtures, not code, and would
       // swamp the number. `scripts/` holds one-shot live-API probes no test

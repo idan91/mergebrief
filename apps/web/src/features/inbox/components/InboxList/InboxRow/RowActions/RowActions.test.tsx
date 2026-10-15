@@ -14,7 +14,6 @@ import type { InboxItem } from "../../../../types";
 import { RowActions } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
-vi.stubGlobal("fetch", fetchMock);
 const writeText = vi.fn<(text: string) => Promise<void>>();
 const realLocation = window.location;
 
@@ -27,6 +26,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("navigator", { clipboard: { writeText } });
   vi.stubGlobal(
     "matchMedia",

@@ -1,15 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
@@ -369,13 +361,10 @@ function stripStyleHashes(html: string): string {
   return html.replace(/_([A-Za-z][\w-]*)_[0-9a-z]{6}/g, "$1");
 }
 
-// jsdom implements scrollTo as a loud not-implemented warning; the
-// virtualizer's scroll anchoring calls it on measurement changes.
-beforeAll(() => {
-  vi.stubGlobal("scrollTo", vi.fn());
-});
-
 beforeEach(() => {
+  // jsdom implements scrollTo as a loud not-implemented warning; the
+  // virtualizer's scroll anchoring calls it on measurement changes.
+  vi.stubGlobal("scrollTo", vi.fn());
   requestSnippetTokens.mockReset();
   requestSnippetTokens.mockReturnValue({
     promise: Promise.resolve({ status: ChunkTokenStatuses.PLAIN }),

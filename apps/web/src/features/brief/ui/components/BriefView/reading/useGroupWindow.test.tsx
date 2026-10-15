@@ -5,7 +5,7 @@
 // (measured heights, scroll to target) belongs to the perf specs.
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useGroupWindow, type GroupWindowOptions } from "./useGroupWindow";
 
@@ -13,7 +13,7 @@ afterEach(cleanup);
 
 // jsdom implements scrollTo as a loud not-implemented warning; the
 // virtualizer's internal scroll anchoring calls it on measurement changes.
-beforeAll(() => {
+beforeEach(() => {
   vi.stubGlobal("scrollTo", vi.fn());
 });
 
