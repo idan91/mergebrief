@@ -69,3 +69,11 @@ export type RiskOperationId =
   | typeof ProductActionIds.DISMISS_RISK
   | typeof ProductActionIds.ADDRESS_RISK
   | typeof ProductActionIds.REOPEN_RISK;
+
+/** The flags every `risk` subcommand reads. */
+export interface RiskFlags {
+  payload?: string;
+  reason?: string;
+  base?: string;
+  head?: string;
+}

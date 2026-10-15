@@ -8,6 +8,7 @@ import {
   type ResolvedProfile,
 } from "../profile/config";
 import { resolveRepoId } from "../profile/repos";
+import { recordServerVersion } from "../version";
 import type {
   CliDeps,
   CommandContext,
@@ -16,10 +17,6 @@ import type {
 } from "../types";
 
 const REPO_FULL_NAME = /^[^/\s]+\/[^/\s]+$/;
-
-/** The server version each run observed, keyed by the run's deps: one entry
- * per `runCli`, read once the command settled for the skew lines. */
-const observedServerVersions = new WeakMap<CliDeps, string>();
 
 export interface ProfileTarget {
   readonly client: ApiClient;
@@ -34,10 +31,6 @@ export function resolveCliVersion(deps: CliDeps): string {
   return deps.cliVersion ?? CLI_VERSION;
 }
 
-export function readObservedServerVersion(deps: CliDeps): string | undefined {
-  return observedServerVersions.get(deps);
-}
-
 export function createClient(
   deps: CliDeps,
   resolved: ResolvedProfile,
@@ -48,11 +41,7 @@ export function createClient(
     token: resolved.token,
     headers: resolved.profile.headers,
     cliVersion: resolveCliVersion(deps),
-    onServerVersion: (version) => {
-      if (!observedServerVersions.has(deps)) {
-        observedServerVersions.set(deps, version);
-      }
-    },
+    onServerVersion: (version) => recordServerVersion(deps, version),
   });
 }
 

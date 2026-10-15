@@ -14,6 +14,7 @@ import { LaunchForms, type LaunchForm, type Semver, type Skew } from "./types";
 
 export { NO_VERSION_WARNING_ENV, VERSION_HEADER } from "./consts";
 export type { LaunchForm, Skew } from "./types";
+export { readObservedServerVersion, recordServerVersion } from "./observed";
 
 const SEMVER_PATTERN =
   /^v?(\d{1,9})\.(\d{1,9})\.(\d{1,9})(?:\+[0-9A-Za-z.-]+)?$/;

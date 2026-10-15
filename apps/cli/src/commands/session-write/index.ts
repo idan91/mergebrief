@@ -8,6 +8,8 @@ import {
   addPayloadOption,
   addSpanOptions,
   FULL_PAYLOAD_DESCRIPTION,
+  REQUIRED_PAYLOAD_DESCRIPTION,
+  REVIEW_OUTCOME_CHOICES,
   requireSpan,
 } from "../options";
 import { parsePrNumber, resolveRepoTarget } from "../target";
@@ -21,12 +23,16 @@ import type {
   AnchorFlags,
   CreateDraftInput,
   ReanchorInput,
+  RiskFlags,
+  RiskOperationId,
   UpdateDraftInput,
 } from "./types";
 import {
   buildCreateDraftPayload,
   buildReanchorPayload,
+  buildRiskPayload,
   buildUpdateDraftPayload,
+  resolveReadFlag,
 } from "./utils";
 
 export function registerDraftCommands(
@@ -263,4 +269,175 @@ function registerDraftAttachCommand(
         await runAttach(client, { repoId, prNumber, file, draft: target }, io);
       },
     );
+}
+
+export function registerChunkReadCommand(
+  program: Command,
+  context: CommandContext,
+): void {
+  const chunkRead = program
+    .command("chunk-read")
+    .description("mark a brief chunk read (--unread clears the mark)")
+    .argument("<number>", "PR number")
+    .argument("<chunkId>", "the chunk id as the brief spells it")
+    .option("--read", "mark read (the default)")
+    .option("--unread", "clear the read mark");
+  addSpanOptions(chunkRead).action(
+    async (
+      raw: string,
+      chunkId: string,
+      options: {
+        read?: boolean;
+        unread?: boolean;
+        base?: string;
+        head?: string;
+      },
+    ) => {
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+      const read = resolveReadFlag(options.read, options.unread);
+      const id = read
+        ? ProductActionIds.MARK_CHUNK_READ
+        : ProductActionIds.MARK_CHUNK_UNREAD;
+
+      const { client, repoId, io } = await resolveRepoTarget(context);
+      await runSessionOperation(
+        client,
+        { id, params: { repoId, prNumber, chunkId }, span },
+        io,
+      );
+    },
+  );
+}
+
+function createRiskAction(
+  context: CommandContext,
+  id: RiskOperationId,
+  takesReason: boolean,
+): (raw: string, options: RiskFlags) => Promise<void> {
+  return async (raw, options) => {
+    const prNumber = parsePrNumber(raw);
+    const span = requireSpan(options.base, options.head);
+    let flagsPayload: unknown;
+    if (options.payload !== undefined) {
+      flagsPayload = await readPayload(context.deps, options.payload);
+    }
+    const payload = buildRiskPayload(
+      flagsPayload,
+      takesReason ? options.reason : undefined,
+    );
+
+    const { client, repoId, io } = await resolveRepoTarget(context);
+    await runSessionOperation(
+      client,
+      { id, params: { repoId, prNumber }, span, payload },
+      io,
+    );
+  };
+}
+
+export function registerRiskCommands(
+  program: Command,
+  context: CommandContext,
+): void {
+  const risk = program
+    .command("risk")
+    .description("disposition the brief's risk flags in your session");
+
+  const dismiss = risk
+    .command("dismiss")
+    .description("dismiss risk flags (the payload's flags array names them)")
+    .argument("<number>", "PR number");
+  addPayloadOption(dismiss, REQUIRED_PAYLOAD_DESCRIPTION).option(
+    "--reason <text>",
+    "dismissal reason (unless the payload carries one)",
+  );
+  addSpanOptions(dismiss).action(
+    createRiskAction(context, ProductActionIds.DISMISS_RISK, true),
+  );
+
+  const address = risk
+    .command("address")
+    .description("mark risk flags addressed (each flag carries its evidence)")
+    .argument("<number>", "PR number");
+  addPayloadOption(address, REQUIRED_PAYLOAD_DESCRIPTION);
+  addSpanOptions(address).action(
+    createRiskAction(context, ProductActionIds.ADDRESS_RISK, false),
+  );
+
+  const reopen = risk
+    .command("reopen")
+    .description("undo dispositions on risk flags")
+    .argument("<number>", "PR number");
+  addPayloadOption(reopen, REQUIRED_PAYLOAD_DESCRIPTION);
+  addSpanOptions(reopen).action(
+    createRiskAction(context, ProductActionIds.REOPEN_RISK, false),
+  );
+}
+
+export function registerReclassifyCommand(
+  program: Command,
+  context: CommandContext,
+): void {
+  const reclassify = program
+    .command("reclassify")
+    .description("override a change group's category in your session")
+    .argument("<number>", "PR number")
+    .argument("<groupId>", "the change group id (see `groups <n>`)")
+    .requiredOption("--category <category>", "the category to record");
+  addSpanOptions(reclassify).action(
+    async (
+      raw: string,
+      groupId: string,
+      options: { category: string; base?: string; head?: string },
+    ) => {
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+
+      const { client, repoId, io } = await resolveRepoTarget(context);
+      await runSessionOperation(
+        client,
+        {
+          id: ProductActionIds.RECLASSIFY_GROUP,
+          params: { repoId, prNumber, groupId },
+          span,
+          payload: { category: options.category },
+        },
+        io,
+      );
+    },
+  );
+}
+
+export function registerOutcomeCommand(
+  program: Command,
+  context: CommandContext,
+): void {
+  const outcomeCommand = program
+    .command("outcome")
+    .description("set your session's review intent (publishing is `submit`)")
+    .argument("<number>", "PR number")
+    .argument("<outcome>", REVIEW_OUTCOME_CHOICES);
+  addSpanOptions(outcomeCommand).action(
+    async (
+      raw: string,
+      outcome: string,
+      options: { base?: string; head?: string },
+    ) => {
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+
+      const { client, repoId, io } = await resolveRepoTarget(context);
+      await runSessionOperation(
+        client,
+        {
+          id: ProductActionIds.SET_REVIEW_OUTCOME,
+          params: { repoId, prNumber },
+          span,
+          payload: { outcome },
+        },
+        io,
+      );
+    },
+  );
 }
