@@ -9,6 +9,7 @@ import type { CommandIo } from "../types";
 import { CliError, ExitCodes } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 import { buildRequestPath } from "./request-path";
+import { isRecord } from "../utils";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields
@@ -387,10 +388,6 @@ export async function runCollaborators(
 // ---------------------------------------------------------------------------
 // Minimal TTY renderings, explicitly NON-contractual.
 // ---------------------------------------------------------------------------
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function asDisplay(value: unknown): string {
   return typeof value === "string" || typeof value === "number"

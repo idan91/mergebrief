@@ -4,11 +4,11 @@
 // (exit 6), never negotiation.
 import { ProductQueryIds, type CatalogOperation } from "contract";
 import { z } from "zod/v4";
-import type { ApiClient } from "../client";
-import { CliError, ExitCodes } from "../exit";
-import { labelArm, parseOperationsMap, type CliArm } from "./capabilities-map";
-import type { CommandIo } from "../types";
-import { buildRequestPath } from "./request-path";
+import type { ApiClient } from "../../client";
+import { CliError, ExitCodes } from "../../exit";
+import { labelArm, parseOperationsMap, type CliArm } from "./map";
+import type { CommandIo } from "../../types";
+import { buildRequestPath } from "../request-path";
 
 /**
  * The one field of each `read-capabilities` operation the join reads. The key

@@ -12,6 +12,7 @@ import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
 import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
+import { isRecord } from "../utils";
 
 // ---------------------------------------------------------------------------
 // reply
@@ -145,10 +146,6 @@ export interface SubmitInput {
 interface SubmitFlagPayload {
   outcome: string;
   body?: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 /**

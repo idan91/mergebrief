@@ -6,6 +6,7 @@ import { createI18n } from "i18n";
 import { HttpMethods, type HttpMethod, type Mutable, type Result } from "types";
 import { CliError, ExitCodes, exitCodeForStatus, type ExitCode } from "./exit";
 import { VERSION_HEADER } from "./version";
+import { isRecord } from "./utils";
 
 // One instance for the process, resources are baked in, init is sync.
 const i18n = createI18n();
@@ -74,10 +75,6 @@ export interface ApiResponse {
   readonly status: number;
   /** The VERBATIM body text, passthrough, never re-serialized. */
   readonly bodyText: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 /**

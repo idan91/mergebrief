@@ -16,7 +16,7 @@ import { CLI_VERSION } from "../src/client";
 import {
   runCapabilities,
   type CapabilitiesRunDeps,
-} from "../src/commands/capabilities";
+} from "../src/commands/capabilities/run";
 import { CliError, ExitCodes } from "../src/exit";
 import { runCli } from "../src/program";
 import type { CliDeps, CommandIo } from "../src/types";

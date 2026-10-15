@@ -14,6 +14,7 @@ import { CliError, ExitCodes } from "../exit";
 import type { BriefSpan } from "./write";
 import type { CommandIo } from "../types";
 import { buildRequestPath } from "./request-path";
+import { isRecord } from "../utils";
 
 /**
  * The server validates the bytes; the leading bytes only pick the declared
@@ -89,10 +90,6 @@ export function buildImageMarkdown(url: string): string {
 export function appendImageToBody(body: string, url: string): string {
   const line = buildImageMarkdown(url);
   return body.trim() === "" ? line : `${body.trimEnd()}\n\n${line}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function readUploadedUrl(bodyText: string): string {

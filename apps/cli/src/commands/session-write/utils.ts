@@ -13,6 +13,7 @@ import type {
   ReanchorInput,
   UpdateDraftInput,
 } from "./types";
+import { isRecord } from "../../utils";
 
 const EXCLUSIVE =
   "-F and the convenience flags are mutually exclusive: send the whole payload one way";
@@ -122,10 +123,6 @@ export function buildReanchorPayload(input: ReanchorInput): unknown {
     return input.payload;
   }
   return anchorFromFlags(input);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 /**
