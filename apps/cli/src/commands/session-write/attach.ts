@@ -9,11 +9,11 @@ import {
   type UploadAttachmentResponse,
 } from "contract";
 import { z } from "zod/v4";
-import type { ApiClient } from "../client";
-import { CliError, ExitCodes } from "../exit";
-import type { BriefSpan, CommandIo } from "../types";
-import { buildRequestPath } from "./request-path";
-import { isRecord } from "../utils";
+import type { ApiClient } from "../../client";
+import { CliError, ExitCodes } from "../../exit";
+import type { BriefSpan, CliDeps, CommandIo } from "../../types";
+import { buildRequestPath } from "../request-path";
+import { isRecord } from "../../utils";
 
 /**
  * The server validates the bytes; the leading bytes only pick the declared
@@ -79,6 +79,27 @@ export function resolveAttachmentMediaType(bytes: Uint8Array): string {
     return AttachmentMediaTypes.WEBP;
   }
   return OCTET_STREAM;
+}
+
+/** Read the image `draft attach` posts; its leading bytes name its type. */
+export function readAttachmentFile(
+  deps: CliDeps,
+  path: string,
+): AttachmentFile {
+  const readBinaryFile = deps.readBinaryFile;
+  if (readBinaryFile === undefined) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      "file input is not available in this environment",
+    );
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = readBinaryFile(path);
+  } catch {
+    throw new CliError(ExitCodes.USAGE, `could not read file: ${path}`);
+  }
+  return { bytes, mediaType: resolveAttachmentMediaType(bytes) };
 }
 
 /** The markdown line that puts the image in a comment. */

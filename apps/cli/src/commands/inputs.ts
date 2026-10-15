@@ -1,6 +1,5 @@
 import { CliError, ExitCodes } from "../exit";
 import type { CliDeps } from "../types";
-import { resolveAttachmentMediaType, type AttachmentFile } from "./attach";
 
 /** Read `-F`/`--body-file` sources: a path, or "-" for stdin. */
 export async function readSource(
@@ -60,25 +59,4 @@ export async function readBodySource(
     return (await readSource(deps, bodyFile)).replace(/\n$/, "");
   }
   throw new CliError(ExitCodes.USAGE, "a reply needs --body or --body-file");
-}
-
-/** Read the image `draft attach` posts; its leading bytes name its type. */
-export function readAttachmentFile(
-  deps: CliDeps,
-  path: string,
-): AttachmentFile {
-  const readBinaryFile = deps.readBinaryFile;
-  if (readBinaryFile === undefined) {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "file input is not available in this environment",
-    );
-  }
-  let bytes: Uint8Array;
-  try {
-    bytes = readBinaryFile(path);
-  } catch {
-    throw new CliError(ExitCodes.USAGE, `could not read file: ${path}`);
-  }
-  return { bytes, mediaType: resolveAttachmentMediaType(bytes) };
 }

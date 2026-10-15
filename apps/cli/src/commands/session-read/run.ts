@@ -5,10 +5,10 @@
 // comparison (`--baseline`/`--head`); `narrative` names a revision hop
 // (`--prev-head`/`--head`).
 import { ProductQueryIds } from "contract";
-import type { ApiClient } from "../client";
-import { CliError, ExitCodes } from "../exit";
-import { buildRequestPath } from "./request-path";
-import type { BriefSpan, CommandIo } from "../types";
+import type { ApiClient } from "../../client";
+import { CliError, ExitCodes } from "../../exit";
+import { buildRequestPath } from "../request-path";
+import type { BriefSpan, CommandIo } from "../../types";
 
 export interface ComparisonSpan {
   readonly baseline: string;

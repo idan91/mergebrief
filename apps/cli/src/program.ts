@@ -15,6 +15,13 @@ import {
 import { registerAuthCommands, registerReposCommand } from "./commands/auth";
 import { registerCapabilitiesCommand } from "./commands/capabilities";
 import {
+  registerContextCommand,
+  registerMarksCommand,
+  registerNarrativeCommand,
+  registerSessionCommand,
+} from "./commands/session-read";
+import { registerDraftCommands } from "./commands/session-write";
+import {
   registerCollaboratorsCommand,
   registerConversationCommand,
   registerDeltaCommand,
@@ -29,40 +36,22 @@ import {
   registerSubmitCommand,
   registerThreadCommands,
 } from "./commands/write";
+import { runSessionOperation } from "./commands/session-write/run";
+import type { RiskOperationId } from "./commands/session-write/types";
 import {
-  requireComparisonSpan,
-  requireNarrativeSpan,
-  runContext,
-  runMarks,
-  runNarrative,
-  runSession,
-} from "./commands/session-read";
-import {
-  buildCreateDraftPayload,
-  buildReanchorPayload,
   buildRiskPayload,
-  buildUpdateDraftPayload,
   resolveReadFlag,
-  runSessionOperation,
-  type AnchorFlags,
-  type CreateDraftInput,
-  type ReanchorInput,
-  type RiskOperationId,
-  type UpdateDraftInput,
-} from "./commands/session-write";
-import { runAttach, type AttachDraftTarget } from "./commands/attach";
+} from "./commands/session-write/utils";
 import {
   parsePrNumber,
   readObservedServerVersion,
   resolveCliVersion,
   resolveRepoTarget,
 } from "./commands/target";
-import { readAttachmentFile, readPayload } from "./commands/inputs";
+import { readPayload } from "./commands/inputs";
 import {
-  addAnchorOptions,
   addPayloadOption,
   addSpanOptions,
-  FULL_PAYLOAD_DESCRIPTION,
   REQUIRED_PAYLOAD_DESCRIPTION,
   REVIEW_OUTCOME_CHOICES,
   requireSpan,
@@ -145,321 +134,6 @@ function readGlobalOptions(program: Command): GlobalOptions {
   }
 
   return globalOptions;
-}
-
-function registerSessionCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  const session = program
-    .command("session")
-    .description("your review session on the brief span you name")
-    .argument("<number>", "PR number");
-  addSpanOptions(session).action(
-    async (raw: string, options: { base?: string; head?: string }) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSession(client, repoId, prNumber, span, io);
-    },
-  );
-}
-
-function registerMarksCommand(program: Command, context: CommandContext): void {
-  program
-    .command("marks")
-    .description(
-      "comparison marks (coordinates only) for a baseline..head span",
-    )
-    .argument("<number>", "PR number")
-    .option("--baseline <sha>", "comparison baseline (required)")
-    .option("--head <sha>", "comparison head (required)")
-    .action(
-      async (raw: string, options: { baseline?: string; head?: string }) => {
-        const prNumber = parsePrNumber(raw);
-        const span = requireComparisonSpan(options.baseline, options.head);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runMarks(client, repoId, prNumber, span, io);
-      },
-    );
-}
-
-function registerNarrativeCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  program
-    .command("narrative")
-    .description("the revision narrative for a prevHead..head hop")
-    .argument("<number>", "PR number")
-    .option("--prev-head <sha>", "prior briefed head (required)")
-    .option("--head <sha>", "revision head (required)")
-    .action(
-      async (raw: string, options: { prevHead?: string; head?: string }) => {
-        const prNumber = parsePrNumber(raw);
-        const span = requireNarrativeSpan(options.prevHead, options.head);
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runNarrative(client, repoId, prNumber, span, io);
-      },
-    );
-}
-
-function registerContextCommand(
-  program: Command,
-  context: CommandContext,
-): void {
-  const contextCommand = program
-    .command("context")
-    .description("the brief's repo-config snapshot for the span you name")
-    .argument("<number>", "PR number");
-  addSpanOptions(contextCommand).action(
-    async (raw: string, options: { base?: string; head?: string }) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runContext(client, repoId, prNumber, span, io);
-    },
-  );
-}
-
-function registerDraftCommands(
-  program: Command,
-  context: CommandContext,
-): void {
-  const draft = program
-    .command("draft")
-    .description("draft review comments in your session (posted at submit)");
-
-  registerDraftCreateCommand(draft, context);
-  registerDraftUpdateCommand(draft, context);
-  registerDraftReanchorCommand(draft, context);
-  registerDraftDeleteCommand(draft, context);
-  registerDraftAttachCommand(draft, context);
-}
-
-function registerDraftCreateCommand(
-  draft: Command,
-  context: CommandContext,
-): void {
-  const create = draft
-    .command("create")
-    .description("draft a new inline comment on the brief span you name")
-    .argument("<number>", "PR number");
-  addPayloadOption(create, FULL_PAYLOAD_DESCRIPTION);
-  addAnchorOptions(create).option("--body <text>", "comment body (flag form)");
-  addSpanOptions(create).action(
-    async (
-      raw: string,
-      options: AnchorFlags & {
-        payload?: string;
-        body?: string;
-        base?: string;
-        head?: string;
-      },
-    ) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-      const input: Mutable<CreateDraftInput> = {
-        file: options.file,
-        side: options.side,
-        startSide: options.startSide,
-        start: options.start,
-        end: options.end,
-        body: options.body,
-      };
-
-      if (options.payload !== undefined) {
-        input.payload = await readPayload(context.deps, options.payload);
-      }
-
-      const payload = buildCreateDraftPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.CREATE_DRAFT_COMMENT,
-          params: { repoId, prNumber },
-          span,
-          payload,
-        },
-        io,
-      );
-    },
-  );
-}
-
-function registerDraftUpdateCommand(
-  draft: Command,
-  context: CommandContext,
-): void {
-  const update = draft
-    .command("update")
-    .description("edit a held draft's body")
-    .argument("<number>", "PR number")
-    .argument("<draftId>", "the draft id (see `session <n>`)");
-  addPayloadOption(update, FULL_PAYLOAD_DESCRIPTION).option(
-    "--body <text>",
-    "new comment body (flag form)",
-  );
-  addSpanOptions(update).action(
-    async (
-      raw: string,
-      draftId: string,
-      options: {
-        payload?: string;
-        body?: string;
-        base?: string;
-        head?: string;
-      },
-    ) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-      const input: Mutable<UpdateDraftInput> = { body: options.body };
-
-      if (options.payload !== undefined) {
-        input.payload = await readPayload(context.deps, options.payload);
-      }
-
-      const payload = buildUpdateDraftPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.UPDATE_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-          payload,
-        },
-        io,
-      );
-    },
-  );
-}
-
-function registerDraftReanchorCommand(
-  draft: Command,
-  context: CommandContext,
-): void {
-  const reanchor = draft
-    .command("reanchor")
-    .description("move a held draft's anchor (settles a carried orphan)")
-    .argument("<number>", "PR number")
-    .argument("<draftId>", "the draft id (see `session <n>`)");
-  addPayloadOption(reanchor, FULL_PAYLOAD_DESCRIPTION);
-  addAnchorOptions(reanchor);
-  addSpanOptions(reanchor).action(
-    async (
-      raw: string,
-      draftId: string,
-      options: AnchorFlags & {
-        payload?: string;
-        base?: string;
-        head?: string;
-      },
-    ) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-      const input: Mutable<ReanchorInput> = {
-        file: options.file,
-        side: options.side,
-        startSide: options.startSide,
-        start: options.start,
-        end: options.end,
-      };
-
-      if (options.payload !== undefined) {
-        input.payload = await readPayload(context.deps, options.payload);
-      }
-
-      const payload = buildReanchorPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-          payload,
-        },
-        io,
-      );
-    },
-  );
-}
-
-function registerDraftDeleteCommand(
-  draft: Command,
-  context: CommandContext,
-): void {
-  const remove = draft
-    .command("delete")
-    .description("delete a held draft")
-    .argument("<number>", "PR number")
-    .argument("<draftId>", "the draft id (see `session <n>`)");
-  addSpanOptions(remove).action(
-    async (
-      raw: string,
-      draftId: string,
-      options: { base?: string; head?: string },
-    ) => {
-      const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
-
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.DELETE_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-        },
-        io,
-      );
-    },
-  );
-}
-
-function registerDraftAttachCommand(
-  draft: Command,
-  context: CommandContext,
-): void {
-  draft
-    .command("attach")
-    .description(
-      "upload an image to the repository's attachments branch; prints {url}",
-    )
-    .argument("<number>", "PR number")
-    .argument("<file>", "a png, jpg, gif or webp file")
-    .option(
-      "--draft <draftId>",
-      "also append the image to this held draft (needs --base and --head)",
-    )
-    .option("--base <sha>", "span base of the brief (with --draft)")
-    .option("--head <sha>", "span head of the brief (with --draft)")
-    .action(
-      async (
-        raw: string,
-        path: string,
-        options: { draft?: string; base?: string; head?: string },
-      ) => {
-        const prNumber = parsePrNumber(raw);
-        const file = readAttachmentFile(context.deps, path);
-        let target: AttachDraftTarget | undefined;
-        if (options.draft !== undefined) {
-          target = {
-            draftId: options.draft,
-            span: requireSpan(options.base, options.head),
-          };
-        }
-
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runAttach(client, { repoId, prNumber, file, draft: target }, io);
-      },
-    );
 }
 
 function registerChunkReadCommand(
