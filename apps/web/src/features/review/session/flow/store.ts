@@ -15,7 +15,7 @@ import type { ReviewSessionActions } from "../store";
 /** How long the announce clear tick holds before the message lands (two-tick
  * clear-then-set: an identical repeat still produces a DOM change, so the
  * live region re-announces and the toast hide timer restarts). */
-const ANNOUNCE_CLEAR_MS = 30;
+export const ANNOUNCE_CLEAR_MS = 30;
 
 /**
  * @description Ephemeral review-flow UI state: composer anchoring,

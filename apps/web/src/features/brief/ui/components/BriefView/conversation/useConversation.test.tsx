@@ -17,8 +17,14 @@ import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { useScrollToTarget } from "../scroll-to-target";
 import { SCROLL_FLASH_ATTR } from "../scroll-to-target/consts";
+import { WATCH_FRAMES } from "../scroll-to-target/engine/consts";
 import { useConversation } from "./useConversation";
 import type { Mutable } from "types/utils";
+
+/** vitest's faked requestAnimationFrame fires every 16ms. */
+const FAKE_FRAME_MS = 16;
+/** Outlasts every frame the scroll watch polls before it lets go. */
+const SCROLL_WATCH_MS = (WATCH_FRAMES + 1) * FAKE_FRAME_MS;
 
 afterEach(cleanup);
 
@@ -308,6 +314,7 @@ describe("useConversation, thread scroll holds the row", () => {
     for (const card of document.body.querySelectorAll("section")) {
       card.remove();
     }
+    vi.useRealTimers();
     document.documentElement.style.removeProperty("--sticky-stack-h");
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
@@ -333,6 +340,7 @@ describe("useConversation, thread scroll holds the row", () => {
   }
 
   it("scrolls to a far card on one line, watched once", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     stubScrolling();
     const card = document.createElement("section");
     card.id = "c1";
@@ -347,7 +355,7 @@ describe("useConversation, thread scroll holds the row", () => {
     await waitFor(() =>
       expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: 8770 }),
     );
-    await new Promise((resolve) => window.setTimeout(resolve, 200));
+    await act(() => vi.advanceTimersByTimeAsync(SCROLL_WATCH_MS));
     expect(scrollBy).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(card);
   });

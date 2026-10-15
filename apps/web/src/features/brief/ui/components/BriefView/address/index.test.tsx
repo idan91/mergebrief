@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCallback, useState } from "react";
 import { Button } from "@web/components/Button";
@@ -34,11 +40,17 @@ const CHANGES_SCOPE: BriefSearchParams = {
   compare: "last-review",
 };
 
+const SETTLE_MS = 50;
+
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 type Write = ["link", string | undefined] | ["focus", boolean];
 
@@ -129,7 +141,7 @@ async function selectLineTen(): Promise<void> {
 
 /** Lets any effect a write set off run, so a second write would show. */
 async function settleWrites(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await act(() => vi.advanceTimersByTimeAsync(SETTLE_MS));
 }
 
 describe("useAddress", () => {

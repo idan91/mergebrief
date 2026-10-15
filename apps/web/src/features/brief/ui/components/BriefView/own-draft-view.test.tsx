@@ -22,9 +22,10 @@ import { appI18n } from "../../../../../i18n/I18nProvider";
 const MARK_READY_COPY = {
   UPSTREAM: appI18n.t("pulls.markReady.upstream"),
 };
-import type {
-  ReviewSessionPayload,
-  SessionReadSource,
+import {
+  ANNOUNCE_CLEAR_MS,
+  type ReviewSessionPayload,
+  type SessionReadSource,
 } from "../../../../review/session";
 import { makeSessionReadDriver } from "../../../../review/utils";
 import {
@@ -43,6 +44,7 @@ import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
 afterEach(() => {
   cleanup();
   seededDrafts = [];
+  vi.useRealTimers();
 });
 
 function noop(): void {
@@ -70,6 +72,10 @@ function buildSessionPayload(): ReviewSessionPayload {
 }
 
 const CHIP_COPY = "Self-review — your draft";
+/** A three-draft batch announces once per draft plus its summary. */
+const BATCH_ANNOUNCES = 4;
+/** Long enough for every clear-then-set announce tick a batch queues. */
+const ANNOUNCE_TICKS_MS = BATCH_ANNOUNCES * ANNOUNCE_CLEAR_MS;
 
 /** The Modal wrapper's open/closed state for the overlay containing `text`. */
 function overlayState(text: string): string | undefined | null {
@@ -608,6 +614,7 @@ describe("own-draft Brief view", () => {
   });
 
   it("batch with one failure midway: posts stop and mark-ready is skipped", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
       comment("c2", "chunk-b", "draft"),
@@ -644,7 +651,7 @@ describe("own-draft Brief view", () => {
     // 30ms window, flush the failed post's drain and every pending
     // clear-then-set announce tick, then assert the summary still stands and
     // the per-comment upstream copy never took the region over.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    await act(() => vi.advanceTimersByTimeAsync(ANNOUNCE_TICKS_MS));
     expect(screen.getByText(summary)).toBeTruthy();
     expect(
       screen.queryByText(appI18n.t(POST_COMMENT_COPY_KEYS.UPSTREAM)),
@@ -733,6 +740,7 @@ describe("own-draft Brief view", () => {
   );
 
   it("batch with a guard-blocked draft states the deterministic summary", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     // A guard-path rejection (over-cap body, the deterministic-400 mirror)
     // inside a batch must not announce its blocked reason before the summary;
     // the summary carries the stop-cause.
@@ -771,7 +779,7 @@ describe("own-draft Brief view", () => {
     // region (the thread still shows it inline next to its disabled Post,
     // that adjacency is unchanged): after the drain + announce ticks settle,
     // the toast reads exactly the summary.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    await act(() => vi.advanceTimersByTimeAsync(ANNOUNCE_TICKS_MS));
     const toast = screen
       .getByText(markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"))
       .closest('[data-state="visible"]');

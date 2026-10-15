@@ -15,11 +15,14 @@ import { buildViewerQueryOptions } from "../../queries";
 import { ViewerStates, type ViewerState } from "../../types";
 import { AccountMenu } from ".";
 
+/** A press lands a couple of frames before its click. */
+const PRESS_TO_CLICK_MS = 40;
 const fetchMock = vi.fn<typeof fetch>();
 
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
+  vi.useRealTimers();
 });
 
 beforeEach(() => {
@@ -180,6 +183,7 @@ describe("AccountMenu", () => {
   });
 
   it("a row hands focus to the trigger before the panel leaves", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.stubGlobal(
       "matchMedia",
       vi.fn(() => ({ matches: false, addEventListener: vi.fn() })),
@@ -195,7 +199,7 @@ describe("AccountMenu", () => {
     // jsdom's click does not, so the press is played by hand.
     await act(async () => {
       row.focus();
-      await new Promise((resolve) => setTimeout(resolve, 40));
+      await vi.advanceTimersByTimeAsync(PRESS_TO_CLICK_MS);
     });
     await act(async () => {
       fireEvent.click(row);

@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  type QueryStatus,
+} from "@tanstack/react-query";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,6 +84,19 @@ function Probe({ item }: { item: InboxItem }) {
   return <output>{generation?.status ?? "none"}</output>;
 }
 
+/** TanStack batches observer notifications on a zero-delay timer; one queued
+ * after the cache settles fires after it, so the row has re-rendered. */
+function drainQueryNotify(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function readMetaStatus(client: QueryClient): QueryStatus | undefined {
+  return client.getQueryCache().findAll({ queryKey: ["pr-meta"] })[0]?.state
+    .status;
+}
+
 function renderProbe(item: InboxItem) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -107,13 +124,10 @@ describe("useRowGeneration", () => {
     answerMeta("succeeded");
     const { invalidate } = renderProbe(makeItem("pending"));
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status").textContent).toBe("succeeded");
-    expect(invalidate).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: [INBOX_QUERY_ROOT] });
   });
 
@@ -141,13 +155,12 @@ describe("useRowGeneration", () => {
 
   it("a terminal read older than the queued row does not outrank it", async () => {
     answerMeta("failed");
-    const { invalidate } = renderProbe(
+    const { client, invalidate } = renderProbe(
       makeItem("pending", "2026-09-20T10:10:00Z"),
     );
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    await waitFor(() => expect(readMetaStatus(client)).toBe("success"));
+    await act(() => drainQueryNotify());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status").textContent).toBe("pending");
@@ -170,8 +183,7 @@ describe("useRowGeneration", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const query = client.getQueryCache().findAll({ queryKey: ["pr-meta"] })[0];
-    expect(query?.state.status).toBe("error");
+    expect(readMetaStatus(client)).toBe("error");
     expect(invalidate).not.toHaveBeenCalled();
     expect(screen.getByRole("status").textContent).toBe("pending");
   });
