@@ -20,7 +20,12 @@ import {
 } from "../src/types";
 import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase } from "./helpers";
+import {
+  brandWith,
+  freshDatabase,
+  writeGenerationUpdatedAt,
+  writePullRequestUpdatedAt,
+} from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -30,6 +35,9 @@ const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
 const ORIGIN = { provider: "anthropic", model: "claude", effort: "high" };
+const OLDER = new Date("2026-01-01T00:00:00Z");
+const NEWER = new Date("2026-01-01T00:01:00Z");
+const NEWEST = new Date("2026-01-01T00:02:00Z");
 
 describe("pull_request title persistence", () => {
   it("round-trips title on upsert and refreshes it on conflict", async () => {
@@ -93,20 +101,22 @@ describe("pullRequests.listForRepos", () => {
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
-    // Tenant A: two PRs in repo 1 (distinct updated_at), one in repo 2.
-    await a.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      title: "a-r1-p1",
-      state: PrStates.OPEN,
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await a.pullRequests.upsert({
+    // Tenant A: two PRs in repo 1, one in repo 2. The newer row is inserted
+    // first, so only updated_at, never the id tiebreak, can put it first.
+    const newer = await a.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 2,
       title: "a-r1-p2",
       state: PrStates.OPEN,
     });
+    const older = await a.pullRequests.upsert({
+      repoId: REPO_1,
+      prNumber: 1,
+      title: "a-r1-p1",
+      state: PrStates.OPEN,
+    });
+    await writePullRequestUpdatedAt(handle, older.id, OLDER);
+    await writePullRequestUpdatedAt(handle, newer.id, NEWER);
     await a.pullRequests.upsert({
       repoId: REPO_2,
       prNumber: 3,
@@ -470,27 +480,27 @@ describe("generation.latestBriefForPullRequests", () => {
       state: PrStates.OPEN,
     });
 
-    await gen.upsertPending({
+    const firstBrief = {
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertPending({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-2",
-      baselineSha: null,
-    });
-    // A newer DELTA row must not shadow the brief-kind projection.
-    await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertPending({
+    } as const;
+    const secondBrief = { ...firstBrief, headSha: "head-2" } as const;
+    const delta = {
       pullRequestId: pr.id,
       kind: GenerationKinds.DELTA,
       headSha: "head-2",
       baselineSha: "cp",
-    });
+    } as const;
+    // Inserted newest-first so the id tiebreak alone would pick firstBrief.
+    await gen.upsertPending(secondBrief);
+    await gen.upsertPending(firstBrief);
+    await gen.upsertPending(delta);
+    await writeGenerationUpdatedAt(handle, firstBrief, OLDER);
+    await writeGenerationUpdatedAt(handle, secondBrief, NEWER);
+    // A newer DELTA row must not shadow the brief-kind projection.
+    await writeGenerationUpdatedAt(handle, delta, NEWEST);
 
     const latest = await gen.latestBriefForPullRequests([pr.id]);
     const row = latest.get(pr.id);

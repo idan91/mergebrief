@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { expect, onTestFinished } from "vitest";
 import { type AppDatabase, fromDrizzle, internal } from "../src/db/handle";
@@ -15,9 +15,11 @@ import {
   closeDb,
   createDb,
   ensureAppSchema,
+  type GenerationTarget,
   type TenantContext,
 } from "../src/index";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
+import type { PgliteHarness } from "../src/testing";
 import { generation } from "../src/schema/generation";
 import { generationAttempt } from "../src/schema/generation-attempt";
 import { pullRequest } from "../src/schema/pull-request";
@@ -109,6 +111,46 @@ export async function deleteTenantRows(
 
 export function waitMs(ms: number): Promise<WaitOutcome> {
   return new Promise((resolve) => setTimeout(() => resolve("timer"), ms));
+}
+
+/** Stamp a pull request's `updated_at`, so an ordering never waits on the clock. */
+export async function writePullRequestUpdatedAt(
+  handle: AppDatabase,
+  id: PullRequestRowId,
+  at: Date,
+): Promise<void> {
+  await internal(handle)
+    .update(pullRequest)
+    .set({ updatedAt: at })
+    .where(eq(pullRequest.id, id));
+}
+
+/** Stamp one projection row's `updated_at`, picked by its natural key. */
+export async function writeGenerationUpdatedAt(
+  handle: AppDatabase,
+  target: Pick<GenerationTarget, "pullRequestId" | "kind" | "headSha">,
+  at: Date,
+): Promise<void> {
+  const naturalKey = and(
+    eq(generation.pullRequestId, target.pullRequestId),
+    eq(generation.kind, target.kind),
+    eq(generation.headSha, target.headSha),
+  );
+
+  await internal(handle)
+    .update(generation)
+    .set({ updatedAt: at })
+    .where(naturalKey);
+}
+
+/** Stamp every queued job's `run_at`, so a later trigger that moved it shows. */
+export async function writeJobRunAt(
+  harness: PgliteHarness,
+  at: Date,
+): Promise<void> {
+  await harness.raw("update graphile_worker.jobs set run_at = $1", [
+    at.toISOString(),
+  ]);
 }
 
 /**

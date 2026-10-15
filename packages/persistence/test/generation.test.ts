@@ -36,6 +36,7 @@ import {
   freshPglite,
   makeBriefTarget,
   readCheckValues,
+  writeGenerationUpdatedAt,
 } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -43,6 +44,8 @@ const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
 const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
+const STALE_WRITTEN_AT = new Date("2026-01-01T00:00:00Z");
+const SUCCEEDED_AT = new Date("2026-01-01T00:01:00Z");
 
 describe("createGenerationProjection status transitions", () => {
   it("pending → running → succeeded, attempts stable, one row", async () => {
@@ -415,8 +418,9 @@ describe("createGenerationProjection status transitions", () => {
     await gen.upsertPending(stale);
     await gen.upsertPending(current);
     await succeedTestRun(gen, current);
-    // The sweep's updated_at must be strictly newer than the success's.
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    // Both rows predate the pickup, so the sweep's write is the newest.
+    await writeGenerationUpdatedAt(handle, stale, STALE_WRITTEN_AT);
+    await writeGenerationUpdatedAt(handle, current, SUCCEEDED_AT);
     const pickedUpAt = new Date();
     expect(await gen.supersedeStaleBriefs(pr.id, "new-head", pickedUpAt)).toBe(
       1,

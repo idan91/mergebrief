@@ -36,11 +36,13 @@ import {
   GenerationStatuses,
 } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { brandWith } from "./helpers";
+import { brandWith, writeJobRunAt } from "./helpers";
 
 const CTX = parseTenantContext({ installationId: 100n });
 const REPO_ID = brandWith(isRepoId, 200n);
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
+/** A `run_at` no trigger computes, so one that moved it cannot match. */
+const PINNED_RUN_AT = new Date("2026-01-01T00:00:00Z");
 
 function unwrap<T, E>(result: Result<T, E>): T {
   if (!result.ok) {
@@ -209,13 +211,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
   it("redelivery increments attempts and keeps the one job's run_at", async () => {
     const first = unwrap(await trigger());
-    const firstJobs = await harness.raw(
-      "select run_at from graphile_worker.jobs",
-    );
-    const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
-
-    // Let the clock move so the replaced run_at is strictly later.
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await writeJobRunAt(harness, PINNED_RUN_AT);
 
     const second = unwrap(await trigger());
 
@@ -236,16 +232,12 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     // Leading-edge debounce: the first trigger fixed run_at for good.
     expect(jobs[0]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
-    expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
+    expect(epochMs(jobs[0]?.["run_at"])).toBe(PINNED_RUN_AT.getTime());
   });
 
   it("a later push keeps the first run_at and carries the new head", async () => {
     const first = unwrap(await trigger({ headSha: "a".repeat(40) }));
-    const firstJobs = await harness.raw(
-      "select run_at from graphile_worker.jobs",
-    );
-    const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await writeJobRunAt(harness, PINNED_RUN_AT);
 
     unwrap(await trigger({ headSha: "b".repeat(40) }));
 
@@ -253,7 +245,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       "select payload, run_at from graphile_worker.jobs",
     );
     expect(jobs).toHaveLength(1);
-    expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
+    expect(epochMs(jobs[0]?.["run_at"])).toBe(PINNED_RUN_AT.getTime());
     expect(jobs[0]?.["payload"]).toMatchObject({
       pull_request_id: String(first.pullRequest.id),
       head_sha: "b".repeat(40),
@@ -1083,10 +1075,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         }),
       );
       await harness.raw("update graphile_worker.jobs set locked_at = now()");
-      const before = await harness.raw(
-        "select run_at from graphile_worker.jobs",
-      );
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      await writeJobRunAt(harness, PINNED_RUN_AT);
 
       const held = unwrap(
         await trigger({
@@ -1103,7 +1092,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       );
       expect(jobs).toHaveLength(1);
       expect(jobs[0]?.["locked_at"]).not.toBeNull();
-      expect(epochMs(jobs[0]?.["run_at"])).toBe(epochMs(before[0]?.["run_at"]));
+      expect(epochMs(jobs[0]?.["run_at"])).toBe(PINNED_RUN_AT.getTime());
     });
 
     it("a ready flip queues and leaves the entry comment to the worker", async () => {
