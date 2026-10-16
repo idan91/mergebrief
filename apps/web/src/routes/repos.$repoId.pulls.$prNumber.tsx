@@ -8,6 +8,7 @@ import {
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
+import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { useBriefAddress } from "@web/features/brief";
 import {
   resolveDbTimeline,
@@ -56,7 +57,7 @@ function mapLoaderError(error: unknown): never {
   // A signed-out session stays signed out: only a live session GitHub
   // refused goes back through sign-in.
   if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
-    throw redirect({ href: "/api/auth/github" });
+    throw redirect({ href: SIGN_IN_PATH });
   }
   if (isNotFoundError(error)) {
     throw notFound();

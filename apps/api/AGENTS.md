@@ -16,7 +16,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **Idempotency is inherent, not bolted on.** Natural-key upserts + `job_key = generate:{pull_request_id}` with replace semantics make redelivery safe; do not add dedup state here.
 - **Deps are injected.** `createApp({ handle, webhookSecret })` — nothing in this package reads `process.env` or constructs a database; composition roots do.
 - **The update check is anonymous.** `src/update-check` fetches the release manifest with a bare GET and the runtime's default User-Agent, nothing about the instance in the request; a `dev` or `0.0.0` `SERVER_VERSION` and `MERGEBRIEF_UPDATE_CHECK=false` never fetch. Composition injects `fetch`; the module never reads env.
-- **Errors:** expected failures throw `ApiError` subclasses (sanitized 401/400 bodies via `onError`); unexpected throws map to a sanitized 500 (internals go to the log, never the response). No secrets/tokens in messages or responses.
+- **Errors:** expected failures throw `ApiError` subclasses (sanitized 401/400 bodies via `onError`); unexpected throws map to a sanitized 500 (internals go to the log, never the response). No secrets/tokens in messages or responses. The OAuth callback is the exception: a browser navigation, so every failure redirects home with `SIGN_IN_FAILURE_PARAM` instead of an error body, and a cancel on GitHub redirects to plain `/`.
 
 ## Wire error contract (enforced, don't weaken)
 

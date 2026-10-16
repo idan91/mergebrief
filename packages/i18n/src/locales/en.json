@@ -1420,6 +1420,8 @@
       "heading": "Understand a pull request before you review it",
       "copy": "MergeBrief reads the diff and hands you a brief: the changes grouped by what they are for, the places that deserve a closer look, and a receipt of what you checked.",
       "signIn": "Sign in with GitHub",
+      "signInFailed": "Signing in didn't complete. Try again.",
+      "githubUnavailable": "GitHub couldn't be reached. Try signing in again in a moment.",
       "pictureAlt": "A brief open in MergeBrief: a change-group with its risk surface on the left and the list of change-groups for the pull request on the right"
     },
     "shortcuts": {

@@ -1,4 +1,3 @@
-// Browser-only: `apiFetch`'s client branch is the one caller.
 export const SIGN_IN_PATH = "/api/auth/github";
 
 const SIGN_IN_REQUESTED_KEY = "mergebrief.signInRequestedAt";
@@ -35,9 +34,9 @@ function writeRequestedAt(requestedAt: number): void {
 
 /**
  * Sends the browser to GitHub sign-in, once per cooldown across the browser's
- * tabs: the API keeps one OAuth state cookie per host, so a second tab
- * starting its own flow would fail the first one's callback. A burst of
- * refusals leaves once, and a refusal right after a sign-in never loops.
+ * tabs, so a burst of refusals leaves once and a refusal right after a
+ * sign-in never loops. Browser-only: `apiFetch`'s client branch is the one
+ * caller.
  */
 export function requestSignIn(): void {
   const now = Date.now();

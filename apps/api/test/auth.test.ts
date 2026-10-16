@@ -44,6 +44,8 @@ import { AccessLevels } from "types/access-levels";
 // GitHub token plaintexts the stub hands back, asserted ABSENT from responses.
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
+/** The route mints its CSRF state from this many random bytes. */
+const OAUTH_STATE_BYTES = 32;
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch).
@@ -86,6 +88,7 @@ interface StubOptions {
   readonly token: TokenBody;
   readonly installations?: { id: number }[];
   readonly user?: { id: number; login: string };
+  readonly userStatus?: number;
 }
 
 /** Install a fetch stub answering the three GitHub endpoints the flow hits. */
@@ -98,6 +101,11 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
       const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         return jsonResponse(opts.token);
+      }
+      const userReadFails =
+        url.endsWith("/user") && opts.userStatus !== undefined;
+      if (userReadFails) {
+        return jsonResponse({ message: "unavailable" }, opts.userStatus);
       }
       if (url.endsWith("/user")) {
         return jsonResponse(opts.user ?? { id: REVIEWER_ID, login: "octocat" });
@@ -178,22 +186,62 @@ describe("reviewer auth routes", () => {
     expect(setCookie).not.toContain("Domain=");
   });
 
-  it("callback with a mismatched state → 400 and clears the state cookie", async () => {
+  it("a mismatched callback lands on sign-in-failed and keeps the state", async () => {
     const res = await app.request(
       "/api/auth/github/callback?code=abc&state=aaaa",
       {
         headers: { Cookie: "__Host-mergebrief_oauth_state=bbbb" },
       },
     );
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { code?: string }).code).toBe(
-      "sign-in-failed",
-    );
-    const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie.startsWith("__Host-mergebrief_oauth_state=")).toBe(true);
-    expect(setCookie).toContain("Secure");
-    expect(setCookie).toMatch(/Max-Age=0/i);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?error=sign-in-failed");
+    expect(res.headers.get("set-cookie")).toBeNull();
     expect(await countRows(harness, "auth_session")).toBe(0);
+  });
+
+  it("a second start reuses the in-flight state and restarts its TTL", async () => {
+    const inFlight = randomBytes(OAUTH_STATE_BYTES).toString("base64url");
+
+    const res = await app.request("/api/auth/github", {
+      headers: { Cookie: `__Host-mergebrief_oauth_state=${inFlight}` },
+    });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.get("location") ?? "");
+    expect(location.searchParams.get("state")).toBe(inFlight);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(
+      setCookie.startsWith(`__Host-mergebrief_oauth_state=${inFlight};`),
+    ).toBe(true);
+    expect(setCookie).toContain("Max-Age=600");
+  });
+
+  it("callback lands home with github-unavailable when the user read fails", async () => {
+    stubGitHub({
+      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      userStatus: 401,
+    });
+    const state = "state-user-read-fails";
+
+    const res = await app.request(
+      `/api/auth/github/callback?code=thecode&state=${state}`,
+      { headers: { Cookie: `__Host-mergebrief_oauth_state=${state}` } },
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?error=github-unavailable");
+    expect(await countRows(harness, "auth_session")).toBe(0);
+  });
+
+  it("a sign-in cancelled on GitHub lands home and keeps the state", async () => {
+    const res = await app.request(
+      "/api/auth/github/callback?error=access_denied&state=aaaa",
+      { headers: { Cookie: "__Host-mergebrief_oauth_state=aaaa" } },
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
   it("stores both ciphertexts, refresh expiry and the session cookie", async () => {
@@ -219,6 +267,10 @@ describe("reviewer auth routes", () => {
         .find((cookie) => cookie.startsWith("__Host-mergebrief_session=")) ??
       "";
     expect(sessionCookie).not.toBe("");
+    const stateClear = res.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith("__Host-mergebrief_oauth_state="));
+    expect(stateClear).toMatch(/Max-Age=0/i);
     expect(sessionCookie).toContain("HttpOnly");
     expect(sessionCookie).toContain("Secure");
     expect(sessionCookie).toContain("SameSite=Lax");

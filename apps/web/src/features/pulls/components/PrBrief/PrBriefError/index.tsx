@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
 import { EmptyBlock } from "@web/components/EmptyBlock";
+import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { prBriefErrorDetail } from "@web/features/brief/model";
 import { prBriefErrorNeedsSignIn } from "./utils";
 
@@ -15,7 +16,7 @@ export function PrBriefError({ error }: PrBriefErrorProps) {
   // message embeds the request path.
   const detail = prBriefErrorDetail(t, error);
   const action = prBriefErrorNeedsSignIn(error) ? (
-    <Button as="a" href="/api/auth/github" variant="accent">
+    <Button as="a" href={SIGN_IN_PATH} variant="accent">
       {t("pulls.errorBoundary.signIn")}
     </Button>
   ) : undefined;

@@ -6,6 +6,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { Menu } from "@web/components/Menu";
+import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { useVersionPresence } from "@web/features/version";
 import { ViewerStates } from "../../types";
 import { SignOutModal } from "./SignOutModal";
@@ -17,8 +18,6 @@ export interface AccountMenuProps {
   /** Present where a shortcuts modal exists; the row is omitted otherwise. */
   onOpenShortcuts?: (() => void) | undefined;
 }
-
-const SIGN_IN_PATH = "/api/auth/github";
 
 /**
  * The person-anchored menu at the end of a Header: who is signed in,

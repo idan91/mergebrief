@@ -146,6 +146,11 @@ export type {
   SetReviewOutcomeResponse,
   UpdateDraftCommentBody,
 } from "./session";
+export {
+  SIGN_IN_FAILURE_PARAM,
+  SignInFailures,
+  type SignInFailure,
+} from "./sign-in";
 export type {
   ForkPrStackView,
   LinearPrStackView,

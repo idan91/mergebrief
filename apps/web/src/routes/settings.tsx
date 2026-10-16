@@ -11,6 +11,7 @@ import {
 import type { ReactNode } from "react";
 
 import { FailureBlock } from "@web/components/FailureBlock";
+import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { TokenSettings } from "@web/features/tokens";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";
@@ -81,7 +82,7 @@ function SettingsPage() {
     <p className={styles["signedOut"]}>
       <Trans
         components={[
-          <a href="/api/auth/github" key="signIn">
+          <a href={SIGN_IN_PATH} key="signIn">
             {t("shell.signInWithGithub")}
           </a>,
         ]}

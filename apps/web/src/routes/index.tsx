@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters } from "types/inbox";
@@ -54,16 +54,20 @@ export const Route = createFileRoute("/")({
   // The list's state is the URL: unknown values drop, defaults are omitted.
   validateSearch: (search: Record<string, unknown>): InboxSearch =>
     parseInboxSearch(search),
-  loaderDeps: ({ search }) => readInboxParams(search),
+  loaderDeps: ({ search }) => ({
+    inbox: readInboxParams(search),
+    signInFailure: search.error,
+  }),
   // The Inbox and the viewer prefetch in parallel through the in-process
   // apiFetch interface, the same authz gate the browser meets.
   loader: async ({ context, deps }) => {
     // The server render fails fast; the client's own refetch keeps the retries.
+    const inboxPrefetch = context.queryClient.ensureQueryData({
+      ...buildInboxQueryOptions(deps.inbox),
+      retry: false,
+    });
     const prefetches: Promise<unknown>[] = [
-      context.queryClient.ensureQueryData({
-        ...buildInboxQueryOptions(deps),
-        retry: false,
-      }),
+      inboxPrefetch,
       context.queryClient
         .ensureQueryData({ ...buildViewerQueryOptions(), retry: false })
         .catch(() => undefined),
@@ -80,7 +84,7 @@ export const Route = createFileRoute("/")({
     if (!import.meta.env.PROD) {
       prefetches.push(
         context.queryClient
-          .ensureQueryData(buildInboxQueryOptions(deps))
+          .ensureQueryData(buildInboxQueryOptions(deps.inbox))
           .then((inbox) =>
             inbox.kind === InboxStates.READY
               ? context.queryClient.ensureQueryData(
@@ -92,6 +96,19 @@ export const Route = createFileRoute("/")({
       );
     }
     await Promise.all(prefetches);
+
+    // The reason renders only signed out; anywhere else it drops from the address.
+    const signedOut = (await inboxPrefetch).kind === InboxStates.SIGNED_OUT;
+    const failureOutlivedSignIn =
+      deps.signInFailure !== undefined && !signedOut;
+    if (failureOutlivedSignIn) {
+      throw redirect({
+        to: "/",
+        search: (previous) =>
+          parseInboxSearch({ ...previous, error: undefined }),
+        replace: true,
+      });
+    }
   },
   head: () => {
     const pageName = appI18n.t("shell.pageTitle.home");
@@ -113,7 +130,7 @@ function Home() {
 
   let content: ReactNode;
   if (state.kind === InboxStates.SIGNED_OUT) {
-    content = <SignedOutHome />;
+    content = <SignedOutHome failure={search.error} />;
   } else if (state.kind === InboxStates.FAILED) {
     content = (
       <div className={styles["lead"]}>

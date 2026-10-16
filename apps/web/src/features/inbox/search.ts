@@ -1,4 +1,8 @@
-import { InboxQueryBounds } from "contract";
+import {
+  InboxQueryBounds,
+  SIGN_IN_FAILURE_PARAM,
+  SignInFailures,
+} from "contract";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
@@ -123,6 +127,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   const author = readOne(search["author"], InboxAuthorFilters);
   const installations = readIds(search["installation"]);
   const archived = readOne(search["archived"], InboxArchivedFilters);
+  const error = readOne(search[SIGN_IN_FAILURE_PARAM], SignInFailures);
 
   if (page !== undefined) {
     parsed.page = page;
@@ -150,6 +155,9 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   }
   if (archived !== undefined && archived !== InboxArchivedFilters.HIDE) {
     parsed.archived = archived;
+  }
+  if (error !== undefined) {
+    parsed.error = error;
   }
   return parsed;
 }

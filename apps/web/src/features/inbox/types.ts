@@ -11,6 +11,7 @@ import type {
   ValueOf,
 } from "types";
 
+import type { SignInFailure } from "contract";
 import type { ApiErrorCode } from "../../data/apiFetch";
 import { WriteFailureKinds } from "../../data/request/types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
@@ -163,6 +164,8 @@ export interface InboxSearch {
   readonly author?: InboxAuthorFilter;
   readonly installation?: string;
   readonly archived?: InboxArchivedFilter;
+  /** Why the last sign-in failed; only a signed-out Home carries it. */
+  readonly error?: SignInFailure;
 }
 
 /** A change to the URL's state; an explicit `undefined` unsets a key. */

@@ -32,3 +32,11 @@ test("signed out shows the pitch, the picture and Sign in, never the URL box", a
   await expectNoSeriousAxeViolations(page, testInfo, "home-signed-out");
   expect(faults).toEqual([]);
 });
+
+test("a failed sign-in says so above Sign in", async ({ page }) => {
+  await page.goto("/?error=sign-in-failed");
+
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Signing in didn't complete. Try again.",
+  );
+});
