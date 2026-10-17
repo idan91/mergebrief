@@ -1,6 +1,5 @@
-// `comparison_marks` — mechanical changed-line sidecar per comparison span.
-// Coordinates-only, never line content — NOT code-bearing, so no
-// `persist_baseline_snapshot` gate. Reviewer-agnostic by construction:
+// `comparison_marks`: the mechanical changed-line sidecar per comparison span.
+// Coordinates-only, never line content, so NOT code-bearing. Reviewer-agnostic:
 // `baseline_sha` may be a prevHead OR a checkpoint SHA; the marks are a pure
 // function of the pair.
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";

@@ -18,8 +18,6 @@ import { checkDsnTls } from "./tls";
 export interface PersistenceConfig {
   /** Postgres connection URL (`pg` driver, one pool for data + queue). */
   readonly databaseUrl: string;
-  /** Persist the `base->checkpoint` baseline snapshot. Self-host: ON. */
-  readonly persistBaselineSnapshot: boolean;
   /** Keep purgeable display-name columns populated. Self-host: ON. */
   readonly storeDisplayNames: boolean;
   /** Apply migrations at boot (default) vs check-only refusal, the posture
@@ -140,7 +138,6 @@ function isPostgresUrl(value: string): boolean {
 
 const ConfigSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
-  PERSIST_BASELINE_SNAPSHOT: envBool(true),
   STORE_DISPLAY_NAMES: envBool(true),
   MERGEBRIEF_AUTO_MIGRATE: envBool(true),
   AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
@@ -210,7 +207,6 @@ export function loadConfig(
     ok: true,
     value: {
       databaseUrl: parsed.data.DATABASE_URL,
-      persistBaselineSnapshot: parsed.data.PERSIST_BASELINE_SNAPSHOT,
       storeDisplayNames: parsed.data.STORE_DISPLAY_NAMES,
       autoMigrate: parsed.data.MERGEBRIEF_AUTO_MIGRATE,
       auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,

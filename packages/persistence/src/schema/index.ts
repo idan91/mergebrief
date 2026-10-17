@@ -7,7 +7,6 @@ export { brief } from "./brief";
 export { checkpoint } from "./checkpoint";
 export { comparisonMarks } from "./comparison-marks";
 export { delta } from "./delta";
-export { diffSnapshot } from "./diff-snapshot";
 export { disposition } from "./disposition";
 export { generation } from "./generation";
 export { generationAttempt } from "./generation-attempt";

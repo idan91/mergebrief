@@ -12,7 +12,6 @@ import {
   checkpoint,
   comparisonMarks,
   delta,
-  diffSnapshot,
   disposition,
   generation,
   githubGrant,
@@ -146,13 +145,6 @@ async function seedFullGraph(
     ...artifact('{"delta":true}'),
   });
 
-  await db.insert(diffSnapshot).values({
-    installationId: INSTALLATION,
-    pullRequestId,
-    sha: CHECKPOINT_SHA,
-    ...artifact("diff --git a/x b/x"),
-  });
-
   await db.insert(revisionNarrative).values({
     installationId: INSTALLATION,
     pullRequestId,
@@ -262,7 +254,6 @@ const M1_TABLES = [
   "checkpoint",
   "comparison_marks",
   "delta",
-  "diff_snapshot",
   "disposition",
   "generation",
   "generation_attempt",
@@ -363,9 +354,6 @@ describe("M1 schema migrations", () => {
 
     expect(await db.select({ id: brief.id }).from(brief)).toHaveLength(0);
     expect(await db.select({ id: delta.id }).from(delta)).toHaveLength(0);
-    expect(
-      await db.select({ id: diffSnapshot.id }).from(diffSnapshot),
-    ).toHaveLength(0);
     expect(
       await db.select({ id: revisionNarrative.id }).from(revisionNarrative),
     ).toHaveLength(0);

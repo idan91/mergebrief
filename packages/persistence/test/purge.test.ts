@@ -1,5 +1,5 @@
 // Purge and retention tests over PGlite, proving the deletion boundary: a PR
-// purge cascades the 8 child tables while sparing the no-FK audit ledger and
+// purge cascades the 7 child tables while sparing the no-FK audit ledger and
 // auth_session, a cross-tenant purge deletes nothing, and the instance-wide
 // retention sweep reads only the close time. Seeds go through a RAW drizzle
 // handle over the same PGlite.
@@ -15,7 +15,6 @@ import {
   checkpoint,
   comparisonMarks,
   delta,
-  diffSnapshot,
   disposition,
   generation,
   githubGrant,
@@ -219,12 +218,6 @@ async function seedFullGraph(
     ...ORIGIN,
     ...artifact('{"delta":true}'),
   });
-  await db.insert(diffSnapshot).values({
-    installationId,
-    pullRequestId,
-    sha: CHECKPOINT_SHA,
-    ...artifact("diff --git a/x b/x"),
-  });
   await db.insert(revisionNarrative).values({
     installationId,
     pullRequestId,
@@ -288,14 +281,7 @@ async function countChildTables(
   db: Db,
   pullRequestId: PullRequestRowId,
 ): Promise<number> {
-  const tables = [
-    brief,
-    delta,
-    diffSnapshot,
-    revisionNarrative,
-    comparisonMarks,
-    hunkSpan,
-  ];
+  const tables = [brief, delta, revisionNarrative, comparisonMarks, hunkSpan];
   let total = 0;
   for (const table of tables) {
     const rows = await db
@@ -371,8 +357,8 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
     await seedFullGraph(pair.raw, TENANT_A, prId);
   });
 
-  it("erases the 8 per-PR child tables and spares audit_log and auth_session", async () => {
-    expect(await countChildTables(pair.raw, prId)).toBe(8);
+  it("erases the 7 per-PR child tables and spares audit_log and auth_session", async () => {
+    expect(await countChildTables(pair.raw, prId)).toBe(7);
     expect(await countSessionTables(pair.raw, TENANT_A)).toBe(6);
 
     const result = await createPurgeRoutines(
@@ -440,7 +426,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
     expect(result).toBe(false);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
-    expect(await countChildTables(pair.raw, prId)).toBe(8);
+    expect(await countChildTables(pair.raw, prId)).toBe(7);
     expect(
       await pair.raw.select({ id: pullRequest.id }).from(pullRequest),
     ).toHaveLength(1);
@@ -533,7 +519,7 @@ describe("createPurgeRoutines.purgeInstallation, tenant-isolated offboarding", (
     ).toHaveLength(3);
 
     // Tenant B's child graph is intact; A's Review Session graph is gone.
-    expect(await countChildTables(raw, bPr)).toBe(8);
+    expect(await countChildTables(raw, bPr)).toBe(7);
     expect(await countSessionTables(raw, TENANT_A)).toBe(0);
     expect(await countSessionTables(raw, TENANT_B)).toBe(6);
 
@@ -622,7 +608,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
       closedAt: PAST_WINDOW,
     });
     await seedFullGraph(raw, TENANT_A, swept);
-    expect(await countChildTables(raw, swept)).toBe(8);
+    expect(await countChildTables(raw, swept)).toBe(7);
 
     expect(
       await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),

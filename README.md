@@ -146,10 +146,7 @@ telemetry. What it stores is deliberately minimal:
 
 - **Stored:** generated Briefs and revision summaries (descriptions *of* your code), review
   positions (which commit each reviewer last reviewed), and encrypted login sessions.
-- **Not stored:** your code. Diffs are fetched live from GitHub per session and thrown away —
-  with one documented, configurable exception (a baseline diff snapshot that keeps
-  re-review comparisons working after a force-push; `PERSIST_BASELINE_SNAPSHOT`, on by
-  default for self-host, off if you want strictly nothing code-shaped at rest).
+- **Not stored:** your code. Diffs are fetched live from GitHub per session and thrown away.
 - **Also not stored:** comment text (comments live on GitHub), emails, or IP addresses.
 
 **Forgetting is built in, and it's your policy, not ours.** GitHub stays the source of truth,

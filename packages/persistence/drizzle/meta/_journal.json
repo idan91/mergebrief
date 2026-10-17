@@ -400,6 +400,13 @@
       "when": 1792198657575,
       "tag": "0057_pr-retention-by-closed-at",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792234806174,
+      "tag": "0058_drop-diff-snapshot",
+      "breakpoints": true
     }
   ]
 }

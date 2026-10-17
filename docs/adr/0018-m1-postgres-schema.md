@@ -81,6 +81,8 @@ Two diffs, two lifetimes — this is how "no raw code in the DB" (ADR 0016 #10) 
 - **DiffSnapshot** keyed `(installation_id, repo_id, pr_number, sha)` where `sha` = a **checkpoint** SHA; TEXT passthrough; written **only at submit**, never per-push, never for head-side diffs. M1 retention is coarse (retain for PR life, sweep on close + grace — ADR 0015 #5); no ref-counting, so the snapshot survives the PR without pinning logic.
 - **No commit-list snapshot.** The delta is a **tree diff, not commit replay** (ADR 0006 #5) — commit SHAs lie on a pure rebase (all-new SHAs, identical tree → a false delta). Force-push *detection* uses the webhook `before`/`after` ancestry (free, per-event); commit count/range for display is ADR 0012's `commitRange`.
 
+  **Amended 2026-10-17 (BRIEF-335).** The baseline snapshot was never built: no code wrote or read `diff_snapshot`, and `PERSIST_BASELINE_SNAPSHOT` gated nothing. Both are removed (migration 0058), so every instance runs the OFF posture above: a checkpoint span GitHub can no longer serve gets no delta, and the view falls back to the full Brief. Nothing code-bearing is stored. Building the snapshot later is a new table and a new decision. The text above stays as history.
+
 ### D5 — `pull_request` aggregate root
 
 A single **mutable** `pull_request` row is the parent of all (immutable) per-PR artifacts:

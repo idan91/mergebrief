@@ -32,10 +32,9 @@ function err(result: Result<PersistenceConfig, ConfigError>): ConfigError {
 }
 
 describe("config: loadConfig", () => {
-  it("turns both flags ON by default when only DATABASE_URL is set", () => {
+  it("keeps display names ON by default when only DATABASE_URL is set", () => {
     const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
     expect(config.databaseUrl).toBe(VALID_URL);
-    expect(config.persistBaselineSnapshot).toBe(true);
     expect(config.storeDisplayNames).toBe(true);
   });
 
@@ -159,10 +158,10 @@ describe("config: loadConfig", () => {
       const config = ok(
         loadConfig({
           DATABASE_URL: VALID_URL,
-          PERSIST_BASELINE_SNAPSHOT: token,
+          AUDIT_CALLER_IP: token,
         }),
       );
-      expect(config.persistBaselineSnapshot).toBe(true);
+      expect(config.auditCallerIp).toBe(true);
     }
   });
 
@@ -179,23 +178,24 @@ describe("config: loadConfig", () => {
     const error = err(
       loadConfig({
         DATABASE_URL: VALID_URL,
-        PERSIST_BASELINE_SNAPSHOT: "maybe",
+        AUDIT_CALLER_IP: "maybe",
       }),
     );
-    expect(
-      error.issues.some((i) => i.startsWith("PERSIST_BASELINE_SNAPSHOT")),
-    ).toBe(true);
+    const namesTheFlag = error.issues.some((issue) =>
+      issue.startsWith("AUDIT_CALLER_IP"),
+    );
+    expect(namesTheFlag).toBe(true);
   });
 
   it("lets each flag be overridden OFF independently for a strict host", () => {
     const config = ok(
       loadConfig({
         DATABASE_URL: VALID_URL,
-        PERSIST_BASELINE_SNAPSHOT: "false",
+        AUDIT_PRIVATE_WRITES: "false",
         STORE_DISPLAY_NAMES: "0",
       }),
     );
-    expect(config.persistBaselineSnapshot).toBe(false);
+    expect(config.auditPrivateWrites).toBe(false);
     expect(config.storeDisplayNames).toBe(false);
   });
 

@@ -268,16 +268,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/schema/comparison-marks.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "packages/persistence/src/schema/diff-snapshot.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/persistence/src/schema/github-grant.ts": {
     "house/no-em-dash": {
       "count": 3
@@ -287,11 +277,6 @@
     },
     "house/comment-run": {
       "count": 1
-    }
-  },
-  "packages/persistence/src/schema/hunk-span.ts": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "packages/persistence/src/schema/review-read-mark.ts": {
