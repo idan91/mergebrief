@@ -73,7 +73,7 @@ type GenerationExecutor = Pick<
 type GenerationSet = PgUpdateSetSource<typeof generation>;
 
 interface TransitionOptions {
-  /** Narrows the write; a row the key finds but the guard refuses is `claim-lost`. */
+  /** Narrows the write; a row the guard refuses is `claim-lost`, as a missing row is. */
   readonly guard?: SQL;
   readonly executor?: GenerationExecutor;
   /** `updated_at` orders the latest brief and bounds the stale sweep; a heartbeat must not move it. */
@@ -161,9 +161,7 @@ export interface ProjectedGeneration {
 // ---------------------------------------------------------------------------
 
 export const GenerationErrorCodes = {
-  /** A transition targeted a projection row absent from ctx's tenant. */
-  NOT_FOUND: "not-found",
-  /** The row is held by another run, or by none when a holder was named. */
+  /** The row is held by another run, by none when a holder was named, or is gone. */
   CLAIM_LOST: "claim-lost",
 } as const;
 export type GenerationErrorCode = ValueOf<typeof GenerationErrorCodes>;
@@ -284,7 +282,8 @@ export interface GenerationProjection {
    * `held` under a live lease, `exhausted` after `MAX_GENERATION_ATTEMPTS`
    * claims since a trigger projected it, `capped` at the cap; otherwise a run
    * id, a lease of `leaseMs` on the database clock, `running`, one more claim,
-   * one attempt row and, with `recovery`, the head's recovery job.
+   * one attempt row and, with `recovery`, the head's recovery job. A row that
+   * is gone is `claim-lost`: nobody holds a claim on it.
    */
   claimRun(
     input: ClaimRunInput,
@@ -292,7 +291,8 @@ export interface GenerationProjection {
   /**
    * Charge a paid run that takes no claim (one over a stored brief) to the
    * day's cap: the count and one attempt row in one transaction, under the
-   * same lock as `claimRun`. The row is left as found.
+   * same lock as `claimRun`. The row is left as found; one that is gone is
+   * `claim-lost`.
    */
   chargeRun(
     input: ChargeRunInput,
@@ -592,32 +592,19 @@ export function createGenerationProjection(
       .where(and(keyWhere(target), options.guard))
       .returning();
     const row = rows[0];
-    if (row !== undefined) {
-      return { ok: true, value: row };
+    if (row === undefined) {
+      return failClaimLost(target);
     }
-
-    if (options.guard !== undefined) {
-      const found = await executor
-        .select({ id: generation.id })
-        .from(generation)
-        .where(keyWhere(target))
-        .limit(1);
-      if (found[0] !== undefined) {
-        return fail(
-          GenerationErrorCodes.CLAIM_LOST,
-          `generation ${target.kind}@${target.headSha} is not held by this run`,
-        );
-      }
-    }
-    return failNotFound(target);
+    return { ok: true, value: row };
   }
 
-  function failNotFound(
+  /** No row the key and guard both match: another run holds it, or it is gone. */
+  function failClaimLost(
     target: GenerationTarget,
   ): Result<never, GenerationError> {
     return fail(
-      GenerationErrorCodes.NOT_FOUND,
-      `generation ${target.kind}@${target.headSha} not found in ${scope.label}`,
+      GenerationErrorCodes.CLAIM_LOST,
+      `generation ${target.kind}@${target.headSha} is held by another run or gone`,
     );
   }
 
@@ -660,7 +647,7 @@ export function createGenerationProjection(
       .for("update");
     const current = found[0];
     if (current === undefined) {
-      return failNotFound(target);
+      return failClaimLost(target);
     }
     if (current.status === GenerationStatuses.SUCCEEDED) {
       return { ok: true, value: { kind: ClaimOutcomes.FINISHED } };
@@ -744,7 +731,7 @@ export function createGenerationProjection(
       .limit(1);
     const row = found[0];
     if (row === undefined) {
-      return failNotFound(input.target);
+      return failClaimLost(input.target);
     }
     const runId = randomUUID();
     await recordAttempt(executor, scope, row.id, runId);

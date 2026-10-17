@@ -1,9 +1,5 @@
 import type { LogFields } from "logging";
-import {
-  GenerationErrorCodes,
-  InvalidArtifactBodyError,
-  ScopeViolationError,
-} from "persistence";
+import { InvalidArtifactBodyError, ScopeViolationError } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
 import type { JobFailureInputs } from "../types";
@@ -12,8 +8,9 @@ import { emitProviderError } from "./errors";
 /**
  * Mark the run failed, unless the row is to be left alone, and emit its
  * events. Returns whether the job ends here: the caller returns normally on
- * a permanent failure, or on a claim another run took over, whose retry would
- * only meet `held`; it rethrows otherwise so graphile owns the backoff.
+ * a permanent failure, or on a claim lost to another run or to a deleted pull
+ * request, whose retry would only meet `held` or no row; it rethrows
+ * otherwise so graphile owns the backoff.
  */
 export async function reportJobFailure(
   error: unknown,
@@ -23,7 +20,9 @@ export async function reportJobFailure(
 
   const claimKept = await recordFailure(error, inputs);
   if (!claimKept) {
-    log.warn("generate: another run holds the generation row, standing down");
+    log.warn(
+      "generate: the generation row is held by another run or gone, standing down",
+    );
     return true;
   }
 
@@ -81,9 +80,7 @@ async function recordFailure(
       status: GenerationStatuses.FAILED,
       failure,
     });
-    return (
-      finished.ok || finished.error.code !== GenerationErrorCodes.CLAIM_LOST
-    );
+    return finished.ok;
   }
   if (!leaveRow) {
     await projection.markFailed(target, failure);

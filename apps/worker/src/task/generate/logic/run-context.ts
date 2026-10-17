@@ -2,7 +2,6 @@ import type { PullRequestInfo } from "github";
 import {
   createArtifactStore,
   createTenantRepository,
-  GenerationErrorCodes,
   isOwnerContext,
   type PullRequestRow,
   type ScopeContext,
@@ -74,7 +73,7 @@ async function renewRunClaim(start: RunStart): Promise<boolean> {
     run.runId,
     CLAIM_LEASE_MS,
   );
-  return renewed.ok || renewed.error.code !== GenerationErrorCodes.CLAIM_LOST;
+  return renewed.ok;
 }
 
 async function openRunScope(start: RunStart): Promise<RunScope | undefined> {

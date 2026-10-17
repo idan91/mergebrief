@@ -471,7 +471,7 @@ describe("createGenerationProjection status transitions", () => {
     ).toEqual([]);
   });
 
-  it("a transition on a missing projection row returns notFound", async () => {
+  it("a transition on a missing projection row returns claim-lost", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -489,9 +489,9 @@ describe("createGenerationProjection status transitions", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) {
-      throw new Error("expected notFound");
+      throw new Error("expected claim-lost");
     }
-    expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
+    expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
   });
 });
 

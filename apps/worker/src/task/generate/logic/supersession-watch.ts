@@ -1,6 +1,6 @@
 import type { Generator } from "generators";
 import type { PullRequestInfo } from "github";
-import { GenerationErrorCodes, type GenerationError } from "persistence";
+import type { GenerationError } from "persistence";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../github-port";
 import type { ClaimRenewer, SupersessionWatch } from "../types";
@@ -8,15 +8,15 @@ import type { ClaimRenewer, SupersessionWatch } from "../types";
 /** Control-flow signal: the job's head is no longer the PR's head. */
 export class SupersededSignal extends Error {}
 
-/** Control-flow signal: another run holds the row this run claimed. */
+/** Control-flow signal: the row this run claimed is another run's, or gone. */
 export class ClaimLostSignal extends Error {}
 
-/** A fenced write the store refused because another run holds the row. */
+/** A claim write the store refused: another run holds the row, or it is gone. */
 export function throwOnClaimLost(
   written: Result<unknown, GenerationError>,
 ): void {
-  if (!written.ok && written.error.code === GenerationErrorCodes.CLAIM_LOST) {
-    throw new ClaimLostSignal("another run holds the generation row");
+  if (!written.ok) {
+    throw new ClaimLostSignal(written.error.message);
   }
 }
 

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createArtifactStore, createGenerationProjection } from "persistence";
+import {
+  createArtifactStore,
+  createGenerationProjection,
+  type PullRequestRow,
+} from "persistence";
 import { GenerationPhases, GenerationStatuses } from "types/generations";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
@@ -51,6 +55,28 @@ async function readLeaseEpoch(): Promise<number> {
     "select extract(epoch from lease_expires_at)::float8 as lease from generation",
   );
   return Number(rows[0]?.["lease"]);
+}
+
+async function countGenerationRows(): Promise<number> {
+  const rows = await harness.raw(
+    "select count(*)::int as total from generation",
+  );
+  return Number(rows[0]?.["total"]);
+}
+
+/** The cascade takes the generation row with it. */
+async function deletePullRequest(): Promise<void> {
+  await harness.raw("delete from pull_request");
+}
+
+async function getBriefRow(
+  pullRequestId: PullRequestRow["id"],
+): Promise<unknown> {
+  return createArtifactStore(harness.handle, ctx).briefs.get(
+    pullRequestId,
+    BASE,
+    HEAD_1,
+  );
 }
 
 async function holdRowForOtherRun(): Promise<void> {
@@ -277,6 +303,70 @@ describe("generate task, run claim", () => {
         HEAD_1,
       ),
     ).toBeUndefined();
+  });
+
+  it("a pull request deleted before the claim stands the run down", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequest(prNumber) {
+        const read = await client.fetchPullRequest(prNumber);
+        await deletePullRequest();
+        return read;
+      },
+    }));
+    const generator = stubGenerator();
+    const { logger, readLines } = captureLogger();
+
+    await expect(
+      makeTask({ generator, github, log: logger })(payload),
+    ).resolves.toBeUndefined();
+
+    expect(generator.calls).toEqual([]);
+    expect(await countAttempts()).toBe(0);
+    expect(await countGenerationRows()).toBe(0);
+    expect(readLines().map((line) => line["evt"])).not.toContain("job.fail");
+  });
+
+  it("a pull request deleted after the claim makes no provider call", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequestFiles(prNumber) {
+        await deletePullRequest();
+        return client.fetchPullRequestFiles(prNumber);
+      },
+    }));
+    const generator = stubGenerator();
+    const { logger, readLines } = captureLogger();
+
+    await expect(
+      makeTask({ generator, github, log: logger })(payload),
+    ).resolves.toBeUndefined();
+
+    expect(generator.calls).toEqual([]);
+    expect(await countAttempts()).toBe(1);
+    expect(await countGenerationRows()).toBe(0);
+    expect(await getBriefRow(pr.id)).toBeUndefined();
+    expect(readLines().map((line) => line["evt"])).not.toContain("job.fail");
+  });
+
+  it("a pull request deleted mid-call stands the run down on the tick", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubHangingGenerator(deletePullRequest);
+    const { logger, readLines } = captureLogger();
+
+    await expect(
+      makeTask({ generator, headPollIntervalMs: POLL_MS, log: logger })(
+        payload,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(await countGenerationRows()).toBe(0);
+    expect(await getBriefRow(pr.id)).toBeUndefined();
+    expect(readLines().map((line) => line["evt"])).not.toContain("job.fail");
   });
 
   it("a stored-brief rerun settles a failed row to succeeded", async () => {

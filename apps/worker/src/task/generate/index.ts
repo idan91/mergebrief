@@ -131,17 +131,18 @@ async function runJob(
 }
 
 /**
- * A lost claim stands down without a write, the row is the new holder's; a
- * stored-brief run the cap refused stands down too, its row as found; a
- * supersession is terminal `superseded`; a shutdown abort releases the claim
- * and rethrows so graphile returns the job to the queue; anything else is a
- * failure, swallowed when permanent or when its fenced write finds the claim
- * lost, and rethrown for graphile's retry otherwise.
+ * A lost claim stands down without a write, the row is the new holder's or
+ * gone with its pull request; a stored-brief run the cap refused stands down
+ * too, its row as found; a supersession is terminal `superseded`; a shutdown
+ * abort releases the claim and rethrows so graphile returns the job to the
+ * queue; anything else is a failure, swallowed when permanent or when its
+ * fenced write finds the claim lost, and rethrown for graphile's retry
+ * otherwise.
  */
 async function settleFailedRun(start: RunStart, error: unknown): Promise<void> {
   const { projection, target, run, log } = start;
   if (error instanceof ClaimLostSignal) {
-    log.warn("generate: another run holds the generation row, standing down");
+    log.warn(`generate: standing down, ${error.message}`);
     return;
   }
   if (error instanceof SpendCappedSignal) {

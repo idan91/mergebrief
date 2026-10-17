@@ -9,6 +9,7 @@ import {
   createTenantRepository,
   GenerationErrorCodes,
   type ClaimRunOutcome,
+  type GenerationError,
   type GenerationProjection,
   type TenantContext,
 } from "../src/index";
@@ -76,6 +77,14 @@ function unwrap<T, E>(result: Result<T, E>): T {
     throw new Error(`expected ok, got ${JSON.stringify(result.error)}`);
   }
   return result.value;
+}
+
+function expectClaimLost(result: Result<unknown, GenerationError>): void {
+  expect(result.ok).toBe(false);
+  if (result.ok) {
+    throw new Error("expected claim-lost");
+  }
+  expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
 }
 
 function readRunId(outcome: ClaimRunOutcome): string {
@@ -190,7 +199,7 @@ describe("claimRun", () => {
     expect(await countAttemptRows(world)).toBe(0);
   });
 
-  it("a missing row returns not-found", async () => {
+  it("a missing row returns claim-lost", async () => {
     const world = await makeClaimWorld();
 
     const result = await world.gen.claimRun({
@@ -199,11 +208,7 @@ describe("claimRun", () => {
       ...WINDOW,
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected not-found");
-    }
-    expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
+    expectClaimLost(result);
   });
 });
 
@@ -331,7 +336,7 @@ describe("chargeRun", () => {
     expect(await countAttemptRows(world)).toBe(1);
   });
 
-  it("a missing row returns not-found and writes nothing", async () => {
+  it("a missing row returns claim-lost and writes nothing", async () => {
     const world = await makeClaimWorld();
 
     const result = await world.gen.chargeRun({
@@ -339,7 +344,7 @@ describe("chargeRun", () => {
       ...WINDOW,
     });
 
-    expect(result.ok).toBe(false);
+    expectClaimLost(result);
     expect(await countAttemptRows(world)).toBe(0);
   });
 });
@@ -402,11 +407,7 @@ describe("fenced transitions", () => {
     );
 
     for (const result of [advanced, renewed, finished, recorded]) {
-      expect(result.ok).toBe(false);
-      if (result.ok) {
-        throw new Error("expected claim-lost");
-      }
-      expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
+      expectClaimLost(result);
     }
     expect(await world.gen.get(world.target)).toEqual(before);
   });
@@ -513,7 +514,7 @@ describe("fenced transitions", () => {
     expect(await countAttemptRows(world)).toBe(1);
   });
 
-  it("a fenced transition on a missing row returns not-found", async () => {
+  it("a fenced transition on a missing row returns claim-lost", async () => {
     const world = await makeClaimWorld();
 
     const result = await world.gen.releaseClaim(
@@ -521,11 +522,37 @@ describe("fenced transitions", () => {
       STALE_RUN_ID,
     );
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected not-found");
+    expectClaimLost(result);
+  });
+});
+
+describe("a pull request deleted under a claimed row", () => {
+  it("every claim write and claim on the gone row is claim-lost", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+    await world.harness.raw("delete from pull_request");
+    const { gen, target } = world;
+
+    const results = [
+      await gen.renewLease(target, runId, LEASE_MS),
+      await gen.advanceRun(target, runId, GenerationPhases.GENERATING),
+      await gen.recordRepoConfig(target, runId, "{}"),
+      await gen.finishRun(target, runId, {
+        status: GenerationStatuses.SUCCEEDED,
+      }),
+      await gen.releaseClaim(target, runId),
+      await gen.markFailed(target, FAILED_RUN.failure),
+      await gen.markSuperseded(target),
+      await gen.markCapped(target),
+      await gen.claimRun({ target, leaseMs: LEASE_MS, ...WINDOW }),
+      await gen.chargeRun({ target, ...WINDOW }),
+    ];
+
+    for (const result of results) {
+      expectClaimLost(result);
     }
-    expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
+    expect(await gen.get(target)).toBeUndefined();
+    expect(await countAttemptRows(world)).toBe(1);
   });
 });
 
@@ -539,11 +566,7 @@ describe("unclaimed transitions", () => {
       params: { detail: "boom" },
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected claim-lost");
-    }
-    expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
+    expectClaimLost(result);
     expect((await world.gen.get(world.target))?.runId).toBe(runId);
   });
 

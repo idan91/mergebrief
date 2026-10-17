@@ -15,6 +15,7 @@ import { utcDayBounds } from "../../spend";
 import { CLAIM_LEASE_MS } from "../consts";
 import type { RunContext, SpendCharge, SpendGateInputs } from "../types";
 import { getAfterLeaseDelaySeconds } from "./claim-recovery";
+import { ClaimLostSignal } from "./supersession-watch";
 
 /** Control-flow signal: the cap refused a stored-brief run's first paid call. */
 export class SpendCappedSignal extends Error {}
@@ -26,6 +27,7 @@ export class SpendCappedSignal extends Error {}
  * cap together. The claim queues the head's recovery job in the same
  * transaction, unless this run is one. A capped run leaves the projection
  * terminal `capped` (or `failed`); a held or finished row is reported untouched.
+ * A row that is gone (its pull request deleted) stands the run down.
  */
 export async function applySpendGate(
   payload: ParsedGeneratePayload,
@@ -56,7 +58,7 @@ export async function applySpendGate(
   }
   const claim = await projection.claimRun(claimInput);
   if (!claim.ok) {
-    throw new Error(`generate: could not claim the run: ${claim.error.code}`);
+    throw new ClaimLostSignal(claim.error.message);
   }
 
   if (claim.value.kind === ClaimOutcomes.CAPPED) {
@@ -151,7 +153,7 @@ async function chargeStoredBriefRun(context: RunContext): Promise<void> {
   }
   const charge = await projection.chargeRun(chargeInput);
   if (!charge.ok) {
-    throw new Error(`generate: could not charge the run: ${charge.error.code}`);
+    throw new ClaimLostSignal(charge.error.message);
   }
   if (charge.value.kind === ChargeOutcomes.CHARGED) {
     log.info("generate: stored-brief run charged to the daily cap");
