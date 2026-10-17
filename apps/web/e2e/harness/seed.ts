@@ -10,6 +10,7 @@ import {
   createArtifactStore,
   createDb,
   createGrantAuth,
+  createSessionAuth,
   createTenantRepository,
   encryptToken,
   createEnvKeyProvider,
@@ -283,14 +284,16 @@ async function seedSession(
     keyRef: "SESSION_KEY_V1",
     refreshExpiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
   });
-  await createTenantRepository(handle, {
-    ownerUserId: reviewer,
-  }).sessions.create({
-    sessionTokenHash: createHash("sha256").update(viewer.cookie).digest("hex"),
+  const sessionTokenHash = createHash("sha256")
+    .update(viewer.cookie)
+    .digest("hex");
+  const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 3_600_000);
+  await createSessionAuth(handle).createSession({
+    sessionTokenHash,
     reviewerId: reviewer,
     reviewerLogin: viewer.login,
     grantId: grant.id,
-    expiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
+    expiresAt: sessionExpiresAt,
   });
 }
 

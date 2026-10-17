@@ -9,8 +9,8 @@ import {
 } from "github";
 import {
   encryptToken,
-  createTenantRepository,
   createGrantAuth,
+  createSessionAuth,
   type ReviewerId,
 } from "persistence";
 import { SignInFailures, type SignInFailure } from "contract";
@@ -100,9 +100,7 @@ async function storeSession(
     refreshExpiresAt: sealed.refreshExpiresAt,
   });
   try {
-    await createTenantRepository(deps.handle, {
-      ownerUserId: sealed.reviewerId,
-    }).sessions.create({
+    await createSessionAuth(deps.handle).createSession({
       sessionTokenHash: sha256Hex(sealed.sessionToken),
       reviewerId: sealed.reviewerId,
       reviewerLogin: sealed.reviewerLogin,

@@ -7,7 +7,6 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createDb,
   createTenantRepository,
-  createGrantAuth,
   parseTenantContext,
   safeParseTenantContext,
   ScopeViolationError,
@@ -27,8 +26,6 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { internal } from "../src/db/handle";
-import { githubGrant } from "../src/schema/github-grant";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -373,35 +370,6 @@ describe("createTenantRepository idempotent upserts", () => {
     expect(redelivery.id).toBe(first.id);
     expect(redelivery.lastSubmittedSha).toBe("a".repeat(40));
   });
-
-  it("sessions carry no tenant and delete with their grant", async () => {
-    const handle = await freshDatabase();
-    const a = createTenantRepository(handle, CTX_A);
-    const b = createTenantRepository(handle, CTX_B);
-
-    const grant = await createGrantAuth(handle).createGrant({
-      ghTokenCiphertext: "cipher",
-      ghRefreshTokenCiphertext: "refresh-cipher",
-      keyRef: "env:K1",
-      refreshExpiresAt: new Date(Date.now() + 3_600_000),
-    });
-    const aRow = await a.sessions.create({
-      sessionTokenHash: "hash-a",
-      reviewerId: REVIEWER,
-      grantId: grant.id,
-      expiresAt: new Date(Date.now() + 3_600_000),
-    });
-    expect(aRow.grantId).toBe(grant.id);
-
-    // Any installation scope addresses the reviewer's sessions; the delete
-    // also orphan-cleans the grant in the same transaction.
-    expect(await b.sessions.deleteByReviewer(REVIEWER)).toBe(1);
-    expect(await createGrantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
-    const grantRows = await internal(handle)
-      .select({ id: githubGrant.id })
-      .from(githubGrant);
-    expect(grantRows).toHaveLength(0);
-  });
 });
 
 describe("parseTenantContext boundary validation", () => {
@@ -448,6 +416,8 @@ describe("compile-time containment", () => {
     // No raw-handle escape hatch on the consumer-facing interface; the
     // stage-4 ArtifactStore uses the in-package internal() unwrap instead.
     expectTypeOf<TenantRepository>().not.toHaveProperty("withTenant");
+    // Credential rows live on the session boundary, never behind a scope.
+    expectTypeOf<TenantRepository>().not.toHaveProperty("sessions");
     // And no drizzle query surface directly on the repository either.
     expectTypeOf<TenantRepository>().not.toHaveProperty("insert");
     expectTypeOf<TenantRepository>().not.toHaveProperty("select");

@@ -122,15 +122,12 @@ export type {
   TenantRepository,
   PullRequestRepository,
   CheckpointRepository,
-  SessionRepository,
   PullRequestRow,
   CheckpointRow,
-  AuthSessionRow,
   PullRequestUpsertInput,
   PullRequestLifecycle,
   PullRequestStackInput,
   CheckpointSubmitInput,
-  SessionCreateInput,
 } from "./stores/tenant";
 
 // The one unscoped read: which owner holds the url-box row at these PR
@@ -333,11 +330,16 @@ export type {
   GrantRefreshRejection,
 } from "./auth/grant";
 
-// The `auth_session` boundary: the PRE-TENANT, token-hash-keyed
-// session resolver (find / delete / expiry mirror). NOT ctx-bound: it names
-// the reviewer, and the request's repository names the tenant.
+// The `auth_session` boundary: every credential-row read and write, keyed by
+// token hash or by reviewer. NOT ctx-bound: a session holds no installation,
+// and the request's repository names the tenant.
 export { createSessionAuth } from "./auth/session";
-export type { SessionAuth, SessionWithGrant } from "./auth/session";
+export type {
+  AuthSessionRow,
+  SessionAuth,
+  SessionCreateInput,
+  SessionWithGrant,
+} from "./auth/session";
 
 // The API-token auth boundary: the second presentation channel's PRE-TENANT,
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it

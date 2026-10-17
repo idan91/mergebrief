@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import {
   createGrantAuth,
-  createTenantRepository,
+  createSessionAuth,
   createTokenAuth,
   encryptToken,
   type AppDatabase,
@@ -55,9 +55,7 @@ async function seedSessionFor(
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await createTenantRepository(handle, {
-    ownerUserId: reviewerId,
-  }).sessions.create({
+  await createSessionAuth(handle).createSession({
     sessionTokenHash: hashSha256Hex(cookie),
     reviewerId,
     reviewerLogin: `reviewer-${String(reviewerId)}`,

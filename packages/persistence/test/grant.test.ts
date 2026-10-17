@@ -1,7 +1,7 @@
 // Grant boundary tests: `createGrantAuth` against real migrations on PGlite.
 // Covers create, every branch of the serialized `refreshGrant` CAS, and the
 // last-referent lifecycle (`deleteIfOrphaned`; the referent-delete paths live
-// in the session, tenant and purge suites). A true concurrent race on one
+// in the session and purge suites). A true concurrent race on one
 // FOR UPDATE lock is NOT expressible on single-connection PGlite: the
 // already-rotated case pins the loser's observable behavior, and the live
 // interleaving is exercised against real Postgres.
@@ -14,19 +14,12 @@ import {
   type GrantRefreshRejection,
 } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
-import { createTenantRepository } from "../src/stores/tenant";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
-import {
-  isInstallationId,
-  isReviewerId,
-  type InstallationId,
-  type ReviewerId,
-} from "../src/types";
+import { isReviewerId, type ReviewerId } from "../src/types";
 import type { Result } from "types/utils";
 import { brandWith, freshDatabase } from "./helpers";
 
-const INSTALLATION: InstallationId = brandWith(isInstallationId, 4242n);
 const REVIEWER: ReviewerId = brandWith(isReviewerId, 777n);
 const FUTURE = new Date("2027-01-01T00:00:00Z");
 const ROTATED_EXPIRY = new Date("2027-06-01T00:00:00Z");
@@ -168,9 +161,7 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
   it("is a no-op on a grant that still has a referent", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
-    await createTenantRepository(handle, {
-      installationId: INSTALLATION,
-    }).sessions.create({
+    await createSessionAuth(handle).createSession({
       sessionTokenHash: "a".repeat(64),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",

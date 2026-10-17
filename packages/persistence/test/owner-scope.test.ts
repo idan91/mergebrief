@@ -478,33 +478,6 @@ describe("owner-scoped review sessions", () => {
   });
 });
 
-describe("owner-scoped sessions", () => {
-  it("creates a session only its owner's scope can delete", async () => {
-    const handle = await freshDatabase();
-    const { createGrantAuth } = await import("../src/index");
-    const grant = await createGrantAuth(handle).createGrant({
-      ghTokenCiphertext: "cipher",
-      ghRefreshTokenCiphertext: "refresh-cipher",
-      keyRef: "env:K1",
-      refreshExpiresAt: new Date(Date.now() + 3_600_000),
-    });
-    const a = createTenantRepository(handle, CTX_A);
-
-    const row = await a.sessions.create({
-      sessionTokenHash: "hash-owner",
-      reviewerId: OWNER_A,
-      grantId: grant.id,
-      expiresAt: new Date(Date.now() + 3_600_000),
-    });
-    expect(row.reviewerId).toBe(OWNER_A);
-
-    // Another owner's scope cannot delete it by a foreign reviewer id.
-    const b = createTenantRepository(handle, CTX_B);
-    expect(await b.sessions.deleteByReviewer(OWNER_A)).toBe(0);
-    expect(await a.sessions.deleteByReviewer(OWNER_A)).toBe(1);
-  });
-});
-
 describe("url-box instance visibility", () => {
   it("returns the preferred owner's row first, then the oldest", async () => {
     const handle = await freshDatabase();

@@ -9,10 +9,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
-import { deleteOrphanedGrants } from "../auth/grant";
 import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
-import { authSession } from "../schema/auth-session";
 import {
   type ReviewSessionRepository,
   createReviewSessionRepository,
@@ -24,12 +22,7 @@ import {
 import { resolveScope, ScopeViolationError } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
-import type {
-  GrantRowId,
-  PullRequestRowId,
-  ReviewerId,
-  RepoId,
-} from "../types";
+import type { PullRequestRowId, ReviewerId, RepoId } from "../types";
 import { PrStates, type PrState } from "types/pull-requests";
 
 // ---------------------------------------------------------------------------
@@ -38,7 +31,6 @@ import { PrStates, type PrState } from "types/pull-requests";
 
 export type PullRequestRow = typeof pullRequest.$inferSelect;
 export type CheckpointRow = typeof checkpoint.$inferSelect;
-export type AuthSessionRow = typeof authSession.$inferSelect;
 
 /**
  * Lifecycle trio, discriminated on `state` so the type system forbids stale
@@ -155,15 +147,6 @@ export interface CheckpointSubmitInput {
   readonly submittedAt: Date;
 }
 
-export interface SessionCreateInput {
-  readonly sessionTokenHash: string;
-  readonly reviewerId: ReviewerId;
-  readonly reviewerLogin?: string;
-  /** The GitHub credential pair lives on the grant row, link, never copy. */
-  readonly grantId: GrantRowId;
-  readonly expiresAt: Date;
-}
-
 // ---------------------------------------------------------------------------
 // The repository surface.
 // ---------------------------------------------------------------------------
@@ -246,23 +229,10 @@ export interface CheckpointRepository {
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<CheckpointRow[]>;
 }
 
-/**
- * A session holds no installation: it belongs to its reviewer. The owner
- * world narrows every method to the owner's own sessions; an installation
- * scope has nothing to narrow by and addresses them all.
- */
-export interface SessionRepository {
-  /** Insert. `auth_session` has no PR parent and no tenant stamp. */
-  create(input: SessionCreateInput): Promise<AuthSessionRow>;
-  /** Logout / reviewer offboarding; returns number deleted. */
-  deleteByReviewer(reviewerId: ReviewerId): Promise<number>;
-}
-
 export interface TenantRepository {
   readonly ctx: ScopeContext;
   readonly pullRequests: PullRequestRepository;
   readonly checkpoints: CheckpointRepository;
-  readonly sessions: SessionRepository;
   /** The reviewer's own archive of Inbox rows, see `stores/inbox-archive.ts`. */
   readonly archives: InboxArchiveStore;
   /** The reviewer's Review Session work, see `stores/review-session.ts`. */
@@ -547,51 +517,10 @@ export function createTenantRepository(
     },
   };
 
-  const sessions: SessionRepository = {
-    async create(input) {
-      const rows = await db
-        .insert(authSession)
-        .values({
-          sessionTokenHash: input.sessionTokenHash,
-          reviewerId: input.reviewerId,
-          reviewerLogin: input.reviewerLogin,
-          grantId: input.grantId,
-          expiresAt: input.expiresAt,
-        })
-        .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        throw new Error("auth_session insert returned no row");
-      }
-      return row;
-    },
-
-    async deleteByReviewer(reviewerId) {
-      // Owner world: only the owner's own sessions are addressable, a
-      // foreign reviewer id is a no-op, never a cross-owner delete.
-      if (scope.ownerUserId !== null && reviewerId !== scope.ownerUserId) {
-        return 0;
-      }
-      // Orphan-clean the grants of the deleted sessions, same tx.
-      return db.transaction(async (tx) => {
-        const rows = await tx
-          .delete(authSession)
-          .where(eq(authSession.reviewerId, reviewerId))
-          .returning({ grantId: authSession.grantId });
-        await deleteOrphanedGrants(
-          tx,
-          rows.map((row) => row.grantId),
-        );
-        return rows.length;
-      });
-    },
-  };
-
   return {
     ctx,
     pullRequests,
     checkpoints,
-    sessions,
     archives: createInboxArchiveStore(handle, ctx),
     reviewSessions: createReviewSessionRepository(db, scope),
   };

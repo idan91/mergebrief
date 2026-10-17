@@ -1,36 +1,31 @@
-// Session-auth boundary tests. Exercises the PRE-TENANT, token-hash-keyed
-// resolver against real migrations
-// on PGlite: the grant-JOINed find, delete-by-hash with same-transaction
-// grant orphan-clean (shared grants survive, last-referent grants die), and
-// the `setExpiresAt` mirror the cookie channel writes after a rotation.
-// Rotation itself lives on the grant boundary, see grant.test.ts. Rows are
-// seeded through the tenant repository so the boundary is tested exactly as
-// production writes them.
+// The pre-tenant session boundary on PGlite: create, the grant-JOINed find,
+// the deletes with their same-transaction grant orphan-clean, and the
+// `setExpiresAt` mirror. Rotation lives on the grant boundary.
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
-import { createTenantRepository } from "../src/stores/tenant";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
-import {
-  isInstallationId,
-  isReviewerId,
-  type InstallationId,
-  type ReviewerId,
-} from "../src/types";
+import { isReviewerId, type ReviewerId } from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
 
-const INSTALLATION_ID: InstallationId = brandWith(isInstallationId, 4242n);
 const REVIEWER_ID: ReviewerId = brandWith(isReviewerId, 777n);
 const HASH = "a".repeat(64); // shape of a sha256 hex digest
 const OTHER_HASH = "b".repeat(64);
+const OTHER_REVIEWER_ID: ReviewerId = brandWith(isReviewerId, 888n);
+const THIRD_HASH = "c".repeat(64);
 const EXPIRY = new Date("2027-01-01T00:00:00Z");
 
 /** Seed a grant + one session row referencing it (the production shape). */
 async function seedSession(
   handle: AppDatabase,
-  input: { hash?: string; expiresAt?: Date; grant?: GithubGrantRow },
+  input: {
+    hash?: string;
+    expiresAt?: Date;
+    grant?: GithubGrantRow;
+    reviewerId?: ReviewerId;
+  },
 ): Promise<GithubGrantRow> {
   const grant =
     input.grant ??
@@ -40,11 +35,9 @@ async function seedSession(
       keyRef: "SESSION_KEY_V1",
       refreshExpiresAt: input.expiresAt ?? EXPIRY,
     }));
-  await createTenantRepository(handle, {
-    installationId: INSTALLATION_ID,
-  }).sessions.create({
+  await createSessionAuth(handle).createSession({
     sessionTokenHash: input.hash ?? HASH,
-    reviewerId: REVIEWER_ID,
+    reviewerId: input.reviewerId ?? REVIEWER_ID,
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: input.expiresAt ?? EXPIRY,
@@ -57,6 +50,30 @@ async function grantCount(handle: AppDatabase): Promise<number> {
     await internal(handle).select({ id: githubGrant.id }).from(githubGrant)
   ).length;
 }
+
+describe("createSessionAuth.createSession", () => {
+  it("creates a session that links its grant by id", async () => {
+    const handle = await freshDatabase();
+    const grant = await createGrantAuth(handle).createGrant({
+      ghTokenCiphertext: "v1.enc-access",
+      ghRefreshTokenCiphertext: "v1.enc-refresh",
+      keyRef: "SESSION_KEY_V1",
+      refreshExpiresAt: EXPIRY,
+    });
+
+    const row = await createSessionAuth(handle).createSession({
+      sessionTokenHash: HASH,
+      reviewerId: REVIEWER_ID,
+      grantId: grant.id,
+      expiresAt: EXPIRY,
+    });
+
+    expect(row.grantId).toBe(grant.id);
+    expect(row.reviewerId).toBe(REVIEWER_ID);
+    const resolved = await createSessionAuth(handle).findSession(HASH);
+    expect(resolved?.grant.id).toBe(grant.id);
+  });
+});
 
 describe("createSessionAuth.findSession", () => {
   let handle: AppDatabase;
@@ -108,6 +125,48 @@ describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
     expect(await grantCount(handle)).toBe(1);
     const resolved = await createSessionAuth(handle).findSession(OTHER_HASH);
     expect(resolved?.grant.id).toBe(grant.id);
+  });
+});
+
+describe("createSessionAuth.deleteSessionsForReviewer", () => {
+  let handle: AppDatabase;
+  beforeEach(async () => {
+    handle = await freshDatabase();
+  });
+
+  it("deletes every session of the reviewer and orphan-cleans the grant", async () => {
+    const grant = await seedSession(handle, {});
+    await seedSession(handle, { hash: OTHER_HASH, grant });
+
+    const deleted =
+      await createSessionAuth(handle).deleteSessionsForReviewer(REVIEWER_ID);
+
+    expect(deleted).toBe(2);
+    expect(await createSessionAuth(handle).findSession(HASH)).toBeUndefined();
+    expect(await grantCount(handle)).toBe(0);
+  });
+
+  it("leaves another reviewer's sessions and grant in place", async () => {
+    await seedSession(handle, {});
+    const otherGrant = await seedSession(handle, {
+      hash: THIRD_HASH,
+      reviewerId: OTHER_REVIEWER_ID,
+    });
+
+    const deleted =
+      await createSessionAuth(handle).deleteSessionsForReviewer(REVIEWER_ID);
+
+    expect(deleted).toBe(1);
+    const survivor = await createSessionAuth(handle).findSession(THIRD_HASH);
+    expect(survivor?.session.reviewerId).toBe(OTHER_REVIEWER_ID);
+    expect(survivor?.grant.id).toBe(otherGrant.id);
+    expect(await grantCount(handle)).toBe(1);
+  });
+
+  it("answers 0 for a reviewer with no sessions", async () => {
+    expect(
+      await createSessionAuth(handle).deleteSessionsForReviewer(REVIEWER_ID),
+    ).toBe(0);
   });
 });
 

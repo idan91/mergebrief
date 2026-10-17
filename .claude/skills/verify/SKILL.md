@@ -45,7 +45,7 @@ the local `gh` CLI token (`gh auth token` — can read any repo the user owns).
 Write a throwaway `.mts` script INSIDE `apps/web` (workspace resolution;
 `.mts` because scratchpad/plain `.ts` is transpiled CJS and top-level await
 fails), using `persistence`'s `migrateApp`, `encryptToken`, `createEnvKeyProvider`,
-`createTenantRepository(...).sessions.create` / `pullRequests.upsert`, `createArtifactStore`.
+`createSessionAuth(...).createSession`, `createTenantRepository(...).pullRequests.upsert`, `createArtifactStore`.
 Pass the token via env var; print only the cookie value. Use a sentinel
 `installation_id` (e.g. 777001) so cleanup can be tenant-scoped deletes.
 Run with `pnpm -C apps/web exec tsx <script>`; delete the script after.
@@ -87,7 +87,7 @@ then `docker compose stop postgres` if it was down before. Blanket
 - `createDb(databaseUrl)` and `migrateApp(databaseUrl)` take the URL STRING,
   not an options object; `encryptToken(provider, keyRef, plaintext)` — provider
   first.
-- Sessions have no high-level helper: `sessions.create` wants the sha256-hex
+- Sessions have no high-level helper: `createSession` wants the sha256-hex
   hash of a random token (cookie value = the raw token), reviewer id, BOTH
   ciphertext fields, `keyRef`, `expiresAt`.
 - `SESSION_KEY_V1` must be base64-encoded 32 bytes (`openssl rand -base64 32`)
