@@ -130,9 +130,6 @@ export type {
   CheckpointSubmitInput,
 } from "./stores/tenant";
 
-// The one unscoped read: which owner holds the url-box row at these PR
-// coordinates (instance visibility). Returns an owner to bind a ctx to,
-// never a row.
 export { resolveUrlBoxOwner } from "./stores/url-box";
 export { createInboxStore } from "./stores/inbox";
 export {

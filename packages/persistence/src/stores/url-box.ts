@@ -1,4 +1,4 @@
-// The ONE deliberately unscoped read in this package: a viewer who proved
+// A deliberately unscoped read, named in AGENTS.md: a viewer who proved
 // GitHub access to the repo may open a brief someone else here pasted. It
 // returns an OWNER, never a row; every later read binds a ctx to that owner.
 //
