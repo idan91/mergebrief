@@ -183,6 +183,7 @@ async function seedBrief(
     model: "m",
     effort: "e",
     body,
+    usedGroupIds: [],
   });
 }
 

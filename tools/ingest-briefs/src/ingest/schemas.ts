@@ -20,6 +20,11 @@ const lineRangeSchema = z.object({
   end: z.number().int().positive(),
 });
 
+const changeGroupSchema = z.object({ id: z.string().min(1) }).loose();
+
+/** The change-group ids a brief records for its chain; a body with none has none. */
+const changeGroupsSchema = z.array(changeGroupSchema).default([]);
+
 const markedFileSchema = z
   .object({
     file: z.string(),
@@ -43,6 +48,7 @@ export const BriefMetaSchema = z.object({
     commitCount: z.number().int().nonnegative().optional(),
   }),
   generation: generationSchema,
+  changeGroups: changeGroupsSchema,
 });
 
 /**
@@ -58,6 +64,7 @@ export const LegacyBriefMetaSchema = z.object({
     title: z.string().optional(),
     sha: z.string().min(1),
   }),
+  changeGroups: changeGroupsSchema,
 });
 
 /** The legacy previous-brief marks alias: same coordinates, older wrapper. */

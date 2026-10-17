@@ -247,6 +247,7 @@ async function seedSessionDrafts(
     model: "claude",
     effort: "high",
     body: "{}",
+    usedGroupIds: [],
   });
   const anchors: DraftAnchor[] = [
     {
@@ -1001,6 +1002,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       model: "claude",
       effort: "high",
       body: JSON.stringify({ changeGroups: [], chunks: [] }),
+      usedGroupIds: [],
     });
     await createTenantRepository(harness.handle, CTX).reviewSessions.setOutcome(
       { briefId: newer.id, reviewerId: REVIEWER },
@@ -1342,6 +1344,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         effort: "high",
         body: BRIEF_BODY,
         anchorState: "anchored",
+        usedGroupIds: [],
       });
       return written.id;
     }

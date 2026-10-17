@@ -105,6 +105,7 @@ async function writeBrief(
     headIndex,
     commitCount: SEED_COMMIT_COUNT,
     body: JSON.stringify(body),
+    usedGroupIds: body.changeGroups.map((group) => group.id),
   });
   if (!isBriefRowId(written.id)) {
     throw new Error("bad brief id");

@@ -1017,6 +1017,7 @@ describe("POST /api/webhooks/github", () => {
         model: "stub",
         effort: "low",
         body: "{}",
+        usedGroupIds: [],
       });
       await harness.raw("update generation set status = 'succeeded'");
       await harness.raw("delete from graphile_worker.jobs");

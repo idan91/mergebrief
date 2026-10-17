@@ -84,24 +84,6 @@ export function createNoopLogger(): Logger {
   return inert;
 }
 
-/**
- * Every group id the PR's chain has used, read off the previous row. NULL
- * (a row a writer outside the worker stored) heals from the stored body's
- * groups, never the empty set while a previous brief reads. The heal needs
- * the groups only, so a body missing its stamped sections still heals.
- */
-export function resolveChainGroupIds(
-  prevRow: { usedGroupIds: readonly string[] | null } | undefined,
-  previousBody: StoredBrief | undefined,
-): readonly string[] {
-  const stored = prevRow?.usedGroupIds ?? undefined;
-  if (stored !== undefined) {
-    return stored;
-  }
-
-  return previousBody?.changeGroups.map((group) => group.id) ?? [];
-}
-
 /** A broken body can report one issue per element. */
 const MAX_LOGGED_READ_ISSUES = 20;
 

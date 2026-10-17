@@ -368,6 +368,7 @@ describe("the per-repo gate across two installations", () => {
       }),
       carriedChunkIds: [],
       anchorState: "anchored",
+      usedGroupIds: [],
     });
 
     const res = await buildApp().request(

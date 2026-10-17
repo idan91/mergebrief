@@ -162,6 +162,7 @@ async function seedDraft(
     model: "claude",
     effort: "high",
     body: "{}",
+    usedGroupIds: [],
   });
   const line = {
     kind: CommentAnchorKinds.LINE,
@@ -230,6 +231,7 @@ async function seedFileDraft(
     model: "claude",
     effort: "high",
     body: "{}",
+    usedGroupIds: [],
   });
   const draftId = await writeDraft(
     handle,
@@ -298,6 +300,7 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     model: "claude",
     effort: "high",
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
+    usedGroupIds: [],
   });
   const opened = await repo.reviewSessions.setOutcome(
     { briefId: newer.id, reviewerId: REVIEWER },

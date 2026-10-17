@@ -96,11 +96,15 @@ describe("ingestBriefDirectory", () => {
     const store = createArtifactStore(harness.handle, OWNER_CTX);
     const briefs = await store.briefs.listForPullRequest(row.id);
     expect(briefs.map((brief) => brief.headIndex)).toEqual([1, 2]);
+    const rev1 = briefs.find((brief) => brief.headIndex === 1);
     const rev2 = briefs.find((brief) => brief.headIndex === 2);
-    if (rev2 === undefined) {
-      throw new Error("rev2 missing");
+    if (rev1 === undefined || rev2 === undefined) {
+      throw new Error("brief revision missing");
     }
+    const first = await store.briefs.get(row.id, rev1.baseSha, rev1.headSha);
     const stored = await store.briefs.get(row.id, rev2.baseSha, rev2.headSha);
+    expect(first?.usedGroupIds).toEqual(["g1", "g2"]);
+    expect(stored?.usedGroupIds).toEqual(["g1", "g2", "g4"]);
     const fileBody = await readFile(
       join(FIXTURES, "mergebrief-e2e-fixture-1_2_22222222.brief.json"),
       "utf8",

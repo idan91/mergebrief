@@ -900,6 +900,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         model: "stub",
         effort: "low",
         body: "{}",
+        usedGroupIds: [],
       });
       await drainSucceeded();
       return written.id;

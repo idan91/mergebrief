@@ -192,6 +192,7 @@ describe("disposition commands over the real api app", () => {
       model: "claude-fable-5",
       effort: "high",
       body: JSON.stringify({ changeGroups: [{ id: "grp-1" }], chunks: [] }),
+      usedGroupIds: [],
     });
     const session = await repo.reviewSessions.setOutcome(
       { briefId: brief.id, reviewerId: REVIEWER },

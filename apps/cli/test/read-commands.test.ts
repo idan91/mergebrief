@@ -227,6 +227,7 @@ describe("read commands over the real api app", () => {
       model: "claude-fable-5",
       effort: "high",
       body: BRIEF_BODY,
+      usedGroupIds: [],
     });
   }
 

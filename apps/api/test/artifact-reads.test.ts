@@ -84,6 +84,7 @@ async function seedBrief(
     model: "claude",
     effort: "high",
     body: seed.body ?? BRIEF_BODY,
+    usedGroupIds: [],
   };
   if (seed.repoConfig !== undefined) {
     write.repoConfig = seed.repoConfig;

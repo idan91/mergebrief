@@ -94,8 +94,7 @@ function shapeBriefColumns(input: BriefWriteInput) {
     anchorReason: input.anchorReason ?? null,
     carriedChunkIds:
       input.carriedChunkIds === undefined ? null : [...input.carriedChunkIds],
-    usedGroupIds:
-      input.usedGroupIds === undefined ? null : [...input.usedGroupIds],
+    usedGroupIds: [...input.usedGroupIds],
     ...deriveSessionRecordCounts(input.body),
   };
 }

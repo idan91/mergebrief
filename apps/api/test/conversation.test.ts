@@ -221,6 +221,7 @@ async function seedBrief(
     model: "claude",
     effort: "high",
     body: "{}",
+    usedGroupIds: [],
   });
   if (!withSession) {
     return;

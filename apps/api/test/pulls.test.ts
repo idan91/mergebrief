@@ -290,6 +290,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
     await succeedTestRun(gen, {
       pullRequestId: pr.id,
@@ -368,6 +369,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
   }
 
@@ -702,6 +704,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         model: "claude",
         effort: "high",
         body: "{}",
+        usedGroupIds: [],
       });
       return result;
     };
@@ -817,6 +820,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         model: "claude",
         effort: "high",
         body: "{}",
+        usedGroupIds: [],
       });
     }
   }
@@ -1011,6 +1015,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
   }
 
@@ -1384,6 +1389,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
 
     const body = await metaBody(cookie);

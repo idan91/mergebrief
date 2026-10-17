@@ -182,6 +182,7 @@ describe("owner-scoped artifact store", () => {
       commitCount: 3,
       body: "brief-body",
       ...ORIGIN,
+      usedGroupIds: [],
     };
     const first = await store.briefs.write(input);
     const second = await store.briefs.write({ ...input, body: "rewritten" });
@@ -207,6 +208,7 @@ describe("owner-scoped artifact store", () => {
       commitCount: 1,
       body: "secret",
       ...ORIGIN,
+      usedGroupIds: [],
     };
     await storeA.briefs.write(input);
 
@@ -234,6 +236,7 @@ describe("owner-scoped artifact store", () => {
       commitCount: 1,
       body: "secret",
       ...ORIGIN,
+      usedGroupIds: [],
     });
     expect(await storeT.briefs.listForPullRequest(pr.id)).toEqual([]);
   });
@@ -259,6 +262,7 @@ describe("owner-scoped span artifacts", () => {
       body: "brief",
       repoConfig: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
     const delta = await store.deltas.write({
       pullRequestId,
@@ -403,6 +407,7 @@ describe("owner-scoped span artifacts", () => {
       commitCount: 1,
       body: "brief",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const refused = storeB.revisionNarratives.write({
@@ -540,6 +545,7 @@ describe("owner-scoped span artifact query shape", () => {
       commitCount: 1,
       body: "brief",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const marks = await recordStatements(log, () =>
@@ -656,6 +662,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
       commitCount: 1,
       body: "body",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const purged = await purge.purgePullRequest(pr.id);
@@ -792,6 +799,7 @@ describe("owner-scoped review sessions", () => {
       commitCount: 1,
       body: '{"brief":true}',
       ...ORIGIN,
+      usedGroupIds: [],
     });
     const key = {
       briefId: brief.id,

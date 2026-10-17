@@ -475,10 +475,5 @@
     "house/no-em-dash": {
       "count": 1
     }
-  },
-  "tools/ingest-briefs/src/ingest/logic/collect-files.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
   }
 }

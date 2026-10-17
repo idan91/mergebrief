@@ -163,6 +163,7 @@ describe("session read commands over the real api app", () => {
       effort: "high",
       body: "{}",
       repoConfig: REPO_CONFIG,
+      usedGroupIds: [],
     });
     const session = await repo.reviewSessions.setOutcome(
       { briefId: brief.id, reviewerId: REVIEWER },

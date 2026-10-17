@@ -180,6 +180,7 @@ describe("session write commands over the real api app", () => {
         changeGroups: [],
         chunks: [{ id: "chunk-1", file: "src/app.ts" }],
       }),
+      usedGroupIds: [],
     });
     const session = await repo.reviewSessions.setOutcome(
       { briefId: brief.id, reviewerId: REVIEWER },

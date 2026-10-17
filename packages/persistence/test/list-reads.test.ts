@@ -111,6 +111,7 @@ describe("briefs.latestForPullRequests", () => {
       commitCount: 1,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
     await store.briefs.write({
       pullRequestId: pr1.id,
@@ -120,6 +121,7 @@ describe("briefs.latestForPullRequests", () => {
       commitCount: 2,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const latest = await store.briefs.latestForPullRequests([pr1.id, pr2.id]);
@@ -144,6 +146,7 @@ describe("briefs.latestForPullRequests", () => {
       commitCount: 1,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const latest = await createArtifactStore(
@@ -216,6 +219,7 @@ describe("batched span listings and per-revision joins", () => {
       commitCount: 2,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
     await store.briefs.write({
       pullRequestId: pr.id,
@@ -225,6 +229,7 @@ describe("batched span listings and per-revision joins", () => {
       commitCount: 1,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     const rows = await store.briefs.listForPullRequest(pr.id);
@@ -253,6 +258,7 @@ describe("batched span listings and per-revision joins", () => {
       commitCount: 2,
       body: "{}",
       ...ORIGIN,
+      usedGroupIds: [],
     });
 
     await store.comparisonMarks.write({

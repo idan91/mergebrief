@@ -157,6 +157,7 @@ async function seedFullGraph(
       commitCount: 3,
       ...ORIGIN,
       ...artifact('{"brief":true}'),
+      usedGroupIds: [],
     })
     .returning({ id: brief.id });
   const briefRow = briefRows[0];

@@ -43,7 +43,7 @@ async function readModernBrief(
 
 /**
  * A `.brief.json` that is not the modern shape. `undefined` means not even the
- * pre-index shape — data the cutover would lose, reported apart from the
+ * pre-index shape: data the cutover would lose, reported apart from the
  * routine skips.
  */
 async function readLegacyBrief(
@@ -65,6 +65,7 @@ async function readLegacyBrief(
       // Base filled from the repo resolution later; head is the only SHA the
       // pre-index body carries.
       commitRange: { base: "", head: legacy.data.pr.sha },
+      changeGroups: legacy.data.changeGroups,
     },
   };
 }

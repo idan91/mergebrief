@@ -75,11 +75,8 @@ export interface BriefWriteInput extends Origin, BodyVersionStamp {
    * restart; omit only for writers predating the stamp.
    */
   readonly carriedChunkIds?: readonly string[];
-  /**
-   * Every group id the PR's Brief chain has used, this Brief included.
-   * Omit only for a writer that does not track the chain.
-   */
-  readonly usedGroupIds?: readonly string[];
+  /** Every group id the PR's Brief chain has used, this Brief included. */
+  readonly usedGroupIds: readonly string[];
 }
 
 export interface DeltaWriteInput extends Origin, BodyVersionStamp {

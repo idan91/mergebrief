@@ -166,6 +166,7 @@ async function seedBrief(
     model: "claude",
     effort: "high",
     body: BRIEF_BODY,
+    usedGroupIds: [],
   };
 
   await store.briefs.write(write);

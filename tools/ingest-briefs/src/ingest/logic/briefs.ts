@@ -12,6 +12,7 @@ export async function writeBriefs(
   briefFiles: readonly ParsedBriefFile[],
   resolved: ResolvedPullRequests,
 ): Promise<number> {
+  const chainGroupIds = collectChainGroupIds(briefFiles);
   let briefCount = 0;
 
   for (const brief of briefFiles) {
@@ -47,6 +48,7 @@ export async function writeBriefs(
       model: origin.model,
       effort: origin.effort,
       body: brief.body,
+      usedGroupIds: chainGroupIds.get(brief.name) ?? [],
     });
 
     briefCount += 1;
@@ -54,4 +56,37 @@ export async function writeBriefs(
   }
 
   return briefCount;
+}
+
+/**
+ * Each brief's chain record: every group id its PR's briefs at or below its
+ * index carry, lowest index first, each id once.
+ */
+function collectChainGroupIds(
+  briefFiles: readonly ParsedBriefFile[],
+): ReadonlyMap<string, readonly string[]> {
+  const chains = new Map<string, ParsedBriefFile[]>();
+  for (const brief of briefFiles) {
+    const key = buildPrKey(brief.meta.pr.repo, brief.meta.pr.number);
+    const chain = chains.get(key) ?? [];
+    chain.push(brief);
+    chains.set(key, chain);
+  }
+
+  const chainGroupIds = new Map<string, readonly string[]>();
+  for (const chain of chains.values()) {
+    const ordered = chain.toSorted(
+      (left, right) => left.meta.index - right.meta.index,
+    );
+    for (const brief of ordered) {
+      const reached = ordered.filter(
+        (other) => other.meta.index <= brief.meta.index,
+      );
+      const ids = reached.flatMap((other) =>
+        other.meta.changeGroups.map((group) => group.id),
+      );
+      chainGroupIds.set(brief.name, [...new Set(ids)]);
+    }
+  }
+  return chainGroupIds;
 }

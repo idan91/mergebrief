@@ -3,11 +3,7 @@ import { FullRegenerations, type Anchor } from "generators";
 import { AnchorStates, FreshRestartReasons } from "types/generations";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { AnchorDecision, AnchorDecisionInputs } from "../types";
-import {
-  recoverCompleteBrief,
-  recoverStoredBody,
-  resolveChainGroupIds,
-} from "../utils";
+import { recoverCompleteBrief, recoverStoredBody } from "../utils";
 import { buildPreviousBriefInput } from "./anchored-run";
 
 /**
@@ -62,7 +58,6 @@ export async function decideAnchor(
   // new base) it would drop the retargeted row's history for good.
   const chainSource = priorBriefs.at(-1);
   let chainRow = prevRow;
-  let chainBody = prevStored;
   if (
     chainSource !== undefined &&
     (chainSource.headSha !== prevBrief?.headSha ||
@@ -73,13 +68,8 @@ export async function decideAnchor(
       chainSource.baseSha,
       chainSource.headSha,
     );
-    const chainRead =
-      chainRow === undefined
-        ? undefined
-        : recoverStoredBody(chainRow.body, log);
-    chainBody = chainRead?.ok ? chainRead.value : undefined;
   }
-  const chainGroupIds = resolveChainGroupIds(chainRow, chainBody);
+  const chainGroupIds = chainRow?.usedGroupIds ?? [];
 
   if (prevBrief !== undefined && policy !== FullRegenerations.ALWAYS) {
     const current = generator.origin(effort ?? "medium");

@@ -112,6 +112,7 @@ async function seedBrief(
     model: "stub",
     effort: "low",
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
+    usedGroupIds: [],
   });
   if (createdAt !== undefined) {
     await internal(handle)

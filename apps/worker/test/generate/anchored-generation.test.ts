@@ -415,42 +415,6 @@ describe("generate task, anchored generation", () => {
     expect(row?.usedGroupIds).toEqual(["gA", "gB", "gZ", "tmpA", "tmpB"]);
   });
 
-  it("heals a NULL chain column from the previous body", async () => {
-    // Rev 1 predates the column (NULL): the fresh rev-2 union must still
-    // hold rev 1's ids, seeded from the recovered body.
-    const first = await trigger(HEAD_1);
-    const generator = stubGenerator();
-    generator.outputs["brief"] = makeTwoGroupBriefOutput(
-      "gA",
-      "alpha",
-      "gB",
-      "beta",
-    );
-    const github = makeGitHub(HEAD_1, [
-      { path: "a.ts", additions: 4, deletions: 0 },
-      { path: "b.ts", additions: 2, deletions: 0 },
-    ]);
-    const task = makeTask({ generator, github, fullRegeneration: "always" });
-    await task(first.payload);
-    await harness.raw(
-      `update brief set used_group_ids = null where head_sha = '${HEAD_1}'`,
-    );
-
-    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    generator.outputs["brief"] = makeTwoGroupBriefOutput(
-      "tmpA",
-      "alpha v2",
-      "tmpB",
-      "beta v2",
-    );
-    const second = await trigger(HEAD_2);
-    await task(second.payload);
-
-    const store = createArtifactStore(harness.handle, ctx);
-    const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
-    expect(row?.usedGroupIds).toEqual(["gA", "gB", "tmpA", "tmpB"]);
-  });
-
   it("leaves the hop behind when the model call fails", async () => {
     const { pr } = await runTwoRevisions({
       rev2FailWith: makeConnectionError(),

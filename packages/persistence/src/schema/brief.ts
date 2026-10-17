@@ -52,9 +52,9 @@ export const brief = pgTable(
     carriedChunkIds: text("carried_chunk_ids").array(),
     /**
      * Every group id this chain has used, so a retired id is never
-     * re-minted; null for a writer that does not track the chain.
+     * re-minted.
      */
-    usedGroupIds: text("used_group_ids").array(),
+    usedGroupIds: text("used_group_ids").array().notNull(),
     bodyVersion: bodyVersionColumn(),
     /**
      * The body's Chunk, change-group and risk-flag counts, the most rows of

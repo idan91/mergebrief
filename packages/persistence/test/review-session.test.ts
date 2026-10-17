@@ -111,6 +111,7 @@ async function seedBrief(
     model: "test",
     effort: "high",
     body,
+    usedGroupIds: [],
   });
   return written.id;
 }

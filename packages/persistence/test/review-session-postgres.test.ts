@@ -78,6 +78,7 @@ async function seedBrief(
     body: '{"changeGroups":[],"chunks":[]}',
     carriedChunkIds: [],
     anchorState: "anchored",
+    usedGroupIds: [],
   });
   return written.id;
 }

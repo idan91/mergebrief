@@ -89,6 +89,7 @@ export async function seedBrief(
     // The carry suite's chain must read as descended, or reclassifications
     // (correctly) drop across the seeded span.
     anchorState: "anchored",
+    usedGroupIds: [],
   });
   return written.id;
 }

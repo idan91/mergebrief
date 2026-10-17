@@ -124,6 +124,7 @@ async function seedOwnerBrief(handle: AppDatabase): Promise<void> {
     model: "m",
     effort: "e",
     body: "{}",
+    usedGroupIds: [],
   });
 }
 

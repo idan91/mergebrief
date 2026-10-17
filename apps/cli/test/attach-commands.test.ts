@@ -214,6 +214,7 @@ describe("draft attach over the real api app", () => {
       model: "claude-fable-5",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
     const session = await repo.reviewSessions.setOutcome(
       { briefId: brief.id, reviewerId: REVIEWER },

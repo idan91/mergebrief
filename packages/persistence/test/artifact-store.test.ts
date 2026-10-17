@@ -70,6 +70,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       commitCount: 2,
       ...PROV,
       body: "v1",
+      usedGroupIds: [],
     });
     const second = await store.briefs.write({
       pullRequestId: pr.id,
@@ -79,6 +80,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       commitCount: 2,
       ...PROV,
       body: "v2-longer",
+      usedGroupIds: [],
     });
 
     expect(second.id).toBe(first.id); // same row
@@ -107,6 +109,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       commitCount: 1,
       ...PROV,
       body: "v1",
+      usedGroupIds: [],
     };
 
     expect(await store.briefs.getRepoConfig(pr.id, "base", "head")).toBe(
@@ -156,6 +159,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       ...PROV,
       body: "v1",
       repoConfig: snapshot,
+      usedGroupIds: [],
     });
     expect(withConfig.repoConfig).toBe(snapshot);
 
@@ -169,6 +173,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       commitCount: 1,
       ...PROV,
       body: "v2",
+      usedGroupIds: [],
     });
     expect(without.repoConfig).toBeNull();
   });
@@ -192,6 +197,7 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
       commitCount: 1,
       ...PROV,
       body: "v1",
+      usedGroupIds: [],
     });
 
     await expect(
@@ -203,6 +209,7 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
         commitCount: 1,
         ...PROV,
         body: "v1",
+        usedGroupIds: [],
       }),
     ).rejects.toMatchObject({
       cause: { constraint: "brief_pull_request_head_index_key" },
@@ -230,6 +237,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       ...PROV,
       body: "v1",
       anchorState: "none",
+      usedGroupIds: [],
     });
     expect(first.anchorState).toBe("none");
     expect(first.anchorReason).toBeNull();
@@ -244,6 +252,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       body: "v2",
       anchorState: "fresh-restart",
       anchorReason: "model-swap",
+      usedGroupIds: [],
     });
     expect(second.anchorState).toBe("fresh-restart");
     expect(second.anchorReason).toBe("model-swap");
@@ -271,6 +280,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       commitCount: 1,
       ...PROV,
       body: "v1",
+      usedGroupIds: [],
     });
     expect(written.anchorState).toBeNull();
     expect(written.anchorReason).toBeNull();
@@ -293,6 +303,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       commitCount: 1,
       ...PROV,
       body: "v1",
+      usedGroupIds: [],
     };
 
     await expect(
@@ -324,6 +335,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
+      usedGroupIds: [],
     };
 
     const legacy = await store.briefs.write({ ...span, body: "v1" });
@@ -347,9 +359,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     });
     expect(restarted.carriedChunkIds).toEqual([]);
 
-    // used_group_ids rides the same discipline: omitted → NULL (legacy
-    // writer), present → stored on both insert and the conflict update.
-    expect(legacy.usedGroupIds).toBeNull();
+    expect(legacy.usedGroupIds).toEqual([]);
     const used = await store.briefs.write({
       ...span,
       body: "v4",
@@ -490,6 +500,7 @@ describe("createArtifactStore rejects a cross-tenant write before the DB", () =>
         commitCount: 1,
         ...PROV,
         body: "x",
+        usedGroupIds: [],
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
 
@@ -521,6 +532,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       commitCount: 1,
       ...PROV,
       body: "b-brief",
+      usedGroupIds: [],
     });
 
     // Tenant A owns its own PR, but points the narrative at B's brief.
@@ -561,6 +573,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       commitCount: 3,
       ...PROV,
       body: "brief",
+      usedGroupIds: [],
     });
 
     const result = await store.revisionNarratives.write({
@@ -591,6 +604,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       commitCount: 1,
       ...PROV,
       body: "brief",
+      usedGroupIds: [],
     };
     const firstBrief = await store.briefs.write({ ...briefSpan, headIndex: 1 });
     const secondBrief = await store.briefs.write({
@@ -644,6 +658,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       commitCount: 1,
       ...PROV,
       body: "b-brief",
+      usedGroupIds: [],
     });
 
     const bNarrative = await bStore.revisionNarratives.write({
@@ -962,6 +977,7 @@ describe("createArtifactStore body version stamp", () => {
       commitCount: 1,
       ...PROV,
       body: "brief",
+      usedGroupIds: [],
     };
 
     const stamped = await store.briefs.write({
@@ -1022,6 +1038,7 @@ describe("createArtifactStore body version stamp", () => {
       commitCount: 1,
       ...PROV,
       body: "brief",
+      usedGroupIds: [],
     });
     const span = {
       pullRequestId: pr.id,
@@ -1080,6 +1097,7 @@ describe("createArtifactStore.briefs session record counts", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
+      usedGroupIds: [],
     };
 
     const first = await store.briefs.write({ ...span, body: TWO_CHUNKS });
@@ -1112,6 +1130,7 @@ describe("createArtifactStore.briefs session record counts", () => {
       commitCount: 1,
       ...PROV,
       body,
+      usedGroupIds: [],
     });
 
     expect(written.sessionChunkCount).toBe(2);
@@ -1126,6 +1145,7 @@ describe("createArtifactStore.briefs session record counts", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
+      usedGroupIds: [],
     };
     await store.briefs.write({ ...span, body: TWO_CHUNKS });
 
@@ -1190,6 +1210,7 @@ describe("createArtifactStore query shape", () => {
         commitCount: 1,
         ...PROV,
         body: "{}",
+        usedGroupIds: [],
       }),
     );
 
@@ -1212,6 +1233,7 @@ describe("createArtifactStore query shape", () => {
       commitCount: 1,
       ...PROV,
       body: "{}",
+      usedGroupIds: [],
     });
 
     const written = await recordStatements(log, () =>

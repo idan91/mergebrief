@@ -129,6 +129,7 @@ async function seedFullGraph(
       commitCount: 3,
       ...ORIGIN,
       ...artifact('{"brief":true}'),
+      usedGroupIds: [],
     })
     .returning({ id: brief.id });
   const briefRow = briefRows[0];
@@ -332,6 +333,7 @@ describe("M1 schema migrations", () => {
       commitCount: 3,
       ...ORIGIN,
       ...artifact('{"brief":true}'),
+      usedGroupIds: [],
     };
     await db.insert(brief).values(values);
     const rejection: unknown = await db

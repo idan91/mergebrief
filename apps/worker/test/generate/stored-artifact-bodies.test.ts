@@ -82,8 +82,6 @@ describe("generate task, stored artifact bodies", () => {
     rev1Output?: unknown;
     rev2Output?: unknown;
     storedBodySql?: string;
-    /** Rev 1's row predates the used-group-ids column. */
-    clearUsedGroupIds?: boolean;
   }) {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -104,11 +102,6 @@ describe("generate task, stored artifact bodies", () => {
     if (options.storedBodySql !== undefined) {
       await harness.raw(
         `update brief set body = ${options.storedBodySql} where head_sha = '${HEAD_1}'`,
-      );
-    }
-    if (options.clearUsedGroupIds === true) {
-      await harness.raw(
-        `update brief set used_group_ids = null where head_sha = '${HEAD_1}'`,
       );
     }
     if (options.rev2Output !== undefined) {
@@ -171,7 +164,6 @@ describe("generate task, stored artifact bodies", () => {
     const { row, shapeWarnings } = await runSecondPush({
       storedBodySql:
         "jsonb_set(body::jsonb, '{commitRange}', (body::jsonb -> 'commitRange') - 'commitCount')::text",
-      clearUsedGroupIds: true,
       rev2Output: makeBriefOutputGrouped("g2"),
     });
 

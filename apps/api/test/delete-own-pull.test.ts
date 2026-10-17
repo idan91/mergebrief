@@ -76,6 +76,7 @@ async function seedBriefedPr(
     model: "m",
     effort: "e",
     body: "{}",
+    usedGroupIds: [],
   });
 }
 

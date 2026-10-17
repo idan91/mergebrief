@@ -97,6 +97,7 @@ async function seedBrief(
     effort: "high",
     body: EMPTY_BRIEF_BODY,
     carriedChunkIds,
+    usedGroupIds: [],
   };
 
   if (anchorState !== null) {

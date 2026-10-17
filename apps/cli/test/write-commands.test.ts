@@ -222,6 +222,7 @@ describe("write commands over the real api app", () => {
       model: "claude",
       effort: "high",
       body: "{}",
+      usedGroupIds: [],
     });
     const written = await repo.reviewSessions.setOutcome(
       { briefId: brief.id, reviewerId: REVIEWER },

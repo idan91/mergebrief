@@ -68,6 +68,7 @@ async function seedBrief(
     model: "stub",
     effort: "low",
     body: "{}",
+    usedGroupIds: [],
   });
 }
 
