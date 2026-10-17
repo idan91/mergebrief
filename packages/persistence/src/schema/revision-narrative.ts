@@ -3,7 +3,7 @@
 // Brief base nor Checkpoint baseline. The `brief_id` FK CASCADE is the
 // anchoring rule: the narrative points into brief-local Change-group ids, so
 // a regenerated Brief cascades the old narrative away.
-import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
 import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { brief } from "./brief";
@@ -39,5 +39,7 @@ export const revisionNarrative = pgTable(
         table.headSha,
       )
       .nullsNotDistinct(),
+    index("revision_narrative_pull_request_idx").on(table.pullRequestId),
+    index("revision_narrative_brief_idx").on(table.briefId),
   ],
 );

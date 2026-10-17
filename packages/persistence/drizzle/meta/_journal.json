@@ -414,6 +414,13 @@
       "when": 1792235144150,
       "tag": "0059_used-group-ids-not-null",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792235731253,
+      "tag": "0060_cascade-fk-indexes",
+      "breakpoints": true
     }
   ]
 }

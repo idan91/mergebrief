@@ -4,7 +4,11 @@
 // seeds a two-PR brief chain with JSON text ids, applies 0054, and reads the
 // native arrays back.
 import { describe, expect, it } from "vitest";
-import { applyMigrationFile, pgliteBefore } from "./helpers";
+import {
+  applyMigrationFile,
+  MIGRATION_REPLAY_TIMEOUT_MS,
+  pgliteBefore,
+} from "./helpers";
 
 interface IdColumnsRow {
   readonly pr_number: number;
@@ -35,11 +39,14 @@ async function readIdColumns(
   return result.rows;
 }
 
-describe("migration 0054 id lists as text arrays", () => {
-  it("converts JSON text ids to arrays and backfills used_group_ids", async () => {
-    const { client, target } = await pgliteBefore("0054_");
+describe(
+  "migration 0054 id lists as text arrays",
+  { timeout: MIGRATION_REPLAY_TIMEOUT_MS },
+  () => {
+    it("converts JSON text ids to arrays and backfills used_group_ids", async () => {
+      const { client, target } = await pgliteBefore("0054_");
 
-    await client.exec(`
+      await client.exec(`
       insert into pull_request (installation_id, repo_id, pr_number, repo_slug, state)
       values (4242, 99, 7, 'acme/widgets', 'open'),
              (4242, 99, 8, 'acme/widgets', 'open');
@@ -75,60 +82,64 @@ describe("migration 0054 id lists as text arrays", () => {
       from pull_request where pr_number = 8;
     `);
 
-    await applyMigrationFile(client, target);
+      await applyMigrationFile(client, target);
 
-    expect(await readIdColumns(client)).toEqual([
-      {
-        pr_number: 7,
-        head_index: 0,
-        carried_chunk_ids: null,
-        used_group_ids: [],
-      },
-      {
-        pr_number: 7,
-        head_index: 1,
-        carried_chunk_ids: null,
-        used_group_ids: ["gA", "gB"],
-      },
-      {
-        pr_number: 7,
-        head_index: 2,
-        carried_chunk_ids: ["c1", "c2"],
-        used_group_ids: ["gA", "gB", "gC"],
-      },
-      {
-        pr_number: 7,
-        head_index: 3,
-        carried_chunk_ids: [],
-        used_group_ids: ["gA", "gB", "gC", "gD"],
-      },
-      {
-        pr_number: 8,
-        head_index: 1,
-        carried_chunk_ids: null,
-        used_group_ids: ["gZ", "gA"],
-      },
-    ]);
+      expect(await readIdColumns(client)).toEqual([
+        {
+          pr_number: 7,
+          head_index: 0,
+          carried_chunk_ids: null,
+          used_group_ids: [],
+        },
+        {
+          pr_number: 7,
+          head_index: 1,
+          carried_chunk_ids: null,
+          used_group_ids: ["gA", "gB"],
+        },
+        {
+          pr_number: 7,
+          head_index: 2,
+          carried_chunk_ids: ["c1", "c2"],
+          used_group_ids: ["gA", "gB", "gC"],
+        },
+        {
+          pr_number: 7,
+          head_index: 3,
+          carried_chunk_ids: [],
+          used_group_ids: ["gA", "gB", "gC", "gD"],
+        },
+        {
+          pr_number: 8,
+          head_index: 1,
+          carried_chunk_ids: null,
+          used_group_ids: ["gZ", "gA"],
+        },
+      ]);
 
-    const types = await client.query<ColumnTypeRow>(`
+      const types = await client.query<ColumnTypeRow>(`
       select column_name, data_type, udt_name from information_schema.columns
       where table_name = 'brief' and column_name in ('carried_chunk_ids', 'used_group_ids')
       order by column_name
     `);
-    expect(types.rows).toEqual([
-      {
-        column_name: "carried_chunk_ids",
-        data_type: "ARRAY",
-        udt_name: "_text",
-      },
-      { column_name: "used_group_ids", data_type: "ARRAY", udt_name: "_text" },
-    ]);
-  });
+      expect(types.rows).toEqual([
+        {
+          column_name: "carried_chunk_ids",
+          data_type: "ARRAY",
+          udt_name: "_text",
+        },
+        {
+          column_name: "used_group_ids",
+          data_type: "ARRAY",
+          udt_name: "_text",
+        },
+      ]);
+    });
 
-  it("fails loudly on a stored id value that is not a JSON array", async () => {
-    const { client, target } = await pgliteBefore("0054_");
+    it("fails loudly on a stored id value that is not a JSON array", async () => {
+      const { client, target } = await pgliteBefore("0054_");
 
-    await client.exec(`
+      await client.exec(`
       insert into pull_request (installation_id, repo_id, pr_number, repo_slug, state)
       values (4242, 99, 7, 'acme/widgets', 'open');
       insert into brief (installation_id, pull_request_id, base_sha, head_sha, head_index,
@@ -139,8 +150,9 @@ describe("migration 0054 id lists as text arrays", () => {
       from pull_request where pr_number = 7;
     `);
 
-    await expect(applyMigrationFile(client, target)).rejects.toThrow(
-      "invalid input syntax for type json",
-    );
-  });
-});
+      await expect(applyMigrationFile(client, target)).rejects.toThrow(
+        "invalid input syntax for type json",
+      );
+    });
+  },
+);

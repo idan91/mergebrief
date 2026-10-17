@@ -263,11 +263,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/schema/checkpoint.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/persistence/src/schema/github-grant.ts": {
     "house/no-em-dash": {
       "count": 3

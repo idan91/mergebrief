@@ -2,13 +2,14 @@
 // the deletes with their same-transaction grant orphan-clean, and the
 // `setExpiresAt` mirror. Rotation lives on the grant boundary.
 import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, freshDatabase, freshPglite } from "./helpers";
 
 const REVIEWER_ID: ReviewerId = brandWith(isReviewerId, 777n);
 const HASH = "a".repeat(64); // shape of a sha256 hex digest
@@ -266,14 +267,7 @@ describe("sweepExpiredSessions", () => {
 
 describe("auth_session schema, no credential columns", () => {
   it("the session table carries a grant FK and NO ciphertext columns", async () => {
-    const { PGlite } = await import("@electric-sql/pglite");
-    const { drizzle } = await import("drizzle-orm/pglite");
-    const { migrate } = await import("drizzle-orm/pglite/migrator");
-    const { fileURLToPath } = await import("node:url");
-    const db = drizzle(new PGlite());
-    await migrate(db, {
-      migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
-    });
+    const db = drizzle(await freshPglite());
     const result = await db.execute(
       sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'auth_session' order by column_name`,
     );

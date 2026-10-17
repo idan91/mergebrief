@@ -4,13 +4,21 @@
 // seeds one row per world in both tables, applies 0039, and reads them back.
 import { describe, expect, it } from "vitest";
 import { PullRequestSources } from "types/pull-requests";
-import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
+import {
+  applyMigrationFile,
+  MIGRATION_REPLAY_TIMEOUT_MS,
+  pgliteBefore,
+  readCheckValues,
+} from "./helpers";
 
-describe("migration 0039 source values", () => {
-  it("rewrites both tables' rows and pins both CHECKs to the map", async () => {
-    const { client, target } = await pgliteBefore("0039_");
+describe(
+  "migration 0039 source values",
+  { timeout: MIGRATION_REPLAY_TIMEOUT_MS },
+  () => {
+    it("rewrites both tables' rows and pins both CHECKs to the map", async () => {
+      const { client, target } = await pgliteBefore("0039_");
 
-    await client.exec(`
+      await client.exec(`
       insert into pull_request (installation_id, owner_user_id, source, repo_id, pr_number, state)
       values (4242, null, 'app-installation', 99, 7, 'open'),
              (null, 501, 'url-box', 99, 8, 'open');
@@ -19,27 +27,31 @@ describe("migration 0039 source values", () => {
              (null, 'url-box', 'app', 'delete', 'ok', 'repo', 99);
     `);
 
-    await applyMigrationFile(client, target);
+      await applyMigrationFile(client, target);
 
-    const prs = await client.query<{ pr_number: number; source: string }>(
-      "select pr_number, source from pull_request order by pr_number",
-    );
-    expect(prs.rows).toEqual([
-      { pr_number: 7, source: PullRequestSources.INSTALLATION },
-      { pr_number: 8, source: PullRequestSources.URL },
-    ]);
-    const audits = await client.query<{ source: string }>(
-      "select source from audit_log order by installation_id nulls last",
-    );
-    expect(audits.rows).toEqual([
-      { source: PullRequestSources.INSTALLATION },
-      { source: PullRequestSources.URL },
-    ]);
-
-    for (const name of ["pull_request_owner_shape", "audit_log_source_shape"]) {
-      expect((await readCheckValues(client, name)).toSorted()).toEqual(
-        Object.values(PullRequestSources).toSorted(),
+      const prs = await client.query<{ pr_number: number; source: string }>(
+        "select pr_number, source from pull_request order by pr_number",
       );
-    }
-  });
-});
+      expect(prs.rows).toEqual([
+        { pr_number: 7, source: PullRequestSources.INSTALLATION },
+        { pr_number: 8, source: PullRequestSources.URL },
+      ]);
+      const audits = await client.query<{ source: string }>(
+        "select source from audit_log order by installation_id nulls last",
+      );
+      expect(audits.rows).toEqual([
+        { source: PullRequestSources.INSTALLATION },
+        { source: PullRequestSources.URL },
+      ]);
+
+      for (const name of [
+        "pull_request_owner_shape",
+        "audit_log_source_shape",
+      ]) {
+        expect((await readCheckValues(client, name)).toSorted()).toEqual(
+          Object.values(PullRequestSources).toSorted(),
+        );
+      }
+    });
+  },
+);

@@ -65,5 +65,6 @@ export const reviewSession = pgTable(
       "review_session_review_outcome_check",
       isOneOf(table.reviewOutcome, REVIEW_OUTCOMES),
     ),
+    index("review_session_brief_idx").on(table.briefId),
   ],
 );

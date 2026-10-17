@@ -5,14 +5,22 @@
 // the same afterwards; a denial must not backfill as a success.
 import { describe, expect, it } from "vitest";
 import { AuditChannels, AuditOutcomes } from "../src/types";
-import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
+import {
+  applyMigrationFile,
+  MIGRATION_REPLAY_TIMEOUT_MS,
+  pgliteBefore,
+  readCheckValues,
+} from "./helpers";
 import { AccessLevels } from "types/access-levels";
 
-describe("migration 0025 audit_log operation and outcome", () => {
-  it("carries `action` over and reads denials off the decision metadata", async () => {
-    const { client, target } = await pgliteBefore("0025_");
+describe(
+  "migration 0025 audit_log operation and outcome",
+  { timeout: MIGRATION_REPLAY_TIMEOUT_MS },
+  () => {
+    it("carries `action` over and reads denials off the decision metadata", async () => {
+      const { client, target } = await pgliteBefore("0025_");
 
-    await client.exec(`
+      await client.exec(`
       insert into audit_log (installation_id, actor_type, action, target_type, metadata) values
         (4242, 'reviewer', 'auth', 'repo', '{"decision":"404"}'),
         (4242, 'reviewer', 'auth', 'api_token', '{"decision":"403","kind":"mint"}'),
@@ -21,46 +29,47 @@ describe("migration 0025 audit_log operation and outcome", () => {
         (4242, 'app', 'delete', 'pull_request', '{"count":3}');
     `);
 
-    await applyMigrationFile(client, target);
+      await applyMigrationFile(client, target);
 
-    const rows = await client.query<{
-      operation: string;
-      outcome: string;
-      target_type: string;
-    }>("select operation, outcome, target_type from audit_log order by id");
-    expect(rows.rows).toEqual([
-      { operation: "auth", outcome: "denied", target_type: "repo" },
-      { operation: "auth", outcome: "denied", target_type: "api_token" },
-      { operation: "auth", outcome: "ok", target_type: "api_token" },
-      { operation: "generate", outcome: "ok", target_type: "brief" },
-      { operation: "delete", outcome: "ok", target_type: "pull_request" },
-    ]);
+      const rows = await client.query<{
+        operation: string;
+        outcome: string;
+        target_type: string;
+      }>("select operation, outcome, target_type from audit_log order by id");
+      expect(rows.rows).toEqual([
+        { operation: "auth", outcome: "denied", target_type: "repo" },
+        { operation: "auth", outcome: "denied", target_type: "api_token" },
+        { operation: "auth", outcome: "ok", target_type: "api_token" },
+        { operation: "generate", outcome: "ok", target_type: "brief" },
+        { operation: "delete", outcome: "ok", target_type: "pull_request" },
+      ]);
 
-    // Collection of the caller's address must stay a config change: every
-    // backfilled row is honestly empty rather than absent.
-    const ips = await client.query<{ n: number }>(
-      "select count(*)::int as n from audit_log where caller_ip is not null",
-    );
-    expect(ips.rows[0]?.n).toBe(0);
+      // Collection of the caller's address must stay a config change: every
+      // backfilled row is honestly empty rather than absent.
+      const ips = await client.query<{ n: number }>(
+        "select count(*)::int as n from audit_log where caller_ip is not null",
+      );
+      expect(ips.rows[0]?.n).toBe(0);
 
-    // CHECK and `as const` map in lockstep, same shape as every other
-    // DB-stored vocabulary.
-    expect(
-      (await readCheckValues(client, "audit_log_outcome_check")).toSorted(),
-    ).toEqual(Object.values(AuditOutcomes).toSorted());
-    expect(
-      (await readCheckValues(client, "audit_log_channel_check")).toSorted(),
-    ).toEqual(Object.values(AuditChannels).toSorted());
-    // `classification` narrows the shared scope vocabulary; reads are never
-    // audited, so `read` must NOT be accepted here.
-    expect(
-      (
-        await readCheckValues(client, "audit_log_classification_check")
-      ).toSorted(),
-    ).toEqual(
-      Object.values(AccessLevels)
-        .filter((value) => value !== AccessLevels.READ)
-        .toSorted(),
-    );
-  });
-});
+      // CHECK and `as const` map in lockstep, same shape as every other
+      // DB-stored vocabulary.
+      expect(
+        (await readCheckValues(client, "audit_log_outcome_check")).toSorted(),
+      ).toEqual(Object.values(AuditOutcomes).toSorted());
+      expect(
+        (await readCheckValues(client, "audit_log_channel_check")).toSorted(),
+      ).toEqual(Object.values(AuditChannels).toSorted());
+      // `classification` narrows the shared scope vocabulary; reads are never
+      // audited, so `read` must NOT be accepted here.
+      expect(
+        (
+          await readCheckValues(client, "audit_log_classification_check")
+        ).toSorted(),
+      ).toEqual(
+        Object.values(AccessLevels)
+          .filter((value) => value !== AccessLevels.READ)
+          .toSorted(),
+      );
+    });
+  },
+);

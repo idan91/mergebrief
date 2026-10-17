@@ -83,6 +83,9 @@ export const reviewDraftComment = pgTable(
 
     return [
       index("review_draft_comment_session_idx").on(table.reviewSessionId),
+      index("review_draft_comment_carried_from_session_idx")
+        .on(table.carriedFromSessionId)
+        .where(sql`${table.carriedFromSessionId} is not null`),
       check(
         "review_draft_comment_status_check",
         isOneOf(table.status, DRAFT_COMMENT_STATUSES),

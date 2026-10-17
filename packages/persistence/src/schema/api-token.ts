@@ -39,6 +39,7 @@ export const apiToken = pgTable(
   },
   (table) => [
     index("api_token_user_idx").on(table.userId),
+    index("api_token_grant_idx").on(table.grantId),
     check("api_token_scope_check", isOneOf(table.scope, API_TOKEN_SCOPES)),
   ],
 );

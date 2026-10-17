@@ -321,6 +321,22 @@ describe("M1 schema migrations", () => {
     );
   });
 
+  it("leads an index with every foreign key column", async () => {
+    const db = await freshDb();
+    const unindexed = await db.execute(sql`
+      select c.conrelid::regclass::text as child, a.attname as foreign_key
+      from pg_constraint c
+      join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+      where c.contype = 'f'
+        and not exists (
+          select 1 from pg_index i
+          where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1]
+        )
+    `);
+
+    expect(unindexed.rows).toEqual([]);
+  });
+
   it("rejects two briefs with the same natural key", async () => {
     const db = await freshDb();
     const pullRequestId = await insertPullRequest(db);

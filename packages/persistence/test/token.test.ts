@@ -2,11 +2,8 @@
 // `session.test.ts`; credential rotation lives in grant.test.ts. The
 // hash-only-storage assertion is structural: the exact column set is pinned
 // so a plaintext or ciphertext column cannot be added silently.
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
 
@@ -14,19 +11,14 @@ import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import type { AppDatabase } from "../src/db/handle";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, freshDatabase, freshPglite } from "./helpers";
 import { AccessLevels } from "types/access-levels";
-
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 
 type Db = ReturnType<typeof drizzle>;
 
 /** Raw pglite drizzle handle for information_schema introspection. */
 async function freshDb(): Promise<Db> {
-  const client = new PGlite();
-  const db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  return db;
+  return drizzle(await freshPglite());
 }
 
 /** The full column inventory, hash + grant FK, NO plaintext or ciphertext. */

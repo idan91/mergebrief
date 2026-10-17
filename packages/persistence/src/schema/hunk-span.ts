@@ -5,7 +5,7 @@
 // content, so it is NOT code-bearing. A sibling table rather than a
 // `comparison_marks` column because marks store added and removed ranges
 // unpaired, and a remap needs both sides of each header paired.
-import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { stampColumns, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
@@ -34,5 +34,6 @@ export const hunkSpan = pgTable(
         table.headSha,
       )
       .nullsNotDistinct(),
+    index("hunk_span_pull_request_idx").on(table.pullRequestId),
   ],
 );

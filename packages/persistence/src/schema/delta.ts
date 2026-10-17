@@ -1,7 +1,7 @@
 // `delta`: the shared, reviewer-agnostic delta core. Its lower bound is
 // `baseline_sha` = a reviewer's Checkpoint SHA, NOT the PR base. Deliberately
 // NO `reviewer_id`: the per-reviewer layer is a separate overlay boundary.
-import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
@@ -32,5 +32,6 @@ export const delta = pgTable(
         table.headSha,
       )
       .nullsNotDistinct(),
+    index("delta_pull_request_idx").on(table.pullRequestId),
   ],
 );

@@ -303,6 +303,9 @@ export async function virginPglite(): Promise<PGlite> {
   return client;
 }
 
+/** A test that replays the migrations itself outgrows the 5 s default under a parallel run. */
+export const MIGRATION_REPLAY_TIMEOUT_MS = 30_000;
+
 /**
  * A PGlite migrated up to, not including, the migration whose file name
  * starts with `prefix`; the data test then seeds pre-migration rows and

@@ -2,7 +2,7 @@
 // Coordinates-only, never line content, so NOT code-bearing. Reviewer-agnostic:
 // `baseline_sha` may be a prevHead OR a checkpoint SHA; the marks are a pure
 // function of the pair.
-import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { artifactColumns, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
@@ -29,5 +29,6 @@ export const comparisonMarks = pgTable(
         table.headSha,
       )
       .nullsNotDistinct(),
+    index("comparison_marks_pull_request_idx").on(table.pullRequestId),
   ],
 );

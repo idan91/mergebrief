@@ -27,7 +27,11 @@ import {
   reviewSubmittedReview,
   userSettings,
 } from "../src/schema";
-import { freshPglite, virginPglite } from "./helpers";
+import {
+  freshPglite,
+  MIGRATION_REPLAY_TIMEOUT_MS,
+  virginPglite,
+} from "./helpers";
 
 const SCHEMA_TABLES = {
   apiToken,
@@ -98,13 +102,17 @@ async function buildDatabaseFromSchema(): Promise<PGlite> {
   return client;
 }
 
-describe("schema CHECK constraints", () => {
-  it("declares every migrated CHECK with the same definition", async () => {
-    const migrated = await readCheckConstraints(await freshPglite());
-    const declared = await readCheckConstraints(
-      await buildDatabaseFromSchema(),
-    );
+describe(
+  "schema CHECK constraints",
+  { timeout: MIGRATION_REPLAY_TIMEOUT_MS },
+  () => {
+    it("declares every migrated CHECK with the same definition", async () => {
+      const migrated = await readCheckConstraints(await freshPglite());
+      const declared = await readCheckConstraints(
+        await buildDatabaseFromSchema(),
+      );
 
-    expect(declared).toEqual(migrated);
-  });
-});
+      expect(declared).toEqual(migrated);
+    });
+  },
+);

@@ -4,13 +4,21 @@
 // seeds a `queued` generation row, applies 0036, and reads it back.
 import { describe, expect, it } from "vitest";
 import { GenerationStatuses } from "types/generations";
-import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
+import {
+  applyMigrationFile,
+  MIGRATION_REPLAY_TIMEOUT_MS,
+  pgliteBefore,
+  readCheckValues,
+} from "./helpers";
 
-describe("migration 0036 generation pending", () => {
-  it("rewrites queued rows to pending and leaves terminal rows alone", async () => {
-    const { client, target } = await pgliteBefore("0036_");
+describe(
+  "migration 0036 generation pending",
+  { timeout: MIGRATION_REPLAY_TIMEOUT_MS },
+  () => {
+    it("rewrites queued rows to pending and leaves terminal rows alone", async () => {
+      const { client, target } = await pgliteBefore("0036_");
 
-    await client.exec(`
+      await client.exec(`
       insert into pull_request (installation_id, repo_id, pr_number, repo_slug, state)
       values (4242, 99, 7, 'acme/widgets', 'open');
       insert into generation (installation_id, pull_request_id, kind, head_sha, status)
@@ -19,18 +27,19 @@ describe("migration 0036 generation pending", () => {
       select 4242, id, 'brief', 'head-done', 'succeeded' from pull_request where pr_number = 7;
     `);
 
-    await applyMigrationFile(client, target);
+      await applyMigrationFile(client, target);
 
-    const rows = await client.query<{ head_sha: string; status: string }>(
-      "select head_sha, status from generation order by head_sha",
-    );
-    expect(rows.rows).toEqual([
-      { head_sha: "head-done", status: "succeeded" },
-      { head_sha: "head-waiting", status: "pending" },
-    ]);
+      const rows = await client.query<{ head_sha: string; status: string }>(
+        "select head_sha, status from generation order by head_sha",
+      );
+      expect(rows.rows).toEqual([
+        { head_sha: "head-done", status: "succeeded" },
+        { head_sha: "head-waiting", status: "pending" },
+      ]);
 
-    expect(
-      (await readCheckValues(client, "generation_status_check")).toSorted(),
-    ).toEqual(Object.values(GenerationStatuses).toSorted());
-  });
-});
+      expect(
+        (await readCheckValues(client, "generation_status_check")).toSorted(),
+      ).toEqual(Object.values(GenerationStatuses).toSorted());
+    });
+  },
+);

@@ -30,5 +30,8 @@ export const authSession = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ...stampColumns(),
   },
-  (table) => [index("auth_session_expires_at_idx").on(table.expiresAt)],
+  (table) => [
+    index("auth_session_expires_at_idx").on(table.expiresAt),
+    index("auth_session_grant_idx").on(table.grantId),
+  ],
 );
