@@ -308,6 +308,21 @@ describe("M1 schema migrations", () => {
     expect(indexdef).toMatch(/WHERE \(?purge_after IS NOT NULL\)?/);
   });
 
+  it.each([
+    ["audit_log_occurred_at_idx", "audit_log", "occurred_at"],
+    ["auth_session_expires_at_idx", "auth_session", "expires_at"],
+  ])("creates the %s sweep index", async (indexName, table, column) => {
+    const db = await freshDb();
+    const result = await db.execute(
+      sql`select indexdef from pg_indexes where indexname = ${indexName}`,
+    );
+    const indexdef = result.rows[0]?.["indexdef"];
+
+    expect(indexdef).toBe(
+      `CREATE INDEX ${indexName} ON public.${table} USING btree (${column})`,
+    );
+  });
+
   it("rejects two briefs with the same natural key", async () => {
     const db = await freshDb();
     const pullRequestId = await insertPullRequest(db);

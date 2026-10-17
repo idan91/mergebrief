@@ -8,6 +8,7 @@
 import {
   bigint,
   check,
+  index,
   jsonb,
   pgTable,
   text,
@@ -107,6 +108,7 @@ export const auditLog = pgTable(
     );
 
     return [
+      index("audit_log_occurred_at_idx").on(table.occurredAt),
       check(
         "audit_log_source_shape",
         sql`(${installationSourced} and ${table.installationId} is not null) or (${urlSourced} and ${table.installationId} is null)`,
