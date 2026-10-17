@@ -532,7 +532,6 @@ describe("createInboxStore.list, fold and sort", () => {
       lifecycle: {
         state: PrStates.MERGED,
         closedAt: new Date("2026-09-20T00:00:00Z"),
-        purgeAfter: null,
       },
       updatedAt: new Date("2026-09-20T00:00:00Z"),
     });
@@ -698,7 +697,6 @@ describe("createInboxStore.list, visibility", () => {
       lifecycle: {
         state: PrStates.MERGED,
         closedAt: new Date(),
-        purgeAfter: null,
       },
     });
     const archives = createTenantRepository(handle, CTX_ACME).archives;
@@ -789,7 +787,6 @@ describe("createInboxStore.list, filters", () => {
       lifecycle: {
         state: PrStates.MERGED,
         closedAt: new Date(),
-        purgeAfter: null,
       },
     });
     await seedRow(handle, {
@@ -799,7 +796,6 @@ describe("createInboxStore.list, filters", () => {
       lifecycle: {
         state: PrStates.CLOSED,
         closedAt: new Date(),
-        purgeAfter: null,
       },
     });
     const mine = await seedRow(handle, {

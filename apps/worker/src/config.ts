@@ -29,6 +29,9 @@ export interface WorkerConfig {
   /** Audit retention window the scheduled sweep enforces; null = keep forever
    * (the default). Validated; floor included; by persistence's loader. */
   readonly auditRetentionDays: number | null;
+  /** Days a closed pull request outlives its close before the scheduled
+   * sweep erases it; null = keep forever (the default). */
+  readonly prRetentionDays: number | null;
   /** The validated generator block (instance config or zero-config default).
    * Key resolution + boot probes happen inside createGenerator. */
   readonly generator: GeneratorConfig;
@@ -248,6 +251,7 @@ export function loadConfig(
       autoMigrate: persistence.value.autoMigrate,
       concurrency: knobs.value.concurrency,
       auditRetentionDays: persistence.value.auditRetentionDays,
+      prRetentionDays: persistence.value.prRetentionDays,
       generator: generatorConfig.value.generator,
       publicBaseUrl: knobs.value.publicBaseUrl,
       spend: generatorConfig.value.spend,

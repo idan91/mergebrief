@@ -294,18 +294,24 @@ describe("M1 schema migrations", () => {
     expect(names).toEqual([...M1_TABLES]);
   });
 
-  it("creates the partial purge_after sweep index", async () => {
+  it("creates the partial closed_at sweep index and no purge_after column", async () => {
     const db = await freshDb();
     const result = await db.execute(
-      sql`select indexdef from pg_indexes where indexname = 'pull_request_purge_after_idx'`,
+      sql`select indexdef from pg_indexes where indexname = 'pull_request_closed_at_idx'`,
     );
-    const row = result.rows[0];
-    expect(row).toBeDefined();
-    const indexdef = row?.["indexdef"];
-    if (typeof indexdef !== "string") {
-      throw new Error("indexdef missing");
-    }
-    expect(indexdef).toMatch(/WHERE \(?purge_after IS NOT NULL\)?/);
+    const indexdef = result.rows[0]?.["indexdef"];
+    expect(indexdef).toBe(
+      "CREATE INDEX pull_request_closed_at_idx ON public.pull_request USING btree (closed_at) WHERE (closed_at IS NOT NULL)",
+    );
+
+    const stale = await db.execute(
+      sql`select indexname from pg_indexes where indexname = 'pull_request_purge_after_idx'`,
+    );
+    expect(stale.rows).toHaveLength(0);
+    const columns = await db.execute(
+      sql`select column_name from information_schema.columns where table_name = 'pull_request' and column_name = 'purge_after'`,
+    );
+    expect(columns.rows).toHaveLength(0);
   });
 
   it.each([
@@ -443,14 +449,8 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     );
   });
 
-  it("rejects an open pull_request armed for the sweep", async () => {
+  it("rejects an open pull_request that carries a close time", async () => {
     const db = await freshDb();
-    await expectCheckViolation(
-      db.execute(
-        sql`insert into pull_request (installation_id, repo_id, pr_number, state, purge_after) values (1000, 777, 1, 'open', now())`,
-      ),
-      "pull_request_open_retention_shape",
-    );
     await expectCheckViolation(
       db.execute(
         sql`insert into pull_request (installation_id, repo_id, pr_number, state, closed_at) values (1000, 777, 1, 'open', now())`,

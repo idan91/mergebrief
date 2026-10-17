@@ -109,7 +109,6 @@ describe("createLiveReadStore.listDue", () => {
           lifecycle: {
             state: PrStates.MERGED,
             closedAt: minutesAgo(30),
-            purgeAfter: null,
           },
         }),
       ),
@@ -122,7 +121,6 @@ describe("createLiveReadStore.listDue", () => {
           lifecycle: {
             state: PrStates.CLOSED,
             closedAt: minutesAgo(30),
-            purgeAfter: null,
           },
         }),
       ),
@@ -161,7 +159,6 @@ describe("createLiveReadStore.record", () => {
           lifecycle: {
             state: PrStates.CLOSED,
             closedAt: minutesAgo(30),
-            purgeAfter: null,
           },
         }),
       ),

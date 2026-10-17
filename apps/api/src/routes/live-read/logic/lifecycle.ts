@@ -22,14 +22,12 @@ export function deriveLifecycle(
     return {
       state: PrStates.MERGED,
       closedAt: facts.closedAt ?? now,
-      purgeAfter: null,
     };
   }
   if (facts.state === "closed") {
     return {
       state: PrStates.CLOSED,
       closedAt: facts.closedAt ?? now,
-      purgeAfter: null,
     };
   }
   return { state: PrStates.OPEN };

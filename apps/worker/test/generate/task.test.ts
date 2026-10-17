@@ -884,7 +884,6 @@ describe("generate task", () => {
       prNumber: pr.prNumber,
       state: PrStates.CLOSED,
       closedAt: new Date(),
-      purgeAfter: null,
     });
     const generator = stubGenerator();
     const task = makeTask({ generator });

@@ -1,8 +1,9 @@
 // Purge and retention tests over PGlite, proving the deletion boundary: a PR
 // purge cascades the 8 child tables while sparing the no-FK audit ledger and
-// auth_session, cross-tenant purge deletes nothing, and the retention sweep
-// stays tenant-scoped. Seeds go through a RAW drizzle handle over the same PGlite.
-import { and, eq } from "drizzle-orm";
+// auth_session, a cross-tenant purge deletes nothing, and the instance-wide
+// retention sweep reads only the close time. Seeds go through a RAW drizzle
+// handle over the same PGlite.
+import { and, eq, sql } from "drizzle-orm";
 import { type PgliteDatabase, drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
@@ -27,7 +28,10 @@ import {
   reviewSubmittedReview,
   revisionNarrative,
 } from "../src/schema/index";
-import { PurgeErrorCodes, createPurgeRoutines } from "../src/stores/purge";
+import {
+  createPurgeRoutines,
+  sweepClosedPullRequests,
+} from "../src/stores/purge";
 import type { TenantContext } from "../src/stores/scope-context";
 import {
   AuditOutcomes,
@@ -48,6 +52,7 @@ import {
   GenerationStatuses,
   type PrState,
   PrStates,
+  PullRequestSources,
   AccessLevels,
 } from "types";
 import { brandWith, freshPglite } from "./helpers";
@@ -106,30 +111,18 @@ function artifact(body: string): {
   return { body, byteSize: Buffer.byteLength(body, "utf8") };
 }
 
-/** Ascending bigint comparator, `Array#sort`'s default coerces to string. */
-function compareBigIntAsc(left: bigint, right: bigint): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
-}
-
 interface PrSeed {
   readonly installationId: InstallationId;
   readonly repoId?: RepoId;
   readonly prNumber?: number;
   readonly state?: PrState;
   readonly closedAt?: Date;
-  readonly purgeAfter?: Date;
 }
 
 async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
-  // Lifecycle-consistent defaults: a seed armed for the sweep must be a
-  // closed PR (the 0002 open-retention-shape CHECK forbids open+armed).
-  const armed = seed.purgeAfter !== undefined || seed.closedAt !== undefined;
+  // Lifecycle-consistent defaults: a seed with a close time is a closed PR
+  // (the open-retention-shape CHECK forbids open with a close time).
+  const closed = seed.closedAt !== undefined;
   const rows = await db
     .insert(pullRequest)
     .values({
@@ -137,10 +130,8 @@ async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
       repoId: seed.repoId ?? REPO,
       prNumber: seed.prNumber ?? 7,
       repoSlug: "acme/widgets",
-      state: seed.state ?? (armed ? PrStates.CLOSED : PrStates.OPEN),
-      closedAt:
-        seed.closedAt ?? (armed ? new Date("2026-07-01T00:00:00Z") : undefined),
-      purgeAfter: seed.purgeAfter,
+      state: seed.state ?? (closed ? PrStates.CLOSED : PrStates.OPEN),
+      closedAt: seed.closedAt,
     })
     .returning({ id: pullRequest.id });
   const row = rows[0];
@@ -558,153 +549,272 @@ describe("createPurgeRoutines.purgeInstallation, tenant-isolated offboarding", (
   });
 });
 
-describe("createPurgeRoutines.sweepExpired, retention sweep", () => {
-  it("removes only expired, non-null, in-tenant rows and audits the count", async () => {
-    const { raw, handle } = await freshPair();
-    const now = new Date("2026-07-04T00:00:00Z");
-    const past = new Date("2026-07-01T00:00:00Z");
-    const future = new Date("2026-07-10T00:00:00Z");
+const OWNER: ReviewerId = brandWith(isReviewerId, 501n);
+const OTHER_OWNER: ReviewerId = brandWith(isReviewerId, 502n);
+const SWEEP_NOW = new Date("2026-08-01T00:00:00Z");
+const RETENTION_DAYS = 30;
+/** Just past the window at `SWEEP_NOW`; `insideWindow` is just inside it. */
+const PAST_WINDOW = new Date("2026-07-01T00:00:00Z");
+const INSIDE_WINDOW = new Date("2026-07-03T00:00:00Z");
+/** One more than a sweep batch, so the backlog takes two transactions. */
+const BACKLOG = 501;
 
-    const expired = await insertPr(raw, {
+interface OwnerPrSeed {
+  readonly ownerUserId: ReviewerId;
+  readonly prNumber: number;
+  readonly closedAt: Date;
+}
+
+async function insertOwnerPr(
+  db: Db,
+  seed: OwnerPrSeed,
+): Promise<PullRequestRowId> {
+  const rows = await db
+    .insert(pullRequest)
+    .values({
+      installationId: null,
+      ownerUserId: seed.ownerUserId,
+      source: PullRequestSources.URL,
+      repoId: REPO,
+      prNumber: seed.prNumber,
+      repoSlug: "acme/widgets",
+      state: PrStates.MERGED,
+      closedAt: seed.closedAt,
+    })
+    .returning({ id: pullRequest.id });
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error("pull_request insert returned no row");
+  }
+  return row.id;
+}
+
+async function readPrNumbers(db: Db): Promise<number[]> {
+  const rows = await db
+    .select({ prNumber: pullRequest.prNumber })
+    .from(pullRequest)
+    .orderBy(pullRequest.prNumber);
+  return rows.map((row) => row.prNumber);
+}
+
+async function readSweepAudits(db: Db) {
+  return db
+    .select({
+      installationId: auditLog.installationId,
+      source: auditLog.source,
+      actorType: auditLog.actorType,
+      actorId: auditLog.actorId,
+      targetType: auditLog.targetType,
+      targetId: auditLog.targetId,
+      metadata: auditLog.metadata,
+    })
+    .from(auditLog)
+    .where(eq(auditLog.operation, "delete"))
+    .orderBy(auditLog.id);
+}
+
+describe("sweepClosedPullRequests, instance-wide retention", () => {
+  it("deletes a pull request closed before the window with its children", async () => {
+    const { raw, handle } = await freshPair();
+    const swept = await insertPr(raw, {
       installationId: TENANT_A,
       prNumber: 1,
-      purgeAfter: past,
+      closedAt: PAST_WINDOW,
     });
-    const openNever = await insertPr(raw, {
-      installationId: TENANT_A,
-      prNumber: 2,
-      // purge_after null, retention disabled / still open.
-    });
-    const notYet = await insertPr(raw, {
-      installationId: TENANT_A,
-      prNumber: 3,
-      purgeAfter: future,
-    });
-    // Another tenant with an expired row, must be spared.
-    const bExpired = await insertPr(raw, {
-      installationId: TENANT_B,
-      prNumber: 1,
-      purgeAfter: past,
-    });
+    await seedFullGraph(raw, TENANT_A, swept);
+    expect(await countChildTables(raw, swept)).toBe(8);
 
-    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(now);
-    expect(purged).toBe(1);
-
-    const remaining = await raw
-      .select({ id: pullRequest.id })
-      .from(pullRequest);
-    expect(remaining.map((r) => r.id).toSorted(compareBigIntAsc)).toEqual(
-      [openNever, notYet, bExpired].toSorted(compareBigIntAsc),
-    );
-    void expired;
-
-    const deletes = await deleteAudits(raw, TENANT_A);
-    expect(deletes).toHaveLength(1);
-    expect(deletes[0]?.targetType).toBe("pull_request");
-    // The count is summarized in metadata; targetId is absent for a batch.
-    expect(deletes[0]?.targetId).toBeNull();
-    // Tenant B untouched and unaudited.
-    expect(await deleteAudits(raw, TENANT_B)).toHaveLength(0);
-  });
-
-  it("emits no audit entry when the sweep erases nothing", async () => {
-    const { raw, handle } = await freshPair();
-    await insertPr(raw, { installationId: TENANT_A, prNumber: 1 }); // null purge_after
-    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(
-      new Date(),
-    );
-    expect(purged).toBe(0);
-    expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
-  });
-});
-
-describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
-  it("sets purge_after = closedAt + grace and stamps closed_at", async () => {
-    const { raw, handle } = await freshPair();
-    const closedAt = new Date("2026-07-01T00:00:00Z");
-    // Seeded OPEN: setRetention itself performs the terminal transition.
-    const prId = await insertPr(raw, { installationId: TENANT_A });
-
-    const result = await createPurgeRoutines(handle, CTX_A).setRetention(
-      prId,
-      PrStates.CLOSED,
-      closedAt,
-      7,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("expected success");
-    }
-    expect(result.value.state).toBe(PrStates.CLOSED);
-    expect(result.value.closedAt?.getTime()).toBe(closedAt.getTime());
-    const expected = closedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
-    expect(result.value.purgeAfter?.getTime()).toBe(expected);
-  });
-
-  it("rejects negative and non-finite graceDays without writing", async () => {
-    const { raw, handle } = await freshPair();
-    const routines = createPurgeRoutines(handle, CTX_A);
-    const prId = await insertPr(raw, { installationId: TENANT_A });
-    const closedAt = new Date("2026-07-01T00:00:00Z");
-
-    for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const result = await routines.setRetention(
-        prId,
-        PrStates.CLOSED,
-        closedAt,
-        bad,
-      );
-      expect(result.ok).toBe(false);
-      if (result.ok) {
-        throw new Error("expected failure");
-      }
-      expect(result.error.code).toBe(PurgeErrorCodes.INVALID_GRACE);
-    }
-    const rows = await raw
-      .select()
-      .from(pullRequest)
-      .where(eq(pullRequest.id, prId));
-    expect(rows[0]?.purgeAfter).toBeNull();
-    expect(rows[0]?.closedAt).toBeNull();
-  });
-
-  it("null grace disables retention, the row is never swept", async () => {
-    const { raw, handle } = await freshPair();
-    const routines = createPurgeRoutines(handle, CTX_A);
-    const prId = await insertPr(raw, { installationId: TENANT_A });
-
-    const result = await routines.setRetention(
-      prId,
-      PrStates.MERGED,
-      new Date("2026-07-01T00:00:00Z"),
-      null,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("expected success");
-    }
-    expect(result.value.purgeAfter).toBeNull();
-
-    // A sweep far in the future still cannot touch a null-purge_after row.
-    const purged = await routines.sweepExpired(
-      new Date("2099-01-01T00:00:00Z"),
-    );
-    expect(purged).toBe(0);
     expect(
-      await raw.select({ id: pullRequest.id }).from(pullRequest),
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(1);
+
+    expect(await readPrNumbers(raw)).toEqual([]);
+    expect(await countChildTables(raw, swept)).toBe(0);
+    expect(await countSessionTables(raw, TENANT_A)).toBe(0);
+    expect(
+      await raw.select({ id: authSession.id }).from(authSession),
     ).toHaveLength(1);
   });
 
-  it("returns notFound for a PR outside the tenant", async () => {
+  it("keeps an open row, a row inside the window, and sweeps a merged one", async () => {
     const { raw, handle } = await freshPair();
-    const prId = await insertPr(raw, { installationId: TENANT_A });
-    const result = await createPurgeRoutines(handle, {
+    await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 2,
+      closedAt: INSIDE_WINDOW,
+    });
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 3,
+      state: PrStates.MERGED,
+      closedAt: PAST_WINDOW,
+    });
+
+    expect(
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(1);
+
+    expect(await readPrNumbers(raw)).toEqual([1, 2]);
+  });
+
+  it("sweeps url-box owner rows past the window too", async () => {
+    const { raw, handle } = await freshPair();
+    await insertOwnerPr(raw, {
+      ownerUserId: OWNER,
+      prNumber: 1,
+      closedAt: PAST_WINDOW,
+    });
+    await insertOwnerPr(raw, {
+      ownerUserId: OWNER,
+      prNumber: 2,
+      closedAt: INSIDE_WINDOW,
+    });
+
+    expect(
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(1);
+
+    expect(await readPrNumbers(raw)).toEqual([2]);
+  });
+
+  it("records one system delete entry per installation and per owner swept", async () => {
+    const { raw, handle } = await freshPair();
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 1,
+      closedAt: PAST_WINDOW,
+    });
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 2,
+      closedAt: PAST_WINDOW,
+    });
+    await insertPr(raw, {
       installationId: TENANT_B,
-    }).setRetention(prId, PrStates.CLOSED, new Date(), 3);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected notFound");
+      prNumber: 3,
+      closedAt: PAST_WINDOW,
+    });
+    await insertPr(raw, {
+      installationId: TENANT_B,
+      prNumber: 4,
+      closedAt: INSIDE_WINDOW,
+    });
+    await insertOwnerPr(raw, {
+      ownerUserId: OWNER,
+      prNumber: 5,
+      closedAt: PAST_WINDOW,
+    });
+    await insertOwnerPr(raw, {
+      ownerUserId: OTHER_OWNER,
+      prNumber: 6,
+      closedAt: PAST_WINDOW,
+    });
+    await insertOwnerPr(raw, {
+      ownerUserId: OTHER_OWNER,
+      prNumber: 7,
+      closedAt: PAST_WINDOW,
+    });
+
+    expect(
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(6);
+
+    const audits = await readSweepAudits(raw);
+    expect(audits).toHaveLength(4);
+    for (const entry of audits) {
+      expect(entry).toMatchObject({
+        actorType: "system",
+        actorId: null,
+        targetType: "pull_request",
+        targetId: null,
+      });
     }
-    expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
+    const byScope = audits.map((entry) => [
+      entry.source,
+      entry.installationId,
+      entry.metadata,
+    ]);
+    expect(byScope).toEqual(
+      expect.arrayContaining([
+        [PullRequestSources.INSTALLATION, TENANT_A, { count: 2 }],
+        [PullRequestSources.INSTALLATION, TENANT_B, { count: 1 }],
+        [PullRequestSources.URL, null, { count: 1 }],
+        [PullRequestSources.URL, null, { count: 2 }],
+      ]),
+    );
+  });
+
+  it("writes no audit entry when nothing is past the window", async () => {
+    const { raw, handle } = await freshPair();
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 1,
+      closedAt: INSIDE_WINDOW,
+    });
+
+    expect(
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(0);
+
+    expect(await readSweepAudits(raw)).toHaveLength(0);
+    expect(await readPrNumbers(raw)).toEqual([1]);
+  });
+
+  it("deletes nothing when retention is unset", async () => {
+    const { raw, handle } = await freshPair();
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 1,
+      closedAt: new Date("2020-01-01T00:00:00Z"),
+    });
+
+    expect(await sweepClosedPullRequests(handle, null, SWEEP_NOW)).toBe(0);
+
+    expect(await readPrNumbers(raw)).toEqual([1]);
+    expect(await readSweepAudits(raw)).toHaveLength(0);
+  });
+
+  it("refuses a window under the floor without deleting", async () => {
+    const { raw, handle } = await freshPair();
+    await insertPr(raw, {
+      installationId: TENANT_A,
+      prNumber: 1,
+      closedAt: new Date("2020-01-01T00:00:00Z"),
+    });
+
+    await expect(sweepClosedPullRequests(handle, 0, SWEEP_NOW)).rejects.toThrow(
+      /at least 1/,
+    );
+    await expect(
+      sweepClosedPullRequests(handle, 1.5, SWEEP_NOW),
+    ).rejects.toThrow(/whole number/);
+
+    expect(await readPrNumbers(raw)).toEqual([1]);
+  });
+
+  it("sweeps a backlog larger than one batch in a single call", async () => {
+    const { raw, handle } = await freshPair();
+    await raw.execute(
+      sql`insert into pull_request (installation_id, repo_id, pr_number, state, closed_at)
+          select ${TENANT_A}, ${REPO}, n, 'closed', ${PAST_WINDOW}
+          from generate_series(1, ${BACKLOG}) as n`,
+    );
+
+    expect(
+      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
+    ).toBe(BACKLOG);
+
+    expect(await readPrNumbers(raw)).toEqual([]);
+    const audits = await readSweepAudits(raw);
+    const counted = audits.reduce((total, entry) => {
+      const count = entry.metadata;
+      const isCount =
+        typeof count === "object" && count !== null && "count" in count;
+      return (
+        total + (isCount && typeof count.count === "number" ? count.count : 0)
+      );
+    }, 0);
+    expect(counted).toBe(BACKLOG);
   });
 });

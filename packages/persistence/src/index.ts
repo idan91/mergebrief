@@ -299,17 +299,15 @@ export type {
 } from "./stores/ingest";
 
 // Purge + retention routines: the tenant-scoped deletion boundary, plus the
-// instance-wide audit sweep (an operator setting, so it has no ctx to bind to).
+// instance-wide sweeps (operator settings, so they have no ctx to bind to).
 export {
   createPurgeRoutines,
-  PurgeErrorCodes,
   sweepAuditLog,
+  sweepClosedPullRequests,
 } from "./stores/purge";
 export type {
   PurgeRoutines,
   PurgeActor,
-  PurgeError,
-  PurgeErrorCode,
   InstallationPurgeCounts,
 } from "./stores/purge";
 

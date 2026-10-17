@@ -93,7 +93,6 @@ async function seedMergedRow(
     title,
     state: PrStates.MERGED,
     closedAt: MERGED_AT,
-    purgeAfter: null,
   });
 }
 

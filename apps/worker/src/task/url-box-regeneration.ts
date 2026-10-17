@@ -35,14 +35,12 @@ function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
     return {
       state: PrStates.MERGED,
       closedAt: info.closedAt ?? new Date(),
-      purgeAfter: null,
     };
   }
   if (info.state === "closed") {
     return {
       state: PrStates.CLOSED,
       closedAt: info.closedAt ?? new Date(),
-      purgeAfter: null,
     };
   }
   return { state: PrStates.OPEN };

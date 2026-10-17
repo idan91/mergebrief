@@ -243,7 +243,6 @@ async function seedMergedRow(
       githubUpdatedAt: seededAt,
       state: PrStates.MERGED,
       closedAt: seededAt,
-      purgeAfter: null,
     },
   );
   if (!isPullRequestRowId(written.id)) {

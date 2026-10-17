@@ -1,11 +1,11 @@
 // Persistence env config, Zod-parsed from an INJECTED env map; this module
 // NEVER reads `process.env`. `DATABASE_URL_FILE` wins over `DATABASE_URL`
-// with a warning (see `dsn.ts`). An unset AUDIT_RETENTION_DAYS keeps audit
-// forever, and a value below the 30-day floor is refused: audit must outlive
-// a review session. External writes and denials are audited regardless of
-// AUDIT_PRIVATE_WRITES. MERGEBRIEF_AUTO_MIGRATE=false is check-only, for a
-// runtime role without DDL (see db/migrate.ts). The minimization defaults
-// encode the SELF-HOST posture; a stricter deployment flips them via env.
+// with a warning (see `dsn.ts`). Unset retention windows keep audit rows and
+// closed pull requests forever; an audit window under the 30-day floor is
+// refused because audit must outlive a review session. External writes and
+// denials are audited regardless of AUDIT_PRIVATE_WRITES.
+// MERGEBRIEF_AUTO_MIGRATE=false is check-only, for a runtime role without DDL
+// (see db/migrate.ts). The minimization defaults encode the SELF-HOST posture.
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
@@ -27,6 +27,8 @@ export interface PersistenceConfig {
   readonly autoMigrate: boolean;
   /** Days of audit history the sweep keeps; `null` = keep forever. */
   readonly auditRetentionDays: number | null;
+  /** Days a closed pull request outlives its close; `null` = keep forever. */
+  readonly prRetentionDays: number | null;
   /** Record private writes in the audit log. Self-host: ON. */
   readonly auditPrivateWrites: boolean;
   /** Populate `audit_log.caller_ip`. Self-host: OFF. */
@@ -87,21 +89,35 @@ function envBool(defaultValue: boolean): z.ZodType<boolean> {
  * misconfiguration to refuse, not a value to silently widen. */
 export const AUDIT_RETENTION_FLOOR_DAYS = 30;
 
+/** A closed pull request is swept the day after its close at the shortest. */
+export const PR_RETENTION_FLOOR_DAYS = 1;
+
 /**
  * Optional retention window in days. Absent → `null` (keep forever), which is
  * the default posture. A present value must be a whole number of days at or
  * above the floor; anything else fails validation like every sibling knob.
  */
-const auditRetentionDaysSchema = z.preprocess(
-  (value) => (value === undefined || value === "" ? null : value),
-  z.coerce
-    .number({ error: "AUDIT_RETENTION_DAYS must be a number" })
-    .int("AUDIT_RETENTION_DAYS must be a whole number of days")
-    .min(
-      AUDIT_RETENTION_FLOOR_DAYS,
-      `AUDIT_RETENTION_DAYS must be at least ${AUDIT_RETENTION_FLOOR_DAYS} days`,
-    )
-    .nullable(),
+function buildRetentionDaysSchema(
+  variable: string,
+  floorDays: number,
+): z.ZodType<number | null> {
+  return z.preprocess(
+    (value) => (value === undefined || value === "" ? null : value),
+    z.coerce
+      .number({ error: `${variable} must be a number` })
+      .int(`${variable} must be a whole number of days`)
+      .min(floorDays, `${variable} must be at least ${floorDays} days`)
+      .nullable(),
+  );
+}
+
+const auditRetentionDaysSchema = buildRetentionDaysSchema(
+  "AUDIT_RETENTION_DAYS",
+  AUDIT_RETENTION_FLOOR_DAYS,
+);
+const prRetentionDaysSchema = buildRetentionDaysSchema(
+  "PR_RETENTION_DAYS",
+  PR_RETENTION_FLOOR_DAYS,
 );
 
 /** Postgres connection URL: a parseable URL whose scheme is postgres(ql). */
@@ -128,6 +144,7 @@ const ConfigSchema = z.object({
   STORE_DISPLAY_NAMES: envBool(true),
   MERGEBRIEF_AUTO_MIGRATE: envBool(true),
   AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
+  PR_RETENTION_DAYS: prRetentionDaysSchema,
   AUDIT_PRIVATE_WRITES: envBool(true),
   AUDIT_CALLER_IP: envBool(false),
 });
@@ -197,6 +214,7 @@ export function loadConfig(
       storeDisplayNames: parsed.data.STORE_DISPLAY_NAMES,
       autoMigrate: parsed.data.MERGEBRIEF_AUTO_MIGRATE,
       auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,
+      prRetentionDays: parsed.data.PR_RETENTION_DAYS,
       auditPrivateWrites: parsed.data.AUDIT_PRIVATE_WRITES,
       auditCallerIp: parsed.data.AUDIT_CALLER_IP,
     },

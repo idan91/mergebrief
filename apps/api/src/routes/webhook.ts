@@ -159,13 +159,12 @@ async function handlePullRequest(
   log: Logger,
 ): Promise<void> {
   if (event.action === PullRequestActions.CLOSED) {
-    // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
-    // the retention window is unconfigured, so closing arms nothing.
+    // Terminal state write, NO enqueue; the close time is what the worker's
+    // retention sweep reads.
     const recorded = await createIngestRoutines(handle, ctx).recordState(
       shapePullRequestUpsert(event, {
         state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
         closedAt: event.closedAt ?? new Date(),
-        purgeAfter: null,
       }),
     );
     if (!recorded.applied) {

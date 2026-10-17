@@ -33,23 +33,19 @@ export type PullRequestRow = typeof pullRequest.$inferSelect;
 export type CheckpointRow = typeof checkpoint.$inferSelect;
 
 /**
- * Lifecycle trio, discriminated on `state` so the type system forbids stale
- * retention fields: an OPEN patch must explicitly null `closed_at` and
- * `purge_after` (a reopened PR must never stay armed for the sweep), and a
- * terminal patch must carry `closedAt`. `purgeAfter` stays caller-supplied
- * here; grace math lives in `createPurgeRoutines.setRetention`.
+ * Lifecycle pair, discriminated on `state` so the type system forbids a stale
+ * close time: an OPEN patch must null `closed_at` (a reopened PR must never
+ * stay visible to the retention sweep), and a terminal patch must carry it.
  */
 interface OpenLifecycle {
   readonly state: typeof PrStates.OPEN;
   /** Optional-but-null-only: a Date cannot be smuggled onto an open PR. */
   readonly closedAt?: null;
-  readonly purgeAfter?: null;
 }
 
 interface TerminalLifecycle {
   readonly state: typeof PrStates.CLOSED | typeof PrStates.MERGED;
   readonly closedAt: Date;
-  readonly purgeAfter: Date | null;
 }
 
 export type PullRequestLifecycle = OpenLifecycle | TerminalLifecycle;

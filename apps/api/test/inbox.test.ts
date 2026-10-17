@@ -304,7 +304,6 @@ describe("GET /api/inbox", () => {
       prNumber: pr.prNumber,
       state: PrStates.MERGED,
       closedAt: new Date(),
-      purgeAfter: null,
     });
     await recordStack(harness.handle, TENANT, pr.id, {
       index: 1,
@@ -357,7 +356,6 @@ describe("GET /api/inbox", () => {
       prNumber: pr.prNumber,
       state: PrStates.MERGED,
       closedAt: new Date(),
-      purgeAfter: null,
     });
     await recordStack(harness.handle, TENANT, pr.id, {
       index: 1,
@@ -556,7 +554,6 @@ describe("GET /api/inbox", () => {
       prNumber: merged.prNumber,
       state: PrStates.MERGED,
       closedAt: new Date(),
-      purgeAfter: null,
     });
 
     const opening = await get("/api/inbox", cookie);

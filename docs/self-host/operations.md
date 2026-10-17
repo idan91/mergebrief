@@ -413,16 +413,23 @@ brief and confirm it renders.
 ## Retention (what grows, and what does not prune itself)
 
 Briefs and their sidecars accumulate per PR revision, so the database grows
-with review volume — and **nothing prunes them on a schedule.** Closing
-or merging a PR records the terminal state and arms no retention window
-(the `purge_after` column exists and stays null; a `retention-grace-days`
-knob is designed, not built). Brief data is deleted when you remove a repo
-from the installation or uninstall the App, both of which purge that
-tenant's rows immediately, or when a repository admin deletes one pull
-request's briefs from Home, or a reviewer deletes a pull request they
-pasted themselves. That delete takes every brief and every
-reviewer's session, drafts and decisions for the pull request; the purge's
-audit row names the reviewer who asked for it.
+with review volume — and **by default nothing prunes them.** Closing or
+merging a PR records the close time and nothing else. Set
+`PR_RETENTION_DAYS` (minimum 1) and the worker's daily sweep erases every
+pull request closed or merged longer ago than that, across every
+installation and every pasted PR, with its briefs and every reviewer's
+session, drafts and decisions. The window counts from the close on GitHub,
+not from the brief: the first run after you set the variable takes every
+pull request already past the window, however long ago it closed, and a
+pasted pull request that closed before the window is briefed and then erased
+by the next sweep. One audit row per installation or owner, per batch of
+500, records the count. A reopened pull request leaves the window with its
+close time. Brief data is also deleted when you remove a repo from the
+installation or uninstall the App, both of which purge that tenant's rows
+immediately, or when a repository admin deletes one pull request's briefs
+from Home, or a reviewer deletes a pull request they pasted themselves.
+That delete takes the same set; the purge's audit row names the reviewer
+who asked for it.
 
 The audit log is the one exception. It is append-only — nothing edits a row —
 and its only removal is the retention sweep, which the worker runs once a day
@@ -524,7 +531,7 @@ poll that aborts the run on a newer head, stands the older run down. Up to
 one poll of overlap in the normal case (longer while head reads are
 failing) costs spend, never correctness, and the daily cap stays exact
 because every start takes the same instance-wide advisory lock. Each
-scheduled sweep (`sweep-audit`, `sweep-sessions`) still runs once per tick:
+scheduled sweep (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`) still runs once per tick:
 each runner tries to record the tick in graphile's `_private_known_crontabs`
 table, and only the runner that advances `last_execution` enqueues the job. Each worker opens its own
 connection pool, so count that against Postgres's `max_connections`.

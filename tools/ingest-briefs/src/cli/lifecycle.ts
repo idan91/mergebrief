@@ -8,5 +8,5 @@ export function buildStaticLifecycle(
   if (state === "open") {
     return { state: PrStates.OPEN };
   }
-  return { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null };
+  return { state: PrStates.MERGED, closedAt: new Date() };
 }

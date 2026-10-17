@@ -39,18 +39,17 @@ export function buildLiveReadColumns(stamp: LiveReadStamp): {
 
 /**
  * Normalize a lifecycle to explicit column values from the discriminant:
- * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
- * must disarm the retention sweep), terminal states write what they carry.
+ * OPEN always writes a NULL close time (drizzle skips `undefined`, and a
+ * reopened PR must leave the retention sweep), terminal states write theirs.
  */
 export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
   closedAt: Date | null;
-  purgeAfter: Date | null;
 } {
   if (lc.state === PrStates.OPEN) {
-    return { state: lc.state, closedAt: null, purgeAfter: null };
+    return { state: lc.state, closedAt: null };
   }
-  return { state: lc.state, closedAt: lc.closedAt, purgeAfter: lc.purgeAfter };
+  return { state: lc.state, closedAt: lc.closedAt };
 }
 
 /**
@@ -117,7 +116,6 @@ export async function upsertPullRequestRow(
     title: input.title,
     state: keepTerminal(pullRequest.state, lifecycle.state),
     closedAt: keepTerminal(pullRequest.closedAt, lifecycle.closedAt),
-    purgeAfter: keepTerminal(pullRequest.purgeAfter, lifecycle.purgeAfter),
     updatedAt: new Date(),
   };
   // Omitted (review events) preserves the stored value, since an absent key is a

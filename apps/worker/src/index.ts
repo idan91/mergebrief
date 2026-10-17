@@ -23,13 +23,20 @@ export {
 } from "./task/generate";
 export type { GenerateTaskDeps } from "./task/generate";
 
-// The scheduled jobs (graphile cron): audit retention and expired sessions.
+// The scheduled jobs (graphile cron): audit retention, expired sessions and
+// pull request retention.
 export {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,
   SWEEP_AUDIT_TASK,
 } from "./task/sweep-audit";
 export type { SweepAuditTaskDeps } from "./task/sweep-audit";
+export {
+  createSweepPullRequestsTask,
+  SWEEP_PULL_REQUESTS_CRONTAB,
+  SWEEP_PULL_REQUESTS_TASK,
+} from "./task/sweep-pull-requests";
+export type { SweepPullRequestsTaskDeps } from "./task/sweep-pull-requests";
 export {
   createSweepSessionsTask,
   SWEEP_SESSIONS_CRONTAB,

@@ -53,6 +53,20 @@ describe("loadConfig", () => {
     expect(refused.error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
   });
 
+  it("carries the pull request retention window, unset means keep forever", () => {
+    const kept = loadConfig({ ...VALID_ENV, PR_RETENTION_DAYS: "30" });
+    expect(kept.ok && kept.value.prRetentionDays).toBe(30);
+    const unset = loadConfig(VALID_ENV);
+    expect(unset.ok && unset.value.prRetentionDays).toBe(null);
+
+    const refused = loadConfig({ ...VALID_ENV, PR_RETENTION_DAYS: "0" });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) {
+      return;
+    }
+    expect(refused.error.issues.join("; ")).toMatch(/PR_RETENTION_DAYS/);
+  });
+
   it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader", () => {
     const result = loadConfig({
       ...VALID_ENV,

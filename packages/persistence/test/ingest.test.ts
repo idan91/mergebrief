@@ -138,7 +138,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
       repoSlug: "acme/widgets",
       state: PrStates.CLOSED,
       closedAt: new Date(),
-      purgeAfter: null,
     });
   }
 
@@ -743,7 +742,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const outcome = await trigger({ reopen: true });
     expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
     expect(outcome.pullRequest.closedAt).toBeNull();
-    expect(outcome.pullRequest.purgeAfter).toBeNull();
   });
 
   it("rolls back the whole transaction when enqueueing fails", async () => {

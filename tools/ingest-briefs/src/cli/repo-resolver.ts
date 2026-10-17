@@ -34,7 +34,7 @@ function buildResolvedLifecycle(pr: GhPr): PullRequestLifecycle {
   }
   const closedAt = pr.merged_at ?? pr.closed_at ?? new Date().toISOString();
   const state = pr.merged === true ? PrStates.MERGED : PrStates.CLOSED;
-  return { state, closedAt: new Date(closedAt), purgeAfter: null };
+  return { state, closedAt: new Date(closedAt) };
 }
 
 function resolveViaGh(repoSlug: string, prNumber: number): RepoResolution {

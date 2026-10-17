@@ -1,5 +1,6 @@
-// `pull_request` is the mutable aggregate root and the retention anchor. The
-// partial index on `purge_after` is raw SQL in the hardening migration.
+// `pull_request` is the mutable aggregate root and the retention anchor: the
+// worker's sweep deletes a row by `closed_at` once the operator's window has
+// passed, and the children go by FK cascade.
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -86,9 +87,8 @@ export const pullRequest = pgTable(
      */
     stack: jsonb("stack").$type<unknown>(),
     stackReadAt: timestamp("stack_read_at", { withTimezone: true }),
+    /** NULL while open; the retention sweep's one input once closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
-    /** Nullable: null while open or when retention is "never". */
-    purgeAfter: timestamp("purge_after", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -116,10 +116,15 @@ export const pullRequest = pgTable(
         .where(sql`${table.installationId} is null`),
       // The daily cap counts across scope worlds by repo_id alone.
       index("pull_request_repo_idx").on(table.repoId),
+      // Partial: the retention sweep deletes by a closed_at range, and an open
+      // row never qualifies.
+      index("pull_request_closed_at_idx")
+        .on(table.closedAt)
+        .where(sql`${table.closedAt} is not null`),
       check("pull_request_state_check", isOneOf(table.state, PR_STATES)),
       check(
         "pull_request_open_retention_shape",
-        sql`${notOpen} or (${table.purgeAfter} is null and ${table.closedAt} is null)`,
+        sql`${notOpen} or ${table.closedAt} is null`,
       ),
       check(
         "pull_request_owner_shape",

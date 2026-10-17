@@ -1,26 +1,28 @@
-// Purge + retention: everything that DELETES data, in one place, tenant-ctx
-// bound. Erasure completeness is the DB's job: every per-PR child table FKs
+// Purge + retention: everything that DELETES data, in one place. The tenant
+// purges bind a ctx; the retention sweeps are instance-wide. Erasure
+// completeness is the DB's job: every per-PR child table FKs
 // `pull_request.id` ON DELETE CASCADE, and the Review Session graph hangs off
 // `brief`. Sessions and API tokens bind no installation and outlive the
-// tenant; no routine here touches them. `audit_log` is
-// RETAINED by every tenant-scoped purge: a purge APPENDS a `delete` entry in
-// the same transaction, and only `sweepAuditLog` removes from it. Explicit
-// purges are `app`; the retention sweep is `system`.
+// tenant; no routine here touches them. `audit_log` is RETAINED by every
+// purge: a purge APPENDS a `delete` entry in the same transaction, and only
+// `sweepAuditLog` removes from it. Explicit purges are `app`; sweeps `system`.
 import {
   and,
   count as countRows,
   eq,
   inArray,
-  isNotNull,
   lt,
+  type SQL,
 } from "drizzle-orm";
 import type { Mutable } from "types";
 import { insertAudit, type AuditEntry } from "./audit";
-import { type AppDatabase, internal } from "../db/handle";
+import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
-import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
+import {
+  AUDIT_RETENTION_FLOOR_DAYS,
+  PR_RETENTION_FLOOR_DAYS,
+} from "../db/config";
 import { pullRequest } from "../schema/pull-request";
-import type { PullRequestRow } from "./tenant";
 import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
@@ -31,10 +33,17 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../types";
-import type { Result, ValueOf } from "types/utils";
-import { PrStates, PullRequestSources } from "types/pull-requests";
+import { PullRequestSources } from "types/pull-requests";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Rows per transaction. The first sweep after an operator sets retention
+ * meets every pull request closed since the instance began, and one
+ * transaction over that backlog would hold its locks and cascade for the
+ * whole run.
+ */
+const PULL_REQUEST_SWEEP_BATCH_SIZE = 500;
 
 // The sweeps' own `audit_log.operation` token, these routines are not
 // Product Operations, so they name themselves.
@@ -45,30 +54,6 @@ const AUDIT_TARGET_PULL_REQUEST = "pull_request";
 const AUDIT_TARGET_REPO = "repo";
 const AUDIT_TARGET_INSTALLATION = "installation";
 const AUDIT_TARGET_AUDIT_LOG = "audit_log";
-
-// ---------------------------------------------------------------------------
-// Errors, expected failures. Programmer errors still `throw`.
-// ---------------------------------------------------------------------------
-
-export const PurgeErrorCodes = {
-  /** `setRetention` named a `pull_request` not in ctx. */
-  NOT_FOUND: "not-found",
-  /** `graceDays` was negative, fractional-invalid (NaN/Infinity), or absurd. */
-  INVALID_GRACE: "invalid-grace",
-} as const;
-export type PurgeErrorCode = ValueOf<typeof PurgeErrorCodes>;
-
-export interface PurgeError {
-  readonly code: PurgeErrorCode;
-  readonly message: string;
-}
-
-function fail(
-  code: PurgeErrorCode,
-  message: string,
-): Result<never, PurgeError> {
-  return { ok: false, error: { code, message } };
-}
 
 /** The reviewer a purge names on its audit row; absent writes `app`. */
 export interface PurgeActor {
@@ -114,28 +99,6 @@ export interface PurgeRoutines {
    * `delete` entry. Returns the row count.
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
-  /**
-   * The close-time retention boundary: atomically records the terminal
-   * `state` and sets `purge_after = closedAt + graceDays`, or NULL when
-   * `graceDays` is null (retention disabled / "never", the row is never
-   * swept). Carrying the terminal state in the signature keeps this API
-   * aligned with the `pull_request_open_retention_shape` CHECK, an open PR
-   * can never be armed, by construction rather than by DB error.
-   * Tenant-verified: `notFound` if the PR is not in ctx.
-   */
-  setRetention(
-    prRowId: PullRequestRowId,
-    state: typeof PrStates.CLOSED | typeof PrStates.MERGED,
-    closedAt: Date,
-    graceDays: number | null,
-  ): Promise<Result<PullRequestRow, PurgeError>>;
-  /**
-   * Retention sweep: delete every `pull_request` for ctx with
-   * `purge_after IS NOT NULL AND purge_after < now` (uses the partial index;
-   * children cascade). Emits one `delete` audit entry summarizing the count
-   * when anything was purged. Returns the number purged.
-   */
-  sweepExpired(now: Date): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -269,72 +232,127 @@ export function createPurgeRoutines(
         return { pullRequests: purgedPrs.length };
       });
     },
-
-    async setRetention(prRowId, state, closedAt, graceDays) {
-      if (state !== PrStates.CLOSED && state !== PrStates.MERGED) {
-        throw new Error("setRetention requires a terminal PR state");
-      }
-      // Guard the primitive itself: a negative/NaN grace would silently make
-      // the row instantly sweepable, a data-loss footgun no upstream
-      // validation should be trusted to catch.
-      if (
-        graceDays !== null &&
-        (!Number.isFinite(graceDays) || graceDays < 0)
-      ) {
-        return fail(
-          PurgeErrorCodes.INVALID_GRACE,
-          `graceDays must be a non-negative finite number, got ${graceDays}`,
-        );
-      }
-      const purgeAfter =
-        graceDays === null
-          ? null
-          : new Date(closedAt.getTime() + graceDays * MS_PER_DAY);
-      const rows = await db
-        .update(pullRequest)
-        .set({ state, closedAt, purgeAfter, updatedAt: new Date() })
-        .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
-        .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          PurgeErrorCodes.NOT_FOUND,
-          `pull_request ${prRowId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
-    },
-
-    async sweepExpired(now) {
-      return db.transaction(async (tx) => {
-        const deleted = await tx
-          .delete(pullRequest)
-          .where(
-            and(
-              scope.matchesPullRequest(),
-              isNotNull(pullRequest.purgeAfter),
-              lt(pullRequest.purgeAfter, now),
-            ),
-          )
-          .returning({ id: pullRequest.id });
-        const count = deleted.length;
-        // Only append a ledger entry when the sweep actually erased something;
-        // an empty sweep is not a boundary event.
-        if (count > 0) {
-          await insertAudit(tx, {
-            installationId: scope.installationId,
-            source: scope.source,
-            actorType: AuditActorTypes.SYSTEM,
-            operation: AUDIT_OPERATION_DELETE,
-            outcome: AuditOutcomes.OK,
-            targetType: AUDIT_TARGET_PULL_REQUEST,
-            metadata: { count },
-          });
-        }
-        return count;
-      });
-    },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Pull request retention, instance-wide rather than tenant-scoped.
+// ---------------------------------------------------------------------------
+
+/**
+ * Delete every pull request, in either scope world, closed or merged before
+ * the operator's retention window, children by FK cascade. Instance-wide on
+ * purpose: retention is an env setting owned by whoever operates the
+ * instance, so there is no ctx to bind to, and a row closed before the
+ * setting existed is swept like any other. `retentionDays === null` (the
+ * default) keeps everything and runs no query. Batched, each batch its own
+ * transaction with one `delete` audit entry per installation or owner it
+ * erased from. Nothing schedules this here.
+ */
+export async function sweepClosedPullRequests(
+  handle: AppDatabase,
+  retentionDays: number | null,
+  now: Date,
+): Promise<number> {
+  if (retentionDays === null) {
+    return 0;
+  }
+  const isWholeWindow =
+    Number.isInteger(retentionDays) && retentionDays >= PR_RETENTION_FLOOR_DAYS;
+  if (!isWholeWindow) {
+    throw new Error(
+      `pull request retention must be a whole number of days, at least ${PR_RETENTION_FLOOR_DAYS}, got ${retentionDays}`,
+    );
+  }
+  const cutoff = new Date(now.getTime() - retentionDays * MS_PER_DAY);
+  if (Number.isNaN(cutoff.getTime())) {
+    throw new Error(
+      `pull request retention of ${retentionDays} days has no cutoff`,
+    );
+  }
+
+  // An open row has a NULL close time, which no range predicate matches.
+  const isPastRetention = lt(pullRequest.closedAt, cutoff);
+  const db = internal(handle);
+  let total = 0;
+  for (;;) {
+    const deleted = await db.transaction((tx) =>
+      sweepClosedBatch(tx, isPastRetention),
+    );
+    total += deleted;
+    if (deleted < PULL_REQUEST_SWEEP_BATCH_SIZE) {
+      return total;
+    }
+  }
+}
+
+/** Must run inside the caller's transaction: the audit entries share it. */
+async function sweepClosedBatch(
+  tx: AppDrizzle,
+  isPastRetention: SQL,
+): Promise<number> {
+  const batch = tx
+    .select({ id: pullRequest.id })
+    .from(pullRequest)
+    .where(isPastRetention)
+    .orderBy(pullRequest.closedAt)
+    .limit(PULL_REQUEST_SWEEP_BATCH_SIZE);
+  // The outer predicate is re-checked on a row a concurrent reopen moved, so
+  // a pull request reopened after the batch was picked survives.
+  const inBatch = inArray(pullRequest.id, batch);
+  const deleted = await tx
+    .delete(pullRequest)
+    .where(and(inBatch, isPastRetention))
+    .returning({
+      installationId: pullRequest.installationId,
+      ownerUserId: pullRequest.ownerUserId,
+    });
+
+  for (const group of groupBySweepScope(deleted).values()) {
+    await insertAudit(tx, {
+      installationId: group.installationId,
+      source:
+        group.installationId === null
+          ? PullRequestSources.URL
+          : PullRequestSources.INSTALLATION,
+      actorType: AuditActorTypes.SYSTEM,
+      operation: AUDIT_OPERATION_DELETE,
+      outcome: AuditOutcomes.OK,
+      targetType: AUDIT_TARGET_PULL_REQUEST,
+      metadata: { count: group.count },
+    });
+  }
+  return deleted.length;
+}
+
+interface SweptScopeRow {
+  readonly installationId: InstallationId | null;
+  readonly ownerUserId: ReviewerId | null;
+}
+
+interface SweptScopeCount {
+  readonly installationId: InstallationId | null;
+  count: number;
+}
+
+/** One group per installation and per url-box owner; an audit row is one scope. */
+function groupBySweepScope(
+  rows: readonly SweptScopeRow[],
+): Map<string, SweptScopeCount> {
+  const groups = new Map<string, SweptScopeCount>();
+  for (const row of rows) {
+    const key =
+      row.installationId === null
+        ? `owner:${row.ownerUserId}`
+        : `installation:${row.installationId}`;
+    const group = groups.get(key) ?? {
+      installationId: row.installationId,
+      count: 0,
+    };
+    group.count += 1;
+    groups.set(key, group);
+  }
+  return groups;
 }
 
 // ---------------------------------------------------------------------------

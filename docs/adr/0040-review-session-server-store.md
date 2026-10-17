@@ -208,7 +208,9 @@ way nine hand-placed emits did.
 - **First scheduled job in the system.** `setRetention`/`sweepExpired` have
   zero production callers and the worker has no cron; the audit sweep wires
   graphile's scheduled-job support for the first time, and it is the one purge
-  that is instance-wide rather than ctx-bound.
+  that is instance-wide rather than ctx-bound. Pull request retention later
+  replaced `setRetention`/`sweepExpired` with a `closed_at` sweep; see ADR
+  0018 D5, amended 2026-10-17.
 - **`packages/persistence/AGENTS.md`'s audit invariant is rewritten** — three
   of its four clauses no longer hold (numeric-only, closed key allowlist,
   never purged).

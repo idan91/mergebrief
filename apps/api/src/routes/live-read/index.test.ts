@@ -238,7 +238,6 @@ describe("refreshUrlPullRequests", () => {
       prNumber: 1,
       state: PrStates.CLOSED,
       closedAt: new Date("2026-09-01T00:00:00Z"),
-      purgeAfter: null,
     });
 
     const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);

@@ -40,6 +40,11 @@ import {
   SWEEP_AUDIT_TASK,
 } from "./task/sweep-audit";
 import {
+  createSweepPullRequestsTask,
+  SWEEP_PULL_REQUESTS_CRONTAB,
+  SWEEP_PULL_REQUESTS_TASK,
+} from "./task/sweep-pull-requests";
+import {
   createSweepSessionsTask,
   SWEEP_SESSIONS_CRONTAB,
   SWEEP_SESSIONS_TASK,
@@ -82,6 +87,10 @@ const logger = (() => {
 function exitOnConfigError(message: string): never {
   logger.error(message);
   process.exit(0);
+}
+
+function describeRetention(days: number | null): string {
+  return days === null ? "unset (rows kept forever)" : `${days}d`;
 }
 
 async function main(): Promise<void> {
@@ -212,6 +221,11 @@ async function main(): Promise<void> {
     log: logger,
   });
   const sweepSessions = createSweepSessionsTask({ handle, log: logger });
+  const sweepPullRequests = createSweepPullRequestsTask({
+    handle,
+    retentionDays: config.value.prRetentionDays,
+    log: logger,
+  });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
@@ -232,15 +246,21 @@ async function main(): Promise<void> {
       // Scheduled jobs: instance-wide, not tenant-scoped, worker-only.
       [SWEEP_AUDIT_TASK]: () => sweepAudit(),
       [SWEEP_SESSIONS_TASK]: () => sweepSessions(),
+      [SWEEP_PULL_REQUESTS_TASK]: () => sweepPullRequests(),
     },
-    // Unset retention → the audit job still runs and deletes nothing.
-    crontab: [SWEEP_AUDIT_CRONTAB, SWEEP_SESSIONS_CRONTAB].join("\n"),
+    // Unset retention → a retention job still runs and deletes nothing.
+    crontab: [
+      SWEEP_AUDIT_CRONTAB,
+      SWEEP_SESSIONS_CRONTAB,
+      SWEEP_PULL_REQUESTS_CRONTAB,
+    ].join("\n"),
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });
-  const retention = config.value.auditRetentionDays;
+  const auditRetention = describeRetention(config.value.auditRetentionDays);
+  const prRetention = describeRetention(config.value.prRetentionDays);
   logger.info(
-    `worker: listening for generate jobs; audit retention ${retention === null ? "unset (rows kept forever)" : `${retention}d`}`,
+    `worker: listening for generate jobs; audit retention ${auditRetention}; pull request retention ${prRetention}`,
   );
 
   try {

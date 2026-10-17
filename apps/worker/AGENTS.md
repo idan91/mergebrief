@@ -32,6 +32,7 @@ What the layout can't show:
 - **Scheduled jobs are instance-wide and worker-only**: each runs on graphile's cron (its `*_CRONTAB` line joined into the runner's `crontab` in `main.ts`) and calls a persistence sweep that takes the handle, never a ctx. Nothing on a request path may call one.
   - `sweep-audit` (daily) calls `sweepAuditLog`; retention is an operator env setting. Unset retention deletes nothing; a window under the 30-day floor is refused.
   - `sweep-sessions` (hourly) calls `sweepExpiredSessions`, always on: an expired session grants nothing.
+  - `sweep-pull-requests` (daily) calls `sweepClosedPullRequests`; retention is `PR_RETENTION_DAYS`, read by close time across both scope worlds. Unset retention deletes nothing; a window under one day is refused.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 - **One process logger**: `main.ts` builds it; the task takes it via `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every job line; graphile lifecycle logs ride `createGraphileLogFactory`.
   - The first-class `evt` names minted here — `job.fail`, `job.retries.exhausted` (`attempts === max_attempts`, or a head's claims spent), `provider.error`, `spend.cap.trip`, `artifact.check.fail` — come ONLY from the taxonomy table in `docs/self-host/observability.md`.
@@ -39,7 +40,7 @@ What the layout can't show:
 
 ## Tests
 
-`test/sweep-audit.test.ts` and `test/sweep-sessions.test.ts` drive the scheduled sweeps over the same PGlite harness.
+`test/sweep-audit.test.ts`, `test/sweep-sessions.test.ts` and `test/sweep-pull-requests.test.ts` drive the scheduled sweeps over the same PGlite harness.
 
 `test/generate/` = integration, one file per behaviour, via `persistence/testing`'s PGlite harness (real migrations + the graphile_worker stub), a stub `Generator` (canned outputs parsed through the request's own schema — no model calls), and `github/testing`'s fake GitHub behind the real port (no network; url-box jobs seed a real grant). The shared `helpers.ts` holds the stubs, the fake's PR #7 arrangement, `setUpHarness` and `makeTask` (the task over the test's harness with stub defaults; a test passes only what it varies). An interleaving the fake cannot arrange wraps the binding a job reads through (`interceptInstallationRepo`). `trigger` drives the real `createIngestRoutines` enqueue and feeds the task the payload read back from the stubbed jobs table — the contract test for the handshake.
 

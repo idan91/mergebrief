@@ -78,6 +78,40 @@ describe("config: loadConfig", () => {
     ).toMatch(/AUDIT_RETENTION_DAYS/);
   });
 
+  it("keeps closed pull requests forever by default", () => {
+    const unsetConfig = ok(loadConfig({ DATABASE_URL: VALID_URL }));
+    const blankConfig = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "" }),
+    );
+    expect(unsetConfig.prRetentionDays).toBe(null);
+    expect(blankConfig.prRetentionDays).toBe(null);
+  });
+
+  it("accepts a pull request retention window of one day or more", () => {
+    const oneDayConfig = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "1" }),
+    );
+    const ninetyDayConfig = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "90" }),
+    );
+    expect(oneDayConfig.prRetentionDays).toBe(1);
+    expect(ninetyDayConfig.prRetentionDays).toBe(90);
+  });
+
+  it.each([
+    ["0", /at least 1/],
+    ["-7", /at least 1/],
+    ["2.5", /whole number/],
+    ["soon", /PR_RETENTION_DAYS/],
+  ])("refuses a pull request retention window of %s", (raw, reason) => {
+    const error = err(
+      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: raw }),
+    );
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
+    expect(error.issues.join("; ")).toMatch(/PR_RETENTION_DAYS/);
+    expect(error.issues.join("; ")).toMatch(reason);
+  });
+
   it("takes the audit opt-outs as boolean tokens", () => {
     const config = ok(
       loadConfig({

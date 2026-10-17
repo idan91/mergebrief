@@ -153,8 +153,8 @@ telemetry. What it stores is deliberately minimal:
 - **Also not stored:** comment text (comments live on GitHub), emails, or IP addresses.
 
 **Forgetting is built in, and it's your policy, not ours.** GitHub stays the source of truth,
-so stored artifacts are safe to expire: a per-repo retention setting sweeps a PR's artifacts
-after it closes (or keeps them forever — retention "never" is a first-class setting).
+so stored artifacts are safe to expire: set `PR_RETENTION_DAYS` and a daily sweep deletes every
+pull request closed longer ago than that, with its artifacts; leave it unset and nothing expires.
 Uninstalling the GitHub App erases the installation's data completely. Erasure is enforced by
 the database itself (every artifact cascades from its PR — no forgotten table), and each
 deletion appends one anonymous, numbers-only entry to an audit ledger, so you can prove *that*

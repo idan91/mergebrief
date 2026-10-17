@@ -38,10 +38,10 @@ describe("buildStaticLifecycle", () => {
     expect(buildStaticLifecycle("open")).toEqual({ state: PrStates.OPEN });
   });
 
-  it("stamps a merged PR closed and never purgeable", () => {
+  it("stamps a merged PR with its close time", () => {
     const lifecycle = buildStaticLifecycle("merged");
     expect(lifecycle.state).toBe(PrStates.MERGED);
-    expect(lifecycle).toMatchObject({ purgeAfter: null });
+    expect(lifecycle).toMatchObject({ closedAt: expect.any(Date) });
   });
 });
 

@@ -634,13 +634,10 @@ describe("POST /api/webhooks/github", () => {
     );
     expect(res.status).toBe(200);
 
-    const prs = await harness.raw(
-      "select state, closed_at, purge_after from pull_request",
-    );
+    const prs = await harness.raw("select state, closed_at from pull_request");
     expect(prs).toHaveLength(1);
     expect(prs[0]?.["state"]).toBe("closed");
     expect(prs[0]?.["closed_at"]).not.toBeNull();
-    expect(prs[0]?.["purge_after"]).toBeNull();
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
@@ -710,12 +707,9 @@ describe("POST /api/webhooks/github", () => {
       ).status,
     ).toBe(200);
 
-    const prs = await harness.raw(
-      "select state, closed_at, purge_after from pull_request",
-    );
+    const prs = await harness.raw("select state, closed_at from pull_request");
     expect(prs[0]?.["state"]).toBe("open");
     expect(prs[0]?.["closed_at"]).toBeNull();
-    expect(prs[0]?.["purge_after"]).toBeNull();
   });
 
   describe("the late event guard", () => {

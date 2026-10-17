@@ -68,7 +68,6 @@ describe("createTenantRepository tenant isolation on reads", () => {
       upsertInput(7, {
         state: PrStates.MERGED,
         closedAt: new Date(),
-        purgeAfter: null,
       }),
     );
 
@@ -271,7 +270,6 @@ describe("createTenantRepository idempotent upserts", () => {
       upsertInput(7, {
         state: PrStates.MERGED,
         closedAt: new Date(),
-        purgeAfter: null,
       }),
     );
 
@@ -299,7 +297,7 @@ describe("createTenantRepository idempotent upserts", () => {
     expect(stale.githubUpdatedAt).toEqual(newer);
   });
 
-  it("reopening a closed PR disarms retention", async () => {
+  it("reopening a closed PR clears its close time", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
 
@@ -307,17 +305,15 @@ describe("createTenantRepository idempotent upserts", () => {
       upsertInput(7, {
         state: PrStates.CLOSED,
         closedAt: new Date("2026-07-01T00:00:00Z"),
-        purgeAfter: new Date("2026-07-08T00:00:00Z"),
       }),
     );
-    expect(closed.purgeAfter).not.toBeNull();
+    expect(closed.closedAt).not.toBeNull();
 
-    // Reopening must clear the armed sweep fields.
+    // Reopening must clear the close time, or the sweep would still see it.
     const viaUpsert = await a.pullRequests.upsert(
       upsertInput(7, { state: PrStates.OPEN }),
     );
     expect(viaUpsert.closedAt).toBeNull();
-    expect(viaUpsert.purgeAfter).toBeNull();
   });
 
   it("checkpoint upsertOnSubmit is idempotent and advances the sha", async () => {
