@@ -74,10 +74,12 @@ export {
 } from "./dispositions";
 export {
   AnchorStates,
+  FreshRestartReasons,
   GenerationFailureCodes,
   GenerationPhases,
   GenerationStatuses,
   type AnchorState,
+  type FreshRestartReason,
   type GenerationFailureCode,
   type GenerationFailureParams,
   type GenerationPhase,

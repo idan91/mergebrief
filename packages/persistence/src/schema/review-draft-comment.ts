@@ -14,7 +14,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import {
+  AnchorStatuses,
   CommentAnchorKinds,
+  DiffSides,
   DraftCommentStatuses,
   type AnchorStatus,
   type CommentAnchorKind,
@@ -22,8 +24,14 @@ import {
   type DraftCommentStatus,
 } from "types/comments";
 import type { ReviewSessionId } from "../types";
+import { isNullOrOneOf, isOneOf } from "./checks";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
+
+const DRAFT_COMMENT_STATUSES = Object.values(DraftCommentStatuses);
+const COMMENT_ANCHOR_KINDS = Object.values(CommentAnchorKinds);
+const DIFF_SIDES = Object.values(DiffSides);
+const ANCHOR_STATUSES = Object.values(AnchorStatuses);
 
 export const reviewDraftComment = pgTable(
   "review_draft_comment",
@@ -68,13 +76,40 @@ export const reviewDraftComment = pgTable(
     publishClaimedAt: timestamp("publish_claimed_at", { withTimezone: true }),
     ...stampColumns(),
   },
-  (table) => [
-    index("review_draft_comment_session_idx").on(table.reviewSessionId),
-    check(
-      "review_draft_comment_publish_claim_pair_check",
-      sql`(${table.publishClaim} is null) = (${table.publishClaimedAt} is null)`,
-    ),
-  ],
+  (table) => {
+    const startSideKnown = isOneOf(table.startSide, DIFF_SIDES);
+    const lineAnchored = isOneOf(table.kind, [CommentAnchorKinds.LINE]);
+    const fileAnchored = isOneOf(table.kind, [CommentAnchorKinds.FILE]);
+
+    return [
+      index("review_draft_comment_session_idx").on(table.reviewSessionId),
+      check(
+        "review_draft_comment_status_check",
+        isOneOf(table.status, DRAFT_COMMENT_STATUSES),
+      ),
+      check(
+        "review_draft_comment_kind_check",
+        isOneOf(table.kind, COMMENT_ANCHOR_KINDS),
+      ),
+      check("review_draft_comment_side_check", isOneOf(table.side, DIFF_SIDES)),
+      check(
+        "review_draft_comment_start_side_check",
+        sql`${table.startSide} is null or (${startSideKnown} and ${table.startSide} <> ${table.side})`,
+      ),
+      check(
+        "review_draft_comment_anchor_status_check",
+        isNullOrOneOf(table.anchorStatus, ANCHOR_STATUSES),
+      ),
+      check(
+        "review_draft_comment_anchor_shape",
+        sql`(${lineAnchored} and ${table.side} is not null and ${table.startLine} is not null and ${table.endLine} is not null and ${table.startLine} > 0 and ${table.endLine} > 0 and (${table.startSide} is not null or ${table.endLine} >= ${table.startLine})) or (${fileAnchored} and ${table.startLine} is null and ${table.endLine} is null and ${table.side} is null and ${table.startSide} is null)`,
+      ),
+      check(
+        "review_draft_comment_publish_claim_pair_check",
+        sql`(${table.publishClaim} is null) = (${table.publishClaimedAt} is null)`,
+      ),
+    ];
+  },
 );
 
 type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;

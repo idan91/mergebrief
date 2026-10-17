@@ -6,6 +6,7 @@
 // carries all three, and the erasure cascade reaches `pull_request` through it.
 import {
   bigint,
+  check,
   integer,
   pgTable,
   text,
@@ -13,14 +14,26 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import type { ReviewSessionId } from "../types";
-import type {
-  DispositionCarryStatus,
-  DispositionDecision,
-  DispositionEvidenceKind,
-  DispositionEvidenceStatus,
+import {
+  DispositionCarryStatuses,
+  DispositionDecisions,
+  DispositionEvidenceKinds,
+  DispositionEvidenceStatuses,
+  type DispositionCarryStatus,
+  type DispositionDecision,
+  type DispositionEvidenceKind,
+  type DispositionEvidenceStatus,
 } from "types/dispositions";
+import { isNullOrOneOf, isOneOf } from "./checks";
 import { tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
+
+const DISPOSITION_DECISIONS = Object.values(DispositionDecisions);
+const DISPOSITION_CARRY_STATUSES = Object.values(DispositionCarryStatuses);
+const DISPOSITION_EVIDENCE_STATUSES = Object.values(
+  DispositionEvidenceStatuses,
+);
+const DISPOSITION_EVIDENCE_KINDS = Object.values(DispositionEvidenceKinds);
 
 export const disposition = pgTable(
   "disposition",
@@ -56,6 +69,22 @@ export const disposition = pgTable(
       table.attribute,
       table.regionStart,
       table.regionEnd,
+    ),
+    check(
+      "disposition_decision_check",
+      isOneOf(table.decision, DISPOSITION_DECISIONS),
+    ),
+    check(
+      "disposition_carry_status_check",
+      isNullOrOneOf(table.carryStatus, DISPOSITION_CARRY_STATUSES),
+    ),
+    check(
+      "disposition_evidence_status_check",
+      isNullOrOneOf(table.evidenceStatus, DISPOSITION_EVIDENCE_STATUSES),
+    ),
+    check(
+      "disposition_evidence_kind_check",
+      isNullOrOneOf(table.evidenceKind, DISPOSITION_EVIDENCE_KINDS),
     ),
   ],
 );

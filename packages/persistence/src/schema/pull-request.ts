@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -15,11 +16,15 @@ import {
 } from "drizzle-orm/pg-core";
 import type { PullRequestRowId, RepoId, ReviewerId } from "../types";
 import {
+  PrStates,
   PullRequestSources,
   type PrState,
   type PullRequestSource,
 } from "types/pull-requests";
+import { differsFrom, isOneOf } from "./checks";
 import { tenantColumns } from "./columns";
+
+const PR_STATES = Object.values(PrStates);
 
 export const pullRequest = pgTable(
   "pull_request",
@@ -91,18 +96,35 @@ export const pullRequest = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    unique("pull_request_natural_key").on(
-      table.installationId,
-      table.repoId,
-      table.prNumber,
-    ),
-    // Partial so the two worlds keep independent rows for one (repo, number);
-    // owner upserts conflict-target this index and must match its predicate.
-    uniqueIndex("pull_request_owner_natural_key")
-      .on(table.ownerUserId, table.repoId, table.prNumber)
-      .where(sql`${table.installationId} is null`),
-    // The daily cap counts across scope worlds by repo_id alone.
-    index("pull_request_repo_idx").on(table.repoId),
-  ],
+  (table) => {
+    const notOpen = differsFrom(table.state, PrStates.OPEN);
+    const installationSourced = isOneOf(table.source, [
+      PullRequestSources.INSTALLATION,
+    ]);
+    const urlSourced = isOneOf(table.source, [PullRequestSources.URL]);
+
+    return [
+      unique("pull_request_natural_key").on(
+        table.installationId,
+        table.repoId,
+        table.prNumber,
+      ),
+      // Partial so the two worlds keep independent rows for one (repo, number);
+      // owner upserts conflict-target this index and must match its predicate.
+      uniqueIndex("pull_request_owner_natural_key")
+        .on(table.ownerUserId, table.repoId, table.prNumber)
+        .where(sql`${table.installationId} is null`),
+      // The daily cap counts across scope worlds by repo_id alone.
+      index("pull_request_repo_idx").on(table.repoId),
+      check("pull_request_state_check", isOneOf(table.state, PR_STATES)),
+      check(
+        "pull_request_open_retention_shape",
+        sql`${notOpen} or (${table.purgeAfter} is null and ${table.closedAt} is null)`,
+      ),
+      check(
+        "pull_request_owner_shape",
+        sql`(${installationSourced} and ${table.installationId} is not null and ${table.ownerUserId} is null) or (${urlSourced} and ${table.installationId} is null and ${table.ownerUserId} is not null)`,
+      ),
+    ];
+  },
 );

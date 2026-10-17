@@ -3,11 +3,21 @@
 // no installation (the gate resolves the installation from the repository)
 // and installation offboarding leaves it: access ends when GitHub stops
 // confirming it.
-import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  check,
+  index,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import type { ApiTokenRowId, GrantRowId, ReviewerId } from "../types";
 import { githubGrant } from "./github-grant";
+import { isOneOf } from "./checks";
 import { idColumn, stampColumns } from "./columns";
-import type { AccessLevel } from "types/access-levels";
+import { AccessLevels, type AccessLevel } from "types/access-levels";
+
+const API_TOKEN_SCOPES = Object.values(AccessLevels);
 
 export const apiToken = pgTable(
   "api_token",
@@ -27,5 +37,8 @@ export const apiToken = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     ...stampColumns(),
   },
-  (table) => [index("api_token_user_idx").on(table.userId)],
+  (table) => [
+    index("api_token_user_idx").on(table.userId),
+    check("api_token_scope_check", isOneOf(table.scope, API_TOKEN_SCOPES)),
+  ],
 );

@@ -5,8 +5,10 @@
 // `baseline_sha` is null for briefs; without it Postgres would treat every
 // brief row as distinct and the single-row-per-key upsert could never
 // conflict.
+import { sql } from "drizzle-orm";
 import {
   bigint,
+  check,
   index,
   integer,
   jsonb,
@@ -16,15 +18,28 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { GenerationKind, PullRequestRowId } from "../types";
-import type {
-  GenerationFailureCode,
-  GenerationFailureParams,
-  GenerationPhase,
-  GenerationStatus,
+import {
+  GenerationKinds,
+  type GenerationKind,
+  type PullRequestRowId,
+} from "../types";
+import {
+  GenerationFailureCodes,
+  GenerationPhases,
+  GenerationStatuses,
+  type GenerationFailureCode,
+  type GenerationFailureParams,
+  type GenerationPhase,
+  type GenerationStatus,
 } from "types/generations";
+import { isNullOrOneOf, isOneOf } from "./checks";
 import { tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
+
+const GENERATION_KINDS = Object.values(GenerationKinds);
+const GENERATION_STATUSES = Object.values(GenerationStatuses);
+const GENERATION_PHASES = Object.values(GenerationPhases);
+const GENERATION_FAILURE_CODES = Object.values(GenerationFailureCodes);
 
 export const generation = pgTable(
   "generation",
@@ -66,22 +81,47 @@ export const generation = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    unique("generation_natural_key")
-      .on(
-        table.installationId,
+  (table) => {
+    const briefKind = isOneOf(table.kind, [GenerationKinds.BRIEF]);
+    const baselinedKind = isOneOf(table.kind, [
+      GenerationKinds.DELTA,
+      GenerationKinds.REVISION_NARRATIVE,
+    ]);
+
+    return [
+      unique("generation_natural_key")
+        .on(
+          table.installationId,
+          table.pullRequestId,
+          table.kind,
+          table.headSha,
+          table.baselineSha,
+        )
+        .nullsNotDistinct(),
+      index("generation_pull_request_created_at_idx").on(
         table.pullRequestId,
-        table.kind,
-        table.headSha,
-        table.baselineSha,
-      )
-      .nullsNotDistinct(),
-    index("generation_pull_request_created_at_idx").on(
-      table.pullRequestId,
-      table.createdAt,
-    ),
-    // The daily cap's count runs under the instance-wide start lock; this
-    // keeps that locked section an index scan over the day's rows.
-    index("generation_created_at_idx").on(table.createdAt),
-  ],
+        table.createdAt,
+      ),
+      // The daily cap's count runs under the instance-wide start lock; this
+      // keeps that locked section an index scan over the day's rows.
+      index("generation_created_at_idx").on(table.createdAt),
+      check("generation_kind_check", isOneOf(table.kind, GENERATION_KINDS)),
+      check(
+        "generation_status_check",
+        isOneOf(table.status, GENERATION_STATUSES),
+      ),
+      check(
+        "generation_phase_check",
+        isNullOrOneOf(table.phase, GENERATION_PHASES),
+      ),
+      check(
+        "generation_error_code_check",
+        isNullOrOneOf(table.errorCode, GENERATION_FAILURE_CODES),
+      ),
+      check(
+        "generation_kind_baseline_shape",
+        sql`(${briefKind} and ${table.baselineSha} is null) or (${baselinedKind} and ${table.baselineSha} is not null)`,
+      ),
+    ];
+  },
 );

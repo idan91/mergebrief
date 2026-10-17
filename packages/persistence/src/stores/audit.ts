@@ -7,7 +7,14 @@
 // or a boolean. The value rules are the enforcement.
 import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
-import { auditLog } from "../schema/audit-log";
+import {
+  AUDIT_CALLER_IP_PATTERN,
+  AUDIT_CLIENT_PATTERN,
+  AUDIT_OPERATION_PATTERN,
+  AUDIT_REQUEST_ID_PATTERN,
+  AUDIT_TARGET_TYPE_PATTERN,
+  auditLog,
+} from "../schema/audit-log";
 import type {
   AuditActorType,
   AuditChannel,
@@ -74,9 +81,8 @@ export const AuditMetadataSchema = z.record(
  */
 export const AuditTargetTypeSchema = z
   .string()
-  .max(64)
   .regex(
-    /^[a-z][a-z0-9_]*$/,
+    AUDIT_TARGET_TYPE_PATTERN,
     "targetType must be a lowercase snake_case class token",
   );
 /**
@@ -86,9 +92,8 @@ export const AuditTargetTypeSchema = z
  */
 export const AuditOperationSchema = z
   .string()
-  .max(64)
   .regex(
-    /^[a-z][a-z0-9-]*$/,
+    AUDIT_OPERATION_PATTERN,
     "operation must be a kebab-case descriptor id token",
   );
 
@@ -102,16 +107,13 @@ export const AuditOperationSchema = z
  */
 export const AuditRequestIdSchema = z
   .string()
-  .regex(/^[A-Za-z0-9_-]{1,64}$/, "requestId must be a correlation token");
+  .regex(AUDIT_REQUEST_ID_PATTERN, "requestId must be a correlation token");
 export const AuditClientSchema = z
   .string()
-  .regex(
-    /^[A-Za-z0-9][A-Za-z0-9._/-]{0,63}$/,
-    "client must be a product/version token",
-  );
+  .regex(AUDIT_CLIENT_PATTERN, "client must be a product/version token");
 const AuditCallerIpSchema = z
   .string()
-  .regex(/^[0-9a-fA-F.:]{1,45}$/, "callerIp must be an IP address");
+  .regex(AUDIT_CALLER_IP_PATTERN, "callerIp must be an IP address");
 
 /** Open keys, closed value types; the schema is the runtime enforcement. */
 export type AuditMetadata = Readonly<Record<string, string | number | boolean>>;

@@ -2,8 +2,10 @@
 // `(installation_id, pull_request_id, base_sha, head_sha)`. `base_sha` is
 // the PR-base role, a distinct name from Delta's `baseline_sha` (checkpoint)
 // by design.
+import { sql } from "drizzle-orm";
 import {
   bigint,
+  check,
   index,
   integer,
   pgTable,
@@ -12,8 +14,12 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
+import { AnchorStates, FreshRestartReasons } from "types/generations";
+import { isDistinctFrom, isNullOrOneOf, isOneOf } from "./checks";
 import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
+
+const ANCHOR_STATES = Object.values(AnchorStates);
 
 export const brief = pgTable(
   "brief",
@@ -61,25 +67,46 @@ export const brief = pgTable(
     sessionFlagCount: integer("session_flag_count"),
     ...artifactColumns(),
   },
-  (table) => [
-    unique("brief_natural_key")
-      .on(
-        table.installationId,
+  (table) => {
+    const freshRestart = isOneOf(table.anchorState, [
+      AnchorStates.FRESH_RESTART,
+    ]);
+    const modelSwap = isOneOf(table.anchorReason, [
+      FreshRestartReasons.MODEL_SWAP,
+    ]);
+    const notFreshRestart = isDistinctFrom(
+      table.anchorState,
+      AnchorStates.FRESH_RESTART,
+    );
+
+    return [
+      unique("brief_natural_key")
+        .on(
+          table.installationId,
+          table.pullRequestId,
+          table.baseSha,
+          table.headSha,
+        )
+        .nullsNotDistinct(),
+      // The Inbox's latest brief per pull request, and its generated-at sort.
+      index("brief_pull_request_created_idx").on(
         table.pullRequestId,
-        table.baseSha,
-        table.headSha,
-      )
-      .nullsNotDistinct(),
-    // The Inbox's latest brief per pull request, and its generated-at sort.
-    index("brief_pull_request_created_idx").on(
-      table.pullRequestId,
-      table.createdAt.desc(),
-    ),
-    // A rev addresses one brief: two runs racing for the same index fail
-    // loudly instead of leaving a link ambiguous.
-    uniqueIndex("brief_pull_request_head_index_key").on(
-      table.pullRequestId,
-      table.headIndex,
-    ),
-  ],
+        table.createdAt.desc(),
+      ),
+      // A rev addresses one brief: two runs racing for the same index fail
+      // loudly instead of leaving a link ambiguous.
+      uniqueIndex("brief_pull_request_head_index_key").on(
+        table.pullRequestId,
+        table.headIndex,
+      ),
+      check(
+        "brief_anchor_state_check",
+        isNullOrOneOf(table.anchorState, ANCHOR_STATES),
+      ),
+      check(
+        "brief_anchor_reason_shape",
+        sql`(${freshRestart} and ${modelSwap}) or (${notFreshRestart} and ${table.anchorReason} is null)`,
+      ),
+    ];
+  },
 );

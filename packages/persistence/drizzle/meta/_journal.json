@@ -365,6 +365,13 @@
       "when": 1791413740614,
       "tag": "0052_generation-claims",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792187670255,
+      "tag": "0053_check-constraints-in-schema",
+      "breakpoints": true
     }
   ]
 }

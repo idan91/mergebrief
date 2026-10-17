@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AnchorStates } from "types/generations";
-import { AnchorSchema, FreshRestartReasons } from "../src/contract/generation";
+import { AnchorStates, FreshRestartReasons } from "types/generations";
+import { AnchorSchema } from "../src/contract/generation";
 
 /**
  * The anchor origin stamp: every brief records whether it was

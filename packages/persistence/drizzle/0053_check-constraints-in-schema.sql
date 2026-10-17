@@ -1,0 +1,3 @@
+-- Snapshot only. Every CHECK the schema files now declare already exists,
+-- created by earlier migrations; this entry moves the drizzle snapshot so
+-- the next generate stops emitting them again.

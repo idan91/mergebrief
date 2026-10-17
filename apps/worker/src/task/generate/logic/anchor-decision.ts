@@ -1,10 +1,6 @@
 import type { PreviousBriefInput } from "brief-core";
-import {
-  FreshRestartReasons,
-  FullRegenerations,
-  type Anchor,
-} from "generators";
-import { AnchorStates } from "types/generations";
+import { FullRegenerations, type Anchor } from "generators";
+import { AnchorStates, FreshRestartReasons } from "types/generations";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { AnchorDecision, AnchorDecisionInputs } from "../types";
 import {

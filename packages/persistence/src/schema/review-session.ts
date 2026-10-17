@@ -7,6 +7,7 @@
 // (a human and their agent share this row; scope lives on the credential).
 import {
   bigint,
+  check,
   index,
   integer,
   pgTable,
@@ -17,7 +18,10 @@ import {
 import type { BriefRowId, ReviewSessionId, ReviewerId } from "../types";
 import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { brief } from "./brief";
+import { isOneOf } from "./checks";
 import { tenantColumns } from "./columns";
+
+const REVIEW_OUTCOMES = Object.values(ReviewOutcomes);
 
 export const reviewSession = pgTable(
   "review_session",
@@ -56,6 +60,10 @@ export const reviewSession = pgTable(
     index("review_session_reviewer_brief_idx").on(
       table.reviewerId,
       table.briefId,
+    ),
+    check(
+      "review_session_review_outcome_check",
+      isOneOf(table.reviewOutcome, REVIEW_OUTCOMES),
     ),
   ],
 );

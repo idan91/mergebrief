@@ -24,11 +24,9 @@ export {
 export {
   AnchorSchema,
   Efforts,
-  FreshRestartReasons,
   GenerationSchema,
   type Anchor,
   type Effort,
-  type FreshRestartReason,
   type Generation,
 } from "./contract/generation";
 export {

@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { AnchorStates, type ValueOf } from "types";
+import { AnchorStates, FreshRestartReasons, type ValueOf } from "types";
 
 /**
  * Effort; the normalized, cross-provider reasoning-effort knob. Each adapter
@@ -33,13 +33,6 @@ export const GenerationSchema = z.object({
 });
 
 export type Generation = z.infer<typeof GenerationSchema>;
-
-/** Why an anchored-capable generation ran fresh instead. */
-export const FreshRestartReasons = {
-  /** `full-regeneration: on-model-swap` fired; stamped provider/model moved. */
-  MODEL_SWAP: "model-swap",
-} as const;
-export type FreshRestartReason = ValueOf<typeof FreshRestartReasons>;
 
 /**
  * The anchor stamp; CLI/worker-assigned like `Generation`, never
