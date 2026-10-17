@@ -47,15 +47,15 @@ export const brief = pgTable(
     /** Non-null exactly when `anchor_state = 'fresh-restart'` (CHECK). */
     anchorReason: text("anchor_reason"),
     /**
-     * JSON `string[]` of chunk ids carried from the previous Brief, which is
-     * what makes a read mark carry with no line math; null before the column.
+     * The chunk ids carried from the previous Brief, which is what makes a
+     * read mark carry with no line math; null before the column.
      */
-    carriedChunkIds: text("carried_chunk_ids"),
+    carriedChunkIds: text("carried_chunk_ids").array(),
     /**
-     * JSON `string[]` of every group id this chain has used, so a retired id
-     * is never re-minted; null before the column, healed by the next run.
+     * Every group id this chain has used, so a retired id is never
+     * re-minted; null for a writer that does not track the chain.
      */
-    usedGroupIds: text("used_group_ids"),
+    usedGroupIds: text("used_group_ids").array(),
     bodyVersion: bodyVersionColumn(),
     /**
      * The body's Chunk, change-group and risk-flag counts, the most rows of

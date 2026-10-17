@@ -122,22 +122,6 @@ export const HunkSpansSchema = z.array(
 );
 export type HunkSpans = z.infer<typeof HunkSpansSchema>;
 
-/**
- * A JSON `string[]` id column as stored (`carried_chunk_ids`,
- * `used_group_ids`): rows predating a column are NULL, and garbage fails
- * the parse rather than passing through.
- */
-export const StoredIdsSchema = z
-  .string()
-  .transform((raw): unknown => {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return undefined;
-    }
-  })
-  .pipe(z.array(z.string()));
-
 // ---------------------------------------------------------------------------
 // Row + write-input shapes.
 // ---------------------------------------------------------------------------
@@ -213,13 +197,13 @@ export interface BriefWriteInput extends Origin, BodyVersionStamp {
   /** Fresh-restart reason ('model-swap'); only with anchorState 'fresh-restart'. */
   readonly anchorReason?: string;
   /**
-   * The chunk ids carried from the previous Brief, stored as JSON. Empty for
-   * a fresh restart; omit only for writers predating the stamp.
+   * The chunk ids carried from the previous Brief. Empty for a fresh
+   * restart; omit only for writers predating the stamp.
    */
   readonly carriedChunkIds?: readonly string[];
   /**
-   * Every group id the PR's Brief chain has used, this Brief included,
-   * stored as JSON. Omit only for writers predating the stamp.
+   * Every group id the PR's Brief chain has used, this Brief included.
+   * Omit only for a writer that does not track the chain.
    */
   readonly usedGroupIds?: readonly string[];
 }
@@ -477,14 +461,10 @@ export function createArtifactStore(
 
   const briefs: BriefStore = {
     async write(input) {
-      const serializedChunkIds =
-        input.carriedChunkIds === undefined
-          ? null
-          : JSON.stringify(input.carriedChunkIds);
-      const serializedGroupIds =
-        input.usedGroupIds === undefined
-          ? null
-          : JSON.stringify(input.usedGroupIds);
+      const carriedChunkIds =
+        input.carriedChunkIds === undefined ? null : [...input.carriedChunkIds];
+      const usedGroupIds =
+        input.usedGroupIds === undefined ? null : [...input.usedGroupIds];
       const recordCounts = deriveSessionRecordCounts(input.body);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
@@ -510,8 +490,8 @@ export function createArtifactStore(
             repoConfig: input.repoConfig ?? null,
             anchorState: input.anchorState ?? null,
             anchorReason: input.anchorReason ?? null,
-            carriedChunkIds: serializedChunkIds,
-            usedGroupIds: serializedGroupIds,
+            carriedChunkIds,
+            usedGroupIds,
             bodyVersion: input.bodyVersion ?? null,
             ...recordCounts,
           })
@@ -533,8 +513,8 @@ export function createArtifactStore(
               repoConfig: input.repoConfig ?? null,
               anchorState: input.anchorState ?? null,
               anchorReason: input.anchorReason ?? null,
-              carriedChunkIds: serializedChunkIds,
-              usedGroupIds: serializedGroupIds,
+              carriedChunkIds,
+              usedGroupIds,
               bodyVersion: input.bodyVersion ?? null,
               ...recordCounts,
             },

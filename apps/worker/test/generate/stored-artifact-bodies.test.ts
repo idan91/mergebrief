@@ -177,7 +177,7 @@ describe("generate task, stored artifact bodies", () => {
 
     expect(row?.anchorState).toBe("none");
     expect(shapeWarnings.map((line) => line["level"])).toEqual(["warn"]);
-    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual(["g1", "g2"]);
+    expect(row?.usedGroupIds).toEqual(["g1", "g2"]);
   });
 
   it("writes the delta and warns once when its write check fails", async () => {

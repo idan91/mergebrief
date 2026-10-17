@@ -48,7 +48,6 @@ import {
   type CarriedWork,
   type PreviousWork,
 } from "./carry-over";
-import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
 import {
   ClaimStates,
@@ -478,7 +477,7 @@ interface BriefFacts {
 interface ChainBrief {
   readonly headSha: string;
   readonly headIndex: number;
-  readonly carriedChunkIds: string | null;
+  readonly carriedChunkIds: readonly string[] | null;
   readonly anchorState: string | null;
 }
 
@@ -495,8 +494,7 @@ function carriedThroughChain(
     if (step.headIndex <= fromHeadIndex) {
       continue;
     }
-    const parsed = StoredIdsSchema.safeParse(step.carriedChunkIds);
-    const carried = new Set(parsed.success ? parsed.data : []);
+    const carried = new Set(step.carriedChunkIds ?? []);
     survivors =
       survivors === undefined
         ? carried

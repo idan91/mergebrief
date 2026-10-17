@@ -11,7 +11,6 @@ import type { LogFields, Logger } from "logging";
 import {
   GenerationKinds,
   MAX_GENERATION_ATTEMPTS,
-  StoredIdsSchema,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
@@ -87,20 +86,19 @@ export function createNoopLogger(): Logger {
 
 /**
  * Every group id the PR's chain has used, read off the previous row. NULL
- * (a row predating the column) heals from the stored body's groups, never
- * the empty set while a previous brief reads. The heal needs the groups
- * only, so a body missing its stamped sections still heals.
+ * (a row a writer outside the worker stored) heals from the stored body's
+ * groups, never the empty set while a previous brief reads. The heal needs
+ * the groups only, so a body missing its stamped sections still heals.
  */
 export function resolveChainGroupIds(
-  prevRow: { usedGroupIds: string | null } | undefined,
+  prevRow: { usedGroupIds: readonly string[] | null } | undefined,
   previousBody: StoredBrief | undefined,
 ): readonly string[] {
-  if (prevRow !== undefined && prevRow.usedGroupIds !== null) {
-    const parsed = StoredIdsSchema.safeParse(prevRow.usedGroupIds);
-    if (parsed.success) {
-      return parsed.data;
-    }
+  const stored = prevRow?.usedGroupIds ?? undefined;
+  if (stored !== undefined) {
+    return stored;
   }
+
   return previousBody?.changeGroups.map((group) => group.id) ?? [];
 }
 

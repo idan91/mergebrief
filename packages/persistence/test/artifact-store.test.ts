@@ -313,10 +313,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     if (!carried.ok) {
       throw new Error("expected success");
     }
-    expect(JSON.parse(carried.value.carriedChunkIds ?? "null")).toEqual([
-      "chunk-a",
-      "chunk-b",
-    ]);
+    expect(carried.value.carriedChunkIds).toEqual(["chunk-a", "chunk-b"]);
 
     // A fresh restart carries nothing, an empty list rather than a null.
     const restarted = await store.briefs.write({
@@ -329,10 +326,10 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     if (!restarted.ok) {
       throw new Error("expected success");
     }
-    expect(restarted.value.carriedChunkIds).toBe("[]");
+    expect(restarted.value.carriedChunkIds).toEqual([]);
 
     // used_group_ids rides the same discipline: omitted → NULL (legacy
-    // writer), present → JSON on both insert and the conflict update.
+    // writer), present → stored on both insert and the conflict update.
     expect(legacy.value.usedGroupIds).toBeNull();
     const used = await store.briefs.write({
       ...span,
@@ -342,7 +339,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     if (!used.ok) {
       throw new Error("expected success");
     }
-    expect(JSON.parse(used.value.usedGroupIds ?? "null")).toEqual(["g1", "g2"]);
+    expect(used.value.usedGroupIds).toEqual(["g1", "g2"]);
   });
 });
 

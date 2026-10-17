@@ -265,7 +265,7 @@ describe("generate task, anchored generation", () => {
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("anchored");
-    expect(JSON.parse(row?.carriedChunkIds ?? "[]")).toEqual(["gAc"]);
+    expect(row?.carriedChunkIds).toEqual(["gAc"]);
     const body = JSON.parse(row?.body ?? "{}") as {
       chunks: { id: string; riskSurface: string[] }[];
     };
@@ -292,7 +292,7 @@ describe("generate task, anchored generation", () => {
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("anchored");
-    expect(JSON.parse(row?.carriedChunkIds ?? "[]")).toEqual(["gAc"]);
+    expect(row?.carriedChunkIds).toEqual(["gAc"]);
     const body = JSON.parse(row?.body ?? "{}") as {
       chunks: { id: string; riskSurface: string[] }[];
     };
@@ -321,7 +321,7 @@ describe("generate task, anchored generation", () => {
     const carriedIds = (body.chunks ?? [])
       .filter((chunk) => chunk.file === "a.ts")
       .map((chunk) => chunk.id);
-    expect(JSON.parse(row?.carriedChunkIds ?? "null")).toEqual(carriedIds);
+    expect(row?.carriedChunkIds).toEqual(carriedIds);
     expect(carriedIds).toHaveLength(1);
   });
 
@@ -329,10 +329,10 @@ describe("generate task, anchored generation", () => {
     const { pr } = await runTwoRevisions({});
     const store = createArtifactStore(harness.handle, ctx);
     const rev1 = await store.briefs.get(pr.id, BASE, HEAD_1);
-    expect(JSON.parse(rev1?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
+    expect(rev1?.usedGroupIds).toEqual(["gA", "gB"]);
     // Rev 2's groups descend back onto gA/gB, the union gains nothing.
     const rev2 = await store.briefs.get(pr.id, BASE, HEAD_2);
-    expect(JSON.parse(rev2?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
+    expect(rev2?.usedGroupIds).toEqual(["gA", "gB"]);
   });
 
   it("a fresh restart still accumulates the chain's used ids", async () => {
@@ -341,12 +341,7 @@ describe("generate task, anchored generation", () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
-    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
-      "gA",
-      "gB",
-      "tmpA",
-      "tmpB",
-    ]);
+    expect(row?.usedGroupIds).toEqual(["gA", "gB", "tmpA", "tmpB"]);
   });
 
   it("a same-head base retarget keeps the chain's used ids", async () => {
@@ -369,7 +364,7 @@ describe("generate task, anchored generation", () => {
     const task = makeTask({ generator, github });
     await task(first.payload);
     await harness.raw(
-      `update brief set used_group_ids = '["gA","gB","gZ"]' where head_sha = '${HEAD_1}'`,
+      `update brief set used_group_ids = '{gA,gB,gZ}' where head_sha = '${HEAD_1}'`,
     );
 
     const BASE_2 = "d".repeat(40);
@@ -385,13 +380,7 @@ describe("generate task, anchored generation", () => {
 
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(again.pr.id, BASE_2, HEAD_1);
-    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
-      "gA",
-      "gB",
-      "gZ",
-      "tmpA",
-      "tmpB",
-    ]);
+    expect(row?.usedGroupIds).toEqual(["gA", "gB", "gZ", "tmpA", "tmpB"]);
   });
 
   it("heals a NULL chain column from the previous body", async () => {
@@ -427,12 +416,7 @@ describe("generate task, anchored generation", () => {
 
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
-    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
-      "gA",
-      "gB",
-      "tmpA",
-      "tmpB",
-    ]);
+    expect(row?.usedGroupIds).toEqual(["gA", "gB", "tmpA", "tmpB"]);
   });
 
   it("leaves the hop behind when the model call fails", async () => {
@@ -476,7 +460,7 @@ describe("generate task, anchored generation", () => {
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("none");
-    expect(row?.carriedChunkIds).toBe("[]");
+    expect(row?.carriedChunkIds).toEqual([]);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
