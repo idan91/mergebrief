@@ -73,12 +73,8 @@ export async function scheduleUrlBoxRegeneration(
     debounceSeconds: FOLLOW_UP_DEBOUNCE_SECONDS,
     grantId: input.grantId,
   });
-  if (!outcome.ok) {
-    // The only expected failure is an invalid debounce; ours is constant.
-    throw new Error(outcome.error.message);
-  }
   const head = info.headSha.slice(0, 8);
-  if (outcome.value.coveredBy !== undefined) {
+  if (outcome.coveredBy !== undefined) {
     input.log.info(`generate: url-box head advanced to ${head}, brief stored`);
     return;
   }

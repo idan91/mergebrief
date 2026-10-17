@@ -4,7 +4,6 @@
 import { randomBytes } from "node:crypto";
 import {
   createTokenAuth,
-  TokenAuthErrorCodes,
   type ApiTokenMetadataRow,
   type ApiTokenRowId,
   type TokenMintInput,
@@ -71,16 +70,12 @@ export const tokensController = {
       tokenId,
       new Date(),
     );
-    if (!revoked.ok) {
-      // NOT_FOUND is the only expected arm on this path.
-      if (revoked.error.code !== TokenAuthErrorCodes.NOT_FOUND) {
-        throw new Error(`unexpected revoke failure: ${revoked.error.code}`);
-      }
+    if (revoked === undefined) {
       return {
         ok: false,
         error: { kind: "token-not-found" },
       } satisfies RevokeResult;
     }
-    return { ok: true, value: revoked.value } satisfies RevokeResult;
+    return { ok: true, value: revoked } satisfies RevokeResult;
   },
 };

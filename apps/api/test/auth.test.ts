@@ -667,17 +667,17 @@ describe("reviewer auth routes", () => {
       bearerHash,
       new Date(),
     );
-    if (!live.ok) {
+    if (live === undefined) {
       throw new Error("seeded token did not resolve");
     }
-    const principal = derivePrincipalFromApiToken(live.value);
+    const principal = derivePrincipalFromApiToken(live);
     // The owner revokes while the request is in flight.
     const revoked = await createTokenAuth(harness.handle).revokeToken(
       brandReviewerId(BigInt(REVIEWER_ID)),
       minted.id,
       new Date(),
     );
-    if (!revoked.ok) {
+    if (revoked === undefined) {
       throw new Error("revoke failed");
     }
 

@@ -325,23 +325,17 @@ async function triggerGeneration(
   if (uncoveredWork !== undefined) {
     input.uncoveredWork = uncoveredWork;
   }
-  const result = await createIngestRoutines(handle, ctx).triggerGeneration(
+  const outcome = await createIngestRoutines(handle, ctx).triggerGeneration(
     input,
   );
-  if (!result.ok) {
-    // Every override above is a validated constant or a loader-validated
-    // policy value, so an error here is a programmer error, surface it as
-    // the route's 500, never swallow it.
-    throw new Error(`ingest trigger failed: ${result.error.code}`);
-  }
-  if (!result.value.applied) {
+  if (!outcome.applied) {
     logSkippedEvent(log, event);
   }
-  if (result.value.coveredBy !== undefined) {
+  if (outcome.coveredBy !== undefined) {
     log.debug("webhook event covered by a stored brief, nothing queued", {
       repoId: String(event.repoId),
       prNumber: event.prNumber,
-      briefId: String(result.value.coveredBy),
+      briefId: String(outcome.coveredBy),
     });
   }
 }

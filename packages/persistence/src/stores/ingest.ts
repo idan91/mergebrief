@@ -44,7 +44,6 @@ import {
   type PullRequestRowId,
   type UncoveredWork,
 } from "../types";
-import type { Result, ValueOf } from "types/utils";
 import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 
@@ -71,21 +70,6 @@ function buildTerminalKeeper(
   }
   return (stored, fresh) =>
     sql`case when ${existingPrIsTerminal()} then ${stored} else ${fresh} end`;
-}
-
-// ---------------------------------------------------------------------------
-// Errors: expected failures. Programmer/infra errors still `throw`.
-// ---------------------------------------------------------------------------
-
-export const IngestErrorCodes = {
-  /** `debounceSeconds` was negative or non-finite (NaN/Infinity). */
-  INVALID_DEBOUNCE: "invalid-debounce",
-} as const;
-export type IngestErrorCode = ValueOf<typeof IngestErrorCodes>;
-
-export interface IngestError {
-  readonly code: IngestErrorCode;
-  readonly message: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,17 +327,17 @@ async function lockPullRequestInScope(
   return rows.length > 0;
 }
 
-function validateDelaySeconds(
-  name: string,
-  value: number | undefined,
-): IngestError | undefined {
+/**
+ * A negative or non-finite delay would enqueue a job that fires at once or
+ * never. Every delay comes from our own code, so a bad one is a defect.
+ */
+function assertDelaySeconds(name: string, value: number | undefined): void {
   if (value === undefined || (Number.isFinite(value) && value >= 0)) {
-    return undefined;
+    return;
   }
-  return {
-    code: IngestErrorCodes.INVALID_DEBOUNCE,
-    message: `${name} must be a non-negative finite number, got ${value}`,
-  };
+  throw new RangeError(
+    `${name} must be a non-negative finite number, got ${value}`,
+  );
 }
 
 /** Enqueue on the SAME tx via graphile's public SQL function. */
@@ -460,9 +444,8 @@ export interface IngestRoutines {
    * and enqueue/replace the debounced `generate` job. See the module header
    * for the idempotency contract.
    */
-  triggerGeneration(
-    input: TriggerGenerationInput,
-  ): Promise<Result<IngestOutcome, IngestError>>;
+  /** Throws `RangeError` on a negative or non-finite debounce. */
+  triggerGeneration(input: TriggerGenerationInput): Promise<IngestOutcome>;
   /**
    * Persist PR state fields through the same terminal-preserving upsert as
    * `triggerGeneration` WITHOUT touching the projection or enqueueing work,
@@ -479,19 +462,19 @@ export interface IngestRoutines {
    * Queue the PR's `generate` job again, `delaySeconds` out, beside the locked
    * job running now. An unlocked job already queued for the key runs anyway
    * and keeps its payload and `run_at`; a PR outside the scope queues nothing.
+   * Throws `RangeError` on a negative or non-finite delay.
    */
-  requeueGenerateJob(
-    input: RequeueGenerateJobInput,
-  ): Promise<Result<RequeueOutcome, IngestError>>;
+  requeueGenerateJob(input: RequeueGenerateJobInput): Promise<RequeueOutcome>;
   /**
    * Queue the head's recovery job, `delaySeconds` out, with the `generate`
    * payload. One stays pending per head: a later call moves its `run_at`, and
    * one locked by a running recovery gets a fresh job beside it. A PR outside
-   * the scope queues nothing.
+   * the scope queues nothing. Throws `RangeError` on a negative or non-finite
+   * delay.
    */
   scheduleClaimRecovery(
     input: RequeueGenerateJobInput,
-  ): Promise<Result<RequeueOutcome, IngestError>>;
+  ): Promise<RequeueOutcome>;
 }
 
 export interface RequeueGenerateJobInput {
@@ -527,17 +510,11 @@ export function createIngestRoutines(
 
     async triggerGeneration(input) {
       const debounceSeconds = input.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS;
-      // A negative/NaN debounce would enqueue a job that fires immediately or
-      // never, and no upstream validation should be trusted to catch it.
-      for (const [name, value] of [
-        ["debounceSeconds", debounceSeconds],
-        ["regenerationDebounceSeconds", input.regenerationDebounceSeconds],
-      ] as const) {
-        const invalid = validateDelaySeconds(name, value);
-        if (invalid !== undefined) {
-          return { ok: false, error: invalid };
-        }
-      }
+      assertDelaySeconds("debounceSeconds", debounceSeconds);
+      assertDelaySeconds(
+        "regenerationDebounceSeconds",
+        input.regenerationDebounceSeconds,
+      );
 
       return db.transaction(async (tx) => {
         // 1. A stale trigger (redelivery, review on a closed PR) writes
@@ -555,7 +532,7 @@ export function createIngestRoutines(
         );
         const prRow = upserted.row;
         if (!upserted.applied) {
-          return { ok: true, value: { pullRequest: prRow, applied: false } };
+          return { pullRequest: prRow, applied: false };
         }
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a
@@ -566,7 +543,7 @@ export function createIngestRoutines(
           preserveTerminal &&
           (prRow.state === PrStates.CLOSED || prRow.state === PrStates.MERGED)
         ) {
-          return { ok: true, value: { pullRequest: prRow, applied: true } };
+          return { pullRequest: prRow, applied: true };
         }
 
         // 1a. A brief for the pair covers the event. Work the brief leaves
@@ -585,12 +562,9 @@ export function createIngestRoutines(
             (await owesCheckpointDelta(tx, scope, prRow.id, input.headSha));
           if (!owesWork) {
             return {
-              ok: true,
-              value: {
-                pullRequest: prRow,
-                applied: true,
-                coveredBy: storedBrief,
-              },
+              pullRequest: prRow,
+              applied: true,
+              coveredBy: storedBrief,
             };
           }
         }
@@ -638,10 +612,10 @@ export function createIngestRoutines(
           });
           value.generation = projected.row;
           if (projected.held) {
-            return { ok: true, value };
+            return value;
           }
         } else if (await isGenerateJobHeld(tx, prRow.id)) {
-          return { ok: true, value };
+          return value;
         }
 
         // 3. Enqueue on the same tx.
@@ -652,15 +626,12 @@ export function createIngestRoutines(
           prRow.id,
           effectiveDebounceSeconds,
         );
-        return { ok: true, value };
+        return value;
       });
     },
 
     async requeueGenerateJob(input) {
-      const invalid = validateDelaySeconds("delaySeconds", input.delaySeconds);
-      if (invalid !== undefined) {
-        return { ok: false, error: invalid };
-      }
+      assertDelaySeconds("delaySeconds", input.delaySeconds);
 
       return db.transaction(async (tx) => {
         const { pullRequestId } = input;
@@ -668,7 +639,7 @@ export function createIngestRoutines(
         const alreadyQueued =
           inScope && (await hasQueuedGenerateJob(tx, pullRequestId));
         if (!inScope || alreadyQueued) {
-          return { ok: true, value: { queued: false } };
+          return { queued: false };
         }
 
         await enqueueGenerateJob(
@@ -678,21 +649,18 @@ export function createIngestRoutines(
           pullRequestId,
           input.delaySeconds,
         );
-        return { ok: true, value: { queued: true } };
+        return { queued: true };
       });
     },
 
     async scheduleClaimRecovery(input) {
-      const invalid = validateDelaySeconds("delaySeconds", input.delaySeconds);
-      if (invalid !== undefined) {
-        return { ok: false, error: invalid };
-      }
+      assertDelaySeconds("delaySeconds", input.delaySeconds);
 
       return db.transaction(async (tx) => {
         const { pullRequestId, headSha } = input;
         const inScope = await lockPullRequestInScope(tx, scope, pullRequestId);
         if (!inScope) {
-          return { ok: true, value: { queued: false } };
+          return { queued: false };
         }
 
         await addQueueJob(tx, {
@@ -707,7 +675,7 @@ export function createIngestRoutines(
           delaySeconds: input.delaySeconds,
           keyMode: JobKeyModes.REPLACE,
         });
-        return { ok: true, value: { queued: true } };
+        return { queued: true };
       });
     },
 

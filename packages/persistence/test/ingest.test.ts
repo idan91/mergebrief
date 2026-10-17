@@ -11,7 +11,7 @@ import { createIngestRoutines } from "../src/stores/ingest";
 import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
-import type { Mutable, Result } from "types/utils";
+import type { Mutable } from "types/utils";
 import { createTenantRepository } from "../src/stores/tenant";
 import { parseTenantContext } from "../src/stores/scope-context";
 import {
@@ -43,15 +43,6 @@ const REPO_ID = brandWith(isRepoId, 200n);
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 /** A `run_at` no trigger computes, so one that moved it cannot match. */
 const PINNED_RUN_AT = new Date("2026-01-01T00:00:00Z");
-
-function unwrap<T, E>(result: Result<T, E>): T {
-  if (!result.ok) {
-    throw new Error(
-      `expected ok result, got error: ${JSON.stringify(result.error)}`,
-    );
-  }
-  return result.value;
-}
 
 /** Narrow the now-optional generation (absent only on a terminal-preserved trigger). */
 function expectGeneration(
@@ -102,7 +93,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     baseSha?: string;
     headSha?: string;
     uncoveredWork?: UncoveredWork;
-  }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
+  }): Promise<IngestOutcome> {
     const pullRequest: Mutable<PullRequestUpsertInput> = {
       repoId: REPO_ID,
       prNumber: 7,
@@ -153,7 +144,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
   it("atomically writes PR, pending generation and debounced job rows", async () => {
     const before = Date.now();
-    const outcome = unwrap(await trigger());
+    const outcome = await trigger();
 
     // The returned pull_request row.
     expect(outcome.pullRequest.installationId).toBe(CTX.installationId);
@@ -198,22 +189,22 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("persists baseSha and preserves it when a later trigger omits it", async () => {
-    const first = unwrap(await trigger({ baseSha: "base-1" }));
+    const first = await trigger({ baseSha: "base-1" });
     expect(first.pullRequest.baseSha).toBe("base-1");
 
     // Review-event trigger (no baseSha) must not null the stored value.
-    const preserved = unwrap(await trigger());
+    const preserved = await trigger();
     expect(preserved.pullRequest.baseSha).toBe("base-1");
 
-    const retargeted = unwrap(await trigger({ baseSha: "base-2" }));
+    const retargeted = await trigger({ baseSha: "base-2" });
     expect(retargeted.pullRequest.baseSha).toBe("base-2");
   });
 
   it("redelivery increments attempts and keeps the one job's run_at", async () => {
-    const first = unwrap(await trigger());
+    const first = await trigger();
     await writeJobRunAt(harness, PINNED_RUN_AT);
 
-    const second = unwrap(await trigger());
+    const second = await trigger();
 
     // Same aggregate root, projection reset to pending with attempts bumped.
     expect(second.pullRequest.id).toBe(first.pullRequest.id);
@@ -236,10 +227,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("a later push keeps the first run_at and carries the new head", async () => {
-    const first = unwrap(await trigger({ headSha: "a".repeat(40) }));
+    const first = await trigger({ headSha: "a".repeat(40) });
     await writeJobRunAt(harness, PINNED_RUN_AT);
 
-    unwrap(await trigger({ headSha: "b".repeat(40) }));
+    await trigger({ headSha: "b".repeat(40) });
 
     const jobs = await harness.raw(
       "select payload, run_at from graphile_worker.jobs",
@@ -253,10 +244,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("refreshRunAt pulls a pending job in to the new window", async () => {
-    unwrap(await trigger({ debounceSeconds: 900 }));
+    await trigger({ debounceSeconds: 900 });
     const before = Date.now();
 
-    unwrap(await trigger({ debounceSeconds: 10, refreshRunAt: true }));
+    await trigger({ debounceSeconds: 10, refreshRunAt: true });
 
     const jobs = await harness.raw("select run_at from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
@@ -266,13 +257,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("the previous release's running head keeps its row and gets no job", async () => {
-    unwrap(await trigger());
+    await trigger();
     await harness.raw(
       "update generation set status = 'running', phase = 'generating', repo_config = '{}'",
     );
     await harness.raw("delete from graphile_worker.jobs");
 
-    const second = unwrap(await trigger());
+    const second = await trigger();
 
     const row = expectGeneration(second);
     expect(row.status).toBe(GenerationStatuses.RUNNING);
@@ -302,10 +293,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     }
 
     it("a head a live lease holds is kept and not enqueued", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await claimHead(first.pullRequest.id);
 
-      const second = unwrap(await trigger());
+      const second = await trigger();
 
       const row = expectGeneration(second);
       expect(row.status).toBe(GenerationStatuses.RUNNING);
@@ -316,13 +307,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a running head whose lease lapsed is projected and enqueued", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await claimHead(first.pullRequest.id);
       await harness.raw(
         "update generation set lease_expires_at = now() - interval '1 second'",
       );
 
-      const second = unwrap(await trigger());
+      const second = await trigger();
 
       const row = expectGeneration(second);
       expect(row.status).toBe(GenerationStatuses.PENDING);
@@ -335,7 +326,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("the enqueued job carries three max attempts", async () => {
-    unwrap(await trigger());
+    await trigger();
 
     const jobs = await harness.raw(
       "select max_attempts from graphile_worker.jobs",
@@ -359,10 +350,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     }
 
     it("a new head while the job is held queues its own job", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await holdJobs();
 
-      unwrap(await trigger({ headSha: NEXT_HEAD_SHA }));
+      await trigger({ headSha: NEXT_HEAD_SHA });
 
       const jobs = await readJobs();
       expect(jobs).toHaveLength(2);
@@ -375,10 +366,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a same-head trigger on a queued job keeps the one job", async () => {
-      unwrap(await trigger());
+      await trigger();
       const before = await readJobs();
 
-      unwrap(await trigger());
+      await trigger();
 
       expect(await readJobs()).toEqual(before);
     });
@@ -386,10 +377,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     // A known duplicate run, not a wanted behaviour: the held job has not
     // marked its row running yet, so the trigger queues the head again.
     it("a same-head trigger while the job is held queues a second job", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await holdJobs();
 
-      unwrap(await trigger());
+      await trigger();
 
       const jobs = await readJobs();
       expect(jobs).toHaveLength(2);
@@ -417,16 +408,17 @@ describe("createIngestRoutines.triggerGeneration", () => {
     }
 
     it("adds a delayed job beside the locked job that holds the key", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await holdJobs();
 
-      const requeued = unwrap(
-        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
-          pullRequestId: first.pullRequest.id,
-          headSha: HEAD_SHA,
-          delaySeconds: DELAY_SECONDS,
-        }),
-      );
+      const requeued = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).requeueGenerateJob({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: DELAY_SECONDS,
+      });
 
       expect(requeued.queued).toBe(true);
       const jobs = await readQueuedJobs();
@@ -444,18 +436,19 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("leaves an unlocked queued job's payload and run_at as found", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       const before = await harness.raw(
         "select id, key, run_at, payload::text as payload from graphile_worker.jobs",
       );
 
-      const requeued = unwrap(
-        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
-          pullRequestId: first.pullRequest.id,
-          headSha: "b".repeat(40),
-          delaySeconds: DELAY_SECONDS,
-        }),
-      );
+      const requeued = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).requeueGenerateJob({
+        pullRequestId: first.pullRequest.id,
+        headSha: "b".repeat(40),
+        delaySeconds: DELAY_SECONDS,
+      });
 
       expect(requeued.queued).toBe(false);
       expect(
@@ -466,18 +459,19 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("revives a job whose attempts are spent instead of skipping it", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await harness.raw(
         "update graphile_worker.jobs set attempts = max_attempts",
       );
 
-      const requeued = unwrap(
-        await createIngestRoutines(harness.handle, CTX).requeueGenerateJob({
-          pullRequestId: first.pullRequest.id,
-          headSha: HEAD_SHA,
-          delaySeconds: DELAY_SECONDS,
-        }),
-      );
+      const requeued = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).requeueGenerateJob({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: DELAY_SECONDS,
+      });
 
       expect(requeued.queued).toBe(true);
       const jobs = await harness.raw(
@@ -496,14 +490,12 @@ describe("createIngestRoutines.triggerGeneration", () => {
       });
       const grantId = brandWith(isGrantRowId, 9n);
 
-      unwrap(
-        await ingest.requeueGenerateJob({
-          pullRequestId: recorded.pullRequest.id,
-          headSha: HEAD_SHA,
-          grantId,
-          delaySeconds: DELAY_SECONDS,
-        }),
-      );
+      await ingest.requeueGenerateJob({
+        pullRequestId: recorded.pullRequest.id,
+        headSha: HEAD_SHA,
+        grantId,
+        delaySeconds: DELAY_SECONDS,
+      });
 
       const jobs = await readQueuedJobs();
       expect(JSON.parse(String(jobs[0]?.["payload"]))).toEqual({
@@ -515,28 +507,27 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("queues nothing for a pull request outside the scope", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       await holdJobs();
       const otherCtx = parseTenantContext({ installationId: 101n });
 
-      const requeued = unwrap(
-        await createIngestRoutines(harness.handle, otherCtx).requeueGenerateJob(
-          {
-            pullRequestId: first.pullRequest.id,
-            headSha: HEAD_SHA,
-            delaySeconds: DELAY_SECONDS,
-          },
-        ),
-      );
+      const requeued = await createIngestRoutines(
+        harness.handle,
+        otherCtx,
+      ).requeueGenerateJob({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: DELAY_SECONDS,
+      });
 
       expect(requeued.queued).toBe(false);
       expect(await readQueuedJobs()).toEqual([]);
     });
 
     it("refuses a negative delay", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
 
-      const requeued = await createIngestRoutines(
+      const requeued = createIngestRoutines(
         harness.handle,
         CTX,
       ).requeueGenerateJob({
@@ -545,7 +536,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         delaySeconds: -1,
       });
 
-      expect(requeued.ok).toBe(false);
+      await expect(requeued).rejects.toThrow(RangeError);
     });
   });
 
@@ -561,7 +552,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     }
 
     it("keeps one pending recovery job per head at the latest delay", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       const ingest = createIngestRoutines(harness.handle, CTX);
       const request = {
         pullRequestId: first.pullRequest.id,
@@ -569,13 +560,11 @@ describe("createIngestRoutines.triggerGeneration", () => {
         delaySeconds: FIRST_DELAY_SECONDS,
       };
 
-      unwrap(await ingest.scheduleClaimRecovery(request));
-      const scheduled = unwrap(
-        await ingest.scheduleClaimRecovery({
-          ...request,
-          delaySeconds: LATER_DELAY_SECONDS,
-        }),
-      );
+      await ingest.scheduleClaimRecovery(request);
+      const scheduled = await ingest.scheduleClaimRecovery({
+        ...request,
+        delaySeconds: LATER_DELAY_SECONDS,
+      });
 
       expect(scheduled.queued).toBe(true);
       const jobs = await readRecoveryJobs();
@@ -595,14 +584,14 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("adds a job beside a running recovery and leaves the generate job", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       const ingest = createIngestRoutines(harness.handle, CTX);
       const request = {
         pullRequestId: first.pullRequest.id,
         headSha: HEAD_SHA,
         delaySeconds: LATER_DELAY_SECONDS,
       };
-      unwrap(await ingest.scheduleClaimRecovery(request));
+      await ingest.scheduleClaimRecovery(request);
       await harness.raw(
         "update graphile_worker.jobs set locked_at = now() where task_identifier = 'recover-generation'",
       );
@@ -610,7 +599,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         "select id, key, run_at from graphile_worker.jobs where task_identifier = 'generate'",
       );
 
-      unwrap(await ingest.scheduleClaimRecovery(request));
+      await ingest.scheduleClaimRecovery(request);
 
       const jobs = await readRecoveryJobs();
       expect(jobs).toHaveLength(2);
@@ -624,28 +613,26 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("queues nothing for a pull request outside the scope", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
       const otherCtx = parseTenantContext({ installationId: 101n });
 
-      const scheduled = unwrap(
-        await createIngestRoutines(
-          harness.handle,
-          otherCtx,
-        ).scheduleClaimRecovery({
-          pullRequestId: first.pullRequest.id,
-          headSha: HEAD_SHA,
-          delaySeconds: LATER_DELAY_SECONDS,
-        }),
-      );
+      const scheduled = await createIngestRoutines(
+        harness.handle,
+        otherCtx,
+      ).scheduleClaimRecovery({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: LATER_DELAY_SECONDS,
+      });
 
       expect(scheduled.queued).toBe(false);
       expect(await readRecoveryJobs()).toEqual([]);
     });
 
     it("refuses a negative delay", async () => {
-      const first = unwrap(await trigger());
+      const first = await trigger();
 
-      const scheduled = await createIngestRoutines(
+      const scheduled = createIngestRoutines(
         harness.handle,
         CTX,
       ).scheduleClaimRecovery({
@@ -654,12 +641,12 @@ describe("createIngestRoutines.triggerGeneration", () => {
         delaySeconds: -1,
       });
 
-      expect(scheduled.ok).toBe(false);
+      await expect(scheduled).rejects.toThrow(RangeError);
     });
   });
 
   it("refreshRunAt does not re-enqueue a running head", async () => {
-    const first = unwrap(await trigger({ debounceSeconds: 900 }));
+    const first = await trigger({ debounceSeconds: 900 });
     const firstJobs = await harness.raw(
       "select run_at from graphile_worker.jobs",
     );
@@ -669,7 +656,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       briefTarget(first.pullRequest.id),
     );
 
-    unwrap(await trigger({ debounceSeconds: 10, refreshRunAt: true }));
+    await trigger({ debounceSeconds: 10, refreshRunAt: true });
 
     const jobs = await harness.raw("select run_at from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
@@ -677,7 +664,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("a succeeded head is reset to pending and enqueued again", async () => {
-    const first = unwrap(await trigger());
+    const first = await trigger();
     const target = briefTarget(first.pullRequest.id);
     await succeedTestRun(
       createGenerationProjection(harness.handle, CTX),
@@ -685,7 +672,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     );
     await harness.raw("delete from graphile_worker.jobs");
 
-    const second = unwrap(await trigger());
+    const second = await trigger();
 
     const row = expectGeneration(second);
     expect(row.status).toBe(GenerationStatuses.PENDING);
@@ -696,7 +683,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("a failed head is reset to pending with its error cleared", async () => {
-    const first = unwrap(await trigger());
+    const first = await trigger();
     const target = briefTarget(first.pullRequest.id);
     const projection = createGenerationProjection(harness.handle, CTX);
     await projection.markFailed(target, {
@@ -705,7 +692,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
     await harness.raw("delete from graphile_worker.jobs");
 
-    const second = unwrap(await trigger());
+    const second = await trigger();
 
     const row = expectGeneration(second);
     expect(row.status).toBe(GenerationStatuses.PENDING);
@@ -716,7 +703,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("rejects stale non-reopen triggers for closed PRs without enqueueing", async () => {
-    unwrap(await trigger());
+    await trigger();
     const jobsBefore = await harness.raw(
       "select run_at from graphile_worker.jobs",
     );
@@ -725,7 +712,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     // A redelivered synchronize / a review on the now-closed PR: writes
     // state:open too, but must leave the terminal lifecycle intact AND queue
     // nothing (no forever-pending generation row, no dead job).
-    const outcome = unwrap(await trigger());
+    const outcome = await trigger();
     expect(outcome.pullRequest.state).toBe(PrStates.CLOSED);
     expect(outcome.pullRequest.closedAt).not.toBeNull();
     expect(outcome.generation).toBeUndefined();
@@ -750,10 +737,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("transitions a closed PR back to open on an explicit reopen", async () => {
-    unwrap(await trigger());
+    await trigger();
     await closePr();
 
-    const outcome = unwrap(await trigger({ reopen: true }));
+    const outcome = await trigger({ reopen: true });
     expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
     expect(outcome.pullRequest.closedAt).toBeNull();
     expect(outcome.pullRequest.purgeAfter).toBeNull();
@@ -770,13 +757,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(await harness.raw("select id from generation")).toHaveLength(0);
   });
 
-  it("refuses invalid debounce with a Result error and no writes", async () => {
-    const result = await trigger({ debounceSeconds: -1 });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected an error result");
-    }
-    expect(result.error.code).toBe("invalid-debounce");
+  it("throws on an invalid debounce and writes nothing", async () => {
+    await expect(trigger({ debounceSeconds: -1 })).rejects.toThrow(RangeError);
+
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 
@@ -807,7 +790,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("leaves an existing generation projection untouched", async () => {
-      unwrap(await trigger());
+      await trigger();
       const before = await harness.raw(
         "select status, attempts from generation",
       );
@@ -881,7 +864,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("preserves terminal lifecycle without resurrecting closed PRs", async () => {
-      unwrap(await trigger());
+      await trigger();
       await closePr();
 
       const { pullRequest: row } = await createIngestRoutines(
@@ -954,10 +937,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     }
 
     it("queues nothing when a brief covers the base and head pair", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       const briefId = await storeBrief(first.pullRequest.id);
 
-      const second = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const second = await trigger({ baseSha: BASE_SHA });
 
       expect(second.coveredBy).toBe(briefId);
       expect(second.generation).toBeUndefined();
@@ -970,10 +953,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a moved base is a new pair and queues", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       await storeBrief(first.pullRequest.id);
 
-      const moved = unwrap(await trigger({ baseSha: "a".repeat(40) }));
+      const moved = await trigger({ baseSha: "a".repeat(40) });
 
       expect(moved.coveredBy).toBeUndefined();
       expect(expectGeneration(moved).status).toBe(GenerationStatuses.PENDING);
@@ -982,15 +965,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a submitted review is work the brief does not cover", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       await storeBrief(first.pullRequest.id);
 
-      const review = unwrap(
-        await trigger({
-          baseSha: BASE_SHA,
-          uncoveredWork: UncoveredWorks.REVIEW,
-        }),
-      );
+      const review = await trigger({
+        baseSha: BASE_SHA,
+        uncoveredWork: UncoveredWorks.REVIEW,
+      });
 
       expect(review.coveredBy).toBeUndefined();
       expect(review.generation).toBeUndefined();
@@ -1003,12 +984,12 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a checkpoint at another head owes the covered head its delta", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       await storeBrief(first.pullRequest.id);
       const pullRequestId = brandWith(isPullRequestRowId, first.pullRequest.id);
       await checkpointAt(pullRequestId, "b".repeat(40));
 
-      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const returned = await trigger({ baseSha: BASE_SHA });
 
       expect(returned.coveredBy).toBeUndefined();
       expect(returned.generation).toBeUndefined();
@@ -1017,7 +998,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a checkpoint whose delta reaches the head keeps the pair covered", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       const briefId = await storeBrief(first.pullRequest.id);
       const pullRequestId = brandWith(isPullRequestRowId, first.pullRequest.id);
       const checkpointSha = "b".repeat(40);
@@ -1032,7 +1013,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         body: "{}",
       });
 
-      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const returned = await trigger({ baseSha: BASE_SHA });
 
       expect(returned.coveredBy).toBe(briefId);
       const jobs = await harness.raw("select id from graphile_worker.jobs");
@@ -1040,14 +1021,14 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a checkpoint at the head itself owes nothing", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       const briefId = await storeBrief(first.pullRequest.id);
       await checkpointAt(
         brandWith(isPullRequestRowId, first.pullRequest.id),
         HEAD_SHA,
       );
 
-      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const returned = await trigger({ baseSha: BASE_SHA });
 
       expect(returned.coveredBy).toBe(briefId);
       const jobs = await harness.raw("select id from graphile_worker.jobs");
@@ -1055,25 +1036,21 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("uncovered work queues nothing while a worker holds the job", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       await storeBrief(first.pullRequest.id);
-      unwrap(
-        await trigger({
-          baseSha: BASE_SHA,
-          uncoveredWork: UncoveredWorks.REVIEW,
-        }),
-      );
+      await trigger({
+        baseSha: BASE_SHA,
+        uncoveredWork: UncoveredWorks.REVIEW,
+      });
       await harness.raw("update graphile_worker.jobs set locked_at = now()");
       await writeJobRunAt(harness, PINNED_RUN_AT);
 
-      const held = unwrap(
-        await trigger({
-          baseSha: BASE_SHA,
-          uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
-          debounceSeconds: 1,
-          refreshRunAt: true,
-        }),
-      );
+      const held = await trigger({
+        baseSha: BASE_SHA,
+        uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
+        debounceSeconds: 1,
+        refreshRunAt: true,
+      });
 
       expect(held.generation).toBeUndefined();
       const jobs = await harness.raw(
@@ -1085,7 +1062,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
 
     it("a ready flip queues and leaves the entry comment to the worker", async () => {
-      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const first = await trigger({ baseSha: BASE_SHA });
       await storeBrief(first.pullRequest.id);
       await createTenantRepository(
         harness.handle,
@@ -1095,12 +1072,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
         4242n,
       );
 
-      const flipped = unwrap(
-        await trigger({
-          baseSha: BASE_SHA,
-          uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
-        }),
-      );
+      const flipped = await trigger({
+        baseSha: BASE_SHA,
+        uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
+      });
 
       expect(flipped.coveredBy).toBeUndefined();
       expect(flipped.generation).toBeUndefined();
@@ -1125,8 +1100,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("uses the normal window while no prior brief has succeeded", async () => {
       const before = Date.now();
-      const result = await trigger({ regenerationDebounceSeconds: 900 });
-      expect(result.ok).toBe(true);
+      await trigger({ regenerationDebounceSeconds: 900 });
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
       expect(delta).toBeGreaterThan(50_000);
@@ -1136,11 +1110,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
     it("keeps the normal window while the prior generation is only pending", async () => {
       await trigger();
       const before = Date.now();
-      const result = await trigger({
+      await trigger({
         regenerationDebounceSeconds: 900,
         headSha: "b".repeat(40),
       });
-      expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
       expect(delta).toBeLessThan(70_000);
@@ -1150,11 +1123,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
       await trigger();
       await markSucceeded();
       const before = Date.now();
-      const result = await trigger({
+      await trigger({
         regenerationDebounceSeconds: 900,
         headSha: "b".repeat(40),
       });
-      expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
       expect(delta).toBeGreaterThan(890_000);
@@ -1165,11 +1137,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
       await trigger();
       await harness.raw("update generation set status = 'failed'");
       const before = Date.now();
-      const result = await trigger({
+      await trigger({
         regenerationDebounceSeconds: 900,
         headSha: "b".repeat(40),
       });
-      expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
       expect(delta).toBeLessThan(70_000);
@@ -1177,12 +1148,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("rejects a negative or non-finite regenerationDebounceSeconds", async () => {
       for (const bad of [-1, Number.NaN]) {
-        const result = await trigger({ regenerationDebounceSeconds: bad });
-        expect(result.ok).toBe(false);
-        if (result.ok) {
-          return;
-        }
-        expect(result.error.code).toBe("invalid-debounce");
+        await expect(
+          trigger({ regenerationDebounceSeconds: bad }),
+        ).rejects.toThrow(RangeError);
       }
     });
   });

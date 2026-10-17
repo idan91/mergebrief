@@ -608,12 +608,9 @@ describe("repo-config origin on the generation row", () => {
       headSha: "h1",
       debounceSeconds: 0,
     });
-    if (!first.ok) {
-      throw new Error(first.error.message);
-    }
     const projection = createGenerationProjection(handle, ctx);
     const target = {
-      pullRequestId: first.value.pullRequest.id,
+      pullRequestId: first.pullRequest.id,
       kind: GenerationKinds.BRIEF,
       headSha: "h1",
       baselineSha: null,
@@ -633,7 +630,7 @@ describe("repo-config origin on the generation row", () => {
 
     // Re-queue via the PRODUCTION ingest path (not the projection helper):
     // stale origin data must not survive into the fresh attempt.
-    const second = await ingest.triggerGeneration({
+    await ingest.triggerGeneration({
       pullRequest: {
         repoId: brandWith(isRepoId, 900n),
         prNumber: 3,
@@ -642,9 +639,6 @@ describe("repo-config origin on the generation row", () => {
       headSha: "h1",
       debounceSeconds: 0,
     });
-    if (!second.ok) {
-      throw new Error(second.error.message);
-    }
     expect((await projection.get(target))?.repoConfig).toBeNull();
   });
 });
@@ -661,10 +655,7 @@ describe("getGenerateJobTiming", () => {
       headSha: "h1",
       debounceSeconds,
     });
-    if (!triggered.ok) {
-      throw new Error(triggered.error.message);
-    }
-    return { harness, pullRequestId: triggered.value.pullRequest.id };
+    return { harness, pullRequestId: triggered.pullRequest.id };
   }
 
   it("reports a job whose start time is still ahead", async () => {

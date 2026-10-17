@@ -184,7 +184,7 @@ export async function refreshSessionToken(
       session.sessionTokenHash,
       new Date(),
     );
-    if (!live.ok) {
+    if (live === undefined) {
       // Revoked/expired/deleted mid-request, same hint-free re-auth signal;
       // the row (if any) is left for its owner, per the bearer posture.
       log.error("api token died during refresh", {

@@ -525,14 +525,11 @@ export async function trigger(headSha: string): Promise<TriggeredJob> {
     headSha,
     debounceSeconds: 0,
   });
-  if (!outcome.ok) {
-    throw new Error(outcome.error.message);
-  }
   const jobs = await harness.raw(
     "select payload from graphile_worker.jobs where task_identifier = 'generate'",
   );
   const payload = jobs.at(-1)?.["payload"];
-  return { pr: outcome.value.pullRequest, payload };
+  return { pr: outcome.pullRequest, payload };
 }
 
 export function makeTarget(

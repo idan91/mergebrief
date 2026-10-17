@@ -131,12 +131,7 @@ async function requeueAfterLease(
 
   const ingest = createIngestRoutines(deps.handle, payload.ctx);
   const requeued = await ingest.requeueGenerateJob(request);
-  if (!requeued.ok) {
-    throw new Error(
-      `generate: could not re-queue the run: ${requeued.error.code}`,
-    );
-  }
-  const message = requeued.value.queued
+  const message = requeued.queued
     ? "generate: re-queued for after the holder's lease"
     : "generate: a queued job already follows the holder";
   log.info(message, { delaySeconds: request.delaySeconds });

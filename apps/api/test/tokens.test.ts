@@ -185,7 +185,7 @@ async function seedApiToken(
       minted.id,
       new Date(),
     );
-    if (!revoked.ok) {
+    if (revoked === undefined) {
       throw new Error("seed revoke failed");
     }
   }

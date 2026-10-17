@@ -319,10 +319,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-1",
       debounceSeconds,
     });
-    if (!triggered.ok) {
-      throw new Error(triggered.error.message);
-    }
-    return triggered.value.pullRequest;
+    return triggered.pullRequest;
   }
 
   async function readGenerationSummary(path: string, cookie: string) {

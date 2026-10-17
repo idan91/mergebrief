@@ -11,11 +11,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
 
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
-import {
-  createTokenAuth,
-  TokenAuthErrorCodes,
-  type TokenMintInput,
-} from "../src/auth/token";
+import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import type { AppDatabase } from "../src/db/handle";
 import { brandWith, freshDatabase } from "./helpers";
@@ -163,16 +159,12 @@ describe("createTokenAuth mint / resolve / touch", () => {
     expect(minted.scope).toBe(AccessLevels.EXTERNAL_WRITE);
 
     const resolved = await auth.resolveByHash(HASH, NOW);
-    expect(resolved.ok).toBe(true);
-    if (!resolved.ok) {
-      throw new Error("unreachable");
-    }
-    expect(resolved.value.token.id).toBe(minted.id);
-    expect(resolved.value.token.name).toBe("ci-token");
+    expect(resolved?.token.id).toBe(minted.id);
+    expect(resolved?.token.name).toBe("ci-token");
     // The credential material rides on the grant half. LINKED, not copied.
-    expect(resolved.value.grant.id).toBe(grant.id);
-    expect(resolved.value.grant.ghTokenCiphertext).toBe("v1.enc-access");
-    expect(resolved.value.token).not.toHaveProperty("ghTokenCiphertext");
+    expect(resolved?.grant.id).toBe(grant.id);
+    expect(resolved?.grant.ghTokenCiphertext).toBe("v1.enc-access");
+    expect(resolved?.token).not.toHaveProperty("ghTokenCiphertext");
   });
 
   it("settings-facing results carry NO secret-bearing columns", async () => {
@@ -180,11 +172,8 @@ describe("createTokenAuth mint / resolve / touch", () => {
     const minted = await auth.mintToken(mintInput(grant));
     const listed = await auth.listForUser(USER);
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
-    if (!revoked.ok) {
-      throw new Error("expected revocation");
-    }
 
-    for (const row of [minted, listed[0], revoked.value]) {
+    for (const row of [minted, listed[0], revoked]) {
       expect(row).toBeDefined();
       expect(row).not.toHaveProperty("tokenHash");
       expect(row).not.toHaveProperty("grantId");
@@ -201,30 +190,27 @@ describe("createTokenAuth mint / resolve / touch", () => {
       HASH,
       new Date("2099-01-01T00:00:00Z"),
     );
-    expect(resolved.ok).toBe(true);
+    expect(resolved).toBeDefined();
   });
 
-  it("returns NOT_FOUND for an unknown hash", async () => {
+  it("resolves nothing for an unknown hash", async () => {
     const resolved = await createTokenAuth(handle).resolveByHash(
       OTHER_HASH,
       NOW,
     );
-    expect(resolved.ok).toBe(false);
-    if (resolved.ok) {
-      throw new Error("unreachable");
-    }
-    expect(resolved.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
+    expect(resolved).toBeUndefined();
   });
 
-  it("returns EXPIRED for a token past its expiry", async () => {
+  it("resolves nothing for a token past its expiry", async () => {
     const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant, { expiresAt: PAST }));
-    const resolved = await auth.resolveByHash(HASH, NOW);
-    expect(resolved.ok).toBe(false);
-    if (resolved.ok) {
-      throw new Error("unreachable");
-    }
-    expect(resolved.error.code).toBe(TokenAuthErrorCodes.EXPIRED);
+    expect(await auth.resolveByHash(HASH, NOW)).toBeUndefined();
+  });
+
+  it("resolves nothing for a token that expires at this instant", async () => {
+    const auth = createTokenAuth(handle);
+    await auth.mintToken(mintInput(grant, { expiresAt: NOW }));
+    expect(await auth.resolveByHash(HASH, NOW)).toBeUndefined();
   });
 
   it("touches last_used_at by hash", async () => {
@@ -232,10 +218,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     await auth.mintToken(mintInput(grant));
     expect(await auth.touchLastUsed(HASH, NOW)).toBe(1);
     const resolved = await auth.resolveByHash(HASH, NOW);
-    if (!resolved.ok) {
-      throw new Error("expected resolution");
-    }
-    expect(resolved.value.token.lastUsedAt).toEqual(NOW);
+    expect(resolved?.token.lastUsedAt).toEqual(NOW);
     // Unknown hash is a clean 0, not an error.
     expect(await auth.touchLastUsed(OTHER_HASH, NOW)).toBe(0);
   });
@@ -279,18 +262,9 @@ describe("createTokenAuth list / revoke", () => {
     const minted = await auth.mintToken(mintInput(grant));
 
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
-    expect(revoked.ok).toBe(true);
-    if (!revoked.ok) {
-      throw new Error("unreachable");
-    }
-    expect(revoked.value.revokedAt).toEqual(NOW);
+    expect(revoked?.revokedAt).toEqual(NOW);
 
-    const resolved = await auth.resolveByHash(HASH, NOW);
-    expect(resolved.ok).toBe(false);
-    if (resolved.ok) {
-      throw new Error("unreachable");
-    }
-    expect(resolved.error.code).toBe(TokenAuthErrorCodes.REVOKED);
+    expect(await auth.resolveByHash(HASH, NOW)).toBeUndefined();
 
     // Still listable (the settings list stays honest after revocation), and
     // the soft revoke KEEPS the grant reference, only hard deletes
@@ -305,25 +279,16 @@ describe("createTokenAuth list / revoke", () => {
     const minted = await auth.mintToken(mintInput(grant));
     await auth.revokeToken(USER, minted.id, PAST);
     const again = await auth.revokeToken(USER, minted.id, NOW);
-    expect(again.ok).toBe(true);
-    if (!again.ok) {
-      throw new Error("unreachable");
-    }
-    expect(again.value.revokedAt).toEqual(PAST);
+    expect(again?.revokedAt).toEqual(PAST);
   });
 
-  it("returns NOT_FOUND revoking a token the user does not own", async () => {
+  it("revokes nothing for a token the user does not own", async () => {
     const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     const result = await auth.revokeToken(OTHER_USER, minted.id, NOW);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
+    expect(result).toBeUndefined();
     // The row is untouched.
-    const resolved = await auth.resolveByHash(HASH, NOW);
-    expect(resolved.ok).toBe(true);
+    expect(await auth.resolveByHash(HASH, NOW)).toBeDefined();
   });
 });
 

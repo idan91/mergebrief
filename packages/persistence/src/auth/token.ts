@@ -16,12 +16,7 @@ import {
   type GrantRowId,
   type ReviewerId,
 } from "../types";
-import {
-  PullRequestSources,
-  type Result,
-  type ValueOf,
-  type AccessLevel,
-} from "types";
+import { PullRequestSources, type AccessLevel } from "types";
 import type { GithubGrantRow } from "./grant";
 
 // The issuance row this store writes INSIDE the mint transaction, a mint that
@@ -53,55 +48,18 @@ const metadataColumns = {
   createdAt: apiToken.createdAt,
 };
 
-// ---------------------------------------------------------------------------
-// Errors, expected failures. Programmer errors still `throw`. The api layer
-// collapses ALL of these to a hint-free 401 on the Bearer path.
-// ---------------------------------------------------------------------------
-
-export const TokenAuthErrorCodes = {
-  /** No token row for the given hash, or an owner-scoped op missed. */
-  NOT_FOUND: "not-found",
-  /** The row exists but is past its mint-chosen `expires_at`. */
-  EXPIRED: "expired",
-  /** The row exists but was revoked (`revoked_at` set). */
-  REVOKED: "revoked",
-} as const;
-export type TokenAuthErrorCode = ValueOf<typeof TokenAuthErrorCodes>;
-
-export interface TokenAuthError {
-  readonly code: TokenAuthErrorCode;
-  readonly message: string;
-}
-
-function fail(
-  code: TokenAuthErrorCode,
-  message: string,
-): Result<never, TokenAuthError> {
-  return { ok: false, error: { code, message } };
-}
-
 /**
- * Liveness check shared by resolution and refresh: revoked wins over expired
- * (a revoked token must read as revoked even after its expiry passes).
- * Expiry is exclusive of the instant: a token is dead once `expires_at <= now`.
+ * A token is live until revoked or expired. Expiry is exclusive of the
+ * instant: a token is dead once `expires_at <= now`.
  */
-function livenessError(
-  row: ApiTokenRow,
-  now: Date,
-): TokenAuthError | undefined {
+function isTokenLive(row: ApiTokenRow, now: Date): boolean {
   if (row.revokedAt !== null) {
-    return {
-      code: TokenAuthErrorCodes.REVOKED,
-      message: "api_token is revoked",
-    };
+    return false;
   }
-  if (row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()) {
-    return {
-      code: TokenAuthErrorCodes.EXPIRED,
-      message: "api_token is expired",
-    };
+  if (row.expiresAt === null) {
+    return true;
   }
-  return undefined;
+  return row.expiresAt.getTime() > now.getTime();
 }
 
 // ---------------------------------------------------------------------------
@@ -136,14 +94,14 @@ export interface TokenAuth {
    */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
-   * The Bearer-path resolver: hash → row (JOINed to its grant) → liveness
-   * (revoked, then expired). All misses are `Result` errors so the api layer
-   * maps every arm to the same hint-free 401.
+   * The Bearer-path resolver: hash → row (JOINed to its grant) → liveness.
+   * An unknown, revoked or expired token is `undefined`, one answer, so the
+   * api layer cannot tell the cases apart on the wire.
    */
   resolveByHash(
     tokenHash: string,
     now: Date,
-  ): Promise<Result<TokenWithGrant, TokenAuthError>>;
+  ): Promise<TokenWithGrant | undefined>;
   /**
    * The settings-page list: ALL of a user's tokens (a person spans
    * installations), revoked and expired included, newest first.
@@ -154,13 +112,13 @@ export interface TokenAuth {
    * Owner-scoped soft revoke: sets `revoked_at = now` once; idempotent (a
    * second revoke returns the row with its ORIGINAL `revoked_at`). The
    * UPDATE is gated by `(user_id, id)`, so a user can only revoke their own
-   * tokens, someone else's id is an indistinguishable `NOT_FOUND`.
+   * tokens; someone else's id and an absent one are both `undefined`.
    */
   revokeToken(
     userId: ReviewerId,
     tokenId: ApiTokenRowId,
     now: Date,
-  ): Promise<Result<ApiTokenMetadataRow, TokenAuthError>>;
+  ): Promise<ApiTokenMetadataRow | undefined>;
   /**
    * Stamp `last_used_at` by hash (the api layer throttles, this is
    * unconditional). Returns rows touched (0 for an unknown hash).
@@ -222,16 +180,12 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         .limit(1);
       const row = rows[0];
       if (row === undefined) {
-        return fail(
-          TokenAuthErrorCodes.NOT_FOUND,
-          "api_token not found for the given token hash",
-        );
+        return undefined;
       }
-      const dead = livenessError(row.token, now);
-      if (dead !== undefined) {
-        return { ok: false, error: dead };
+      if (!isTokenLive(row.token, now)) {
+        return undefined;
       }
-      return { ok: true, value: row };
+      return row;
     },
 
     async listForUser(userId) {
@@ -259,23 +213,16 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
           .returning(metadataColumns);
         const updatedRow = updated[0];
         if (updatedRow !== undefined) {
-          return { ok: true, value: updatedRow };
+          return updatedRow;
         }
         // Second arm: distinguish already-revoked (idempotent success,
-        // original `revoked_at` intact) from not-owned/absent (`NOT_FOUND`).
+        // original `revoked_at` intact) from not-owned or absent.
         const existing = await tx
           .select(metadataColumns)
           .from(apiToken)
           .where(and(eq(apiToken.userId, userId), eq(apiToken.id, tokenId)))
           .limit(1);
-        const row = existing[0];
-        if (row === undefined) {
-          return fail(
-            TokenAuthErrorCodes.NOT_FOUND,
-            `api_token ${tokenId} not found for the given user`,
-          );
-        }
-        return { ok: true, value: row };
+        return existing[0];
       });
     },
 

@@ -111,11 +111,11 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
         tokenHash,
         new Date(startedAt),
       );
-      if (!resolved.ok) {
+      if (resolved === undefined) {
         stampAccess(c, "401", {});
         throw new Unauthorized();
       }
-      const principal = derivePrincipalFromApiToken(resolved.value);
+      const principal = derivePrincipalFromApiToken(resolved);
 
       // Throttled usage stamp, visibility, not auth state; the write is
       // skipped entirely while the window holds and never awaited on the

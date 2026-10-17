@@ -287,7 +287,7 @@ export type {
 // `generation` projection + debounced graphile `generate` job, in ONE
 // transaction. Calls `graphile_worker.add_job` by name; no graphile-worker
 // npm dependency here.
-export { createIngestRoutines, IngestErrorCodes } from "./stores/ingest";
+export { createIngestRoutines } from "./stores/ingest";
 // The recovery job's task name, which the worker registers, and the claims a head takes between triggers.
 export {
   MAX_GENERATION_ATTEMPTS,
@@ -295,8 +295,6 @@ export {
 } from "./stores/queue";
 export type {
   IngestRoutines,
-  IngestError,
-  IngestErrorCode,
   IngestOutcome,
   RecordStateOptions,
   RequeueGenerateJobInput,
@@ -344,11 +342,9 @@ export type { SessionAuth, SessionWithGrant } from "./auth/session";
 // The API-token auth boundary: the second presentation channel's PRE-TENANT,
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it
 // precedes `createTenantRepository` scoping.
-export { createTokenAuth, TokenAuthErrorCodes } from "./auth/token";
+export { createTokenAuth } from "./auth/token";
 export type {
   TokenAuth,
-  TokenAuthError,
-  TokenAuthErrorCode,
   TokenMintInput,
   TokenWithGrant,
   ApiTokenRow,

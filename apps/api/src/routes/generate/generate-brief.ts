@@ -92,7 +92,7 @@ export async function generateBrief(
     info.authorLogin === null
       ? { ...prFields, ...lifecycle }
       : { ...prFields, authorLogin: info.authorLogin, ...lifecycle };
-  const outcome = await createIngestRoutines(deps.handle, {
+  const { pullRequest } = await createIngestRoutines(deps.handle, {
     ownerUserId: principal.reviewerId,
   }).triggerGeneration({
     pullRequest: pullRequestInput,
@@ -100,12 +100,7 @@ export async function generateBrief(
     debounceSeconds: PASTE_DEBOUNCE_SECONDS,
     grantId: principal.grantId,
   });
-  if (!outcome.ok) {
-    // The only expected failure is an invalid debounce; ours is constant.
-    throw new Error(outcome.error.message);
-  }
 
-  const { pullRequest } = outcome.value;
   return {
     ok: true,
     value: {

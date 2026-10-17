@@ -47,12 +47,7 @@ export async function scheduleClaimRecovery(
   const request = buildAfterLeaseRequest(payload, leaseMs);
 
   const ingest = createIngestRoutines(deps.handle, payload.ctx);
-  const scheduled = await ingest.scheduleClaimRecovery(request);
-  if (!scheduled.ok) {
-    throw new Error(
-      `generate: could not queue the claim's recovery: ${scheduled.error.code}`,
-    );
-  }
+  await ingest.scheduleClaimRecovery(request);
   log.debug("generate: claim recovery queued", {
     delaySeconds: request.delaySeconds,
   });
