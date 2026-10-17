@@ -379,6 +379,63 @@ describe("createInboxStore.list, review state", () => {
   });
 });
 
+describe("createInboxStore.list, the latest brief", () => {
+  it("is the newest head even when an older head was written last", async () => {
+    const handle = await freshDatabase();
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-1",
+      new Date("2026-09-02T00:00:00Z"),
+    );
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-2",
+      new Date("2026-09-01T00:00:00Z"),
+    );
+
+    const page = await createInboxStore(handle).list(makeListInput());
+
+    expect(page.items[0]?.latestBrief?.headSha).toBe("head-2");
+  });
+
+  it("archives at the newest head even when an older one was written last", async () => {
+    const handle = await freshDatabase();
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-1",
+      new Date("2026-09-02T00:00:00Z"),
+    );
+    await seedBrief(
+      handle,
+      CTX_ACME,
+      prId,
+      "head-2",
+      new Date("2026-09-01T00:00:00Z"),
+    );
+
+    await createTenantRepository(handle, CTX_ACME).archives.set(prId, VIEWER);
+
+    expect(await listNumbers(handle)).toEqual([]);
+    expect(await listNumbers(handle, { filters: ARCHIVED_ONLY })).toEqual([1]);
+  });
+});
+
 describe("createInboxStore.list, fold and sort", () => {
   async function seedFoldFixture(handle: AppDatabase): Promise<void> {
     const at = (day: number): Date =>

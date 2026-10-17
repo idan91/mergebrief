@@ -6,7 +6,6 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
-  index,
   integer,
   pgTable,
   text,
@@ -88,13 +87,9 @@ export const brief = pgTable(
           table.headSha,
         )
         .nullsNotDistinct(),
-      // The Inbox's latest brief per pull request, and its generated-at sort.
-      index("brief_pull_request_created_idx").on(
-        table.pullRequestId,
-        table.createdAt.desc(),
-      ),
       // A rev addresses one brief: two runs racing for the same index fail
-      // loudly instead of leaving a link ambiguous.
+      // loudly instead of leaving a link ambiguous. It also serves every
+      // latest-brief lookup, which orders by head index.
       uniqueIndex("brief_pull_request_head_index_key").on(
         table.pullRequestId,
         table.headIndex,

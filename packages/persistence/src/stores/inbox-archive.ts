@@ -55,7 +55,7 @@ async function readLatestHead(
     .select({ headSha: brief.headSha })
     .from(brief)
     .where(eq(brief.pullRequestId, pullRequestId))
-    .orderBy(desc(brief.createdAt), desc(brief.id))
+    .orderBy(desc(brief.headIndex), desc(brief.id))
     .limit(1);
   return latest[0]?.headSha ?? null;
 }

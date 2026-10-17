@@ -386,6 +386,13 @@
       "when": 1792188570892,
       "tag": "0055_sweep-indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792197029260,
+      "tag": "0056_latest-brief-by-head-index",
+      "breakpoints": true
     }
   ]
 }

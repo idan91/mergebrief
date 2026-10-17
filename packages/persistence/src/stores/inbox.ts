@@ -220,7 +220,7 @@ function buildLatestBrief(db: InboxDb) {
     })
     .from(brief)
     .where(eq(brief.pullRequestId, pullRequest.id))
-    .orderBy(desc(brief.createdAt), desc(brief.id))
+    .orderBy(desc(brief.headIndex), desc(brief.id))
     .limit(1)
     .as("latest");
 }
