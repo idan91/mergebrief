@@ -90,7 +90,7 @@ describe("generate task, daily generation cap", () => {
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     const second = await trigger(HEAD_2);
     await makeTask({ github, spend: UNCAPPED })(second.payload);
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -99,7 +99,6 @@ describe("generate task, daily generation cap", () => {
       lastSubmittedSha: HEAD_1,
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
 
     const generator = stubGenerator();
     await makeTask({ generator, github, spend: { maxGenerationsPerDay: 3 } })(
@@ -121,7 +120,7 @@ describe("generate task, daily generation cap", () => {
   it("a paid retry over a stored brief counts toward the cap", async () => {
     const CAP = { maxGenerationsPerDay: 2 };
     const first = await trigger(HEAD_1);
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -130,7 +129,6 @@ describe("generate task, daily generation cap", () => {
       lastSubmittedSha: BASE,
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
     const inner = stubGenerator();
     const failingDelta: Generator = {
       async generate<S extends z.ZodType>(
@@ -174,7 +172,7 @@ describe("generate task, daily generation cap", () => {
   it("a stored-brief run refused at its first paid call writes no row", async () => {
     const first = await trigger(HEAD_1);
     await makeTask({ spend: UNCAPPED })(first.payload);
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -183,7 +181,6 @@ describe("generate task, daily generation cap", () => {
       lastSubmittedSha: BASE,
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
     const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(makeTarget(first.pr, HEAD_1));
     const inner = stubGenerator();
@@ -218,7 +215,7 @@ describe("generate task, daily generation cap", () => {
     const first = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     await makeTask({ github, spend: UNCAPPED })(first.payload);
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -227,7 +224,6 @@ describe("generate task, daily generation cap", () => {
       lastSubmittedSha: BASE,
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
     const generator = stubGenerator();
     const { logger, readLines } = captureLogger();
 

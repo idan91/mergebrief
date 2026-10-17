@@ -11,6 +11,7 @@ import {
   parseTenantContext,
   RepositoryErrorCodes,
   safeParseTenantContext,
+  ScopeViolationError,
   type AppDatabase,
   type PullRequestLifecycle,
   type PullRequestRow,
@@ -89,13 +90,12 @@ describe("createTenantRepository tenant isolation on reads", () => {
     const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
-    const submit = await b.checkpoints.upsertOnSubmit({
+    await b.checkpoints.upsertOnSubmit({
       pullRequestId: bPr.id,
       reviewerId: REVIEWER,
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date(),
     });
-    expect(submit.ok).toBe(true);
 
     expect(await a.checkpoints.get(bPr.id, REVIEWER)).toBeUndefined();
     expect(await b.checkpoints.get(bPr.id, REVIEWER)).toBeDefined();
@@ -112,18 +112,13 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
     const bPr = await b.pullRequests.upsert(upsertInput(7));
 
     // A tries to attach a checkpoint to B's PR by surrogate id.
-    const result = await a.checkpoints.upsertOnSubmit({
+    const crossTenantWrite = a.checkpoints.upsertOnSubmit({
       pullRequestId: bPr.id,
       reviewerId: REVIEWER,
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date(),
     });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(crossTenantWrite).rejects.toBeInstanceOf(ScopeViolationError);
 
     // No row was written under EITHER tenant.
     expect(await a.checkpoints.get(bPr.id, REVIEWER)).toBeUndefined();
@@ -359,12 +354,8 @@ describe("createTenantRepository idempotent upserts", () => {
       submittedAt: new Date(),
     });
 
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      throw new Error("expected both submits to succeed");
-    }
-    expect(second.value.id).toBe(first.value.id); // one row per (reviewer, PR)
-    expect(second.value.lastSubmittedSha).toBe("b".repeat(40));
+    expect(second.id).toBe(first.id); // one row per (reviewer, PR)
+    expect(second.lastSubmittedSha).toBe("b".repeat(40));
   });
 
   it("checkpoint upsertOnSubmit never regresses to an older submitted_at", async () => {
@@ -372,13 +363,12 @@ describe("createTenantRepository idempotent upserts", () => {
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
 
-    const newer = await a.checkpoints.upsertOnSubmit({
+    await a.checkpoints.upsertOnSubmit({
       pullRequestId: pr.id,
       reviewerId: REVIEWER,
       lastSubmittedSha: "b".repeat(40),
       submittedAt: new Date("2026-07-07T12:00:00Z"),
     });
-    expect(newer.ok).toBe(true);
 
     // An out-of-order (stale) delivery: older submitted_at, different SHA.
     const stale = await a.checkpoints.upsertOnSubmit({
@@ -387,13 +377,9 @@ describe("createTenantRepository idempotent upserts", () => {
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date("2026-07-07T11:00:00Z"),
     });
-    expect(stale.ok).toBe(true);
-    if (!stale.ok) {
-      throw new Error("expected success");
-    }
     // Newest-submission-wins: the returned row is the CURRENT (newer) state.
-    expect(stale.value.lastSubmittedSha).toBe("b".repeat(40));
-    expect(stale.value.submittedAt).toEqual(new Date("2026-07-07T12:00:00Z"));
+    expect(stale.lastSubmittedSha).toBe("b".repeat(40));
+    expect(stale.submittedAt).toEqual(new Date("2026-07-07T12:00:00Z"));
 
     const current = await a.checkpoints.get(pr.id, REVIEWER);
     expect(current?.lastSubmittedSha).toBe("b".repeat(40));
@@ -417,12 +403,8 @@ describe("createTenantRepository idempotent upserts", () => {
       lastSubmittedSha: "a".repeat(40),
       submittedAt: at,
     });
-    expect(first.ok && redelivery.ok).toBe(true);
-    if (!first.ok || !redelivery.ok) {
-      throw new Error("expected success");
-    }
-    expect(redelivery.value.id).toBe(first.value.id);
-    expect(redelivery.value.lastSubmittedSha).toBe("a".repeat(40));
+    expect(redelivery.id).toBe(first.id);
+    expect(redelivery.lastSubmittedSha).toBe("a".repeat(40));
   });
 
   it("sessions carry no tenant and delete with their grant", async () => {

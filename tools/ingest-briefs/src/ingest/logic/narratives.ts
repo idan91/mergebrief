@@ -74,7 +74,8 @@ export async function writeNarratives(
     }
 
     const origin = meta.data.generation ?? UNKNOWN_ORIGIN;
-    const written = await run.store.revisionNarratives.write({
+    const body = await readFile(join(run.dir, name), "utf8");
+    await run.store.revisionNarratives.write({
       pullRequestId: row.id,
       briefId: anchorRow.id,
       prevHeadSha: meta.data.prevHeadSha,
@@ -82,11 +83,8 @@ export async function writeNarratives(
       provider: origin.provider,
       model: origin.model,
       effort: origin.effort,
-      body: await readFile(join(run.dir, name), "utf8"),
+      body,
     });
-    if (!written.ok) {
-      return throwFileError(name, written.error.message);
-    }
 
     narrativeCount += 1;
     run.log(`narrative ${name}`);

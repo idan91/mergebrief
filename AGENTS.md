@@ -71,7 +71,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Absence: `undefined` means absent. `null` appears only where a wire or DB shape carries it, converted at the boundary. Parse failure and refusal return `Result`. A function never returns both `null` and `undefined`. Loose `== null` is banned; `eqeqeq` holds it.
 - An exported function whose return is an object shape, or a union of shapes, annotates it with a named type declared separately; `T`, `T[]`, `Promise<T>` and `T | undefined` over a primitive or an already-named `T` stay inline. Internals infer.
 - `prop?: T | undefined` is deliberate under `exactOptionalPropertyTypes`. Plain `?:` by default; add `| undefined` only where a caller forwards a maybe-value.
-- Expected failures return `Result`; `throw` is for programmer and infra errors. Three edge contracts throw on purpose and each is named in its member's `AGENTS.md`: api's `ApiError` classes at the HTTP layer, the generator's `generate()` after construction returned `Result`, and the worker's transient job failures so graphile retries. Error messages never carry secrets, tokens or connection strings.
+- Expected failures return `Result`; `throw` is for programmer and infra errors. Four edge contracts throw on purpose and each is named in its member's `AGENTS.md`: api's `ApiError` classes at the HTTP layer, the generator's `generate()` after construction returned `Result`, the worker's transient job failures so graphile retries, and persistence's `ScopeViolationError` for a row outside the caller's scope. Error messages never carry secrets, tokens or connection strings.
 - Magic numbers become a named const or token. No one-letter locals.
 
 ## Functions and naming

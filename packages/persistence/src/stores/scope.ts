@@ -3,9 +3,9 @@
 // (`pull_request.owner_user_id`, children marked by a NULL `installation_id`).
 // Every ctx-bound factory resolves its ctx into a `RowScope` ONCE and routes
 // every read filter, write stamp, and parent check through it, so a query can
-// never mix worlds. The context shapes live in `scope-context.ts`. NOT
-// exported from `index.ts`: a caller outside this package holds a context,
-// never a `RowScope`.
+// never mix worlds. The context shapes live in `scope-context.ts`. `RowScope`
+// is NOT exported from `index.ts`: a caller outside this package holds a
+// context, never a `RowScope`; only `ScopeViolationError` leaves the package.
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { pullRequest } from "../schema/pull-request";
@@ -43,6 +43,19 @@ export interface RowScope {
    * that anchor.
    */
   matchesWorld(installationIdColumn: AnyPgColumn): SQL;
+}
+
+/**
+ * A write named a row outside the caller's scope: a programmer error, or a
+ * race nobody handles differently. The api answers it 404 and the worker
+ * fails the job without retry. The message names table, id and scope label
+ * only, never row contents.
+ */
+export class ScopeViolationError extends Error {
+  constructor(table: string, rowId: bigint, scopeLabel: string) {
+    super(`${table} ${rowId} is not in ${scopeLabel}`);
+    this.name = "ScopeViolationError";
+  }
 }
 
 function definedSql(condition: SQL | undefined): SQL {

@@ -4,7 +4,11 @@
 import type { AnchorPlan, Brief, PreviousBriefInput } from "brief-core";
 import type { GitHubCallFailure } from "github";
 import type { Logger } from "logging";
-import type { ArtifactStore, BriefSpanRow } from "persistence";
+import {
+  ScopeViolationError,
+  type ArtifactStore,
+  type BriefSpanRow,
+} from "persistence";
 import type { Mutable, Result } from "types/utils";
 import { PermanentJobError, TransientJobError } from "../../failure";
 import type { PullRequestSource } from "../../github-port";
@@ -65,7 +69,7 @@ export async function buildPreviousBriefInput(
     }
 
     // A thrown write is the database, not the shape: transient, so graphile
-    // retries it.
+    // retries it. A scope miss keeps its class and ends the job for good.
     const hopWritten = await store.hunkSpans
       .write({
         pullRequestId,
@@ -74,12 +78,15 @@ export async function buildPreviousBriefInput(
         spans: plan.hunkSpans,
       })
       .catch((error: unknown) => {
+        if (error instanceof ScopeViolationError) {
+          throw error;
+        }
         throw new TransientJobError("hunk-span hop write failed", {
           cause: error,
         });
       });
-    // Both failure codes are deterministic writer defects against a fixed
-    // shape and a resolved parent, no retry can fix either.
+    // An invalid body is a deterministic writer defect against a fixed
+    // shape, no retry can fix it.
     if (!hopWritten.ok) {
       throw new PermanentJobError(hopWritten.error.message);
     }

@@ -37,7 +37,7 @@ export async function writeBriefs(
     }
 
     const origin = brief.meta.generation ?? UNKNOWN_ORIGIN;
-    const written = await run.store.briefs.write({
+    await run.store.briefs.write({
       pullRequestId: row.id,
       baseSha: legacyBase ?? brief.meta.commitRange.base,
       headSha: brief.meta.commitRange.head,
@@ -48,9 +48,6 @@ export async function writeBriefs(
       effort: origin.effort,
       body: brief.body,
     });
-    if (!written.ok) {
-      return throwFileError(brief.name, written.error.message);
-    }
 
     briefCount += 1;
     run.log(`brief ${brief.name}`);

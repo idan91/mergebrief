@@ -193,11 +193,8 @@ describe("disposition commands over the real api app", () => {
       effort: "high",
       body: JSON.stringify({ changeGroups: [{ id: "grp-1" }], chunks: [] }),
     });
-    if (!brief.ok) {
-      throw new Error("brief seed failed");
-    }
     const session = await repo.reviewSessions.setOutcome(
-      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { briefId: brief.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
     if (!session.ok) {

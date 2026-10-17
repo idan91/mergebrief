@@ -90,10 +90,7 @@ export async function seedBrief(
     // (correctly) drop across the seeded span.
     anchorState: "anchored",
   });
-  if (!written.ok) {
-    throw new Error(`seedBrief: ${written.error.code}`);
-  }
-  return written.value.id;
+  return written.id;
 }
 
 /**

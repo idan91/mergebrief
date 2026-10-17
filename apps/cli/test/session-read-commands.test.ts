@@ -164,11 +164,8 @@ describe("session read commands over the real api app", () => {
       body: "{}",
       repoConfig: REPO_CONFIG,
     });
-    if (!brief.ok) {
-      throw new Error("brief seed failed");
-    }
     const session = await repo.reviewSessions.setOutcome(
-      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { briefId: brief.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
     if (!session.ok) {
@@ -181,9 +178,9 @@ describe("session read commands over the real api app", () => {
     if (!marks.ok) {
       throw new Error("marks seed failed");
     }
-    const narrative = await store.revisionNarratives.write({
+    await store.revisionNarratives.write({
       pullRequestId: pr.id,
-      briefId: brief.value.id,
+      briefId: brief.id,
       prevHeadSha: PREV_HEAD_SHA,
       headSha: HEAD_SHA,
       provider: "anthropic",
@@ -191,9 +188,6 @@ describe("session read commands over the real api app", () => {
       effort: "high",
       body: JSON.stringify({ artifactKind: "narrative" }),
     });
-    if (!narrative.ok) {
-      throw new Error("narrative seed failed");
-    }
   }
 
   interface Run {

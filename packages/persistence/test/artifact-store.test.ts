@@ -7,6 +7,7 @@ import {
   createArtifactStore,
   ArtifactErrorCodes,
   createTenantRepository,
+  ScopeViolationError,
   type ArtifactStore,
   type TenantContext,
 } from "../src/index";
@@ -71,13 +72,9 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       body: "v2-longer",
     });
 
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      throw new Error("expected both writes to succeed");
-    }
-    expect(second.value.id).toBe(first.value.id); // same row
-    expect(second.value.body).toBe("v2-longer"); // updated in place
-    expect(second.value.byteSize).toBe(Buffer.byteLength("v2-longer", "utf8"));
+    expect(second.id).toBe(first.id); // same row
+    expect(second.body).toBe("v2-longer"); // updated in place
+    expect(second.byteSize).toBe(Buffer.byteLength("v2-longer", "utf8"));
 
     const read = await store.briefs.get(pr.id, "base", "head");
     expect(read?.body).toBe("v2-longer");
@@ -108,11 +105,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       body: "v1",
       repoConfig: snapshot,
     });
-    expect(withConfig.ok).toBe(true);
-    if (!withConfig.ok) {
-      throw new Error("unreachable");
-    }
-    expect(withConfig.value.repoConfig).toBe(snapshot);
+    expect(withConfig.repoConfig).toBe(snapshot);
 
     // A rewrite without repoConfig clears it, the column always reflects the
     // LATEST generation of the span, never a stale earlier run's snapshot.
@@ -125,11 +118,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       ...PROV,
       body: "v2",
     });
-    expect(without.ok).toBe(true);
-    if (!without.ok) {
-      throw new Error("unreachable");
-    }
-    expect(without.value.repoConfig).toBeNull();
+    expect(without.repoConfig).toBeNull();
   });
 });
 
@@ -143,7 +132,7 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
       prNumber: 12,
       state: PrStates.OPEN,
     });
-    const first = await store.briefs.write({
+    await store.briefs.write({
       pullRequestId: pr.id,
       baseSha: "base-old",
       headSha: "head",
@@ -152,7 +141,6 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
       ...PROV,
       body: "v1",
     });
-    expect(first.ok).toBe(true);
 
     await expect(
       store.briefs.write({
@@ -191,12 +179,8 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       body: "v1",
       anchorState: "none",
     });
-    expect(first.ok).toBe(true);
-    if (!first.ok) {
-      throw new Error("unreachable");
-    }
-    expect(first.value.anchorState).toBe("none");
-    expect(first.value.anchorReason).toBeNull();
+    expect(first.anchorState).toBe("none");
+    expect(first.anchorReason).toBeNull();
 
     const second = await store.briefs.write({
       pullRequestId: pr.id,
@@ -209,12 +193,8 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       anchorState: "fresh-restart",
       anchorReason: "model-swap",
     });
-    expect(second.ok).toBe(true);
-    if (!second.ok) {
-      throw new Error("unreachable");
-    }
-    expect(second.value.anchorState).toBe("fresh-restart");
-    expect(second.value.anchorReason).toBe("model-swap");
+    expect(second.anchorState).toBe("fresh-restart");
+    expect(second.anchorReason).toBe("model-swap");
 
     const read = await store.briefs.get(pr.id, "base", "head");
     expect(read?.anchorState).toBe("fresh-restart");
@@ -240,12 +220,8 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       ...PROV,
       body: "v1",
     });
-    expect(written.ok).toBe(true);
-    if (!written.ok) {
-      throw new Error("unreachable");
-    }
-    expect(written.value.anchorState).toBeNull();
-    expect(written.value.anchorReason).toBeNull();
+    expect(written.anchorState).toBeNull();
+    expect(written.anchorReason).toBeNull();
   });
 
   it("DB CHECKs reject a bad anchor state and a reason without restart", async () => {
@@ -299,10 +275,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     };
 
     const legacy = await store.briefs.write({ ...span, body: "v1" });
-    if (!legacy.ok) {
-      throw new Error("expected success");
-    }
-    expect(legacy.value.carriedChunkIds).toBeNull();
+    expect(legacy.carriedChunkIds).toBeNull();
 
     const carried = await store.briefs.write({
       ...span,
@@ -310,10 +283,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       anchorState: "anchored",
       carriedChunkIds: ["chunk-a", "chunk-b"],
     });
-    if (!carried.ok) {
-      throw new Error("expected success");
-    }
-    expect(carried.value.carriedChunkIds).toEqual(["chunk-a", "chunk-b"]);
+    expect(carried.carriedChunkIds).toEqual(["chunk-a", "chunk-b"]);
 
     // A fresh restart carries nothing, an empty list rather than a null.
     const restarted = await store.briefs.write({
@@ -323,23 +293,17 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       anchorReason: "model-swap",
       carriedChunkIds: [],
     });
-    if (!restarted.ok) {
-      throw new Error("expected success");
-    }
-    expect(restarted.value.carriedChunkIds).toEqual([]);
+    expect(restarted.carriedChunkIds).toEqual([]);
 
     // used_group_ids rides the same discipline: omitted → NULL (legacy
     // writer), present → stored on both insert and the conflict update.
-    expect(legacy.value.usedGroupIds).toBeNull();
+    expect(legacy.usedGroupIds).toBeNull();
     const used = await store.briefs.write({
       ...span,
       body: "v4",
       usedGroupIds: ["g1", "g2"],
     });
-    if (!used.ok) {
-      throw new Error("expected success");
-    }
-    expect(used.value.usedGroupIds).toEqual(["g1", "g2"]);
+    expect(used.usedGroupIds).toEqual(["g1", "g2"]);
   });
 });
 
@@ -369,26 +333,19 @@ describe("createArtifactStore.deltas", () => {
       ...PROV,
       body: "d2",
     });
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      throw new Error("expected both writes to succeed");
-    }
-    expect(second.value.id).toBe(first.value.id);
-    expect(second.value.body).toBe("d2");
-    expect(second.value.provider).toBe(PROV.provider);
+    expect(second.id).toBe(first.id);
+    expect(second.body).toBe("d2");
+    expect(second.provider).toBe(PROV.provider);
 
-    const foreign = await bStore.deltas.write({
-      pullRequestId: pr.id,
-      baselineSha: "chk",
-      headSha: "head2",
-      ...PROV,
-      body: "x",
-    });
-    expect(foreign.ok).toBe(false);
-    if (foreign.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(
+      bStore.deltas.write({
+        pullRequestId: pr.id,
+        baselineSha: "chk",
+        headSha: "head2",
+        ...PROV,
+        body: "x",
+      }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
   });
 });
 
@@ -405,21 +362,17 @@ describe("createArtifactStore rejects a cross-tenant write before the DB", () =>
       state: PrStates.OPEN,
     });
 
-    const result = await aStore.briefs.write({
-      pullRequestId: bPr.id,
-      baseSha: "base",
-      headSha: "head",
-      headIndex: 0,
-      commitCount: 1,
-      ...PROV,
-      body: "x",
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(
+      aStore.briefs.write({
+        pullRequestId: bPr.id,
+        baseSha: "base",
+        headSha: "head",
+        headIndex: 0,
+        commitCount: 1,
+        ...PROV,
+        body: "x",
+      }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
 
     // No row under EITHER tenant.
     expect(await aStore.briefs.get(bPr.id, "base", "head")).toBeUndefined();
@@ -450,9 +403,6 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       ...PROV,
       body: "b-brief",
     });
-    if (!bBrief.ok) {
-      throw new Error("brief write failed");
-    }
 
     // Tenant A owns its own PR, but points the narrative at B's brief.
     const aPr = await a.pullRequests.upsert({
@@ -460,20 +410,16 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       prNumber: 9,
       state: PrStates.OPEN,
     });
-    const result = await aStore.revisionNarratives.write({
-      pullRequestId: aPr.id,
-      briefId: bBrief.value.id,
-      prevHeadSha: "prev",
-      headSha: "head",
-      ...PROV,
-      body: "narrative",
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.BRIEF_NOT_ANCHORED);
+    await expect(
+      aStore.revisionNarratives.write({
+        pullRequestId: aPr.id,
+        briefId: bBrief.id,
+        prevHeadSha: "prev",
+        headSha: "head",
+        ...PROV,
+        body: "narrative",
+      }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(
       await aStore.revisionNarratives.get(aPr.id, "prev", "head"),
     ).toBeUndefined();
@@ -497,23 +443,16 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       ...PROV,
       body: "brief",
     });
-    if (!brief.ok) {
-      throw new Error("brief write failed");
-    }
 
     const result = await store.revisionNarratives.write({
       pullRequestId: pr.id,
-      briefId: brief.value.id,
+      briefId: brief.id,
       prevHeadSha: "prev",
       headSha: "head",
       ...PROV,
       body: "narrative",
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("expected success");
-    }
-    expect(result.value.briefId).toBe(brief.value.id);
+    expect(result.briefId).toBe(brief.id);
   });
 });
 
@@ -750,18 +689,14 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await createArtifactStore(handle, CTX_B).hunkSpans.write({
-      pullRequestId: pr.id,
-      baselineSha: "head-1",
-      headSha: "head-2",
-      spans: HOP,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(
+      createArtifactStore(handle, CTX_B).hunkSpans.write({
+        pullRequestId: pr.id,
+        baselineSha: "head-1",
+        headSha: "head-2",
+        spans: HOP,
+      }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(
       await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(
         pr.id,
@@ -805,18 +740,12 @@ describe("createArtifactStore body version stamp", () => {
       ...span,
       bodyVersion: BODY_VERSION,
     });
-    if (!stamped.ok) {
-      throw new Error("expected success");
-    }
-    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    expect(stamped.bodyVersion).toBe(BODY_VERSION);
     const read = await store.briefs.get(pr.id, "base", "head");
     expect(read?.bodyVersion).toBe(BODY_VERSION);
 
     const rewritten = await store.briefs.write(span);
-    if (!rewritten.ok) {
-      throw new Error("expected success");
-    }
-    expect(rewritten.value.bodyVersion).toBeNull();
+    expect(rewritten.bodyVersion).toBeNull();
     const reread = await store.briefs.get(pr.id, "base", "head");
     expect(reread?.bodyVersion).toBeNull();
 
@@ -825,10 +754,7 @@ describe("createArtifactStore body version stamp", () => {
       baseSha: "base-2",
       headIndex: 1,
     });
-    if (!omitted.ok) {
-      throw new Error("expected success");
-    }
-    expect(omitted.value.bodyVersion).toBeNull();
+    expect(omitted.bodyVersion).toBeNull();
   });
 
   it("delta: keeps the stamp, NULL when omitted or rewritten without", async () => {
@@ -845,26 +771,17 @@ describe("createArtifactStore body version stamp", () => {
       ...span,
       bodyVersion: BODY_VERSION,
     });
-    if (!stamped.ok) {
-      throw new Error("expected success");
-    }
-    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    expect(stamped.bodyVersion).toBe(BODY_VERSION);
     const read = await store.deltas.get(pr.id, "chk", "head");
     expect(read?.bodyVersion).toBe(BODY_VERSION);
 
     const rewritten = await store.deltas.write(span);
-    if (!rewritten.ok) {
-      throw new Error("expected success");
-    }
-    expect(rewritten.value.bodyVersion).toBeNull();
+    expect(rewritten.bodyVersion).toBeNull();
     const reread = await store.deltas.get(pr.id, "chk", "head");
     expect(reread?.bodyVersion).toBeNull();
 
     const omitted = await store.deltas.write({ ...span, baselineSha: "chk-2" });
-    if (!omitted.ok) {
-      throw new Error("expected success");
-    }
-    expect(omitted.value.bodyVersion).toBeNull();
+    expect(omitted.bodyVersion).toBeNull();
   });
 
   it("narrative: keeps the stamp, NULL when omitted or rewritten without", async () => {
@@ -878,12 +795,9 @@ describe("createArtifactStore body version stamp", () => {
       ...PROV,
       body: "brief",
     });
-    if (!brief.ok) {
-      throw new Error("brief write failed");
-    }
     const span = {
       pullRequestId: pr.id,
-      briefId: brief.value.id,
+      briefId: brief.id,
       prevHeadSha: "prev",
       headSha: "head",
       ...PROV,
@@ -894,18 +808,12 @@ describe("createArtifactStore body version stamp", () => {
       ...span,
       bodyVersion: BODY_VERSION,
     });
-    if (!stamped.ok) {
-      throw new Error("expected success");
-    }
-    expect(stamped.value.bodyVersion).toBe(BODY_VERSION);
+    expect(stamped.bodyVersion).toBe(BODY_VERSION);
     const read = await store.revisionNarratives.get(pr.id, "prev", "head");
     expect(read?.bodyVersion).toBe(BODY_VERSION);
 
     const rewritten = await store.revisionNarratives.write(span);
-    if (!rewritten.ok) {
-      throw new Error("expected success");
-    }
-    expect(rewritten.value.bodyVersion).toBeNull();
+    expect(rewritten.bodyVersion).toBeNull();
     const reread = await store.revisionNarratives.get(pr.id, "prev", "head");
     expect(reread?.bodyVersion).toBeNull();
 
@@ -913,10 +821,7 @@ describe("createArtifactStore body version stamp", () => {
       ...span,
       prevHeadSha: "prev-2",
     });
-    if (!omitted.ok) {
-      throw new Error("expected success");
-    }
-    expect(omitted.value.bodyVersion).toBeNull();
+    expect(omitted.bodyVersion).toBeNull();
   });
 });
 
@@ -952,12 +857,12 @@ describe("createArtifactStore.briefs session record counts", () => {
     const first = await store.briefs.write({ ...span, body: TWO_CHUNKS });
     const rewritten = await store.briefs.write({ ...span, body: ONE_CHUNK });
 
-    expect(first.ok && first.value).toMatchObject({
+    expect(first).toMatchObject({
       sessionChunkCount: 2,
       sessionGroupCount: 1,
       sessionFlagCount: 2,
     });
-    expect(rewritten.ok && rewritten.value).toMatchObject({
+    expect(rewritten).toMatchObject({
       sessionChunkCount: 1,
       sessionGroupCount: 0,
       sessionFlagCount: 0,
@@ -981,7 +886,7 @@ describe("createArtifactStore.briefs session record counts", () => {
       body,
     });
 
-    expect(written.ok && written.value.sessionChunkCount).toBe(2);
+    expect(written.sessionChunkCount).toBe(2);
   });
 
   it("stores no counts for a body it cannot read", async () => {
@@ -998,7 +903,7 @@ describe("createArtifactStore.briefs session record counts", () => {
 
     const unreadable = await store.briefs.write({ ...span, body: "{ no" });
 
-    expect(unreadable.ok && unreadable.value).toMatchObject({
+    expect(unreadable).toMatchObject({
       sessionChunkCount: null,
       sessionGroupCount: null,
       sessionFlagCount: null,

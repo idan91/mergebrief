@@ -81,7 +81,7 @@ async function seedBriefedPr(
     repoSlug: REPO_SLUG,
     state: PrStates.OPEN,
   });
-  const brief = await createArtifactStore(handle, ctx).briefs.write({
+  await createArtifactStore(handle, ctx).briefs.write({
     pullRequestId: pr.id,
     baseSha: "b".repeat(40),
     headSha: "h".repeat(40),
@@ -92,9 +92,6 @@ async function seedBriefedPr(
     effort: "e",
     body: "{}",
   });
-  if (!brief.ok) {
-    throw new Error("brief seed failed");
-  }
 }
 
 interface AuditRow {

@@ -181,16 +181,13 @@ describe("comparison artifact reads", () => {
     if (!marks.ok) {
       throw new Error("marks write failed");
     }
-    const bDelta = await bStore.deltas.write({
+    await bStore.deltas.write({
       pullRequestId: bPr.id,
       baselineSha: "head-1",
       headSha: "head-2",
       body: "{}",
       ...ORIGIN,
     });
-    if (!bDelta.ok) {
-      throw new Error("delta write failed");
-    }
 
     const aStore = createArtifactStore(handle, CTX_A);
     expect(
@@ -260,9 +257,6 @@ describe("batched span listings and per-revision joins", () => {
       body: "{}",
       ...ORIGIN,
     });
-    if (!brief.ok) {
-      throw new Error("brief write failed");
-    }
 
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
@@ -287,7 +281,7 @@ describe("batched span listings and per-revision joins", () => {
     });
     await store.revisionNarratives.write({
       pullRequestId: pr.id,
-      briefId: brief.value.id,
+      briefId: brief.id,
       prevHeadSha: "head-1",
       headSha: "head-2",
       body: "{}",

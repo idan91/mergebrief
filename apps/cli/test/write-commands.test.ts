@@ -223,11 +223,8 @@ describe("write commands over the real api app", () => {
       effort: "high",
       body: "{}",
     });
-    if (!brief.ok) {
-      throw new Error("seedPr: brief write failed");
-    }
     const written = await repo.reviewSessions.setOutcome(
-      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { briefId: brief.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
     if (!written.ok) {

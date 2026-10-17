@@ -93,7 +93,7 @@ export async function writeRevisionArtifacts(
     const narrativeCheck = checkRevisionNarrativeForWrite(narrative);
     warnOnFailedCheck(narrativeCheck, GenerationKinds.REVISION_NARRATIVE, log);
 
-    const written = await store.revisionNarratives.write({
+    await store.revisionNarratives.write({
       pullRequestId,
       briefId: briefRef.id,
       prevHeadSha,
@@ -102,9 +102,6 @@ export async function writeRevisionArtifacts(
       body: JSON.stringify(narrative),
       bodyVersion: STORED_BODY_VERSION,
     });
-    if (!written.ok) {
-      throw new PermanentJobError(written.error.message);
-    }
   };
 
   const narrativeGate = inputs.revisionNarrative ?? { enabled: true };

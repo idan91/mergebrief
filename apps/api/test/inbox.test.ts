@@ -173,7 +173,7 @@ async function seedBrief(
   >[0]["pullRequestId"],
   body = "{}",
 ): Promise<void> {
-  const written = await createArtifactStore(handle, ctx).briefs.write({
+  await createArtifactStore(handle, ctx).briefs.write({
     pullRequestId,
     baseSha: "b".repeat(40),
     headSha: HEAD,
@@ -184,9 +184,6 @@ async function seedBrief(
     effort: "e",
     body,
   });
-  if (!written.ok) {
-    throw new Error("brief seed failed");
-  }
 }
 
 async function recordStack(

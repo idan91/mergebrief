@@ -105,13 +105,10 @@ async function writeBrief(
     commitCount: SEED_COMMIT_COUNT,
     body: JSON.stringify(body),
   });
-  if (!written.ok) {
-    throw new Error(`brief seed failed: ${written.error.message}`);
-  }
-  if (!isBriefRowId(written.value.id)) {
+  if (!isBriefRowId(written.id)) {
     throw new Error("bad brief id");
   }
-  return written.value.id;
+  return written.id;
 }
 
 async function openSession(

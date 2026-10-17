@@ -3,9 +3,9 @@
 // `AppDatabase` with the in-package `internal()`, never re-exported. Every
 // write is an `ON CONFLICT (natural_key) DO UPDATE` on a UNIQUE NULLS NOT
 // DISTINCT key leading with `installation_id`, and resolves the parent
-// `pull_request` in scope in the same transaction: a foreign parent is a
-// Result error, never a write. `revision_narrative` also resolves its `brief`
-// in (ctx, same PR); `comparison_marks` and `hunk_span` bodies are strict Zod.
+// `pull_request` in scope in the same transaction: a foreign parent throws
+// `ScopeViolationError`, never a write. `revision_narrative` also resolves its
+// `brief` in (ctx, same PR); marks and hunk-span bodies are strict Zod.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { readBriefSessionFacts } from "brief-core/artifact";
 import { z } from "zod/v4";
@@ -16,20 +16,16 @@ import { delta } from "../schema/delta";
 import { hunkSpan } from "../schema/hunk-span";
 import { pullRequest } from "../schema/pull-request";
 import { revisionNarrative } from "../schema/revision-narrative";
-import { resolveScope } from "./scope";
+import { resolveScope, ScopeViolationError } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import type { BriefRowId, PullRequestRowId } from "../types";
 import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
-// Errors: expected failures. Programmer errors still `throw`.
+// Errors: expected failures. A row outside scope throws `ScopeViolationError`.
 // ---------------------------------------------------------------------------
 
 export const ArtifactErrorCodes = {
-  /** A write named a `pull_request` that is not in ctx's tenant. */
-  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
-  /** A `revision_narrative` write named a `brief` not in (ctx, same PR). */
-  BRIEF_NOT_ANCHORED: "brief-not-anchored",
   /** A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod schema. */
   INVALID_BODY: "invalid-body",
 } as const;
@@ -251,7 +247,7 @@ export interface ComparisonMarksWriteInput {
 // ---------------------------------------------------------------------------
 
 export interface BriefStore {
-  write(input: BriefWriteInput): Promise<Result<BriefRow, ArtifactError>>;
+  write(input: BriefWriteInput): Promise<BriefRow>;
   get(
     pullRequestId: PullRequestRowId,
     baseSha: string,
@@ -287,7 +283,7 @@ export interface BriefStore {
 }
 
 export interface DeltaStore {
-  write(input: DeltaWriteInput): Promise<Result<DeltaRow, ArtifactError>>;
+  write(input: DeltaWriteInput): Promise<DeltaRow>;
   get(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
@@ -304,9 +300,7 @@ export interface DeltaStore {
 }
 
 export interface RevisionNarrativeStore {
-  write(
-    input: RevisionNarrativeWriteInput,
-  ): Promise<Result<RevisionNarrativeRow, ArtifactError>>;
+  write(input: RevisionNarrativeWriteInput): Promise<RevisionNarrativeRow>;
   get(
     pullRequestId: PullRequestRowId,
     prevHeadSha: string,
@@ -408,17 +402,19 @@ export function createArtifactStore(
   const db = internal(handle);
   const scope = resolveScope(ctx);
 
-  /** The parent PR is resolved within ctx's tenant BEFORE any write. */
-  async function parentInTenant(
+  /** The parent PR is resolved within ctx's scope BEFORE any write. */
+  async function assertParentInScope(
     tx: Tx,
     pullRequestId: PullRequestRowId,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const rows = await tx
       .select({ id: pullRequest.id })
       .from(pullRequest)
       .where(and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)))
       .limit(1);
-    return rows[0] !== undefined;
+    if (rows[0] === undefined) {
+      throw new ScopeViolationError("pull_request", pullRequestId, scope.label);
+    }
   }
 
   const briefs: BriefStore = {
@@ -429,12 +425,7 @@ export function createArtifactStore(
         input.usedGroupIds === undefined ? null : [...input.usedGroupIds];
       const recordCounts = deriveSessionRecordCounts(input.body);
       return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
+        await assertParentInScope(tx, input.pullRequestId);
         const rows = await tx
           .insert(brief)
           .values({
@@ -486,7 +477,7 @@ export function createArtifactStore(
         if (row === undefined) {
           throw new Error("brief write returned no row");
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 
@@ -583,12 +574,7 @@ export function createArtifactStore(
   const deltas: DeltaStore = {
     async write(input) {
       return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
+        await assertParentInScope(tx, input.pullRequestId);
         const rows = await tx
           .insert(delta)
           .values({
@@ -624,7 +610,7 @@ export function createArtifactStore(
         if (row === undefined) {
           throw new Error("delta write returned no row");
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 
@@ -660,12 +646,7 @@ export function createArtifactStore(
   const revisionNarratives: RevisionNarrativeStore = {
     async write(input) {
       return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
+        await assertParentInScope(tx, input.pullRequestId);
         // Anchoring: the brief must belong to (ctx, same PR).
         const anchors = await tx
           .select({ id: brief.id })
@@ -679,9 +660,10 @@ export function createArtifactStore(
           )
           .limit(1);
         if (anchors[0] === undefined) {
-          return fail(
-            ArtifactErrorCodes.BRIEF_NOT_ANCHORED,
-            `brief ${input.briefId} not in ${scope.label} on pull_request ${input.pullRequestId}`,
+          throw new ScopeViolationError(
+            "brief",
+            input.briefId,
+            `${scope.label} on pull_request ${input.pullRequestId}`,
           );
         }
         const rows = await tx
@@ -721,7 +703,7 @@ export function createArtifactStore(
         if (row === undefined) {
           throw new Error("revision_narrative write returned no row");
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 
@@ -773,12 +755,7 @@ export function createArtifactStore(
       // The natural-key SHAs ARE the body's SHA pair.
       const serialized = JSON.stringify(marks);
       return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
+        await assertParentInScope(tx, input.pullRequestId);
         const rows = await tx
           .insert(comparisonMarks)
           .values({
@@ -856,12 +833,7 @@ export function createArtifactStore(
       }
       const serialized = JSON.stringify(parsed.data);
       return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
+        await assertParentInScope(tx, input.pullRequestId);
         const rows = await tx
           .insert(hunkSpan)
           .values({

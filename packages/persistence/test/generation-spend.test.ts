@@ -217,19 +217,16 @@ describe("markCapped", () => {
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "capped-head");
     const pending = await projection.upsertPending(target);
-    if (!pending.ok) {
-      throw new Error(pending.error.message);
-    }
 
     const capped = await projection.markCapped(target);
     if (!capped.ok) {
       throw new Error(capped.error.message);
     }
     expect(capped.value.status).toBe(GenerationStatuses.CAPPED);
-    expect(capped.value.attempts).toBe(pending.value.attempts);
+    expect(capped.value.attempts).toBe(pending.attempts);
     expect(capped.value.phase).toBeNull();
     expect(capped.value.errorCode).toBeNull();
-    expect(capped.value.id).toBe(pending.value.id);
+    expect(capped.value.id).toBe(pending.id);
   });
 });
 

@@ -49,10 +49,7 @@ describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
         makeBriefTarget(pr.id, headSha),
       );
       for (const target of targets) {
-        const pending = await projection.upsertPending(target);
-        if (!pending.ok) {
-          throw new Error(pending.error.message);
-        }
+        await projection.upsertPending(target);
       }
 
       const outcomes = await Promise.all(
@@ -105,10 +102,7 @@ describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
         makeBriefTarget(prB.id, "two"),
       ];
       for (const target of targets) {
-        const pending = await projection.upsertPending(target);
-        if (!pending.ok) {
-          throw new Error(pending.error.message);
-        }
+        await projection.upsertPending(target);
       }
 
       const outcomes = await Promise.all(
@@ -144,10 +138,7 @@ describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
       });
       const projection = createGenerationProjection(handle, ctx);
       const target = makeBriefTarget(pr.id, "held");
-      const pending = await projection.upsertPending(target);
-      if (!pending.ok) {
-        throw new Error(pending.error.message);
-      }
+      await projection.upsertPending(target);
       await holding.query("begin");
       await holding.query("select pg_advisory_xact_lock(hashtext($1))", [
         "generation-cap",
@@ -186,10 +177,7 @@ describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
       });
       const projection = createGenerationProjection(handle, ctx);
       const target = makeBriefTarget(pr.id, "contended");
-      const pending = await projection.upsertPending(target);
-      if (!pending.ok) {
-        throw new Error(pending.error.message);
-      }
+      await projection.upsertPending(target);
 
       const outcomes = await Promise.all(
         [1, 2].map(() => projection.claimRun({ target, ...WINDOW })),

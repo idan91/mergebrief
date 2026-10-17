@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
+import { ScopeViolationError } from "persistence";
 import type { RequestLogEnv } from "../request-logging";
 import { NotFound } from "./api-error";
 import { createErrorHandler } from "./on-error";
@@ -29,6 +30,9 @@ function buildApp(): {
   app.get("/boom", () => {
     throw new Error("secret internals");
   });
+  app.get("/scope", () => {
+    throw new ScopeViolationError("pull_request", 42n, "tenant 7");
+  });
   return { app, errorSpy };
 }
 
@@ -36,6 +40,15 @@ describe("createErrorHandler", () => {
   it("renders a thrown ApiError as its wire body with status and no-store", async () => {
     const { app, errorSpy } = buildApp();
     const res = await app.request("/api-error");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("renders a ScopeViolationError as the plain not-found, unlogged", async () => {
+    const { app, errorSpy } = buildApp();
+    const res = await app.request("/scope");
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
@@ -69,6 +82,20 @@ describe("middleware above the throw", () => {
     const res = await probe.request("/api-error");
     expect(res.status).toBe(404);
     expect(observedStatus).toBe(404);
+    expect(observedCode).toBe("not-found");
+  });
+
+  it("stamps a scope violation with the not-found code", async () => {
+    const { app } = buildApp();
+    let observedCode: string | undefined;
+    const probe = new Hono<RequestLogEnv>();
+    probe.use(async (c, next) => {
+      await next();
+      observedCode = c.get("apiErrorCode");
+    });
+    probe.route("/", app);
+    const res = await probe.request("/scope");
+    expect(res.status).toBe(404);
     expect(observedCode).toBe("not-found");
   });
 });

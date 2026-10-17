@@ -226,7 +226,7 @@ describe("claimRun attempt budget and recovery job", () => {
     expect(await countAttemptRows(world)).toBe(3);
 
     unwrap(await world.gen.markFailed(world.target, FAILED_RUN.failure));
-    unwrap(await world.gen.upsertPending(world.target));
+    await world.gen.upsertPending(world.target);
     expect((await claim(world)).kind).toBe(ClaimOutcomes.CLAIMED);
   });
 

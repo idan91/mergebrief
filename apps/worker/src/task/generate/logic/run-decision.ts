@@ -185,10 +185,5 @@ async function projectIfUnprojected(
   ) {
     return;
   }
-  const projected = await projection.upsertPending(target);
-  if (!projected.ok) {
-    throw new Error(
-      `generate: could not project the run: ${projected.error.code}`,
-    );
-  }
+  await projection.upsertPending(target);
 }

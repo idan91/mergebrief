@@ -163,9 +163,6 @@ async function seedDraft(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) {
-    throw new Error("seedDraft: brief write failed");
-  }
   const line = {
     kind: CommentAnchorKinds.LINE,
     file: "src/index.ts",
@@ -175,20 +172,20 @@ async function seedDraft(
   };
   const anchor: DraftAnchor =
     startSide === null ? line : { ...line, startSide };
-  const draftId = await writeDraft(handle, brief.value.id, anchor, body);
+  const draftId = await writeDraft(handle, brief.id, anchor, body);
   if (status === DraftCommentStatuses.SUBMITTED) {
     await createTenantRepository(
       handle,
       CTX,
     ).reviewSessions.recordPublishedDrafts(
-      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { briefId: brief.id, reviewerId: REVIEWER },
       { draftIds: [draftId] },
     );
   }
   if (anchorStatus !== null) {
     await stampDraftAnchorStatus(handle, draftId, anchorStatus);
   }
-  return { briefId: brief.value.id, draftId };
+  return { briefId: brief.id, draftId };
 }
 
 /** One draft through the reviewer's own draft action; answers its row id. */
@@ -234,16 +231,13 @@ async function seedFileDraft(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) {
-    throw new Error("seedFileDraft: brief write failed");
-  }
   const draftId = await writeDraft(
     handle,
-    brief.value.id,
+    brief.id,
     { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
     body,
   );
-  return { briefId: brief.value.id, draftId };
+  return { briefId: brief.id, draftId };
 }
 
 /** The wire code an error response carries. */
@@ -305,11 +299,8 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     effort: "high",
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
-  if (!newer.ok) {
-    throw new Error("freeze: brief write failed");
-  }
   const opened = await repo.reviewSessions.setOutcome(
-    { briefId: newer.value.id, reviewerId: REVIEWER },
+    { briefId: newer.id, reviewerId: REVIEWER },
     ReviewOutcomes.COMMENT,
   );
   if (!opened.ok) {

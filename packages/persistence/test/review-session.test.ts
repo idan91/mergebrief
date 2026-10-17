@@ -19,6 +19,7 @@ import {
   deriveClaimState,
   PUBLISH_CLAIM_LEASE_MS,
   ReviewSessionErrorCodes,
+  ScopeViolationError,
 } from "../src/index";
 import type {
   AppDatabase,
@@ -111,10 +112,7 @@ async function seedBrief(
     effort: "high",
     body,
   });
-  if (!written.ok) {
-    throw new Error(`brief seed failed: ${written.error.message}`);
-  }
-  return written.value.id;
+  return written.id;
 }
 
 /**
@@ -760,9 +758,6 @@ describe("the draft operations", () => {
       await sessions.editDraft(key, published, "edited"),
       await sessions.reanchorDraft(key, published, LINE_ANCHOR),
       await sessions.deleteDraft(key, published),
-      await sessions.editDraft(key, 987654321n, "edited"),
-      await sessions.reanchorDraft(key, 987654321n, LINE_ANCHOR),
-      await sessions.deleteDraft(key, 987654321n),
     ];
 
     expect(
@@ -771,10 +766,16 @@ describe("the draft operations", () => {
       ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
       ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
       ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
     ]);
+    await expect(
+      sessions.editDraft(key, 987654321n, "edited"),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
+    await expect(
+      sessions.reanchorDraft(key, 987654321n, LINE_ANCHOR),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
+    await expect(sessions.deleteDraft(key, 987654321n)).rejects.toBeInstanceOf(
+      ScopeViolationError,
+    );
     expect((await sessions.get(key))?.draftComments).toEqual([
       expect.objectContaining({ id: published, body: "published" }),
     ]);
@@ -786,11 +787,10 @@ describe("the draft operations", () => {
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
 
-    const refused = await sessions.editDraft(key, 987654321n, "edited");
+    await expect(
+      sessions.editDraft(key, 987654321n, "edited"),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
 
-    expect(!refused.ok && refused.error.code).toBe(
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-    );
     expect(await countRows(client, "review_session")).toBe(0);
   });
 });
@@ -900,8 +900,10 @@ describe("publish claims", () => {
     await stampAnchorStatus(client, orphaned.id, AnchorStatuses.ORPHANED);
     await sessions.recordPublishedDrafts(key, { draftIds: [second] });
 
+    await expect(
+      sessions.claimDrafts(key, { draftIds: [first, 987654321n] }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
     const refusals = [
-      await sessions.claimDrafts(key, { draftIds: [first, 987654321n] }),
       await sessions.claimDrafts(key, { draftIds: [first, second] }),
       await sessions.claimDrafts(key, { draftIds: [first, orphaned.id] }),
     ];
@@ -909,7 +911,6 @@ describe("publish claims", () => {
     expect(
       refusals.map((refusal) => !refusal.ok && refusal.error.code),
     ).toEqual([
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
       ReviewSessionErrorCodes.DRAFT_ALREADY_PUBLISHED,
       ReviewSessionErrorCodes.DRAFT_ANCHOR_ORPHANED,
     ]);
@@ -922,14 +923,13 @@ describe("publish claims", () => {
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
 
-    const refused = await sessions.claimDrafts(
-      { briefId, reviewerId: REVIEWER },
-      { draftIds: [987654321n] },
-    );
+    await expect(
+      sessions.claimDrafts(
+        { briefId, reviewerId: REVIEWER },
+        { draftIds: [987654321n] },
+      ),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
 
-    expect(!refused.ok && refused.error.code).toBe(
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-    );
     expect(await countRows(client, "review_session")).toBe(0);
   });
 
@@ -1349,21 +1349,13 @@ describe("reviewSessions tenancy containment", () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
 
-    const attempt = await createTenantRepository(
-      handle,
-      CTX_B,
-    ).reviewSessions.setOutcome(
-      { briefId, reviewerId: REVIEWER },
-      ReviewOutcomes.APPROVE,
-    );
+    await expect(
+      createTenantRepository(handle, CTX_B).reviewSessions.setOutcome(
+        { briefId, reviewerId: REVIEWER },
+        ReviewOutcomes.APPROVE,
+      ),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
 
-    expect(attempt.ok).toBe(false);
-    if (attempt.ok) {
-      return;
-    }
-    expect(attempt.error.code).toBe(
-      ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-    );
     expect(await countRows(client, "review_session")).toBe(0);
   });
 

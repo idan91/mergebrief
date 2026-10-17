@@ -29,8 +29,6 @@ export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
       throw new Conflict(ApiErrorCodes.DRAFT_PUBLISH_PENDING);
     case ReviewSessionErrorCodes.DRAFT_PUBLISH_IN_DOUBT:
       throw new Conflict(ApiErrorCodes.DRAFT_PUBLISH_IN_DOUBT);
-    case ReviewSessionErrorCodes.DRAFT_NOT_FOUND:
-    case ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT:
     case ReviewSessionErrorCodes.SESSION_NOT_FOUND:
       throw new NotFound();
   }

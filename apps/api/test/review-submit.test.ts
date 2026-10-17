@@ -248,9 +248,6 @@ async function seedSessionDrafts(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) {
-    throw new Error("seed: brief write failed");
-  }
   const anchors: DraftAnchor[] = [
     {
       kind: CommentAnchorKinds.LINE,
@@ -272,9 +269,9 @@ async function seedSessionDrafts(
     if (anchor === undefined) {
       throw new Error("seed: no anchor");
     }
-    await writeDraft(handle, brief.value.id, anchor, body, scope);
+    await writeDraft(handle, brief.id, anchor, body, scope);
   }
-  return brief.value.id;
+  return brief.id;
 }
 
 /** One draft through the reviewer's own draft action; answers its row id. */
@@ -1005,11 +1002,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       effort: "high",
       body: JSON.stringify({ changeGroups: [], chunks: [] }),
     });
-    if (!newer.ok) {
-      throw new Error("newer brief write failed");
-    }
     await createTenantRepository(harness.handle, CTX).reviewSessions.setOutcome(
-      { briefId: newer.value.id, reviewerId: REVIEWER },
+      { briefId: newer.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
 
@@ -1349,10 +1343,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         body: BRIEF_BODY,
         anchorState: "anchored",
       });
-      if (!written.ok) {
-        throw new Error("seed: brief write failed");
-      }
-      return written.value.id;
+      return written.id;
     }
 
     /**

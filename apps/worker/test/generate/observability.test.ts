@@ -6,15 +6,22 @@ import {
   type Generator,
 } from "generators";
 import { FakeFailures } from "github/testing";
+import { createGenerationProjection } from "persistence";
+import { GenerationStatuses } from "types/generations";
 import {
   captureLogger,
+  ctx,
+  harness,
   HEAD_1,
   makeGitHub,
+  makeTarget,
   makeTask,
   setUpHarness,
   stubGenerator,
   trigger,
 } from "./helpers";
+
+const OTHER_INSTALLATION = 4242;
 
 setUpHarness();
 
@@ -94,6 +101,38 @@ describe("generate task, observability", () => {
 
     const fail = readLines().find((line) => line["evt"] === "job.fail");
     expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("fails a job permanently when its write lands outside its scope", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const generate = generator.generate.bind(generator);
+    // The row changes installation mid-run, so the brief write names a parent
+    // the job's scope no longer holds.
+    generator.generate = async (req) => {
+      await harness.raw(
+        "update pull_request set installation_id = $1::bigint where id = $2::bigint",
+        [String(OTHER_INSTALLATION), String(pr.id)],
+      );
+      return generate(req);
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ generator, log: logger });
+
+    const run = task(payload, {
+      job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+    });
+    await expect(run).resolves.toBeUndefined();
+
+    const fail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorParams).toEqual({
+      detail: `pull_request ${pr.id} is not in tenant 42`,
+    });
   });
 
   it("mints job.retries.exhausted on the final attempt", async () => {

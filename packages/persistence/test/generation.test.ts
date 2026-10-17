@@ -8,6 +8,7 @@ import {
   createGenerationProjection,
   GenerationErrorCodes,
   createIngestRoutines,
+  ScopeViolationError,
   type TenantContext,
 } from "../src/index";
 import {
@@ -66,12 +67,8 @@ describe("createGenerationProjection status transitions", () => {
     };
 
     const pending = await gen.upsertPending(target);
-    expect(pending.ok).toBe(true);
-    if (!pending.ok) {
-      throw new Error("projection failed");
-    }
-    expect(pending.value.status).toBe(GenerationStatuses.PENDING);
-    expect(pending.value.attempts).toBe(0);
+    expect(pending.status).toBe(GenerationStatuses.PENDING);
+    expect(pending.attempts).toBe(0);
 
     const runId = await claimTestRun(gen, target, {
       phase: GenerationPhases.GENERATING,
@@ -90,7 +87,7 @@ describe("createGenerationProjection status transitions", () => {
     // A terminal row must not advertise the phase it was mid-way through.
     expect(done.value.phase).toBeNull();
     expect(done.value.attempts).toBe(0);
-    expect(done.value.id).toBe(pending.value.id); // one row throughout
+    expect(done.value.id).toBe(pending.id); // one row throughout
   });
 
   it("re-queue increments attempts and resets phase/error", async () => {
@@ -116,14 +113,11 @@ describe("createGenerationProjection status transitions", () => {
     });
     const second = await gen.upsertPending(target);
 
-    if (!first.ok || !second.ok) {
-      throw new Error("projection failed");
-    }
-    expect(second.value.id).toBe(first.value.id);
-    expect(second.value.attempts).toBe(1);
-    expect(second.value.status).toBe(GenerationStatuses.PENDING);
-    expect(second.value.errorCode).toBeNull();
-    expect(second.value.errorParams).toBeNull();
+    expect(second.id).toBe(first.id);
+    expect(second.attempts).toBe(1);
+    expect(second.status).toBe(GenerationStatuses.PENDING);
+    expect(second.errorCode).toBeNull();
+    expect(second.errorParams).toBeNull();
   });
 
   it("a null baseline_sha upsert conflicts, proving NULLS NOT DISTINCT", async () => {
@@ -145,12 +139,9 @@ describe("createGenerationProjection status transitions", () => {
     const first = await gen.upsertPending(target);
     const second = await gen.upsertPending(target);
 
-    if (!first.ok || !second.ok) {
-      throw new Error("queue failed");
-    }
     // Without NULLS NOT DISTINCT these would be two rows; here it is one.
-    expect(second.value.id).toBe(first.value.id);
-    expect(second.value.attempts).toBe(1);
+    expect(second.id).toBe(first.id);
+    expect(second.attempts).toBe(1);
     expect(await gen.get(target)).toBeDefined();
   });
 
@@ -164,17 +155,22 @@ describe("createGenerationProjection status transitions", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await genA.upsertPending({
-      pullRequestId: bPr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head",
-      baselineSha: null,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(GenerationErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(
+      genA.upsertPending({
+        pullRequestId: bPr.id,
+        kind: GenerationKinds.BRIEF,
+        headSha: "head",
+        baselineSha: null,
+      }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
+    expect(
+      await genA.get({
+        pullRequestId: bPr.id,
+        kind: GenerationKinds.BRIEF,
+        headSha: "head",
+        baselineSha: null,
+      }),
+    ).toBeUndefined();
   });
 
   it("markFailed stores the typed code and sanitizes the detail param", async () => {
@@ -329,10 +325,7 @@ describe("createGenerationProjection status transitions", () => {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
-    if (!second.ok) {
-      throw new Error("second projection failed");
-    }
-    const attemptsBefore = second.value.attempts;
+    const attemptsBefore = second.attempts;
 
     const superseded = await gen.markSuperseded(target);
     if (!superseded.ok) {
@@ -460,9 +453,6 @@ describe("createGenerationProjection status transitions", () => {
       baselineSha: "head-a",
     };
     const first = await gen.upsertPending(briefA);
-    if (!first.ok) {
-      throw new Error("queue failed");
-    }
     await gen.upsertPending(briefB);
     await gen.upsertPending(delta);
     // Re-queue of head-a: same row, created_at must stay the first enqueue.
@@ -471,7 +461,7 @@ describe("createGenerationProjection status transitions", () => {
     const rows = await gen.listBriefsForPullRequest(pr.id);
     expect(rows.map((row) => row.headSha)).toEqual(["head-a", "head-b"]);
     const rowA = rows.find((row) => row.headSha === "head-a");
-    expect(rowA?.createdAt.getTime()).toBe(first.value.createdAt.getTime());
+    expect(rowA?.createdAt.getTime()).toBe(first.createdAt.getTime());
 
     // Another tenant sees nothing.
     expect(
@@ -560,12 +550,8 @@ describe("supersedeStaleBriefs against the pickup time", () => {
     await stampUpdatedAt(HEAD_B, BEFORE_PICKUP);
     const retriggered = await gen.upsertPending(headA);
     await succeedTestRun(gen, headA);
-    const allQueued = first.ok && successor.ok && retriggered.ok;
-    if (!allQueued) {
-      throw new Error("projection failed");
-    }
-    expect(retriggered.value.id).toBe(first.value.id);
-    expect(successor.value.id).toBeGreaterThan(retriggered.value.id);
+    expect(retriggered.id).toBe(first.id);
+    expect(successor.id).toBeGreaterThan(retriggered.id);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
 

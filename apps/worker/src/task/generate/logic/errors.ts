@@ -5,7 +5,7 @@ import {
   type GitHubCallFailure,
 } from "github";
 import type { LogFields, Logger } from "logging";
-import type { GenerationKind } from "persistence";
+import { ScopeViolationError, type GenerationKind } from "persistence";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -144,11 +144,12 @@ export async function runGenerator<T>(
     return value;
   } catch (error) {
     // A step the call drives, not the generator, threw an already classified
-    // error: it keeps its class and is no generator outcome.
-    if (
+    // error or a scope miss: it keeps its class and is no generator outcome.
+    const keepsItsClass =
       error instanceof PermanentJobError ||
-      error instanceof TransientJobError
-    ) {
+      error instanceof TransientJobError ||
+      error instanceof ScopeViolationError;
+    if (keepsItsClass) {
       throw error;
     }
     emit(GenerationStatuses.FAILED);

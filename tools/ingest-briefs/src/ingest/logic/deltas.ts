@@ -1,4 +1,4 @@
-// Phase 6: delta bodies, verbatim — the "your last review" compare content.
+// Phase 6: delta bodies, verbatim: the "your last review" compare content.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { UNKNOWN_ORIGIN } from "../consts";
@@ -37,7 +37,7 @@ export async function writeDeltas(
     }
 
     const origin = meta.data.generation ?? UNKNOWN_ORIGIN;
-    const written = await run.store.deltas.write({
+    await run.store.deltas.write({
       pullRequestId: row.id,
       baselineSha: meta.data.baselineSha,
       headSha: meta.data.headSha,
@@ -46,9 +46,6 @@ export async function writeDeltas(
       effort: origin.effort,
       body,
     });
-    if (!written.ok) {
-      return throwFileError(name, written.error.message);
-    }
 
     deltaCount += 1;
     run.log(`delta ${name}`);

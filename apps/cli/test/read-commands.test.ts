@@ -217,7 +217,7 @@ describe("read commands over the real api app", () => {
       baseSha: BASE_SHA,
       state: PrStates.OPEN,
     });
-    const write = await createArtifactStore(handle, CTX).briefs.write({
+    await createArtifactStore(handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE_SHA,
       headSha: HEAD_SHA,
@@ -228,9 +228,6 @@ describe("read commands over the real api app", () => {
       effort: "high",
       body: BRIEF_BODY,
     });
-    if (!write.ok) {
-      throw new Error(`brief seed failed: ${write.error.message}`);
-    }
   }
 
   interface Run {
@@ -394,7 +391,7 @@ describe("read commands over the real api app", () => {
     if (prRow === undefined) {
       throw new Error("seed missing");
     }
-    const write = await createArtifactStore(harness.handle, CTX).deltas.write({
+    await createArtifactStore(harness.handle, CTX).deltas.write({
       pullRequestId: prRow.id,
       baselineSha: BASE_SHA,
       headSha: HEAD_SHA,
@@ -403,9 +400,6 @@ describe("read commands over the real api app", () => {
       effort: "high",
       body: deltaBody,
     });
-    if (!write.ok) {
-      throw new Error("delta seed failed");
-    }
     await login();
 
     const ok = await run([

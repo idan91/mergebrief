@@ -228,6 +228,30 @@ describe("the audit choke point", () => {
     });
   });
 
+  it("records a draft outside the session as a plain not-found denial", async () => {
+    const res = await appWith().request(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/comments/987654321?base=base&head=head-1`,
+      {
+        method: "DELETE",
+        headers: {
+          ...SAME_ORIGIN_HEADERS,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
+        },
+      },
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+    const rows = await auditRows(harness);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      operation: "delete-draft-comment",
+      outcome: "denied",
+      reason: "not-found",
+      installation_id: String(INSTALLATION_ID),
+    });
+  });
+
   it("records a cross-origin cookie mutation as a denial", async () => {
     // A sibling subdomain is same-site, never same-origin; the ledger names
     // the refusal while the wire stays a plain 403.

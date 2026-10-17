@@ -114,7 +114,7 @@ async function seedOwnerBrief(handle: AppDatabase): Promise<void> {
     baseSha: BASE_SHA,
     liveRead: { readAt: new Date(), headSha: HEAD_SHA },
   });
-  const written = await createArtifactStore(handle, OWNER_CTX).briefs.write({
+  await createArtifactStore(handle, OWNER_CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
     headSha: HEAD_SHA,
@@ -125,9 +125,6 @@ async function seedOwnerBrief(handle: AppDatabase): Promise<void> {
     effort: "e",
     body: "{}",
   });
-  if (!written.ok) {
-    throw new Error("brief seed failed");
-  }
 }
 
 async function seedTenantPullRequest(

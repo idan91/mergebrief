@@ -14,7 +14,7 @@ import {
   parseScopeContext,
   resolveUrlBoxOwner,
   safeParseScopeContext,
-  RepositoryErrorCodes,
+  ScopeViolationError,
   type OwnerContext,
   type TenantContext,
 } from "../src/index";
@@ -125,17 +125,14 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
     const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
-    const result = await a.checkpoints.upsertOnSubmit({
+    const crossOwnerWrite = a.checkpoints.upsertOnSubmit({
       pullRequestId: bPr.id,
       reviewerId: OWNER_A,
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date(),
     });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.PARENT_NOT_IN_TENANT);
+    await expect(crossOwnerWrite).rejects.toBeInstanceOf(ScopeViolationError);
+    expect(await b.checkpoints.get(bPr.id, OWNER_A)).toBeUndefined();
   });
 
   it("rejects an owner checkpoint attached to a tenant pull_request", async () => {
@@ -144,13 +141,13 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
     const a = createTenantRepository(handle, CTX_A);
 
     const tPr = await t.pullRequests.upsert(upsertInput(7));
-    const result = await a.checkpoints.upsertOnSubmit({
+    const crossWorldWrite = a.checkpoints.upsertOnSubmit({
       pullRequestId: tPr.id,
       reviewerId: OWNER_A,
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date(),
     });
-    expect(result.ok).toBe(false);
+    await expect(crossWorldWrite).rejects.toBeInstanceOf(ScopeViolationError);
   });
 
   it("accepts and re-reads a checkpoint on the owner's own pull_request", async () => {
@@ -158,13 +155,12 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
     const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
-    const result = await a.checkpoints.upsertOnSubmit({
+    await a.checkpoints.upsertOnSubmit({
       pullRequestId: pr.id,
       reviewerId: OWNER_A,
       lastSubmittedSha: "a".repeat(40),
       submittedAt: new Date(),
     });
-    expect(result.ok).toBe(true);
     expect(await a.checkpoints.get(pr.id, OWNER_A)).toBeDefined();
   });
 });
@@ -187,12 +183,8 @@ describe("owner-scoped artifact store", () => {
     };
     const first = await store.briefs.write(input);
     const second = await store.briefs.write({ ...input, body: "rewritten" });
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      throw new Error("expected success");
-    }
-    expect(second.value.id).toBe(first.value.id);
-    expect(second.value.installationId).toBeNull();
+    expect(second.id).toBe(first.id);
+    expect(second.installationId).toBeNull();
 
     const read = await store.briefs.get(pr.id, input.baseSha, input.headSha);
     expect(read?.body).toBe("rewritten");
@@ -214,14 +206,15 @@ describe("owner-scoped artifact store", () => {
       body: "secret",
       ...ORIGIN,
     };
-    expect((await storeA.briefs.write(input)).ok).toBe(true);
+    await storeA.briefs.write(input);
 
     expect(
       await storeB.briefs.get(pr.id, input.baseSha, input.headSha),
     ).toBeUndefined();
     expect(await storeB.briefs.listForPullRequest(pr.id)).toEqual([]);
-    const write = await storeB.briefs.write(input);
-    expect(write.ok).toBe(false);
+    await expect(storeB.briefs.write(input)).rejects.toBeInstanceOf(
+      ScopeViolationError,
+    );
   });
 
   it("the installation tenant cannot see an owner's artifacts", async () => {
@@ -231,7 +224,7 @@ describe("owner-scoped artifact store", () => {
     const storeT = createArtifactStore(handle, TENANT_CTX);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
-    const write = await storeA.briefs.write({
+    await storeA.briefs.write({
       pullRequestId: pr.id,
       baseSha: "b".repeat(40),
       headSha: "h".repeat(40),
@@ -240,7 +233,6 @@ describe("owner-scoped artifact store", () => {
       body: "secret",
       ...ORIGIN,
     });
-    expect(write.ok).toBe(true);
     expect(await storeT.briefs.listForPullRequest(pr.id)).toEqual([]);
   });
 });
@@ -258,8 +250,7 @@ describe("owner-scoped generation projection", () => {
       headSha: "h".repeat(40),
       baselineSha: null,
     } as const;
-    const pending = await projection.upsertPending(target);
-    expect(pending.ok).toBe(true);
+    await projection.upsertPending(target);
     const done = await succeedTestRun(projection, target);
     expect(done.installationId).toBeNull();
   });
@@ -277,7 +268,7 @@ describe("owner-scoped generation projection", () => {
       headSha: "h".repeat(40),
       baselineSha: null,
     } as const;
-    expect((await projA.upsertPending(target)).ok).toBe(true);
+    await projA.upsertPending(target);
     const window = {
       from: new Date(Date.now() - 60_000),
       to: new Date(Date.now() + 60_000),
@@ -301,13 +292,13 @@ describe("owner-scoped generation projection", () => {
     const projB = createGenerationProjection(handle, CTX_B);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
-    const refused = await projB.upsertPending({
+    const crossOwnerEnqueue = projB.upsertPending({
       pullRequestId: pr.id,
       kind: "brief",
       headSha: "h".repeat(40),
       baselineSha: null,
     });
-    expect(refused.ok).toBe(false);
+    await expect(crossOwnerEnqueue).rejects.toBeInstanceOf(ScopeViolationError);
   });
 });
 
@@ -319,7 +310,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
     const purge = createPurgeRoutines(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
-    const write = await store.briefs.write({
+    await store.briefs.write({
       pullRequestId: pr.id,
       baseSha: "b".repeat(40),
       headSha: "h".repeat(40),
@@ -328,7 +319,6 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
       body: "body",
       ...ORIGIN,
     });
-    expect(write.ok).toBe(true);
 
     const purged = await purge.purgePullRequest(pr.id);
     expect(purged).toMatchObject({ ok: true, value: 1 });
@@ -465,11 +455,8 @@ describe("owner-scoped review sessions", () => {
       body: '{"brief":true}',
       ...ORIGIN,
     });
-    if (!brief.ok) {
-      throw new Error("brief seed failed");
-    }
     const key = {
-      briefId: brief.value.id,
+      briefId: brief.id,
       reviewerId: OWNER_A,
     };
 
@@ -485,11 +472,9 @@ describe("owner-scoped review sessions", () => {
     expect(await t.reviewSessions.get(key)).toBeUndefined();
     expect(await a.reviewSessions.get(key)).toBeDefined();
 
-    const foreignWrite = await b.reviewSessions.setOutcome(
-      key,
-      ReviewOutcomes.COMMENT,
-    );
-    expect(foreignWrite.ok).toBe(false);
+    await expect(
+      b.reviewSessions.setOutcome(key, ReviewOutcomes.COMMENT),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
   });
 });
 

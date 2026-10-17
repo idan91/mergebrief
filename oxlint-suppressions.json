@@ -508,10 +508,5 @@
     "house/no-em-dash": {
       "count": 1
     }
-  },
-  "tools/ingest-briefs/src/ingest/logic/deltas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
   }
 }

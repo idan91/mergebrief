@@ -48,7 +48,7 @@ import {
   type CarriedWork,
   type PreviousWork,
 } from "./carry-over";
-import type { RowScope } from "./scope";
+import { ScopeViolationError, type RowScope } from "./scope";
 import {
   ClaimStates,
   type BriefRowId,
@@ -72,8 +72,6 @@ import type { Result, ValueOf } from "types/utils";
 // ---------------------------------------------------------------------------
 
 export const ReviewSessionErrorCodes = {
-  /** A write named a `brief` or `review_session` outside ctx's tenant. */
-  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /**
    * The reviewer has already materialized a session on a NEWER Brief of this
    * PR, so this one is frozen. A newer Brief on its own never freezes
@@ -86,8 +84,6 @@ export const ReviewSessionErrorCodes = {
    * facts: no flag firing would drop every carried decision silently.
    */
   BRIEF_UNREADABLE: "brief-unreadable",
-  /** The session holds no draft by that id, its own or a carried source's. */
-  DRAFT_NOT_FOUND: "draft-not-found",
   /** The draft is already on GitHub, so it no longer moves. */
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
   /** The draft's anchor points at no code in this Brief, so it cannot post. */
@@ -726,6 +722,18 @@ export function createReviewSessionRepository(
     return rows[0];
   }
 
+  /** As `readBriefCarrySlice`, where a Brief outside scope is a write's refusal. */
+  async function readBriefCarrySliceInScope(
+    tx: Reader,
+    briefId: BriefRowId,
+  ): Promise<BriefFacts> {
+    const facts = await readBriefCarrySlice(tx, briefId);
+    if (facts === undefined) {
+      throw new ScopeViolationError("brief", briefId, scope.label);
+    }
+    return facts;
+  }
+
   /**
    * What the Brief's body tells a session, parsed. Only ever on the outer
    * handle before a transaction opens, or on the transaction itself: the
@@ -747,7 +755,7 @@ export function createReviewSessionRepository(
       .limit(1);
     const row = rows[0];
     if (row === undefined) {
-      return failBriefNotInTenant(briefId);
+      throw new ScopeViolationError("brief", briefId, scope.label);
     }
 
     const read = readBriefSessionFacts(row.body);
@@ -784,7 +792,7 @@ export function createReviewSessionRepository(
       .limit(1);
     const row = rows[0];
     if (row === undefined) {
-      return failBriefNotInTenant(briefId);
+      throw new ScopeViolationError("brief", briefId, scope.label);
     }
     const { chunks, groups, flags } = row;
     if (chunks !== null && groups !== null && flags !== null) {
@@ -1762,15 +1770,6 @@ export function createReviewSessionRepository(
     };
   }
 
-  function failBriefNotInTenant(
-    briefId: BriefRowId,
-  ): Result<never, ReviewSessionError> {
-    return fail(
-      ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
-      `brief ${briefId} not in ${scope.label}`,
-    );
-  }
-
   /** The locked session, refused when the reviewer works on a newer Brief. */
   async function refuseIfFrozen(
     tx: Tx,
@@ -1794,10 +1793,7 @@ export function createReviewSessionRepository(
     key: ReviewSessionKey,
     sessionFacts: BriefSessionFacts | undefined,
   ): Promise<SessionOperationResult<ReviewSessionRow>> {
-    const facts = await readBriefCarrySlice(tx, key.briefId);
-    if (facts === undefined) {
-      return failBriefNotInTenant(key.briefId);
-    }
+    const facts = await readBriefCarrySliceInScope(tx, key.briefId);
     const existing = await lockSession(tx, key);
     if (existing === undefined) {
       return materializeSession(tx, key, facts, sessionFacts);
@@ -1810,10 +1806,7 @@ export function createReviewSessionRepository(
     tx: Tx,
     key: ReviewSessionKey,
   ): Promise<SessionOperationResult<ReviewSessionRow>> {
-    const facts = await readBriefCarrySlice(tx, key.briefId);
-    if (facts === undefined) {
-      return failBriefNotInTenant(key.briefId);
-    }
+    const facts = await readBriefCarrySliceInScope(tx, key.briefId);
     const existing = await lockExistingSession(tx, key);
     if (!existing.ok) {
       return existing;
@@ -1829,10 +1822,7 @@ export function createReviewSessionRepository(
     tx: Tx,
     key: ReviewSessionKey,
   ): Promise<SessionOperationResult<ReviewSessionRow>> {
-    const facts = await readBriefCarrySlice(tx, key.briefId);
-    if (facts === undefined) {
-      return failBriefNotInTenant(key.briefId);
-    }
+    await readBriefCarrySliceInScope(tx, key.briefId);
     return lockExistingSession(tx, key);
   }
 
@@ -1922,9 +1912,10 @@ export function createReviewSessionRepository(
       .limit(1);
     const row = rows[0];
     if (row === undefined) {
-      return fail(
-        ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-        `review_session ${sessionId} holds no draft ${draftId}`,
+      throw new ScopeViolationError(
+        "review_draft_comment",
+        draftId,
+        `review_session ${sessionId}`,
       );
     }
     if (row.status === DraftCommentStatuses.SUBMITTED) {
@@ -1969,9 +1960,10 @@ export function createReviewSessionRepository(
         (held) => held.id === draftId || held.carriedFromCommentId === draftId,
       );
       if (row === undefined) {
-        return fail(
-          ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-          `review_session ${sessionId} holds no draft ${draftId}`,
+        throw new ScopeViolationError(
+          "review_draft_comment",
+          draftId,
+          `review_session ${sessionId}`,
         );
       }
       const judged = checkClaimable(row, now);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createArtifactStore, createGenerationProjection } from "persistence";
+import type { ContextProvider } from "brief-core";
 import { GenerationStatuses } from "types/generations";
 import { GeneratorError } from "generators";
 import type { Mutable } from "types/utils";
@@ -106,8 +107,28 @@ function makeTwoGroupBriefOutput(
 }
 
 const BUILT_IN_RISK = "dense-logic";
+const OTHER_INSTALLATION = 4242;
 
 /** Every hunk_span insert throws a Postgres error, as a lost connection would. */
+/** A context read that moves the row out of the job's scope on its way. */
+function stubRowMovingProvider(
+  pullRequestId: bigint,
+  shouldMove: () => boolean,
+): ContextProvider {
+  return {
+    providerId: "url",
+    fetch: async () => {
+      if (shouldMove()) {
+        await harness.raw(
+          "update pull_request set installation_id = $1::bigint where id = $2::bigint",
+          [String(OTHER_INSTALLATION), String(pullRequestId)],
+        );
+      }
+      return { ok: true, value: [] };
+    },
+  };
+}
+
 async function refuseHopWrites(): Promise<void> {
   await harness.raw(
     "create function refuse_hop() returns trigger language plpgsql as $$ begin raise exception 'hop write refused'; end $$",
@@ -137,6 +158,8 @@ describe("generate task, anchored generation", () => {
     rev2FailWith?: unknown;
     /** Make the second revision's hop write throw. */
     rev2HopRefused?: boolean;
+    /** Move the row out of scope between the second run's guard and its hop. */
+    rev2RowLeavesScope?: boolean;
     /** Fail the second revision's compare-files fetch. */
     rev2CompareFilesError?: FakeFailure;
     rev1Output?: unknown;
@@ -175,7 +198,13 @@ describe("generate task, anchored generation", () => {
       github,
       log: logger,
     };
+    let rowLeavesScope = false;
 
+    if (options.rev2RowLeavesScope === true) {
+      overrides.contextProviders = [
+        stubRowMovingProvider(first.pr.id, () => rowLeavesScope),
+      ];
+    }
     if (options.fullRegeneration !== undefined) {
       overrides.fullRegeneration = options.fullRegeneration;
     }
@@ -218,6 +247,9 @@ describe("generate task, anchored generation", () => {
       await refuseHopWrites();
       // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
       await expect(task(second.payload)).rejects.toThrow(TransientJobError);
+    } else if (options.rev2RowLeavesScope === true) {
+      rowLeavesScope = true;
+      await task(second.payload);
     } else {
       await task(second.payload);
     }
@@ -453,6 +485,21 @@ describe("generate task, anchored generation", () => {
         line["outcome"] === GenerationStatuses.FAILED,
     );
     expect(failedCall).toBe(false);
+  });
+
+  it("fails for good when the row leaves scope before the hop write", async () => {
+    const { pr, readLines } = await runTwoRevisions({
+      rev2RowLeavesScope: true,
+    });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    const jobFail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(jobFail?.["permanent"]).toBe(true);
+    const store = createArtifactStore(harness.handle, ctx);
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
   it("writes an empty carried set when nothing anchors", async () => {

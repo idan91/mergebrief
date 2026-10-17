@@ -59,7 +59,7 @@ async function seedBrief(
   const store = createArtifactStore(handle, ctx);
   const prior = await store.briefs.listForPullRequest(pullRequestId);
   const headIndex = (prior.at(-1)?.headIndex ?? 0) + 1;
-  const written = await store.briefs.write({
+  await store.briefs.write({
     pullRequestId,
     baseSha: "base",
     headSha,
@@ -70,9 +70,6 @@ async function seedBrief(
     effort: "low",
     body: "{}",
   });
-  if (!written.ok) {
-    throw new Error(written.error.message);
-  }
 }
 
 interface ArchiveRow {

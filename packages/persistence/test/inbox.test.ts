@@ -113,16 +113,13 @@ async function seedBrief(
     effort: "low",
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
   });
-  if (!written.ok) {
-    throw new Error(written.error.message);
-  }
   if (createdAt !== undefined) {
     await internal(handle)
       .update(brief)
       .set({ createdAt })
-      .where(sql`${brief.id} = ${written.value.id}`);
+      .where(sql`${brief.id} = ${written.id}`);
   }
-  return brandWith(isBriefRowId, written.value.id);
+  return brandWith(isBriefRowId, written.id);
 }
 
 async function openSession(

@@ -181,11 +181,8 @@ describe("session write commands over the real api app", () => {
         chunks: [{ id: "chunk-1", file: "src/app.ts" }],
       }),
     });
-    if (!brief.ok) {
-      throw new Error("brief seed failed");
-    }
     const session = await repo.reviewSessions.setOutcome(
-      { briefId: brief.value.id, reviewerId: REVIEWER },
+      { briefId: brief.id, reviewerId: REVIEWER },
       ReviewOutcomes.COMMENT,
     );
     if (!session.ok) {

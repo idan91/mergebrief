@@ -65,16 +65,12 @@ async function storeBriefOwingDelta(): Promise<{
 }> {
   const triggered = await trigger(HEAD_1);
   await makeTask()(triggered.payload);
-  const written = await createTenantRepository(
-    harness.handle,
-    ctx,
-  ).checkpoints.upsertOnSubmit({
+  await createTenantRepository(harness.handle, ctx).checkpoints.upsertOnSubmit({
     pullRequestId: triggered.pr.id,
     reviewerId: makeReviewerId(100n),
     lastSubmittedSha: BASE,
     submittedAt: new Date(),
   });
-  expect(written.ok).toBe(true);
   return triggered;
 }
 

@@ -29,7 +29,7 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { generationAttempt } from "../schema/generation-attempt";
 import { pullRequest } from "../schema/pull-request";
-import { resolveScope, type RowScope } from "./scope";
+import { resolveScope, ScopeViolationError, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
   addQueueJob,
@@ -161,8 +161,6 @@ export interface ProjectedGeneration {
 // ---------------------------------------------------------------------------
 
 export const GenerationErrorCodes = {
-  /** `upsertPending` named a `pull_request` that is not in ctx's tenant. */
-  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A transition targeted a projection row absent from ctx's tenant. */
   NOT_FOUND: "not-found",
   /** The row is held by another run, or by none when a holder was named. */
@@ -222,11 +220,10 @@ export interface GenerationProjection {
   readonly ctx: ScopeContext;
   /**
    * Project a job as `pending` through `projectPendingGeneration`, the one
-   * projection SQL ingest shares. Verifies the parent PR is in ctx's tenant.
+   * projection SQL ingest shares. A parent PR outside ctx's scope throws
+   * `ScopeViolationError`.
    */
-  upsertPending(
-    target: GenerationTarget,
-  ): Promise<Result<GenerationRow, GenerationError>>;
+  upsertPending(target: GenerationTarget): Promise<GenerationRow>;
   /**
    * Reflect `superseded`, a terminal mid-call abort because the PR head
    * advanced. An abort is NOT a failure: it leaves `attempts`
@@ -770,13 +767,14 @@ export function createGenerationProjection(
           )
           .limit(1);
         if (parents[0] === undefined) {
-          return fail(
-            GenerationErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${target.pullRequestId} not in ${scope.label}`,
+          throw new ScopeViolationError(
+            "pull_request",
+            target.pullRequestId,
+            scope.label,
           );
         }
         const projected = await projectPendingGeneration(tx, scope, target);
-        return { ok: true, value: projected.row };
+        return projected.row;
       });
     },
 

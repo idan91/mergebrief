@@ -9,7 +9,6 @@ import { GenerationKinds, type BriefWriteInput } from "persistence";
 import { GenerationPhases, type GenerationPhase } from "types/generations";
 import type { Mutable } from "types/utils";
 import { entryCommentGeneratingBody } from "../../entry-comment";
-import { PermanentJobError } from "../../failure";
 import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
 import type {
@@ -139,10 +138,7 @@ export async function writeFreshBrief(
   warnOnFailedCheck(briefCheck, GenerationKinds.BRIEF, log);
 
   const written = await store.briefs.write(briefWrite);
-  if (!written.ok) {
-    throw new PermanentJobError(written.error.message);
-  }
-  const briefRef = { id: written.value.id, headIndex: written.value.headIndex };
+  const briefRef = { id: written.id, headIndex: written.headIndex };
 
   return { briefRef, generatedBrief: stamped };
 }

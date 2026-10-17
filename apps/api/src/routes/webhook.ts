@@ -253,18 +253,13 @@ async function handlePullRequestReview(
   // Pin to the reviewed commit, never the delivery-time head; skip bots to avoid unused spend.
   // Write before enqueueing so the worker sees the baseline. Newest-submission wins on redelivery.
   if (event.reviewerType !== "Bot") {
-    const checkpointed = await tenant.checkpoints.upsertOnSubmit({
+    await tenant.checkpoints.upsertOnSubmit({
       pullRequestId: known.id,
       reviewerId: event.reviewerId,
       reviewerLogin: event.reviewerLogin,
       lastSubmittedSha: event.commitId,
       submittedAt: event.submittedAt,
     });
-    if (!checkpointed.ok) {
-      // The parent was verified above inside this tenant, so a failure here is
-      // a programmer/infra error, surface it as the route's 500.
-      throw new Error(`checkpoint upsert failed: ${checkpointed.error.code}`);
-    }
   }
   // Review events carry no draft flag; the STORED row (loaded above for the
   // known-PR guard) supplies it. Under drafts-off the checkpoint still

@@ -9,6 +9,7 @@ import {
   createArtifactStore,
   createTenantRepository,
   ReviewSessionErrorCodes,
+  ScopeViolationError,
 } from "../src/index";
 import type { FlagKey } from "brief-core/artifact";
 import type {
@@ -108,10 +109,7 @@ async function seedBrief(
   const written = await createArtifactStore(world.handle, CTX).briefs.write(
     briefWrite,
   );
-  if (!written.ok) {
-    throw new Error(`brief seed failed: ${written.error.message}`);
-  }
-  return written.value.id;
+  return written.id;
 }
 
 /** The durable hop between two consecutive Brief heads. */
@@ -1603,15 +1601,14 @@ describe("the first write, one transaction", () => {
     const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
     const draftsBefore = await countRows(world.client, "review_draft_comment");
 
-    const refused = await sessions.editDraft(
-      { briefId: current, reviewerId: REVIEWER },
-      987654321n,
-      "edited",
-    );
+    await expect(
+      sessions.editDraft(
+        { briefId: current, reviewerId: REVIEWER },
+        987654321n,
+        "edited",
+      ),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
 
-    expect(!refused.ok && refused.error.code).toBe(
-      ReviewSessionErrorCodes.DRAFT_NOT_FOUND,
-    );
     expect(await countRows(world.client, "review_session")).toBe(1);
     expect(await countRows(world.client, "review_draft_comment")).toBe(
       draftsBefore,

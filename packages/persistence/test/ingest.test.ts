@@ -920,18 +920,15 @@ describe("createIngestRoutines.triggerGeneration", () => {
         effort: "low",
         body: "{}",
       });
-      if (!written.ok) {
-        throw new Error(written.error.message);
-      }
       await drainSucceeded();
-      return written.value.id;
+      return written.id;
     }
 
     async function checkpointAt(
       pullRequestId: PullRequestRowId,
       lastSubmittedSha: string,
     ): Promise<void> {
-      const stored = await createTenantRepository(
+      await createTenantRepository(
         harness.handle,
         CTX,
       ).checkpoints.upsertOnSubmit({
@@ -940,9 +937,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
         lastSubmittedSha,
         submittedAt: new Date(),
       });
-      if (!stored.ok) {
-        throw new Error(stored.error.message);
-      }
     }
 
     async function drainSucceeded(): Promise<void> {
@@ -1028,20 +1022,15 @@ describe("createIngestRoutines.triggerGeneration", () => {
       const pullRequestId = brandWith(isPullRequestRowId, first.pullRequest.id);
       const checkpointSha = "b".repeat(40);
       await checkpointAt(pullRequestId, checkpointSha);
-      const delta = await createArtifactStore(harness.handle, CTX).deltas.write(
-        {
-          pullRequestId,
-          baselineSha: checkpointSha,
-          headSha: HEAD_SHA,
-          provider: "stub",
-          model: "stub",
-          effort: "low",
-          body: "{}",
-        },
-      );
-      if (!delta.ok) {
-        throw new Error(delta.error.message);
-      }
+      await createArtifactStore(harness.handle, CTX).deltas.write({
+        pullRequestId,
+        baselineSha: checkpointSha,
+        headSha: HEAD_SHA,
+        provider: "stub",
+        model: "stub",
+        effort: "low",
+        body: "{}",
+      });
 
       const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
 

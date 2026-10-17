@@ -47,11 +47,9 @@ describe("generate task, url-box world", () => {
     });
     // The pending projection row the enqueue door writes (the ingest side of the
     // handshake), the drain transitions it, never creates it.
-    const pending = await createGenerationProjection(
-      harness.handle,
-      ownerCtx,
-    ).upsertPending(makeTarget(pr, HEAD_1));
-    expect(pending.ok).toBe(true);
+    await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
+      makeTarget(pr, HEAD_1),
+    );
     const payload = {
       owner_user_id: "555",
       grant_id: String(grantId),
@@ -127,9 +125,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
-      true,
-    );
+    await projection.upsertPending(makeTarget(pr, HEAD_1));
     const queries: ContextQuery[] = [];
     const provider: ContextProvider = {
       providerId: "url",
@@ -170,9 +166,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
-      true,
-    );
+    await projection.upsertPending(makeTarget(pr, HEAD_1));
     const generator = stubGenerator();
     const task = makeTask({ generator, github: makeGitHub(HEAD_2) });
 
@@ -216,9 +210,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
-      true,
-    );
+    await projection.upsertPending(makeTarget(pr, HEAD_1));
     const github = makeGitHub(HEAD_1);
     // The pre-flight read sees the job's head; every poll after it sees the
     // push that supersedes this run.
@@ -290,9 +282,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertPending(makeTarget(pr, HEAD_1))).ok).toBe(
-      true,
-    );
+    await projection.upsertPending(makeTarget(pr, HEAD_1));
     const github = makeGitHub(HEAD_1);
     pushHeadAfterFirstRead(github, HEAD_2);
     const hangingGenerator: Generator = {

@@ -222,16 +222,13 @@ async function seedBrief(
     effort: "high",
     body: "{}",
   });
-  if (!brief.ok) {
-    throw new Error("seedBriefSession: brief write failed");
-  }
   if (!withSession) {
     return;
   }
 
   const written = await repo.reviewSessions.setOutcome(
     {
-      briefId: brief.value.id,
+      briefId: brief.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     },
     ReviewOutcomes.COMMENT,

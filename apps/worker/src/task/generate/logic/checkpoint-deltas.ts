@@ -137,7 +137,7 @@ export async function generateCheckpointDeltas(
     const deltaCheck = checkDeltaBriefForWrite(delta);
     warnOnFailedCheck(deltaCheck, GenerationKinds.DELTA, log);
     // oxlint-disable-next-line no-await-in-loop
-    const written = await store.deltas.write({
+    await store.deltas.write({
       pullRequestId,
       baselineSha,
       headSha,
@@ -145,9 +145,6 @@ export async function generateCheckpointDeltas(
       body: JSON.stringify(delta),
       bodyVersion: STORED_BODY_VERSION,
     });
-    if (!written.ok) {
-      throw new PermanentJobError(written.error.message);
-    }
     generated += 1;
   }
   return generated;

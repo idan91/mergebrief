@@ -21,7 +21,7 @@ import {
   createInboxArchiveStore,
   type InboxArchiveStore,
 } from "./inbox-archive";
-import { resolveScope } from "./scope";
+import { resolveScope, ScopeViolationError } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
 import type {
@@ -38,8 +38,6 @@ import { PrStates, type PrState } from "types/pull-requests";
 // ---------------------------------------------------------------------------
 
 export const RepositoryErrorCodes = {
-  /** A per-PR write named a `pull_request` that is not in ctx's tenant. */
-  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A scoped mutation matched no row in ctx's tenant. */
   NOT_FOUND: "not-found",
 } as const;
@@ -254,11 +252,9 @@ export interface CheckpointRepository {
    * stored row's leaves the row untouched and returns the CURRENT row
    * (out-of-order webhook deliveries are a success, not an error).
    * Verifies the parent `pull_request` belongs to ctx (invariant (a));
-   * returns `parentNotInTenant` without writing when it does not.
+   * throws `ScopeViolationError` without writing when it does not.
    */
-  upsertOnSubmit(
-    input: CheckpointSubmitInput,
-  ): Promise<Result<CheckpointRow, RepositoryError>>;
+  upsertOnSubmit(input: CheckpointSubmitInput): Promise<CheckpointRow>;
   /** Tenant-scoped read; absence is a normal `undefined`. */
   get(
     pullRequestId: PullRequestRowId,
@@ -504,10 +500,10 @@ export function createTenantRepository(
           )
           .limit(1);
         if (parents[0] === undefined) {
-          // Nothing written; the (empty) tx commits cleanly.
-          return fail(
-            RepositoryErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
+          throw new ScopeViolationError(
+            "pull_request",
+            input.pullRequestId,
+            scope.label,
           );
         }
         const rows = await tx
@@ -560,9 +556,9 @@ export function createTenantRepository(
           if (existing === undefined) {
             throw new Error("checkpoint upsert returned no row");
           }
-          return { ok: true, value: existing };
+          return existing;
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 

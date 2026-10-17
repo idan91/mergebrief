@@ -103,6 +103,8 @@ export type { ResolveDsnOptions } from "./db/dsn";
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
 export { createTenantRepository, RepositoryErrorCodes } from "./stores/tenant";
+// The one throw a scoped write makes: the row it named is outside its scope.
+export { ScopeViolationError } from "./stores/scope";
 export {
   parseTenantContext,
   safeParseTenantContext,

@@ -1013,10 +1013,7 @@ describe("POST /api/webhooks/github", () => {
         throw new Error("bad pr id");
       }
       const ctx = parseTenantContext({ installationId: INSTALLATION_ID });
-      const written = await createArtifactStore(
-        harness.handle,
-        ctx,
-      ).briefs.write({
+      await createArtifactStore(harness.handle, ctx).briefs.write({
         pullRequestId,
         baseSha: BASE_SHA,
         headSha: HEAD_SHA,
@@ -1027,9 +1024,6 @@ describe("POST /api/webhooks/github", () => {
         effort: "low",
         body: "{}",
       });
-      if (!written.ok) {
-        throw new Error(written.error.message);
-      }
       await harness.raw("update generation set status = 'succeeded'");
       await harness.raw("delete from graphile_worker.jobs");
     }

@@ -361,10 +361,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     headSha: string,
     headIndex: number,
   ): Promise<void> {
-    const written = await createArtifactStore(
-      harness.handle,
-      OWNER_CTX,
-    ).briefs.write({
+    await createArtifactStore(harness.handle, OWNER_CTX).briefs.write({
       pullRequestId,
       baseSha: "base-1",
       headSha,
@@ -375,9 +372,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!written.ok) {
-      throw new Error("brief seed failed");
-    }
   }
 
   async function readBehind(cookie: string): Promise<unknown> {
@@ -712,10 +706,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         effort: "high",
         body: "{}",
       });
-      if (!result.ok) {
-        throw new Error("brief write failed");
-      }
-      return result.value;
+      return result;
     };
     await write("head-1", 1);
     const currentBrief = await write("head-2", 2);
@@ -756,7 +747,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     // Narrative lands → narrativeAvailable flips.
-    const narrative = await store.revisionNarratives.write({
+    await store.revisionNarratives.write({
       pullRequestId: pr.id,
       briefId: currentBrief.id,
       prevHeadSha: "head-1",
@@ -766,9 +757,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       model: "claude",
       effort: "high",
     });
-    if (!narrative.ok) {
-      throw new Error("narrative write failed");
-    }
     const full = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const fullBody = (await full.json()) as {
       comparisons?: { previousBrief?: unknown };
@@ -803,7 +791,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     lastSubmittedSha: string,
     ctx: TenantContext = CTX,
   ): Promise<void> {
-    const result = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -813,9 +801,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       lastSubmittedSha,
       submittedAt: new Date("2026-07-01T00:00:00Z"),
     });
-    if (!result.ok) {
-      throw new Error("checkpoint seed failed");
-    }
   }
 
   async function seedBriefs(pr: {
@@ -828,7 +813,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       ["head-1", 1],
       ["head-2", 2],
     ] as const) {
-      const result = await store.briefs.write({
+      await store.briefs.write({
         pullRequestId: pr.id,
         baseSha: "base",
         headSha: head,
@@ -839,9 +824,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         effort: "high",
         body: "{}",
       });
-      if (!result.ok) {
-        throw new Error("brief write failed");
-      }
     }
   }
 
@@ -891,7 +873,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       baselineIndex: 1,
     });
 
-    const delta = await store.deltas.write({
+    await store.deltas.write({
       pullRequestId: pr.id,
       baselineSha: "head-1",
       headSha: "head-2",
@@ -900,9 +882,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!delta.ok) {
-      throw new Error("delta write failed");
-    }
 
     expect(await metaLastReview(cookie)).toEqual({
       deltaAvailable: true,
@@ -925,15 +904,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // A non-terminal delta generation for the exact span flips it to pending.
     const gen = createGenerationProjection(harness.handle, CTX);
-    const pending = await gen.upsertPending({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.DELTA,
       headSha: "head-2",
       baselineSha: "gone-sha",
     });
-    if (!pending.ok) {
-      throw new Error("generation seed failed");
-    }
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Terminal failure → back to baseline-unavailable (nothing is coming).
@@ -968,15 +944,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
 
     const gen = createGenerationProjection(harness.handle, CTX);
-    const pending = await gen.upsertPending({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!pending.ok) {
-      throw new Error("generation seed failed");
-    }
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Brief job finished, still no marks → nothing is coming for this span.
@@ -1037,7 +1010,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     head: string,
     index: number,
   ): Promise<void> {
-    const result = await createArtifactStore(harness.handle, CTX).briefs.write({
+    await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: prId,
       baseSha: base,
       headSha: head,
@@ -1048,9 +1021,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!result.ok) {
-      throw new Error("brief write failed");
-    }
   }
 
   it("meta: lists revisions by headIndex only once a brief exists", async () => {
@@ -1380,15 +1350,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // generation is still warming (marks land before it succeeds).
     await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
     const gen = createGenerationProjection(harness.handle, CTX);
-    const pending = await gen.upsertPending({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!pending.ok) {
-      throw new Error("generation seed failed");
-    }
 
     const warming = await metaBody(cookie);
     // Both head-2 entries (idx 1 and idx 3): identical pending state.
@@ -1431,10 +1398,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       repoId: REPO_A,
       prNumber: 7,
     });
-    const otherWrite = await createArtifactStore(
-      harness.handle,
-      OTHER_CTX,
-    ).briefs.write({
+    await createArtifactStore(harness.handle, OTHER_CTX).briefs.write({
       pullRequestId: otherPr.id,
       baseSha: "x",
       headSha: "other-head",
@@ -1445,9 +1409,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       effort: "high",
       body: "{}",
     });
-    if (!otherWrite.ok) {
-      throw new Error("other brief write failed");
-    }
 
     const body = await metaBody(cookie);
     expect(body.revisions?.map((r) => r.headSha)).toEqual(["head-1"]);

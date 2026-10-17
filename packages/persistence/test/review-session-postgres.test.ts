@@ -79,10 +79,7 @@ async function seedBrief(
     carriedChunkIds: [],
     anchorState: "anchored",
   });
-  if (!written.ok) {
-    throw new Error(`brief seed failed: ${written.error.message}`);
-  }
-  return written.value.id;
+  return written.id;
 }
 
 /** One PR with two Briefs, the reviewer's session keys on each. */

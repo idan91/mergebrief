@@ -353,10 +353,7 @@ describe("the per-repo gate across two installations", () => {
     if (otherRow === undefined) {
       throw new Error("seed missing");
     }
-    const brief = await createArtifactStore(
-      harness.handle,
-      OTHER_CTX,
-    ).briefs.write({
+    await createArtifactStore(harness.handle, OTHER_CTX).briefs.write({
       pullRequestId: otherRow.id,
       baseSha: "b".repeat(40),
       headSha: "a".repeat(40),
@@ -372,9 +369,6 @@ describe("the per-repo gate across two installations", () => {
       carriedChunkIds: [],
       anchorState: "anchored",
     });
-    if (!brief.ok) {
-      throw new Error("brief seed failed");
-    }
 
     const res = await buildApp().request(
       `/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,

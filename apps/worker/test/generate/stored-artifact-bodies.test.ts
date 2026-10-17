@@ -188,13 +188,12 @@ describe("generate task, stored artifact bodies", () => {
     const task = makeTask({ generator, github, log: logger });
     await task(first.payload);
     const repo = createTenantRepository(harness.handle, ctx);
-    const checkpoint = await repo.checkpoints.upsertOnSubmit({
+    await repo.checkpoints.upsertOnSubmit({
       pullRequestId: first.pr.id,
       reviewerId: makeReviewerId(100n),
       lastSubmittedSha: HEAD_1,
       submittedAt: new Date(),
     });
-    expect(checkpoint.ok).toBe(true);
     const delta = generator.outputs["delta"] as object;
     stubUnparsedOutput(generator, "delta", {
       ...delta,

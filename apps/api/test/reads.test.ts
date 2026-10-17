@@ -168,10 +168,7 @@ async function seedBrief(
     body: BRIEF_BODY,
   };
 
-  const written = await store.briefs.write(write);
-  if (!written.ok) {
-    throw new Error(`seedBrief: write failed ${written.error.code}`);
-  }
+  await store.briefs.write(write);
 }
 
 function briefPath(base: string, head: string): string {

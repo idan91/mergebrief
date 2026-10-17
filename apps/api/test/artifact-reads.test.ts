@@ -90,10 +90,7 @@ async function seedBrief(
   }
 
   const written = await store.briefs.write(write);
-  if (!written.ok) {
-    throw new Error(`seedBrief: write failed ${written.error.code}`);
-  }
-  return written.value.id;
+  return written.id;
 }
 
 describe("stored artifact reads", () => {
@@ -222,20 +219,15 @@ describe("stored artifact reads", () => {
   it("serves stored deltas and 404s a missing span", async () => {
     const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
-    const written = await createArtifactStore(harness.handle, CTX).deltas.write(
-      {
-        pullRequestId: pr.id,
-        baselineSha: "cp-1",
-        headSha: "head-2",
-        provider: "anthropic",
-        model: "claude",
-        effort: "high",
-        body: DELTA_BODY,
-      },
-    );
-    if (!written.ok) {
-      throw new Error("delta write failed");
-    }
+    await createArtifactStore(harness.handle, CTX).deltas.write({
+      pullRequestId: pr.id,
+      baselineSha: "cp-1",
+      headSha: "head-2",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: DELTA_BODY,
+    });
 
     const res = await get("/delta?baseline=cp-1&head=head-2");
     const missing = await get("/delta?baseline=cp-1&head=nope");
@@ -267,10 +259,7 @@ describe("stored artifact reads", () => {
       base: "base1",
       head: "head-2",
     });
-    const narrative = await createArtifactStore(
-      harness.handle,
-      CTX,
-    ).revisionNarratives.write({
+    await createArtifactStore(harness.handle, CTX).revisionNarratives.write({
       pullRequestId: pr.id,
       briefId,
       prevHeadSha: "head-1",
@@ -280,9 +269,6 @@ describe("stored artifact reads", () => {
       model: "claude",
       effort: "high",
     });
-    if (!narrative.ok) {
-      throw new Error("narrative write failed");
-    }
 
     const res = await get("/narrative?prevHead=head-1&head=head-2");
     const missing = await get("/narrative?prevHead=head-0&head=head-2");

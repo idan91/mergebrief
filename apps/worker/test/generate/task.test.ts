@@ -973,13 +973,12 @@ describe("generate task", () => {
     // Two reviewers sharing one checkpoint SHA → ONE delta core.
     const repo = createTenantRepository(harness.handle, ctx);
     for (const reviewer of [100n, 200n]) {
-      const written = await repo.checkpoints.upsertOnSubmit({
+      await repo.checkpoints.upsertOnSubmit({
         pullRequestId: first.pr.id,
         reviewerId: makeReviewerId(reviewer),
         lastSubmittedSha: HEAD_1,
         submittedAt: new Date(),
       });
-      expect(written.ok).toBe(true);
     }
 
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
@@ -1018,7 +1017,7 @@ describe("generate task", () => {
     const task = makeTask({ generator, github });
     await task(first.payload);
 
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -1027,7 +1026,6 @@ describe("generate task", () => {
       lastSubmittedSha: HEAD_1,
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
 
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, HUGE_DIFF);
@@ -1122,7 +1120,7 @@ describe("generate task", () => {
 
   it("supersedes between artifacts before spending on a delta", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const written = await createTenantRepository(
+    await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -1131,7 +1129,6 @@ describe("generate task", () => {
       lastSubmittedSha: "d".repeat(40),
       submittedAt: new Date(),
     });
-    expect(written.ok).toBe(true);
 
     const github = makeGitHub(HEAD_1);
     // Pre-flight check passes; the pre-delta assertCurrent sees the new head.
