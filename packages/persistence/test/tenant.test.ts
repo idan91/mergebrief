@@ -279,6 +279,26 @@ describe("createTenantRepository idempotent upserts", () => {
     expect(second.state).toBe(PrStates.MERGED); // updated in place
   });
 
+  it("an upsert older than the stored githubUpdatedAt keeps the row", async () => {
+    const handle = await freshDatabase();
+    const tenantRepo = createTenantRepository(handle, CTX_A);
+    const newer = new Date("2026-07-02T00:00:00Z");
+    await tenantRepo.pullRequests.upsert({
+      ...upsertInput(7),
+      title: "newer",
+      githubUpdatedAt: newer,
+    });
+
+    const stale = await tenantRepo.pullRequests.upsert({
+      ...upsertInput(7),
+      title: "stale",
+      githubUpdatedAt: new Date("2026-07-01T00:00:00Z"),
+    });
+
+    expect(stale.title).toBe("newer");
+    expect(stale.githubUpdatedAt).toEqual(newer);
+  });
+
   it("reopening a closed PR disarms retention", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);

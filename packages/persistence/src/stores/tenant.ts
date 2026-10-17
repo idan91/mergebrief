@@ -7,7 +7,6 @@
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
 import { and, eq, sql } from "drizzle-orm";
-import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
 import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
@@ -19,11 +18,12 @@ import {
   createInboxArchiveStore,
   type InboxArchiveStore,
 } from "./inbox-archive";
+import { upsertPullRequestRow } from "./pull-request-upsert";
 import { resolveScope, ScopeViolationError } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
 import type { PullRequestRowId, ReviewerId, RepoId } from "../types";
-import { PrStates, type PrState } from "types/pull-requests";
+import type { PrStates } from "types/pull-requests";
 
 // ---------------------------------------------------------------------------
 // Row + input shapes.
@@ -100,45 +100,6 @@ export interface PullRequestStackInput {
   readonly readAt: Date;
 }
 
-/**
- * Normalize a lifecycle to explicit column values from the discriminant:
- * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
- * must disarm the retention sweep), terminal states write what they carry.
- * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
- * inside its transaction); `index.ts` never re-exports it.
- */
-/**
- * The columns an upsert's conflict branch may name, drizzle's own update
- * shape, so a column may take a value or a SQL expression. Partial by design:
- * a key left off is a column drizzle does not touch, which is how an omitted
- * input field preserves the stored value.
- */
-export type PullRequestUpdateSet = PgUpdateSetSource<typeof pullRequest>;
-
-/** The three live-read columns a stamp writes; the unreachable mark clears. */
-export function buildLiveReadColumns(stamp: LiveReadStamp): {
-  githubReadAt: Date;
-  githubHeadSha: string;
-  githubUnreachableAt: null;
-} {
-  return {
-    githubReadAt: stamp.readAt,
-    githubHeadSha: stamp.headSha,
-    githubUnreachableAt: null,
-  };
-}
-
-export function buildLifecycleColumns(lc: PullRequestLifecycle): {
-  state: PrState;
-  closedAt: Date | null;
-  purgeAfter: Date | null;
-} {
-  if (lc.state === PrStates.OPEN) {
-    return { state: lc.state, closedAt: null, purgeAfter: null };
-  }
-  return { state: lc.state, closedAt: lc.closedAt, purgeAfter: lc.purgeAfter };
-}
-
 export interface CheckpointSubmitInput {
   readonly pullRequestId: PullRequestRowId;
   readonly reviewerId: ReviewerId;
@@ -153,8 +114,8 @@ export interface CheckpointSubmitInput {
 
 export interface PullRequestRepository {
   /**
-   * Idempotent natural-key upsert. The ordering guard on `githubUpdatedAt`
-   * lives in the ingest routines, which every webhook write goes through.
+   * Idempotent natural-key upsert: an input carrying `githubUpdatedAt` older
+   * than the stored one leaves the row as stored and returns it.
    */
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /**
@@ -252,77 +213,8 @@ export function createTenantRepository(
 
   const pullRequests: PullRequestRepository = {
     async upsert(input) {
-      const lifecycle = buildLifecycleColumns(input);
-      const set: PullRequestUpdateSet = {
-        repoSlug: input.repoSlug,
-        title: input.title,
-        ...lifecycle,
-        updatedAt: new Date(),
-      };
-      // Omitted (review events) preserves the stored value, drizzle skips an
-      // absent key, so the column is only ever named when the input carries it.
-      if (input.baseSha !== undefined) {
-        set.baseSha = input.baseSha;
-      }
-      if (input.draft !== undefined) {
-        set.draft = input.draft;
-      }
-      if (input.authorLogin !== undefined) {
-        set.authorLogin = input.authorLogin;
-      }
-      if (input.githubUpdatedAt !== undefined) {
-        set.githubUpdatedAt = input.githubUpdatedAt;
-      }
-      if (input.liveRead !== undefined) {
-        Object.assign(set, buildLiveReadColumns(input.liveRead));
-      }
-      const insert = db.insert(pullRequest).values({
-        installationId: scope.installationId,
-        ownerUserId: scope.ownerUserId,
-        source: scope.source,
-        repoId: input.repoId,
-        prNumber: input.prNumber,
-        repoSlug: input.repoSlug,
-        title: input.title,
-        baseSha: input.baseSha,
-        draft: input.draft,
-        authorLogin: input.authorLogin,
-        githubUpdatedAt: input.githubUpdatedAt,
-        githubReadAt: input.liveRead?.readAt,
-        githubHeadSha: input.liveRead?.headSha,
-        ...lifecycle,
-        updatedAt: new Date(),
-      });
-      // Each world conflicts on ITS natural key: the tenant unique constraint,
-      // or the owner partial index (targetWhere must mirror its predicate).
-      const rows =
-        scope.ownerUserId === null
-          ? await insert
-              .onConflictDoUpdate({
-                target: [
-                  pullRequest.installationId,
-                  pullRequest.repoId,
-                  pullRequest.prNumber,
-                ],
-                set,
-              })
-              .returning()
-          : await insert
-              .onConflictDoUpdate({
-                target: [
-                  pullRequest.ownerUserId,
-                  pullRequest.repoId,
-                  pullRequest.prNumber,
-                ],
-                targetWhere: sql`${pullRequest.installationId} is null`,
-                set,
-              })
-              .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        throw new Error("pull_request upsert returned no row");
-      }
-      return row;
+      const upserted = await upsertPullRequestRow(db, scope, input, false);
+      return upserted.row;
     },
 
     async getByNumber(repoId, prNumber) {

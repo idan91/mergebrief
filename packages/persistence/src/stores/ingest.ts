@@ -6,8 +6,7 @@
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a head a live run holds is neither reset nor re-enqueued.
-import { and, eq, isNull, ne, sql, type SQL } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -20,12 +19,10 @@ import {
   type GenerationRow,
 } from "./generation";
 import {
-  buildLifecycleColumns,
-  buildLiveReadColumns,
-  type PullRequestRow,
-  type PullRequestUpdateSet,
-  type PullRequestUpsertInput,
-} from "./tenant";
+  upsertPullRequestRow,
+  type UpsertExecutor,
+} from "./pull-request-upsert";
+import type { PullRequestRow, PullRequestUpsertInput } from "./tenant";
 import {
   addQueueJob,
   buildJobPayload,
@@ -50,155 +47,11 @@ import { PrStates } from "types/pull-requests";
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 
 /**
- * SQL predicate (for use in an `ON CONFLICT DO UPDATE`): the EXISTING
- * `pull_request` row is already in a terminal (`closed`/`merged`) state.
- */
-function existingPrIsTerminal() {
-  return sql`${pullRequest.state} in (${PrStates.CLOSED}, ${PrStates.MERGED})`;
-}
-
-/**
- * Builds the per-column chooser the lifecycle columns share: with
- * `preserveTerminal`, a column keeps its STORED value when the existing row is
- * already terminal; without it, the fresh value always wins.
- */
-function buildTerminalKeeper(
-  preserveTerminal: boolean,
-): <T>(stored: PgColumn, fresh: T) => T | SQL {
-  if (!preserveTerminal) {
-    return (_stored, fresh) => fresh;
-  }
-  return (stored, fresh) =>
-    sql`case when ${existingPrIsTerminal()} then ${stored} else ${fresh} end`;
-}
-
-// ---------------------------------------------------------------------------
-// The shared PR upsert.
-// ---------------------------------------------------------------------------
-
-/**
- * The query surface the upsert needs, satisfied by both the unwrapped db and
- * a transaction client, so `triggerGeneration` (inside its tx) and
- * `recordState` (single statement, atomic on its own) share ONE upsert.
- */
-type IngestExecutor = Pick<ReturnType<typeof internal>, "insert" | "select">;
-
-interface UpsertOutcome {
-  readonly row: PullRequestRow;
-  /** False when the guard below left the stored row untouched. */
-  readonly applied: boolean;
-}
-
-/**
- * The terminal-preserving `pull_request` upsert (same values/onConflict shape
- * as `tenant.ts#pullRequests.upsert`, installation stamped from ctx).
- * With `preserveTerminal`, a `state: open` input landing on a closed/merged
- * row keeps the stored terminal lifecycle; non-lifecycle fields refresh
- * either way, with omitted optionals preserving stored values. The row
- * applies only when its `githubUpdatedAt` is not older than the stored one.
- */
-async function upsertPullRequestRow(
-  executor: IngestExecutor,
-  scope: RowScope,
-  input: PullRequestUpsertInput,
-  preserveTerminal: boolean,
-): Promise<UpsertOutcome> {
-  const guardAt = input.githubUpdatedAt;
-  const lifecycle = buildLifecycleColumns(input);
-  // The keeper stops an open input resurrecting a terminal row; a terminal
-  // input (closed, then merged) always lands, ordering is the guard's job.
-  const keepTerminal = buildTerminalKeeper(
-    preserveTerminal && input.state === PrStates.OPEN,
-  );
-  const set: PullRequestUpdateSet = {
-    repoSlug: input.repoSlug,
-    title: input.title,
-    state: keepTerminal(pullRequest.state, lifecycle.state),
-    closedAt: keepTerminal(pullRequest.closedAt, lifecycle.closedAt),
-    purgeAfter: keepTerminal(pullRequest.purgeAfter, lifecycle.purgeAfter),
-    updatedAt: new Date(),
-  };
-  // Omitted (review events) preserves the stored value, since an absent key is a
-  // column drizzle does not touch.
-  if (input.baseSha !== undefined) {
-    set.baseSha = input.baseSha;
-  }
-  if (input.draft !== undefined) {
-    set.draft = input.draft;
-  }
-  if (input.authorLogin !== undefined) {
-    set.authorLogin = input.authorLogin;
-  }
-  if (input.githubUpdatedAt !== undefined) {
-    set.githubUpdatedAt = input.githubUpdatedAt;
-  }
-  if (input.liveRead !== undefined) {
-    Object.assign(set, buildLiveReadColumns(input.liveRead));
-  }
-  const insert = executor.insert(pullRequest).values({
-    installationId: scope.installationId,
-    ownerUserId: scope.ownerUserId,
-    source: scope.source,
-    repoId: input.repoId,
-    prNumber: input.prNumber,
-    repoSlug: input.repoSlug,
-    title: input.title,
-    baseSha: input.baseSha,
-    draft: input.draft,
-    authorLogin: input.authorLogin,
-    githubUpdatedAt: input.githubUpdatedAt,
-    githubReadAt: input.liveRead?.readAt,
-    githubHeadSha: input.liveRead?.headSha,
-    ...lifecycle,
-    updatedAt: new Date(),
-  });
-  // Each world conflicts on ITS natural key (see tenant.ts#upsert).
-  const isOwnerWorld = scope.ownerUserId !== null;
-  const worldKey = isOwnerWorld
-    ? pullRequest.ownerUserId
-    : pullRequest.installationId;
-  const conflict: Mutable<Parameters<typeof insert.onConflictDoUpdate>[0]> = {
-    target: [worldKey, pullRequest.repoId, pullRequest.prNumber],
-    set,
-  };
-  if (isOwnerWorld) {
-    conflict.targetWhere = sql`${pullRequest.installationId} is null`;
-  }
-  if (guardAt !== undefined) {
-    conflict.setWhere = sql`${pullRequest.githubUpdatedAt} is null or ${pullRequest.githubUpdatedAt} <= ${guardAt}`;
-  }
-
-  const rows = await insert.onConflictDoUpdate(conflict).returning();
-  const row = rows[0];
-  if (row !== undefined) {
-    return { row, applied: true };
-  }
-
-  // The guard skipped the update, so nothing returned: read the stored row.
-  const stored = await executor
-    .select()
-    .from(pullRequest)
-    .where(
-      and(
-        scope.matchesPullRequest(),
-        eq(pullRequest.repoId, input.repoId),
-        eq(pullRequest.prNumber, input.prNumber),
-      ),
-    )
-    .limit(1);
-  const storedRow = stored[0];
-  if (storedRow === undefined) {
-    throw new Error("pull_request upsert returned no row");
-  }
-  return { row: storedRow, applied: false };
-}
-
-/**
  * The stored brief for the row's base and the input's head. A row without a
  * base SHA has no pair to match.
  */
 async function findStoredBrief(
-  executor: IngestExecutor,
+  executor: UpsertExecutor,
   scope: RowScope,
   prRow: PullRequestRow,
   headSha: string,
@@ -238,7 +91,7 @@ function namesUncoveredWork(input: TriggerGenerationInput): boolean {
  * still owes that reviewer the delta a fresh run would have built.
  */
 async function owesCheckpointDelta(
-  executor: IngestExecutor,
+  executor: UpsertExecutor,
   scope: RowScope,
   pullRequestId: PullRequestRowId,
   headSha: string,

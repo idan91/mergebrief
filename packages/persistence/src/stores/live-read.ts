@@ -8,10 +8,9 @@ import { resolveScope } from "./scope";
 import type { OwnerContext } from "./scope-context";
 import {
   buildLifecycleColumns,
-  type PullRequestLifecycle,
-  type PullRequestRow,
   type PullRequestUpdateSet,
-} from "./tenant";
+} from "./pull-request-upsert";
+import type { PullRequestLifecycle, PullRequestRow } from "./tenant";
 import type { PullRequestRowId } from "../types";
 import { PrStates } from "types/pull-requests";
 
